@@ -1,6 +1,7 @@
 {
   "AllowedHosts": "*",
   "Environment": "Development",
+  "NexusAppSettings": { "AppId": 0, "AppInstanceId": 0 },
   "DrnAppFeatures": {
     "DrnContext_AutoMigrateDevEnvironment": true
   },

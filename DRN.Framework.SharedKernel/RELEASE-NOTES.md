@@ -4,44 +4,19 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
-*   **Derived Entity Attribute Contract**: `DRN0008` rejects unsupported entity attribute constructors. Each derived class must declare one constructor taking one byte or byte-backed enum parameter and forward it unchanged through to `EntityTypeAttribute<TApp>`. Source declarations are validated even before use; compiled references are signature-checked and depend on producer-side forwarding validation. Replace reordered, extra, fixed-value, overloaded, or transformed argument mappings with this pass-through form.
-*   **Compile-Time Roslyn Analyzers**: Added `DRN.Framework.SharedKernel.Analyzers` with error-level diagnostics delivered transitively to all referencing projects and NuGet consumers. Builds will fail if domain entities violate annotation, uniqueness, or inheritance constraints:
-    *   `DRN0001` (*Error*): Enforces that all concrete classes deriving from `SourceKnownEntity` declare `[EntityType<TApp>(byte)]` (where `TApp : IAppId`) or a domain-derived attribute.
-        *   *Migration*: Annotate every concrete `SourceKnownEntity` subclass with `[EntityType<TApp>(value)]` (using an `IAppId` like `DefaultApp`) or a domain-derived attribute (e.g. `[NexusEntityType(value)]`).
-    *   `DRN0002` (*Error*): Enforces unique `EntityType` byte values across all entities within the compilation and referenced assemblies for the same `AppId`. Diamond dependencies are automatically deduplicated.
-        *   *Migration*: Assign distinct `EntityType` byte values per `AppId` across the domain model graph.
-    *   `DRN0003` (*Error*): Prohibits applying `[EntityType]` to abstract classes, private classes, or non-`SourceKnownEntity` types.
-        *   *Migration*: Remove `[EntityType]` attributes from abstract base classes, private classes, and types that do not inherit from `SourceKnownEntity`.
-    *   `DRN0004` (*Warning*): Detects duplicate entity class names within the same `AppId` across local and referenced assemblies to guard against EF Core table mapping and messaging conflicts.
-    *   `DRN0005` (*Error*): Enforces a single `AppId` partition per production application project graph unless `<AllowMultipleAppIds>true</AllowMultipleAppIds>`, `<IsTestProject>true</IsTestProject>`, or `<UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>` is configured.
-        *   *Migration*: Align domain models within a project graph to a single `AppId` partition, or set `<AllowMultipleAppIds>true</AllowMultipleAppIds>` for multi-application aggregator hosts.
-    *   `DRN0006` (*Error*): Enforces that `IAppId` structs declare a constant value (`public const byte Value = ...;` or `public const byte AppId = ...;`) for metadata discovery across assembly boundaries.
-        *   *Migration*: Add a `public const byte Value = <AppId>;` or `public const byte AppId = <AppId>;` constant to custom `IAppId` structs.
-    *   `DRN0007` (*Error*): Enforces that statically resolved `IAppId` values used by `[EntityType]` declarations are within the supported range of 0 through 127.
-        *   *Migration*: Set custom `IAppId` constants to an unused value between `IAppId.DefaultAppId` (0) and `IAppId.MaxAppId` (127).
-*   **Partition-Scoped Entity Type Validation**: Entity type uniqueness is scoped per `(AppId, EntityType)` partition rather than globally (0..255). Concrete `SourceKnownEntity` types require explicit `[EntityType<TApp>]` binding to an `IAppId` partition (e.g. `DefaultApp`, `NexusApp`, `TestApp`, or custom domain `IAppId`). Entities in distinct partitions can reuse the same byte value.
-    *   *Migration*: Annotate entities with `[EntityType<TApp>(byte)]` using their owning domain partition's `IAppId`. For multi-partition aggregator hosts, configure `<AllowMultipleAppIds>true</AllowMultipleAppIds>` in the project file.
+*   **Entity ID Format Contracts**: GUID operations add `SourceKnownEntityIdFormat` (`ConfiguredDefault = 0`, `Secure = 1`, `Plain = 2`, `Auto = 3`), defaulting to `ConfiguredDefault`. Custom `ISourceKnownEntityIdOperations` implementations must expose an immutable Secure/Plain `DefaultFormat`. Rebuild consumers and update GUID method signatures and method-group bindings. Format is enforced when parsing GUIDs; parsed-record validation takes no format argument and does not reauthenticate GUIDs. Null GUIDs remain supported; undefined formats throw even for null GUIDs and empty GUID batches.
+*   **Explicit Expected Identity**: Replace byte-only identity arguments with `new EntityTypeId(entityType, expectedAppId)`: `Generate(long, byte)` becomes `Generate(long, EntityTypeId)`, `HasSameEntityType(byte)` becomes `HasSameEntityTypeId(EntityTypeId)`, and `Validate(byte)` becomes `Validate(EntityTypeId)`. Domain `GetEntityId` accepts this composite identity or a generic entity type. Validation checks both components; `ValidateId()` and the domain GUID helper's boolean option remain validity-only.
+*   **Generation Time Policy**: New IDs use a minimum of `2026-09-09T00:00:00Z` and an epoch of `2025-01-01T00:00:00Z` by default. Configure overrides through `SourceKnownGenerationTime.Initialize(minimumUtc, defaultEpoch)` before startup or first ID/epoch use; an explicit epoch requires a minimum. Both values then freeze. Historical reads remain exempt from the floor, and every service and restart using a dataset must retain its origin. See [configuration and limits](README.md#trusted-minimum-generation-time).
+*   **Entity Partitions and Analyzers**: Annotate concrete, effectively non-private entities with `[EntityType<TApp>(byte)]`, where `TApp : IAppId`, or a supported derived attribute. Entity type values must be unique within each AppId. New transitive analyzers enforce valid declarations and AppIds, flag duplicate names, and require `<AllowMultipleAppIds>true</AllowMultipleAppIds>` for production projects combining partitions. Derived attributes must forward one byte or byte-backed enum argument unchanged. See [diagnostics and migration requirements](README.md#compile-time-roslyn-analyzers).
 
 ### New Features
 
-*   **Application Partitioning (`IAppId`)**: Strongly-typed application partition metadata via `IAppId` (`AppId` 0..127) and `EntityTypeAttribute<TApp>` to namespace entity discrimination values and class names across domain modules.
-    *   Exposes `IAppId.DefaultAppId` (0), `IAppId.NexusAppId` (126), `IAppId.TestAppId` (127), and `IAppId.MaxAppId` (127) partition constants.
-    *   `DefaultApp` (`AppId = 0`, `Value = 0`): Built-in default partition for standalone domains (`[EntityType<DefaultApp>(byte)]`).
-    *   `NexusApp` (`AppId = 126`, `Value = 126`): Built-in Nexus service partition (`[EntityType<NexusApp>(byte)]` or domain-derived `[NexusEntityType(NexusEntityTypes)]`).
-    *   `TestApp` (`AppId = 127`, `Value = 127`): Built-in test application partition isolating test entities from production domain entity types.
-    *   `[TestEntityType(byte)]`: Convenience attribute (`TestEntityTypeAttribute`) binding test entities directly to `TestApp` (`AppId = 127`).
-    *   `EntityTypeId`: Immutable 2-byte composite identifier (`(EntityType, AppId)`) record struct with `IComparable<EntityTypeId>` support for partition-scoped entity type mappings and validation.
-    *   **Entity AppId Metadata Helpers**: Added `SourceKnownEntity.GetAppId<TEntity>()`, `SourceKnownEntity.GetAppId(Type)`, `SourceKnownEntity.GetEntityTypeId<TEntity>()`, `SourceKnownEntity.GetEntityTypeId(Type)`, and `SourceKnownEntity.GetEntityId(long, EntityTypeId)` for cached, allocation-free partition metadata access and partition-validated ID generation.
-    *   **EntityTypeRegistry Primitive**: Introduced `EntityTypeRegistry` providing centralized, immutable `FrozenDictionary`-backed storage for entity type discrimination mappings (`Type <-> EntityTypeId`) with thread-safe dynamic fallback, decoupling registry state from `SourceKnownEntity`.
+*   **Application Partitioning**: Added `IAppId`, `EntityTypeAttribute<TApp>`, and `EntityTypeId(entityType, appId)`. Built-in partitions are `DefaultApp` (0), `NexusApp` (126), and `TestApp` (127); `[TestEntityType(byte)]` selects the test partition. `SourceKnownEntity.GetAppId` and `GetEntityTypeId` expose entity metadata.
 
 ### Bug Fixes
 
-*   **NuGet Release Notes**: Package metadata includes only the latest version section, excluding historical releases and the documentation footer. Packing rejects missing version sections and release notes over 35,000 characters; the bundled Markdown retains the full history.
-
-*   **Pagination Defaults**: `PaginationRequest.From()` uses the default page size of 10 for initial requests and preserves omitted size, maximum size, and sort direction when size, maximum size, or direction changes reset pagination. Maximum-size-only changes apply the new limit and reset the cursor. Maximum sizes are capped before comparison, so repeating an above-threshold limit preserves navigation.
-*   **Analyzer Identity And Accessibility**: Unsupported derived attribute mappings no longer generate guessed collision identities, and shadowed `AppId` properties cannot override the generic application partition. Public entities nested in private containers now follow the same privacy rules locally and across references. Identity extraction and reference traversal propagate analyzer cancellation to syntax and semantic queries.
+*   **Pagination**: `PaginationRequest.From()` defaults to page size 10, preserves omitted options, and resets pagination when size, effective maximum size, or sort direction changes. Page jumps preserve direction and are bounded to ten pages without integer underflow.
 *   **IgnoredLog Null Handling**: `IgnoredLog(this object? obj)` returns `false` when given `null` input instead of throwing a `NullReferenceException`.
-*   **Pagination Jump Direction**: Bounded page jumps preserve the requested direction while remaining limited to ten pages per request, preventing integer underflow in `PaginationRequest.From`.
 
 ## Version 0.9.8
 

@@ -1,7 +1,7 @@
 ---
 name: drn-testing
 description: "DRN.Framework.Testing - canonical DTT attribute/context matrix with DrnTestContext, DrnTestContextUnit, ContainerContext, ApplicationContext, DataInline/DataMember/DataSelf, MTP command guidance, AwesomeAssertions, AutoFixture, NSubstitute, Testcontainers, and xUnit v3. Keywords: testing, dtt, drntest-context, applicationcontext, testcontainers, mtp, xunit, data-attributes, unit-testing, integration-testing"
-last-updated: 2026-09-03
+last-updated: 2026-09-10
 difficulty: intermediate
 tokens: ~1.7K
 ---
@@ -44,6 +44,8 @@ Rules:
 - **Environment Invariants & Test Flags**: Never bypass framework/app invariants by branching on environment checks (such as `IsDevelopment()`) for tests; configure explicit test/temporary flags (`TemporaryApplication`, `SkipValidation`) or dedicated test contexts instead.
 
 ## Minimal Patterns
+
+Use fresh support processes for Source-Known startup acceptance/rejection, static first use, and historical freezing. Startup-only probes must inspect `SourceKnownGenerationTime.Policy` without freezing it themselves. Use isolated unit state for configuration, rounding, range, drift, retry, and concurrency cases; never reset production statics or change the machine clock. Verify that generation, decoding, and date filters share the configured epoch. See [SourceKnownStartupProcessTests](../../../DRN.Test.Unit/Tests/Framework/Hosting/SourceKnownStartupProcessTests.cs) and [SourceKnownGenerationTimeTests](../../../DRN.Test.Unit/Tests/Framework/Utils/Ids/SourceKnownGenerationTimeTests.cs).
 
 ```csharp
 [Fact]
@@ -110,6 +112,8 @@ public async Task Endpoint_Should_Return_Data(DrnTestContext context)
 ```
 
 ## Context Capabilities
+
+Use `SettingsProvider.Development()` for AppId 0 or `Development<TApp>()` for the declared AppId. Both default AppInstanceId to 0 and return disposable settings. Optional objects override defaults; AppId must match the selected partition.
 
 | Context | Use for | Notable members |
 |---|---|---|

@@ -54,6 +54,12 @@ namespace DRN.Framework.Hosting.DrnProgram;
 public abstract class DrnProgram
 {
     static DrnProgram() => UtilsConventionBuilder.BuildConvention();
+
+    internal static void InitializeGenerationTime(IConfiguration configuration)
+    {
+        SourceKnownIdSettings.Initialize(configuration);
+        TimeStampManager.InitializeGeneration();
+    }
 }
 
 public interface IDrnProgram
@@ -199,6 +205,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         IScopedLog scopeLog,
         Action<WebApplicationBuilder>? configureBuilder)
     {
+        InitializeGenerationTime(appSettings.Configuration);
         var actions = GetApplicationAssembly().CreateSubType<DrnProgramActions>();
         var (program, applicationBuilder) = await CreateApplicationBuilder(args, appSettings, scopeLog, configureBuilder);
         await (actions?.ApplicationBuilderCreatedAsync(program, applicationBuilder, appSettings, scopeLog) ?? Task.CompletedTask);
@@ -224,6 +231,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         IScopedLog scopeLog,
         Action<WebApplicationBuilder>? configureBuilder = null)
     {
+        InitializeGenerationTime(appSettings.Configuration);
         var program = new TProgram();
         var options = new WebApplicationOptions
         {

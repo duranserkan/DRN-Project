@@ -18,6 +18,33 @@ public class DefaultAppTestEntity : SourceKnownEntity;
 
 public class SourceKnownEntityTests
 {
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public void Record_Validation_Should_Check_Validity_And_Identity_Regardless_Of_Format(bool secure)
+    {
+        foreach (var valid in new[] { false, true })
+        {
+            var id = new SourceKnownEntityId(new SourceKnownId(123, DateTimeOffset.UnixEpoch, 1, 42, 1),
+                Guid.NewGuid(), 7, valid, secure);
+            Action[] validations =
+            [
+                () => id.ValidateId(),
+                () => id.Validate<CustomTestEntity>(),
+                () => id.Validate(new EntityTypeId(7, 42))
+            ];
+            foreach (var validate in validations)
+            {
+                if (valid) validate.Should().NotThrow();
+                else validate.Should().Throw<ValidationException>();
+            }
+            var wrongPartition = () => id.Validate(new EntityTypeId(7, 0));
+            var wrongType = () => id.Validate(new EntityTypeId(8, 42));
+            wrongPartition.Should().Throw<ValidationException>();
+            wrongType.Should().Throw<ValidationException>();
+        }
+    }
+
     [Fact]
     public void GetAppId_Generic_And_Type_Overloads_Should_Return_Declared_AppId()
     {
@@ -62,6 +89,7 @@ public class SourceKnownEntityTests
         // Validating against AppId 42, EntityType 7 succeeds
         var actValid = () => customId.Validate<CustomTestEntity>();
         actValid.Should().NotThrow();
+        customId.Validate(new EntityTypeId(7, 42));
 
         // Validating against AppId 0, EntityType 7 fails even if entity type byte were to match
         var actInvalidApp = () => customId.Validate(new EntityTypeId(7, 0));
@@ -70,6 +98,28 @@ public class SourceKnownEntityTests
         // Validating against DefaultAppTestEntity (AppId 0, EntityType 101) fails
         var actDefault = () => customId.Validate<DefaultAppTestEntity>();
         actDefault.Should().Throw<ValidationException>();
+    }
+
+    [Theory]
+    [DataInlineUnit((byte)0)]
+    [DataInlineUnit((byte)42)]
+    public void Composite_Validation_Should_Check_Validity_EntityType_And_Explicit_AppId(byte appId)
+    {
+        var source = new SourceKnownId(12345, DateTimeOffset.UnixEpoch, 1, appId, 1);
+        var id = new SourceKnownEntityId(source, Guid.NewGuid(), 7, true, false);
+        var expected = new EntityTypeId(7, appId);
+        id.Validate(expected);
+
+        var wrongPartition = () => id.Validate(new EntityTypeId(7, (byte)(appId + 1)));
+        wrongPartition.Should().Throw<ValidationException>();
+        var wrongEntityType = () => id.Validate(new EntityTypeId(8, appId));
+        wrongEntityType.Should().Throw<ValidationException>();
+        var invalid = id with { Valid = false };
+        var invalidIdentity = () => invalid.Validate(expected);
+        invalidIdentity.Should().Throw<ValidationException>();
+
+        // Integrity-only validation intentionally has no expected partition.
+        id.ValidateId();
     }
 
     [Fact]

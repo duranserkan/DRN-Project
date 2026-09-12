@@ -1,5 +1,6 @@
 using DRN.Framework.EntityFramework.Domain;
 using DRN.Framework.SharedKernel.Cancellation;
+using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.SharedKernel.Domain.Repository;
 using DRN.Framework.Utils.Cancellation;
@@ -16,6 +17,74 @@ namespace DRN.Test.Integration.Tests.Sample.Infra.QA.Repositories;
 public class TagRepositoryTests
 {
     private const long PaginationFilterMinimum = 100;
+
+    [Theory]
+    [DataInline(false)]
+    [DataInline(true)]
+    public async Task TagRepository_Should_Enforce_Guid_Formats_For_Reads_And_Deletes(DrnTestContext context, bool configuredSecure)
+    {
+        context.AddToConfiguration(new { NexusAppSettings = new { UseSecureSourceKnownIds = configuredSecure } });
+        context.ServiceCollection.AddSampleInfraServices();
+        await context.ContainerContext.Postgres.Isolated.ApplyMigrationsAsync();
+        var repository = context.GetRequiredService<ITagRepository>();
+        var qaContext = context.GetRequiredService<QAContext>();
+        repository.Settings.AsNoTracking = true;
+
+        foreach (var format in new[] { SourceKnownEntityIdFormat.ConfiguredDefault, SourceKnownEntityIdFormat.Secure, SourceKnownEntityIdFormat.Plain, SourceKnownEntityIdFormat.Auto })
+        {
+            var prefix = $"{nameof(TagRepository_Should_Enforce_Guid_Formats_For_Reads_And_Deletes)}_{format}_{Guid.NewGuid():N}";
+            var first = TagGenerator.New(prefix, "first");
+            var second = TagGenerator.New(prefix, "second");
+            var untouched = TagGenerator.New(prefix, "untouched");
+            await repository.CreateAsync(first, second, untouched);
+            first.EntityIdSource.Secure.Should().Be(configuredSecure);
+            second.EntityIdSource.Secure.Should().Be(configuredSecure);
+
+            var tags = new[] { first, second };
+            var plainIds = tags.Select(tag => repository.ToPlain(tag.EntityIdSource).EntityId).ToArray();
+            var secureIds = tags.Select(tag => repository.ToSecure(tag.EntityIdSource).EntityId).ToArray();
+            var configuredIds = configuredSecure ? secureIds : plainIds;
+
+            if (format == SourceKnownEntityIdFormat.ConfiguredDefault)
+            {
+                // A valid first ID must not allow a mixed-format batch to delete any rows.
+                var oppositeIds = configuredSecure ? plainIds : secureIds;
+                Guid[] rejectedIds = [configuredIds[0], oppositeIds[1]];
+                Func<Task>[] rejectedCalls =
+                [
+                    () => repository.GetAsync(rejectedIds),
+                    () => repository.DeleteAsync(rejectedIds),
+                    () => repository.DeleteAsync(rejectedIds, SourceKnownEntityIdFormat.ConfiguredDefault)
+                ];
+                foreach (var call in rejectedCalls)
+                    await call.Should().ThrowAsync<ValidationException>();
+
+                var retainedIds = await qaContext.Tags.AsNoTracking().Where(tag => tag.Name.StartsWith(prefix))
+                    .Select(tag => tag.Id).ToArrayAsync();
+                retainedIds.Should().BeEquivalentTo(new[] { first.Id, second.Id, untouched.Id });
+            }
+
+            Guid[] inputIds = format switch
+            {
+                SourceKnownEntityIdFormat.Secure => secureIds,
+                SourceKnownEntityIdFormat.Plain => plainIds,
+                SourceKnownEntityIdFormat.Auto => [plainIds[0], secureIds[1]],
+                _ => configuredIds
+            };
+
+            (await repository.GetAsync(inputIds[0], format)).Id.Should().Be(first.Id);
+            (await repository.GetOrDefaultAsync(inputIds[1], format: format))!.Id.Should().Be(second.Id);
+            var retrieved = await repository.GetAsync(inputIds, format);
+            retrieved.Select(tag => tag.Id).Should().BeEquivalentTo(new[] { first.Id, second.Id });
+
+            (await repository.DeleteAsync(inputIds, format)).Should().Be(2);
+            (await repository.GetAsync(inputIds, format)).Should().BeEmpty();
+            (await repository.GetOrDefaultAsync(inputIds[0], format: format)).Should().BeNull();
+            var remainingIds = await qaContext.Tags.AsNoTracking().Where(tag => tag.Name.StartsWith(prefix))
+                .Select(tag => tag.Id).ToArrayAsync();
+            remainingIds.Should().BeEquivalentTo(new[] { untouched.Id });
+        }
+    }
 
     [Theory]
     [DataInline]

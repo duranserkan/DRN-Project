@@ -130,7 +130,8 @@ Use configuration hooks for services and options, pipeline hooks for middleware,
 ```mermaid
 flowchart TD
     Start(["RunAsync: settings and bootstrap logging"])
-    Start --> Builder["ConfigureSwaggerOptions; create builder and load settings"]
+    Start --> Time["Resolve SharedKernel time floor; always validate cached UTC"]
+    Time --> Builder["ConfigureSwaggerOptions; create builder and load settings"]
     Builder --> Configure["ConfigureApplicationBuilder; AddServicesAsync"]
     Configure --> Callback["Optional configureBuilder callback"]
     Callback --> Created["ApplicationBuilderCreatedAsync"]
@@ -146,11 +147,26 @@ flowchart TD
     %% Phase and decision styles
     classDef step fill:#FFFFFF,stroke:#37474F,stroke-width:2px,color:#263238
     classDef decision fill:#FFE0B2,stroke:#E65100,stroke-width:3px,color:#263238
-    class Start,Builder,Configure,Callback,Created,Build,Built,Validate,Validated,Return,Run,Dispose step
+    class Start,Time,Builder,Configure,Callback,Created,Build,Built,Validate,Validated,Return,Run,Dispose step
     class Temporary decision
 ```
 
 The four-argument `CreateApplicationAsync(args, appSettings, scopeLog, configureBuilder)` overload invokes its builder callback after `AddServicesAsync` and before `ApplicationBuilderCreatedAsync`. The three-argument overload omits that callback. Both return a configured application without starting it; `RunAsync` owns startup and shutdown.
+
+Host creation validates Source-Known generation time before program/actions constructors and hooks. Read-only hosts, temporary applications, and `SkipValidation` do not bypass this check. The default minimum is `2026-09-09T00:00:00Z`; `SourceKnownIdSettings:MinimumUtc` can replace it with an earlier or later UTC value.
+
+Optional `DefaultEpoch` changes the origin used by generation, decoding, and date filters; supplying it requires an explicit `MinimumUtc`. For example:
+
+```json
+{
+  "SourceKnownIdSettings": {
+    "DefaultEpoch": "2026-01-01T00:00:00Z",
+    "MinimumUtc": "2026-09-09T00:00:00Z"
+  }
+}
+```
+
+Configure before startup or first ID/epoch use, including historical reads. Both values then freeze, even if the generation-time check fails. Keep the epoch unchanged across every service and restart using the dataset: IDs do not store their origin. See the [Utils time contract](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/README.md#trusted-minimum-utc) for input formats, rounding, and historical reads.
 
 Define at most one concrete `DrnProgramActions` subclass in the application assembly, with a public parameterless constructor. Its three callbacks run at the points shown above. See [local development](#local-development-infrastructure) for an example.
 
@@ -413,7 +429,7 @@ protected override AuthenticationClaimConfig ConfigureAuthenticationClaims() => 
 
 Replace the example MFA value with one guaranteed by your provider. Custom subject, name, email, role, and MFA mappings also replace their corresponding aliases. Configure the validating handler to issue these claims and native name/role mappings. This hook does not implement provider login or refresh.
 
-Use this hook rather than changing `IdentityOptions.ClaimsIdentity` separately. Changing subject types may require reauthentication. See [the Utils claim contract](../DRN.Framework.Utils/README.md#scope--ambient-context-scopecontext).
+Use this hook rather than changing `IdentityOptions.ClaimsIdentity` separately. Changing subject types may require reauthentication. See [the Utils claim contract](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/README.md#scope--ambient-context-scopecontext).
 
 #### Audit events
 
@@ -467,7 +483,7 @@ With global MFA disabled, users without a factor can enroll using an ordinary lo
 
 #### Remaining MFA work
 
-Fresh step-up/replay protection, recovery workflows, passkeys, provider-specific OIDC integrations, and factor/recovery audit events are not complete. See the [implementation roadmap](Auth/Policies/MFA.cs) before relying on these capabilities.
+Fresh step-up/replay protection, recovery workflows, passkeys, provider-specific OIDC integrations, and factor/recovery audit events are not complete. See the [implementation roadmap](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Hosting/Auth/Policies/MFA.cs) before relying on these capabilities.
 
 #### Disabling global MFA
 
@@ -833,7 +849,7 @@ Request logging and diagnostic buffering apply wherever `HttpScopeMiddleware` ru
 
 Use `IScopedLog` for request and operation diagnostics. Direct `ILogger` calls are appropriate for scope flushing, bootstrap failures, and dedicated audit events. Keep request audit decisions in the scoped log too. Dedicated audit events must not include the full request log.
 
-Every `ScopedLog` has a stable `CorrelationId`. Its `TraceId` is captured from an active W3C activity, or left absent. HTTP `TraceIdentifier` remains separate. `LogScoped` emits the primary event ID with the aggregate. Dedicated audit records use `EventOutcome`, `EventReason`, nullable `TraceId`, and `CorrelationId`. See [Utils OpenTelemetry correlation](../DRN.Framework.Utils/README.md#opentelemetry-correlation).
+Every `ScopedLog` has a stable `CorrelationId`. Its `TraceId` is captured from an active W3C activity, or left absent. HTTP `TraceIdentifier` remains separate. `LogScoped` emits the primary event ID with the aggregate. Dedicated audit records use `EventOutcome`, `EventReason`, nullable `TraceId`, and `CorrelationId`. See [Utils OpenTelemetry correlation](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/README.md#opentelemetry-correlation).
 
 ### Startup Exception Reports
 

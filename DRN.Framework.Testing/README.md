@@ -516,7 +516,7 @@ The default `ExternalDependencyLaunchOptions` uses `Reuse = true` and `HostPort 
 
 ## Connection String Resolution
 
-The framework uses different strategies for connection string resolution. See the current environment resolution table in [DRN.Framework.EntityFramework README](../DRN.Framework.EntityFramework/README.md#connection-string-resolution-by-environment).
+The framework uses different strategies for connection string resolution. See the current environment resolution table in [DRN.Framework.EntityFramework README](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.EntityFramework/README.md#connection-string-resolution-by-environment).
 
 ### Key Scenarios
 
@@ -597,7 +597,7 @@ marker that prevents local development provisioning from colliding with tests.
 Do not use it to detect general test execution.
 
 
-See [DrnDevelopmentSettings.cs](../DRN.Framework.Utils/Settings/DrnDevelopmentSettings.cs) for the complete class definition.
+See [DrnDevelopmentSettings.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Settings/DrnDevelopmentSettings.cs) for the complete class definition.
 
 ## Data Attributes
 
@@ -719,7 +719,7 @@ public void Add_Should_Return_Correct_Sum(int a, int b, int expected)
 
 Continue one coherent flow when assertions share container initialization, migrations and service registration. This avoids repeating setup. Keep structurally different behaviors separate.
 
-**Reference**: [QAContextTagTests.cs](../DRN.Test.Integration/Tests/Sample/Infra/QA/QAContextTagTests.cs) validates IDs, JSON model queries, date filters and materialization with shared setup.
+**Reference**: [QAContextTagTests.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Test.Integration/Tests/Sample/Infra/QA/QAContextTagTests.cs) validates IDs, JSON model queries, date filters and materialization with shared setup.
 
 #### Guidelines
 
@@ -849,7 +849,19 @@ Copy fixture files to output as shown in the [project example](#example-test-pro
 
 ### SettingsProvider
 
-Without an explicit directory, `SettingsProvider` uses the global `Settings/` folder. The default base name is `settings`, passed to `AddDrnSettings`. Supply a base name without `.json` to `GetConfiguration`, `GetAppSettings` or context configuration methods. `GetSettingsPath` and `GetSettingsData` also accept the extension.
+`SettingsProvider.Development()` creates disposable settings with Environment `Development`, AppId `0`, and AppInstanceId `0`, without a settings file. `Development<TApp>()` uses `TApp.AppId`, where `TApp : IAppId`.
+
+```csharp
+using DRN.Framework.SharedKernel.Domain;
+using DRN.Framework.Testing.Providers;
+
+using var settings = SettingsProvider.Development<TestApp>(
+    new { ApplicationName = "MyTestApplication" });
+```
+
+Both accept optional `params object[] settings`, applied through `AddObjectToJsonConfiguration` after the defaults. Later values override matching keys; AppId must match the selected partition. The example uses TestApp's AppId `127` and default AppInstanceId `0`.
+
+For file-based settings, `SettingsProvider` uses the global `Settings/` folder unless a directory is supplied. The default base name is `settings`, passed to `AddDrnSettings`. Supply a base name without `.json` to `GetConfiguration`, `GetAppSettings` or context configuration methods. `GetSettingsPath` and `GetSettingsData` also accept the extension.
 
 These examples assume `settings.json` contains `AllowedHosts`, `Bar` and the `Foo` connection string, and `secondaryAppSettings.json` contains the alternate values shown:
 ```csharp
@@ -1000,24 +1012,21 @@ DTT (Duran's Testing Technique) is a **context-oriented testing** approach devel
 
 DTT is built upon two core ideas:
 
-* Writing a unit or integration test, providing settings and data to it should be easy, effective and encouraging as much as possible
-* A test should test actual usage as much as possible
+* Writing unit or integration tests and supplying their settings and data should be as easy, effective, and encouraging as possible.
+* Tests should reflect actual usage.
 
-DTT with **DrnTestContext** makes these ideas possible by
+`DrnTestContext` supports these goals by:
 
-* being aware of test data and location
-* effortlessly providing test data and settings
-* effortlessly providing service collection
-* effortlessly providing service provider
-* effortlessly validating service provider
-* effortlessly wiring external dependencies with Container Context
-* effortlessly wiring application with Application Context
+- tracking test metadata and providing settings and data by convention;
+- managing service registration, resolution, and validation;
+- coordinating external dependencies through `ContainerContext`;
+- hosting applications through `ApplicationContext`.
 
 The context is opt-in: declare it as a parameter when the test needs it, omit it for pure logic tests that require no context. Data attributes inject the context only when the method signature requests it.
 
-With the help of test context, integration tests can be written easily with following styles.
+The test context supports the following integration-testing approaches:
 
-1. A data context attribute can provide NSubstituted dependencies, and context-managed service resolution uses them by default.
+1. Data attributes can supply NSubstitute mocks, which context-managed service resolution uses by default.
 2. Test containers can be used as actual dependencies instead of mocking them.
 3. With FactDebuggerOnly and TheoryDebuggerOnly attributes, cautiously written tests can use real databases and dependencies to debug production usage.
 

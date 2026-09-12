@@ -1,7 +1,7 @@
 ---
 name: drn-sharedkernel
 description: "DRN.Framework.SharedKernel - Foundational domain primitives, exception hierarchy, repository contracts and cancellation semantics, pagination, JSON conventions, app constants, and shared extensions. Keywords: entity, aggregate-root, domain-event, repository, repository-cancellation, cancellation, pagination, exception, json, domain-modeling, source-known-id, entity-type, appconstants, path-extensions"
-last-updated: 2026-09-06
+last-updated: 2026-09-12
 difficulty: intermediate
 tokens: ~2.5K
 ---
@@ -43,8 +43,8 @@ public abstract class SourceKnownEntity(long id = 0)
     public Guid EntityId => EntityIdSource.EntityId;
 
     // ID validation
-    public SourceKnownEntityId GetEntityId(Guid id, byte entityType);
-    public SourceKnownEntityId GetEntityId<TEntity>(Guid id);
+    public SourceKnownEntityId GetEntityId(Guid id, EntityTypeId expected, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
+    public SourceKnownEntityId GetEntityId<TEntity>(Guid id, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
 
     // Secure ↔ Plain conversion (idempotent, injected via ISourceKnownEntityIdOperations)
     public SourceKnownEntityId ToSecure(SourceKnownEntityId id);
@@ -101,7 +101,13 @@ public abstract class EntityDeleted(SourceKnownEntity entity) : DomainEvent(enti
 
 ## Source-Known Identity System
 
-Balances DB performance (`long`) with external security (`Guid`) and type safety. `ISourceKnownEntityIdOperations` defines the core contract (`Generate`, `Parse`, `ToSecure`, `ToPlain`) in SharedKernel; implemented by `SourceKnownEntityIdUtils` in Utils and injected into entities by EF interceptors.
+`SourceKnownGenerationTime.Initialize(minimumUtc, defaultEpoch)` configures one process-wide pair. An explicit epoch requires a minimum in the same call. Inputs must be ISO 8601 UTC; the minimum rounds upward to 250ms relative to the epoch. Startup or first ID/epoch use freezes both values, even if generation validation fails; conflicting updates then fail. Historical conversion freezes the pair without enforcing the floor.
+
+Keep the origin identical across a dataset's services and restarts: IDs do not store it. Only epoch 0 and both halves are supported; extending support requires a persistence contract, not just different limits. The default minimum is source-maintained, never derived from build timestamps. See [configuration and limits](../../../DRN.Framework.SharedKernel/README.md#trusted-minimum-generation-time).
+
+Balances DB performance (`long`) with external security (`Guid`) and type safety. `ISourceKnownEntityIdOperations` defines the core contract (`Generate`, nullable/nonnullable `Parse`, all `Validate` overloads, `ToSecure`, `ToPlain`) in SharedKernel; implemented by `SourceKnownEntityIdUtils` in Utils and injected into entities by EF interceptors.
+
+Operations Parse/Validate and domain/repository GUID helpers use non-nullable `SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault`. `ISourceKnownEntityIdOperations.DefaultFormat` is immutable Secure/Plain, set by the Utils constructor from Nexus settings. Helpers forward format selection to parsing; generated and parsed records check validity and expected identity without another format check. Record ValidateId(), Validate<TEntity>() and Validate(expected), plus repository record reads/deletes, have no format parameter and accept either representation. Records are trusted internal values and do not reauthenticate GUIDs. Explicit Auto accepts both GUID forms during parsing and conversion reauthentication. Undefined formats throw for null GUIDs/empty GUID batches too. Replace null GUID-format arguments with ConfiguredDefault, rebuild consumers and provide DefaultFormat in custom operations. See [Utils format contract](../drn-utils/SKILL.md#id-generation).
 
 ```csharp
 public readonly record struct SourceKnownId(
@@ -112,6 +118,8 @@ public readonly record struct SourceKnownEntityId(
 ```
 
 ### Validation Approaches
+
+Use `Validate<TEntity>()` or `Validate(new EntityTypeId(entityType, expectedAppId))` to check both identity components. Domain `GetEntityId` helpers accept the same expectations. `EntityTypeId` requires both arguments, including zero, and has no implicit byte conversion. `ValidateId()` and the domain GUID helper's boolean validation option check validity only. Utils service validation additionally selects a configured or explicitly typed partition; see [drn-utils](../drn-utils/SKILL.md#nexus-keys).
 
 **1. Injectable Utility** (service layer — recommended):
 ```csharp
@@ -151,21 +159,21 @@ public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
     Task<int> SaveChangesAsync();
     
     // Identity Conversion & Validation
-    SourceKnownEntityId GetEntityId(Guid id, bool validate = true);
-    SourceKnownEntityId? GetEntityId(Guid? id, bool validate = true);
-    SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id) where TOtherEntity : SourceKnownEntity;
-    SourceKnownEntityId? GetEntityId<TOtherEntity>(Guid? id) where TOtherEntity : SourceKnownEntity;
-    SourceKnownEntityId[] GetEntityIds(IReadOnlyCollection<Guid> ids, bool validate = true);
-    SourceKnownEntityId?[] GetEntityIds(IReadOnlyCollection<Guid?> ids, bool validate = true);
+    SourceKnownEntityId GetEntityId(Guid id, bool validate = true, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
+    SourceKnownEntityId? GetEntityId(Guid? id, bool validate = true, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
+    SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TOtherEntity : SourceKnownEntity;
+    SourceKnownEntityId? GetEntityId<TOtherEntity>(Guid? id, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TOtherEntity : SourceKnownEntity;
+    SourceKnownEntityId[] GetEntityIds(IReadOnlyCollection<Guid> ids, bool validate = true, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
+    SourceKnownEntityId?[] GetEntityIds(IReadOnlyCollection<Guid?> ids, bool validate = true, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
     
     // Retrieval by GUID (External ID)
-    Task<TEntity> GetAsync(Guid id);
+    Task<TEntity> GetAsync(Guid id, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
     Task<TEntity> GetAsync(SourceKnownEntityId id);
-    Task<TEntity?> GetOrDefaultAsync(Guid id, bool validate = true);
+    Task<TEntity?> GetOrDefaultAsync(Guid id, bool validate = true, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
     Task<TEntity?> GetOrDefaultAsync(SourceKnownEntityId id, bool validate = true);
     
     // Batch Retrieval
-    Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids);
+    Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
     Task<TEntity[]> GetAsync(IReadOnlyCollection<SourceKnownEntityId> ids);
     Task<TEntity[]> GetAllAsync(); // ⚠️ Use with caution - only for small/known-size collections
     
@@ -180,6 +188,7 @@ public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
     Task<int> CreateAsync(params IReadOnlyCollection<TEntity> entities);
     Task<int> DeleteAsync(params IReadOnlyCollection<TEntity> entities);
     Task<int> DeleteAsync(params IReadOnlyCollection<Guid> ids);
+    Task<int> DeleteAsync(IReadOnlyCollection<Guid> ids, SourceKnownEntityIdFormat format);
     Task<int> DeleteAsync(params IReadOnlyCollection<SourceKnownEntityId> ids);
     
     // Pagination

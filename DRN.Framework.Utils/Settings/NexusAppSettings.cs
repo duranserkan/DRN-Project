@@ -2,10 +2,10 @@ using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
+using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Data.Encryption;
 using DRN.Framework.Utils.Data.Encodings;
 using DRN.Framework.Utils.Data.Hashing;
-using DRN.Framework.Utils.Data.Validation;
 using DRN.Framework.Utils.Ids;
 
 namespace DRN.Framework.Utils.Settings;
@@ -31,9 +31,10 @@ public sealed class NexusAppSettings : IDisposable
     public byte AppInstanceId { get; init; }
 
     /// <summary>
-    /// When true (default), <see cref="Ids.SourceKnownEntityIdUtils.Generate(long, byte)"/> produces AES-256-ECB encrypted entity IDs.
+    /// When true (default), <see cref="Ids.SourceKnownEntityIdUtils.Generate(long, EntityTypeId)"/> produces AES-256-ECB encrypted entity IDs.
     /// When false, it produces plaintext entity IDs with visible 8D8D markers.
     /// Explicit <c>GenerateSecure</c>/<c>GeneratePlain</c> methods bypass this flag.
+    /// Parse and Validate use the same secure/plain default for ConfiguredDefault; Secure, Plain and Auto override it.
     /// </summary>
     public bool UseSecureSourceKnownIds { get; init; } = true;
 
@@ -184,7 +185,7 @@ public sealed class NexusKey : IDisposable
                     ByteEncoding.Utf8 => DecodeUtf8(key),
                     ByteEncoding.Hex => Convert.FromHexString(key),
                     ByteEncoding.Base64 => Convert.FromBase64String(key),
-                    ByteEncoding.Base64UrlEncoded => key.Decode(ByteEncoding.Base64UrlEncoded).ToArray(),
+                    ByteEncoding.Base64UrlEncoded => key.Decode(encoding: ByteEncoding.Base64UrlEncoded).ToArray(),
                     _ => throw ExceptionFor.Configuration($"{nameof(NexusKey)}.{nameof(Format)} is not supported")
                 };
             }

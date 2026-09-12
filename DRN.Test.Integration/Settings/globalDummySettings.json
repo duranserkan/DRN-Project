@@ -1,4 +1,5 @@
 {
   "Environment": "Development",
+  "NexusAppSettings": { "AppId": 0, "AppInstanceId": 0 },
   "AllowedHosts": "*"
 }

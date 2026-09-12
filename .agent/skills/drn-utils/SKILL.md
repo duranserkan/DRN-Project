@@ -1,7 +1,7 @@
 ---
 name: drn-utils
 description: "DRN.Framework.Utils - Attribute-based dependency injection, settings, logging, scoped cancellation, ID generation, Base32/TOTP encoding and authentication utilities, entity date filtering, validators, and core utilities. Keywords: dependency-injection, configuration, appsettings, appdata, logging, cancellation, source-known-id, base32, totp, mfa, entity-date-filter, tick-boundary, validators, extensions, http-client"
-last-updated: 2026-09-02
+last-updated: 2026-09-12
 difficulty: intermediate
 tokens: ~2.7K
 ---
@@ -143,6 +143,8 @@ When grouping options into nested objects, explicitly validate child objects bef
 
 ### Nexus Keys
 
+Explicitly configure `NexusAppSettings:AppId` (0 through 127) and `NexusAppSettings:AppInstanceId` (0 through 63) in every environment; zero is valid for both. Concurrent instances generating IDs for the same application require distinct AppInstanceIds. `Validate<TEntity>` uses the entity's declared `(EntityType, AppId)`, independently of the configured AppId. `Validate(id, entityType)` uses the configured partition; override it with `Validate<TApp>(id, entityType)` where `TApp : IAppId`, or `Validate(id, entityTypeId)` with an explicit `EntityTypeId`. Nullable inputs preserve null. Parsing and operations validation use `UseSecureSourceKnownIds` when the format is omitted; explicit Secure, Plain or Auto overrides it. [SharedKernel record validation](../drn-sharedkernel/SKILL.md#validation-approaches) checks stored metadata independently of configuration.
+
 `NexusAppSettings.Keys` must contain exactly one default `NexusKey`. Generation uses the default key; parsing tries the default key first and then the remaining configured keys for rotation fallback.
 
 `NexusKey.Format` defaults to `ByteEncoding.Utf8` and supports:
@@ -238,7 +240,13 @@ var secureId = sourceKnownEntityIdUtils.ToSecure(entityId);
 var plainId = sourceKnownEntityIdUtils.ToPlain(entityId);
 ```
 
-`ISourceKnownEntityIdUtils` inherits `ISourceKnownEntityIdOperations` (SharedKernel), which defines `Generate`, `Parse`, `ToSecure`, `ToPlain`. This interface is injected into entities by EF interceptors.
+`ISourceKnownEntityIdUtils` inherits `ISourceKnownEntityIdOperations` (SharedKernel), which defines `Generate`, nullable/nonnullable `Parse`, all `Validate` overloads, `ToSecure`, `ToPlain`. This interface is injected into entities by EF interceptors.
+
+Entity ID `Parse` and all `Validate` overloads accept non-nullable `SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault`. The constructor sets read-only DefaultFormat to Secure when `UseSecureSourceKnownIds` is true, otherwise Plain. ConfiguredDefault selects this property; explicit formats remain unchanged. Secure only decrypts/verifies; Plain never decrypts; Auto retains plain-first detection and decryption fallback per key. Undefined formats throw even for null IDs; supported formats preserve null ID results. Conversions retain Auto revalidation. Replace null format arguments with ConfiguredDefault, rebuild consumers and update custom implementations/method-group bindings, including DefaultFormat.
+
+Entity/repository GUID helpers forward the format to parsing, then check the parsed record's validity and identity. Record ValidateId(), Validate<TEntity>() and Validate(expected) have no format parameter and accept either parsed representation. Generated records also validate validity and identity. Records are publicly constructible and do not reauthenticate GUIDs; use them only as trusted internal values. Authenticate untrusted GUIDs through operations, which own keys and resolve configuration. Conversions reauthenticate the GUID using Auto.
+
+Secure-only defaults block direct plaintext MAC guessing. Keep Plain/Auto overrides under application control, and validate external GUIDs with the required format before conversion. Authorization and rate limiting remain necessary. See [the security rationale](../../../DRN.Framework.Utils/README.md#parse--validation).
 
 > [!NOTE]
 > ID generation is automatically handled by `DrnContext` when SourceKnownEntities are saved.
@@ -352,18 +360,27 @@ ushort value = parser.ReadUShort();
 
 ### Time & Async
 
+Configure `SourceKnownIdSettings` before startup or first ID/epoch use. `DefaultEpoch` requires an explicit `MinimumUtc`; both freeze on first use, including historical conversion. Hosting validates before constructors/hooks; non-hosted generation validates on first use. See [the time contract](../drn-sharedkernel/SKILL.md#source-known-identity-system).
+
 ```csharp
-// Cached UTC timestamp (10ms precision) — avoids DateTimeOffset.UtcNow overhead
-long seconds = TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch);
+// Cached UTC timestamp: 250ms precision, refreshed every 10ms
+long timestamp = TimeStampManager.CurrentTimestamp();
 DateTimeOffset now = TimeStampManager.UtcNow;
 
 // Async-safe timer — prevents overlapping executions
-var worker = new RecurringAction(async () => await DoWork(), period: 1000, start: true);
+await using var worker = new RecurringActionAsync(
+    async ct => await DoWorkAsync(ct),
+    periodMilliseconds: 1000, start: true,
+    executionTimeout: TimeSpan.FromSeconds(10));
 worker.Stop();
 worker.Start(); // Resume after stopping
 ```
 
-`Stop()` lets an active callback finish but prevents that callback from rescheduling the timer.
+`RecurringActionAsync.Stop()` requests cancellation without waiting for the active callback to finish.
+
+`RecurringAction` accepts synchronous `Action` callbacks only. Dedicated threads require a positive period; timer mode accepts zero. Dedicated restarts preserve the configured post-callback delay, including when restarting during an active callback. Synchronous disposal does not wait for active callbacks. `RecurringActionAsync` awaits callbacks; restarted execution and `DisposeAsync()` wait for prior callbacks to finish. Timeouts require token-aware callbacks and request cooperative cancellation; ignoring cancellation can block later iterations and async disposal. Tokenless `Func<Task>` constructors have no timeout parameter.
+
+Validate `RecurringActionAsync` periods and timeouts during construction, including `start: false`. Periods truncate to 1–4,294,967,294 milliseconds; timeouts must be positive and truncate to at most that upper limit. Preserve positive sub-millisecond timeouts. See [timer usage and errors](../../../DRN.Framework.Utils/README.md#non-overlapping-async-timer-recurringactionasync).
 
 `TimeProvider` singleton registered to `TimeProvider.System` by default for testable time.
 

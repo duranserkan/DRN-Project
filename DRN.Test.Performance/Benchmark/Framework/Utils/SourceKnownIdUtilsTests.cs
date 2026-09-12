@@ -7,7 +7,7 @@ using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Running;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Ids;
-using DRN.Framework.Utils.Settings;
+using DRN.Framework.Testing.Providers;
 using DRN.Framework.Utils.Time;
 using Perfolizer.Mathematics.OutlierDetection;
 
@@ -54,9 +54,8 @@ public class SourceKnownIdUtilsBenchmark
 
     static SourceKnownIdUtilsBenchmark()
     {
-        IdUtils = new(AppSettings.Development(), new EpochTimeUtils());
-
-        var appSettings = AppSettings.Development();
+        var appSettings = SettingsProvider.Development();
+        IdUtils = new(appSettings);
         EntityIdUtils = new(appSettings, IdUtils);
 
         // Pre-generate GUIDs for Parse benchmarks — avoids measuring ID generation in parse benchmarks
@@ -84,10 +83,10 @@ public class SourceKnownIdUtilsBenchmark
     public Guid RandomGuidV7() => Guid.CreateVersion7();
 
     [Benchmark]
-    public long TimeStampManager_TimeStamp() => TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch);
+    public long TimeStampManager_TimeStamp() => TimeStampManager.CurrentTimestamp();
 
     [Benchmark]
-    public SequenceTimeScopedId SequenceManager_TimeScopedId() => SequenceManager<YEntity>.GetTimeScopedId(EpochTimeUtils.DefaultEpoch);
+    public SequenceTimeScopedId SequenceManager_TimeScopedId() => SequenceManager<YEntity>.GetTimeScopedId();
 
     // --- SourceKnownId (raw long) ---
 
@@ -118,7 +117,7 @@ public class SourceKnownIdUtilsBenchmark
 
     [Benchmark]
     public SourceKnownEntityId ParseSourceKnownEntityId()
-        => EntityIdUtils.Parse(PlainEntityId.EntityId);
+        => EntityIdUtils.Parse(PlainEntityId.EntityId, SourceKnownEntityIdFormat.Plain);
 
     // --- Parse: secure GUID (AES-ECB decrypt + MAC verify) ---
 

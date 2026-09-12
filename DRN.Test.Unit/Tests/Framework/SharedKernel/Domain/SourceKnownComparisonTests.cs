@@ -5,6 +5,23 @@ namespace DRN.Test.Unit.Tests.Framework.SharedKernel.Domain;
 public class SourceKnownComparisonTests
 {
     [Theory]
+    [DataInlineUnit(5, 7, true)]
+    [DataInlineUnit(5, 8, false)]
+    [DataInlineUnit(6, 7, false)]
+    [DataInlineUnit(6, 8, false)]
+    public void HasSameEntityTypeId_Should_Compare_Partition_And_Type_For_Both_Identity_Overloads(
+        byte otherApp, byte otherType, bool expected)
+    {
+        var first = new SourceKnownEntityId(new SourceKnownId(10, default, 0, 5, 0), Guid.NewGuid(), 7, true, false);
+        var other = new SourceKnownEntityId(new SourceKnownId(20, default, 0, otherApp, 0), Guid.NewGuid(), otherType, true, true);
+
+        first.HasSameEntityTypeId(other).Should().Be(expected);
+        other.HasSameEntityTypeId(first).Should().Be(expected);
+        first.HasSameEntityTypeId(new EntityTypeId(otherType, otherApp)).Should().Be(expected);
+        other.HasSameEntityTypeId(new EntityTypeId(7, 5)).Should().Be(expected);
+    }
+
+    [Theory]
     [DataInlineUnit(0, 7, 20L, 0, 8, 10L)]
     [DataInlineUnit(0, 8, 20L, 1, 7, 10L)]
     [DataInlineUnit(0, 7, 20L, 1, 7, 10L)]

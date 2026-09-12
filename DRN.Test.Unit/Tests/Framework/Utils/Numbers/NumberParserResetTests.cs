@@ -7,6 +7,30 @@ public class NumberParserResetTests
     [Theory]
     [DataInlineUnit(NumberBuildDirection.MostSignificantFirst)]
     [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst)]
+    public void Signed_Parsers_Should_Keep_Residue_And_Payload_Separate_From_Sign(NumberBuildDirection direction)
+    {
+        var intParser = NumberParser.Get(-1, direction);
+        intParser.ReadResidueValue().Should().Be(0x7FFFu);
+        intParser.ReadUShort().Should().Be(ushort.MaxValue);
+        intParser.ResetToParse((long)int.MinValue);
+        intParser.ReadResidueValue().Should().Be(0u);
+        intParser.ReadUShort().Should().Be(0);
+
+        var longParser = NumberParser.Get(-1L, direction);
+        longParser.ReadResidueValue().Should().Be(uint.MaxValue);
+        longParser.Read(31).Should().Be(0x7FFF_FFFFu);
+        longParser.ResetToParse(long.MinValue);
+        longParser.ReadResidueValue().Should().Be(0u);
+        longParser.Read(31).Should().Be(0u);
+
+        var unsignedParser = NumberParser.Get(ulong.MaxValue, direction);
+        unsignedParser.ReadResidueValue().Should().Be(0u);
+        unsignedParser.ReadUInt().Should().Be(uint.MaxValue);
+    }
+
+    [Theory]
+    [DataInlineUnit(NumberBuildDirection.MostSignificantFirst)]
+    [DataInlineUnit(NumberBuildDirection.LeastSignificantFirst)]
     public void ResetToParse_Long_Should_Reset_Cursor_And_Replace_Value_Preserving_Direction_And_Residue(NumberBuildDirection direction)
     {
         // 64-bit long parser with 32-bit residue => 31 available bits (64 - 32 - 1)

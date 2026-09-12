@@ -1,6 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using DRN.Framework.SharedKernel.Domain;
+using DRN.Framework.Utils.Data.Encryption;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Time;
 
@@ -9,6 +11,536 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class SourceKnownEntityIdUtilsTests
 {
+    [Theory]
+    [DataInlineUnit(false, SourceKnownEntityIdFormat.ConfiguredDefault)]
+    [DataInlineUnit(true, SourceKnownEntityIdFormat.ConfiguredDefault)]
+    [DataInlineUnit(false, SourceKnownEntityIdFormat.Secure)]
+    [DataInlineUnit(true, SourceKnownEntityIdFormat.Secure)]
+    [DataInlineUnit(false, SourceKnownEntityIdFormat.Plain)]
+    [DataInlineUnit(true, SourceKnownEntityIdFormat.Plain)]
+    [DataInlineUnit(false, SourceKnownEntityIdFormat.Auto)]
+    [DataInlineUnit(true, SourceKnownEntityIdFormat.Auto)]
+    public void Formats_Should_Apply_To_All_Parse_And_Validate_Paths(bool configuredSecure, SourceKnownEntityIdFormat format)
+    {
+        using var settings = SettingsProvider.Development<SampleApp5>(new
+        {
+            NexusAppSettings = new { UseSecureSourceKnownIds = configuredSecure }
+        });
+        using var implementation = new SourceKnownEntityIdUtils(settings, new SourceKnownIdUtils(settings));
+        ISourceKnownEntityIdUtils ids = implementation;
+        ISourceKnownEntityIdOperations operations = implementation;
+        var defaultFormat = configuredSecure ? SourceKnownEntityIdFormat.Secure : SourceKnownEntityIdFormat.Plain;
+        ids.DefaultFormat.Should().Be(defaultFormat);
+        operations.DefaultFormat.Should().Be(defaultFormat);
+        var expected = new EntityTypeId(200, 5);
+        var numericId = long.MinValue | (5L << 24);
+
+        foreach (var original in new[] { ids.GeneratePlain(numericId, expected), ids.GenerateSecure(numericId, expected) })
+        {
+            var accepted = format == SourceKnownEntityIdFormat.Auto || original.Secure == (format switch
+            {
+                SourceKnownEntityIdFormat.Secure => true,
+                SourceKnownEntityIdFormat.Plain => false,
+                _ => configuredSecure
+            });
+            var parsed = ids.Parse(original.EntityId, format);
+            parsed.Valid.Should().Be(accepted);
+            var validateParsed = () => parsed.Validate<XEntity>();
+            if (accepted) validateParsed.Should().NotThrow();
+            else validateParsed.Should().Throw<ValidationException>();
+            parsed.EntityId.Should().Be(original.EntityId);
+            operations.Parse(original.EntityId, format).Valid.Should().Be(accepted);
+            operations.Parse((Guid?)original.EntityId, format)!.Value.Valid.Should().Be(accepted);
+            ids.Parse((Guid?)original.EntityId, format)!.Value.Valid.Should().Be(accepted);
+            if (format == SourceKnownEntityIdFormat.ConfiguredDefault)
+            {
+                implementation.Parse(original.EntityId).Valid.Should().Be(accepted);
+                operations.Parse(original.EntityId).Valid.Should().Be(accepted);
+                ids.Parse(original.EntityId).Valid.Should().Be(accepted);
+                ids.Parse((Guid?)original.EntityId)!.Value.Valid.Should().Be(accepted);
+            }
+
+            Func<SourceKnownEntityId>[] validations =
+            [
+                () => ids.Validate(original.EntityId, 200, format),
+                () => ids.Validate((Guid?)original.EntityId, 200, format)!.Value,
+                () => ids.Validate<SampleApp5>(original.EntityId, 200, format),
+                () => ids.Validate<SampleApp5>((Guid?)original.EntityId, 200, format)!.Value,
+                () => ids.Validate(original.EntityId, expected, format),
+                () => ids.Validate((Guid?)original.EntityId, expected, format)!.Value,
+                () => ids.Validate<XEntity>(original.EntityId, format),
+                () => ids.Validate<XEntity>((Guid?)original.EntityId, format)!.Value,
+                () => operations.Validate(original.EntityId, 200, format),
+                () => operations.Validate((Guid?)original.EntityId, 200, format)!.Value,
+                () => operations.Validate<SampleApp5>(original.EntityId, 200, format),
+                () => operations.Validate<SampleApp5>((Guid?)original.EntityId, 200, format)!.Value,
+                () => operations.Validate(original.EntityId, expected, format),
+                () => operations.Validate((Guid?)original.EntityId, expected, format)!.Value,
+                () => operations.Validate<XEntity>(original.EntityId, format),
+                () => operations.Validate<XEntity>((Guid?)original.EntityId, format)!.Value
+            ];
+            foreach (var validate in validations)
+            {
+                if (!accepted)
+                {
+                    validate.Should().Throw<ValidationException>();
+                    continue;
+                }
+
+                var validated = validate();
+                validated.Valid.Should().BeTrue();
+                validated.Secure.Should().Be(original.Secure);
+                validated.Source.Should().Be(original.Source);
+                validated.EntityTypeId.Should().Be(expected);
+                validated.EntityId.Should().Be(original.EntityId);
+                validated.ValidateId();
+                validated.Validate(expected);
+                validated.Validate<XEntity>();
+            }
+
+            if (!accepted) continue;
+            var wrongPartition = () => ids.Validate<XEntityInApp6>(original.EntityId, format);
+            var wrongApp = () => ids.Validate<SampleApp6>((Guid?)original.EntityId, 200, format);
+            var wrongType = () => ids.Validate(original.EntityId, new EntityTypeId(201, 5), format);
+            var outOfRange = () => ids.Validate(original.EntityId, new EntityTypeId(200, 128), format);
+            wrongPartition.Should().Throw<ValidationException>();
+            wrongApp.Should().Throw<ValidationException>();
+            wrongType.Should().Throw<ValidationException>();
+            outOfRange.Should().Throw<ArgumentOutOfRangeException>();
+        }
+
+        ids.Parse(null, format).Should().BeNull();
+        ids.Validate((Guid?)null, 200, format).Should().BeNull();
+        ids.Validate<SampleApp5>((Guid?)null, 200, format).Should().BeNull();
+        ids.Validate((Guid?)null, new EntityTypeId(200, 128), format).Should().BeNull();
+        ids.Validate<XEntity>((Guid?)null, format).Should().BeNull();
+        operations.Parse((Guid?)null, format).Should().BeNull();
+        operations.Validate((Guid?)null, 200, format).Should().BeNull();
+        operations.Validate<SampleApp5>((Guid?)null, 200, format).Should().BeNull();
+        operations.Validate((Guid?)null, new EntityTypeId(200, 128), format).Should().BeNull();
+        operations.Validate<XEntity>((Guid?)null, format).Should().BeNull();
+    }
+
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public void Domain_Guid_Helpers_Should_Forward_Formats_And_Preserve_Partition_Checks(bool configuredSecure)
+    {
+        using var settings = SettingsProvider.Development<SampleApp5>(new
+        {
+            NexusAppSettings = new { UseSecureSourceKnownIds = configuredSecure }
+        });
+        using var ids = new SourceKnownEntityIdUtils(settings, new SourceKnownIdUtils(settings));
+        var expected = SourceKnownEntity.GetEntityTypeId<XEntity>();
+        var numericId = long.MinValue | (5L << 24);
+        var plain = ids.GeneratePlain(numericId, expected);
+        var secure = ids.GenerateSecure(numericId, expected);
+        var entity = new XEntity(numericId) { EntityIdOps = ids, EntityIdSource = plain };
+        foreach (var format in new[] { SourceKnownEntityIdFormat.ConfiguredDefault, SourceKnownEntityIdFormat.Secure, SourceKnownEntityIdFormat.Plain, SourceKnownEntityIdFormat.Auto })
+        {
+            foreach (var original in new[] { plain, secure })
+            {
+                var accepted = ids.Parse(original.EntityId, format).Valid;
+                Func<SourceKnownEntityId>[] calls =
+                [
+                    () => entity.GetEntityId(original.EntityId, format: format),
+                    () => entity.GetEntityId((Guid?)original.EntityId, format: format)!.Value,
+                    () => entity.GetEntityId(original.EntityId, expected, format),
+                    () => entity.GetEntityId((Guid?)original.EntityId, expected, format)!.Value,
+                    () => entity.GetEntityId<XEntity>(original.EntityId, format),
+                    () => entity.GetEntityId<XEntity>((Guid?)original.EntityId, format)!.Value
+                ];
+                foreach (var call in calls)
+                {
+                    if (!accepted) call.Should().Throw<ValidationException>();
+                    else
+                    {
+                        var parsed = call();
+                        parsed.Valid.Should().BeTrue();
+                        parsed.Secure.Should().Be(original.Secure);
+                        parsed.EntityTypeId.Should().Be(expected);
+                    }
+                }
+                entity.GetEntityId(original.EntityId, validate: false, format).Valid.Should().Be(accepted);
+                var wrongPartition = () => entity.GetEntityId<XEntityInApp6>(original.EntityId, format);
+                wrongPartition.Should().Throw<ValidationException>();
+            }
+            entity.GetEntityId((Guid?)null, format: format).Should().BeNull();
+            entity.GetEntityId((Guid?)null, expected, format).Should().BeNull();
+            entity.GetEntityId<XEntity>((Guid?)null, format).Should().BeNull();
+        }
+        entity.GetEntityId((configuredSecure ? secure : plain).EntityId).Valid.Should().BeTrue();
+        var invalidFormat = (SourceKnownEntityIdFormat)4;
+        Action[] invalidCalls =
+        [
+            () => entity.GetEntityId(plain.EntityId, format: invalidFormat),
+            () => entity.GetEntityId((Guid?)null, format: invalidFormat),
+            () => entity.GetEntityId(plain.EntityId, expected, invalidFormat),
+            () => entity.GetEntityId((Guid?)null, expected, invalidFormat),
+            () => entity.GetEntityId<XEntity>(plain.EntityId, invalidFormat),
+            () => entity.GetEntityId<XEntity>((Guid?)null, invalidFormat)
+        ];
+        foreach (var call in invalidCalls)
+            call.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("format");
+    }
+
+    [Theory]
+    [DataInlineUnit(-1)]
+    [DataInlineUnit(4)]
+    [DataInlineUnit(int.MaxValue)]
+    public void Undefined_Formats_Should_Throw_Including_For_Null_Inputs(int value)
+    {
+        using var settings = SettingsProvider.Development<SampleApp5>();
+        using var implementation = new SourceKnownEntityIdUtils(settings, new SourceKnownIdUtils(settings));
+        ISourceKnownEntityIdUtils ids = implementation;
+        ISourceKnownEntityIdOperations operations = implementation;
+        var format = (SourceKnownEntityIdFormat)value;
+        var expected = new EntityTypeId(200, 5);
+        var valid = ids.GenerateSecure(long.MinValue | (5L << 24), expected).EntityId;
+
+        foreach (var input in new Guid?[] { null, Guid.Empty, valid })
+        {
+            Action[] calls =
+            [
+                () => ids.Parse(input, format),
+                () => ids.Validate(input, 200, format),
+                () => ids.Validate<SampleApp5>(input, 200, format),
+                () => ids.Validate(input, expected, format),
+                () => ids.Validate<XEntity>(input, format),
+                () => operations.Parse(input, format),
+                () => operations.Validate(input, 200, format),
+                () => operations.Validate<SampleApp5>(input, 200, format),
+                () => operations.Validate(input, expected, format),
+                () => operations.Validate<XEntity>(input, format)
+            ];
+            foreach (var call in calls)
+                call.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("format");
+            if (!input.HasValue) continue;
+            Action[] nonNullableCalls =
+            [
+                () => operations.Parse(input.Value, format),
+                () => ids.Parse(input.Value, format),
+                () => ids.Validate(input.Value, 200, format),
+                () => ids.Validate<SampleApp5>(input.Value, 200, format),
+                () => ids.Validate(input.Value, expected, format),
+                () => ids.Validate<XEntity>(input.Value, format),
+                () => operations.Validate(input.Value, 200, format),
+                () => operations.Validate<SampleApp5>(input.Value, 200, format),
+                () => operations.Validate(input.Value, expected, format),
+                () => operations.Validate<XEntity>(input.Value, format)
+            ];
+            foreach (var call in nonNullableCalls)
+                call.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("format");
+        }
+    }
+
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public void Formats_And_Conversions_Should_Preserve_Default_And_Fallback_Keys(bool configuredSecure)
+    {
+        using var settings = SettingsProvider.Development<SampleApp5>(new
+        {
+            NexusAppSettings = new
+            {
+                UseSecureSourceKnownIds = configuredSecure,
+                Keys = new[] { new NexusKey(new string('A', 32)), new NexusKey(new string('B', 32)) { Default = true } }
+            }
+        });
+        using var reader = new SourceKnownEntityIdUtils(settings, new SourceKnownIdUtils(settings));
+        var expected = new EntityTypeId(200, 5);
+        var numericId = long.MinValue | (5L << 24);
+        foreach (var key in new[] { 'A', 'B' })
+        {
+            using var writerSettings = SettingsProvider.Development<SampleApp5>(new
+            {
+                NexusAppSettings = new { Keys = new[] { new NexusKey(new string(key, 32)) { Default = true } } }
+            });
+            using var writer = new SourceKnownEntityIdUtils(writerSettings, new SourceKnownIdUtils(writerSettings));
+            var plain = writer.GeneratePlain(numericId, expected);
+            var secure = writer.GenerateSecure(numericId, expected);
+            foreach (var original in new[] { plain, secure })
+            {
+                var format = original.Secure ? SourceKnownEntityIdFormat.Secure : SourceKnownEntityIdFormat.Plain;
+                reader.Validate(original.EntityId, expected, format).Source.Id.Should().Be(numericId);
+                reader.Validate(original.EntityId, expected, SourceKnownEntityIdFormat.Auto).Secure.Should().Be(original.Secure);
+                reader.Parse(original.EntityId).Valid.Should().Be(original.Secure == configuredSecure);
+                reader.Parse(original.EntityId, original.Secure ? SourceKnownEntityIdFormat.Plain : SourceKnownEntityIdFormat.Secure)
+                    .Valid.Should().BeFalse();
+            }
+
+            reader.ToSecure(secure).Should().Be(secure);
+            reader.ToPlain(plain).Should().Be(plain);
+            reader.ToSecure(plain).Should().Be(reader.GenerateSecure(numericId, expected));
+            reader.ToPlain(secure).Should().Be(reader.GeneratePlain(numericId, expected));
+            reader.ToSecure((SourceKnownEntityId?)plain).Should().Be(reader.GenerateSecure(numericId, expected));
+            reader.ToPlain((SourceKnownEntityId?)secure).Should().Be(reader.GeneratePlain(numericId, expected));
+            var correctedSecure = reader.ToSecure(plain with { Secure = true });
+            correctedSecure.Should().Be(reader.GenerateSecure(numericId, expected));
+            correctedSecure.Secure.Should().BeTrue();
+            var correctedPlain = reader.ToPlain(secure with { Secure = false });
+            correctedPlain.Should().Be(reader.GeneratePlain(numericId, expected));
+            correctedPlain.Secure.Should().BeFalse();
+            reader.ToSecure(null).Should().BeNull();
+            reader.ToPlain(null).Should().BeNull();
+            if (key == 'B')
+            {
+                reader.GeneratePlain(numericId, expected).Should().Be(plain);
+                reader.GenerateSecure(numericId, expected).Should().Be(secure);
+            }
+            else
+            {
+                using var removedSettings = SettingsProvider.Development<SampleApp5>(new
+                {
+                    NexusAppSettings = new { Keys = new[] { new NexusKey(new string('B', 32)) { Default = true } } }
+                });
+                using var removed = new SourceKnownEntityIdUtils(removedSettings, new SourceKnownIdUtils(removedSettings));
+                removed.Parse(plain.EntityId, SourceKnownEntityIdFormat.Plain).Valid.Should().BeFalse();
+                removed.Parse(secure.EntityId, SourceKnownEntityIdFormat.Secure).Valid.Should().BeFalse();
+                removed.Parse(plain.EntityId, SourceKnownEntityIdFormat.Auto).Valid.Should().BeFalse();
+                removed.Parse(secure.EntityId, SourceKnownEntityIdFormat.Auto).Valid.Should().BeFalse();
+            }
+        }
+    }
+
+    [Fact]
+    public void Plain_Should_Never_Decrypt_And_Auto_Should_Decrypt_After_Plain_Mac_Failure()
+    {
+        using var settings = SettingsProvider.Development<SampleApp5>(new
+        {
+            NexusAppSettings = new { Keys = new[] { new NexusKey(new string('A', 32)) { Default = true } } }
+        });
+        using var ids = new SourceKnownEntityIdUtils(settings, new SourceKnownIdUtils(settings));
+        var plain = ids.GeneratePlain(long.MinValue, new EntityTypeId(1, 0));
+        var markedCiphertext = plain.EntityId.ToByteArray(bigEndian: true);
+        markedCiphertext[12] ^= 1;
+        var marked = new Guid(markedCiphertext, bigEndian: true);
+        var unmarked = Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff");
+        ids.Parse(marked, SourceKnownEntityIdFormat.Plain).Valid.Should().BeFalse();
+        ids.Parse(marked, SourceKnownEntityIdFormat.Auto).Valid.Should().BeFalse();
+
+        // Every block is AES ciphertext. A disposed AES makes attempted decryption observable without collision searches.
+        GetAes(ids).Dispose();
+        ids.Parse(plain.EntityId, SourceKnownEntityIdFormat.Plain).Valid.Should().BeTrue();
+        ids.Parse(plain.EntityId, SourceKnownEntityIdFormat.Auto).Valid.Should().BeTrue();
+        foreach (var input in new[] { marked, unmarked })
+        {
+            ids.Parse(input, SourceKnownEntityIdFormat.Plain).Valid.Should().BeFalse();
+            var auto = () => ids.Parse(input, SourceKnownEntityIdFormat.Auto);
+            auto.Should().Throw<ObjectDisposedException>();
+        }
+        var secure = () => ids.Parse(plain.EntityId, SourceKnownEntityIdFormat.Secure);
+        secure.Should().Throw<ObjectDisposedException>("Secure must skip even a valid plain MAC and attempt decryption");
+    }
+
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_aes")]
+    private static extern ref Aes256 GetAes(SourceKnownEntityIdUtils instance);
+
+    [Theory]
+    [DataInlineUnit(false, SourceKnownEntityIdFormat.Plain)]
+    [DataInlineUnit(false, SourceKnownEntityIdFormat.Auto)]
+    [DataInlineUnit(true, SourceKnownEntityIdFormat.Secure)]
+    [DataInlineUnit(true, SourceKnownEntityIdFormat.Auto)]
+    public void Formats_Should_Reject_Every_Tampered_Byte(bool secure, SourceKnownEntityIdFormat format)
+    {
+        using var settings = SettingsProvider.Development<SampleApp5>();
+        using var ids = new SourceKnownEntityIdUtils(settings, new SourceKnownIdUtils(settings));
+        var expected = new EntityTypeId(1, 0);
+        var original = secure ? ids.GenerateSecure(long.MinValue, expected) : ids.GeneratePlain(long.MinValue, expected);
+        ids.Validate(original.EntityId, expected, format).Valid.Should().BeTrue();
+        for (var index = 0; index < 16; index++)
+        {
+            var bytes = original.EntityId.ToByteArray(bigEndian: true);
+            bytes[index] ^= 1;
+            var tampered = new Guid(bytes, bigEndian: true);
+            ids.Parse(tampered, format).Valid.Should().BeFalse($"byte {index} was changed");
+            var validate = () => ids.Validate(tampered, expected, format);
+            validate.Should().Throw<ValidationException>();
+            var toSecure = () => ids.ToSecure(original with { EntityId = tampered });
+            var toPlain = () => ids.ToPlain(original with { EntityId = tampered });
+            toSecure.Should().Throw<ValidationException>();
+            toPlain.Should().Throw<ValidationException>();
+        }
+    }
+
+    [Theory]
+    [DataInlineUnit((byte)0x80)]
+    [DataInlineUnit((byte)0x8E)]
+    [DataInlineUnit((byte)0x8F)]
+    [DataInlineUnit((byte)0xBF)]
+    [DataInlineUnit((byte)0xC0)]
+    public void Secure_And_Auto_Should_Reject_Authenticated_Variants_Without_Collision_Proof(byte variant)
+    {
+        using var settings = SettingsProvider.Development<SampleApp5>(new
+        {
+            NexusAppSettings = new { Keys = new[] { new NexusKey(new string('A', 32)) { Default = true } } }
+        });
+        using var ids = new SourceKnownEntityIdUtils(settings, new SourceKnownIdUtils(settings));
+        var key = settings.NexusAppSettings.GetDefaultKey();
+        using var aes = Aes.Create();
+        aes.Key = key.EncryptionKey.Bytes;
+        var bytes = ids.GeneratePlain(long.MinValue, new EntityTypeId(1, 0)).EntityId.ToByteArray(bigEndian: true);
+
+        foreach (var candidate in new[] { (byte)(variant - 1), variant })
+        {
+            bytes[8] = candidate;
+            bytes.AsSpan(12, 4).Clear();
+            using var hasher = Blake3.Hasher.NewKeyed(key.MacKey.Bytes);
+            hasher.Update(bytes);
+            hasher.Finalize(bytes.AsSpan(12, 4));
+            var ciphertext = new Guid(aes.EncryptEcb(bytes, PaddingMode.None), bigEndian: true);
+            if (candidate != variant)
+            {
+                ids.Parse(ciphertext, SourceKnownEntityIdFormat.Plain).Valid.Should().BeFalse(
+                    "the preceding variant must not satisfy the generation collision condition");
+                continue;
+            }
+
+            ids.Parse(ciphertext, SourceKnownEntityIdFormat.Secure).Valid.Should().BeFalse();
+            ids.Parse(ciphertext, SourceKnownEntityIdFormat.Auto).Valid.Should().BeFalse();
+        }
+    }
+
+    [Theory]
+    [DataInlineUnit(false, 0)]
+    [DataInlineUnit(true, 0)]
+    [DataInlineUnit(false, 5)]
+    [DataInlineUnit(true, 5)]
+    [DataInlineUnit(false, 127)]
+    [DataInlineUnit(true, 127)]
+    public void Generation_Should_Require_The_Explicit_Partition_Regardless_Of_Configured_AppId(bool secure, byte appId)
+    {
+        using var settings = SettingsProvider.Development<SampleApp6>(new
+        {
+            NexusAppSettings = new { UseSecureSourceKnownIds = secure }
+        });
+        var numericIds = new SourceKnownIdUtils(settings);
+        using var implementation = new SourceKnownEntityIdUtils(settings, numericIds);
+        ISourceKnownEntityIdUtils ids = implementation;
+        ISourceKnownEntityIdOperations operations = implementation;
+        var id = SourceKnownIdUtils.Generate<XEntity>(appId, 0);
+        var expected = new EntityTypeId(200, appId);
+
+        var generated = operations.Generate(id, expected);
+        var plain = ids.GeneratePlain(id, expected);
+        var encrypted = ids.GenerateSecure(id, expected);
+        generated.EntityTypeId.Should().Be(expected);
+        generated.Source.Id.Should().Be(id);
+        generated.Secure.Should().Be(secure);
+        plain.EntityTypeId.Should().Be(expected);
+        plain.Source.Id.Should().Be(id);
+        plain.Secure.Should().BeFalse();
+        encrypted.EntityTypeId.Should().Be(expected);
+        encrypted.Source.Id.Should().Be(id);
+        encrypted.Secure.Should().BeTrue();
+        generated.EntityId.Should().Be(secure ? encrypted.EntityId : plain.EntityId);
+
+        var wrongPartition = new EntityTypeId(200, 6);
+        var generateMismatch = () => operations.Generate(id, wrongPartition);
+        var plainMismatch = () => ids.GeneratePlain(id, wrongPartition);
+        var secureMismatch = () => ids.GenerateSecure(id, wrongPartition);
+        generateMismatch.Should().Throw<ValidationException>();
+        plainMismatch.Should().Throw<ValidationException>();
+        secureMismatch.Should().Throw<ValidationException>();
+    }
+
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public void Validation_Uses_Configured_Partition_Entity_Metadata_Or_Explicit_Identity(bool secure)
+    {
+        using var settings = SettingsProvider.Development<SampleApp5>(new
+        {
+            NexusAppSettings = new { UseSecureSourceKnownIds = secure }
+        });
+        var numericIds = new SourceKnownIdUtils(settings);
+        using var implementation = new SourceKnownEntityIdUtils(settings, numericIds);
+        ISourceKnownEntityIdUtils ids = implementation;
+        var primaryId = SourceKnownIdUtils.Generate<XEntity>(5, 0);
+        var secondaryId = SourceKnownIdUtils.Generate<XEntityInApp6>(6, 0);
+        var primary = secure ? ids.GenerateSecure<XEntity>(primaryId) : ids.GeneratePlain<XEntity>(primaryId);
+        var secondary = secure ? ids.GenerateSecure<XEntityInApp6>(secondaryId) : ids.GeneratePlain<XEntityInApp6>(secondaryId);
+
+        ids.Validate<XEntity>(primary.EntityId).Valid.Should().BeTrue();
+        ids.Validate(primary.EntityId, 200).Valid.Should().BeTrue();
+        ids.Validate((Guid?)primary.EntityId, 200)!.Value.Valid.Should().BeTrue();
+        var wrongDefault = () => ids.Validate(secondary.EntityId, 200);
+        wrongDefault.Should().Throw<ValidationException>();
+        var wrongNullableDefault = () => ids.Validate((Guid?)secondary.EntityId, 200);
+        wrongNullableDefault.Should().Throw<ValidationException>();
+        ids.Validate<XEntityInApp6>(secondary.EntityId).Valid.Should().BeTrue();
+        ids.Validate<XEntityInApp6>((Guid?)secondary.EntityId)!.Value.Valid.Should().BeTrue();
+
+        ids.Validate<SampleApp6>(secondary.EntityId, 200).Valid.Should().BeTrue();
+        ids.Validate(secondary.EntityId, new EntityTypeId(200, 6)).Valid.Should().BeTrue();
+        ids.Validate((Guid?)secondary.EntityId, new EntityTypeId(200, 6))!.Value.Valid.Should().BeTrue();
+        ids.Validate<SampleApp6>((Guid?)secondary.EntityId, 200)!.Value.Valid.Should().BeTrue();
+        var wrongCustom = () => ids.Validate<SampleApp5>(secondary.EntityId, 200);
+        wrongCustom.Should().Throw<ValidationException>();
+        var conflictingCustom = () => ids.Validate(secondary.EntityId, new EntityTypeId(200, 5));
+        conflictingCustom.Should().Throw<ValidationException>();
+        var wrongEntityType = () => ids.Validate<SampleApp6>(secondary.EntityId, 201);
+        wrongEntityType.Should().Throw<ValidationException>();
+        var invalidGuid = () => ids.Validate<XEntityInApp6>(Guid.Empty);
+        invalidGuid.Should().Throw<ValidationException>();
+        var invalidComposite = () => ids.Validate(Guid.Empty, new EntityTypeId(200, 6));
+        invalidComposite.Should().Throw<ValidationException>();
+        var wrongCompositeType = () => ids.Validate(secondary.EntityId, new EntityTypeId(201, 6));
+        wrongCompositeType.Should().Throw<ValidationException>();
+        var outOfRangePartition = () => ids.Validate(secondary.EntityId, new EntityTypeId(200, 128));
+        outOfRangePartition.Should().Throw<ArgumentOutOfRangeException>();
+
+        ids.Validate((Guid?)null, 200).Should().BeNull();
+        ids.Validate<XEntity>((Guid?)null).Should().BeNull();
+        ids.Validate<SampleApp6>((Guid?)null, 200).Should().BeNull();
+        ids.Validate((Guid?)null, new EntityTypeId(200, 6)).Should().BeNull();
+    }
+
+    [Theory]
+    [DataInlineUnit((byte)1)]
+    [DataInlineUnit((byte)255)]
+    public void Unsupported_Epoch_Is_Rejected_Even_With_Valid_Mac_And_Encryption(DrnTestContextUnit context, byte epoch)
+    {
+        var utils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
+        var settings = context.GetRequiredService<IAppSettings>();
+        var plain = utils.GeneratePlain(long.MinValue, new EntityTypeId(1, 0));
+        var bytes = plain.EntityId.ToByteArray(bigEndian: true);
+        bytes[0] = epoch;
+        bytes.AsSpan(12, 4).Clear();
+        using (var hasher = Blake3.Hasher.NewKeyed(settings.NexusAppSettings.GetDefaultKey().MacKey.Bytes))
+        {
+            hasher.Update(bytes);
+            hasher.Finalize(bytes.AsSpan(12, 4));
+        }
+        var unsupported = new Guid(bytes, bigEndian: true);
+        utils.Parse(unsupported, SourceKnownEntityIdFormat.Plain).Valid.Should().BeFalse();
+        var validate = () => utils.Validate(unsupported, 1, SourceKnownEntityIdFormat.Plain);
+        validate.Should().Throw<Exception>();
+        var convert = () => utils.ToSecure(plain with { EntityId = unsupported });
+        convert.Should().Throw<Exception>();
+
+        using var aes = Aes.Create();
+        aes.Key = settings.NexusAppSettings.GetDefaultKey().EncryptionKey.Bytes;
+        var cipher = aes.EncryptEcb(bytes, PaddingMode.None);
+        utils.Parse(new Guid(cipher, bigEndian: true)).Valid.Should().BeFalse();
+    }
+
+    [Theory]
+    [DataInlineUnit]
+    public void Historical_Ids_Below_Trusted_Floor_Remain_Readable_And_Convertible(DrnTestContextUnit context)
+    {
+        var utils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
+        var plain = utils.GeneratePlain(long.MinValue, new EntityTypeId(1, 0));
+        plain.Source.CreatedAt.Should().BeBefore(SourceKnownGenerationTime.Policy.MinimumUtc);
+        utils.Parse(plain.EntityId, SourceKnownEntityIdFormat.Plain).Valid.Should().BeTrue();
+        var secure = utils.ToSecure(plain);
+        utils.Parse(secure.EntityId).Source.CreatedAt.Should().Be(plain.Source.CreatedAt);
+        utils.ToPlain(secure).EntityId.Should().Be(plain.EntityId);
+        var secondHalf = utils.GeneratePlain(0, new EntityTypeId(1, 0));
+        utils.Parse(secondHalf.EntityId, SourceKnownEntityIdFormat.Plain).Valid.Should().BeTrue();
+        utils.Parse(utils.ToSecure(secondHalf).EntityId).Source.Id.Should().Be(0);
+    }
+
     [Theory]
     [DataInlineUnit]
     public async Task ExplicitMethods_Should_Generate_Valid_Secure_And_Plain_Ids(DrnTestContextUnit context)
@@ -45,7 +577,7 @@ public class SourceKnownEntityIdUtilsTests
         AssertParseRoundTrip(entityIdUtils, secureId1);
 
         // Detailed parse equality assertions
-        var parsedPlain = entityIdUtils.Parse(plainId1.EntityId);
+        var parsedPlain = entityIdUtils.Parse(plainId1.EntityId, SourceKnownEntityIdFormat.Plain);
         parsedPlain.Should().Be(plainId1);
         parsedPlain.EntityId.Should().Be(plainId1.EntityId);
 
@@ -344,7 +876,7 @@ public class SourceKnownEntityIdUtilsTests
             tamperedBytes[i] ^= 0xFF; // Flip bits
 
             var tamperedGuid = new Guid(tamperedBytes, bigEndian: true);
-            var tamperedResult = entityIdUtils.Parse(tamperedGuid);
+            var tamperedResult = entityIdUtils.Parse(tamperedGuid, SourceKnownEntityIdFormat.Plain);
 
             tamperedResult.Valid.Should().BeFalse($"tampering payload byte at index {i} must be rejected by MAC verification");
         }
@@ -354,7 +886,7 @@ public class SourceKnownEntityIdUtilsTests
     public void Parse_Should_Fall_Back_To_Previous_KeyRing_Entries()
     {
         var oldKey = new NexusKey(new string('A', 32)) { Default = true };
-        var oldSettings = AppSettings.Development(new
+        using var oldSettings = SettingsProvider.Development<SampleApp5>(new
         {
             NexusAppSettings = new NexusAppSettings
             {
@@ -363,13 +895,13 @@ public class SourceKnownEntityIdUtilsTests
                 Keys = [oldKey]
             }
         });
-        var oldIdUtils = new SourceKnownIdUtils(oldSettings, new EpochTimeUtils());
+        var oldIdUtils = new SourceKnownIdUtils(oldSettings);
         using var oldEntityIdUtils = new SourceKnownEntityIdUtils(oldSettings, oldIdUtils);
 
         var id = SourceKnownIdUtils.Generate<XEntity>(oldSettings.NexusAppSettings.AppId, oldSettings.NexusAppSettings.AppInstanceId);
         var secureId = oldEntityIdUtils.GenerateSecure<XEntity>(id);
 
-        var rotatedSettings = AppSettings.Development(new
+        using var rotatedSettings = SettingsProvider.Development<SampleApp5>(new
         {
             NexusAppSettings = new NexusAppSettings
             {
@@ -382,7 +914,7 @@ public class SourceKnownEntityIdUtilsTests
                 ]
             }
         });
-        var rotatedIdUtils = new SourceKnownIdUtils(rotatedSettings, new EpochTimeUtils());
+        var rotatedIdUtils = new SourceKnownIdUtils(rotatedSettings);
         using var rotatedEntityIdUtils = new SourceKnownEntityIdUtils(rotatedSettings, rotatedIdUtils);
 
         var parsed = rotatedEntityIdUtils.Parse(secureId.EntityId);
@@ -396,7 +928,7 @@ public class SourceKnownEntityIdUtilsTests
     [Fact]
     public void Generate_Should_Use_Default_Key_When_Default_Is_Not_First()
     {
-        var settings = AppSettings.Development(new
+        using var settings = SettingsProvider.Development<SampleApp5>(new
         {
             NexusAppSettings = new NexusAppSettings
             {
@@ -409,13 +941,13 @@ public class SourceKnownEntityIdUtilsTests
                 ]
             }
         });
-        var idUtils = new SourceKnownIdUtils(settings, new EpochTimeUtils());
+        var idUtils = new SourceKnownIdUtils(settings);
         using var entityIdUtils = new SourceKnownEntityIdUtils(settings, idUtils);
 
         var id = SourceKnownIdUtils.Generate<XEntity>(settings.NexusAppSettings.AppId, settings.NexusAppSettings.AppInstanceId);
         var secureId = entityIdUtils.GenerateSecure<XEntity>(id);
 
-        var defaultOnlySettings = AppSettings.Development(new
+        using var defaultOnlySettings = SettingsProvider.Development<SampleApp5>(new
         {
             NexusAppSettings = new NexusAppSettings
             {
@@ -424,7 +956,7 @@ public class SourceKnownEntityIdUtilsTests
                 Keys = [new NexusKey(new string('B', 32)) { Default = true }]
             }
         });
-        var defaultOnlyIdUtils = new SourceKnownIdUtils(defaultOnlySettings, new EpochTimeUtils());
+        var defaultOnlyIdUtils = new SourceKnownIdUtils(defaultOnlySettings);
         using var defaultOnlyEntityIdUtils = new SourceKnownEntityIdUtils(defaultOnlySettings, defaultOnlyIdUtils);
 
         var parsed = defaultOnlyEntityIdUtils.Parse(secureId.EntityId);
@@ -436,7 +968,7 @@ public class SourceKnownEntityIdUtilsTests
     [Fact]
     public void Validate_With_Same_EntityType_Byte_Across_Different_AppIds_Should_Throw_ValidationException()
     {
-        var settings = AppSettings.Development(new
+        using var settings = SettingsProvider.Development<SampleApp5>(new
         {
             NexusAppSettings = new NexusAppSettings
             {
@@ -444,7 +976,7 @@ public class SourceKnownEntityIdUtilsTests
                 AppInstanceId = 1
             }
         });
-        var idUtils = new SourceKnownIdUtils(settings, new EpochTimeUtils());
+        var idUtils = new SourceKnownIdUtils(settings);
         using var entityIdUtils = new SourceKnownEntityIdUtils(settings, idUtils);
 
         // Generate ID for XEntity (AppId=5, EntityType=200)
@@ -457,17 +989,17 @@ public class SourceKnownEntityIdUtilsTests
         validResult.EntityType.Should().Be(200);
         validResult.Source.AppId.Should().Be(5);
 
-        // Direct EntityTypeId validation against (EntityType=200, AppId=5) succeeds
-        var validComposite = entityIdUtils.Validate(id5.EntityId, new EntityTypeId(200, 5));
+        // Explicit typed validation against (EntityType=200, AppId=5) succeeds
+        var validComposite = entityIdUtils.Validate<SampleApp5>(id5.EntityId, 200);
         validComposite.Valid.Should().BeTrue();
 
         // Cross-partition validation: XEntityInApp6 has (EntityType=200, AppId=6)
-        // Must throw ValidationException because AppId differs even though EntityType byte matches
+        // The incoming ID must agree with the entity declaration.
         var actGeneric = () => entityIdUtils.Validate<XEntityInApp6>(id5.EntityId);
         actGeneric.Should().Throw<ValidationException>();
 
-        // Direct EntityTypeId validation against (EntityType=200, AppId=6) must throw
-        var actComposite = () => entityIdUtils.Validate(id5.EntityId, new EntityTypeId(200, 6));
+        // Explicit typed validation against (EntityType=200, AppId=6) must throw
+        var actComposite = () => entityIdUtils.Validate<SampleApp6>(id5.EntityId, 200);
         actComposite.Should().Throw<ValidationException>();
 
         // SourceKnownEntity.GetEntityId<TEntity> partition validation
@@ -482,6 +1014,11 @@ public class SourceKnownEntityIdUtilsTests
         validEntityGetLong.Valid.Should().BeTrue();
         entityInstance.GetEntityId((long?)id5.Source.Id, SourceKnownEntity.GetEntityTypeId<XEntity>())!.Value.Valid.Should().BeTrue();
         entityInstance.GetEntityId(id5.Source.Id, SourceKnownEntity.GetEntityTypeId<XEntity>()).Valid.Should().BeTrue();
+        var expected = new EntityTypeId(200, SampleApp5.AppId);
+        entityInstance.GetEntityId(id5.EntityId, expected).Should().Be(id5);
+        entityInstance.GetEntityId((Guid?)id5.EntityId, expected)!.Value.Should().Be(id5);
+        entityInstance.GetEntityId((Guid?)null, expected).Should().BeNull();
+        entityInstance.GetEntityId((long?)null, expected).Should().BeNull();
 
         // Cross-partition GetEntityId<TEntity> throws ValidationException (Guid and long)
         var actEntityGet = () => entityInstance.GetEntityId<XEntityInApp6>(id5.EntityId);
@@ -490,6 +1027,12 @@ public class SourceKnownEntityIdUtilsTests
         actEntityGetLong.Should().Throw<ValidationException>();
         var actCompositeLong = () => entityInstance.GetEntityId(id5.Source.Id, new EntityTypeId(200, 6));
         actCompositeLong.Should().Throw<ValidationException>();
+        var actCompositeGuid = () => entityInstance.GetEntityId(id5.EntityId, new EntityTypeId(200, 6));
+        actCompositeGuid.Should().Throw<ValidationException>();
+        var actNullableCompositeGuid = () => entityInstance.GetEntityId((Guid?)id5.EntityId, new EntityTypeId(200, 6));
+        actNullableCompositeGuid.Should().Throw<ValidationException>();
+        var actNullableCompositeLong = () => entityInstance.GetEntityId((long?)id5.Source.Id, new EntityTypeId(200, 6));
+        actNullableCompositeLong.Should().Throw<ValidationException>();
 
         // Generic Generate<TEntity>(long) must throw if long ID belongs to a different AppId partition
         var longIdApp6 = idUtils.Next<XEntityInApp6>();
@@ -518,7 +1061,7 @@ public class SourceKnownEntityIdUtilsTests
 
     private static void AssertParseRoundTrip(ISourceKnownEntityIdUtils entityIdUtils, SourceKnownEntityId original)
     {
-        var parsed = entityIdUtils.Parse(original.EntityId);
+        var parsed = entityIdUtils.Parse(original.EntityId, SourceKnownEntityIdFormat.Auto);
         parsed.Valid.Should().BeTrue();
         parsed.Source.Id.Should().Be(original.Source.Id);
         parsed.Source.Should().Be(original.Source);

@@ -4,28 +4,19 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
-*   **Partition-Scoped Entity Type Validation**: Startup validation enforces partition cardinality per `DbContext`.
-    *   Treats `(EntityType, AppId)` as the uniqueness key, aligning with SharedKernel analyzers.
-    *   Single `DbContext` instances cannot combine multiple production `AppId` partitions.
-    *   Configured `NexusAppSettings.AppId` must match the context's partition or a recognized registered host partition.
-    *   *Migration*: Split multi-partition DbContexts into dedicated single-partition contexts and align `NexusAppSettings.AppId` with the registered partition.
+*   **Repository ID Formats**: GUID helpers and GUID-input `GetAsync`/`GetOrDefaultAsync` add `SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault`. GUID `DeleteAsync` retains its params overload and adds an `(ids, format)` collection overload. The default follows secure/plain configuration; explicit `Auto` accepts both forms. Parsed-record reads, deletes, and the protected record-ID `Filter` take no format argument and validate stored validity plus entity/application identity without reauthenticating GUIDs. Undefined formats throw even for null GUIDs and empty GUID batches; enumeration remains lazy. Rebuild consumers and update GUID overrides, custom interfaces, and method-group bindings.
+*   **Entity Partitions**: Startup validation uses `(EntityType, AppId)` for uniqueness and rejects multiple production partitions in one `DbContext`. `NexusAppSettings.AppId` must match the context's partition or a recognized registered host partition. Split multi-partition contexts and align configuration with the registered partition.
 
 ### Changed
 
 *   **Repository Overrides**: Made public CRUD, query, and pagination methods virtual.
-*   **PostgreSQL Defaults**: Updated Npgsql context defaults to PostgreSQL 18.6, matching digest-pinned container defaults.
-*   **Compiled Delegate ID Dispatch**: Replaced dynamic reflection in `DrnSaveChangesInterceptor` and `SourceKnownIdValueGenerator` with compiled delegate dispatch via `ISourceKnownIdUtils.Next(SourceKnownEntity)` and startup `SourceKnownIdUtils.Warmup`, eliminating allocations on entity insertion hot paths.
+*   **PostgreSQL Defaults**: Updated Npgsql context defaults to PostgreSQL 18.6.
 
 ### Bug Fixes
 
-*   **NuGet Release Notes**: Package metadata includes only the latest version section, excluding historical releases and the documentation footer. Packing rejects missing version sections and release notes over 35,000 characters; the bundled Markdown retains the full history.
-
-*   **Repeatable Seeding Configuration**: Reapplying context options preserves custom EF callbacks without nesting DRN seed wrappers, so each seeding operation invokes attribute seeding once using the latest supplied provider. Reconfiguration without a provider restores only custom callbacks.
-*   **Private Container Entity Discovery**: Runtime model and assembly discovery now exclude entities nested at any depth inside private types, matching analyzer eligibility and preventing missing-metadata startup failures for private helpers.
-*   **Mapped Entity Inheritance**: Configure Source-Known keys and shared properties on EF hierarchy roots instead of derived types for TPH, TPT, and TPC. Model validation now excludes abstract bases and nested private helper entities, matching assembly discovery, while retaining concrete entity metadata validation and inherited ID generation.
-*   **Migration-Locked Seeding and Recovery**: DI-configured contexts invoke attribute `SeedAsync` through EF initialization callbacks. Automatic migration enters EF's migration lock even with no pending migrations, allowing later startups to retry failed seeds. Explicit DI migration/database-creation operations also seed; synchronous operations wait for the asynchronous hook. Custom EF callbacks are preserved, and design-time contexts without DI remain unchanged. Seed implementations must remain idempotent.
-*   **Startup Pending Model Changes Validation**: `PostStartupValidationAsync` verifies pending EF Core model changes regardless of whether auto-migration is enabled, failing fast on unmigrated schema drift.
-*   **Prototype Migration-History Guard**: Reads applied migrations directly from the target database, safely handling missing databases (`InvalidCatalogName`), preventing unmigrated databases from being dropped during prototype checks.
+*   **Mapped Entity Inheritance**: Source-Known entities support TPH, TPT, and TPC inheritance without duplicate key configuration on derived types.
+*   **Seeding and Recovery**: DI-configured contexts invoke attribute `SeedAsync` through EF seeding callbacks. Migration callbacks run under EF's migration lock, including when no migrations are pending, so later startups can retry failed seeds. Custom callbacks are preserved; seeds must remain idempotent. Prototype database creation does not acquire the migration lock.
+*   **Startup Schema Validation**: Pending model changes are checked even when auto-migration is disabled. Prototype checks read applied migrations directly from the database, tolerate missing databases, and protect databases with migration history even when no local migrations exist.
 *   **Design-Time Data-Source Hooks**: `DbContextExtensions.CreateDbContext` invokes `ConfigureNpgsqlDataSource` with safe null fallback when running outside DI.
 *   **Visible DbContext Discovery**: `AddDbContextsWithConventions` filters domain scanning to public/visible `DbContext` types (`IsVisible: true`).
 

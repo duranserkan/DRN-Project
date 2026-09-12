@@ -52,13 +52,22 @@
 This console example registers the calling assembly and resolves a scoped service. It uses Development settings for the example; see [Configuration](#configuration) for deployed applications.
 
 ```csharp
+using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Settings;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
+using var configuration = new ConfigurationBuilder()
+    .AddObjectToJsonConfiguration(new
+    {
+        Environment = "Development",
+        NexusAppSettings = new { AppId = 0, AppInstanceId = 0 }
+    }).Build();
+
 var services = new ServiceCollection();
-services.AddSingleton<IAppSettings>(_ => AppSettings.Development());
+services.AddSingleton<IAppSettings>(_ => new AppSettings(configuration));
 services.AddServicesWithAttributes();
 
 using var provider = services.BuildServiceProvider();
@@ -467,6 +476,8 @@ Changing `SeedKey` changes app-specific names, rate-limit keyed hashes, Developm
 ### NexusAppSettings and Nexus Keys
 
 `NexusAppSettings` configures Nexus routing, generator instances, secure/plain IDs, and the key ring used by `SourceKnownEntityIdUtils`. Entity ID generation derives `AppId` from `[EntityType<TApp>]` metadata. Configured `NexusAppSettings.AppId` controls the host's client routing partition and host domain partition alignment in Entity Framework.
+
+`NexusAppSettings:AppId` and `NexusAppSettings:AppInstanceId` must be explicitly configured in every environment. Missing, null, empty and whitespace values fail configuration validation; explicit `0` is valid for both. AppId supports 0 through 127; AppInstanceId supports 0 through 63. Assign distinct AppInstanceIds to concurrent instances generating IDs for the same application. The Testing package's `SettingsProvider.Development()` supplies both defaults explicitly.
 
 The following example illustrates the key format. Supply private key material in deployed applications.
 
@@ -987,37 +998,96 @@ public class StartupService(DevelopmentStatus status, IScopedLog log)
 
 ### High-Performance Time (`TimeStampManager`)
 
-`TimeStampManager` provides cached UTC time for repeated timestamp reads such as ID generation. Values are truncated to 250ms boundaries; the updater waits 10ms between finishing one update and starting the next. Refresh delay and timestamp precision are separate.
+`TimeStampManager` provides cached UTC with 250ms precision for repeated timestamp reads.
 
 ```csharp
-long precisionTicks = TimeStampManager.CurrentTimestamp(EpochTimeUtils.DefaultEpoch);
+long precisionTicks = TimeStampManager.CurrentTimestamp();
 DateTimeOffset now = TimeStampManager.UtcNow; // Cached UTC time truncated to 250ms precision
 ```
 
 Backward clock drift below five seconds freezes the cached timestamp until the clock catches up. Drift of at least five seconds requests application shutdown and causes timestamp reads to throw `ClockDriftException`. See [TimeStampManager.cs](Time/TimeStampManager.cs).
 
-### Async-Safe Timer (`RecurringAction`)
+`CurrentTimestamp()` applies the [generation-time policy](#trusted-minimum-utc). `UtcNow` is a general cached read and does not enforce the generation floor.
 
-`RecurringAction` prevents overlapping callbacks. Its `period` is a delay in milliseconds after a callback finishes, not a fixed interval between start times.
+### Recurring Timer & Dedicated Thread (`RecurringAction`)
+
+`RecurringAction` prevents overlapping synchronous `Action` callbacks. Its `period` is a delay in milliseconds after a callback finishes, not a fixed interval between start times. Use `RecurringActionAsync` for asynchronous callbacks; do not pass an `async void` callback to `RecurringAction`.
+
+Supplying `threadName` selects a dedicated background thread, with `ThreadPriority.Highest` as the default priority. Dedicated threads require a positive `period`; timer mode accepts zero. Invalid periods throw `ArgumentOutOfRangeException` during construction, including with `start: false`.
 
 ```csharp
-using var worker = new RecurringAction(async () => {
-    await DoHeavyWork();
-}, period: 1000, start: true);
+// ThreadPool timer (default)
+using var worker = new RecurringAction(SyncWork, period: 1000, start: true);
+
+// Dedicated background thread
+using var clockWorker = new RecurringAction(
+    SyncWork, period: 10, threadName: "MyService.DedicatedWorker");
 
 worker.Stop();
 worker.Start(); // Resume after stopping
 ```
 
-`Stop()` prevents an active callback from rescheduling the timer after it completes. The callback itself is allowed to finish.
+`Stop()` prevents an active callback from rescheduling after it completes. The callback itself is allowed to finish.
 
-Subscribe to `OnActionFailed` to observe callback exceptions. `Dispose()` stops scheduling but does not wait for an active callback; `Start()` throws after disposal. See [RecurringAction.cs](Time/RecurringAction.cs).
+In dedicated-thread mode, restarting during an active callback preserves the full `period` delay after that callback finishes. After restarting a stopped worker, subsequent callbacks remain separated by the configured delay.
+
+Subscribe to `OnActionFailed` to observe callback exceptions. `Dispose()` stops scheduling without waiting for an active callback. `Start()` throws after disposal.
+
+### Non-Overlapping Async Timer (`RecurringActionAsync`)
+
+`RecurringActionAsync` awaits asynchronous callbacks without overlap and supports cancellation and asynchronous disposal:
+
+```csharp
+await using var backgroundWorker = new RecurringActionAsync(
+    async ct => {
+        await PollExternalServiceAsync(ct);
+    },
+    period: TimeSpan.FromSeconds(30),
+    executionTimeout: TimeSpan.FromSeconds(10));
+
+backgroundWorker.Stop();
+backgroundWorker.Start(); // Resume execution
+```
+
+`Stop()` requests cancellation; restarted execution waits for the previous callback to finish. `DisposeAsync()` cancels and waits for outstanding callbacks, including stopped runs. Use `await using` to await completion when leaving the scope.
+
+Timeouts require a `Func<CancellationToken, Task>` callback. Pass the token to cancellable operations: a callback that ignores it can block later iterations and asynchronous disposal. `OnActionFailed` reports callback errors, or `TimeoutException` when the callback throws `OperationCanceledException` after its timeout.
+
+Periods truncate to 1–4,294,967,294 whole milliseconds. Timeouts must be positive and truncate to at most the same upper limit; positive sub-millisecond timeouts become zero milliseconds. Invalid bounds throw `ArgumentOutOfRangeException` during construction, even with `start: false`. Tokenless `Func<Task>` constructors accept only the callback, period, and optional `start`; they execute without a timeout.
 
 ### Time
 
 `AddDrnUtils()` uses `TryAddSingleton` to register `TimeProvider.System`. A previously registered `TimeProvider` is retained, allowing callers to supply testable time.
 
 ## ID Generation & Validation
+
+### Trusted minimum UTC
+
+New IDs use a process-wide epoch and minimum generation time:
+
+| Setting | Default | Purpose |
+|---|---|---|
+| `SourceKnownIdSettings:MinimumUtc` | `2026-09-09T00:00:00Z` | Earliest permitted generated timestamp; an override may be earlier or later. |
+| `SourceKnownIdSettings:DefaultEpoch` | `2025-01-01T00:00:00Z` | Origin used by generation, decoding, and date filters. Supplying it requires an explicit `MinimumUtc` in the same configuration. |
+
+Both settings require ISO 8601 UTC ending in `Z` or `+00:00`, with seconds and up to seven fractional digits. For example:
+
+```json
+{
+  "SourceKnownIdSettings": {
+    "DefaultEpoch": "2026-01-01T00:00:00Z",
+    "MinimumUtc": "2026-09-09T00:00:00Z"
+  }
+}
+```
+
+Configure before startup, generation, parsing, date-filter construction, or reading the configured epoch. These operations freeze both values; later conflicting settings fail, even after a failed generation-time check. Identical settings or omitted overrides retain the current policy. Non-hosted callers can use `SourceKnownGenerationTime.Initialize(minimumUtc, defaultEpoch)` before first use.
+
+Keep the epoch unchanged across every service and restart using a dataset. IDs do not store their origin; changing it changes the interpretation of existing timestamps.
+
+The minimum rounds upward to a 250ms boundary relative to the epoch. Hosts validate before program/actions constructors and hooks, including read-only and temporary hosts; non-hosted generation validates on first use. Invalid configuration, a time below the rounded minimum, or a time outside the supported epoch fails. A failed time check can be retried when time catches up.
+
+Only encoded epoch `0`, including both halves, is supported. Historical parsing and GUID reconstruction from existing numeric IDs use the configured epoch without enforcing the generation floor. The floor constrains generated timestamps; [clock-drift protection](#high-performance-time-timestampmanager) still applies. See the [SharedKernel baseline](../DRN.Framework.SharedKernel/README.md#source-baseline-contract) for maintenance and cross-restart limits.
 
 Source-known IDs separate the internal `long` ID from the external `SourceKnownEntityId` GUID. The external form adds entity metadata and a keyed integrity check; it can be plain or encrypted.
 > [!NOTE]
@@ -1037,7 +1107,7 @@ The `Generate` method dispatches to secure or plain generation based on the `Use
 
 The secure variant encrypts the entire 16-byte GUID with `Aes256` as a pseudo-random permutation (PRP). For this single block, ECB is equivalent to CBC with a zero IV and uses no nonce. It is deterministic: equal blocks under the same key produce equal ciphertext. Integrity comes from the separate 32-bit BLAKE3 keyed MAC, not from AES. BLAKE3 derives distinct MAC and encryption keys from the decoded `NexusKey` material.
 
-Generation uses the default `NexusKey`. Parse uses a default-first key-ring fallback, so IDs generated before key rotation can still be parsed while the previous key remains configured.
+Generation uses the default `NexusKey`. Parse uses a default-first key-ring fallback, so IDs generated before key rotation can still be parsed while the previous key remains configured and their format is accepted.
 
 > [!NOTE]
 > `SourceKnownEntityIdUtils` is a singleton and reuses each key-ring entry's `Aes256` instance. Intrinsic and portable paths preserve the same encrypted ID format. See [AES-256 single-block encryption](#aes-256-single-block-encryption-aes256) for concurrency, runtime-verification and disposal requirements.
@@ -1065,13 +1135,40 @@ var externalId = sourceKnownEntityIdUtils.Generate<User>(internalId);
 var anotherId = sourceKnownEntityIdUtils.Generate<User>();
 ```
 
-`User` must derive from `SourceKnownEntity` and carry the required entity/app metadata. `Next<TEntity>()` derives the app partition from that metadata and uses the configured instance ID. Explicit `Next`/`Generate` overloads accept app and instance IDs. `GeneratePlain<TEntity>()` and `GenerateSecure<TEntity>()` also generate a new internal ID when called without arguments. See [SourceKnownIdUtils.cs](Ids/SourceKnownIdUtils.cs) and [SourceKnownEntityIdUtils.cs](Ids/SourceKnownEntityIdUtils.cs).
+`User` must derive from `SourceKnownEntity` and carry the required entity/app metadata. `Next<TEntity>()`, `Next(SourceKnownEntity)`, and `Next(Type)` derive the app partition from that metadata and use the configured instance ID. `GeneratePlain<TEntity>()` and `GenerateSecure<TEntity>()` also generate a new internal ID when called without arguments. See [SourceKnownIdUtils.cs](Ids/SourceKnownIdUtils.cs) and [SourceKnownEntityIdUtils.cs](Ids/SourceKnownEntityIdUtils.cs).
 
 ### Parse & Validation
 
-`Parse` accepts secure and plaintext IDs and verifies their integrity.
+`Parse` verifies ID integrity in the selected format.
 
-`Parse(Guid)` returns a result with `Valid == false` for an invalid ID. `Validate<TEntity>` throws when integrity, entity type, or application partition does not match. A valid ID does not grant access to an entity; authorization remains the application's responsibility.
+GUID-input `Parse` and `Validate` overloads accept non-nullable `SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault`, including generic, nullable-ID and interface calls. Omit format or pass ConfiguredDefault instead of null. The enum lives in `DRN.Framework.SharedKernel.Domain`.
+
+The same operations are available through `ISourceKnownEntityIdOperations`, including the read-only `DefaultFormat` property. The constructor sets it to Secure or Plain from `NexusAppSettings.UseSecureSourceKnownIds`; it stays fixed for the utility's lifetime. Entity and repository GUID helpers forward format selection to the parser. Parsed `SourceKnownEntityId` validation takes no format argument: `ValidateId()` checks stored validity; `Validate<TEntity>()` and `Validate(EntityTypeId expected)` also check identity. Both parsed representations are accepted. Records are publicly constructible and do not reauthenticate GUIDs; authenticate untrusted GUIDs through the operations service.
+
+| Format | Accepted input |
+|---|---|
+| Omitted | Defaults to `ConfiguredDefault` |
+| `ConfiguredDefault` | `NexusAppSettings.UseSecureSourceKnownIds`: `true` selects Secure; `false` selects Plain |
+| `Secure` | Decrypt and verify; never try plain parsing |
+| `Plain` | Verify plain input; never decrypt |
+| `Auto` | For each key, try plain markers/MAC first, then decrypt if verification fails |
+
+Explicit Secure, Plain or Auto overrides configuration. `Auto` retains the previous detection behavior, including decryption of ciphertext with apparent plain markers after its plain MAC fails. Key rotation, partition validation, MAC checks and backward collision verification still apply. `ToSecure` and `ToPlain` continue accepting either representation under either configuration.
+
+With `UseSecureSourceKnownIds = true`, default parsing blocks direct plaintext MAC guessing: AES prevents callers without the key from independently choosing the recovered ID and its 32-bit MAC. Authorization and rate limiting remain necessary.
+
+Keep format selection under application control. Explicit `Plain`/`Auto` and conversion helpers accept plain IDs, relaxing the secure-only boundary. Before converting external GUIDs, validate them using the endpoint's required format; trusted internal records can be converted directly.
+
+```csharp
+var strict = ids.Validate<User>(externalGuidId); // configured format
+strict.Validate<User>(); // validate the parsed record's validity and identity
+var plain = ids.Parse(externalGuidId, SourceKnownEntityIdFormat.Plain);
+var mixed = ids.Validate<User>(externalGuidId, SourceKnownEntityIdFormat.Auto);
+```
+
+`Parse` returns `Valid == false` for invalid input or a disallowed representation. `Validate` throws `ValidationException` when integrity, format, entity type or application partition does not match. Nullable inputs return null for supported formats; undefined enum values throw `ArgumentOutOfRangeException`, even with null input. A valid ID does not grant access to an entity; authorization remains the application's responsibility.
+
+Migration: ordinary calls compile unchanged, but their omitted-format behavior is now strict. Select `Auto` explicitly where mixed formats are intentional. Public signatures changed, so compiled consumers must be rebuilt; custom interface implementations and method-group bindings must be updated. Domain helpers, repositories and pagination that omit the format inherit the configured policy.
 
 > [!IMPORTANT]
 > Add rate limiting to endpoints that accept `SourceKnownEntityId` from untrusted sources to prevent brute-force attacks.
@@ -1083,13 +1180,33 @@ Users can validate incoming IDs (e.g., from APIs) using multiple approaches depe
 var sourceKnownId = sourceKnownEntityIdUtils.Validate<User>(externalGuidId);
 ```
 
+`Validate<TEntity>` uses the entity's code-declared `(EntityType, AppId)`, independently of configuration. `Validate(id, entityType)` uses `NexusAppSettings.AppId`. Invalid ID integrity, entity type or encoded AppId throws `ValidationException`.
+
+Without an entity type parameter, override the configured partition using an `IAppId` type or an explicit `EntityTypeId`:
+
+```csharp
+ids.Validate<Order>(orderId);                         // Order's declared identity
+ids.Validate(orderId, entityType);                    // configured partition
+ids.Validate<StockItem>(stockItemId);                 // StockItem's declared identity
+ids.Validate<InventoryApp>(stockItemId, entityType);   // InventoryApp : IAppId
+ids.Validate(stockItemId, new EntityTypeId(entityType, InventoryApp.AppId));
+```
+
+Nullable inputs return null. `Parse` and SharedKernel validation do not enforce the service's configured partition. Authorization remains separate.
+
 **2. SourceKnownRepository (Recommended for Data Access)**
+
+Repositories validate the target entity's declared `(EntityType, AppId)`, including registered secondary partitions.
+
 ```csharp
 // Method on SourceKnownRepository<TEntity>
 var sourceKnownId = userRepository.GetEntityId(externalGuidId); 
 ```
 
 **3. SourceKnownEntity (Recommended for Domain Logic)**
+
+Use entity metadata or `new EntityTypeId(entityType, expectedAppId)` to validate both identity components. Parsed-record validation accepts either format without a format argument. `ValidateId()` and the domain GUID helper's boolean validation option check validity only.
+
 ```csharp
 // Helper on SourceKnownEntity base class
 var sourceKnownId = userInstance.GetEntityId<User>(externalGuidId);

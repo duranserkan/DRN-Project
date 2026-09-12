@@ -9,7 +9,7 @@ public static class NumberBuilder
 
     public static NumberBuilder<long> GetLong(NumberBuildDirection direction = NumberBuildDirection.MostSignificantFirst, byte residueBitLength = 32) =>
         new(direction, 64, residueBitLength, true);
-    
+
     public static NumberBuilder<ulong> GetLongUnsigned(NumberBuildDirection direction = NumberBuildDirection.MostSignificantFirst) =>
         new(direction, 64, 0, false);
 
@@ -29,8 +29,7 @@ public ref struct NumberBuilder<TNumber> where TNumber : struct, IBinaryInteger<
     private readonly NumberBuildDirection _direction;
 
     private int _currentBitOffset;
-    private ulong _unsignedValue = ulong.MinValue;
-    private long _signedValue;
+    private ulong _value;
 
     internal NumberBuilder(NumberBuildDirection direction, byte bitLength, byte residueBitLength, bool signed)
     {
@@ -38,7 +37,7 @@ public ref struct NumberBuilder<TNumber> where TNumber : struct, IBinaryInteger<
         _signed = signed;
         _residueBitLength = residueBitLength;
         _bitLength = bitLength;
-        _signedValue = signed ? 1L << (bitLength - 1) : 0;
+        _value = signed ? 1UL << (bitLength - 1) : 0;
 
         if (_signed)
         {
@@ -51,8 +50,8 @@ public ref struct NumberBuilder<TNumber> where TNumber : struct, IBinaryInteger<
     }
 
     public TNumber GetValue() => _signed
-        ? TNumber.CreateTruncating(_signedValue)
-        : TNumber.CreateTruncating(_unsignedValue);
+        ? TNumber.CreateTruncating(unchecked((long)_value))
+        : TNumber.CreateTruncating(_value);
 
     public int GetResidue() => (int)_residue;
 
@@ -61,7 +60,7 @@ public ref struct NumberBuilder<TNumber> where TNumber : struct, IBinaryInteger<
         if (!_signed) return;
 
         _residue = value & _residueBitLength.GetBitMaskSigned();
-        _signedValue |= _residue << _availableBitLength;
+        _value |= (ulong)_residue << _availableBitLength;
     }
 
     public bool IsPositive() => !_signBit;
@@ -73,10 +72,13 @@ public ref struct NumberBuilder<TNumber> where TNumber : struct, IBinaryInteger<
     {
         if (!_signed) return;
 
-        _signedValue = signBit ? _signedValue | (1L << (_bitLength - 1)) : _signedValue & ~(1L << (_bitLength - 1));
+        _value = signBit ?
+            _value | (1UL << (_bitLength - 1)) :
+            _value & ~(1UL << (_bitLength - 1));
+
         _signBit = signBit;
     }
-    
+
     public bool TryAddBit(byte bit) => TryAdd(bit, 1);
     public bool TryAddCrumb(byte crumb) => TryAdd(crumb, 2);
     public bool TryAddNibble(byte nibble) => TryAdd(nibble, 4);
@@ -89,10 +91,7 @@ public ref struct NumberBuilder<TNumber> where TNumber : struct, IBinaryInteger<
         if (!ValidateWriteOperation(bitLength))
             return false;
 
-        if (_signed)
-            _signedValue |= (value & bitLength.GetBitMaskSigned()) << CalculateShift(bitLength);
-        else
-            _unsignedValue |= (value & bitLength.GetBitMaskUnsigned()) << CalculateShift(bitLength);
+        _value |= (value & bitLength.GetBitMaskUnsigned()) << CalculateShift(bitLength);
 
         _currentBitOffset += bitLength;
 
@@ -110,8 +109,7 @@ public ref struct NumberBuilder<TNumber> where TNumber : struct, IBinaryInteger<
     /// </summary>
     public void Reset()
     {
-        _unsignedValue = ulong.MinValue;
-        _signedValue = _signed ? 1L << (_bitLength - 1) : 0;
+        _value = _signed ? 1UL << (_bitLength - 1) : 0;
         _currentBitOffset = 0;
         _residue = 0;
         _signBit = true;

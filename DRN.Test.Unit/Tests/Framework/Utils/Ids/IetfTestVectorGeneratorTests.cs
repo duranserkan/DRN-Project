@@ -186,12 +186,12 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
         parsed.InstanceId.Should().Be(TestSequenceId);
 
         // --- A.3: SKEID Generation (Plain) ---
-        var plainId = entityIdUtils.GeneratePlain(skid, TestEntityType);
+        var plainId = entityIdUtils.GeneratePlain(skid, new EntityTypeId(TestEntityType, TestAppId));
         var plainBytes = plainId.EntityId.ToByteArray(bigEndian: true);
 
         SourceKnownEntity.GetEntityType<TestVectorEntity>().Should().Be(TestEntityType);
         var typedPlainId = entityIdUtils.GeneratePlain(new TestVectorEntity(skid));
-        typedPlainId.EntityId.Should().Be(plainId.EntityId, "the Appendix A entity type attribute should drive the same byte layout as the explicit byte");
+        typedPlainId.EntityId.Should().Be(plainId.EntityId, "the Appendix A entity type attribute should drive the same byte layout as the explicit identity");
 
         // Assert exact byte layout matches draft-skid-00.md Appendix A.3
         var plainHex = Convert.ToHexString(plainBytes);
@@ -228,7 +228,7 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
         plainBytes[8].Should().Be(SourceKnownMarkerVariantByte, "marker variant at RFC octet 8");
 
         // --- A.4: Secure SKEID Generation ---
-        var secureId = entityIdUtils.GenerateSecure(skid, TestEntityType);
+        var secureId = entityIdUtils.GenerateSecure(skid, new EntityTypeId(TestEntityType, TestAppId));
         var secureBytes = secureId.EntityId.ToByteArray(bigEndian: true);
 
         // Assert exact ciphertext
@@ -250,7 +250,7 @@ public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
             """);
 
         // --- A.5: Round-Trip Verification ---
-        var parsedPlain = entityIdUtils.Parse(plainId.EntityId);
+        var parsedPlain = entityIdUtils.Parse(plainId.EntityId, SourceKnownEntityIdFormat.Plain);
         parsedPlain.Valid.Should().BeTrue();
         parsedPlain.Source.Id.Should().Be(skid);
         parsedPlain.Secure.Should().BeFalse();

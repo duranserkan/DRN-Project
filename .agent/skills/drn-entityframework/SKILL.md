@@ -1,7 +1,7 @@
 ---
 name: drn-entityframework
 description: "DRN.Framework.EntityFramework - DrnContext, migrations, entity lifecycle tracking, Npgsql configuration, repositories, and repository cancellation groups. Keywords: drncontext, ef-core, migrations, database, postgresql, npgsql, repository-implementation, repository-cancellation, cancellation-scope, entity-tracking, dbcontext-configuration, prototype-mode, testcontainers"
-last-updated: 2026-09-06
+last-updated: 2026-09-12
 difficulty: advanced
 tokens: ~2.5K
 ---
@@ -214,6 +214,12 @@ public virtual Task SeedAsync(IServiceProvider serviceProvider, IAppSettings app
 Custom performance attributes can inherit `NpgsqlPerformanceSettingsAttribute` to override defaults.
 
 ### RepositorySettings
+
+Repository GUID validation checks the declared `(EntityType, AppId)` of `TEntity` or `TOtherEntity`, including secondary partitions. Nullable inputs preserve null; `validate: false` skips validation.
+
+Repository GUID ID helpers and GUID-input GetAsync/GetOrDefaultAsync methods accept non-nullable `SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault`. The parser resolves ConfiguredDefault through immutable DefaultFormat; explicit Auto permits mixed-format GUID input. GUID DeleteAsync adds an `(ids, format)` collection overload and retains its params overload. Parsed-record reads/deletes and the protected static record-ID Filter have no format parameter: they check stored validity and entity type/application partition, accepting either parsed representation. Use trusted internal records; untrusted GUIDs require parsing. Entity-input operations have no format parameter. `validate: false` skips record validation. Undefined GUID formats reject even null inputs/empty batches; enumerable helpers defer parsing until enumeration. Update custom GUID signatures/overrides and rebuild consumers.
+
+Secure-only defaults block direct plaintext MAC guessing. Keep Plain/Auto overrides under application control; validate external GUIDs with the required format before conversion or record-input operations. Integration tests should cover explicit-format reads/deletes and verify that rejected mixed-format batches leave rows unchanged.
 
 Configure repository-wide query behavior:
 

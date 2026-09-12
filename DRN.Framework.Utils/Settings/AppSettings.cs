@@ -54,19 +54,10 @@ public sealed class AppSettings : IAppSettings, IDisposable
     private const string DevelopmentNexusKeyMaterialContext =
         "DRN.Framework.Utils Development NexusKey material from 1881 to 193∞ Forever 2026-06-29 21:57:43 v1";
 
-    public static IAppSettings Development(params object[] settings)
-    {
-        var configurationBuilder = new ConfigurationManager().AddObjectToJsonConfiguration(new { Environment = "Development" });
-
-        foreach (var setting in settings)
-            configurationBuilder.AddObjectToJsonConfiguration(setting);
-
-        return new AppSettings(configurationBuilder.Build());
-    }
-
     public AppSettings(IConfiguration configuration)
     {
         Configuration = configuration;
+        SourceKnownIdSettings.Initialize(configuration);
         Environment = TryGetSection(nameof(Environment), out _)
             ? configuration.GetValue<AppEnvironment>(nameof(Environment))
             : AppEnvironment.NotDefined;
@@ -82,6 +73,11 @@ public sealed class AppSettings : IAppSettings, IDisposable
 
         DevelopmentSettings = Get<DrnDevelopmentSettings>(nameof(DrnDevelopmentSettings)) ?? new DrnDevelopmentSettings();
         DevelopmentSettings.ValidateDataAnnotationsThrowIfInvalid();
+
+        if (string.IsNullOrWhiteSpace(configuration["NexusAppSettings:AppId"]))
+            throw ExceptionFor.Configuration("NexusAppSettings:AppId must be explicitly configured, including when using AppId 0.");
+        if (string.IsNullOrWhiteSpace(configuration["NexusAppSettings:AppInstanceId"]))
+            throw ExceptionFor.Configuration("NexusAppSettings:AppInstanceId must be explicitly configured, including when using AppInstanceId 0.");
 
         NexusAppSettings = Get<NexusAppSettings>(nameof(NexusAppSettings)) ?? new NexusAppSettings();
         try
@@ -222,7 +218,7 @@ public sealed class AppSettings : IAppSettings, IDisposable
                 developmentKeyMaterialSeed,
                 DevelopmentNexusKeyMaterialContext);
 
-            return keyMaterial.Span.Encode(ByteEncoding.Base64UrlEncoded);
+            return keyMaterial.Span.Encode(encoding: ByteEncoding.Base64UrlEncoded);
         }
         finally
         {

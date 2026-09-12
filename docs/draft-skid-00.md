@@ -1410,7 +1410,8 @@ without accessing a database:
 
 A support engineer receiving a GUID from an end-user can:
 
-1. Parse the GUID as an SKEID (auto-detecting secure vs plain).
+1. Parse the GUID as an SKEID with explicit `Auto` format to detect secure
+   vs plain.
 2. Extract creation time → "Embedded time: 2026-03-07 14:30:00 UTC."
 3. Extract app ID → "Claimed app ID 5 maps to order-service."
 4. Extract entity type → "Embedded type 12 maps to Order."
@@ -2180,7 +2181,14 @@ Common utility operations:
 
 | Operation | Input | Output |
 |-----------|-------|--------|
-| `Parse(guid)` | UUID | SKEID record (auto-detects secure/plain) |
-| `Validate<TEntity>(guid)` | UUID | SKEID record or throws if type mismatch |
+| `Parse(guid, format = null)` | UUID | SKEID record using the selected format |
+| `Validate<TEntity>(guid, format = null)` | UUID | SKEID record or throws if invalid or the entity type/application partition does not match |
 | `ToSecure(skeid)` | Parsed SKEID | Secure SKEID (no-op if already secure) |
 | `ToPlain(skeid)` | Parsed SKEID | Plain SKEID (no-op if already plain) |
+
+In DRN-Project, omitted or null `format` follows
+`NexusAppSettings.UseSecureSourceKnownIds`: `true` selects `Secure`, and
+`false` selects `Plain`. An explicit `SourceKnownEntityIdFormat` overrides
+configuration: `Secure` only decrypts and verifies, `Plain` only verifies
+plain input, and `Auto` retains automatic secure/plain detection.
+Conversions continue to accept both formats.

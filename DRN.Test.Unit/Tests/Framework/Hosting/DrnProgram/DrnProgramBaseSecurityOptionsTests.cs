@@ -18,7 +18,7 @@ public class DrnProgramBaseSecurityOptionsTests
     [Fact]
     public async Task Builder_Should_Map_All_Identity_Claims_Without_Replacing_Unrelated_Options()
     {
-        using var appSettings = (AppSettings)AppSettings.Development();
+        using var appSettings = SettingsProvider.Development();
         var builder = WebApplication.CreateEmptyBuilder(new WebApplicationOptions());
         using var configuration = builder.Configuration;
         new TestProgram().RegisterDefaults(builder, appSettings);

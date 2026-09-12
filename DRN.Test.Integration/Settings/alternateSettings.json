@@ -1,5 +1,6 @@
 {
-  "Environment": "Development", 
+  "Environment": "Development",
+  "NexusAppSettings": { "AppId": 0, "AppInstanceId": 0 },
   "AllowedHosts": "*",
   "Foo": "*",
   "ConnectionStrings": {

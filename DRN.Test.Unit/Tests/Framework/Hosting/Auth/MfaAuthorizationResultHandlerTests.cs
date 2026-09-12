@@ -35,7 +35,8 @@ public class MfaAuthorizationResultHandlerTests
     {
         using var activity = new Activity("audit-test").SetIdFormat(ActivityIdFormat.W3C).Start();
         var logger = new AuditLogger();
-        var scopedLog = new ScopedLog(AppSettings.Development());
+        using var appSettings = SettingsProvider.Development();
+        var scopedLog = new ScopedLog(appSettings);
         context.ServiceCollection.AddSingleton<IScopedLog>(scopedLog);
         context.ServiceCollection.AddSingleton<ILogger<MfaEnforcingAuthorizationMiddlewareResultHandler>>(logger);
         context.ServiceCollection.AddAuthentication("Test")
@@ -115,7 +116,8 @@ public class MfaAuthorizationResultHandlerTests
         {
             Activity.Current = null;
             var logger = new AuditLogger();
-            var scopedLog = new ScopedLog(AppSettings.Development());
+            using var appSettings = SettingsProvider.Development();
+            var scopedLog = new ScopedLog(appSettings);
             context.ServiceCollection.AddSingleton<IScopedLog>(scopedLog);
             context.ServiceCollection.AddSingleton<ILogger<MfaEnforcingAuthorizationMiddlewareResultHandler>>(logger);
             context.ServiceCollection.AddAuthentication("Test")

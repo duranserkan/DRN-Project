@@ -1,9 +1,11 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Time;
 
-namespace DRN.Test.Integration.Tests.Sample.Utils;
+namespace DRN.Test.Integration.Tests.Framework.Utils.SourceKnownIds;
 
+[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class SourceKnownEntityIdUtilsTests
 {
     [Theory]
@@ -59,7 +61,7 @@ public class SourceKnownEntityIdUtilsTests
             pair.entityId.Source.Should().Be(pair.parsed.Source);
             pair.parsed.Secure.Should().BeTrue("collision guard must prevent Secure→Plain misclassification");
         }
-        
+
         // Collision guard: no Secure SKEID should have been misclassified as Plain
         var misclassifiedCount = parsedIds.Count(p => !p.parsed.Secure);
         misclassifiedCount.Should().Be(0, "collision guard must eliminate all Secure→Plain misclassification");
@@ -72,11 +74,11 @@ public class SourceKnownEntityIdUtilsTests
         uniqueGuids.Should().Be(entityIds.Length);
     }
 
-    public readonly struct SampleApp7 : IAppId
-    {
+    private readonly struct SampleApp7 : IAppId
+        {
         public const byte Value = 7;
         public static byte AppId => Value;
-    }
+        }
 
     [EntityType<SampleApp7>(200)]
     internal class XEntity(long id) : SourceKnownEntity(id);

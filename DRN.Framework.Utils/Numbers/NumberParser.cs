@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace DRN.Framework.Utils.Numbers;
 
 public struct NumberParser
@@ -19,8 +21,7 @@ public struct NumberParser
     private readonly byte _residueBitLength;
     private readonly byte _availableBitLength;
 
-    private long _signedValue;
-    private ulong _unsignedValue;
+    private ulong _value;
     private int _currentBitOffset;
 
     private NumberParser(NumberBuildDirection direction, byte bitLength, byte residueBitLength, bool signed, long signedValue = 0, ulong unsignedValue = 0)
@@ -28,8 +29,7 @@ public struct NumberParser
         _direction = direction;
         _residueBitLength = residueBitLength;
         _signed = signed;
-        _signedValue = signedValue;
-        _unsignedValue = unsignedValue;
+        _value = signed ? unchecked((ulong)signedValue) : unsignedValue;
 
         //offset from most significant bit, also mean total available bits
         _availableBitLength = signed
@@ -42,14 +42,18 @@ public struct NumberParser
         var currentAvailableBits = _availableBitLength - _currentBitOffset;
 
         if (bitSize > currentAvailableBits)
-            throw new InvalidOperationException($"Attempt to read {bitSize} bits exceeds available {currentAvailableBits} bits.");
+            ThrowReadExceedsAvailableBits(bitSize, currentAvailableBits);
     }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void ThrowReadExceedsAvailableBits(int bitSize, int currentAvailableBits) =>
+        throw new InvalidOperationException($"Attempt to read {bitSize} bits exceeds available {currentAvailableBits} bits.");
 
     private int CalculateShift(int bitSize) => _direction == NumberBuildDirection.MostSignificantFirst
         ? _availableBitLength - _currentBitOffset - bitSize
         : _currentBitOffset;
 
-    public uint ReadResidueValue() => (uint)((_signedValue >> _availableBitLength) & _residueBitLength.GetBitMaskSigned());
+    public uint ReadResidueValue() => (uint)((_value >> _availableBitLength) & _residueBitLength.GetBitMaskUnsigned());
     public byte ReadBit() => (byte)Read(1);
     public byte ReadCrumb() => (byte)Read(2);
     public byte ReadNibble() => (byte)Read(4);
@@ -61,9 +65,7 @@ public struct NumberParser
     {
         ValidateReadOperation(bitSize);
         
-        var value = _signed
-            ? (uint)((_signedValue >> CalculateShift(bitSize)) & bitSize.GetBitMaskSigned())
-            : (uint)((_unsignedValue >> CalculateShift(bitSize)) & bitSize.GetBitMaskUnsigned());
+        var value = (uint)((_value >> CalculateShift(bitSize)) & bitSize.GetBitMaskUnsigned());
 
         _currentBitOffset += bitSize;
 
@@ -75,7 +77,7 @@ public struct NumberParser
         if (!_signed)
             throw new InvalidOperationException("Cannot reset an unsigned parser with a signed value.");
 
-        _signedValue = signedValue;
+        _value = unchecked((ulong)signedValue);
         _currentBitOffset = 0;
     }
 
@@ -84,7 +86,7 @@ public struct NumberParser
         if (_signed)
             throw new InvalidOperationException("Cannot reset a signed parser with an unsigned value.");
 
-        _unsignedValue = unsignedValue;
+        _value = unsignedValue;
         _currentBitOffset = 0;
     }
 }

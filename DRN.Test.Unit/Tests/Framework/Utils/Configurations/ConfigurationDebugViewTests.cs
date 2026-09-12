@@ -53,7 +53,7 @@ public class ConfigurationDebugViewTests
     {
         var connectionStrings = new ConnectionStringsCollection();
         connectionStrings.ConnectionStrings.Add(name, connectionString);
-        var appSettings = AppSettings.Development(connectionStrings);
+        using var appSettings = SettingsProvider.Development(connectionStrings);
 
         var debugView = appSettings.GetDebugView(includeRawValues: true).ToSummary();
 

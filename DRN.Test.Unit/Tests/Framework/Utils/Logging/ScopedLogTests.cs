@@ -364,5 +364,5 @@ public class ScopedLogTests
         [IgnoreLog] public string Secret => throw new InvalidOperationException("Ignored getters must not execute.");
     }
 
-    private static ScopedLog CreateLog() => new(AppSettings.Development());
+    private static ScopedLog CreateLog() => new(SettingsProvider.Development());
 }

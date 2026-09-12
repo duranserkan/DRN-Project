@@ -1,3 +1,4 @@
+using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.SharedKernel.Domain.Repository;
 using DRN.Framework.Utils.Entity;
 using DRN.Test.Integration.Tests.Sample.Infra.QA.Repositories.Data;
@@ -39,12 +40,12 @@ public class QAContextTagTests
         firstTag.EntityIdSource.HasSameEntityType<Question>().Should().BeFalse();
 
         //generator set by DrnSaveChangesInterceptor
-        var foreignId = firstTag.GetEntityId(-1, 1);
+        var foreignId = firstTag.GetEntityId(-1, new EntityTypeId(1, TestApp.AppId));
         foreignId.EntityType.Should().Be(1);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
 
-        foreignId = firstTag.GetEntityId(-2, 255);
+        foreignId = firstTag.GetEntityId(-2, new EntityTypeId(255, TestApp.AppId));
         foreignId.EntityType.Should().Be(255);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
@@ -119,7 +120,7 @@ public class QAContextTagTests
         var firstTagFromDb = await qaContext2.Tags.FindAsync(firstTag.Id);
 
         //generator set by DrnMaterializationInterceptor
-        foreignId = firstTagFromDb!.GetEntityId(-3, 255);
+        foreignId = firstTagFromDb!.GetEntityId(-3, new EntityTypeId(255, TestApp.AppId));
         foreignId.EntityType.Should().Be(255);
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
@@ -135,7 +136,7 @@ public class QAContextTagTests
         foreignId.EntityId.Should().NotBeEmpty();
         foreignId.Valid.Should().BeTrue();
         
-        foreignId = firstTagFromDb.GetEntityId(foreignId.EntityId, 255);
+        foreignId = firstTagFromDb.GetEntityId(foreignId.EntityId, new EntityTypeId(255, TestApp.AppId));
         foreignId.EntityType.Should().Be(255);
         foreignId.Source.Id.Should().Be(-5);
         foreignId.EntityId.Should().NotBeEmpty();
@@ -148,8 +149,8 @@ public class QAContextTagTests
         foreignId.Valid.Should().BeTrue();
         
 
-        firstTagFromDb.GetEntityId((Guid?)null, 255).Should().BeNull();
-        firstTagFromDb.GetEntityId((long?)null, 255).Should().BeNull();
+        firstTagFromDb.GetEntityId((Guid?)null, new EntityTypeId(255, TestApp.AppId)).Should().BeNull();
+        firstTagFromDb.GetEntityId((long?)null, new EntityTypeId(255, TestApp.AppId)).Should().BeNull();
         firstTagFromDb.GetEntityId<TestEntity>((Guid?)null).Should().BeNull();
         firstTagFromDb.GetEntityId<TestEntity>((long?)null).Should().BeNull();
         firstTagFromDb.GetEntityId(null, false).Should().BeNull();

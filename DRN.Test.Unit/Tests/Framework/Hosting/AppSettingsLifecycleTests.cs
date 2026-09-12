@@ -1,4 +1,3 @@
-using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Utils.Logging;
 using Microsoft.AspNetCore.Builder;
@@ -9,6 +8,53 @@ namespace DRN.Test.Unit.Tests.Framework.Hosting;
 
 public class AppSettingsLifecycleTests
 {
+    [Theory]
+    [DataInlineUnit("2025-01-01T00:00:00Z", null, "*DefaultEpoch requires an explicit*MinimumUtc*")]
+    [DataInlineUnit("2026-01-01T00:00:00Z", null, "*DefaultEpoch requires an explicit*MinimumUtc*")]
+    [DataInlineUnit("2026-01-01T00:00:00Z", "", "*configured override*ISO 8601 UTC*")]
+    [DataInlineUnit("not UTC", "2026-01-01T00:00:00Z", "*configured default epoch*ISO 8601 UTC*")]
+    public async Task Configured_Epoch_Requires_A_Valid_Paired_Minimum_Before_Host_Callbacks(string epoch, string? minimum, string expectedError)
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Environment"] = "Development",
+            ["NexusAppSettings:AppId"] = "0",
+            ["NexusAppSettings:AppInstanceId"] = "0",
+            ["SourceKnownIdSettings:DefaultEpoch"] = epoch,
+            ["SourceKnownIdSettings:MinimumUtc"] = minimum
+        }).Build();
+        var settings = Substitute.For<IAppSettings>();
+        settings.Configuration.Returns(configuration);
+        var called = false;
+        Func<Task> create = () => TemporaryLifecycleProgram.CreateApplicationAsync([], settings,
+            Substitute.For<IScopedLog>(), _ => called = true);
+        await create.Should().ThrowAsync<ConfigurationException>().WithMessage(expectedError);
+        called.Should().BeFalse();
+        var createSettings = () => new AppSettings(configuration);
+        createSettings.Should().Throw<ConfigurationException>().WithMessage(expectedError);
+    }
+
+    [Fact]
+    public async Task Malformed_Override_Fails_Before_Any_Host_Builder_Callback()
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Environment"] = "Development",
+            ["NexusAppSettings:AppId"] = "0",
+            ["NexusAppSettings:AppInstanceId"] = "0",
+            ["SourceKnownIdSettings:MinimumUtc"] = "not UTC"
+        }).Build();
+        var settings = Substitute.For<IAppSettings>();
+        settings.Configuration.Returns(configuration);
+        var called = false;
+        Func<Task> create = () => TemporaryLifecycleProgram.CreateApplicationAsync([], settings,
+            Substitute.For<IScopedLog>(), _ => called = true);
+        await create.Should().ThrowAsync<ConfigurationException>().WithMessage("*configured override*ISO 8601 UTC*");
+        called.Should().BeFalse();
+        var createSettings = () => new AppSettings(configuration);
+        createSettings.Should().Throw<ConfigurationException>().WithMessage("*configured override*ISO 8601 UTC*");
+    }
+
     [Fact]
     public async Task DrnProgramBase_RunAsync_Should_Log_And_Dispose_Startup_AppSettings_When_Temporary_Application_Exits()
     {
