@@ -2,29 +2,19 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.10.0
 
+### Breaking Changes
+
+*   **Client Creation**: `ApplicationContext.CreateClientAsync<TEntryPoint>` now takes `bool https = false` first; use named `outputHelper` and `clientOptions` arguments for formerly positional calls, or prepend `false`. `https: true` selects an HTTPS localhost address. Caller-provided options take precedence and are no longer modified; absent options default to HTTP localhost.
+*   **Application Test Contexts**: Moved `ApplicationContext`, `DrnWebApplicationFactory<TEntryPoint>`, and `TestOutputTarget` to `DRN.Framework.Testing.Contexts.Application`. Update imports and recompile. Entry points must satisfy `TEntryPoint : DrnProgramBase<TEntryPoint>, IDrnProgram, new()`.
+
 ### New Features
 
-*   **Standalone Development Settings**: `SettingsProvider.Development(...)` for AppId 0 and `Development<TApp>(...)` for an explicitly declared application partition replace `AppSettings.Development(...)`. Both default AppInstanceId to 0, accept ordered settings overrides, reject conflicting AppId values, and return disposable `AppSettings`.
-
-*   **Opt-In HTTPS Test Client**: Added `ApplicationContext.CreateClientAsync<TProgram>(https: true)` for an HTTPS localhost base address. Existing calls keep the HTTP default, and explicit client options take precedence over the flag.
-
-*   **Multi-Application Test Hosting**: One `ApplicationContext` can host multiple applications concurrently, including programs in the same support assembly, through `CreateClientAsync<TProgram>()`.
-*   **In-Memory HTTP Routing**: Added `ApplicationContextRouterHandler`, `CreateClientForServiceAsync<TEntryPoint>("service-alias")`, and `MapAddress<TEntryPoint>("address")` to route calls between test applications. Addresses can also be discovered from application configuration.
+*   **Development Settings**: `SettingsProvider.Development(...)` for AppId 0 and `Development<TApp>(...)` for a declared partition replace Utils' `AppSettings.Development(...)`. Both default AppInstanceId to 0, accept ordered overrides, reject conflicting AppIds, and return disposable `AppSettings`.
+*   **Multi-Application Hosting and Routing**: One `ApplicationContext` can host applications concurrently, including programs in the same assembly. Use `ApplicationContextRouterHandler`, `CreateClientForServiceAsync<TEntryPoint>("service-alias")`, and `MapAddress<TEntryPoint>("address")` for in-memory calls between them. Addresses can also come from application configuration.
 
 ### Security
 
-*   **Digest-Pinned Container Defaults**: Default PostgreSQL and RabbitMQ images now use digest-pinned versions. Custom image/version overrides do not inherit an incompatible default digest; supply `Digest` to pin custom images.
-
-### Breaking Changes
-
-*   **Client Creation Signature**: `ApplicationContext.CreateClientAsync<TEntryPoint>` now takes `bool https = false` first. Recompile and use named `outputHelper` and `clientOptions` arguments for formerly positional calls, or prepend `false`.
-*   **ApplicationContext & DrnWebApplicationFactory Type Constraints**: Test entry points must satisfy `TEntryPoint : DrnProgramBase<TEntryPoint>, IDrnProgram, new()`.
-*   **Application Test Context Namespace**: Moved `ApplicationContext`, `DrnWebApplicationFactory<TEntryPoint>`, and `TestOutputTarget` from `DRN.Framework.Testing.Contexts` to `DRN.Framework.Testing.Contexts.Application`.
-    *   Migration: add `using DRN.Framework.Testing.Contexts.Application;` (or the equivalent global using) and recompile consumers.
-
-### Bug Fixes
-
-*   **Caller-Provided Client Base Address**: `ApplicationContext.CreateClientAsync` now preserves the supplied `BaseAddress` without modifying caller options. The `http://localhost` default applies only when options are absent.
+*   **Container Defaults**: Default PostgreSQL and RabbitMQ images are pinned by digest. Custom image/version overrides do not inherit the default digest; supply `Digest` to pin custom images.
 
 ## Version 0.9.8
 

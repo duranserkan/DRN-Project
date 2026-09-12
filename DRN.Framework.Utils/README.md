@@ -1135,15 +1135,15 @@ var externalId = sourceKnownEntityIdUtils.Generate<User>(internalId);
 var anotherId = sourceKnownEntityIdUtils.Generate<User>();
 ```
 
-`User` must derive from `SourceKnownEntity` and carry the required entity/app metadata. `Next<TEntity>()` derives the app partition from that metadata and uses the configured instance ID. Explicit `Next`/`Generate` overloads accept app and instance IDs. `GeneratePlain<TEntity>()` and `GenerateSecure<TEntity>()` also generate a new internal ID when called without arguments. See [SourceKnownIdUtils.cs](Ids/SourceKnownIdUtils.cs) and [SourceKnownEntityIdUtils.cs](Ids/SourceKnownEntityIdUtils.cs).
+`User` must derive from `SourceKnownEntity` and carry the required entity/app metadata. `Next<TEntity>()`, `Next(SourceKnownEntity)`, and `Next(Type)` derive the app partition from that metadata and use the configured instance ID. `GeneratePlain<TEntity>()` and `GenerateSecure<TEntity>()` also generate a new internal ID when called without arguments. See [SourceKnownIdUtils.cs](Ids/SourceKnownIdUtils.cs) and [SourceKnownEntityIdUtils.cs](Ids/SourceKnownEntityIdUtils.cs).
 
 ### Parse & Validation
 
 `Parse` verifies ID integrity in the selected format.
 
-All entity ID `Parse` and `Validate` overloads accept non-nullable `SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault`, including generic, nullable-ID and interface calls. Omit format or pass ConfiguredDefault instead of null. The enum lives in `DRN.Framework.SharedKernel.Domain`.
+GUID-input `Parse` and `Validate` overloads accept non-nullable `SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault`, including generic, nullable-ID and interface calls. Omit format or pass ConfiguredDefault instead of null. The enum lives in `DRN.Framework.SharedKernel.Domain`.
 
-The same operations are available through `ISourceKnownEntityIdOperations`, including the read-only `DefaultFormat` property. The constructor sets it to Secure or Plain from `NexusAppSettings.UseSecureSourceKnownIds`; it stays fixed for the utility's lifetime. Entity and repository GUID helpers forward format selection to the parser. Parsed `SourceKnownEntityId` validation takes no format argument: `ValidateId()` checks stored validity; `Validate<TEntity>()` and `Validate(expected)` also check identity. Both parsed representations are accepted. Records are publicly constructible and do not reauthenticate GUIDs; authenticate untrusted GUIDs through the operations service.
+The same operations are available through `ISourceKnownEntityIdOperations`, including the read-only `DefaultFormat` property. The constructor sets it to Secure or Plain from `NexusAppSettings.UseSecureSourceKnownIds`; it stays fixed for the utility's lifetime. Entity and repository GUID helpers forward format selection to the parser. Parsed `SourceKnownEntityId` validation takes no format argument: `ValidateId()` checks stored validity; `Validate<TEntity>()` and `Validate(EntityTypeId expected)` also check identity. Both parsed representations are accepted. Records are publicly constructible and do not reauthenticate GUIDs; authenticate untrusted GUIDs through the operations service.
 
 | Format | Accepted input |
 |---|---|
@@ -1154,6 +1154,10 @@ The same operations are available through `ISourceKnownEntityIdOperations`, incl
 | `Auto` | For each key, try plain markers/MAC first, then decrypt if verification fails |
 
 Explicit Secure, Plain or Auto overrides configuration. `Auto` retains the previous detection behavior, including decryption of ciphertext with apparent plain markers after its plain MAC fails. Key rotation, partition validation, MAC checks and backward collision verification still apply. `ToSecure` and `ToPlain` continue accepting either representation under either configuration.
+
+With `UseSecureSourceKnownIds = true`, default parsing blocks direct plaintext MAC guessing: AES prevents callers without the key from independently choosing the recovered ID and its 32-bit MAC. Authorization and rate limiting remain necessary.
+
+Keep format selection under application control. Explicit `Plain`/`Auto` and conversion helpers accept plain IDs, relaxing the secure-only boundary. Before converting external GUIDs, validate them using the endpoint's required format; trusted internal records can be converted directly.
 
 ```csharp
 var strict = ids.Validate<User>(externalGuidId); // configured format

@@ -4,13 +4,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
-*   **Repository ID Formats**: GUID helpers and GUID-input GetAsync/GetOrDefaultAsync methods accept non-nullable `SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault`. GUID DeleteAsync retains its params overload and adds an `(ids, format)` collection overload. Parsing enforces DefaultFormat or an explicit override; use Auto for mixed-format GUID input. Parsed-record reads/deletes and the protected static record-ID Filter have no format parameter and validate stored validity plus entity type/application partition, accepting either parsed representation. Undefined formats throw even for null GUIDs/empty GUID batches; enumeration remains lazy. Entity-input operations and conversions retain their signatures. Replace null format arguments with ConfiguredDefault, rebuild consumers and update GUID overrides, custom interfaces and method-group bindings.
-
-*   **Partition-Scoped Entity Type Validation**: Startup validation enforces partition cardinality per `DbContext`.
-    *   Treats `(EntityType, AppId)` as the uniqueness key, aligning with SharedKernel analyzers.
-    *   Single `DbContext` instances cannot combine multiple production `AppId` partitions.
-    *   Configured `NexusAppSettings.AppId` must match the context's partition or a recognized registered host partition.
-    *   *Migration*: Split multi-partition DbContexts into dedicated single-partition contexts and align `NexusAppSettings.AppId` with the registered partition.
+*   **Repository ID Formats**: GUID helpers and GUID-input `GetAsync`/`GetOrDefaultAsync` add `SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault`. GUID `DeleteAsync` retains its params overload and adds an `(ids, format)` collection overload. The default follows secure/plain configuration; explicit `Auto` accepts both forms. Parsed-record reads, deletes, and the protected record-ID `Filter` take no format argument and validate stored validity plus entity/application identity without reauthenticating GUIDs. Undefined formats throw even for null GUIDs and empty GUID batches; enumeration remains lazy. Rebuild consumers and update GUID overrides, custom interfaces, and method-group bindings.
+*   **Entity Partitions**: Startup validation uses `(EntityType, AppId)` for uniqueness and rejects multiple production partitions in one `DbContext`. `NexusAppSettings.AppId` must match the context's partition or a recognized registered host partition. Split multi-partition contexts and align configuration with the registered partition.
 
 ### Changed
 
@@ -20,9 +15,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 ### Bug Fixes
 
 *   **Mapped Entity Inheritance**: Source-Known entities support TPH, TPT, and TPC inheritance without duplicate key configuration on derived types.
-*   **Seeding and Recovery**: DI-configured contexts run attribute `SeedAsync` under EF's migration lock during migration and database creation, including when no migrations are pending. Later startups can retry failed seeds. Custom EF seeding callbacks are preserved; seed implementations must remain idempotent.
-*   **Startup Pending Model Changes Validation**: `PostStartupValidationAsync` verifies pending EF Core model changes regardless of whether auto-migration is enabled, failing fast on unmigrated schema drift.
-*   **Prototype Migration-History Guard**: Reads applied migrations directly from the target database, safely handling missing databases (`InvalidCatalogName`), preventing unmigrated databases from being dropped during prototype checks.
+*   **Seeding and Recovery**: DI-configured contexts invoke attribute `SeedAsync` through EF seeding callbacks. Migration callbacks run under EF's migration lock, including when no migrations are pending, so later startups can retry failed seeds. Custom callbacks are preserved; seeds must remain idempotent. Prototype database creation does not acquire the migration lock.
+*   **Startup Schema Validation**: Pending model changes are checked even when auto-migration is disabled. Prototype checks read applied migrations directly from the database, tolerate missing databases, and protect databases with migration history even when no local migrations exist.
 *   **Design-Time Data-Source Hooks**: `DbContextExtensions.CreateDbContext` invokes `ConfigureNpgsqlDataSource` with safe null fallback when running outside DI.
 *   **Visible DbContext Discovery**: `AddDbContextsWithConventions` filters domain scanning to public/visible `DbContext` types (`IsVisible: true`).
 

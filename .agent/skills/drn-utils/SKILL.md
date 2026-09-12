@@ -246,6 +246,8 @@ Entity ID `Parse` and all `Validate` overloads accept non-nullable `SourceKnownE
 
 Entity/repository GUID helpers forward the format to parsing, then check the parsed record's validity and identity. Record ValidateId(), Validate<TEntity>() and Validate(expected) have no format parameter and accept either parsed representation. Generated records also validate validity and identity. Records are publicly constructible and do not reauthenticate GUIDs; use them only as trusted internal values. Authenticate untrusted GUIDs through operations, which own keys and resolve configuration. Conversions reauthenticate the GUID using Auto.
 
+Secure-only defaults block direct plaintext MAC guessing. Keep Plain/Auto overrides under application control, and validate external GUIDs with the required format before conversion. Authorization and rate limiting remain necessary. See [the security rationale](../../../DRN.Framework.Utils/README.md#parse--validation).
+
 > [!NOTE]
 > ID generation is automatically handled by `DrnContext` when SourceKnownEntities are saved.
 

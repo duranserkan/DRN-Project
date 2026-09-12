@@ -4,9 +4,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
-*   **Entity ID Format Contracts**: Added non-nullable `SourceKnownEntityIdFormat` (`ConfiguredDefault = 0`, `Secure = 1`, `Plain = 2`, `Auto = 3`), defaulting to ConfiguredDefault, to operations and GUID helpers. `ISourceKnownEntityIdOperations.DefaultFormat` exposes the immutable Secure/Plain default. Format is enforced at GUID parsing; parsed and generated records validate stored validity and expected identity without a format parameter. Repository parsed-record reads/deletes accept either representation and do not reauthenticate GUIDs. Replace null GUID-format arguments with ConfiguredDefault, rebuild consumers, update custom GUID repository signatures/method-group bindings and provide DefaultFormat in custom operations. Null GUIDs remain supported; undefined formats throw even for null GUIDs/empty GUID batches.
-
-*   **Explicit Expected Identity**: Replace `SourceKnownEntityId.Validate(byte)` and byte-only domain `GetEntityId` calls with generic entity overloads or `new EntityTypeId(entityType, expectedAppId)`. Validation checks both components. Record `Validate<TEntity>()` and `Validate(expected)` take no format argument. `ValidateId()` and the domain GUID helper's boolean option remain validity-only.
+*   **Entity ID Format Contracts**: GUID operations add `SourceKnownEntityIdFormat` (`ConfiguredDefault = 0`, `Secure = 1`, `Plain = 2`, `Auto = 3`), defaulting to `ConfiguredDefault`. Custom `ISourceKnownEntityIdOperations` implementations must expose an immutable Secure/Plain `DefaultFormat`. Rebuild consumers and update GUID method signatures and method-group bindings. Format is enforced when parsing GUIDs; parsed-record validation takes no format argument and does not reauthenticate GUIDs. Null GUIDs remain supported; undefined formats throw even for null GUIDs and empty GUID batches.
+*   **Explicit Expected Identity**: Replace byte-only identity arguments with `new EntityTypeId(entityType, expectedAppId)`: `Generate(long, byte)` becomes `Generate(long, EntityTypeId)`, `HasSameEntityType(byte)` becomes `HasSameEntityTypeId(EntityTypeId)`, and `Validate(byte)` becomes `Validate(EntityTypeId)`. Domain `GetEntityId` accepts this composite identity or a generic entity type. Validation checks both components; `ValidateId()` and the domain GUID helper's boolean option remain validity-only.
 *   **Generation Time Policy**: New IDs use a minimum of `2026-09-09T00:00:00Z` and an epoch of `2025-01-01T00:00:00Z` by default. Configure overrides through `SourceKnownGenerationTime.Initialize(minimumUtc, defaultEpoch)` before startup or first ID/epoch use; an explicit epoch requires a minimum. Both values then freeze. Historical reads remain exempt from the floor, and every service and restart using a dataset must retain its origin. See [configuration and limits](README.md#trusted-minimum-generation-time).
 *   **Entity Partitions and Analyzers**: Annotate concrete, effectively non-private entities with `[EntityType<TApp>(byte)]`, where `TApp : IAppId`, or a supported derived attribute. Entity type values must be unique within each AppId. New transitive analyzers enforce valid declarations and AppIds, flag duplicate names, and require `<AllowMultipleAppIds>true</AllowMultipleAppIds>` for production projects combining partitions. Derived attributes must forward one byte or byte-backed enum argument unchanged. See [diagnostics and migration requirements](README.md#compile-time-roslyn-analyzers).
 
@@ -16,9 +15,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Bug Fixes
 
-*   **Pagination Defaults**: `PaginationRequest.From()` uses page size 10 for initial requests, preserves omitted options, and resets pagination when size, effective maximum size, or sort direction changes.
+*   **Pagination**: `PaginationRequest.From()` defaults to page size 10, preserves omitted options, and resets pagination when size, effective maximum size, or sort direction changes. Page jumps preserve direction and are bounded to ten pages without integer underflow.
 *   **IgnoredLog Null Handling**: `IgnoredLog(this object? obj)` returns `false` when given `null` input instead of throwing a `NullReferenceException`.
-*   **Pagination Jump Direction**: Bounded page jumps preserve the requested direction while remaining limited to ten pages per request, preventing integer underflow in `PaginationRequest.From`.
 
 ## Version 0.9.8
 

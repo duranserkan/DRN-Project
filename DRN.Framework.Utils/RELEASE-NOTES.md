@@ -2,70 +2,35 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.10.0
 
-### Bug Fixes
+### Breaking Changes
 
-*   **Multiple Registration Attributes**: Module discovery now processes all service registration attributes on a class, preserving distinct modules and their startup validation instead of throwing when multiple attributes are present.
-*   **Scoped Log Snapshots**: Later log actions no longer mutate snapshots returned by `GetLogs` or copied by `CopyFrom`.
-*   **Property Logging**: `AddProperties` skips indexers, static properties, and properties without public getters. Ignored getters remain unevaluated.
+*   **Entity ID Formats**: GUID `Parse` and `Validate` add `SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault`. Immutable `DefaultFormat` follows `UseSecureSourceKnownIds`: Secure when true, Plain when false. Explicit `Auto` accepts both forms. Supported formats, including `ConfiguredDefault`, return null for null GUIDs; only undefined values throw `ArgumentOutOfRangeException`, including for null GUIDs and empty repository GUID batches. Parsed records take no format argument and do not reauthenticate GUIDs. Rebuild consumers and update custom operations and method-group bindings, including `DefaultFormat`. See [parsing and validation](README.md#parse--validation).
+*   **Identity Configuration and Validation**: Explicitly configure `NexusAppSettings:AppId` and `AppInstanceId` in every environment; zero is valid. `Validate<TEntity>` checks the entity's declared `(EntityType, AppId)`. Byte-based validation uses the configured partition; select another through `Validate<TApp>` or an explicit `EntityTypeId`. Generation from an existing numeric ID also requires matching entity/application identity.
+*   **Entity-Bound ID Generation**: Use `Next<TEntity>()`, `Next(SourceKnownEntity)`, or `Next(Type)`; generation derives AppId from entity metadata and AppInstanceId from settings. Entity types must derive from `SourceKnownEntity` and declare `[EntityType<TApp>(byte)]`. Static `SourceKnownIdUtils.Generate` methods are now internal. Custom `ISourceKnownIdUtils` implementations must add the entity and type overloads; optional `Warmup` prepares known types. Custom `ISourceKnownEntityIdUtils` implementations must add parameterless `Generate<TEntity>()`, `GeneratePlain<TEntity>()`, and `GenerateSecure<TEntity>()`, which generate both numeric and external IDs.
+*   **Generation Time**: Replace per-call epoch arguments with `SourceKnownIdSettings:DefaultEpoch` and `MinimumUtc`, configured before startup or first ID/epoch use. The defaults are an epoch of `2025-01-01T00:00:00Z` and a minimum of `2026-09-09T00:00:00Z`; an explicit epoch requires a minimum. The pair freezes on first use and must remain consistent across a dataset. Parsing and GUID reconstruction from existing numeric IDs remain exempt from the generation floor. `SourceKnownIdUtils` now takes only `IAppSettings`; use `ParseId(id)` and configured `EpochTimeUtils` conversions. See [time configuration](README.md#trusted-minimum-utc).
+*   **Development Settings**: Replace `AppSettings.Development(...)` with Testing's `SettingsProvider.Development()` for AppId 0 or `Development<TApp>()` for a declared partition. Application code should construct `AppSettings` from configuration with explicit AppId and AppInstanceId values.
+*   **Recurring Actions**: `RecurringAction` now accepts synchronous `Action` callbacks. Move async callbacks to `RecurringActionAsync` and use `await using` or `DisposeAsync()`. Async execution remains non-overlapping; `Stop()` requests cancellation without waiting, while disposal waits for active work. Timeouts require token-aware callbacks. Dedicated synchronous threads support `threadName` and priority and require a positive period; timer mode still accepts zero. See [async recurring actions](README.md#non-overlapping-async-timer-recurringactionasync).
+*   **Authentication Claims and Exemptions**: Immutable `AuthenticationClaimConfig` supplies subject, name, email, role, and exact MFA mappings. Custom mappings replace defaults and require matching handler claims. Missing or ambiguous primary subjects make `ScopedUser.Id` null; conflicting subject evidence fails account checks. Custom `IScopedUser` implementations must provide `ExemptionProof? Exemption`; scheme/principal convenience members derive from it.
+*   **Scoped Logging**: Added `ScopeEvent` and `WithEvent(ScopeEvent)`. Custom `IScopedLog` implementations must expose `Event`, `EventId`, `EventName`, `EventOutcome`, `EventReason`, stable non-null `CorrelationId`, and nullable `TraceId`. The first event remains primary, later events are retained, and `LogScoped` forwards its .NET `EventId`. Trace IDs come only from real W3C activities; never generate a fallback.
+*   **Method Invocation**: Replace `FindGenericMethod`, `FindNonGenericMethod`, and `InvokeFast` with `FindMethod`, `FindMethodUncached`, `InvokeMethod`, and `InvokeStaticMethod`. Generic type arguments use `Type[]`, for example `instance.InvokeMethod("Method", [typeof(T)])`.
+*   **Sequence Values**: `EquatableSequence<T>` is now a readonly record struct implementing `IReadOnlyList<T>`; update reference-identity assumptions. Added `EquatableImmutableSequence<T>` for immutable backing storage. Both support collection expressions and structural equality.
 
 ### Security
 
-*   **Configured Authentication Claims**: `AuthenticationClaimConfig` defines subject, name, email, role, and MFA mappings. Custom mappings replace defaults; configure aliases explicitly. Account checks reject conflicting subject evidence. Authentication handlers must issue matching claims and identity metadata.
-
-*   **Opt-In MFA Assurance**: Added issuer-bound `MfaPrincipal.IsRecent` and `IsPhishingResistant` checks requiring completed MFA and additional evidence on the same authenticated identity. Recency rejects future, malformed and conflicting timestamps; phishing resistance requires an explicit distinct assurance mapping. Existing completed-MFA behavior remains unchanged; these helpers do not issue evidence or enforce a new default policy.
-*   **Provider-Neutral MFA Principal Checks**: Added `MfaPrincipal` for authenticated credential-state and account-bound MFA evaluation. `MfaFor.MfaCompleted` now rejects setup/pending credentials and conflicting authenticated subjects/issuers even when a completed-MFA marker is present. No ASP.NET Identity services are required.
-
-### Breaking Changes
-
-*   **Entity ID Parse Formats**: GUID `Parse` and `Validate` accept non-nullable `SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault`. The constructor sets read-only DefaultFormat from `UseSecureSourceKnownIds` (`true` → Secure, `false` → Plain); ConfiguredDefault selects this immutable property. Secure only decrypts/verifies; Plain never decrypts; Auto retains mixed-format detection. Format is enforced during parsing; parsed records validate stored validity and expected identity without a format argument. Replace null GUID-format arguments with ConfiguredDefault, rebuild consumers and update custom implementations/method-group bindings, including DefaultFormat. Nullable GUID inputs and generation retain their behavior; conversions continue reauthenticating either representation using Auto.
-
-*   **Development Settings Factory**: Removed `AppSettings.Development(...)`. Tests should use `DRN.Framework.Testing.Providers.SettingsProvider.Development()` for AppId 0 or `Development<TApp>(...)` for a declared partition. Application code should use `new AppSettings(configuration)` with explicitly configured AppId and AppInstanceId values.
-
-*   **Explicit Identifiers and Partition Validation**: Configure `NexusAppSettings:AppId` and `NexusAppSettings:AppInstanceId` in every environment; zero is valid for both. `Validate<TEntity>` checks the entity's declared `(EntityType, AppId)`. `Validate(id, entityType)` uses the configured partition; override it with `Validate<TApp>(id, entityType)` or `Validate(id, entityTypeId)`.
-
-*   **One Configured Epoch**: Replace per-call epoch arguments with `SourceKnownIdSettings:DefaultEpoch` and an explicit `MinimumUtc`. Configure before startup or first ID/epoch use, including historical reads; later conflicts fail. Keep the origin unchanged across the dataset's services and restarts. `SourceKnownIdUtils` now takes only `IAppSettings`; use `ParseId(id)`, `CurrentTimestamp()`, `GetTimeScopedId()`, and configured `EpochTimeUtils` instance conversions.
-*   **Minimum Generation Time**: New IDs require timestamps on or after `2026-09-09T00:00:00Z` by default. `SourceKnownIdSettings:MinimumUtc` can select an earlier or later floor, rounded upward to 250ms. Historical parsing and GUID reconstruction from existing numeric IDs remain exempt. See [time configuration](README.md#trusted-minimum-utc).
-
-*   **Ambiguous Subject Evidence**: Single authenticated identities with conflicting subject aliases, including case variants, now fail account checks. `ScopedUser.Id` is null for missing or ambiguous primary subjects. Completed-MFA markers require an exact claim type and value match.
-
-*   **IScopedLog Events and Correlation**: Custom implementations must provide non-null `CorrelationId`, nullable `TraceId`, `Event`, `EventId`, `EventName`, `EventOutcome`, and `EventReason`, and implement `WithEvent(ScopeEvent)`. Keep the first event as primary and retain later events separately. Correlation stays stable for the scope; `TraceId` must represent a real W3C activity, not a generated fallback.
-*   **Entity-Bound ID Generation**: `Next<TEntity>()` and `Generate<TEntity>(appId, appInstanceId)` now require `TEntity : SourceKnownEntity`. `Next<TEntity>()` derives AppId from the entity declaration rather than configuration.
-    *   *Migration*: Derive domain types from `SourceKnownEntity` and annotate concrete classes with `[EntityType<TApp>]` for attribute-derived partition dispatch via `Next<TEntity>()`, or supply explicit partition values via `SourceKnownIdUtils.Generate<TEntity>(appId, appInstanceId)`.
-*   **ISourceKnownIdUtils Contract Expansion**: Added `Next(SourceKnownEntity entity)` and `Next(Type entityType, byte appId, byte appInstanceId)` as required members on `ISourceKnownIdUtils`.
-    *   *Migration*: Custom implementations must implement both overloads by delegating to existing generator utilities or `SourceKnownIdUtils.Generate(Type, ...)`.
-*   **ISourceKnownEntityIdUtils Contract Expansion**: Added parameterless `Generate<TEntity>()`, `GeneratePlain<TEntity>()`, and `GenerateSecure<TEntity>()` as required members on `ISourceKnownEntityIdUtils`.
-    *   *Migration*: Custom implementations must implement all three overloads by forwarding to `ISourceKnownIdUtils.Next<TEntity>()` and corresponding conversion operations.
-*   **MethodUtils API Simplification**: Replace discovery and invocation aliases such as `FindGenericMethod`, `FindNonGenericMethod`, and `InvokeFast` with `FindMethod`, `FindMethodUncached`, `InvokeMethod`, and `InvokeStaticMethod`. Pass generic type arguments as a `Type[]`, for example `instance.InvokeMethod("Method", [typeof(T)])`.
-*   **EquatableSequence<T> Struct Conversion**: Converted `EquatableSequence<T>` from a record class to a readonly record struct.
-    *   *Migration*: Recompile against the new struct definition and update code relying on reference identity or class inheritance.
-*   **IScopedUser Contract Expansion**: Custom implementations must provide `ExemptionProof? Exemption`. `ExemptionScheme`, `ExemptionPrincipal`, and `HasExemptionScheme` have default implementations derived from it.
+*   **Secure-Only ID Input**: With secure generation configured, default parsing blocks direct plaintext MAC guessing. Explicit `Plain`/`Auto` and conversion helpers still accept plain IDs; keep these exceptions under application control.
+*   **MFA Evidence**: Provider-neutral `MfaPrincipal` and `MfaFor.MfaCompleted` reject setup/pending credentials and conflicting accounts or issuers, even with an exact completed-MFA marker (`amr=mfa` by default). Optional `IsRecent` and `IsPhishingResistant` checks require additional evidence from a trusted issuer on the same authenticated identity. They neither issue evidence nor change the default policy. See [MFA](README.md#mfa-completion-and-assurance).
+*   **Key Material**: `AppSettings` rejects `DefaultSeedKey` outside Development and `SampleSeedKey` outside a DRN test context. `NexusKey` rejects the known sample Nexus key in every environment, including tests.
 
 ### New Features
 
-*   **Async Recurring Actions**: Added `RecurringActionAsync` for non-overlapping callbacks, cooperative cancellation, and asynchronous disposal. Tokenless `Func<Task>` constructors accept only the callback, period, and optional `start`, without an `executionTimeout` parameter. Use a token-aware callback to configure a timeout; restarted execution and `DisposeAsync()` wait for outstanding work.
-    *   *Migration*: Move asynchronous callbacks from `RecurringAction` to `RecurringActionAsync` and replace synchronous `using`/`Dispose()` with `await using`/`await DisposeAsync()`. `Stop()` requests cancellation without waiting for active work; asynchronous disposal waits for it to finish. For example, in an async consumer method:
-
-        ```csharp
-        await using (var recurring = new RecurringActionAsync(
-            async cancellationToken => await Task.Delay(100, cancellationToken),
-            TimeSpan.FromSeconds(1)))
-        {
-            await Task.Delay(TimeSpan.FromSeconds(5));
-        } // DisposeAsync() is awaited before execution continues beyond this scope.
-        ```
-
-*   **Dedicated Recurring Actions**: `RecurringAction` now accepts synchronous callbacks and supports dedicated background threads through `threadName`, with configurable priority and a required positive period. Timer mode continues to accept zero. Restarting during an active callback preserves the configured delay after it finishes.
-
-*   **Scope Events**: Added `ScopeEvent` for structured logging with .NET `EventId`. `ScopedLog` retains primary and additional events, provides a stable scope correlation ID, and captures an existing W3C trace ID. `LogScoped` forwards the primary event ID while preserving severity.
-*   **Scoped User Authentication Scheme Exemption**: `IScopedUser` and `ScopedUser` track active `Exemption` (`ExemptionProof`) alongside convenience `ExemptionScheme` and `ExemptionPrincipal` properties, allowing authorization handlers and middleware to verify the authenticated scheme exemption without mutating `HttpContext.User`.
-*   **Provider-Neutral MFA Claim Model**: Immutable `AuthenticationClaimConfig.Mfa` defaults to `MfaClaimConfig.AspNetIdentity` (`amr=mfa`). `MfaFor.MfaCompleted` resolves the shared config and matches exact evidence among repeated claims without Identity services.
 *   **Base32 and TOTP Utilities**: Added `Base32Encoding` and `TotpUtils` for Base32 encoding and authenticator-code generation and verification. Verification is stateless; callers must enforce replay protection and attempt limits. See [TOTP usage and limitations](README.md#totp-generation-and-verification).
 *   **Context-Separated Encryption**: Added `AesGcmEncryptorBase`, `AesGcmEncryptedData`, and `IAppSecuritySettings.CreateAesGcm(string context)` for context-specific AES-256-GCM encryption.
-*   **Key Material Security Enforcement**: `AppSettings` rejects the default `DrnAppFeatures.DefaultSeedKey` outside `Development`, and rejects `DrnAppFeatures.SampleSeedKey` whenever `TestEnvironment.DrnTestContextEnabled` is not set, failing fast with `ConfigurationException`. `NexusKey` unconditionally forbids sample key material (`sample-nexus-key-material-000000`) across all environments and test executions at construction time.
-*   **HttpMessageHandler DI Injection**: `InternalRequest` and `ExternalRequest` accept an optional `HttpMessageHandler?` via dependency injection, enabling in-memory test routing (such as `ApplicationContextRouterHandler`) without global static Flurl state mutation.
-*   **Dynamic ID Generation**: Added `Next(SourceKnownEntity)` and `Next(Type, appId, appInstanceId)`, plus optional `SourceKnownIdUtils.Warmup`.
-*   **Method Invocation**: Added unified `FindMethod`, `InvokeMethod`, and `InvokeStaticMethod` APIs with specialized argument overloads, plus `FindMethodUncached` for uncached discovery.
-*   **Self-Generating EntityId Overloads**: Added parameterless `Generate<TEntity>()`, `GeneratePlain<TEntity>()`, and `GenerateSecure<TEntity>()` on `ISourceKnownEntityIdUtils` and `SourceKnownEntityIdUtils` (`where TEntity : SourceKnownEntity`) to generate and construct `SourceKnownEntityId` in a single type-safe call.
+*   **HTTP Handler Injection**: `InternalRequest` and `ExternalRequest` accept an optional `HttpMessageHandler` through DI for in-memory routing without global Flurl state changes.
+
+### Bug Fixes
+
+*   **Module Discovery**: Classes with multiple service registration attributes retain each distinct module and its startup validation.
+*   **Scoped Log Safety**: `GetLogs` and `CopyFrom` produce independent snapshots. Property logging skips indexers, static properties, and non-public or ignored getters.
 
 ## Version 0.9.8
 
