@@ -1141,21 +1141,23 @@ var anotherId = sourceKnownEntityIdUtils.Generate<User>();
 
 `Parse` verifies ID integrity in the selected format.
 
-All entity ID `Parse` and `Validate` overloads accept `SourceKnownEntityIdFormat? format = null`, including generic, nullable and interface calls. The enum lives in `DRN.Framework.SharedKernel.Domain`.
+All entity ID `Parse` and `Validate` overloads accept non-nullable `SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault`, including generic, nullable-ID and interface calls. Omit format or pass ConfiguredDefault instead of null. The enum lives in `DRN.Framework.SharedKernel.Domain`.
 
-The same operations are available through `ISourceKnownEntityIdOperations`; entity and repository GUID helpers forward the format. Parsed `SourceKnownEntityId` record validation only checks stored metadata: omission/Auto accepts either stored format, while explicit Secure/Plain checks its `Secure` flag. Authenticate untrusted GUIDs through the operations service.
+The same operations are available through `ISourceKnownEntityIdOperations`, including the read-only `DefaultFormat` property. The constructor sets it to Secure or Plain from `NexusAppSettings.UseSecureSourceKnownIds`; it stays fixed for the utility's lifetime. Entity and repository GUID helpers forward format selection to the parser. Parsed `SourceKnownEntityId` validation takes no format argument: `ValidateId()` checks stored validity; `Validate<TEntity>()` and `Validate(expected)` also check identity. Both parsed representations are accepted. Records are publicly constructible and do not reauthenticate GUIDs; authenticate untrusted GUIDs through the operations service.
 
 | Format | Accepted input |
 |---|---|
-| Omitted or `null` | `NexusAppSettings.UseSecureSourceKnownIds`: `true` selects Secure; `false` selects Plain |
+| Omitted | Defaults to `ConfiguredDefault` |
+| `ConfiguredDefault` | `NexusAppSettings.UseSecureSourceKnownIds`: `true` selects Secure; `false` selects Plain |
 | `Secure` | Decrypt and verify; never try plain parsing |
 | `Plain` | Verify plain input; never decrypt |
 | `Auto` | For each key, try plain markers/MAC first, then decrypt if verification fails |
 
-An explicit format overrides configuration. `Auto` retains the previous detection behavior, including decryption of ciphertext with apparent plain markers after its plain MAC fails. Key rotation, partition validation, MAC checks and backward collision verification still apply. `ToSecure` and `ToPlain` continue accepting either representation under either configuration.
+Explicit Secure, Plain or Auto overrides configuration. `Auto` retains the previous detection behavior, including decryption of ciphertext with apparent plain markers after its plain MAC fails. Key rotation, partition validation, MAC checks and backward collision verification still apply. `ToSecure` and `ToPlain` continue accepting either representation under either configuration.
 
 ```csharp
 var strict = ids.Validate<User>(externalGuidId); // configured format
+strict.Validate<User>(); // validate the parsed record's validity and identity
 var plain = ids.Parse(externalGuidId, SourceKnownEntityIdFormat.Plain);
 var mixed = ids.Validate<User>(externalGuidId, SourceKnownEntityIdFormat.Auto);
 ```
@@ -1199,7 +1201,7 @@ var sourceKnownId = userRepository.GetEntityId(externalGuidId);
 
 **3. SourceKnownEntity (Recommended for Domain Logic)**
 
-Use entity metadata or `new EntityTypeId(entityType, expectedAppId)` to validate both identity components. `ValidateId()` and the domain GUID helper's boolean validation option check integrity only.
+Use entity metadata or `new EntityTypeId(entityType, expectedAppId)` to validate both identity components. Parsed-record validation accepts either format without a format argument. `ValidateId()` and the domain GUID helper's boolean validation option check validity only.
 
 ```csharp
 // Helper on SourceKnownEntity base class

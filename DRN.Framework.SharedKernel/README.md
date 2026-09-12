@@ -225,7 +225,7 @@ The identifier system has three forms:
 
 `ISourceKnownEntityIdOperations` defines `Generate`, nullable/nonnullable `Parse`, all `Validate` overloads, `ToSecure`, and `ToPlain` in SharedKernel. Utils implements it through `ISourceKnownEntityIdUtils` and `SourceKnownEntityIdUtils`. EF interceptors wire operations into entities. ID validation checks structure and identity metadata; application authorization still controls access to the entity.
 
-`Parse(Guid, SourceKnownEntityIdFormat? format = null)` accepts `Secure`, `Plain` or `Auto` from `DRN.Framework.SharedKernel.Domain`. Utils uses `NexusAppSettings.UseSecureSourceKnownIds` when format is omitted (`true` → Secure, `false` → Plain). Explicit formats override it: Secure only decrypts and verifies, Plain only verifies plaintext, and Auto retains plain-first detection with decryption fallback. Domain GUID helpers inherit the configured policy; conversions still accept both forms. Ordinary source calls remain valid, but compiled consumers require rebuilding and custom implementations or method-group bindings require signature updates. See [Utils parsing and validation](../DRN.Framework.Utils/README.md#parse--validation) for migration and nullable-input behavior.
+`Parse(Guid, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault)` accepts `ConfiguredDefault`, `Secure`, `Plain` or `Auto` from `DRN.Framework.SharedKernel.Domain`. ConfiguredDefault selects the immutable `ISourceKnownEntityIdOperations.DefaultFormat`, initialized from Nexus settings (Secure or Plain). Secure only decrypts and verifies, Plain only verifies plaintext, and Auto retains plain-first detection with decryption fallback. Domain GUID helpers forward the format to parsing, then validate stored validity and the requested identity. Generated records also validate validity and identity without another format check. Conversions accept both forms. Format is non-nullable: omit it or pass ConfiguredDefault instead of null. Compiled consumers require rebuilding and custom implementations or method-group bindings require signature updates. See [Utils parsing and validation](../DRN.Framework.Utils/README.md#parse--validation).
 
 Record contract excerpt from [SourceKnownEntityId.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/SourceKnownEntityId.cs):
 
@@ -283,11 +283,11 @@ The default minimum is maintained in [SourceKnownGenerationTimePolicy.MinimumGen
 
 | Method | Checks |
 |---|---|
-| `ValidateId(format: null)` | Stored `Valid` is true and an explicitly selected format matches `Secure`; no expected identity |
-| `Validate<TEntity>(format: null)` | Stored validity, optional format, entity type and the entity's declared application partition |
-| `Validate(EntityTypeId expected, format: null)` | Stored validity, optional format and both supplied identity components |
+| `ValidateId()` | Stored `Valid` is true; no expected identity |
+| `Validate<TEntity>()` | Stored validity, entity type and the entity's declared application partition |
+| `Validate(EntityTypeId expected)` | Stored validity and both supplied identity components |
 
-Record validation has no settings or keys and does not reauthenticate the GUID. Omitted/null or Auto accepts either stored format; explicit Secure/Plain checks the `Secure` flag. Undefined enum values throw `ArgumentOutOfRangeException`. Use operations `Parse`/`Validate` to authenticate an untrusted GUID with the configured default or an explicit format.
+Parsed-record validation has no format parameter and accepts either representation. It neither reads settings nor reauthenticates the GUID. Records are publicly constructible, so treat them as trusted internal values rather than authenticated transport input. Operations `Parse`/`Validate` authenticate untrusted GUIDs and select the format: ConfiguredDefault uses DefaultFormat, while Auto enables mixed-format detection. Undefined enum values throw `ArgumentOutOfRangeException` at that parsing boundary.
 
 Identity validation requires an expected application partition: use `Validate<TEntity>()` to obtain it from the entity declaration, or `Validate(new EntityTypeId(entityType, expectedAppId))` to supply both components. `EntityTypeId` requires both constructor arguments, including explicit `0` for the default partition, and has no implicit conversion from `byte`. The former `Validate(byte)` overload is removed; validation never derives the expected partition from the incoming ID.
 
@@ -344,30 +344,30 @@ public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
     Task<long> CountAsync(Expression<Func<TEntity, bool>>? predicate = null);
     
     // Identity Conversion & Validation
-    SourceKnownEntityId GetEntityId(Guid id, bool validate = true, SourceKnownEntityIdFormat? format = null);
-    SourceKnownEntityId? GetEntityId(Guid? id, bool validate = true, SourceKnownEntityIdFormat? format = null);
-    SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id, SourceKnownEntityIdFormat? format = null) where TOtherEntity : SourceKnownEntity;
-    SourceKnownEntityId? GetEntityId<TOtherEntity>(Guid? id, SourceKnownEntityIdFormat? format = null) where TOtherEntity : SourceKnownEntity;
-    SourceKnownEntityId[] GetEntityIds(IReadOnlyCollection<Guid> ids, bool validate = true, SourceKnownEntityIdFormat? format = null);
-    SourceKnownEntityId?[] GetEntityIds(IReadOnlyCollection<Guid?> ids, bool validate = true, SourceKnownEntityIdFormat? format = null);
-    SourceKnownEntityId[] GetEntityIds<TOtherEntity>(IReadOnlyCollection<Guid> ids, SourceKnownEntityIdFormat? format = null) where TOtherEntity : SourceKnownEntity;
-    SourceKnownEntityId?[] GetEntityIds<TOtherEntity>(IReadOnlyCollection<Guid?> ids, SourceKnownEntityIdFormat? format = null) where TOtherEntity : SourceKnownEntity;
-    IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable(IEnumerable<Guid> ids, bool validate = true, SourceKnownEntityIdFormat? format = null);
-    IEnumerable<SourceKnownEntityId?> GetEntityIdsAsEnumerable(IEnumerable<Guid?> ids, bool validate = true, SourceKnownEntityIdFormat? format = null);
-    IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable<TOtherEntity>(IEnumerable<Guid> ids, SourceKnownEntityIdFormat? format = null) where TOtherEntity : SourceKnownEntity;
-    IEnumerable<SourceKnownEntityId?> GetEntityIdsAsEnumerable<TOtherEntity>(IEnumerable<Guid?> ids, SourceKnownEntityIdFormat? format = null) where TOtherEntity : SourceKnownEntity;
+    SourceKnownEntityId GetEntityId(Guid id, bool validate = true, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
+    SourceKnownEntityId? GetEntityId(Guid? id, bool validate = true, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
+    SourceKnownEntityId GetEntityId<TOtherEntity>(Guid id, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TOtherEntity : SourceKnownEntity;
+    SourceKnownEntityId? GetEntityId<TOtherEntity>(Guid? id, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TOtherEntity : SourceKnownEntity;
+    SourceKnownEntityId[] GetEntityIds(IReadOnlyCollection<Guid> ids, bool validate = true, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
+    SourceKnownEntityId?[] GetEntityIds(IReadOnlyCollection<Guid?> ids, bool validate = true, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
+    SourceKnownEntityId[] GetEntityIds<TOtherEntity>(IReadOnlyCollection<Guid> ids, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TOtherEntity : SourceKnownEntity;
+    SourceKnownEntityId?[] GetEntityIds<TOtherEntity>(IReadOnlyCollection<Guid?> ids, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TOtherEntity : SourceKnownEntity;
+    IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable(IEnumerable<Guid> ids, bool validate = true, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
+    IEnumerable<SourceKnownEntityId?> GetEntityIdsAsEnumerable(IEnumerable<Guid?> ids, bool validate = true, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
+    IEnumerable<SourceKnownEntityId> GetEntityIdsAsEnumerable<TOtherEntity>(IEnumerable<Guid> ids, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TOtherEntity : SourceKnownEntity;
+    IEnumerable<SourceKnownEntityId?> GetEntityIdsAsEnumerable<TOtherEntity>(IEnumerable<Guid?> ids, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TOtherEntity : SourceKnownEntity;
     SourceKnownEntityId ToSecure(SourceKnownEntityId id);
     SourceKnownEntityId ToPlain(SourceKnownEntityId id);
     
     // Data Access
     Task<TEntity[]> GetAllAsync();
-    Task<TEntity> GetAsync(Guid id);
+    Task<TEntity> GetAsync(Guid id, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
     Task<TEntity> GetAsync(SourceKnownEntityId id);
-    Task<TEntity?> GetOrDefaultAsync(Guid id, bool validate = true);
+    Task<TEntity?> GetOrDefaultAsync(Guid id, bool validate = true, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
     Task<TEntity?> GetOrDefaultAsync(SourceKnownEntityId id, bool validate = true);
     
     // Batch Retrieval
-    Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids);
+    Task<TEntity[]> GetAsync(IReadOnlyCollection<Guid> ids, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
     Task<TEntity[]> GetAsync(IReadOnlyCollection<SourceKnownEntityId> ids);
     // Modification
     void Add(params IReadOnlyCollection<TEntity> entities);
@@ -375,6 +375,7 @@ public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
     Task<int> CreateAsync(params IReadOnlyCollection<TEntity> entities);
     Task<int> DeleteAsync(params IReadOnlyCollection<TEntity> entities);
     Task<int> DeleteAsync(params IReadOnlyCollection<Guid> ids);
+    Task<int> DeleteAsync(IReadOnlyCollection<Guid> ids, SourceKnownEntityIdFormat format);
     Task<int> DeleteAsync(params IReadOnlyCollection<SourceKnownEntityId> ids);
 
     // Pagination

@@ -12,15 +12,15 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 public class SourceKnownEntityIdUtilsTests
 {
     [Theory]
-    [DataInlineUnit(false, null)]
-    [DataInlineUnit(true, null)]
+    [DataInlineUnit(false, SourceKnownEntityIdFormat.ConfiguredDefault)]
+    [DataInlineUnit(true, SourceKnownEntityIdFormat.ConfiguredDefault)]
     [DataInlineUnit(false, SourceKnownEntityIdFormat.Secure)]
     [DataInlineUnit(true, SourceKnownEntityIdFormat.Secure)]
     [DataInlineUnit(false, SourceKnownEntityIdFormat.Plain)]
     [DataInlineUnit(true, SourceKnownEntityIdFormat.Plain)]
     [DataInlineUnit(false, SourceKnownEntityIdFormat.Auto)]
     [DataInlineUnit(true, SourceKnownEntityIdFormat.Auto)]
-    public void Formats_Should_Apply_To_All_Parse_And_Validate_Paths(bool configuredSecure, SourceKnownEntityIdFormat? format)
+    public void Formats_Should_Apply_To_All_Parse_And_Validate_Paths(bool configuredSecure, SourceKnownEntityIdFormat format)
     {
         using var settings = SettingsProvider.Development<SampleApp5>(new
         {
@@ -29,6 +29,9 @@ public class SourceKnownEntityIdUtilsTests
         using var implementation = new SourceKnownEntityIdUtils(settings, new SourceKnownIdUtils(settings));
         ISourceKnownEntityIdUtils ids = implementation;
         ISourceKnownEntityIdOperations operations = implementation;
+        var defaultFormat = configuredSecure ? SourceKnownEntityIdFormat.Secure : SourceKnownEntityIdFormat.Plain;
+        ids.DefaultFormat.Should().Be(defaultFormat);
+        operations.DefaultFormat.Should().Be(defaultFormat);
         var expected = new EntityTypeId(200, 5);
         var numericId = long.MinValue | (5L << 24);
 
@@ -42,11 +45,14 @@ public class SourceKnownEntityIdUtilsTests
             });
             var parsed = ids.Parse(original.EntityId, format);
             parsed.Valid.Should().Be(accepted);
+            var validateParsed = () => parsed.Validate<XEntity>();
+            if (accepted) validateParsed.Should().NotThrow();
+            else validateParsed.Should().Throw<ValidationException>();
             parsed.EntityId.Should().Be(original.EntityId);
             operations.Parse(original.EntityId, format).Valid.Should().Be(accepted);
             operations.Parse((Guid?)original.EntityId, format)!.Value.Valid.Should().Be(accepted);
             ids.Parse((Guid?)original.EntityId, format)!.Value.Valid.Should().Be(accepted);
-            if (format == null)
+            if (format == SourceKnownEntityIdFormat.ConfiguredDefault)
             {
                 implementation.Parse(original.EntityId).Valid.Should().Be(accepted);
                 operations.Parse(original.EntityId).Valid.Should().Be(accepted);
@@ -87,6 +93,9 @@ public class SourceKnownEntityIdUtilsTests
                 validated.Source.Should().Be(original.Source);
                 validated.EntityTypeId.Should().Be(expected);
                 validated.EntityId.Should().Be(original.EntityId);
+                validated.ValidateId();
+                validated.Validate(expected);
+                validated.Validate<XEntity>();
             }
 
             if (!accepted) continue;
@@ -127,7 +136,7 @@ public class SourceKnownEntityIdUtilsTests
         var plain = ids.GeneratePlain(numericId, expected);
         var secure = ids.GenerateSecure(numericId, expected);
         var entity = new XEntity(numericId) { EntityIdOps = ids, EntityIdSource = plain };
-        foreach (var format in new SourceKnownEntityIdFormat?[] { null, SourceKnownEntityIdFormat.Secure, SourceKnownEntityIdFormat.Plain, SourceKnownEntityIdFormat.Auto })
+        foreach (var format in new[] { SourceKnownEntityIdFormat.ConfiguredDefault, SourceKnownEntityIdFormat.Secure, SourceKnownEntityIdFormat.Plain, SourceKnownEntityIdFormat.Auto })
         {
             foreach (var original in new[] { plain, secure })
             {
@@ -161,7 +170,7 @@ public class SourceKnownEntityIdUtilsTests
             entity.GetEntityId<XEntity>((Guid?)null, format).Should().BeNull();
         }
         entity.GetEntityId((configuredSecure ? secure : plain).EntityId).Valid.Should().BeTrue();
-        var invalidFormat = (SourceKnownEntityIdFormat)3;
+        var invalidFormat = (SourceKnownEntityIdFormat)4;
         Action[] invalidCalls =
         [
             () => entity.GetEntityId(plain.EntityId, format: invalidFormat),
@@ -177,7 +186,7 @@ public class SourceKnownEntityIdUtilsTests
 
     [Theory]
     [DataInlineUnit(-1)]
-    [DataInlineUnit(3)]
+    [DataInlineUnit(4)]
     [DataInlineUnit(int.MaxValue)]
     public void Undefined_Formats_Should_Throw_Including_For_Null_Inputs(int value)
     {

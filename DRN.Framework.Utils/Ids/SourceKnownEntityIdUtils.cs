@@ -40,28 +40,28 @@ public interface ISourceKnownEntityIdUtils : ISourceKnownEntityIdOperations
     SourceKnownEntityId GeneratePlain(SourceKnownEntity entity);
     SourceKnownEntityId GeneratePlain(long id, EntityTypeId entityTypeId);
 
-    /// <summary>Parses the selected format; null format uses UseSecureSourceKnownIds. Null input remains null.</summary>
-    new SourceKnownEntityId? Parse(Guid? entityId, SourceKnownEntityIdFormat? format = null);
-    /// <summary>Parses the selected format; null format uses UseSecureSourceKnownIds.</summary>
-    new SourceKnownEntityId Parse(Guid entityId, SourceKnownEntityIdFormat? format = null);
+    /// <summary>Parses the selected format; ConfiguredDefault uses UseSecureSourceKnownIds. Null input remains null.</summary>
+    new SourceKnownEntityId? Parse(Guid? entityId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
+    /// <summary>Parses the selected format; ConfiguredDefault uses UseSecureSourceKnownIds.</summary>
+    new SourceKnownEntityId Parse(Guid entityId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
 
     /// <summary>Validates integrity and entity type against the configured AppId. Null remains null.</summary>
-    new SourceKnownEntityId? Validate(Guid? entityId, byte entityType, SourceKnownEntityIdFormat? format = null);
+    new SourceKnownEntityId? Validate(Guid? entityId, byte entityType, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
     /// <summary>Validates integrity and entity type against NexusAppSettings.AppId.</summary>
-    new SourceKnownEntityId Validate(Guid entityId, byte entityType, SourceKnownEntityIdFormat? format = null);
+    new SourceKnownEntityId Validate(Guid entityId, byte entityType, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
 
     /// <summary>Explicitly selects an application partition through IAppId. Null remains null.</summary>
-    new SourceKnownEntityId? Validate<TApp>(Guid? entityId, byte entityType, SourceKnownEntityIdFormat? format = null) where TApp : IAppId;
+    new SourceKnownEntityId? Validate<TApp>(Guid? entityId, byte entityType, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TApp : IAppId;
     /// <summary>Validates integrity, entity type, and the explicit TApp.AppId.</summary>
-    new SourceKnownEntityId Validate<TApp>(Guid entityId, byte entityType, SourceKnownEntityIdFormat? format = null) where TApp : IAppId;
+    new SourceKnownEntityId Validate<TApp>(Guid entityId, byte entityType, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TApp : IAppId;
 
-    new SourceKnownEntityId? Validate(Guid? entityId, EntityTypeId entityTypeId, SourceKnownEntityIdFormat? format = null);
+    new SourceKnownEntityId? Validate(Guid? entityId, EntityTypeId entityTypeId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
     /// <summary>Validates integrity and both explicitly supplied identity components.</summary>
-    new SourceKnownEntityId Validate(Guid entityId, EntityTypeId entityTypeId, SourceKnownEntityIdFormat? format = null);
+    new SourceKnownEntityId Validate(Guid entityId, EntityTypeId entityTypeId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
 
-    new SourceKnownEntityId? Validate<TEntity>(Guid? entityId, SourceKnownEntityIdFormat? format = null) where TEntity : SourceKnownEntity;
+    new SourceKnownEntityId? Validate<TEntity>(Guid? entityId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TEntity : SourceKnownEntity;
     /// <summary>Validates against the entity's declared identity, independently of configured AppId.</summary>
-    new SourceKnownEntityId Validate<TEntity>(Guid entityId, SourceKnownEntityIdFormat? format = null) where TEntity : SourceKnownEntity;
+    new SourceKnownEntityId Validate<TEntity>(Guid entityId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TEntity : SourceKnownEntity;
 
     new SourceKnownEntityId ToSecure(SourceKnownEntityId id);
     SourceKnownEntityId? ToSecure(SourceKnownEntityId? id);
@@ -74,7 +74,7 @@ public interface ISourceKnownEntityIdUtils : ISourceKnownEntityIdOperations
 /// 128‑bit GUID, providing a reversible mapping with integrity checking.
 /// Secure variants encrypt the entire 16-byte GUID using AES-256-ECB as a pseudo-random permutation (PRP).
 /// AES-ECB on a single 128-bit block is a conjectured PRP (NIST FIPS 197) — no nonce required, no nonce-reuse vulnerability.
-/// Parse and Validate default to UseSecureSourceKnownIds; explicit formats override configuration.
+/// Parse and Validate resolve ConfiguredDefault through UseSecureSourceKnownIds; Secure, Plain and Auto override it.
 /// Auto tries AES-ECB decryption when plain epoch/marker checks or MAC verification fail.
 /// Add rate limit to endpoints that accept SourceKnownEntityId from untrusted sources to prevent brute force attacks.
 /// Optionally, add randomness to instance id generation to improve brute force durability.
@@ -141,7 +141,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     private readonly NexusKeyRing _keyRing;
     private readonly Aes256 _aes;
     private readonly SecretKey32 _macKey;
-    private readonly bool _useSecure;
+    public SourceKnownEntityIdFormat DefaultFormat { get; }
     private readonly ISourceKnownIdUtils _sourceKnownIdUtils;
     private readonly byte _appId;
 
@@ -154,7 +154,9 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         _keyRing = new NexusKeyRing(appSettings.NexusAppSettings);
         _aes = _keyRing.Default.Aes;
         _macKey = _keyRing.Default.MacKey;
-        _useSecure = appSettings.NexusAppSettings.UseSecureSourceKnownIds;
+        DefaultFormat = appSettings.NexusAppSettings.UseSecureSourceKnownIds
+            ? SourceKnownEntityIdFormat.Secure
+            : SourceKnownEntityIdFormat.Plain;
     }
 
     public SourceKnownEntityId Generate<TEntity>() where TEntity : SourceKnownEntity
@@ -167,7 +169,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         => Generate(entity.Id, SourceKnownEntity.GetEntityTypeId(entity));
 
     public SourceKnownEntityId Generate(long id, EntityTypeId entityTypeId)
-        => _useSecure ? GenerateSecure(id, entityTypeId) : GeneratePlain(id, entityTypeId);
+        => DefaultFormat == SourceKnownEntityIdFormat.Secure ? GenerateSecure(id, entityTypeId) : GeneratePlain(id, entityTypeId);
 
     public SourceKnownEntityId GeneratePlain<TEntity>() where TEntity : SourceKnownEntity
         => GeneratePlain<TEntity>(_sourceKnownIdUtils.Next<TEntity>());
@@ -256,13 +258,13 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         return new Guid(guidBytes, bigEndian: true);
     }
 
-    public SourceKnownEntityId? Parse(Guid? entityId, SourceKnownEntityIdFormat? format = null)
+    public SourceKnownEntityId? Parse(Guid? entityId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault)
     {
         var selectedFormat = ResolveFormat(format);
         return entityId.HasValue ? Parse(entityId.Value, selectedFormat) : null;
     }
 
-    public SourceKnownEntityId Parse(Guid entityId, SourceKnownEntityIdFormat? format = null)
+    public SourceKnownEntityId Parse(Guid entityId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault)
     {
         var selectedFormat = ResolveFormat(format);
         var keys = _keyRing.AllWithDefaultAsFirstItem;
@@ -276,13 +278,11 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         return CreateInvalid(entityId);
     }
 
-    private SourceKnownEntityIdFormat ResolveFormat(SourceKnownEntityIdFormat? format)
-        => format switch
-        {
-            null => _useSecure ? SourceKnownEntityIdFormat.Secure : SourceKnownEntityIdFormat.Plain,
-            SourceKnownEntityIdFormat.Secure or SourceKnownEntityIdFormat.Plain or SourceKnownEntityIdFormat.Auto => format.Value,
-            _ => throw new ArgumentOutOfRangeException(nameof(format), format, "Undefined entity ID format.")
-        };
+    private SourceKnownEntityIdFormat ResolveFormat(SourceKnownEntityIdFormat format)
+    {
+        SourceKnownEntityId.ValidateFormat(format);
+        return format == SourceKnownEntityIdFormat.ConfiguredDefault ? DefaultFormat : format;
+    }
 
     private SourceKnownEntityId ParseWithKey(Guid entityId, NexusSecret key, SourceKnownEntityIdFormat format)
     {
@@ -323,46 +323,46 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
             : VerifyAndParse(guidBytes, entityId, secure: true, macKey: key.MacKey);
     }
 
-    public SourceKnownEntityId? Validate(Guid? entityId, byte entityType, SourceKnownEntityIdFormat? format = null)
+    public SourceKnownEntityId? Validate(Guid? entityId, byte entityType, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault)
     {
         var selectedFormat = ResolveFormat(format);
         return entityId.HasValue ? Validate(entityId.Value, entityType, selectedFormat) : null;
     }
 
-    public SourceKnownEntityId Validate(Guid entityId, byte entityType, SourceKnownEntityIdFormat? format = null)
+    public SourceKnownEntityId Validate(Guid entityId, byte entityType, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault)
         => Validate(entityId, new EntityTypeId(entityType, _appId), format);
 
-    public SourceKnownEntityId? Validate<TApp>(Guid? entityId, byte entityType, SourceKnownEntityIdFormat? format = null) where TApp : IAppId
+    public SourceKnownEntityId? Validate<TApp>(Guid? entityId, byte entityType, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TApp : IAppId
     {
         var selectedFormat = ResolveFormat(format);
         return entityId.HasValue ? Validate<TApp>(entityId.Value, entityType, selectedFormat) : null;
     }
 
-    public SourceKnownEntityId Validate<TApp>(Guid entityId, byte entityType, SourceKnownEntityIdFormat? format = null) where TApp : IAppId
+    public SourceKnownEntityId Validate<TApp>(Guid entityId, byte entityType, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TApp : IAppId
         => Validate(entityId, new EntityTypeId(entityType, TApp.AppId), format);
 
-    public SourceKnownEntityId? Validate(Guid? entityId, EntityTypeId entityTypeId, SourceKnownEntityIdFormat? format = null)
+    public SourceKnownEntityId? Validate(Guid? entityId, EntityTypeId entityTypeId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault)
     {
         var selectedFormat = ResolveFormat(format);
         return entityId.HasValue ? Validate(entityId.Value, entityTypeId, selectedFormat) : null;
     }
 
-    public SourceKnownEntityId Validate(Guid entityId, EntityTypeId entityTypeId, SourceKnownEntityIdFormat? format = null)
+    public SourceKnownEntityId Validate(Guid entityId, EntityTypeId entityTypeId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault)
     {
         ArgumentOutOfRangeException.ThrowIfGreaterThan(entityTypeId.AppId, IAppId.MaxAppId);
         var sourceKnownId = Parse(entityId, format);
-        sourceKnownId.Validate(entityTypeId, format);
+        sourceKnownId.Validate(entityTypeId);
 
         return sourceKnownId;
     }
 
-    public SourceKnownEntityId? Validate<TEntity>(Guid? entityId, SourceKnownEntityIdFormat? format = null) where TEntity : SourceKnownEntity
+    public SourceKnownEntityId? Validate<TEntity>(Guid? entityId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TEntity : SourceKnownEntity
     {
         var selectedFormat = ResolveFormat(format);
         return entityId.HasValue ? Validate<TEntity>(entityId.Value, selectedFormat) : null;
     }
 
-    public SourceKnownEntityId Validate<TEntity>(Guid entityId, SourceKnownEntityIdFormat? format = null) where TEntity : SourceKnownEntity
+    public SourceKnownEntityId Validate<TEntity>(Guid entityId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TEntity : SourceKnownEntity
         => Validate(entityId, SourceKnownEntity.GetEntityTypeId<TEntity>(), format);
 
     public SourceKnownEntityId ToSecure(SourceKnownEntityId id)

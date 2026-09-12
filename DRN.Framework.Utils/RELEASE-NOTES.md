@@ -17,7 +17,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
-*   **Entity ID Parse Formats**: `Parse` and `Validate` now accept optional `SourceKnownEntityIdFormat? format = null`. Omission follows `UseSecureSourceKnownIds` (`true` → Secure, `false` → Plain); explicitly select `Auto` to retain mixed-format detection. Secure only decrypts and verifies; Plain never decrypts. Undefined enum values throw, including for null input. Ordinary source calls remain valid, but consumers must rebuild for the new binary signatures and update custom interface implementations or method-group bindings. Generation and conversions retain their behavior.
+*   **Entity ID Parse Formats**: GUID `Parse` and `Validate` accept non-nullable `SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault`. The constructor sets read-only DefaultFormat from `UseSecureSourceKnownIds` (`true` → Secure, `false` → Plain); ConfiguredDefault selects this immutable property. Secure only decrypts/verifies; Plain never decrypts; Auto retains mixed-format detection. Format is enforced during parsing; parsed records validate stored validity and expected identity without a format argument. Replace null GUID-format arguments with ConfiguredDefault, rebuild consumers and update custom implementations/method-group bindings, including DefaultFormat. Nullable GUID inputs and generation retain their behavior; conversions continue reauthenticating either representation using Auto.
 
 *   **Development Settings Factory**: Removed `AppSettings.Development(...)`. Tests should use `DRN.Framework.Testing.Providers.SettingsProvider.Development()` for AppId 0 or `Development<TApp>(...)` for a declared partition. Application code should use `new AppSettings(configuration)` with explicitly configured AppId and AppInstanceId values.
 
@@ -43,6 +43,17 @@ Not every version includes changes, features or bug fixes. This project can incr
 ### New Features
 
 *   **Async Recurring Actions**: Added `RecurringActionAsync` for non-overlapping callbacks, cooperative cancellation, and asynchronous disposal. Tokenless `Func<Task>` constructors accept only the callback, period, and optional `start`, without an `executionTimeout` parameter. Use a token-aware callback to configure a timeout; restarted execution and `DisposeAsync()` wait for outstanding work.
+    *   *Migration*: Move asynchronous callbacks from `RecurringAction` to `RecurringActionAsync` and replace synchronous `using`/`Dispose()` with `await using`/`await DisposeAsync()`. `Stop()` requests cancellation without waiting for active work; asynchronous disposal waits for it to finish. For example, in an async consumer method:
+
+        ```csharp
+        await using (var recurring = new RecurringActionAsync(
+            async cancellationToken => await Task.Delay(100, cancellationToken),
+            TimeSpan.FromSeconds(1)))
+        {
+            await Task.Delay(TimeSpan.FromSeconds(5));
+        } // DisposeAsync() is awaited before execution continues beyond this scope.
+        ```
+
 *   **Dedicated Recurring Actions**: `RecurringAction` now accepts synchronous callbacks and supports dedicated background threads through `threadName`, with configurable priority and a required positive period. Timer mode continues to accept zero. Restarting during an active callback preserves the configured delay after it finishes.
 
 *   **Scope Events**: Added `ScopeEvent` for structured logging with .NET `EventId`. `ScopedLog` retains primary and additional events, provides a stable scope correlation ID, and captures an existing W3C trace ID. `LogScoped` forwards the primary event ID while preserving severity.

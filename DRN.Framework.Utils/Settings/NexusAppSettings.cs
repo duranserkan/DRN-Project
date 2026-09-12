@@ -34,7 +34,7 @@ public sealed class NexusAppSettings : IDisposable
     /// When true (default), <see cref="Ids.SourceKnownEntityIdUtils.Generate(long, EntityTypeId)"/> produces AES-256-ECB encrypted entity IDs.
     /// When false, it produces plaintext entity IDs with visible 8D8D markers.
     /// Explicit <c>GenerateSecure</c>/<c>GeneratePlain</c> methods bypass this flag.
-    /// Parse and Validate use the same secure/plain default unless an explicit format is supplied.
+    /// Parse and Validate use the same secure/plain default for ConfiguredDefault; Secure, Plain and Auto override it.
     /// </summary>
     public bool UseSecureSourceKnownIds { get; init; } = true;
 

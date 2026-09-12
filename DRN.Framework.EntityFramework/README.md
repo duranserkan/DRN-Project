@@ -449,7 +449,9 @@ Filters do not authorize tracked writes. Validate ownership and access before ad
 
 Repositories validate the target entity's declared `(EntityType, AppId)` before querying, including secondary partitions. `GetEntityId<TOtherEntity>` uses that entity's declaration. `validate: false` skips validation; nullable inputs preserve null.
 
-All `GetEntityId`, `GetEntityIds` and `GetEntityIdsAsEnumerable` overloads accept optional `SourceKnownEntityIdFormat? format = null`, including generic and nullable forms on `ISourceKnownRepository<TEntity>`. Omission uses `UseSecureSourceKnownIds`; explicit Secure, Plain or Auto overrides it. `validate: false` still parses with the selected format but returns the result without throwing for invalid IDs or mismatched identity. Undefined formats always throw, even for null inputs or empty batches. Enumerable helpers check the format at the call and parse IDs only during enumeration.
+All `GetEntityId`, `GetEntityIds` and `GetEntityIdsAsEnumerable` overloads accept non-nullable `SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault`, including generic and nullable-ID forms on `ISourceKnownRepository<TEntity>`. ConfiguredDefault selects the ID utility's immutable `DefaultFormat`; explicit Secure, Plain or Auto overrides it. Helpers forward the format to parsing, then validate the parsed record's validity and identity. `validate: false` still parses with the selected format but returns the result without throwing for invalid IDs or mismatched identity. Undefined formats always throw, even for null IDs or empty batches. Enumerable helpers check the format at the call and parse IDs only during enumeration.
+
+GUID-input `GetAsync`, `GetOrDefaultAsync` and `DeleteAsync` enforce DefaultFormat during parsing. Pass an explicit format to override it; accepting both GUID formats requires Auto. For deletion, use `DeleteAsync(ids, format)` with a GUID collection; the GUID params overload uses ConfiguredDefault. Parsed-record reads and deletes have no format parameter: they accept either representation and check stored validity and identity without reauthenticating the GUID. Pass only trusted internal records; untrusted GUIDs must go through parsing. Entity-input Add/Create/Delete operations also have no format parameter.
 
 ```csharp
 // Throws ValidationException for an invalid ID or a mismatched entity type/partition
@@ -462,9 +464,12 @@ var users = await repository.GetAsync(userIds);
 
 // Accept both representations explicitly before querying
 var mixedIds = repository.GetEntityIds(guidList, format: SourceKnownEntityIdFormat.Auto);
+var mixedUsers = await repository.GetAsync(mixedIds);
+// Or query GUIDs directly with the same explicit policy
+var mixedUsersFromGuids = await repository.GetAsync(guidList, SourceKnownEntityIdFormat.Auto);
 ```
 
-Ordinary helper calls compile unchanged. Rebuild binary consumers and update custom repository implementations or method-group bindings for the new signatures. Query and conversion APIs retain their signatures.
+Rebuild binary consumers and update custom repository implementations, overrides and method-group bindings for the GUID helper/query signatures. Parsed-record query/delete APIs have no format parameter; the protected record-ID Filter is static. Conversion APIs retain their signatures.
 
 ### Secure ↔ Plain Conversion
 
