@@ -241,6 +241,7 @@ public class SourceKnownIdUtils : ISourceKnownIdUtils
         var storedTimestamp = (id >> TimestampShift) & uint.MaxValue;
         var fullTicks = id >= 0 ? storedTimestamp + TicksPerHalf : storedTimestamp;
         var dateTime = EpochTimeUtils.ConvertToDateTime(fullTicks, epoch);
+
         return new SourceKnownId(id, dateTime, instanceId, appId, appInstanceId);
     }
 }

@@ -191,6 +191,9 @@ public class SourceKnownEntityIdUtilsTests
     [Theory]
     [DataInlineUnit(-1)]
     [DataInlineUnit(4)]
+    [DataInlineUnit(256)]
+    [DataInlineUnit(257)]
+    [DataInlineUnit(int.MinValue)]
     [DataInlineUnit(int.MaxValue)]
     [SuppressMessage("Performance", "CA1859", Justification = "Verifies invalid-format rejection through both public interface contracts.")]
     public void Undefined_Formats_Should_Throw_Including_For_Null_Inputs(int value)

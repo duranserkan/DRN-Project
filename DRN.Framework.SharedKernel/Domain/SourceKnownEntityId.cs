@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace DRN.Framework.SharedKernel.Domain;
 
 public readonly record struct SourceKnownId(long Id, DateTimeOffset CreatedAt, uint InstanceId, byte AppId, byte AppInstanceId)
@@ -65,9 +67,10 @@ public readonly record struct SourceKnownEntityId(SourceKnownId Source, Guid Ent
             throw ExceptionFor.Validation($"Invalid EntityId: {EntityId}");
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static void ValidateFormat(SourceKnownEntityIdFormat format)
     {
-        if (format is not (SourceKnownEntityIdFormat.ConfiguredDefault or SourceKnownEntityIdFormat.Secure or SourceKnownEntityIdFormat.Plain or SourceKnownEntityIdFormat.Auto))
+        if (unchecked((uint)format) > (uint)SourceKnownEntityIdFormat.Auto)
             throw new ArgumentOutOfRangeException(nameof(format), format, "Undefined entity ID format.");
     }
 

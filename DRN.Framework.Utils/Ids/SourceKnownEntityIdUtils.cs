@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using Blake3;
@@ -261,32 +262,43 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
             block = _aes.Encrypt(block);
 
             if (!HasValidMarkers(block) || !VerifyBlake3Mac(block, _macKey))
-                break;
+                return ToGuid(block);
         }
 
-        if (variantByte > SourceKnownMarkerVariantMaxByte)
-            throw ExceptionFor.Jackpot(
-                $"All 50 alternative variant bytes " +
-                $"(0x{SourceKnownMarkerVariantByte + 1:X2}–0x{SourceKnownMarkerVariantMaxByte:X2}) exhausted " +
-                $"for id={id}, entityType={entityType}.");
-
-        return ToGuid(block);
+        throw ExceptionFor.Jackpot(
+            $"All 50 alternative variant bytes " +
+            $"(0x{SourceKnownMarkerVariantByte + 1:X2}–0x{SourceKnownMarkerVariantMaxByte:X2}) exhausted " +
+            $"for id={id}, entityType={entityType}.");
     }
 
     public SourceKnownEntityId? Parse(Guid? entityId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault)
     {
         var selectedFormat = ResolveFormat(format);
-        return entityId.HasValue ? Parse(entityId.Value, selectedFormat) : null;
+        return entityId.HasValue ? ParseCore(entityId.Value, selectedFormat) : null;
     }
 
     public SourceKnownEntityId Parse(Guid entityId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault)
+        => ParseCore(entityId, ResolveFormat(format));
+
+    private SourceKnownEntityId ParseCore(Guid entityId, SourceKnownEntityIdFormat format)
     {
-        var selectedFormat = ResolveFormat(format);
         var block = FromGuid(entityId);
-        var keys = _keyRing.AllWithDefaultAsFirstItem;
+        if (format == SourceKnownEntityIdFormat.Plain && !HasValidMarkers(block))
+            return CreateInvalid(entityId);
+
+        var result = ParseWithKey(block, entityId, _keyRing.Default, format);
+
+        return result.Valid
+            ? result
+            : ParseWithFallbackKeys(block, entityId, format);
+    }
+
+    private SourceKnownEntityId ParseWithFallbackKeys(Vector128<byte> block, Guid entityId, SourceKnownEntityIdFormat format)
+    {
+        var keys = _keyRing.Fallback;
         for (var index = 0; index < keys.Count; index++)
         {
-            var result = ParseWithKey(block, entityId, keys[index], selectedFormat);
+            var result = ParseWithKey(block, entityId, keys[index], format);
             if (result.Valid)
                 return result;
         }
@@ -294,24 +306,26 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         return CreateInvalid(entityId);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private SourceKnownEntityIdFormat ResolveFormat(SourceKnownEntityIdFormat format)
     {
+        if (format == SourceKnownEntityIdFormat.ConfiguredDefault)
+            return DefaultFormat;
+
         SourceKnownEntityId.ValidateFormat(format);
-        return format == SourceKnownEntityIdFormat.ConfiguredDefault ? DefaultFormat : format;
+        return format;
     }
 
     private SourceKnownEntityId ParseWithKey(Vector128<byte> block, Guid entityId, NexusSecret key, SourceKnownEntityIdFormat format)
     {
         // Try non-secure path first (plaintext 8D8D markers visible)
-        if (format != SourceKnownEntityIdFormat.Secure && HasValidMarkers(block))
+        // Plain markers have already been checked once in ParseCore.
+        if (format == SourceKnownEntityIdFormat.Plain || (format == SourceKnownEntityIdFormat.Auto && HasValidMarkers(block)))
         {
             var result = VerifyAndParse(block, entityId, secure: false, macKey: key.MacKey);
-            if (result.Valid)
+            if (result.Valid || format == SourceKnownEntityIdFormat.Plain)
                 return result;
         }
-
-        if (format == SourceKnownEntityIdFormat.Plain)
-            return CreateInvalid(entityId);
 
         // Try secure path: AES-ECB decrypt full block, then check for markers
         // HasValidMarkersSecure accepts RFC 9562 §4.1 variant range 0x80–0xBF (collision guard uses 0x8D–0xBF)
@@ -321,6 +335,8 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
             return CreateInvalid(entityId);
 
         var recoveredVariant = block[SourceKnownMarkerVariantIndex];
+        if (recoveredVariant == SourceKnownMarkerVariantByte)
+            return VerifyAndParse(block, entityId, secure: true, macKey: key.MacKey);
 
         // Non-default variant → backward collision-guard verification
         if (recoveredVariant is > SourceKnownMarkerVariantByte and <= SourceKnownMarkerVariantMaxByte)
@@ -328,52 +344,57 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
                 ? VerifyAndParse(block, entityId, secure: true, macKey: key.MacKey)
                 : CreateInvalid(entityId);
 
-        return recoveredVariant != SourceKnownMarkerVariantByte
-            ? CreateInvalid(entityId)
-            : VerifyAndParse(block, entityId, secure: true, macKey: key.MacKey);
+        return CreateInvalid(entityId);
     }
 
     public SourceKnownEntityId? Validate(Guid? entityId, byte entityType, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault)
     {
         var selectedFormat = ResolveFormat(format);
-        return entityId.HasValue ? Validate(entityId.Value, entityType, selectedFormat) : null;
+        return entityId.HasValue ? ValidateCore(entityId.Value, new EntityTypeId(entityType, _appId), selectedFormat) : null;
     }
 
     public SourceKnownEntityId Validate(Guid entityId, byte entityType, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault)
         => Validate(entityId, new EntityTypeId(entityType, _appId), format);
 
-    public SourceKnownEntityId? Validate<TApp>(Guid? entityId, byte entityType, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TApp : IAppId
+    public SourceKnownEntityId? Validate<TApp>(Guid? entityId, byte entityType, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault)
+        where TApp : IAppId
     {
         var selectedFormat = ResolveFormat(format);
-        return entityId.HasValue ? Validate<TApp>(entityId.Value, entityType, selectedFormat) : null;
+        return entityId.HasValue ? ValidateCore(entityId.Value, new EntityTypeId(entityType, TApp.AppId), selectedFormat) : null;
     }
 
-    public SourceKnownEntityId Validate<TApp>(Guid entityId, byte entityType, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TApp : IAppId
+    public SourceKnownEntityId Validate<TApp>(Guid entityId, byte entityType, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault)
+        where TApp : IAppId
         => Validate(entityId, new EntityTypeId(entityType, TApp.AppId), format);
 
     public SourceKnownEntityId? Validate(Guid? entityId, EntityTypeId entityTypeId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault)
     {
         var selectedFormat = ResolveFormat(format);
-        return entityId.HasValue ? Validate(entityId.Value, entityTypeId, selectedFormat) : null;
+        return entityId.HasValue ? ValidateCore(entityId.Value, entityTypeId, selectedFormat) : null;
     }
 
     public SourceKnownEntityId Validate(Guid entityId, EntityTypeId entityTypeId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault)
+        => ValidateCore(entityId, entityTypeId, ResolveFormat(format));
+
+    public SourceKnownEntityId? Validate<TEntity>(Guid? entityId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault)
+        where TEntity : SourceKnownEntity
+    {
+        var selectedFormat = ResolveFormat(format);
+        return entityId.HasValue ? ValidateCore(entityId.Value, SourceKnownEntity.GetEntityTypeId<TEntity>(), selectedFormat) : null;
+    }
+
+    public SourceKnownEntityId Validate<TEntity>(Guid entityId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault)
+        where TEntity : SourceKnownEntity
+        => Validate(entityId, SourceKnownEntity.GetEntityTypeId<TEntity>(), format);
+
+    private SourceKnownEntityId ValidateCore(Guid entityId, EntityTypeId entityTypeId, SourceKnownEntityIdFormat format)
     {
         ArgumentOutOfRangeException.ThrowIfGreaterThan(entityTypeId.AppId, IAppId.MaxAppId);
-        var sourceKnownId = Parse(entityId, format);
+        var sourceKnownId = ParseCore(entityId, format);
         sourceKnownId.Validate(entityTypeId);
 
         return sourceKnownId;
     }
-
-    public SourceKnownEntityId? Validate<TEntity>(Guid? entityId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TEntity : SourceKnownEntity
-    {
-        var selectedFormat = ResolveFormat(format);
-        return entityId.HasValue ? Validate<TEntity>(entityId.Value, selectedFormat) : null;
-    }
-
-    public SourceKnownEntityId Validate<TEntity>(Guid entityId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TEntity : SourceKnownEntity
-        => Validate(entityId, SourceKnownEntity.GetEntityTypeId<TEntity>(), format);
 
     public SourceKnownEntityId? ToSecure(SourceKnownEntityId? id) => id.HasValue ? ToSecure(id.Value) : null;
 
@@ -401,6 +422,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         => new(default, entityId, InvalidEntityType, false, Secure: false);
 
     [SuppressMessage("ReSharper", "HeuristicUnreachableCode")]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool HasValidMarkers(Vector128<byte> guidBytes)
         => (guidBytes & PlainMarkerMask) == PlainMarkerExpected && guidBytes[EpochIndex] <= SourceKnownGenerationTimePolicy.MaxSupportedEpoch;
 
@@ -410,12 +432,14 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     /// produced by the collision guard in <see cref="GenerateSecureGuid"/>.
     /// </summary>
     [SuppressMessage("ReSharper", "HeuristicUnreachableCode")]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool HasValidMarkersSecure(Vector128<byte> guidBytes)
         => (guidBytes & SecureMarkerMask) == SecureMarkerExpected && guidBytes[EpochIndex] <= SourceKnownGenerationTimePolicy.MaxSupportedEpoch;
 
     /// <summary>
     /// Verifies MAC integrity and extracts ID/entityType from a plaintext (or decrypted) block.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private SourceKnownEntityId VerifyAndParse(Vector128<byte> guidBytes, Guid entityId, bool secure, SecretKey32 macKey)
     {
         if (!VerifyBlake3Mac(guidBytes, macKey))
@@ -452,6 +476,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     /// The lower half is split: byte 5 (MSB) + bytes 9-11 (remaining), around the markers at bytes 6-8.
     /// MAC slots are zeroed for <see cref="WriteBlake3Mac"/>.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Vector128<byte> CreateIdAndMarkers(long id, byte entityType, byte variantByte)
     {
         var bits = unchecked((ulong)(id ^ long.MinValue));
@@ -468,6 +493,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     /// Reads the SKID upper half from bytes 1–4 (big-endian, sign-toggled) and the split lower half
     /// from byte 5 + bytes 9–11 (big-endian). XOR untoggle restores the original signed representation.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static long ReadId(Vector128<byte> guidBytes)
     {
         var bits = Vector128.Shuffle(guidBytes, IdReadIndices).AsUInt64().GetElement(0);
@@ -512,6 +538,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         hasher.Finalize(macBytes);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Vector128<byte> FromGuid(Guid entityId)
     {
         Span<byte> guidBytes = stackalloc byte[GuidLength];
@@ -519,6 +546,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         return Vector128.Create(guidBytes);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Guid ToGuid(Vector128<byte> block)
     {
         Span<byte> guidBytes = stackalloc byte[GuidLength];
