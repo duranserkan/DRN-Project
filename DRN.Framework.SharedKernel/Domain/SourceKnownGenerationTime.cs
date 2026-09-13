@@ -4,8 +4,10 @@ using System.Text.RegularExpressions;
 namespace DRN.Framework.SharedKernel.Domain;
 
 /// <summary>An immutable UTC lower bound. Historical decoding must not use this policy.</summary>
-public sealed class SourceKnownGenerationTimePolicy
+public sealed partial class SourceKnownGenerationTimePolicy
 {
+    private const string ConfiguredOverrideSource = "configured override";
+
     private static readonly string[] UtcFormats =
     [
         "yyyy-MM-dd'T'HH:mm:ss'Z'", "yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'",
@@ -43,16 +45,16 @@ public sealed class SourceKnownGenerationTimePolicy
         => new(MinimumGenerationUtc, DefaultEpoch, "SharedKernel C# minimum");
 
     internal SourceKnownGenerationTimePolicy WithMinimumUtc(string value)
-        => new(ParseUtc(value, "configured override"), Epoch, "configured override");
+        => new(ParseUtc(value, ConfiguredOverrideSource), Epoch, ConfiguredOverrideSource);
 
     internal SourceKnownGenerationTimePolicy WithConfiguration(string? minimumUtc, string? defaultEpoch)
     {
         if (defaultEpoch != null && minimumUtc == null)
             throw ExceptionFor.Configuration("SourceKnownIdSettings:DefaultEpoch requires an explicit SourceKnownIdSettings:MinimumUtc.");
         var candidate = new SourceKnownGenerationTimePolicy(
-            minimumUtc == null ? MinimumUtc : ParseUtc(minimumUtc, "configured override"),
+            minimumUtc == null ? MinimumUtc : ParseUtc(minimumUtc, ConfiguredOverrideSource),
             defaultEpoch == null ? Epoch : ParseUtc(defaultEpoch, "configured default epoch"),
-            "configured override");
+            ConfiguredOverrideSource);
         _ = candidate.GetMinimumUtc();
         return candidate;
     }
@@ -61,12 +63,16 @@ public sealed class SourceKnownGenerationTimePolicy
     public static DateTimeOffset ParseUtc(string value, string source)
     {
         if (string.IsNullOrEmpty(value) ||
-            !Regex.IsMatch(value, @"\A[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,7})?(Z|\+00:00)\z") ||
+            !UtcTimestampRegex().IsMatch(value) ||
             !DateTimeOffset.TryParseExact(value, UtcFormats, CultureInfo.InvariantCulture,
                 DateTimeStyles.AssumeUniversal, out var utc) || utc.Offset != TimeSpan.Zero)
             throw ExceptionFor.Configuration($"Source-Known {source} must be an ISO 8601 UTC timestamp with Z or +00:00.");
         return utc;
     }
+
+    [GeneratedRegex(@"\A[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,7})?(Z|\+00:00)\z",
+        RegexOptions.None, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex UtcTimestampRegex();
 
     public DateTimeOffset GetMinimumUtc() => GetMinimumUtc(Epoch, MinimumUtc);
 

@@ -190,6 +190,7 @@ public class SourceKnownIdUtilsTests
 
     [Theory]
     [DataInlineUnit]
+    [SuppressMessage("Usage", "CA2263", Justification = "This test specifically verifies the runtime Type overload; the generic overload is covered separately.")]
     public void Next_WithType_Should_Use_Declared_Partition_And_Configured_Instance(DrnTestContextUnit context)
     {
         context.AddToConfiguration(new { NexusAppSettings = new { AppId = 42, AppInstanceId = 18 } });

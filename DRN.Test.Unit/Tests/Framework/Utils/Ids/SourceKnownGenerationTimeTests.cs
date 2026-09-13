@@ -8,6 +8,7 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 public class SourceKnownGenerationTimeTests
 {
     private static readonly DateTimeOffset Epoch = SourceKnownGenerationTimePolicy.DefaultEpoch;
+    private static readonly string[] UntrustedAssemblies = ["Nonexistent.Untrusted.Assembly"];
     private const long Precision = SourceKnownGenerationTimePolicy.PrecisionTicks;
 
     private static SourceKnownGenerationTimePolicy Policy(DateTimeOffset floor)
@@ -100,7 +101,7 @@ public class SourceKnownGenerationTimeTests
             SourceKnownIdSettings = new
             {
                 ApplicationBuildUtc = "not UTC",
-                TrustedAssemblies = new[] { "Nonexistent.Untrusted.Assembly" }
+                TrustedAssemblies = UntrustedAssemblies
             }
         });
         _ = new SourceKnownIdUtils(settings);

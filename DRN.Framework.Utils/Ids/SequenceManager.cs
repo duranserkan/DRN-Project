@@ -14,6 +14,7 @@ namespace DRN.Framework.Utils.Ids;
 public static class SequenceManager<TEntity> where TEntity : class
 {
     // ReSharper disable once StaticMemberInGenericType
+    [SuppressMessage("SonarQube", "S2743", Justification = "Each entity type intentionally owns an independent timestamp scope and sequence.")]
     private static volatile SequenceTimeScope _timeScope = new(-1);
     private static readonly Lock ScopeLock = new();
 

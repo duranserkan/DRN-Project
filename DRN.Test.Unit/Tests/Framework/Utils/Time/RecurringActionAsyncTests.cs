@@ -107,6 +107,7 @@ public class RecurringActionAsyncTests
                 : new RecurringActionAsync(callback, TimeSpan.FromMilliseconds(10), start: false, executionTimeout: TimeSpan.FromTicks(ticks));
             worker.Start();
             await invoked.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            invoked.Task.IsCompletedSuccessfully.Should().BeTrue("a supported timeout must allow the callback to execute");
         }
     }
 
@@ -161,6 +162,7 @@ public class RecurringActionAsyncTests
 
             worker.Start();
             await invoked.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            invoked.Task.IsCompletedSuccessfully.Should().BeTrue("a supported period must allow either callback form to execute");
         }
     }
 

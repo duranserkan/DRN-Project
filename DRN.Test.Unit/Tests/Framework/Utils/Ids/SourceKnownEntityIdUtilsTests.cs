@@ -21,6 +21,7 @@ public class SourceKnownEntityIdUtilsTests
     [DataInlineUnit(true, SourceKnownEntityIdFormat.Plain)]
     [DataInlineUnit(false, SourceKnownEntityIdFormat.Auto)]
     [DataInlineUnit(true, SourceKnownEntityIdFormat.Auto)]
+    [SuppressMessage("Performance", "CA1859", Justification = "Exercises both public interface contracts and their optional format defaults.")]
     public void Formats_Should_Apply_To_All_Parse_And_Validate_Paths(bool configuredSecure, SourceKnownEntityIdFormat format)
     {
         using var settings = SettingsProvider.Development<SampleApp5>(new
@@ -189,6 +190,7 @@ public class SourceKnownEntityIdUtilsTests
     [DataInlineUnit(-1)]
     [DataInlineUnit(4)]
     [DataInlineUnit(int.MaxValue)]
+    [SuppressMessage("Performance", "CA1859", Justification = "Verifies invalid-format rejection through both public interface contracts.")]
     public void Undefined_Formats_Should_Throw_Including_For_Null_Inputs(int value)
     {
         using var settings = SettingsProvider.Development<SampleApp5>();
@@ -412,6 +414,7 @@ public class SourceKnownEntityIdUtilsTests
     [DataInlineUnit(true, 5)]
     [DataInlineUnit(false, 127)]
     [DataInlineUnit(true, 127)]
+    [SuppressMessage("Performance", "CA1859", Justification = "Verifies partition enforcement through both public interface contracts.")]
     public void Generation_Should_Require_The_Explicit_Partition_Regardless_Of_Configured_AppId(bool secure, byte appId)
     {
         using var settings = SettingsProvider.Development<SampleApp6>(new
@@ -451,6 +454,7 @@ public class SourceKnownEntityIdUtilsTests
     [Theory]
     [DataInlineUnit(false)]
     [DataInlineUnit(true)]
+    [SuppressMessage("Performance", "CA1859", Justification = "Verifies partition selection through the public utility interface contract.")]
     public void Validation_Uses_Configured_Partition_Entity_Metadata_Or_Explicit_Identity(bool secure)
     {
         using var settings = SettingsProvider.Development<SampleApp5>(new

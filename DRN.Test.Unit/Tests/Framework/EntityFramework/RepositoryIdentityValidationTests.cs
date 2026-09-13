@@ -26,7 +26,7 @@ public class RepositoryIdentityValidationTests
         using var ids = new SourceKnownEntityIdUtils(settings, new SourceKnownIdUtils(settings));
         var utils = Substitute.For<IEntityUtils>();
         utils.EntityId.Returns(ids);
-        ISourceKnownRepository<Tag> repository = new TagRepository(context, utils);
+        var repository = new TagRepository(context, utils);
         var expected = SourceKnownEntity.GetEntityTypeId<Tag>();
         var numericId = long.MinValue | ((long)expected.AppId << 24);
         var plain = ids.GeneratePlain(numericId, expected);
@@ -107,7 +107,7 @@ public class RepositoryIdentityValidationTests
         var operations = Substitute.For<ISourceKnownEntityIdOperations>();
         var utils = Substitute.For<IEntityUtils>();
         utils.EntityId.Returns(ids);
-        ISourceKnownRepository<Tag> repository = new TagRepository(context, utils);
+        var repository = new TagRepository(context, utils);
         var expected = SourceKnownEntity.GetEntityTypeId<Tag>();
 
         foreach (var storedSecure in new[] { false, true })
@@ -125,8 +125,8 @@ public class RepositoryIdentityValidationTests
                 () => repository.GetEntityId<Tag>(parsed.EntityId, format),
                 () => repository.GetEntityIds(new[] { parsed.EntityId }, format: format),
                 () => repository.GetEntityIds<Tag>(new[] { parsed.EntityId }, format),
-                () => repository.GetEntityIdsAsEnumerable(new[] { parsed.EntityId }, format: format).ToArray(),
-                () => repository.GetEntityIdsAsEnumerable<Tag>(new[] { parsed.EntityId }, format).ToArray(),
+                () => repository.GetEntityIdsAsEnumerable(new[] { parsed.EntityId }, format: format).ToArray().Should().Equal(parsed),
+                () => repository.GetEntityIdsAsEnumerable<Tag>(new[] { parsed.EntityId }, format).ToArray().Should().Equal(parsed),
                 () => entity.GetEntityId(parsed.EntityId, format: format),
                 () => entity.GetEntityId((Guid?)parsed.EntityId, format: format),
                 () => entity.GetEntityId(parsed.EntityId, expected, format),
@@ -163,9 +163,9 @@ public class RepositoryIdentityValidationTests
             Guid.NewGuid(), expected.EntityType, true, !configuredSecure);
         var query = Array.Empty<Tag>().AsQueryable();
         var matching = opposite with { Secure = configuredSecure };
-        repository.FilterRecords(query, [matching]).Should().BeEmpty();
-        repository.FilterRecords(query, [opposite]).Should().BeEmpty();
-        repository.FilterRecords(query, [matching, opposite]).Should().BeEmpty();
+        MetadataTagRepository.FilterRecords(query, [matching]).Should().BeEmpty();
+        MetadataTagRepository.FilterRecords(query, [opposite]).Should().BeEmpty();
+        MetadataTagRepository.FilterRecords(query, [matching, opposite]).Should().BeEmpty();
 
         ISourceKnownRepository<Tag> contract = repository;
         foreach (var parsed in new[] { matching, opposite })
@@ -176,7 +176,7 @@ public class RepositoryIdentityValidationTests
                      parsed with { Source = parsed.Source with { AppId = (byte)(expected.AppId + 1) } }
                  })
         {
-            var rejectBatch = () => repository.FilterRecords(query, [parsed, rejected]);
+            var rejectBatch = () => MetadataTagRepository.FilterRecords(query, [parsed, rejected]);
             rejectBatch.Should().Throw<ValidationException>();
             Func<Task>[] calls =
             [
@@ -197,7 +197,7 @@ public class RepositoryIdentityValidationTests
     {
         using var context = new QAContext(new DbContextOptionsBuilder<QAContext>()
             .UseNpgsql("Host=localhost;Database=test").Options);
-        ISourceKnownRepository<Tag> contract = new TagRepository(context, Substitute.For<IEntityUtils>());
+        var contract = new TagRepository(context, Substitute.For<IEntityUtils>());
         var undefined = (SourceKnownEntityIdFormat)4;
         Func<Task>[] undefinedCalls =
         [
@@ -235,7 +235,7 @@ public class RepositoryIdentityValidationTests
         // An explicit parsing decision survives later record-input repository use.
         var parsedPlain = ids.Validate<Tag>(plain, SourceKnownEntityIdFormat.Plain);
         var parsedSecure = ids.Validate<Tag>(secure, SourceKnownEntityIdFormat.Secure);
-        repository.FilterRecords(query, [parsedPlain, parsedSecure]).Should().BeEmpty();
+        MetadataTagRepository.FilterRecords(query, [parsedPlain, parsedSecure]).Should().BeEmpty();
 
         foreach (var format in new[] { SourceKnownEntityIdFormat.ConfiguredDefault, SourceKnownEntityIdFormat.Secure, SourceKnownEntityIdFormat.Plain, SourceKnownEntityIdFormat.Auto })
         foreach (var input in new[] { plain, secure })
@@ -262,7 +262,7 @@ public class RepositoryIdentityValidationTests
         public IQueryable<Tag> FilterGuids(IQueryable<Tag> query, IReadOnlyCollection<Guid> ids,
             SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) => Filter(query, format, ids);
 
-        public IQueryable<Tag> FilterRecords(IQueryable<Tag> query, IReadOnlyCollection<SourceKnownEntityId> ids) => Filter(query, ids);
+        public static IQueryable<Tag> FilterRecords(IQueryable<Tag> query, IReadOnlyCollection<SourceKnownEntityId> ids) => Filter(query, ids);
     }
 
     [Fact]
@@ -271,7 +271,7 @@ public class RepositoryIdentityValidationTests
         using var context = new QAContext(new DbContextOptionsBuilder<QAContext>()
             .UseNpgsql("Host=localhost;Database=test").Options);
         var utils = Substitute.For<IEntityUtils>();
-        ISourceKnownRepository<Tag> repository = new TagRepository(context, utils);
+        var repository = new TagRepository(context, utils);
         var format = (SourceKnownEntityIdFormat)4;
         Action[] calls =
         [
@@ -300,7 +300,7 @@ public class RepositoryIdentityValidationTests
         var ids = Substitute.For<ISourceKnownEntityIdUtils>();
         var utils = Substitute.For<IEntityUtils>();
         utils.EntityId.Returns(ids);
-        ISourceKnownRepository<Tag> repository = new TagRepository(context, utils);
+        var repository = new TagRepository(context, utils);
         var expected = SourceKnownEntity.GetEntityTypeId<Tag>();
         var parsed = new SourceKnownEntityId(new SourceKnownId(123, DateTimeOffset.UnixEpoch, 1, expected.AppId, 1),
             Guid.NewGuid(), expected.EntityType, true, false);
