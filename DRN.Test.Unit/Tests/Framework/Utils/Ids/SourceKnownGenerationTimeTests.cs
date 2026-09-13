@@ -231,9 +231,12 @@ public class SourceKnownGenerationTimeTests
         var utcTicks = Epoch.UtcTicks;
         var initialization = new GenerationTimeInitialization(() => Policy(Epoch),
             () => new DateTimeOffset(Volatile.Read(ref utcTicks), TimeSpan.Zero));
+        initialization.GetTimestamp().Should().Be(0);
+        using var readerReady = new ManualResetEventSlim();
         Parallel.Invoke(
             () =>
             {
+                readerReady.Wait(TimeSpan.FromSeconds(10)).Should().BeTrue();
                 for (var timestamp = 1; timestamp <= 1_000; timestamp++)
                 {
                     Volatile.Write(ref utcTicks, Epoch.UtcTicks + timestamp * Precision);
@@ -243,6 +246,9 @@ public class SourceKnownGenerationTimeTests
             () =>
             {
                 var previous = initialization.GetTimestamp();
+                readerReady.Set();
+                SpinWait.SpinUntil(() => initialization.GetTimestamp() > previous, TimeSpan.FromSeconds(10))
+                    .Should().BeTrue("the reader must observe an advancement published by the updater");
                 for (var read = 0; read < 10_000; read++)
                 {
                     var current = initialization.GetTimestamp();
@@ -250,7 +256,6 @@ public class SourceKnownGenerationTimeTests
                     previous = current;
                 }
             });
-        // An update racing first initialization may defer publication until the next updater pass.
         initialization.Update();
         initialization.GetTimestamp().Should().Be(1_000);
     }

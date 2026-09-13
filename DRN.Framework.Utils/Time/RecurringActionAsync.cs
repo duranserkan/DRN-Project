@@ -154,7 +154,10 @@ public sealed class RecurringActionAsync : IAsyncDisposable
         // A stopped callback may still be finishing. Preserve its lifetime across restarts
         // so the newest loop also represents all outstanding work for async disposal.
         if (previousLoop != null)
+        {
             await previousLoop.ConfigureAwait(false);
+            previousLoop = null;
+        }
 
         if (cancellationToken.IsCancellationRequested)
             return;
