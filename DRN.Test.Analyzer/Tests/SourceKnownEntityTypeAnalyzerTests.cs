@@ -1,6 +1,6 @@
 namespace DRN.Test.Analyzer.Tests;
 
-public class SourceKnownEntityTypeAnalyzerTests
+public partial class SourceKnownEntityTypeAnalyzerTests
 {
     private const string SharedKernelDomainStubs = """
         namespace DRN.Framework.SharedKernel.Domain
@@ -52,9 +52,46 @@ public class SourceKnownEntityTypeAnalyzerTests
             public abstract class SourceKnownEntity(long id = 0)
             {
                 public long Id { get; set; } = id;
+                public Guid EntityId => default;
+                public SourceKnownEntityId EntityIdSource { get; internal set; }
+                public static byte GetEntityType<TEntity>() where TEntity : SourceKnownEntity => default;
+                public static byte GetEntityType<TEntity>(TEntity entity) where TEntity : SourceKnownEntity => default;
+                public static byte GetEntityType(Type type) => default;
+                public static EntityTypeId GetEntityTypeId<TEntity>() where TEntity : SourceKnownEntity => default;
+                public static EntityTypeId GetEntityTypeId<TEntity>(TEntity entity) where TEntity : SourceKnownEntity => default;
+                public static EntityTypeId GetEntityTypeId(Type type) => default;
+                public static byte GetAppId<TEntity>() where TEntity : SourceKnownEntity => default;
+                public static byte GetAppId<TEntity>(TEntity entity) where TEntity : SourceKnownEntity => default;
+                public static byte GetAppId(Type type) => default;
+                public SourceKnownEntityId GetEntityId<TEntity>(Guid id, SourceKnownEntityIdFormat format = default) where TEntity : SourceKnownEntity => default;
+                public SourceKnownEntityId? GetEntityId<TEntity>(Guid? id, SourceKnownEntityIdFormat format = default) where TEntity : SourceKnownEntity => default;
+                public SourceKnownEntityId GetEntityId<TEntity>(long id) where TEntity : SourceKnownEntity => default;
+                public SourceKnownEntityId? GetEntityId<TEntity>(long? id) where TEntity : SourceKnownEntity => default;
+                public SourceKnownEntityId ToSecure(SourceKnownEntityId id) => default;
+                public SourceKnownEntityId? ToSecure(SourceKnownEntityId? id) => default;
+                public SourceKnownEntityId ToPlain(SourceKnownEntityId id) => default;
+                public SourceKnownEntityId? ToPlain(SourceKnownEntityId? id) => default;
             }
 
             public abstract class AggregateRoot(long id = 0) : SourceKnownEntity(id);
+            public readonly record struct EntityTypeId(byte EntityType, byte AppId);
+            public enum SourceKnownEntityIdFormat { ConfiguredDefault, Secure, Plain, Auto }
+            public readonly record struct SourceKnownEntityId
+            {
+                public void Validate<TEntity>() where TEntity : SourceKnownEntity { }
+                public bool HasSameEntityType<TEntity>() where TEntity : SourceKnownEntity => false;
+                public bool HasSameEntityTypeId<TEntity>() where TEntity : SourceKnownEntity => false;
+            }
+            public interface ISourceKnownEntityIdOperations
+            {
+                SourceKnownEntityId Parse(Guid id, SourceKnownEntityIdFormat format = default);
+                SourceKnownEntityId Validate<TEntity>(Guid id, SourceKnownEntityIdFormat format = default) where TEntity : SourceKnownEntity;
+                SourceKnownEntityId Validate<TApp>(Guid id, byte entityType, SourceKnownEntityIdFormat format = default) where TApp : IAppId;
+            }
+            public static class EntityTypeRegistry
+            {
+                public static EntityTypeId GetEntityTypeId(Type type) => default;
+            }
         }
         """;
 

@@ -7,6 +7,36 @@ public static class DiagnosticDescriptors
     private const string Category = "DRN.Domain";
     public const string HelpLinkUri = "https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/README.md#compile-time-roslyn-analyzers";
 
+    public static readonly DiagnosticDescriptor InvalidAppIdArgument = new(
+        "DRN0009", "Invalid constant application partition",
+        "AppId value '{0}' must be between 0 and 127", Category,
+        DiagnosticSeverity.Error, true, helpLinkUri: HelpLinkUri);
+
+    public static readonly DiagnosticDescriptor InvalidEntityIdFormatArgument = new(
+        "DRN0010", "Undefined constant entity ID format",
+        "Entity ID format value '{0}' is not a defined SourceKnownEntityIdFormat", Category,
+        DiagnosticSeverity.Error, true, helpLinkUri: HelpLinkUri);
+
+    public static readonly DiagnosticDescriptor HiddenEntityIdentityMember = new(
+        "DRN0011", "Hidden entity identity member",
+        "Member '{0}' hides SourceKnownEntity.{1}; framework and consumer code can observe different identities", Category,
+        DiagnosticSeverity.Warning, true, helpLinkUri: HelpLinkUri);
+
+    public static readonly DiagnosticDescriptor GenericConcreteEntity = new(
+        "DRN0012", "Concrete generic entity shares identity across constructed types",
+        "Entity '{0}' has generic type parameters of its own or a containing type; use an abstract generic base and separately attributed concrete descendants", Category,
+        DiagnosticSeverity.Warning, true, helpLinkUri: HelpLinkUri);
+
+    public static readonly DiagnosticDescriptor AbstractEntityMetadataArgument = new(
+        "DRN0013", "Concrete entity type required",
+        "Abstract entity '{0}' cannot be used with '{1}'; a concrete entity type is required", Category,
+        DiagnosticSeverity.Error, true, helpLinkUri: HelpLinkUri);
+
+    public static readonly DiagnosticDescriptor UninitializedEntityOperations = new(
+        "DRN0014", "Entity ID operations are not initialized",
+        "'{0}' is called on an entity whose ID operations are not initialized; use the injected ID utility before entity initialization", Category,
+        DiagnosticSeverity.Error, true, helpLinkUri: HelpLinkUri);
+
     public static readonly DiagnosticDescriptor MissingEntityTypeAttribute = new(
         id: "DRN0001",
         title: "Missing [EntityType] attribute on SourceKnownEntity descendant",

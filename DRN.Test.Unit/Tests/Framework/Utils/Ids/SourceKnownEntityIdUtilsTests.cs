@@ -35,6 +35,8 @@ public class SourceKnownEntityIdUtilsTests
         ids.DefaultFormat.Should().Be(defaultFormat);
         operations.DefaultFormat.Should().Be(defaultFormat);
         var expected = new EntityTypeId(200, 5);
+        // Non-constant input exercises runtime validation alongside DRN0009's constant check.
+        byte invalidAppId = 128;
         var numericId = long.MinValue | (5L << 24);
 
         foreach (var original in new[] { ids.GeneratePlain(numericId, expected), ids.GenerateSecure(numericId, expected) })
@@ -104,7 +106,7 @@ public class SourceKnownEntityIdUtilsTests
             var wrongPartition = () => ids.Validate<XEntityInApp6>(original.EntityId, format);
             var wrongApp = () => ids.Validate<SampleApp6>((Guid?)original.EntityId, 200, format);
             var wrongType = () => ids.Validate(original.EntityId, new EntityTypeId(201, 5), format);
-            var outOfRange = () => ids.Validate(original.EntityId, new EntityTypeId(200, 128), format);
+            var outOfRange = () => ids.Validate(original.EntityId, new EntityTypeId(200, invalidAppId), format);
             wrongPartition.Should().Throw<ValidationException>();
             wrongApp.Should().Throw<ValidationException>();
             wrongType.Should().Throw<ValidationException>();
@@ -114,12 +116,12 @@ public class SourceKnownEntityIdUtilsTests
         ids.Parse(null, format).Should().BeNull();
         ids.Validate(null, 200, format).Should().BeNull();
         ids.Validate<SampleApp5>(null, 200, format).Should().BeNull();
-        ids.Validate(null, new EntityTypeId(200, 128), format).Should().BeNull();
+        ids.Validate(null, new EntityTypeId(200, invalidAppId), format).Should().BeNull();
         ids.Validate<XEntity>(null, format).Should().BeNull();
         operations.Parse(null, format).Should().BeNull();
         operations.Validate(null, 200, format).Should().BeNull();
         operations.Validate<SampleApp5>(null, 200, format).Should().BeNull();
-        operations.Validate(null, new EntityTypeId(200, 128), format).Should().BeNull();
+        operations.Validate(null, new EntityTypeId(200, invalidAppId), format).Should().BeNull();
         operations.Validate<XEntity>(null, format).Should().BeNull();
     }
 
@@ -495,7 +497,8 @@ public class SourceKnownEntityIdUtilsTests
         invalidComposite.Should().Throw<ValidationException>();
         var wrongCompositeType = () => ids.Validate(secondary.EntityId, new EntityTypeId(201, 6));
         wrongCompositeType.Should().Throw<ValidationException>();
-        var outOfRangePartition = () => ids.Validate(secondary.EntityId, new EntityTypeId(200, 128));
+        byte invalidAppId = 128;
+        var outOfRangePartition = () => ids.Validate(secondary.EntityId, new EntityTypeId(200, invalidAppId));
         outOfRangePartition.Should().Throw<ArgumentOutOfRangeException>();
 
         ids.Validate(null, 200).Should().BeNull();

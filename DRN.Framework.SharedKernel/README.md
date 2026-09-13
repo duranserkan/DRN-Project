@@ -155,6 +155,39 @@ Entity and aggregate base constructors accept an optional internal `long id = 0`
 | **DRN0006** | Error | Unresolvable or non-constant `AppId` in `[EntityType]` | Enforces that `IAppId` implementations declare a constant value (`public const byte Value = ...;` or `public const byte AppId = ...;`) so partition identities can be read from metadata across assembly boundaries. |
 | **DRN0007** | Error | `AppId` outside the supported range | Enforces that statically resolved `IAppId` values used by `[EntityType]` declarations are between 0 and 127, matching Source-Known ID runtime constraints. |
 | **DRN0008** | Error | Unsupported entity attribute constructor | Derived attributes must reach `EntityTypeAttribute<TApp>` through one constructor per class, with one byte or byte-backed enum parameter forwarded unchanged to the base constructor. |
+| **DRN0009** | Error | Invalid constant application partition | Constant `AppId` values in `EntityTypeId` construction and property initializers/assignments must be within `0..127`. |
+| **DRN0010** | Error | Undefined constant entity ID format | Constant `SourceKnownEntityIdFormat` arguments and assignments must be defined enum values. |
+| **DRN0011** | Warning | Hidden entity identity member | Descendant members must not hide `Id`, `EntityId`, or `EntityIdSource`, with or without the `new` keyword. |
+| **DRN0012** | Warning | Concrete generic entity | Concrete, effectively non-private entities must not introduce type parameters or be nested inside generic containers. Use abstract generic bases with separately attributed concrete descendants. |
+| **DRN0013** | Error | Concrete entity type required | Rejects known abstract entities in entity/utility/repository metadata calls, method groups, direct `typeof` lookups, and Source-Known repository bindings, including derived types, declarations, and aliases. |
+| **DRN0014** | Error | Entity ID operations are not initialized | Rejects `GetEntityId`, `ToSecure`, or `ToPlain` calls on provably fresh entities in straight-line code, including simple local aliases and constructor `this` calls. |
+
+```csharp
+var identity = new EntityTypeId(7, 200); // DRN0009
+operations.Parse(externalGuid, (SourceKnownEntityIdFormat)99); // DRN0010
+SourceKnownEntity.GetEntityTypeId<AggregateRoot>(); // DRN0013
+ISourceKnownRepository<AggregateRoot> repository; // DRN0013
+
+// Resolve the concrete runtime type through the instance overload instead.
+SourceKnownEntity.GetEntityTypeId(aggregate);
+```
+
+Usage checks apply to test projects too. `DRN0009` and `DRN0010` inspect constants without propagating mutable local values; use non-constant inputs for runtime rejection tests. Dynamic values still require runtime validation.
+
+`DRN0013` allows runtime-instance metadata overloads, application-only `Validate<TApp>`, unresolved type parameters, and unbound generic definitions. It does not trace dynamic `Type` values or consumer wrappers. Use concrete bindings such as `ISourceKnownRepository<Order>`: forwarding `TEntity` through `SourceKnownRepository<AppDbContext, TEntity>` is valid, but later binding it to `AggregateRoot` is rejected. No public parameterless constructor is required.
+
+Entity ID operations are attached during EF materialization or while saving an Added entity, before the database save succeeds. Constructing an entity with an existing numeric ID, calling `Add`, or obtaining an ID record through the utility does not itself attach operations. Initialization and `IsPendingInsert` do not prove persistence.
+
+```csharp
+var order = new Order(); // Constructor must be available and provably passive.
+var alias = order;
+alias.GetEntityId<Customer>(customerGuid); // DRN0014
+
+// Use injected operations when working before entity initialization.
+var customerId = ids.Validate<Customer>(customerGuid);
+```
+
+`DRN0014` recognizes source constructor chains with empty bodies or instance-field/auto-property assignments from constants/parameters, constant member initializers, and empty standard `List<T>` initializers. Compiled constructors and object initializers are unknown. Tracking stops at unknown calls, arbitrary getters/setters, control flow, awaits, captures, or ref aliases. Potentially null inputs and static metadata helpers are excluded. No diagnostic proves initialization; runtime guards remain required.
 
 Derived entity attributes use a pass-through constructor:
 
