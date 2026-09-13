@@ -365,11 +365,10 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     public SourceKnownEntityId Validate<TEntity>(Guid entityId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TEntity : SourceKnownEntity
         => Validate(entityId, SourceKnownEntity.GetEntityTypeId<TEntity>(), format);
 
+    public SourceKnownEntityId? ToSecure(SourceKnownEntityId? id) => id.HasValue ? ToSecure(id.Value) : null;
+
     public SourceKnownEntityId ToSecure(SourceKnownEntityId id)
     {
-        id.ValidateId();
-        // Conversions accept either representation and revalidate the GUID independently of caller metadata.
-        id = Parse(id.EntityId, SourceKnownEntityIdFormat.Auto);
         id.ValidateId();
 
         return id.Secure
@@ -377,23 +376,16 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
             : id with { EntityId = GenerateSecureGuid(id.Source.Id, id.EntityType), Secure = true };
     }
 
-    public SourceKnownEntityId? ToSecure(SourceKnownEntityId? id)
-        => id.HasValue ? ToSecure(id.Value) : null;
+    public SourceKnownEntityId? ToPlain(SourceKnownEntityId? id) => id.HasValue ? ToPlain(id.Value) : null;
 
     public SourceKnownEntityId ToPlain(SourceKnownEntityId id)
     {
-        id.ValidateId();
-        // Conversions accept either representation and revalidate the GUID independently of caller metadata.
-        id = Parse(id.EntityId, SourceKnownEntityIdFormat.Auto);
         id.ValidateId();
 
         return id.Secure
             ? id with { EntityId = GeneratePlainGuid(id.Source.Id, id.EntityType), Secure = false }
             : id;
     }
-
-    public SourceKnownEntityId? ToPlain(SourceKnownEntityId? id)
-        => id.HasValue ? ToPlain(id.Value) : null;
 
     private static SourceKnownEntityId CreateInvalid(Guid entityId)
         => new(default, entityId, InvalidEntityType, false, Secure: false);

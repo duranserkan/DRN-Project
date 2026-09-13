@@ -1,4 +1,4 @@
-using DRN.Framework.Utils.Concurrency;
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.Utils.Time;
 
 namespace DRN.Framework.Utils.Ids;
@@ -8,12 +8,14 @@ namespace DRN.Framework.Utils.Ids;
 /// </summary>
 /// <typeparam name="TEntity">The entity type for which sequences are managed. Must be a reference type.</typeparam>
 /// <remarks>
-/// Atomic sequences are scoped to cached UTC buckets and encoded relative to the frozen process epoch.
+/// Atomic sequences are scoped to cached timestamps relative to the frozen process epoch.
 /// </remarks>
+[SuppressMessage("ReSharper", "StaticMemberInGenericType")]
 public static class SequenceManager<TEntity> where TEntity : class
 {
     // ReSharper disable once StaticMemberInGenericType
     private static volatile SequenceTimeScope _timeScope = new(-1);
+    private static readonly Lock ScopeLock = new();
 
     /// <summary>
     /// Generates a new time-scoped identifier for the entity type.
@@ -23,35 +25,42 @@ public static class SequenceManager<TEntity> where TEntity : class
     /// </remarks>
     public static SequenceTimeScopedId GetTimeScopedId()
     {
-        var epochTicks = EpochTimeUtils.DefaultEpoch.UtcTicks;
-        var currentScope = GetCurrentScope(epochTicks);
-        while (true)
-        {
-            if (currentScope.TryGetNextId(out var sequenceId))
-                return new SequenceTimeScopedId(
-                    (currentScope.ScopeTimestamp - epochTicks) / TimeStampManager.TicksPerPrecisionUnit, sequenceId);
+        var currentScope = GetCurrentScope();
 
-            Thread.Sleep(TimeStampManager.UpdatePeriod);
-            currentScope = GetCurrentScope(epochTicks);
-        }
+        return currentScope.TryGetNextId(out var sequenceId)
+            ? new SequenceTimeScopedId(currentScope.ScopeTimestamp, sequenceId)
+            : WaitForNextId();
     }
 
-    private static SequenceTimeScope GetCurrentScope(long epochUtcTicks)
+    private static SequenceTimeScopedId WaitForNextId()
     {
         while (true)
         {
-            // Retain this exact UTC scope after validation;
-            // another caller may advance the global scope before this caller allocates its ID.
-            var currentScope = _timeScope;
-            var utcTicks = TimeStampManager.GetGenerationUtcTicks(epochUtcTicks);
-            if (currentScope.ScopeTimestamp == utcTicks)
-                return currentScope;
+            Thread.Sleep(TimeStampManager.UpdatePeriod);
 
-            var newScope = new SequenceTimeScope(utcTicks);
-#pragma warning disable CS0420 // Interlocked provides full memory barrier
-            if (LockUtils.TrySetIfEqual(ref _timeScope, newScope, currentScope))
-                return newScope;
-#pragma warning restore CS0420
+            var currentScope = GetCurrentScope();
+            if (currentScope.TryGetNextId(out var sequenceId))
+                return new SequenceTimeScopedId(currentScope.ScopeTimestamp, sequenceId);
+        }
+    }
+
+    private static SequenceTimeScope GetCurrentScope()
+    {
+        // Retain this exact scope so its sequence cannot be paired with another timestamp.
+        var currentScope = _timeScope;
+        return currentScope.ScopeTimestamp == TimeStampManager.CurrentTimestamp() ? currentScope : AdvanceScope();
+    }
+
+    private static SequenceTimeScope AdvanceScope()
+    {
+        lock (ScopeLock)
+        {
+            // Re-read after waiting: another caller may have already published a newer bucket.
+            var timestamp = TimeStampManager.CurrentTimestamp();
+            if (_timeScope.ScopeTimestamp != timestamp)
+                _timeScope = new SequenceTimeScope(timestamp);
+
+            return _timeScope;
         }
     }
 }
@@ -68,10 +77,10 @@ public class SequenceTimeScope(long scopeTimeStamp)
 
     public bool TryGetNextId(out uint id)
     {
-        var nextId = Interlocked.Increment(ref _lastId);
+        var nextId = unchecked((uint)Interlocked.Increment(ref _lastId));
         if (nextId <= MaxValue)
         {
-            id = (uint)nextId;
+            id = nextId;
             return true;
         }
 

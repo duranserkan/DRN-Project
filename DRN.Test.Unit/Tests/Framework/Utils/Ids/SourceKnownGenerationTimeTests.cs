@@ -186,6 +186,12 @@ public class SourceKnownGenerationTimeTests
         initialization.EnsureInitialized();
         reads.Should().Be(1);
         cached.Should().BeOnOrAfter(floor);
+        var timestamp = initialization.GetTimestamp();
+        initialization.Update();
+        initialization.GetTimestamp().Should().Be(timestamp, "minor drift retains the cached UTC bucket");
+        cached = new DateTimeOffset(TimeStampManager.GetUpdatedTicks(previous, previous + Precision), TimeSpan.Zero);
+        initialization.Update();
+        initialization.GetTimestamp().Should().Be(timestamp + 1);
     }
 
     [Fact]
@@ -219,21 +225,95 @@ public class SourceKnownGenerationTimeTests
     }
 
     [Fact]
-    public void Initialized_Generation_Still_Rejects_Epoch_Overflow_And_PreOrigin_SubBuckets()
+    public void Concurrent_Cache_Reads_And_Updates_Should_Preserve_Monotonic_Timestamps()
+    {
+        var utcTicks = Epoch.UtcTicks;
+        var initialization = new GenerationTimeInitialization(() => Policy(Epoch),
+            () => new DateTimeOffset(Volatile.Read(ref utcTicks), TimeSpan.Zero));
+        Parallel.Invoke(
+            () =>
+            {
+                for (var timestamp = 1; timestamp <= 1_000; timestamp++)
+                {
+                    Volatile.Write(ref utcTicks, Epoch.UtcTicks + timestamp * Precision);
+                    initialization.Update();
+                }
+            },
+            () =>
+            {
+                var previous = initialization.GetTimestamp();
+                for (var read = 0; read < 10_000; read++)
+                {
+                    var current = initialization.GetTimestamp();
+                    current.Should().BeGreaterThanOrEqualTo(previous);
+                    previous = current;
+                }
+            });
+        // An update racing first initialization may defer publication until the next updater pass.
+        initialization.Update();
+        initialization.GetTimestamp().Should().Be(1_000);
+    }
+
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public void Cached_Generation_Should_Publish_Epoch_Failure_Instead_Of_Stale_Time(bool beforeEpoch)
     {
         var finalTick = Epoch.UtcTicks + SourceKnownGenerationTimePolicy.TimestampsPerEpoch * Precision - 1;
-        TimeStampManager.ValidateEpochRange(finalTick, Epoch.UtcTicks);
-        var overflow = () => TimeStampManager.ValidateEpochRange(finalTick + 1, Epoch.UtcTicks);
-        var before = () => TimeStampManager.ValidateEpochRange(Epoch.UtcTicks - 1, Epoch.UtcTicks);
-        overflow.Should().Throw<InvalidOperationException>();
-        before.Should().Throw<InvalidOperationException>();
+        var cached = new DateTimeOffset(finalTick, TimeSpan.Zero);
+        var initialization = new GenerationTimeInitialization(() => Policy(Epoch), () => cached);
+        initialization.GetTimestamp().Should().Be(SourceKnownGenerationTimePolicy.MaxTimestamp);
+        cached = new DateTimeOffset(beforeEpoch ? Epoch.UtcTicks - 1 : finalTick + 1, TimeSpan.Zero);
+        initialization.Update();
+        var read = () => initialization.GetTimestamp();
+        read.Should().Throw<InvalidOperationException>().WithMessage("*outside*supported*epoch*");
+        initialization.Update();
+        read.Should().Throw<InvalidOperationException>();
     }
 
     [Fact]
-    public void Concurrent_Generation_Does_Not_Duplicate_Ids()
+    public void Cache_Updates_Should_Not_Freeze_Policy_Before_First_Generation()
+    {
+        var state = new SourceKnownGenerationTimeState();
+        var policyReads = 0;
+        var utcReads = 0;
+        var epoch = Epoch.AddTicks(123);
+        var cached = epoch.AddTicks(2 * Precision);
+        var initialization = new GenerationTimeInitialization(
+            () => { policyReads++; return state.GetForGeneration(); },
+            () => { utcReads++; return cached; });
+        initialization.Update();
+        policyReads.Should().Be(0);
+        utcReads.Should().Be(0);
+
+        state.Initialize(epoch.ToString("O"), epoch.ToString("O"));
+        initialization.GetTimestamp().Should().Be(2);
+        initialization.GetTimestamp().Should().Be(2);
+        policyReads.Should().Be(1);
+        utcReads.Should().Be(1, "cached reads do not revisit UTC or the epoch");
+
+        cached = cached.AddTicks(Precision);
+        initialization.GetTimestamp().Should().Be(2, "only the updater publishes the next bucket");
+        initialization.Update();
+        initialization.GetTimestamp().Should().Be(3);
+        policyReads.Should().Be(1);
+        utcReads.Should().Be(2);
+        initialization.Update();
+        initialization.GetTimestamp().Should().Be(3, "unchanged UTC must retain the same bucket");
+    }
+
+    [Fact]
+    public void Concurrent_Generation_Across_Bucket_Rollovers_Does_Not_Duplicate_Ids()
     {
         var ids = new ConcurrentBag<long>();
-        Parallel.For(0, 3_000, _ => ids.Add(SourceKnownIdUtils.Generate<OriginSwitchEntity>(1, 1)));
+        for (var round = 0; round < 3; round++)
+        {
+            var previousTimestamp = SequenceManager<OriginSwitchEntity>.GetTimeScopedId().TimeStamp;
+            SpinWait.SpinUntil(() => TimeStampManager.CurrentTimestamp() > previousTimestamp, TimeSpan.FromSeconds(5))
+                .Should().BeTrue("the next batch must exercise scope rollover");
+            Parallel.For(0, 3_000, _ => ids.Add(SourceKnownIdUtils.Generate<OriginSwitchEntity>(1, 1)));
+        }
+        ids.Count.Should().Be(9_000);
         ids.Distinct().Count().Should().Be(ids.Count);
     }
 

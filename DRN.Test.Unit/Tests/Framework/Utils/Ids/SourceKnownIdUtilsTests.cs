@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Time;
@@ -18,6 +19,24 @@ public class CustomTestEntityForUtils : SourceKnownEntity;
 [SuppressMessage("ReSharper", "RedundantCast")]
 public class SourceKnownIdUtilsTests
 {
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_lastId")]
+    private static extern ref int GetLastSequenceId(SequenceTimeScope scope);
+
+    [Theory]
+    [DataInlineUnit(-1, true, 0u)]
+    [DataInlineUnit(262142, true, SequenceTimeScope.MaxValue)]
+    [DataInlineUnit(262143, false, 0u)]
+    [DataInlineUnit(int.MaxValue, false, 0u)]
+    [DataInlineUnit(int.MinValue, false, 0u)]
+    public void Sequence_Allocation_Should_Reject_Exhausted_And_Negative_Counters(int lastId, bool succeeds, uint expectedId)
+    {
+        var scope = new SequenceTimeScope(0);
+        GetLastSequenceId(scope) = lastId;
+
+        scope.TryGetNextId(out var id).Should().Be(succeeds);
+        id.Should().Be(expectedId);
+    }
+
     [Fact]
     public async Task SourceKnownIdUtils_Generate_Should_Generate_Valid_Id()
     {
