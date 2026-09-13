@@ -22,7 +22,12 @@ public class RecurringActionTests
     [Fact]
     public void Timer_Should_Accept_Zero_Period()
     {
-        using var worker = new RecurringAction(() => { }, 0, start: false);
+        Action create = () =>
+        {
+            using var worker = new RecurringAction(() => { }, 0, start: false);
+        };
+
+        create.Should().NotThrow("timer mode supports a zero period");
     }
 
     [Fact]
@@ -36,6 +41,7 @@ public class RecurringActionTests
 
         action.Start();
         await invoked.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        invoked.Task.IsCompletedSuccessfully.Should().BeTrue("starting the timer must invoke the synchronous callback");
     }
 
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_wakeHandle")]

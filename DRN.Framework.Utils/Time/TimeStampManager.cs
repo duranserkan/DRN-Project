@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Domain;
 
 namespace DRN.Framework.Utils.Time;
@@ -24,10 +25,11 @@ namespace DRN.Framework.Utils.Time;
 /// requested via <see cref="ApplicationLifetime.RequestShutdown"/>.
 /// </para>
 /// </remarks>
+[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public static class TimeStampManager
 {
     private static long _cachedUtcNowTicks;
-    
+
     public const int PrecisionUnitInMsSafeDelay = 260;
     public const int PrecisionUnitInMs = 250;
 
@@ -37,17 +39,19 @@ public static class TimeStampManager
     /// <summary>Number of .NET ticks per precision unit (250ms = 2,500,000 ticks).</summary>
     public const long TicksPerPrecisionUnit = TimeSpan.TicksPerSecond / TicksPerSecondMultiplier;
 
-
     /// <summary>Timer period in milliseconds between the end of one update and the start of the next.</summary>
     internal const int UpdatePeriod = 10;
+
     internal const int MaxAllowedDriftSeconds = 5;
 
     private static int _driftDetected; // 0 = normal, 1 = drift detected
     private static ClockDriftException? _driftException;
-    private static readonly GenerationTimeInitialization GenerationInitialization = new(
-        static () => SourceKnownGenerationTime.ForGeneration, static () => UtcNow);
-    private static readonly RecurringAction RecurringAction = new(
-        Update, UpdatePeriod, threadName: "DRN.TimeStampManager", priority: ThreadPriority.Highest);
+
+    private static readonly GenerationTimeInitialization GenerationInitialization =
+        new(static () => SourceKnownGenerationTime.ForGeneration, static () => UtcNow);
+
+    private static readonly RecurringAction RecurringAction =
+        new(Update, UpdatePeriod, threadName: "DRN.TimeStampManager", priority: ThreadPriority.Highest);
 
     static TimeStampManager() => Update();
 
@@ -61,6 +65,7 @@ public static class TimeStampManager
         try
         {
             Volatile.Write(ref _cachedUtcNowTicks, GetUpdatedTicks(previousTicks, truncatedNow));
+            GenerationInitialization.Update();
         }
         catch (ClockDriftException exception)
         {
@@ -75,9 +80,10 @@ public static class TimeStampManager
     {
         if (truncatedNow >= previousTicks)
             return truncatedNow;
-        if ((previousTicks - truncatedNow) / TimeSpan.TicksPerSecond >= MaxAllowedDriftSeconds)
-            throw new ClockDriftException(previousTicks, truncatedNow);
-        return previousTicks;
+
+        return (previousTicks - truncatedNow) / TimeSpan.TicksPerSecond < MaxAllowedDriftSeconds
+            ? previousTicks
+            : throw new ClockDriftException(previousTicks, truncatedNow);
     }
 
     public static long UtcNowTicks => Volatile.Read(ref _driftDetected) != 1
@@ -92,63 +98,79 @@ public static class TimeStampManager
     public static DateTimeOffset UtcNow => new(UtcNowTicks, TimeSpan.Zero);
 
     /// <summary>
-    /// Computes the number of 250ms ticks elapsed since the configured process epoch.
+    /// Returns the cached number of 250ms ticks elapsed since the configured process epoch.
     /// </summary>
     /// <returns>The number of 250ms ticks elapsed since the given epoch.</returns>
     /// <exception cref="ClockDriftException">Thrown when a critical clock drift has been detected.</exception>
-    public static long CurrentTimestamp()
-    {
-        var epochTicks = EpochTimeUtils.DefaultEpoch.UtcTicks;
-        return (GetGenerationUtcTicks(epochTicks) - epochTicks) / TicksPerPrecisionUnit;
-    }
+    public static long CurrentTimestamp() => Volatile.Read(ref _driftDetected) != 1
+        ? GenerationInitialization.GetTimestamp()
+        : throw _driftException!;
 
     /// <summary>
     /// Freezes the configured epoch and minimum and validates cached time once.
     /// Subsequent generation relies on the cache never decreasing. Failed validation can be retried.
     /// </summary>
-    public static void InitializeGeneration()
-        => GenerationInitialization.EnsureInitialized();
-
-    internal static long GetGenerationUtcTicks(long epochUtcTicks)
-    {
-        InitializeGeneration();
-        // Read after initialization: an earlier snapshot might precede the validated floor.
-        var utcTicks = UtcNowTicks;
-        ValidateEpochRange(utcTicks, epochUtcTicks);
-        return utcTicks;
-    }
-
-    internal static void ValidateEpochRange(long utcTicks, long epochUtcTicks)
-    {
-        if ((ulong)(utcTicks - epochUtcTicks) >=
-            (ulong)(SourceKnownGenerationTimePolicy.TimestampsPerEpoch * TicksPerPrecisionUnit))
-            throw new InvalidOperationException("Generation time is outside the supported Source-Known epoch range.");
-    }
+    internal static void InitializeGeneration() => _ = CurrentTimestamp();
 }
 
-/// <summary>Remembers the default-origin lower-bound proof for a frozen policy and a nondecreasing clock.</summary>
-internal sealed class GenerationTimeInitialization(
-    Func<SourceKnownGenerationTimePolicy> getPolicy, Func<DateTimeOffset> getCachedUtc)
+/// <summary>Caches generation time for a frozen policy and a nondecreasing UTC clock.</summary>
+internal sealed class GenerationTimeInitialization(Func<SourceKnownGenerationTimePolicy> getPolicy, Func<DateTimeOffset> getCachedUtc)
 {
+    // Supported timestamps are nonnegative; publish failure in the same atomic value as time.
+    private const long Uninitialized = -1;
+    private const long OutsideEpoch = -2;
     private readonly Lock _sync = new();
-    private bool _initialized;
+    private long _timestamp = Uninitialized;
+    private long _epochUtcTicks;
+    private long _lastUtcTicks;
 
-    internal void EnsureInitialized()
+    internal void EnsureInitialized() => _ = GetTimestamp();
+
+    internal long GetTimestamp()
     {
-        if (!Volatile.Read(ref _initialized))
-            Initialize();
+        var timestamp = Volatile.Read(ref _timestamp);
+        return timestamp >= 0 ? timestamp : InitializeOrThrow();
     }
 
-    private void Initialize()
+    private long InitializeOrThrow()
     {
         lock (_sync)
         {
-            if (!_initialized)
-            {
-                var policy = getPolicy();
-                policy.Validate(getCachedUtc());
-                Volatile.Write(ref _initialized, true);
-            }
+            if (_timestamp == OutsideEpoch)
+                throw new InvalidOperationException("Generation time is outside the supported Source-Known epoch range.");
+            if (_timestamp != Uninitialized)
+                return _timestamp;
+
+            var policy = getPolicy();
+            var utc = getCachedUtc();
+            var timestamp = policy.Validate(utc);
+            _epochUtcTicks = policy.Epoch.UtcTicks;
+            _lastUtcTicks = utc.UtcTicks;
+            Volatile.Write(ref _timestamp, timestamp);
+            return timestamp;
+        }
+    }
+
+    internal void Update()
+    {
+        // General UTC reads must not freeze the generation policy before configuration arrives.
+        if (Volatile.Read(ref _timestamp) == Uninitialized)
+            return;
+
+        lock (_sync)
+        {
+            if (_timestamp == OutsideEpoch)
+                return;
+            var utcTicks = getCachedUtc().UtcTicks;
+            if (utcTicks == _lastUtcTicks)
+                return;
+
+            _lastUtcTicks = utcTicks;
+            var elapsedTicks = utcTicks - _epochUtcTicks;
+            var timestamp = (ulong)elapsedTicks >= SourceKnownGenerationTimePolicy.TimestampsPerEpoch * TimeStampManager.TicksPerPrecisionUnit
+                ? OutsideEpoch
+                : elapsedTicks / TimeStampManager.TicksPerPrecisionUnit;
+            Volatile.Write(ref _timestamp, timestamp);
         }
     }
 }

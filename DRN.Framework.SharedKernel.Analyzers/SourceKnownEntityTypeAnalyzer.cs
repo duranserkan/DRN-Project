@@ -29,7 +29,13 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         DiagnosticDescriptors.MultipleAppIdsNotPermitted,
         DiagnosticDescriptors.UnresolvableAppId,
         DiagnosticDescriptors.AppIdOutOfRange,
-        DiagnosticDescriptors.UnsupportedEntityAttribute
+        DiagnosticDescriptors.UnsupportedEntityAttribute,
+        DiagnosticDescriptors.InvalidAppIdArgument,
+        DiagnosticDescriptors.InvalidEntityIdFormatArgument,
+        DiagnosticDescriptors.HiddenEntityIdentityMember,
+        DiagnosticDescriptors.GenericConcreteEntity,
+        DiagnosticDescriptors.AbstractEntityMetadataArgument,
+        DiagnosticDescriptors.UninitializedEntityOperations
     ];
 
     public override void Initialize(AnalysisContext context)
@@ -44,6 +50,9 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
 
             if (sourceKnownEntitySymbol == null || entityTypeAttributeSymbol == null)
                 return;
+
+            SourceKnownEntityUsageAnalysis.Register(compilationContext, sourceKnownEntitySymbol);
+            UninitializedEntityOperationsAnalysis.Register(compilationContext, sourceKnownEntitySymbol);
 
             var collectedEntityTypeDeclarations = new ConcurrentBag<EntityTypeDeclaration>();
             var collectedEntityNameDeclarations = new ConcurrentBag<EntityNameDeclaration>();

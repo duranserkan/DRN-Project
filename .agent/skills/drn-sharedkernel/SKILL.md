@@ -67,6 +67,13 @@ public abstract class SourceKnownEntity(long id = 0)
 > - `DRN0006` (Error): Unresolvable or non-constant `AppId` on `IAppId` implementations in `[EntityType]` declarations.
 > - `DRN0007` (Error): Statically resolved `AppId` outside the supported `0..127` range in local or referenced `[EntityType]` declarations.
 > - `DRN0008` (Error): Unsupported derived entity attribute constructor. Each derived class has one constructor, taking one byte or byte-backed enum parameter forwarded unchanged through to `EntityTypeAttribute<TApp>`. Source declarations are validated even without entity uses; referenced signatures are checked but compiled bodies rely on producer-side analyzer validation. AppId is resolved only from the framework generic binding, never a shadowed named property or extra constructor argument.
+> - `DRN0009` (Error): Constant `EntityTypeId` constructor AppId and AppId property initializers/assignments must be within `0..127`.
+> - `DRN0010` (Error): Constant `SourceKnownEntityIdFormat` arguments and assignments must be defined enum values. Mutable locals and dynamic inputs still require runtime validation.
+> - `DRN0011` (Warning): Descendants must not hide `Id`, `EntityId`, or `EntityIdSource` with another member, explicitly or implicitly.
+> - `DRN0012` (Warning): Concrete, effectively non-private entities must not have type parameters or generic containers. Abstract generic bases and closed concrete descendants are allowed.
+> - `DRN0013` (Error): Rejects known abstract entities in metadata calls, method groups, direct `typeof` lookups, and repository bindings (including derived types and aliases). Allows runtime-instance and application-only overloads, unresolved type parameters, unbound definitions, and dynamic Type values; no `new()` constraint is added.
+> - `DRN0014` (Error): Rejects GetEntityId/ToSecure/ToPlain on provably fresh entities, including local aliases and constructor this. Unknown constructors/effects/control flow and potentially null inputs remain runtime concerns. Use injected ID utilities before EF materialization or SavingChanges attaches operations; initialization and IsPendingInsert do not prove persistence.
+> - Usage checks also apply to tests; use non-constant inputs for runtime rejection fixtures. See [diagnostic scope and examples](../../../DRN.Framework.SharedKernel/README.md#compile-time-roslyn-analyzers) for constructor proof limits and supported exceptions.
 > - Privacy includes private containing types: effectively private entities are excluded from required-attribute/collision analysis; local annotations on them report `DRN0003`.
 
 ### Application Partitions & Attributes

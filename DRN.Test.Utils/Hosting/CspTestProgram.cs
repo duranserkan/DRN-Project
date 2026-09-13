@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Utils.Logging;
@@ -55,6 +56,7 @@ public sealed class CspTestProgram : DrnProgramBase<CspTestProgram>, IDrnProgram
         builder.AddPolicy(CspFor.CspPolicySwagger, replacement);
     }
 
+    [SuppressMessage("Usage", "ASP0018", Justification = "The catch-all matches arbitrary CSP probe URLs; the response intentionally does not depend on the captured path.")]
     protected override void MapApplicationEndpoints(WebApplication application, IAppSettings appSettings)
     {
         base.MapApplicationEndpoints(application, appSettings);

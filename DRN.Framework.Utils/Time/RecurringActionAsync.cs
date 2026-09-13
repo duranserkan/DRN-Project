@@ -36,7 +36,9 @@ public sealed class RecurringActionAsync : IAsyncDisposable
                 "Period must represent between 1 and 4,294,967,294 whole milliseconds.");
         if (executionTimeout.HasValue)
         {
-            ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(executionTimeout.Value, TimeSpan.Zero, nameof(executionTimeout));
+            if (executionTimeout.Value <= TimeSpan.Zero)
+                throw new ArgumentOutOfRangeException(nameof(executionTimeout), executionTimeout,
+                    "Execution timeout must be positive.");
             // CancelAfter truncates to whole milliseconds, including positive sub-millisecond delays.
             if ((long)executionTimeout.Value.TotalMilliseconds > uint.MaxValue - 1L)
                 throw new ArgumentOutOfRangeException(nameof(executionTimeout), executionTimeout,
@@ -120,7 +122,7 @@ public sealed class RecurringActionAsync : IAsyncDisposable
 
             Volatile.Write(ref _isStarted, 1);
             _cts = new CancellationTokenSource();
-            _loopTask = RunLoopAsync(_cts.Token, _loopTask is { IsCompletedSuccessfully: true } ? null : _loopTask);
+            _loopTask = RunLoopAsync(_loopTask is { IsCompletedSuccessfully: true } ? null : _loopTask, _cts.Token);
         }
     }
 
@@ -144,7 +146,7 @@ public sealed class RecurringActionAsync : IAsyncDisposable
             ctsToCancel?.Cancel();
     }
 
-    private async Task RunLoopAsync(CancellationToken cancellationToken, Task? previousLoop)
+    private async Task RunLoopAsync(Task? previousLoop, CancellationToken cancellationToken)
     {
         // Avoid executing callback work inline in Start().
         await Task.Yield();
@@ -152,8 +154,10 @@ public sealed class RecurringActionAsync : IAsyncDisposable
         // A stopped callback may still be finishing. Preserve its lifetime across restarts
         // so the newest loop also represents all outstanding work for async disposal.
         if (previousLoop != null)
+        {
             await previousLoop.ConfigureAwait(false);
-        previousLoop = null;
+            previousLoop = null;
+        }
 
         if (cancellationToken.IsCancellationRequested)
             return;

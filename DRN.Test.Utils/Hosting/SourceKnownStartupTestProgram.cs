@@ -13,12 +13,12 @@ public sealed class SourceKnownStartupTestProgram : DrnProgramBase<SourceKnownSt
 {
     private static DateTimeOffset _expectedMinimum;
     private static readonly DateTimeOffset ExpectedEpoch = SourceKnownGenerationTimePolicy.DefaultEpoch.AddDays(1);
-    private static bool _constructorCalled;
-    private static bool _servicesCalled;
+    private static readonly TaskCompletionSource ConstructorCalled = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private static readonly TaskCompletionSource ServicesCalled = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public SourceKnownStartupTestProgram()
     {
-        _constructorCalled = true;
+        ConstructorCalled.TrySetResult();
         VerifyHook();
     }
 
@@ -28,54 +28,70 @@ public sealed class SourceKnownStartupTestProgram : DrnProgramBase<SourceKnownSt
     {
         if (scenario == "historical-freeze")
         {
-            var epoch = ExpectedEpoch;
-            var historicalMinimum = DateTimeOffset.UtcNow.AddDays(1);
-            SourceKnownGenerationTime.Initialize(historicalMinimum.ToString("O"), epoch.ToString("O"));
-            if (SourceKnownIdUtils.ParseId(long.MinValue).CreatedAt != epoch)
-                throw new InvalidOperationException("Historical decoding did not use the configured epoch.");
-            try
-            {
-                SourceKnownGenerationTime.Initialize(historicalMinimum.ToString("O"), epoch.AddDays(1).ToString("O"));
-            }
-            catch (Exception exception) when (exception.Message.Contains("epoch is frozen", StringComparison.Ordinal))
-            {
-                return;
-            }
-            throw new InvalidOperationException("Historical decoding did not freeze the epoch.");
+            VerifyHistoricalFreeze();
+            return;
         }
         if (scenario is "static" or "static-reject")
         {
-            SourceKnownGenerationTime.Initialize((scenario == "static"
-                ? SourceKnownGenerationTimePolicy.DefaultEpoch
-                : DateTimeOffset.UtcNow.AddDays(1)).ToString("O"), ExpectedEpoch.ToString("O"));
-            long id;
-            try
-            {
-                id = SourceKnownIdUtils.Generate<ProbeEntity>(1, 1);
-            }
-            catch (InvalidOperationException exception) when (scenario == "static-reject" &&
-                exception.Message.Contains("below minimum generation UTC", StringComparison.Ordinal))
-            {
-                return;
-            }
-            if (scenario == "static-reject")
-                throw new InvalidOperationException("Static generation bypassed initialization.");
-
-            var parsed = SourceKnownIdUtils.ParseId(id);
-            if (parsed.CreatedAt < ExpectedEpoch || parsed.CreatedAt > TimeStampManager.UtcNow)
-                throw new InvalidOperationException("Static generation did not use the configured epoch.");
-            var time = new EpochTimeUtils();
-            if (time.Epoch != ExpectedEpoch || time.ConvertToDatetime(0) != ExpectedEpoch ||
-                time.ConvertToTicks(ExpectedEpoch) != 0 || SourceKnownIdUtils.ParseId(long.MinValue).CreatedAt != ExpectedEpoch)
-                throw new InvalidOperationException("Generation and historical conversion disagree on the configured epoch.");
-            var query = new[] { new ProbeEntity(long.MinValue) }.AsQueryable();
-            if (new EntityDateTimeUtils().CreatedAfter(query, ExpectedEpoch, inclusive: false).Any())
-                throw new InvalidOperationException("Date filters did not use the configured epoch.");
+            VerifyStaticGeneration(scenario);
             return;
         }
         if (scenario is not ("startup-reject" or "startup-only"))
             throw new ArgumentException("Unknown Source-Known startup verification scenario.", nameof(scenario));
 
+        await VerifyStartupAsync(scenario);
+    }
+
+    private static void VerifyHistoricalFreeze()
+    {
+        var epoch = ExpectedEpoch;
+        var historicalMinimum = DateTimeOffset.UtcNow.AddDays(1);
+        SourceKnownGenerationTime.Initialize(historicalMinimum.ToString("O"), epoch.ToString("O"));
+        if (SourceKnownIdUtils.ParseId(long.MinValue).CreatedAt != epoch)
+            throw new InvalidOperationException("Historical decoding did not use the configured epoch.");
+        try
+        {
+            SourceKnownGenerationTime.Initialize(historicalMinimum.ToString("O"), epoch.AddDays(1).ToString("O"));
+        }
+        catch (Exception exception) when (exception.Message.Contains("epoch is frozen", StringComparison.Ordinal))
+        {
+            return;
+        }
+        throw new InvalidOperationException("Historical decoding did not freeze the epoch.");
+    }
+
+    private static void VerifyStaticGeneration(string scenario)
+    {
+        SourceKnownGenerationTime.Initialize((scenario == "static"
+            ? SourceKnownGenerationTimePolicy.DefaultEpoch
+            : DateTimeOffset.UtcNow.AddDays(1)).ToString("O"), ExpectedEpoch.ToString("O"));
+        long id;
+        try
+        {
+            id = SourceKnownIdUtils.Generate<ProbeEntity>(1, 1);
+        }
+        catch (InvalidOperationException exception) when (scenario == "static-reject" &&
+            exception.Message.Contains("below minimum generation UTC", StringComparison.Ordinal))
+        {
+            return;
+        }
+        if (scenario == "static-reject")
+            throw new InvalidOperationException("Static generation bypassed initialization.");
+
+        var parsed = SourceKnownIdUtils.ParseId(id);
+        if (parsed.CreatedAt < ExpectedEpoch || parsed.CreatedAt > TimeStampManager.UtcNow)
+            throw new InvalidOperationException("Static generation did not use the configured epoch.");
+        var time = new EpochTimeUtils();
+        if (time.Epoch != ExpectedEpoch || time.ConvertToDatetime(0) != ExpectedEpoch ||
+            time.ConvertToTicks(ExpectedEpoch) != 0 || SourceKnownIdUtils.ParseId(long.MinValue).CreatedAt != ExpectedEpoch)
+            throw new InvalidOperationException("Generation and historical conversion disagree on the configured epoch.");
+        var query = new[] { new ProbeEntity(long.MinValue) }.AsQueryable();
+        if (new EntityDateTimeUtils().CreatedAfter(query, ExpectedEpoch, inclusive: false).Any())
+            throw new InvalidOperationException("Date filters did not use the configured epoch.");
+    }
+
+    private static async Task VerifyStartupAsync(string scenario)
+    {
         _expectedMinimum = scenario == "startup-only"
             ? SourceKnownGenerationTimePolicy.DefaultEpoch
             : DateTimeOffset.UtcNow.AddDays(1);
@@ -98,7 +114,7 @@ public sealed class SourceKnownStartupTestProgram : DrnProgramBase<SourceKnownSt
             }
             catch (InvalidOperationException exception) when (exception.Message.Contains("below minimum generation UTC", StringComparison.Ordinal))
             {
-                if (_constructorCalled || _servicesCalled)
+                if (ConstructorCalled.Task.IsCompletedSuccessfully || ServicesCalled.Task.IsCompletedSuccessfully)
                     throw new InvalidOperationException("Mandatory startup validation ran after constructors/hooks.");
                 return;
             }
@@ -106,7 +122,7 @@ public sealed class SourceKnownStartupTestProgram : DrnProgramBase<SourceKnownSt
         }
 
         await Main(arguments);
-        if (!_constructorCalled || !_servicesCalled)
+        if (!ConstructorCalled.Task.IsCompletedSuccessfully || !ServicesCalled.Task.IsCompletedSuccessfully)
             throw new InvalidOperationException("Startup verification did not reach both constructor and service hook.");
         try
         {
@@ -127,22 +143,30 @@ public sealed class SourceKnownStartupTestProgram : DrnProgramBase<SourceKnownSt
             throw new InvalidOperationException("Configured epoch was not initialized before the startup hook.");
     }
 
-    protected override void ConfigureApplicationBuilder(WebApplicationBuilder builder, IAppSettings settings)
+    protected override void ConfigureApplicationBuilder(WebApplicationBuilder applicationBuilder, IAppSettings appSettings)
     {
-        builder.Logging.ClearProviders();
-        ConfigureWebHostBuilder(settings, builder.WebHost);
+        applicationBuilder.Logging.ClearProviders();
+        ConfigureWebHostBuilder(appSettings, applicationBuilder.WebHost);
     }
 
-    protected override Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings settings, IScopedLog scopedLog)
+    protected override Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings, IScopedLog scopedLog)
     {
-        _servicesCalled = true;
+        ServicesCalled.TrySetResult();
         VerifyHook();
         return Task.CompletedTask;
     }
 
-    protected override void ConfigureApplication(WebApplication application, IAppSettings settings) { }
-    protected override void ValidateEndpoints(WebApplication application, IAppSettings settings) { }
-    protected override Task ValidateServicesAsync(WebApplication application, IScopedLog scopedLog) => Task.CompletedTask;
+    protected override void ConfigureApplication(WebApplication application, IAppSettings appSettings)
+    {
+        // This isolated startup probe requires no middleware or endpoints.
+    }
+
+    protected override void ValidateEndpoints(WebApplication application, IAppSettings appSettings)
+    {
+        // This probe defines no endpoints; it verifies generation-policy startup validation.
+    }
+
+    protected override Task ValidateServicesAsync(WebApplication application, IScopedLog scopeLog) => Task.CompletedTask;
 
     private sealed class ProbeEntity(long id = 0) : SourceKnownEntity(id);
 }
