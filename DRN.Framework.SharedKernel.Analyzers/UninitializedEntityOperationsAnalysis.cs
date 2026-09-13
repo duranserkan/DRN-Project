@@ -91,35 +91,11 @@ internal sealed class UninitializedEntityOperationsAnalysis
             case IParenthesizedOperation parentheses: return Evaluate(parentheses.Operand);
             case IConversionOperation { OperatorMethod: null } conversion: return Evaluate(conversion.Operand);
             case IObjectCreationOperation creation:
-                foreach (var argument in creation.Arguments) Evaluate(argument.Value);
-                // An initializer can inject operations, invoke setters, or expose the new instance.
-                if (creation.Initializer == null && creation.Constructor != null &&
-                    creation.Type is INamedTypeSymbol type && IsEntity(type) &&
-                    IsPassiveConstructor(creation.Constructor, new HashSet<ISymbol>(SymbolEqualityComparer.Default)))
-                    return NewOrigin();
-                Forget();
-                return null;
+                return EvaluateCreation(creation);
             case ISimpleAssignmentOperation assignment:
-                if (assignment.Target is ILocalReferenceOperation target)
-                {
-                    if (target.Local.RefKind != RefKind.None) { Forget(); return null; }
-                    return _locals[target.Local] = Evaluate(assignment.Value);
-                }
-                Evaluate(assignment.Value);
-                if (!IsPassiveAssignment(assignment)) Forget();
-                return null;
+                return EvaluateAssignment(assignment);
             case IInvocationOperation invocation:
-                var receiver = Evaluate(invocation.Instance);
-                foreach (var argument in invocation.Arguments) Evaluate(argument.Value);
-                if (IsOperationsMethod(invocation.TargetMethod))
-                {
-                    if (receiver is { Fresh: true } && RequiresOperations(invocation))
-                        _context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.UninitializedEntityOperations,
-                            invocation.Syntax.GetLocation(), invocation.TargetMethod.Name));
-                    return null;
-                }
-                if (invocation.TargetMethod.MethodKind != MethodKind.Constructor ||
-                    !IsPassiveConstructor(invocation.TargetMethod, new HashSet<ISymbol>(SymbolEqualityComparer.Default))) Forget();
+                EvaluateInvocation(invocation);
                 return null;
             case IReturnOperation returned:
                 Evaluate(returned.ReturnedValue);
@@ -134,6 +110,45 @@ internal sealed class UninitializedEntityOperationsAnalysis
                 Forget();
                 return null;
         }
+    }
+
+    private FreshEntity? EvaluateCreation(IObjectCreationOperation creation)
+    {
+        foreach (var argument in creation.Arguments) Evaluate(argument.Value);
+        // An initializer can inject operations, invoke setters, or expose the new instance.
+        if (creation.Initializer == null && creation.Constructor != null &&
+            creation.Type is INamedTypeSymbol type && IsEntity(type) &&
+            IsPassiveConstructor(creation.Constructor, new HashSet<ISymbol>(SymbolEqualityComparer.Default)))
+            return NewOrigin();
+        Forget();
+        return null;
+    }
+
+    private FreshEntity? EvaluateAssignment(ISimpleAssignmentOperation assignment)
+    {
+        if (assignment.Target is ILocalReferenceOperation target)
+        {
+            if (target.Local.RefKind != RefKind.None) { Forget(); return null; }
+            return _locals[target.Local] = Evaluate(assignment.Value);
+        }
+        Evaluate(assignment.Value);
+        if (!IsPassiveAssignment(assignment)) Forget();
+        return null;
+    }
+
+    private void EvaluateInvocation(IInvocationOperation invocation)
+    {
+        var receiver = Evaluate(invocation.Instance);
+        foreach (var argument in invocation.Arguments) Evaluate(argument.Value);
+        if (IsOperationsMethod(invocation.TargetMethod))
+        {
+            if (receiver is { Fresh: true } && RequiresOperations(invocation))
+                _context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.UninitializedEntityOperations,
+                    invocation.Syntax.GetLocation(), invocation.TargetMethod.Name));
+            return;
+        }
+        if (invocation.TargetMethod.MethodKind != MethodKind.Constructor ||
+            !IsPassiveConstructor(invocation.TargetMethod, new HashSet<ISymbol>(SymbolEqualityComparer.Default))) Forget();
     }
 
     private bool IsOperationsMethod(IMethodSymbol method) => !method.IsStatic &&
@@ -174,44 +189,58 @@ internal sealed class UninitializedEntityOperationsAnalysis
         foreach (var reference in constructor.DeclaringSyntaxReferences)
         {
             var syntax = reference.GetSyntax(_context.CancellationToken);
-            if (syntax is ClassDeclarationSyntax) continue; // Primary constructor has no separate body.
-            if (syntax is not ConstructorDeclarationSyntax declaration) return false;
-            var model = _context.Compilation.GetSemanticModel(syntax.SyntaxTree);
-            if (declaration.ExpressionBody != null &&
-                (model.GetOperation(declaration.ExpressionBody.Expression, _context.CancellationToken) is not ISimpleAssignmentOperation expressionAssignment ||
-                 !IsPassiveAssignment(expressionAssignment)))
-                return false;
-            if (declaration.Body == null) continue;
-            foreach (var statement in declaration.Body.Statements)
-                if (model.GetOperation(statement, _context.CancellationToken) is not IExpressionStatementOperation
-                    { Operation: ISimpleAssignmentOperation assignment } || !IsPassiveAssignment(assignment)) return false;
+            if (!HasPassiveConstructorBody(syntax)) return false;
         }
         return true;
+    }
+
+    private bool HasPassiveConstructorBody(SyntaxNode syntax)
+    {
+        if (syntax is ClassDeclarationSyntax) return true; // Primary constructor has no separate body.
+        if (syntax is not ConstructorDeclarationSyntax declaration) return false;
+        var model = _context.Compilation.GetSemanticModel(syntax.SyntaxTree);
+        if (declaration.ExpressionBody != null &&
+            (model.GetOperation(declaration.ExpressionBody.Expression, _context.CancellationToken) is not ISimpleAssignmentOperation expressionAssignment ||
+             !IsPassiveAssignment(expressionAssignment)))
+            return false;
+        if (declaration.Body == null) return true;
+        return declaration.Body.Statements.All(statement =>
+            model.GetOperation(statement, _context.CancellationToken) is IExpressionStatementOperation
+                { Operation: ISimpleAssignmentOperation assignment } && IsPassiveAssignment(assignment));
     }
 
     private bool HasPassiveInitialization(IMethodSymbol constructor, HashSet<ISymbol> visited)
     {
         if (IsFrameworkConstructor(constructor)) return true;
         var type = constructor.ContainingType;
+        if (!HasPassiveMemberInitializers(type)) return false;
+        return HasPassiveConstructorInitializer(constructor, visited);
+    }
+
+    private bool HasPassiveMemberInitializers(INamedTypeSymbol type)
+    {
         if (type.DeclaringSyntaxReferences.Length == 0) return false;
         foreach (var reference in type.DeclaringSyntaxReferences)
         {
             var syntax = reference.GetSyntax(_context.CancellationToken);
             if (!_context.Compilation.ContainsSyntaxTree(syntax.SyntaxTree)) return false;
-            foreach (var member in syntax.ChildNodes().OfType<MemberDeclarationSyntax>())
-            {
-                IEnumerable<EqualsValueClauseSyntax?> initializers = member switch
-                {
-                    FieldDeclarationSyntax field => field.Declaration.Variables.Select(variable => variable.Initializer),
-                    EventFieldDeclarationSyntax field => field.Declaration.Variables.Select(variable => variable.Initializer),
-                    PropertyDeclarationSyntax property => [property.Initializer],
-                    _ => []
-                };
-                foreach (var initializer in initializers)
-                    if (initializer != null && !IsPassiveInitializer(initializer)) return false;
-            }
+            var initializers = syntax.ChildNodes().OfType<MemberDeclarationSyntax>()
+                .SelectMany(GetMemberInitializers).Where(initializer => initializer != null);
+            if (!initializers.All(initializer => IsPassiveInitializer(initializer!))) return false;
         }
+        return true;
+    }
 
+    private static IEnumerable<EqualsValueClauseSyntax?> GetMemberInitializers(MemberDeclarationSyntax member) => member switch
+    {
+        FieldDeclarationSyntax field => field.Declaration.Variables.Select(variable => variable.Initializer),
+        EventFieldDeclarationSyntax field => field.Declaration.Variables.Select(variable => variable.Initializer),
+        PropertyDeclarationSyntax property => [property.Initializer],
+        _ => []
+    };
+
+    private bool HasPassiveConstructorInitializer(IMethodSymbol constructor, HashSet<ISymbol> visited)
+    {
         var declaration = constructor.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax(_context.CancellationToken);
         if (declaration is not (null or ConstructorDeclarationSyntax or ClassDeclarationSyntax)) return false;
         SyntaxNode? initializerSyntax = declaration switch
@@ -230,6 +259,7 @@ internal sealed class UninitializedEntityOperationsAnalysis
             return model.GetSymbolInfo(initializerSyntax, _context.CancellationToken).Symbol is IMethodSymbol target &&
                    IsPassiveConstructor(target, visited);
         }
+        var type = constructor.ContainingType;
         var candidates = type.BaseType?.InstanceConstructors.Where(candidate =>
             _context.Compilation.IsSymbolAccessibleWithin(candidate, type) &&
             candidate.Parameters.All(parameter => parameter.IsOptional)).ToArray() ?? [];

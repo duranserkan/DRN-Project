@@ -16,6 +16,7 @@ public static class SequenceManager<TEntity> where TEntity : class
     // ReSharper disable once StaticMemberInGenericType
     [SuppressMessage("SonarQube", "S2743", Justification = "Each entity type intentionally owns an independent timestamp scope and sequence.")]
     private static volatile SequenceTimeScope _timeScope = new(-1);
+    [SuppressMessage("SonarQube", "S2743", Justification = "The lock must share the per-entity scope of the timestamp and sequence it protects.")]
     private static readonly Lock ScopeLock = new();
 
     /// <summary>

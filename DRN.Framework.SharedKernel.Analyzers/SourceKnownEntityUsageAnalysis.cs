@@ -9,6 +9,7 @@ namespace DRN.Framework.SharedKernel.Analyzers;
 internal sealed class SourceKnownEntityUsageAnalysis
 {
     private const string Domain = "DRN.Framework.SharedKernel.Domain.";
+    private const string ValidateMethodName = "Validate";
     private readonly INamedTypeSymbol _entity;
     private readonly INamedTypeSymbol? _identity;
     private readonly INamedTypeSymbol? _format;
@@ -30,12 +31,12 @@ internal sealed class SourceKnownEntityUsageAnalysis
 
         AddMethods(compilation, Domain + "SourceKnownEntity", "GetEntityType", "GetEntityTypeId", "GetAppId", "GetEntityId");
         AddMethods(compilation, Domain + "EntityTypeRegistry", "GetEntityTypeId");
-        AddMethods(compilation, Domain + "SourceKnownEntityId", "Validate", "HasSameEntityType", "HasSameEntityTypeId");
-        AddMethods(compilation, Domain + "ISourceKnownEntityIdOperations", "Validate");
+        AddMethods(compilation, Domain + "SourceKnownEntityId", ValidateMethodName, "HasSameEntityType", "HasSameEntityTypeId");
+        AddMethods(compilation, Domain + "ISourceKnownEntityIdOperations", ValidateMethodName);
         AddMethods(compilation, Domain + "Repository.ISourceKnownRepository`1", "GetEntityId", "GetEntityIds", "GetEntityIdsAsEnumerable");
         AddMethods(compilation, "DRN.Framework.EntityFramework.Domain.SourceKnownRepository`2", "GetEntityId", "GetEntityIds", "GetEntityIdsAsEnumerable");
-        AddMethods(compilation, "DRN.Framework.Utils.Ids.ISourceKnownEntityIdUtils", "Validate", "Generate", "GeneratePlain", "GenerateSecure");
-        AddMethods(compilation, "DRN.Framework.Utils.Ids.SourceKnownEntityIdUtils", "Validate", "Generate", "GeneratePlain", "GenerateSecure");
+        AddMethods(compilation, "DRN.Framework.Utils.Ids.ISourceKnownEntityIdUtils", ValidateMethodName, "Generate", "GeneratePlain", "GenerateSecure");
+        AddMethods(compilation, "DRN.Framework.Utils.Ids.SourceKnownEntityIdUtils", ValidateMethodName, "Generate", "GeneratePlain", "GenerateSecure");
         AddMethods(compilation, "DRN.Framework.Utils.Ids.ISourceKnownIdUtils", "Next");
         AddMethods(compilation, "DRN.Framework.Utils.Ids.SourceKnownIdUtils", "Next");
     }
@@ -70,8 +71,9 @@ internal sealed class SourceKnownEntityUsageAnalysis
         INamedTypeSymbol binding, HashSet<ISymbol> reported)
     {
         context.CancellationToken.ThrowIfCancellationRequested();
-        var index = SymbolEqualityComparer.Default.Equals(binding.OriginalDefinition, _repositoryInterface) ? 0
-            : SymbolEqualityComparer.Default.Equals(binding.OriginalDefinition, _repositoryBase) ? 1 : -1;
+        var index = -1;
+        if (SymbolEqualityComparer.Default.Equals(binding.OriginalDefinition, _repositoryInterface)) index = 0;
+        else if (SymbolEqualityComparer.Default.Equals(binding.OriginalDefinition, _repositoryBase)) index = 1;
         if (index < 0 || binding.TypeArguments[index] is not INamedTypeSymbol { IsAbstract: true } entity ||
             !IsEntity(entity) || !reported.Add(entity)) return;
 
@@ -89,8 +91,10 @@ internal sealed class SourceKnownEntityUsageAnalysis
         var type = compilation.GetTypeByMetadataName(metadataName);
         if (type == null) return;
         foreach (var name in names)
-        foreach (var method in type.GetMembers(name).OfType<IMethodSymbol>())
-            _metadataMethods.Add(method.OriginalDefinition);
+        {
+            foreach (var method in type.GetMembers(name).OfType<IMethodSymbol>())
+                _metadataMethods.Add(method.OriginalDefinition);
+        }
     }
 
     private void AnalyzeArgument(OperationAnalysisContext context)
@@ -157,9 +161,9 @@ internal sealed class SourceKnownEntityUsageAnalysis
 
         AnalyzeMetadataTypeArguments(context, method);
 
-        foreach (var argument in invocation.Arguments)
+        foreach (var argumentValue in invocation.Arguments.Select(argument => argument.Value))
         {
-            var value = argument.Value;
+            var value = argumentValue;
             while (value is IConversionOperation conversion) value = conversion.Operand;
             if (value is ITypeOfOperation { TypeOperand: INamedTypeSymbol type })
                 ReportAbstractEntity(context, method, type);
