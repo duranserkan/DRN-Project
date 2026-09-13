@@ -41,24 +41,29 @@ public interface ISourceKnownEntityIdUtils : ISourceKnownEntityIdOperations
 
     /// <summary>Parses the selected format; ConfiguredDefault uses UseSecureSourceKnownIds. Null input remains null.</summary>
     new SourceKnownEntityId? Parse(Guid? entityId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
+
     /// <summary>Parses the selected format; ConfiguredDefault uses UseSecureSourceKnownIds.</summary>
     new SourceKnownEntityId Parse(Guid entityId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
 
     /// <summary>Validates integrity and entity type against the configured AppId. Null remains null.</summary>
     new SourceKnownEntityId? Validate(Guid? entityId, byte entityType, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
+
     /// <summary>Validates integrity and entity type against NexusAppSettings.AppId.</summary>
     new SourceKnownEntityId Validate(Guid entityId, byte entityType, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
 
     /// <summary>Explicitly selects an application partition through IAppId. Null remains null.</summary>
     new SourceKnownEntityId? Validate<TApp>(Guid? entityId, byte entityType, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TApp : IAppId;
+
     /// <summary>Validates integrity, entity type, and the explicit TApp.AppId.</summary>
     new SourceKnownEntityId Validate<TApp>(Guid entityId, byte entityType, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TApp : IAppId;
 
     new SourceKnownEntityId? Validate(Guid? entityId, EntityTypeId entityTypeId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
+
     /// <summary>Validates integrity and both explicitly supplied identity components.</summary>
     new SourceKnownEntityId Validate(Guid entityId, EntityTypeId entityTypeId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault);
 
     new SourceKnownEntityId? Validate<TEntity>(Guid? entityId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TEntity : SourceKnownEntity;
+
     /// <summary>Validates against the entity's declared identity, independently of configured AppId.</summary>
     new SourceKnownEntityId Validate<TEntity>(Guid entityId, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault) where TEntity : SourceKnownEntity;
 
@@ -126,6 +131,33 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     private const byte SourceKnownMarkerVersionByte = 0x8D; //6 | V8 => UUID V8 per RFC 9562 §5.8
     private const byte SourceKnownMarkerVariantByte = 0x8D; //8 | Variant RFC 9562 §4.1
     private const byte SourceKnownMarkerVariantMaxByte = 0xBF; //8 | Variant RFC 9562 §4.1 upper bound (collision guard)
+
+    // Epoch zero can join the equality check; multiple supported epochs require a range check.
+    [SuppressMessage("ReSharper", "HeuristicUnreachableCode")]
+    private const byte EpochMask = SourceKnownGenerationTimePolicy.MaxSupportedEpoch == 0 ? 0xFF : 0;
+
+    // Plain IDs require both complete marker bytes; secure IDs require only the variant prefix.
+    private static readonly Vector128<byte> PlainMarkerMask = Vector128.Create(EpochMask, 0, 0, 0, 0, 0, 0xFF, 0, 0xFF, 0, 0, 0, 0, 0, 0, 0);
+
+    private static readonly Vector128<byte> PlainMarkerExpected =
+        Vector128.Create(0, 0, 0, 0, 0, 0, SourceKnownMarkerVersionByte, 0, SourceKnownMarkerVariantByte, 0, 0, 0, 0, 0, 0, 0);
+
+    private static readonly Vector128<byte> SecureMarkerMask = Vector128.Create(EpochMask, 0, 0, 0, 0, 0, 0xFF, 0, 0xC0, 0, 0, 0, 0, 0, 0, 0);
+    private static readonly Vector128<byte> SecureMarkerExpected = Vector128.Create(0, 0, 0, 0, 0, 0, SourceKnownMarkerVersionByte, 0, 0x80, 0, 0, 0, 0, 0, 0, 0);
+
+    private static readonly Vector128<byte> DefaultMarkers = Vector128.Create(
+        SourceKnownGenerationTimePolicy.MaxSupportedEpoch, 0, 0, 0, 0, 0,
+        SourceKnownMarkerVersionByte, 0, SourceKnownMarkerVariantByte, 0, 0, 0, 0, 0, 0, 0);
+
+    // Scatter the ID in network order; out-of-range indices leave marker and MAC slots zero.
+    private static readonly Vector128<byte> IdWriteIndices = BitConverter.IsLittleEndian
+        ? Vector128.Create(255, 7, 6, 5, 4, 3, 255, 255, 255, 2, 1, 0, 255, 255, 255, 255)
+        : Vector128.Create(255, 0, 1, 2, 3, 4, 255, 255, 255, 5, 6, 7, 255, 255, 255, 255);
+
+    // Gather network-order ID bytes into one native-order ulong lane.
+    private static readonly Vector128<byte> IdReadIndices = BitConverter.IsLittleEndian
+        ? Vector128.Create(11, 10, 9, 5, 4, 3, 2, 1, 255, 255, 255, 255, 255, 255, 255, 255)
+        : Vector128.Create(1, 2, 3, 4, 5, 9, 10, 11, 255, 255, 255, 255, 255, 255, 255, 255);
 
     // Key separation: MacKey and EncryptionKey are cryptographically independent keys from the same keyring entry.
     // MacKey -> BLAKE3 keyed MAC (integrity). EncryptionKey -> AES-256-ECB (confidentiality).
@@ -370,14 +402,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
 
     [SuppressMessage("ReSharper", "HeuristicUnreachableCode")]
     private static bool HasValidMarkers(Vector128<byte> guidBytes)
-    {
-        // Plain IDs require both complete marker bytes, unlike the secure variant prefix check.
-        const byte epochMask = SourceKnownGenerationTimePolicy.MaxSupportedEpoch == 0 ? 0xFF : 0;
-        var mask = Vector128.Create(epochMask, 0, 0, 0, 0, 0, 0xFF, 0, 0xFF, 0, 0, 0, 0, 0, 0, 0);
-        var expected = Vector128.Create(0, 0, 0, 0, 0, 0, SourceKnownMarkerVersionByte, 0, SourceKnownMarkerVariantByte, 0, 0, 0, 0, 0, 0, 0);
-
-        return (guidBytes & mask) == expected && guidBytes[EpochIndex] <= SourceKnownGenerationTimePolicy.MaxSupportedEpoch;
-    }
+        => (guidBytes & PlainMarkerMask) == PlainMarkerExpected && guidBytes[EpochIndex] <= SourceKnownGenerationTimePolicy.MaxSupportedEpoch;
 
     /// <summary>
     /// Accepts the primary variant (0x8D) and any RFC 9562 §4.1 variant byte (0x80–0xBF).
@@ -386,14 +411,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     /// </summary>
     [SuppressMessage("ReSharper", "HeuristicUnreachableCode")]
     private static bool HasValidMarkersSecure(Vector128<byte> guidBytes)
-    {
-        // Epoch zero can join the equality check; multiple supported epochs require a range check.
-        const byte epochMask = SourceKnownGenerationTimePolicy.MaxSupportedEpoch == 0 ? 0xFF : 0;
-        var mask = Vector128.Create(epochMask, 0, 0, 0, 0, 0, 0xFF, 0, 0xC0, 0, 0, 0, 0, 0, 0, 0);
-        var expected = Vector128.Create(0, 0, 0, 0, 0, 0, SourceKnownMarkerVersionByte, 0, 0x80, 0, 0, 0, 0, 0, 0, 0);
-
-        return (guidBytes & mask) == expected && guidBytes[EpochIndex] <= SourceKnownGenerationTimePolicy.MaxSupportedEpoch;
-    }
+        => (guidBytes & SecureMarkerMask) == SecureMarkerExpected && guidBytes[EpochIndex] <= SourceKnownGenerationTimePolicy.MaxSupportedEpoch;
 
     /// <summary>
     /// Verifies MAC integrity and extracts ID/entityType from a plaintext (or decrypted) block.
@@ -436,19 +454,14 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     /// </summary>
     private static Vector128<byte> CreateIdAndMarkers(long id, byte entityType, byte variantByte)
     {
-        var bits = unchecked((ulong)id) ^ ((ulong)SignBitToggle << 32);
+        var bits = unchecked((ulong)(id ^ long.MinValue));
         var source = Vector128.CreateScalar(bits).AsByte();
+        var payload = Vector128.Shuffle(source, IdWriteIndices);
+        var markers = DefaultMarkers.WithElement(EntityTypeIndex, entityType);
 
-        // Scatter the ID in network order; out-of-range indices leave marker and MAC slots zero.
-        var indices = BitConverter.IsLittleEndian
-            ? Vector128.Create(255, 7, 6, 5, 4, 3, 255, 255, 255, 2, 1, 0, 255, 255, 255, 255)
-            : Vector128.Create(255, 0, 1, 2, 3, 4, 255, 255, 255, 5, 6, 7, 255, 255, 255, 255);
-        var payload = Vector128.Shuffle(source, indices);
-        var markers = Vector128.Create(
-            SourceKnownGenerationTimePolicy.MaxSupportedEpoch, 0, 0, 0, 0, 0,
-            SourceKnownMarkerVersionByte, entityType, variantByte, 0, 0, 0, 0, 0, 0, 0);
-
-        return payload | markers;
+        return variantByte == SourceKnownMarkerVariantByte
+            ? payload | markers
+            : payload | markers.WithElement(SourceKnownMarkerVariantIndex, variantByte);
     }
 
     /// <summary>
@@ -457,11 +470,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     /// </summary>
     private static long ReadId(Vector128<byte> guidBytes)
     {
-        // Gather network-order ID bytes into one native-order ulong lane.
-        var indices = BitConverter.IsLittleEndian
-            ? Vector128.Create(11, 10, 9, 5, 4, 3, 2, 1, 255, 255, 255, 255, 255, 255, 255, 255)
-            : Vector128.Create(1, 2, 3, 4, 5, 9, 10, 11, 255, 255, 255, 255, 255, 255, 255, 255);
-        var bits = Vector128.Shuffle(guidBytes, indices).AsUInt64().GetElement(0);
+        var bits = Vector128.Shuffle(guidBytes, IdReadIndices).AsUInt64().GetElement(0);
         return unchecked((long)(bits ^ ((ulong)SignBitToggle << 32)));
     }
 
