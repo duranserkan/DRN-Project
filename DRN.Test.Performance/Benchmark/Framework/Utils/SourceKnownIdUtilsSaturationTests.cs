@@ -9,6 +9,8 @@ using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Testing.Providers;
 using DRN.Framework.Utils.Time;
+using DRN.Test.Performance.Benchmark.Domain;
+using Perfolizer.Mathematics.OutlierDetection;
 
 namespace DRN.Test.Performance.Benchmark.Framework.Utils;
 
@@ -41,6 +43,7 @@ public class SourceKnownIdUtilsSaturationPerformanceTests(ITestOutputHelper outp
     }
 }
 
+[Outliers(OutlierMode.RemoveUpper)]
 [MemoryDiagnoser]
 [WarmupCount(40)]
 [IterationCount(40)]
@@ -57,17 +60,17 @@ public class SourceKnownIdUtilsSaturationBenchmark
         EntityIdUtils = new(appSettings, IdUtils);
 
         // Pre-generate GUIDs for Parse benchmarks — avoids measuring ID generation in parse benchmarks
-        var id = IdUtils.Next<ZEntity>();
-        SecureEntityId = EntityIdUtils.GenerateSecure<ZEntity>(id);
-        PlainEntityId = EntityIdUtils.GeneratePlain<ZEntity>(id);
-        Entity = new(IdUtils.Next<ZEntity>());
+        var id = IdUtils.Next<PerformanceTestEntity>();
+        SecureEntityId = EntityIdUtils.GenerateSecure<PerformanceTestEntity>(id);
+        PlainEntityId = EntityIdUtils.GeneratePlain<PerformanceTestEntity>(id);
+        Entity = new(IdUtils.Next<PerformanceTestEntity>());
     }
 
     private static SourceKnownIdUtils IdUtils { get; }
     private static SourceKnownEntityIdUtils EntityIdUtils { get; }
     private static SourceKnownEntityId SecureEntityId { get; }
     private static SourceKnownEntityId PlainEntityId { get; }
-    private static ZEntity Entity { get; }
+    private static PerformanceTestEntity Entity { get; }
 
     // --- Baseline benchmarks ---
 
@@ -84,12 +87,12 @@ public class SourceKnownIdUtilsSaturationBenchmark
     public long TimeStampManager_TimeStamp() => TimeStampManager.CurrentTimestamp();
 
     [Benchmark]
-    public SequenceTimeScopedId SequenceManager_TimeScopedId() => SequenceManager<ZEntity>.GetTimeScopedId();
+    public SequenceTimeScopedId SequenceManager_TimeScopedId() => SequenceManager<PerformanceTestEntity>.GetTimeScopedId();
 
     // --- SourceKnownId (raw long) ---
 
     [Benchmark]
-    public long SourceKnownId() => IdUtils.Next<ZEntity>();
+    public long SourceKnownId() => IdUtils.Next<PerformanceTestEntity>();
 
     // --- Non-secure SourceKnownEntityId: BLAKE3 MAC only (explicit call variants) ---
 
@@ -99,17 +102,17 @@ public class SourceKnownIdUtilsSaturationBenchmark
 
     [Benchmark]
     public SourceKnownEntityId SourceKnownEntityIdWithSkidGeneration()
-        => EntityIdUtils.GeneratePlain<ZEntity>(IdUtils.Next<ZEntity>());
+        => EntityIdUtils.GeneratePlain<PerformanceTestEntity>(IdUtils.Next<PerformanceTestEntity>());
 
     [Benchmark]
     public SourceKnownEntityId SourceKnownEntityIdWithEntityAllocation()
-        => EntityIdUtils.GeneratePlain(new ZEntity(IdUtils.Next<ZEntity>()));
+        => EntityIdUtils.GeneratePlain(new PerformanceTestEntity(IdUtils.Next<PerformanceTestEntity>()));
 
     // --- Secure SourceKnownEntityId: BLAKE3 MAC + AES-256-ECB encryption ---
 
     [Benchmark]
     public SourceKnownEntityId SourceKnownEntityIdSecure()
-        => EntityIdUtils.GenerateSecure<ZEntity>(IdUtils.Next<ZEntity>());
+        => EntityIdUtils.GenerateSecure<PerformanceTestEntity>(IdUtils.Next<PerformanceTestEntity>());
 
     // --- Parse: non-secure GUID (MAC verify only) ---
 
@@ -131,6 +134,3 @@ public class SourceKnownIdUtilsSaturationBenchmark
     [Benchmark]
     public SourceKnownEntityId ToSecure() => EntityIdUtils.ToSecure(PlainEntityId);
 }
-
-[TestEntityType(93)]
-public class ZEntity(long id) : SourceKnownEntity(id);

@@ -1,9 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.EntityFramework.Extensions;
 using DRN.Framework.SharedKernel.Domain;
-using DRN.Framework.Testing.DataAttributes;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Models;
 using Microsoft.EntityFrameworkCore;
@@ -233,10 +231,10 @@ public class DrnContextServiceRegistrationAttributeTests
             .Should().Be(typeof(DRN.MultiApp.Testing.CoLocatedSecondContext).Assembly.FullName);
 
         var firstAppSettings = Substitute.For<IAppSettings>();
-        firstAppSettings.NexusAppSettings.Returns(new NexusAppSettings { AppId = DRN.MultiApp.Testing.CoLocatedFirstApp.AppId });
+        firstAppSettings.NexusAppSettings.Returns(new NexusAppSettings { AppId = MultiApp.Testing.CoLocatedFirstApp.AppId });
 
         var secondAppSettings = Substitute.For<IAppSettings>();
-        secondAppSettings.NexusAppSettings.Returns(new NexusAppSettings { AppId = DRN.MultiApp.Testing.CoLocatedSecondApp.AppId });
+        secondAppSettings.NexusAppSettings.Returns(new NexusAppSettings { AppId = MultiApp.Testing.CoLocatedSecondApp.AppId });
 
         var actFirst = () => DrnContextServiceRegistrationAttribute.ValidateEntityTypes(firstDbContext, scopedLog: null, firstAppSettings);
         var actSecond = () => DrnContextServiceRegistrationAttribute.ValidateEntityTypes(secondDbContext, scopedLog: null, secondAppSettings);
@@ -257,10 +255,10 @@ public class DrnContextServiceRegistrationAttributeTests
         hostEntities.Should().Contain(typeof(DRN.MultiApp.Testing.CoLocatedFirstEntity));
         hostEntities.Should().Contain(typeof(DRN.MultiApp.Testing.CoLocatedSecondEntity));
         hostEntities.Should().Contain(typeof(DRN.MultiApp.Testing.CoLocatedNonModelDomainEntity));
-        hostEntities.Should().NotContain(DRN.MultiApp.Testing.CoLocatedPrivateEntityFixture.EntityType);
+        hostEntities.Should().NotContain(MultiApp.Testing.CoLocatedPrivateEntityFixture.EntityType);
 
         EntityTypeRegistry.Register(hostEntities);
-        var entityTypeId = new EntityTypeId(2, DRN.MultiApp.Testing.CoLocatedFirstApp.AppId);
+        var entityTypeId = new EntityTypeId(2, MultiApp.Testing.CoLocatedFirstApp.AppId);
         EntityTypeRegistry.GetEntityType(entityTypeId).Should().Be<DRN.MultiApp.Testing.CoLocatedNonModelDomainEntity>();
     }
 
@@ -326,7 +324,7 @@ public class DrnContextServiceRegistrationAttributeTests
         var options = new DbContextOptionsBuilder<TestValidationDbContext>()
             .UseNpgsql("Host=localhost;Database=test")
             .Options;
-        using var dbContext = new TestValidationDbContext(options);
+        await using var dbContext = new TestValidationDbContext(options);
 
         var serviceProvider = Substitute.For<IServiceProvider>();
         var appSettings = Substitute.For<IAppSettings>();

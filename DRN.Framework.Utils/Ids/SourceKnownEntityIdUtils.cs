@@ -165,6 +165,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     private readonly NexusKeyRing _keyRing;
     private readonly Aes256 _aes;
     private readonly SecretKey32 _macKey;
+    private readonly bool _useSourceKnownIdKeyFallback;
     public SourceKnownEntityIdFormat DefaultFormat { get; }
     private readonly ISourceKnownIdUtils _sourceKnownIdUtils;
     private readonly byte _appId;
@@ -176,6 +177,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         ArgumentOutOfRangeException.ThrowIfGreaterThan(_appId, IAppId.MaxAppId);
         _sourceKnownIdUtils = sourceKnownIdUtils;
         _keyRing = new NexusKeyRing(appSettings.NexusAppSettings);
+        _useSourceKnownIdKeyFallback = appSettings.NexusAppSettings.UseSourceKnownIdKeyFallback;
         _aes = _keyRing.Default.Aes;
         _macKey = _keyRing.Default.MacKey;
         DefaultFormat = appSettings.NexusAppSettings.UseSecureSourceKnownIds
@@ -214,7 +216,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         return result;
     }
 
-    private Guid GeneratePlainGuid(long id, byte entityType)
+    internal Guid GeneratePlainGuid(long id, byte entityType)
     {
         var block = CreateIdAndMarkers(id, entityType, SourceKnownMarkerVariantByte);
         return ToGuid(WriteBlake3Mac(block, _macKey));
@@ -239,7 +241,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         return result;
     }
 
-    private Guid GenerateSecureGuid(long id, byte entityType)
+    internal Guid GenerateSecureGuid(long id, byte entityType)
     {
         // Build guid identically to non-secure (same layout, same markers)
         var variantByte = SourceKnownMarkerVariantByte;
@@ -249,11 +251,12 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         block = _aes.Encrypt(block);
 
         // Ciphertext with epoch 0, both 0x8D markers, and a valid MAC would be misclassified as plain.
-        // With these three fixed bytes and a 32-bit MAC, collision probability is approximately 2^-56,
+        // Check every enabled verification key; keys added later are outside this guarantee.
+        // With three fixed bytes and a 32-bit MAC, collision probability is approximately 2^-56 per key,
         // assuming pseudorandom ciphertext.
         // Retry variants 0x8E through 0xBF; the AES permutation gives distinct ciphertext for each variant.
         // At most 50 retries after the initial candidate. Exhaustion throws JackpotException.
-        if (!HasValidMarkers(block) || !VerifyBlake3Mac(block, _macKey))
+        if (IsSecureBlockHotPath(block) || IsSecureBlockColdPath(block))
             return ToGuid(block);
 
         for (variantByte = SourceKnownMarkerVariantByte + 1; variantByte <= SourceKnownMarkerVariantMaxByte; variantByte++)
@@ -261,7 +264,7 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
             block = WriteBlake3Mac(CreateIdAndMarkers(id, entityType, variantByte), _macKey);
             block = _aes.Encrypt(block);
 
-            if (!HasValidMarkers(block) || !VerifyBlake3Mac(block, _macKey))
+            if (IsSecureBlockHotPath(block) || IsSecureBlockColdPath(block))
                 return ToGuid(block);
         }
 
@@ -286,9 +289,9 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         if (format == SourceKnownEntityIdFormat.Plain && !HasValidMarkers(block))
             return CreateInvalid(entityId);
 
-        var result = ParseWithKey(block, entityId, _keyRing.Default, format);
+        var result = ParseWithKey(block, entityId, _keyRing.Default, format, out var authenticated);
 
-        return result.Valid
+        return authenticated
             ? result
             : ParseWithFallbackKeys(block, entityId, format);
     }
@@ -298,8 +301,8 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         var keys = _keyRing.Fallback;
         for (var index = 0; index < keys.Count; index++)
         {
-            var result = ParseWithKey(block, entityId, keys[index], format);
-            if (result.Valid)
+            var result = ParseWithKey(block, entityId, keys[index], format, out var authenticated);
+            if (authenticated)
                 return result;
         }
 
@@ -316,13 +319,16 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         return format;
     }
 
-    private SourceKnownEntityId ParseWithKey(Vector128<byte> block, Guid entityId, NexusSecret key, SourceKnownEntityIdFormat format)
+    private SourceKnownEntityId ParseWithKey(Vector128<byte> block, Guid entityId, NexusSecret key, SourceKnownEntityIdFormat format,
+        out bool authenticated)
     {
+        authenticated = false;
         // Try non-secure path first (plaintext 8D8D markers visible)
         // Plain markers have already been checked once in ParseCore.
         if (format == SourceKnownEntityIdFormat.Plain || (format == SourceKnownEntityIdFormat.Auto && HasValidMarkers(block)))
         {
             var result = VerifyAndParse(block, entityId, secure: false, macKey: key.MacKey);
+            authenticated = result.Valid;
             if (result.Valid || format == SourceKnownEntityIdFormat.Plain)
                 return result;
         }
@@ -334,14 +340,20 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
         if (!HasValidMarkersSecure(block))
             return CreateInvalid(entityId);
 
+        var secureResult = VerifyAndParse(block, entityId, secure: true, macKey: key.MacKey);
+        authenticated = secureResult.Valid;
+        if (!authenticated)
+            return secureResult;
+
+        // Once authenticated, keep this key even if the variant or its collision proof is invalid.
         var recoveredVariant = block[SourceKnownMarkerVariantIndex];
         if (recoveredVariant == SourceKnownMarkerVariantByte)
-            return VerifyAndParse(block, entityId, secure: true, macKey: key.MacKey);
+            return secureResult;
 
-        // Non-default variant → backward collision-guard verification
+        // Non-default variants require every earlier candidate to have collided, through the base variant.
         if (recoveredVariant is > SourceKnownMarkerVariantByte and <= SourceKnownMarkerVariantMaxByte)
-            return VerifyCollisionGuardProof(block, (byte)(recoveredVariant - 1), key)
-                ? VerifyAndParse(block, entityId, secure: true, macKey: key.MacKey)
+            return VerifyCollisionGuardProof(block, recoveredVariant, key)
+                ? secureResult
                 : CreateInvalid(entityId);
 
         return CreateInvalid(entityId);
@@ -451,22 +463,82 @@ public sealed class SourceKnownEntityIdUtils : ISourceKnownEntityIdUtils, IDispo
     }
 
     /// <summary>
-    /// Backward collision verification: reconstructs the SKEID with (variant−1),
-    /// encrypts, and checks whether ciphertext would have triggered the collision guard.
-    /// Returns true if the previous variant genuinely collided (legitimate escalation).
+    /// Verifies that every variant before the recovered variant, down to 0x8D inclusive,
+    /// would have triggered the enabled key ring's collision guard. At most 50 candidates are checked.
     /// Called only for non-default variant bytes (recoveredVariant > 0x8D) during Parse.
     /// </summary>
-    private static bool VerifyCollisionGuardProof(Vector128<byte> decryptedBytes, byte previousVariant, NexusSecret key)
+    private bool VerifyCollisionGuardProof(Vector128<byte> decryptedBytes, byte recoveredVariant, NexusSecret key)
     {
         var id = ReadId(decryptedBytes);
         var entityType = decryptedBytes[EntityTypeIndex];
 
-        // Reconstruct with previous variant
-        var reconstructed = WriteBlake3Mac(CreateIdAndMarkers(id, entityType, previousVariant), key.MacKey);
+        return VerifyCollisionGuardChain(recoveredVariant, previousVariant => HasCollisionAtVariant(id, entityType, previousVariant, key));
+    }
+
+    /// <summary>
+    /// Reconstructs and encrypts one variant, then applies the generation collision guard:
+    /// the ciphertext must have valid plain markers, a supported epoch, and a valid MAC under an enabled key.
+    /// Reconstruction always uses the key that authenticated the recovered variant.
+    /// </summary>
+    private bool HasCollisionAtVariant(long id, byte entityType, byte variant, NexusSecret key)
+    {
+        var reconstructed = WriteBlake3Mac(CreateIdAndMarkers(id, entityType, variant), key.MacKey);
         reconstructed = key.Aes.Encrypt(reconstructed);
 
-        // Previous variant's ciphertext must have collided (markers + MAC match)
-        return HasValidMarkers(reconstructed) && VerifyBlake3Mac(reconstructed, key.MacKey);
+        return !IsSecureBlockHotPath(reconstructed) && !IsSecureBlockColdPath(reconstructed);
+    }
+
+    // Checks generated ciphertext for plaintext ambiguity; does not authenticate arbitrary input.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsSecureBlockHotPath(Vector128<byte> block)
+        => block[EpochIndex] > SourceKnownGenerationTimePolicy.MaxSupportedEpoch ||
+           (block & PlainMarkerMask) != PlainMarkerExpected;
+
+    // Called only after the ciphertext passes the plaintext marker and epoch checks.
+    private bool IsSecureBlockColdPath(Vector128<byte> block)
+    {
+        if (VerifyBlake3Mac(block, _macKey))
+            return false;
+
+        if (!_useSourceKnownIdKeyFallback)
+            return true;
+
+        var keys = _keyRing.Fallback;
+        for (var index = 0; index < keys.Count; index++)
+            if (VerifyBlake3Mac(block, keys[index].MacKey))
+                return false;
+
+        return true;
+    }
+
+    /// <summary>
+    /// Checks preceding variants in descending order through 0x8D, stopping at the first missing collision.
+    /// </summary>
+    /// <param name="recoveredVariant">The decrypted variant; only 0x8D through 0xBF are accepted.</param>
+    /// <param name="hasCollision">
+    /// Returns whether a preceding variant triggers the generation collision guard for the same identity and key pair.
+    /// </param>
+    /// <returns>
+    /// True when every preceding variant collides, including the empty chain for 0x8D; false for an
+    /// out-of-range variant or any missing collision. The recovered candidate's MAC is verified separately by the caller.
+    /// </returns>
+    /// <remarks>
+    /// The predicate separates chain traversal from cryptography so tests can supply controlled collision histories,
+    /// such as a collision at 0x8E without one at 0x8D. Finding those cases with real AES and MAC computations is impractical.
+    /// Production always binds this predicate to <see cref="HasCollisionAtVariant"/>.
+    /// This binding allocates a capturing delegate on the non-default-variant parse path; the default 0x8D path bypasses it.
+    /// The predicate is called synchronously, is not retained, and is invoked at most 50 times.
+    /// </remarks>
+    internal static bool VerifyCollisionGuardChain(byte recoveredVariant, Func<byte, bool> hasCollision)
+    {
+        if (recoveredVariant is < SourceKnownMarkerVariantByte or > SourceKnownMarkerVariantMaxByte)
+            return false;
+
+        for (var previousVariant = recoveredVariant - 1; previousVariant >= SourceKnownMarkerVariantByte; previousVariant--)
+            if (!hasCollision((byte)previousVariant))
+                return false;
+
+        return true;
     }
 
     /// <summary>

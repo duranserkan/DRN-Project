@@ -6,8 +6,6 @@ using DRN.Framework.SharedKernel.Domain.Repository;
 using DRN.Framework.Utils.Entity;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 
-using Sample.Domain;
-
 namespace Sample.Infra.QB;
 
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
@@ -30,18 +28,19 @@ public class QBContext : DrnContext<QBContext>
     public QBContext() : base(null)
     {
     }
-
-    //Added to test prototype mode
-    //public DbSet<TestEntity> TestEntity { get; set; }
 }
 
-public enum TestEntityTypes : byte
+[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+public sealed class QBEntityTypeAttribute(QBEntityTypes entityType)
+    : EntityTypeAttribute<TestApp>((byte)entityType);
+
+public enum QBEntityTypes : byte
 {
-    TestEntity = 255
+    QBTestEntity = 255
 }
 
-[TestEntityType((byte)TestEntityTypes.TestEntity)]
-public class TestEntity : AggregateRoot
+[QBEntityType(QBEntityTypes.QBTestEntity)]
+public class QBTestEntity : AggregateRoot
 {
     public long TestValue { get; init; }
 
@@ -49,14 +48,7 @@ public class TestEntity : AggregateRoot
     public string TestValueString { get; init; } = string.Empty;
 }
 
-// public class TestEntityConfig: IEntityTypeConfiguration<TestEntity>
-// {
-//     public void Configure(EntityTypeBuilder<TestEntity> builder)
-//     {
-//     }
-// }
+public interface IQBTestEntityRepository : ISourceKnownRepository<QBTestEntity>;
 
-public interface ITestEntityRepository : ISourceKnownRepository<TestEntity>;
-
-public class TestEntityRepository(QBContext context, IEntityUtils utils)
-    : SourceKnownRepository<QBContext, TestEntity>(context, utils), ITestEntityRepository;
+public class QBTestEntityRepository(QBContext context, IEntityUtils utils)
+    : SourceKnownRepository<QBContext, QBTestEntity>(context, utils), IQBTestEntityRepository;

@@ -18,6 +18,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 ### Security
 
 *   **Secure-Only ID Input**: With secure generation configured, default parsing blocks direct plaintext MAC guessing. Explicit `Plain`/`Auto` and conversion helpers still accept plain IDs; keep these exceptions under application control.
+*   **ID Key Rotation**: `UseSourceKnownIdKeyFallback` defaults to `false`; applications retaining old IDs during routine rotation must explicitly enable it. Secure generation checks plaintext collisions against all enabled verification keys; backward verification keeps the authenticated key pair and rejects failed proofs without further fallback. The guarantee covers the checked key set, not keys added later. Remove compromised keys from verification and reissue affected external IDs; see [key configuration](README.md#nexusappsettings-and-nexus-keys).
 *   **MFA Evidence**: Provider-neutral `MfaPrincipal` and `MfaFor.MfaCompleted` reject setup/pending credentials and conflicting accounts or issuers, even with an exact completed-MFA marker (`amr=mfa` by default). Optional `IsRecent` and `IsPhishingResistant` checks require additional evidence from a trusted issuer on the same authenticated identity. They neither issue evidence nor change the default policy. See [MFA](README.md#mfa-completion-and-assurance).
 *   **Key Material**: `AppSettings` rejects `DefaultSeedKey` outside Development and `SampleSeedKey` outside a DRN test context. `NexusKey` rejects the known sample Nexus key in every environment, including tests.
 

@@ -500,7 +500,9 @@ The following example illustrates the key format. Supply private key material in
 }
 ```
 
-`Keys` must contain exactly one default key. Generation always uses the default key. Parsing tries the default key first and then the remaining configured keys, so old IDs remain parseable during key rotation while the previous key stays in the key ring.
+`Keys` must contain exactly one default key. Generation always uses the default key. `UseSourceKnownIdKeyFallback` defaults to `false`, so parsing accepts only the default key. Enable it for routine rotation to try the default key first and then the remaining configured keys. After a candidate authenticates, backward collision verification stays with that key pair; a failed proof rejects the ID without further fallback.
+
+Retain old keys only for routine rotation. After compromise, select a fresh default and remove the compromised key from every instance's `Keys`, or disable fallback to reject all non-default keys. Recreate the ID utilities (normally by restarting the application) to apply key changes. Identifiers that require a removed key stop authenticating; reissue them from trusted numeric IDs and entity types. Keeping a compromised key enabled also keeps forged IDs acceptable.
 
 | `ByteEncoding` | Requirement |
 |---------------------|-------------|
@@ -1107,7 +1109,7 @@ The `Generate` method dispatches to secure or plain generation based on the `Use
 
 The secure variant encrypts the entire 16-byte GUID with `Aes256` as a pseudo-random permutation (PRP). For this single block, ECB is equivalent to CBC with a zero IV and uses no nonce. It is deterministic: equal blocks under the same key produce equal ciphertext. Integrity comes from the separate 32-bit BLAKE3 keyed MAC, not from AES. BLAKE3 derives distinct MAC and encryption keys from the decoded `NexusKey` material.
 
-Generation uses the default `NexusKey`. Parse uses a default-first key-ring fallback, so IDs generated before key rotation can still be parsed while the previous key remains configured and their format is accepted.
+Generation uses the default `NexusKey`. Parse uses a default-first key-ring fallback when `UseSourceKnownIdKeyFallback` is enabled, allowing old IDs to authenticate while their keys and formats remain accepted. The secure collision guard checks all enabled verification keys. Its guarantee applies to that key set: later keys can introduce cross-key ambiguity, and removing keys can invalidate rare non-default variants whose collision proof depended on them. Explicit `Secure` parsing avoids plaintext misclassification.
 
 > [!NOTE]
 > `SourceKnownEntityIdUtils` is a singleton and reuses each key-ring entry's `Aes256` instance. Intrinsic and portable paths preserve the same encrypted ID format. See [AES-256 single-block encryption](#aes-256-single-block-encryption-aes256) for concurrency, runtime-verification and disposal requirements.

@@ -159,7 +159,7 @@ The persona conveys Duran's thinking, tradeoffs, and collaboration expectations;
 ## Agentic Work [IMPORTANT]
 
 - Sync docs/tests with source truth
-- Use suitable patterns: ReAct, CoVe, CoN, equivalent checks
+- Changes must be scoped, minimal, surgical, natural and fluent.
 - Run dependencies sequentially
 - Minimize tool calls; validate, cache, batch
 - Respect AGENTS/profile command-execution gates. Do not run restore, build, app, test, benchmark, or load-test commands without explicit execution permission; report static verification instead.

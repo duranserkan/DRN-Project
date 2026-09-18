@@ -15,7 +15,7 @@ internal sealed class NexusKeyRing : IDisposable
             Default = defaultSecret;
 
             var fallbackList = new List<NexusSecret>();
-            foreach (var key in settings.Keys.Where(key => !key.Default))
+            foreach (var key in settings.Keys.Where(key => !key.Default && settings.UseSourceKnownIdKeyFallback))
             {
                 var secret = new NexusSecret(key);
                 createdSecrets.Add(secret);
