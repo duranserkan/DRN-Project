@@ -61,14 +61,15 @@ public class SourceKnownIdUtilsBenchmark
         IdUtils = new(appSettings);
         EntityIdUtils = new(appSettings, IdUtils);
 
-        // Pre-generate GUIDs for Parse benchmarks — avoids measuring ID generation in parse benchmarks
-        var id = IdUtils.Next<PerformanceTestEntity>();
-        SecureEntityId = EntityIdUtils.GenerateSecure<PerformanceTestEntity>(id);
-        PlainEntityId = EntityIdUtils.GeneratePlain<PerformanceTestEntity>(id);
+        // Pre-generate IDs for Parse benchmarks — avoids measuring ID generation in parse benchmarks
+        Skid = IdUtils.Next<PerformanceTestEntity>();
+        SecureEntityId = EntityIdUtils.GenerateSecure<PerformanceTestEntity>(Skid);
+        PlainEntityId = EntityIdUtils.GeneratePlain<PerformanceTestEntity>(Skid);
     }
 
     private static SourceKnownIdUtils IdUtils { get; }
     private static SourceKnownEntityIdUtils EntityIdUtils { get; }
+    private static long Skid { get; }
     private static SourceKnownEntityId SecureEntityId { get; }
     private static SourceKnownEntityId PlainEntityId { get; }
     
@@ -104,7 +105,11 @@ public class SourceKnownIdUtilsBenchmark
 
     // --- Parsing ---
 
-    [Benchmark(Baseline = true, Description = "SKEID parsing")]
+    [Benchmark(Baseline = true, Description = "SKID parsing")]
+    [BenchmarkCategory("3: Parsing")]
+    public SourceKnownId ParseSourceKnownId() => IdUtils.Parse(Skid);
+
+    [Benchmark(Description = "SKEID parsing")]
     [BenchmarkCategory("3: Parsing")]
     public SourceKnownEntityId ParseSourceKnownEntityId()
         => EntityIdUtils.Parse(PlainEntityId.EntityId, SourceKnownEntityIdFormat.Plain);

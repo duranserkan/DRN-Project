@@ -786,48 +786,67 @@ procedure GenerateSKEID(id, epoch, entityType, macKey, variantByte=0x8D):
 
 ## SKEID Parsing Algorithm
 
-Given a UUID `entityId`, `macKey` (for MAC verification), and `aesKey`
-(for decryption if the secure path is needed):
+Given a UUID `entityId`, `macKey` (for MAC verification), `aesKey`
+(for decryption if the secure path is needed), and `enabledKeys` (all
+enabled verification keys, used for collision checks):
 
 Note: When a key-ring is in use, this procedure is invoked by the
 key-ring fallback loop described in "Parse with Key-Ring Fallback"
-below.  Each iteration supplies a different (macKey, aesKey) pair.
-The pseudocode below shows a single-key invocation; see
+below.  Each iteration supplies a different (macKey, aesKey) pair but
+passes the same `enabledKeys` set.  For a single-key invocation, that
+set contains only the supplied key pair.  See
 "Parse with Key-Ring Fallback" for the multi-key wrapper.  The
-reference implementation [DRN-PROJECT] implements the multi-key
-wrapper: generation uses the configured default key, and parsing tries
-the default key first followed by remaining configured fallback keys.
-It currently returns the first valid result rather than rejecting
-multiple valid interpretations as required by the key-ring algorithm
-below; see Appendix B.
+reference implementation [DRN-PROJECT] generates with the configured
+default key and accepts only that key unless
+`UseSourceKnownIdKeyFallback` is explicitly enabled (default `false`).
+With fallback enabled, parsing tries the default key first, followed by
+remaining keys in configured order.  Once a candidate authenticates,
+its key pair remains fixed for variant and backward-proof checks; a
+failed check rejects the identifier without further key fallback.
+The parser does not scan for additional authenticated interpretations;
+see "Key-ring ambiguity" under Limitations and Appendix B.
+
+Both parsing paths MUST apply the same supported-epoch policy as
+`HasPlainCollision` before MAC verification.  The plaintext path checks
+the input epoch byte; the secure path checks the decrypted epoch byte.
+An unsupported input epoch skips plaintext verification but MUST NOT
+prevent a secure parse attempt, because ciphertext bytes do not encode
+the plaintext epoch.
 
 ~~~pseudocode
-procedure ParseSKEID(entityId, macKey, aesKey):
+procedure ParseSKEID(entityId, macKey, aesKey, enabledKeys):
+  -- Return both the parsed result and whether a candidate authenticated.
+  -- An authenticated candidate may still fail variant/proof checks.
   1. guidBytes ← entityId as 16-byte big-endian byte array
      (network byte order, per RFC 9562)
-  2. If guidBytes[6] == 0x8D AND guidBytes[8] == 0x8D:
-       -- Primary markers present: try plain parse
+  2. If guidBytes[0] is a supported epoch AND
+        guidBytes[6] == 0x8D AND guidBytes[8] == 0x8D:
+       -- Supported epoch and primary markers present: try plain parse
        result ← VerifyAndExtract(guidBytes, macKey, secure=false)
        If result.valid:
-         Return result
+         Return {result, authenticated=true}
        -- Markers were coincidental (~1/65536 for ciphertext)
        guidBytes ← entityId as byte array (restore)
   3. -- Try secure path ("Secure SKEID Specification" above)
      DecryptGUIDBlock(guidBytes, aesKey)
-     If guidBytes[6] == 0x8D AND
+     If guidBytes[0] is a supported epoch AND
+        guidBytes[6] == 0x8D AND
         (guidBytes[8] AND 0xC0) == 0x80:
        -- RFC 9562 variant structural precheck (matches 0x80-0xBF)
+       result ← VerifyAndExtract(guidBytes, macKey, secure=true)
+       If NOT result.valid:
+         Return {result=INVALID, authenticated=false}
        recoveredVariant ← guidBytes[8]
        If recoveredVariant > 0x8D AND recoveredVariant <= 0xBF:
          -- Non-default variant: backward collision-guard verification
          If NOT VerifyCollisionGuardProof(guidBytes, macKey, aesKey,
-                                          recoveredVariant - 1):
-           Return INVALID
+                                          recoveredVariant, enabledKeys):
+           Return {result=INVALID, authenticated=true}
        Else If recoveredVariant != 0x8D:
-         Return INVALID
-       Return VerifyAndExtract(guidBytes, macKey, secure=true)
+         Return {result=INVALID, authenticated=true}
+       Return {result, authenticated=true}
      Else:
-       Return INVALID
+       Return {result=INVALID, authenticated=false}
 ~~~
 
 ~~~pseudocode
@@ -860,32 +879,48 @@ procedure VerifyAndExtract(guidBytes, macKey, secure):
 A Secure SKEID is produced by encrypting the entire 16-byte SKEID
 plaintext using AES-256-ECB [FIPS197]:
 
+The generation pair (`macKey`, `aesKey`) is the current default key.
+`enabledKeys` contains that key and, only when fallback is enabled, all
+configured fallback keys, as in "Parse with Key-Ring Fallback".  Every
+candidate uses the generation pair for its MAC and encryption;
+collision checks use `enabledKeys`.
+
 ~~~pseudocode
-procedure GenerateSecureSKEID(id, epoch, entityType, macKey, aesKey):
+procedure GenerateSecureSKEID(id, epoch, entityType, macKey, aesKey, enabledKeys):
   1. variantByte ← 0x8D              -- primary variant
   2. guidBytes ← GenerateSKEID(id, epoch, entityType, macKey,
                                variantByte=variantByte)
      -- produces the same plaintext layout as non-secure
   3. EncryptGUIDBlock(guidBytes, aesKey)
-  4. -- Collision guard: detect marker+MAC coincidence
-     If guidBytes[6] == 0x8D AND guidBytes[8] == 0x8D
-           AND HasCoincidentalMACMatch(guidBytes, macKey):
-       -- Ciphertext has plain markers (~1/65536) AND MAC
-       -- matches (~1/2^32 given markers).
-       -- Combined probability per iteration: ~1/2^48
+  4. -- Collision guard: detect plaintext acceptance under any enabled key
+     If HasPlainCollision(guidBytes, enabledKeys):
        -- Iterate through variant space for deterministic termination
        For variantByte ← 0x8E to 0xBF:
          guidBytes ← GenerateSKEID(id, epoch, entityType, macKey,
                                      variantByte=variantByte)
          EncryptGUIDBlock(guidBytes, aesKey)
-         If NOT (guidBytes[6] == 0x8D AND guidBytes[8] == 0x8D
-                 AND HasCoincidentalMACMatch(guidBytes, macKey)):
+         If NOT HasPlainCollision(guidBytes, enabledKeys):
            Break    -- collision resolved
        If variantByte > 0xBF:
          Throw JackpotException
-         -- All 51 variants exhausted; probability ~1/2^(48×51)
+         -- All 51 variants exhausted
   5. entityId ← construct UUID from guidBytes
   6. Return entityId
+~~~
+
+Generation and backward verification MUST use the same plaintext
+collision predicate.  It checks the supported epoch and exact plain
+markers, then accepts a MAC match under any enabled verification key:
+
+~~~pseudocode
+procedure HasPlainCollision(ciphertextBytes, enabledKeys):
+  1. If ciphertextBytes[0] is not a supported epoch: Return FALSE
+  2. If ciphertextBytes[6] != 0x8D OR ciphertextBytes[8] != 0x8D:
+       Return FALSE
+  3. For key in enabledKeys:
+       If HasCoincidentalMACMatch(ciphertextBytes, key.macKey):
+         Return TRUE
+  4. Return FALSE
 ~~~
 
 The `HasCoincidentalMACMatch` procedure treats the ciphertext as if it
@@ -980,57 +1015,77 @@ protocol specification.
 ## Collision Guard Guarantee
 
 Without the collision guard, the ideal-cipher and MAC assumptions give
-a combined ~1/2^48 probability that ciphertext coincidentally matches
-the plaintext marker bytes and produces a valid MAC when interpreted as
-a plain SKEID.  This would misclassify the Secure SKEID.
+a combined ~1/2^48 probability per verification key that ciphertext
+coincidentally matches the plaintext marker bytes and produces a valid
+MAC, before restricting accepted epochs.  With only epoch 0 accepted,
+this becomes approximately 1/2^56 per key.  Multiple enabled keys increase
+the per-candidate collision probability.  Such a collision would
+misclassify the Secure SKEID.
 
 The collision guard in GenerateSecureSKEID ("Encryption" above)
-eliminates this misclassification for identifiers it emits.  When a
-marker-and-MAC collision is detected, the plaintext is regenerated with
-successive variant bytes from 0x8E through 0xBF (50 alternatives).
+eliminates this misclassification for the verification keys enabled
+during generation.  When HasPlainCollision detects a collision,
+the plaintext is regenerated with successive variant bytes from
+0x8E through 0xBF (50 alternatives).
 AES maps each distinct plaintext to a distinct ciphertext; under the
 ideal-PRP assumption, those ciphertexts are pseudorandom-looking.  The
 loop terminates after at most 51 attempts, either with an identifier or
-an error.  Treating attempts as independent gives an approximate
-exhaustion probability of 1/2^(48×51).
+an error.  For one verification key accepting all epochs, treating
+attempts as independent gives an approximate exhaustion probability of
+1/2^(48×51); the estimate depends on the enabled key set and accepted epochs.
 
 The security model is described in "Security Considerations" below.
 
 ### Backward Verification Algorithm
 
-During parsing, when a non-default variant byte V is recovered from the
-decrypted plaintext (V > 0x8D), the parse algorithm MUST verify that
-the previous variant (V−1) genuinely triggered the collision guard:
+During parsing, the recovered plaintext MUST pass its own MAC
+verification before variant or backward-proof checks.  The authenticated
+key pair MUST remain fixed throughout those checks.  When a non-default
+variant byte V is recovered (0x8D < V <= 0xBF), the parse algorithm MUST
+verify that every preceding variant from V-1 down to 0x8D, inclusive, triggered
+the collision guard.  Reconstruction uses the authenticated key pair;
+plaintext collision checks use `enabledKeys`:
 
 ~~~pseudocode
 procedure VerifyCollisionGuardProof(decryptedBytes, macKey, aesKey,
-                                     previousVariant):
+                                    recoveredVariant, enabledKeys):
   1. Extract id, entityType from decryptedBytes
   2. epochByte ← decryptedBytes[0]
-  3. Reconstruct plaintext with variant = previousVariant:
-     reconstructedPlaintext ← GenerateSKEID(id, epochByte, entityType,
-                                            macKey,
-                                            variantByte=previousVariant)
-  4. candidateCiphertext ← EncryptGUIDBlock(reconstructedPlaintext, aesKey)
-  5. Return candidateCiphertext[6] == 0x8D
-         AND candidateCiphertext[8] == 0x8D
-         AND HasCoincidentalMACMatch(candidateCiphertext, macKey)
-     -- True: previous variant genuinely collided → legitimate escalation
-     -- False: variant was tampered → INVALID
+  3. For previousVariant from recoveredVariant - 1 down to 0x8D:
+       reconstructedPlaintext ← GenerateSKEID(id, epochByte, entityType, macKey,
+                                              variantByte=previousVariant)
+       candidateCiphertext ← copy of reconstructedPlaintext
+       EncryptGUIDBlock(candidateCiphertext, aesKey)
+       If NOT HasPlainCollision(candidateCiphertext, enabledKeys):
+         Return FALSE
+  4. Return TRUE
 ~~~
 
-This single-step backward check verifies the immediate predecessor
-collision that justified the recovered non-default variant.  It rejects
-arbitrary non-default variant tampering under the current generator and
-parser contract, but it is not a full canonical proof that every lower
-variant from 0x8D through V-1 also collided.  Implementations that need
-that stronger canonicality property MUST verify each prior variant
-explicitly.
+Each reconstruction MUST use the same collision predicate as generation,
+including any supported-epoch restriction on plaintext acceptance.  The
+reference implementation currently accepts only epoch 0.
 
-For the generation key, no returned Secure SKEID can pass the plain
-parse path as valid; generation fails if every guard variant collides.
-Keys added later were not part of this check; see "Key-ring ambiguity"
-under Limitations.
+For example, if the base candidate encrypted under key A collides only
+with enabled fallback key B, generation advances to 0x8E.  Parsing that
+candidate reconstructs with A but MUST check both A and B to verify the
+base collision.  Checking only A would incorrectly reject the proof.
+
+The complete chain establishes that no preceding candidate would have
+stopped generation.  A collision at V-1 alone does not establish a
+collision at V-2, and parsing MUST NOT assume that generation verified
+earlier candidates.  For V = 0x8F, both 0x8E and 0x8D MUST collide.
+Verification requires at most 50 preceding-candidate checks and MUST
+stop at the first missing collision.  A failed proof MUST reject the
+identifier without trying another key; it is not a MAC-authentication
+failure that permits fallback.
+
+For every verification key enabled during generation, no returned Secure
+SKEID can pass the plain parse path as valid; generation fails if every
+guard variant collides.  Keys added later were not part of this check.
+Implementations SHOULD retain keys used during generation for the
+lifetime of identifiers produced under them; removing a key can
+invalidate non-default variants whose collision proof depended on it.
+See "Key-ring ambiguity" under Limitations.
 
 ### Numeric Walkthrough
 
@@ -1075,9 +1130,10 @@ the probability that C2 also collides is approximately 1/2^48.  In the
 usual case, C2 becomes the final Secure SKEID.
 
 **Step 4 — Backward Verification at Parse Time:** When a consumer
-parses C2 by decrypting with K_aes, the recovered plaintext reveals
-variant byte 0x8E (greater than 0x8D).  The parser MUST verify that
-the escalation was legitimate:
+parses C2 by decrypting with K_aes, it first authenticates the recovered
+plaintext with K_mac.  Only after authentication succeeds does it check
+variant byte 0x8E (greater than 0x8D) and verify that the escalation was
+legitimate, keeping that key pair fixed:
 
 ~~~pseudocode
 1. Reconstruct the SKEID with variant 0x8D (replacing 0x8E and
@@ -1085,30 +1141,33 @@ the escalation was legitimate:
 2. Encrypt that reconstruction with K_aes to obtain C1.
 3. Check that C1 exhibits the marker-plus-MAC coincidence,
    confirming the collision that justified the escalation.
-4. This immediate-predecessor check completes the reference parser's
-   supported validation for the recovered 0x8E variant.
+4. For recovered variant 0x8E, 0x8D is the only preceding candidate,
+   so this check covers the complete chain.  Higher recovered variants
+   require checking every preceding candidate down to 0x8D.
 ~~~
 
 If the backward check fails (the reconstructed C1 does not exhibit the
-coincidence), the parser MUST reject the identifier as invalid.  This
-rejects a non-default variant without a valid immediate-predecessor
-collision proof.
+coincidence), the parser MUST reject the identifier as invalid without
+further key fallback.  This rejects a non-default variant without a
+complete preceding collision chain.
 
 `PaperNumericWalkthroughTests` covers the SKID hex value, structural
 byte layout, ordering, and round trips in this walkthrough.  Appendix A
 MAC and ciphertext vectors are covered separately by
-`IetfTestVectorGeneratorTests` [DRN-PROJECT].
+`IetfDraftTestVectorTests` [DRN-PROJECT].
 
 ## Secure ↔ Plain Conversion
 
 Given a valid (parsed) SKEID, implementations MAY convert between
-secure and plain representations:
+secure and plain representations.  `macKey` and `aesKey` are the current
+default key pair.  Secure conversion uses the same `enabledKeys` set
+and epoch-acceptance policy as secure generation:
 
 ~~~pseudocode
-procedure ToSecure(skeid):
+procedure ToSecure(skeid, enabledKeys):
   If skeid.secure: Return skeid (already encrypted)
   Return GenerateSecureSKEID(skeid.sourceKnownId.value, skeid.epoch, skeid.entityType,
-                              macKey, aesKey)
+                              macKey, aesKey, enabledKeys)
 
 procedure ToPlain(skeid):
   If NOT skeid.secure: Return skeid (already plaintext)
@@ -1126,8 +1185,10 @@ input SKEID before conversion.
 
 Implementations MUST support a key-ring containing one or more key
 entries.  Exactly one key MUST be designated as the "default" (active)
-key at any time.  Previous keys remain in the key-ring for parse
-fallback.
+key at any time.  Applications MAY retain previous keys for routine
+rotation, but verification with non-default keys requires explicit
+opt-in.  The reference implementation uses
+`UseSourceKnownIdKeyFallback`, which defaults to `false`.
 
 Parse cost is linear in the number of attempted keys.  Implementations
 MUST set an operational limit on fallback entries and apply the failure
@@ -1139,34 +1200,41 @@ above): a MAC key for BLAKE3 and an AES key for encryption.
 ## Generation
 
 All new SKEID and Secure SKEID generation MUST use the current default
-key.
+key for MAC computation and encryption.  Secure generation MUST pass
+`enabledKeys` to GenerateSecureSKEID for collision checks.
 
 ## Parse with Key-Ring Fallback
 
-When parsing an SKEID, implementations MUST evaluate the current
-default key and every configured fallback key.  The default is evaluated
-first, followed by fallback keys in configured order.  Exactly one valid
-interpretation is accepted; zero or multiple valid interpretations are
-INVALID.  Operators SHOULD configure fallbacks newest first for
+When parsing an SKEID, implementations MUST try the current default key
+first.  If fallback is enabled, remaining configured keys are tried in
+configured order only until a candidate authenticates.  Authentication
+fixes the key pair for variant and backward-proof checks: their failure
+MUST return INVALID without trying another key.  A successful result is
+returned immediately; this procedure does not detect multiple valid
+interpretations.  Operators SHOULD configure fallbacks newest first for
 consistent diagnostics:
 
 ~~~pseudocode
-procedure ParseWithKeyRing(entityId, keyRing):
-  candidates ← empty list
-  For key in [keyRing.current, keyRing.previousConfiguredOrder...]:
-    result ← ParseSKEID(entityId, key.macKey, key.aesKey)
-    If result.valid: Append result to candidates
-
-  If candidates.count == 1: Return candidates[0]
-  Return INVALID  -- unrecognized or ambiguous
+procedure ParseWithKeyRing(entityId, keyRing, useKeyFallback=false):
+  enabledKeys ← [keyRing.current]
+  If useKeyFallback:
+    Append keyRing.previousConfiguredOrder to enabledKeys
+  For key in enabledKeys:
+    attempt ← ParseSKEID(entityId, key.macKey, key.aesKey, enabledKeys)
+    If attempt.authenticated:
+      Return attempt.result  -- may be INVALID after variant/proof checks
+  Return INVALID  -- no candidate authenticated
 ~~~
 
 ## Rotation Window
 
 During a rotation window, implementations MUST generate with the new
-default key and retain the previous key for parsing until the defined
-window closes.  Hot configuration reload and in-flight request handling
-are implementation-specific.
+default key and explicitly enable verification with the retained previous
+key until the defined window closes.  In the reference implementation,
+set `UseSourceKnownIdKeyFallback=true` and recreate the ID utilities
+(normally by restarting the application) to apply key changes.
+Hot configuration reload and in-flight request handling are
+implementation-specific.
 
 Key rotation does not require re-encrypting existing database records
 because:
@@ -1181,8 +1249,9 @@ because:
 
 3. **Fallback parsing**: After rotation, new identifiers use the new
    key.  Existing identifiers remain parseable while their previous key
-   remains configured.  Re-issuing an identifier changes its external
-   value and can affect links, caches, and clients.
+   remains enabled for verification and their format remains accepted.
+   Re-issuing an identifier changes its external value and can affect
+   links, caches, and clients.
 
 ## Key Compromise Recovery
 
@@ -1226,15 +1295,15 @@ derived values, need re-generation.
 | Transformation | Operation |
 |----------------|-----------|
 | SKID → SKEID | `GenerateSKEID(skid, epoch, entityType, macKey)` |
-| SKID → Secure SKEID | `GenerateSecureSKEID(skid, epoch, entityType, macKey, aesKey)` |
+| SKID → Secure SKEID | `GenerateSecureSKEID(skid, epoch, entityType, macKey, aesKey, enabledKeys)` |
 | SKEID → SKID | `ParseSKEID(skeid).source.id` |
-| SKEID → Secure SKEID | `ToSecure(parsedSKEID)` |
+| SKEID → Secure SKEID | `ToSecure(parsedSKEID, enabledKeys)` |
 | Secure SKEID → SKID | `ParseSKEID(secureSkeid).source.id` |
 | Secure SKEID → SKEID | `ToPlain(parsedSecureSKEID)` |
 
 All transformations are deterministic given the same epoch, entity
-type, and keys.  A valid SKEID yields its SKID when parsed with the
-matching context.
+type, generation key pair, enabled verification keys, and epoch-acceptance
+policy.  A valid SKEID yields its SKID when parsed with the matching context.
 
 ## Context Security Configuration
 
@@ -1355,9 +1424,12 @@ with any historical pre-epoch encoding.
    Appendix B for the current reference implementation status.
 
 2. **Managed key lifecycle and rollover interoperability**: The reference
-   implementation supports a configured key-ring with default-first parse
-   fallback through remaining configured keys.  Operational rotation policy,
-   key retention windows, key labels, compromise metadata, automated
+   implementation supports opt-in, default-first parse fallback through
+   remaining configured keys via `UseSourceKnownIdKeyFallback` (default
+   `false`).  Authentication fixes the key pair; failed variant or
+   backward-proof checks reject the identifier without further fallback.
+   Operational rotation policy, key retention windows, key labels,
+   compromise metadata, automated
    grace-window management, and cross-implementation rollover guidance remain
    future work.
 
@@ -1725,15 +1797,19 @@ representation remains big-endian and RFC 9562 compliant.
    use plaintext SKEIDs or accept Secure SKEIDs as opaque 128-bit
    values.
 
-7. **Key-ring ambiguity**: The collision guard covers the generation
-   key pair only.  Under idealized independence, a later MAC key can
+7. **Key-ring ambiguity**: The plaintext collision guard covers every
+   verification key enabled during generation.  Under idealized
+   independence, a later MAC key can
    make an existing ciphertext look like a plain SKEID, or a later
    AES/MAC pair can decrypt it to a false valid Secure SKEID.  The
    primary-marker path is on the order of 1/2^48 per random candidate.
-   Scanning all keys can reject ambiguity only while the origin key
-   remains present; after it is removed, a sole false match cannot be
-   distinguished without a key identifier.  During normal rotation,
-   retain origin keys until affected identifiers expire or are reissued.
+   The parser stops at the first authenticated candidate and does not
+   detect multiple valid interpretations.  Even a parser that scanned
+   all keys could reject ambiguity only while the origin key remained
+   present; after removal, a sole false match cannot be distinguished
+   without a key identifier.  During normal rotation, explicitly enable
+   verification with retained origin keys until affected identifiers
+   expire or are reissued.
    Compromised keys require the isolated migration procedure above.
 
 ## Open Questions for Community
@@ -1905,7 +1981,7 @@ decisions are solely the work of the author.  The companion paper
 # Appendix A. Test Vectors
 
 The following test vectors were generated by
-`IetfTestVectorGeneratorTests.Generate_IETF_Test_Vectors`.
+`IetfDraftTestVectorTests.Generate_IETF_Test_Vectors`.
 Implementers SHOULD verify that their implementation produces
 identical outputs for these inputs before substituting production key
 material.
@@ -2050,9 +2126,13 @@ Current implementation status: DRN-Project emits epoch byte `0x00` and
 does not yet resolve nonzero epoch bytes during parsing.  The protocol
 behavior for nonzero epoch bytes is specified above; nonzero epoch
 support is reserved for a future reference implementation extension.
-The parser tries the default key followed by configured fallback keys
-and returns the first valid result; it does not yet detect rare
-cross-key ambiguous interpretations.
+The parser accepts only the default key unless
+`UseSourceKnownIdKeyFallback=true`; enabled fallback keys are tried in
+configured order.  It authenticates the candidate before variant and
+backward-proof checks, retaining the authenticated key pair.  Failed
+checks reject the identifier without further fallback; a successful
+result is returned immediately.  It does not detect rare cross-key
+ambiguous interpretations.
 The current tag comparison uses the runtime sequence-comparison API;
 fixed-time behavior is not established by the test suite.
 
@@ -2085,7 +2165,7 @@ through multiple evidence tiers:
   verification, and Secure SKEID encryption/decryption round-trips.
 - **Paper-verification tests** (`PaperNumericWalkthroughTests`,
   `PaperEpochAddressabilityTests`, `PaperThroughputAnalysisTests`, and
-  `IetfTestVectorGeneratorTests`)
+  `IetfDraftTestVectorTests`)
   assert the exact numeric walkthrough values, byte layouts, epoch
   boundaries, lexicographic ordering, Appendix A vectors, and arithmetic
   throughput limits cited by the specification and companion paper

@@ -34,4 +34,8 @@
       </None>
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Reports\Hash\SmallPayload\2026-09-20\" />
+    </ItemGroup>
+
 </Project>

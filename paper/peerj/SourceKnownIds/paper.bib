@@ -8,11 +8,63 @@
   doi          = {10.17487/RFC9562}
 }
 
+@techreport{rfc5116,
+  author       = {D. McGrew},
+  title        = {{An Interface and Algorithms for Authenticated Encryption}},
+  institution  = {IETF},
+  number       = {RFC 5116},
+  year         = {2008},
+  url          = {https://www.rfc-editor.org/rfc/rfc5116},
+  doi          = {10.17487/RFC5116}
+}
+
+@techreport{rfc5297,
+  author       = {D. Harkins},
+  title        = {{Synthetic Initialization Vector (SIV) Authenticated Encryption Using the Advanced Encryption Standard (AES)}},
+  institution  = {IETF},
+  number       = {RFC 5297},
+  year         = {2008},
+  url          = {https://www.rfc-editor.org/rfc/rfc5297},
+  doi          = {10.17487/RFC5297}
+}
+
+@techreport{rfc4493,
+  author       = {J. H. Song and R. Poovendran and J. Lee and T. Iwata},
+  title        = {{The AES-CMAC Algorithm}},
+  institution  = {IETF},
+  number       = {RFC 4493},
+  year         = {2006},
+  url          = {https://www.rfc-editor.org/rfc/rfc4493},
+  doi          = {10.17487/RFC4493}
+}
+
 @misc{blake3,
   author       = {J. O'Connor and J-P. Aumasson and S. Neves and Z. Wilcox-O'Hearn},
   title        = {{BLAKE3: One function, fast everywhere}},
-  year         = {2020},
-  url          = {https://github.com/BLAKE3-team/BLAKE3-specs/blob/master/blake3.pdf}
+  year         = {2021},
+  url          = {https://github.com/BLAKE3-team/BLAKE3-specs/blob/ac78a717924dd9e6f16f547baa916c6f71470b1a/blake3.pdf},
+  note         = {Originally published in 2020. Specification revision dated 2021-11-02, commit ac78a717924dd9e6f16f547baa916c6f71470b1a.}
+}
+
+@techreport{nistsp80038b,
+  author       = {M. Dworkin},
+  title        = {{Recommendation for Block Cipher Modes of Operation: the CMAC Mode for Authentication}},
+  institution  = {NIST},
+  number       = {SP 800-38B},
+  year         = {2005},
+  url          = {https://csrc.nist.gov/pubs/sp/800/38/b/upd1/final},
+  doi          = {10.6028/NIST.SP.800-38B},
+  note         = {Updated October 6, 2016.}
+}
+
+@techreport{nistsp80038d,
+  author       = {M. Dworkin},
+  title        = {{Recommendation for Block Cipher Modes of Operation: Galois/Counter Mode (GCM) and GMAC}},
+  institution  = {NIST},
+  number       = {SP 800-38D},
+  year         = {2007},
+  url          = {https://csrc.nist.gov/pubs/sp/800/38/d/final},
+  doi          = {10.6028/NIST.SP.800-38D}
 }
 
 @techreport{fips197,
@@ -20,56 +72,86 @@
   title        = {{Advanced Encryption Standard (AES)}},
   institution  = {NIST},
   number       = {FIPS 197},
-  year         = {2001},
-  url          = {https://csrc.nist.gov/publications/detail/fips/197/final},
+  year         = {2023},
+  url          = {https://csrc.nist.gov/pubs/fips/197/final},
   doi          = {10.6028/NIST.FIPS.197-upd1}
 }
 
 @misc{drn-project,
   author       = {D. S. K{\i}l{\i}\c{c}},
   title        = {{DRN-Project: Distributed Reliable .Net}},
-  year         = {2023},
+  year         = {2026},
   url          = {https://github.com/duranserkan/DRN-Project/tree/v0.9.1},
   doi          = {10.5281/zenodo.19240397},
-  note         = {Repository containing the DRN.Framework packages}
+  note         = {Software release v0.9.1 dated 2026-03-26. Repository containing the DRN.Framework packages.}
 }
 
 @misc{draft-skid,
   author       = {D. S. K{\i}l{\i}\c{c}},
   title        = {{Source Known Identifiers (SKIDs): Technical Specification Draft}},
   year         = {2026},
-  note         = {Draft specification prepared in Internet-Draft format},
+  note         = {Author-hosted draft-kilic-skid-00, prepared in Internet-Draft format. Located at docs/draft-skid-00.md in DRN-Project v0.9.1. DOI identifies the containing software release archive.},
   url          = {https://github.com/duranserkan/DRN-Project/blob/v0.9.1/docs/draft-skid-00.md},
   doi          = {10.5281/zenodo.19240397}
 }
 
+@misc{khuong2022,
+  author       = {Paul Khuong},
+  title        = {{Plan B for UUIDs: double AES-128}},
+  year         = {2022},
+  month        = jul,
+  day          = {11},
+  url          = {https://pvk.ca/Blog/2022/07/11/plan-b-for-uuids-double-aes-128/},
+  note         = {Technical blog post.}
+}
+
+@misc{idmask,
+  author       = {Patrick Favre},
+  title        = {{IDMask: Encryption and Obfuscation of IDs}},
+  year         = {2023},
+  url          = {https://github.com/patrickfav/id-mask/blob/v0.6.0/README.md},
+  note         = {Version 0.6.0, released March 5, 2023. See Encryption Schema.}
+}
+
 @misc{snowflake,
+  author       = {{Twitter Engineering}},
+  title        = {{Snowflake: IdWorker.scala (snowflake-2010)}},
+  year         = {2012},
+  url          = {https://github.com/twitter-archive/snowflake/blob/b3f6a3c6ca8e1b6847baa6ff42bf72201e2c2231/src/main/scala/com/twitter/service/snowflake/IdWorker.scala},
+  note         = {Project introduced in 2010. Source revision dated 2012-10-01 from the snowflake-2010 tag, commit b3f6a3c6ca8e1b6847baa6ff42bf72201e2c2231.}
+}
+
+@misc{snowflake-announcement,
   author       = {{Twitter Engineering}},
   title        = {{Announcing Snowflake}},
   year         = {2010},
-  url          = {https://github.com/twitter-archive/snowflake}
+  month        = jun,
+  day          = {1},
+  url          = {https://blog.x.com/engineering/en_us/a/2010/announcing-snowflake}
 }
 
 @misc{ulid,
   author       = {A. Feerasta},
   title        = {{ULID: Universally Unique Lexicographically Sortable Identifier}},
-  year         = {2016},
-  url          = {https://github.com/ulid/spec}
+  year         = {2019},
+  url          = {https://github.com/ulid/spec/blob/d0c7170df4517939e70129b4d6462cc162f2d5bf/README.md},
+  note         = {Project introduced in 2016. Specification revision dated 2019-05-23, commit d0c7170df4517939e70129b4d6462cc162f2d5bf.}
 }
 
 @misc{cuid-deprecated,
   author       = {E. Elliott},
   title        = {{CUID: Collision-resistant ids (deprecated)}},
-  year         = {2012},
-  note         = {Deprecated due to security. Successor: CUID2},
-  url          = {https://github.com/paralleldrive/cuid}
+  year         = {2023},
+  note         = {Project introduced in 2012. Documentation revision dated 2023-01-24, commit 29b8fbfbaadead797ac3b38201c50c55e491a8ce. Includes the deprecation notice. Successor: CUID2.},
+  url          = {https://github.com/paralleldrive/cuid/blob/29b8fbfbaadead797ac3b38201c50c55e491a8ce/README.md}
 }
 
 @misc{cuid2,
   author       = {E. Elliott},
   title        = {{CUID2: Secure, collision-resistant ids}},
-  year         = {2022},
-  url          = {https://github.com/paralleldrive/cuid2}
+  year         = {2026},
+  url          = {https://github.com/paralleldrive/cuid2/blob/d296cc84463064e511c2d698ce221730d40fdd09/README.md},
+  note         = {Project introduced in 2022. Documentation revision dated 2026-02-07, commit d296cc84463064e511c2d698ce221730d40fdd09.}
 }
 
 @book{evans2003,
@@ -84,8 +166,9 @@
 @misc{ksuid,
   author       = {{Segment}},
   title        = {{KSUID: K-Sortable Globally Unique IDs}},
-  year         = {2017},
-  url          = {https://github.com/segmentio/ksuid}
+  year         = {2023},
+  url          = {https://github.com/segmentio/ksuid/blob/d33724947fcfba7949906c2b1821e96a1c8d06e7/README.md},
+  note         = {Project introduced in 2017. Documentation revision dated 2023-10-04, commit d33724947fcfba7949906c2b1821e96a1c8d06e7.}
 }
 
 @book{shostack2014,
@@ -119,6 +202,15 @@
   url       = {https://www.cs.ucdavis.edu/~rogaway/papers/p2f.pdf}
 }
 
+@misc{bellare1999,
+  author       = {Mihir Bellare and Phillip Rogaway},
+  title        = {{Encode-then-encipher encryption: How to exploit nonces or redundancy in plaintexts for efficient cryptography}},
+  year         = {1999},
+  month        = oct,
+  url          = {https://escholarship.org/content/qt80n3m1fj/qt80n3m1fj_noSplash_361a5dfee4f53c7caaaf5eb0a73bc570.pdf},
+  note         = {Manuscript dated October 1999.}
+}
+
 @techreport{nistsp800107,
   author       = {Q. Dang},
   title        = {{Recommendation for Applications Using Approved Hash Algorithms}},
@@ -131,7 +223,7 @@
 
 @techreport{nistsp800224,
   author       = {M. S. Turan and L. T. A. N. Brand\~{a}o},
-  title        = {{Keyed-Hash Message Authentication Code (HMAC): Specification of HMAC and Recommendations for Message Authentication}},
+  title        = {{Keyed-Hash Message Authentication Code (HMAC): Specification of HMAC and Recommendations for Message Authentication (Initial Public Draft)}},
   institution  = {NIST},
   number       = {SP 800-224 (Initial Public Draft)},
   year         = {2024},
@@ -148,10 +240,11 @@
 }
 
 @misc{benchmarkdotnet,
-  author       = {A. Akinshin and others},
+  author       = {Akinshin, Andrey},
   title        = {{BenchmarkDotNet: Powerful .NET library for benchmarking}},
-  year         = {2013},
-  url          = {https://github.com/dotnet/BenchmarkDotNet}
+  year         = {2025},
+  url          = {https://github.com/dotnet/BenchmarkDotNet/releases/tag/v0.15.8},
+  note         = {Project introduced in 2013. Software release v0.15.8 dated 2025-11-30.}
 }
 
 @article{bonnetain2019,
@@ -162,12 +255,12 @@
   number       = {2},
   pages        = {55--93},
   year         = {2019},
-  doi          = {10.13154/tosc.v2019.i2.55-93},
+  doi          = {10.46586/tosc.v2019.i2.55-93},
   url          = {https://inria.hal.science/hal-02397049/document}
 }
 
 @book{brooks1995,
-  author       = {F. P. Brooks Jr.},
+  author       = {Brooks, Jr., Frederick P.},
   title        = {{The Mythical Man-Month: Essays on Software Engineering}},
   edition      = {Anniversary},
   publisher    = {Addison-Wesley},
@@ -179,17 +272,17 @@
 @misc{cwe639,
   author       = {{MITRE Corporation}},
   title        = {{CWE-639: Authorization Bypass Through User-Controlled Key}},
-  year         = {2025},
+  year         = {2026},
   url          = {https://cwe.mitre.org/data/definitions/639.html},
-  note         = {Common Weakness Enumeration, version 4.19.1}
+  note         = {Common Weakness Enumeration, version 4.20}
 }
 
 @misc{cwe345,
   author       = {{MITRE Corporation}},
   title        = {{CWE-345: Insufficient Verification of Data Authenticity}},
-  year         = {2025},
+  year         = {2026},
   url          = {https://cwe.mitre.org/data/definitions/345.html},
-  note         = {Common Weakness Enumeration, version 4.19.1}
+  note         = {Common Weakness Enumeration, version 4.20}
 }
 
 @article{ruggles1947,
