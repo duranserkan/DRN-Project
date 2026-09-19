@@ -1,10 +1,10 @@
-using System.ComponentModel.DataAnnotations;
 using DRN.Framework.EntityFramework.Attributes;
 using DRN.Framework.EntityFramework.Domain;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.SharedKernel.Domain.Repository;
 using DRN.Framework.Utils.Entity;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
+using Sample.Domain.QB;
 
 namespace Sample.Infra.QB;
 
@@ -28,24 +28,6 @@ public class QBContext : DrnContext<QBContext>
     public QBContext() : base(null)
     {
     }
-}
-
-[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-public sealed class QBEntityTypeAttribute(QBEntityTypes entityType)
-    : EntityTypeAttribute<TestApp>((byte)entityType);
-
-public enum QBEntityTypes : byte
-{
-    QBTestEntity = 255
-}
-
-[QBEntityType(QBEntityTypes.QBTestEntity)]
-public class QBTestEntity : AggregateRoot
-{
-    public long TestValue { get; init; }
-
-    [MaxLength(100)]
-    public string TestValueString { get; init; } = string.Empty;
 }
 
 public interface IQBTestEntityRepository : ISourceKnownRepository<QBTestEntity>;

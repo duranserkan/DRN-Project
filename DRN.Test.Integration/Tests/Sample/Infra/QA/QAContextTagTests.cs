@@ -8,9 +8,10 @@ using Sample.Domain.QA.Questions;
 using Sample.Domain.QA.Tags;
 using Sample.Infra;
 using Sample.Infra.QA;
-using Sample.Infra.QB;
+using Sample.Domain.QB;
 
 namespace DRN.Test.Integration.Tests.Sample.Infra.QA;
+
 
 [SuppressMessage("ReSharper", "RedundantCast")]
 public class QAContextTagTests

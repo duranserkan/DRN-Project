@@ -135,11 +135,12 @@ public class SourceKnownEntityIdPostgresUuidCompatibilityTests
         }
 
         // 8. Test PostgreSQL query filtering by UUID parameter (indexed lookup)
-        (await ExecuteScalarLongAsync(conn, "SELECT id FROM skeid_uuid_compatibility_test WHERE plain_id = @p;", "p", plainSkeid.EntityId))
-            .Should().Be(recordId1);
+        (await ExecuteScalarLongAsync(conn, "SELECT COUNT(*) FROM skeid_uuid_compatibility_test WHERE plain_id = @p;", "p", plainSkeid.EntityId))
+            .Should().Be(2);
 
-        (await ExecuteScalarLongAsync(conn, "SELECT id FROM skeid_uuid_compatibility_test WHERE secure_id = @s;", "s", secureSkeid.EntityId))
-            .Should().Be(recordId1);
+        (await ExecuteScalarLongAsync(conn, "SELECT COUNT(*) FROM skeid_uuid_compatibility_test WHERE secure_id = @s;", "s", secureSkeid.EntityId))
+            .Should().Be(2);
+
 
         // 9. Test PostgreSQL ANY array filtering (batch lookup) with distinct IDs
         var nonExistentGuid = Guid.NewGuid();

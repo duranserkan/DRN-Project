@@ -126,17 +126,18 @@ public class SourceKnownEntityIdPostgresJsonCompatibilityTests
         }
 
         // 7. Filter by extracted text cast to UUID ((data->>'...')::uuid = @id)
-        (await ExecuteScalarLongAsync(conn, "SELECT id FROM skeid_json_compatibility_test WHERE (data_json->>'plainId')::uuid = @p;", "p", plainSkeid.EntityId))
-            .Should().Be(recordId1);
+        (await ExecuteScalarLongAsync(conn, "SELECT COUNT(*) FROM skeid_json_compatibility_test WHERE (data_json->>'plainId')::uuid = @p;", "p", plainSkeid.EntityId))
+            .Should().Be(2);
 
-        (await ExecuteScalarLongAsync(conn, "SELECT id FROM skeid_json_compatibility_test WHERE (data_json->>'secureId')::uuid = @s;", "s", secureSkeid.EntityId))
-            .Should().Be(recordId1);
+        (await ExecuteScalarLongAsync(conn, "SELECT COUNT(*) FROM skeid_json_compatibility_test WHERE (data_json->>'secureId')::uuid = @s;", "s", secureSkeid.EntityId))
+            .Should().Be(2);
 
-        (await ExecuteScalarLongAsync(conn, "SELECT id FROM skeid_json_compatibility_test WHERE (data_jsonb->>'plainId')::uuid = @p;", "p", plainSkeid.EntityId))
-            .Should().Be(recordId1);
+        (await ExecuteScalarLongAsync(conn, "SELECT COUNT(*) FROM skeid_json_compatibility_test WHERE (data_jsonb->>'plainId')::uuid = @p;", "p", plainSkeid.EntityId))
+            .Should().Be(2);
 
-        (await ExecuteScalarLongAsync(conn, "SELECT id FROM skeid_json_compatibility_test WHERE (data_jsonb->>'secureId')::uuid = @s;", "s", secureSkeid.EntityId))
-            .Should().Be(recordId1);
+        (await ExecuteScalarLongAsync(conn, "SELECT COUNT(*) FROM skeid_json_compatibility_test WHERE (data_jsonb->>'secureId')::uuid = @s;", "s", secureSkeid.EntityId))
+            .Should().Be(2);
+
 
         // 8. Case sensitivity: raw text equality vs normalized UUID cast
         var uppercasePlainGuidStr = plainSkeid.EntityId.ToString("D").ToUpperInvariant();
