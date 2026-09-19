@@ -9,7 +9,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### New Features
 
-*   **Development Settings**: `SettingsProvider.Development(...)` for AppId 0 and `Development<TApp>(...)` for a declared partition replace Utils' `AppSettings.Development(...)`. Both default AppInstanceId to 0, accept ordered overrides, reject conflicting AppIds, and return disposable `AppSettings`.
+*   **Development Settings**: `SettingsProvider.Development(...)` for AppId 0 and `Development<TApp>(...)` for a declared partition replace Utils' `AppSettings.Development(...)`. Both default AppInstanceId to 0, accept ordered overrides, reject conflicting AppIds, and return disposable `AppSettings`. `DevelopmentWithNexusSettings(...)` and `DevelopmentWithNexusSettings<TApp>(...)` support custom `NexusAppSettings` configurations with partition validation.
 *   **Multi-Application Hosting and Routing**: One `ApplicationContext` can host applications concurrently, including programs in the same assembly. Use `ApplicationContextRouterHandler`, `CreateClientForServiceAsync<TEntryPoint>("service-alias")`, and `MapAddress<TEntryPoint>("address")` for in-memory calls between them. Addresses can also come from application configuration.
 
 ### Security

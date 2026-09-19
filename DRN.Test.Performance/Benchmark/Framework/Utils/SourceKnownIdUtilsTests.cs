@@ -9,6 +9,7 @@ using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Testing.Providers;
 using DRN.Framework.Utils.Time;
+using DRN.Test.Performance.Benchmark.Domain;
 using Perfolizer.Mathematics.OutlierDetection;
 
 namespace DRN.Test.Performance.Benchmark.Framework.Utils;
@@ -44,6 +45,8 @@ public class SourceKnownIdUtilsPerformanceTests(ITestOutputHelper output)
 
 [Outliers(OutlierMode.RemoveUpper)]
 [MemoryDiagnoser]
+[GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
+[CategoriesColumn]
 [WarmupCount(120)]
 [IterationCount(120)]
 [InvocationCount(262_144)] // sequence cap (2^18) — at capacity per 250ms tick; Thread.Sleep prevents overflow
@@ -59,80 +62,65 @@ public class SourceKnownIdUtilsBenchmark
         EntityIdUtils = new(appSettings, IdUtils);
 
         // Pre-generate GUIDs for Parse benchmarks — avoids measuring ID generation in parse benchmarks
-        var id = IdUtils.Next<YEntity>();
-        SecureEntityId = EntityIdUtils.GenerateSecure<YEntity>(id);
-        PlainEntityId = EntityIdUtils.GeneratePlain<YEntity>(id);
-        Entity = new(IdUtils.Next<YEntity>());
+        var id = IdUtils.Next<PerformanceTestEntity>();
+        SecureEntityId = EntityIdUtils.GenerateSecure<PerformanceTestEntity>(id);
+        PlainEntityId = EntityIdUtils.GeneratePlain<PerformanceTestEntity>(id);
     }
 
     private static SourceKnownIdUtils IdUtils { get; }
     private static SourceKnownEntityIdUtils EntityIdUtils { get; }
     private static SourceKnownEntityId SecureEntityId { get; }
     private static SourceKnownEntityId PlainEntityId { get; }
-    private static YEntity Entity { get; }
+    
+    // --- 64-Bit ID Generation & Baselines ---
 
-    // --- Baseline benchmarks ---
+    [Benchmark(Baseline = true, Description = "SKID generation")]
+    [BenchmarkCategory("1: Generation 64 Bit")]
+    public long SourceKnownId() => IdUtils.Next<PerformanceTestEntity>();
 
-    [Benchmark]
+    [Benchmark(Description = "Random 64-bit integer generation")]
+    [BenchmarkCategory("1: Generation 64 Bit")]
     public long RandomLong() => BinaryPrimitives.ReadInt64LittleEndian(RandomNumberGenerator.GetBytes(8));
 
-    [Benchmark]
+    // --- 128-Bit GUID Generation ---
+
+    [Benchmark(Baseline = true, Description = "Plain SKEID generation")]
+    [BenchmarkCategory("2: Generation 128 Bit")]
+    public SourceKnownEntityId SourceKnownEntityIdWithSkidGeneration()
+        => EntityIdUtils.GeneratePlain<PerformanceTestEntity>(IdUtils.Next<PerformanceTestEntity>());
+
+    [Benchmark(Description = "Secure SKEID generation")]
+    [BenchmarkCategory("2: Generation 128 Bit")]
+    public SourceKnownEntityId SourceKnownEntityIdSecure()
+        => EntityIdUtils.GenerateSecure<PerformanceTestEntity>(IdUtils.Next<PerformanceTestEntity>());
+
+    [Benchmark(Description = "Random UUID V4 generation")]
+    [BenchmarkCategory("2: Generation 128 Bit")]
     public Guid RandomGuidV4() => Guid.NewGuid();
 
-    [Benchmark]
+    [Benchmark(Description = "Random UUID V7 generation")]
+    [BenchmarkCategory("2: Generation 128 Bit")]
     public Guid RandomGuidV7() => Guid.CreateVersion7();
 
-    [Benchmark]
-    public long TimeStampManager_TimeStamp() => TimeStampManager.CurrentTimestamp();
+    // --- Parsing ---
 
-    [Benchmark]
-    public SequenceTimeScopedId SequenceManager_TimeScopedId() => SequenceManager<YEntity>.GetTimeScopedId();
-
-    // --- SourceKnownId (raw long) ---
-
-    [Benchmark]
-    public long SourceKnownId() => IdUtils.Next<YEntity>();
-
-    // --- Non-secure SourceKnownEntityId: BLAKE3 MAC only (explicit call variants) ---
-
-    [Benchmark]
-    public SourceKnownEntityId SourceKnownEntityIdWithProvidedSkid()
-        => EntityIdUtils.GeneratePlain(Entity);
-
-    [Benchmark]
-    public SourceKnownEntityId SourceKnownEntityIdWithSkidGeneration()
-        => EntityIdUtils.GeneratePlain<YEntity>(IdUtils.Next<YEntity>());
-
-    [Benchmark]
-    public SourceKnownEntityId SourceKnownEntityIdWithEntityAllocation()
-        => EntityIdUtils.GeneratePlain(new YEntity(IdUtils.Next<YEntity>()));
-
-    // --- Secure SourceKnownEntityId: BLAKE3 MAC + AES-256-ECB encryption ---
-
-    [Benchmark]
-    public SourceKnownEntityId SourceKnownEntityIdSecure()
-        => EntityIdUtils.GenerateSecure<YEntity>(IdUtils.Next<YEntity>());
-
-    // --- Parse: non-secure GUID (MAC verify only) ---
-
-    [Benchmark]
+    [Benchmark(Baseline = true, Description = "SKEID parsing")]
+    [BenchmarkCategory("3: Parsing")]
     public SourceKnownEntityId ParseSourceKnownEntityId()
         => EntityIdUtils.Parse(PlainEntityId.EntityId, SourceKnownEntityIdFormat.Plain);
 
-    // --- Parse: secure GUID (AES-ECB decrypt + MAC verify) ---
-
-    [Benchmark]
+    [Benchmark(Description = "Secure SKEID parsing")]
+    [BenchmarkCategory("3: Parsing")]
     public SourceKnownEntityId ParseSecureSourceKnownEntityId()
-        => EntityIdUtils.Parse(SecureEntityId.EntityId);
+        => EntityIdUtils.Parse(SecureEntityId.EntityId, SourceKnownEntityIdFormat.Secure);
 
-    // --- Tier conversion: measures encryption/decryption cost independently ---
+    // --- Conversion ---
 
-    [Benchmark]
+    [Benchmark(Baseline = true, Description = "ToPlain")]
+    [BenchmarkCategory("4: Conversion")]
     public SourceKnownEntityId ToPlain() => EntityIdUtils.ToPlain(SecureEntityId);
 
-    [Benchmark]
+    [Benchmark(Description = "ToSecure")]
+    [BenchmarkCategory("4: Conversion")]
     public SourceKnownEntityId ToSecure() => EntityIdUtils.ToSecure(PlainEntityId);
 }
-
-[TestEntityType(92)]
-public class YEntity(long id) : SourceKnownEntity(id);

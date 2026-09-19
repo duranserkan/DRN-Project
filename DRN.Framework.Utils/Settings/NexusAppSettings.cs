@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -13,6 +14,8 @@ namespace DRN.Framework.Utils.Settings;
 /// <summary>
 /// In production values will be obtained from nexus as a remote configuration source
 /// </summary>
+[SuppressMessage("ReSharper", "ConditionalAccessQualifierIsNonNullableAccordingToAPIContract")]
+[SuppressMessage("ReSharper", "NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract")]
 public sealed class NexusAppSettings : IDisposable
 {
     private IReadOnlyList<NexusKey> _keys = [];
@@ -37,6 +40,12 @@ public sealed class NexusAppSettings : IDisposable
     /// Parse and Validate use the same secure/plain default for ConfiguredDefault; Secure, Plain and Auto override it.
     /// </summary>
     public bool UseSecureSourceKnownIds { get; init; } = true;
+
+    /// <summary>
+    /// Enables verification with non-default keys during routine rotation. Defaults to false, accepting only the default key.
+    /// Compromised keys must be removed from Keys; retaining them for verification permits forged IDs.
+    /// </summary>
+    public bool UseSourceKnownIdKeyFallback { get; init; }
 
     public NexusMacType MacType { get; init; } = NexusMacType.Blake3;
 
@@ -100,6 +109,8 @@ public sealed class NexusAppSettings : IDisposable
 /// Key derivation uses BLAKE3 context-string key derivation mode. See:
 /// <see href="https://docs.rs/blake3/latest/blake3/fn.derive_key.html"/>
 /// </remarks>
+[SuppressMessage("ReSharper", "ConditionalAccessQualifierIsNonNullableAccordingToAPIContract")]
+[SuppressMessage("ReSharper", "NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract")]
 public sealed class NexusKey : IDisposable
 {
     public const string SampleKeyMaterial = "sample-nexus-key-material-000000";

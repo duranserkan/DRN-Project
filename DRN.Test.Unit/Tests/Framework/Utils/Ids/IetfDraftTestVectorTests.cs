@@ -17,7 +17,7 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 /// Any change to key derivation, BLAKE3 MAC, or AES encryption that would invalidate the document's
 /// Appendix A hex values will cause these assertions to fail.
 /// </summary>
-public class IetfTestVectorGeneratorTests(ITestOutputHelper output)
+public class IetfDraftTestVectorTests(ITestOutputHelper output)
 {
     // Appendix A.1 public master/Nexus key material: sequential bytes 0x00..0x1F,
     // also used as the AES-256 test-vector KEK in RFC 3394 Section 4.3.

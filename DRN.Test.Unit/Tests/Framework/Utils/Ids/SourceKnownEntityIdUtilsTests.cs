@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
 using System.Security.Cryptography;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Data.Encryption;
@@ -252,6 +253,7 @@ public class SourceKnownEntityIdUtilsTests
             NexusAppSettings = new
             {
                 UseSecureSourceKnownIds = configuredSecure,
+                UseSourceKnownIdKeyFallback = true,
                 Keys = new[] { new NexusKey(new string('A', 32)), new NexusKey(new string('B', 32)) { Default = true } }
             }
         });
@@ -345,6 +347,102 @@ public class SourceKnownEntityIdUtilsTests
 
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_aes")]
     private static extern ref Aes256 GetAes(SourceKnownEntityIdUtils instance);
+
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_keyRing")]
+    private static extern ref NexusKeyRing GetKeyRing(SourceKnownEntityIdUtils instance);
+
+    [UnsafeAccessor(UnsafeAccessorKind.Method, Name = "IsSecureBlockColdPath")]
+    private static extern bool IsSecureBlockColdPath(SourceKnownEntityIdUtils instance, Vector128<byte> block);
+
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public void Key_Fallback_Should_Control_Parsing_And_Collision_Checks(bool enabled)
+    {
+        using var settings = SettingsProvider.Development<SampleApp5>(new
+        {
+            NexusAppSettings = new
+            {
+                UseSourceKnownIdKeyFallback = enabled,
+                Keys = new[] { new NexusKey(new string('B', 32)) { Default = true }, new NexusKey(new string('A', 32)) }
+            }
+        });
+        using var reader = new SourceKnownEntityIdUtils(settings, new SourceKnownIdUtils(settings));
+        var numericId = long.MinValue | (5L << 24);
+        var identity = new EntityTypeId(200, 5);
+        var generated = reader.GenerateSecure(numericId, identity);
+        reader.Parse(generated.EntityId, SourceKnownEntityIdFormat.Plain).Valid.Should().BeFalse();
+        reader.Parse(generated.EntityId, SourceKnownEntityIdFormat.Auto).Should().Be(generated);
+        foreach (var key in new[] { 'A', 'B' })
+        {
+            using var writerSettings = SettingsProvider.Development<SampleApp5>(new
+            {
+                NexusAppSettings = new { Keys = new[] { new NexusKey(new string(key, 32)) { Default = true } } }
+            });
+            using var writer = new SourceKnownEntityIdUtils(writerSettings, new SourceKnownIdUtils(writerSettings));
+            var plain = writer.GeneratePlain(numericId, identity);
+            var secure = writer.GenerateSecure(numericId, identity);
+            var accepted = key == 'B' || enabled;
+            foreach (var original in new[] { plain, secure })
+            {
+                var format = original.Secure ? SourceKnownEntityIdFormat.Secure : SourceKnownEntityIdFormat.Plain;
+                reader.Parse(original.EntityId, format).Valid.Should().Be(accepted);
+                reader.Parse(original.EntityId, SourceKnownEntityIdFormat.Auto).Valid.Should().Be(accepted);
+            }
+
+            // Valid plaintext markers exercise the cold MAC checks without a ciphertext search.
+            var bytes = plain.EntityId.ToByteArray(bigEndian: true);
+            IsSecureBlockColdPath(reader, Vector128.Create<byte>(bytes)).Should().Be(!accepted);
+            bytes[12] ^= 1;
+            IsSecureBlockColdPath(reader, Vector128.Create<byte>(bytes)).Should().BeTrue();
+        }
+    }
+
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public void Authenticated_Variant_With_Invalid_Proof_Should_Not_Try_Another_Key(bool authenticateWithFallback)
+    {
+        using var settings = SettingsProvider.Development<SampleApp5>(new
+        {
+            NexusAppSettings = new
+            {
+                UseSourceKnownIdKeyFallback = true,
+                Keys = new[]
+                {
+                    new NexusKey(new string('A', 32)) { Default = true },
+                    new NexusKey(new string('B', 32)),
+                    new NexusKey(new string('C', 32))
+                }
+            }
+        });
+        using var reader = new SourceKnownEntityIdUtils(settings, new SourceKnownIdUtils(settings));
+        var key = settings.NexusAppSettings.Keys[authenticateWithFallback ? 1 : 0];
+        using var writerSettings = SettingsProvider.Development<SampleApp5>(new
+        {
+            NexusAppSettings = new { Keys = new[] { new NexusKey(key.KeyMaterial) { Default = true } } }
+        });
+        using var writer = new SourceKnownEntityIdUtils(writerSettings, new SourceKnownIdUtils(writerSettings));
+        var bytes = writer.GeneratePlain(long.MinValue | (5L << 24), new EntityTypeId(200, 5))
+            .EntityId.ToByteArray(bigEndian: true);
+        using var aes = Aes.Create();
+        aes.Key = key.EncryptionKey.Bytes;
+        var baseCiphertext = new Guid(aes.EncryptEcb(bytes, PaddingMode.None), bigEndian: true);
+        reader.Parse(baseCiphertext, SourceKnownEntityIdFormat.Plain).Valid.Should().BeFalse(
+            "the base variant must not collide with any enabled verification key");
+
+        bytes[8] = 0x8E;
+        bytes.AsSpan(12, 4).Clear();
+        using var hasher = Blake3.Hasher.NewKeyed(key.MacKey.Bytes);
+        hasher.Update(bytes);
+        hasher.Finalize(bytes.AsSpan(12, 4));
+        var ciphertext = new Guid(aes.EncryptEcb(bytes, PaddingMode.None), bigEndian: true);
+
+        // Any attempt to continue fallback after authenticating A or B would try this disposed AES.
+        GetKeyRing(reader).Fallback[authenticateWithFallback ? 1 : 0].Aes.Dispose();
+        reader.Parse(ciphertext, SourceKnownEntityIdFormat.Secure).Valid.Should().BeFalse();
+        reader.Parse(ciphertext, SourceKnownEntityIdFormat.Auto).Valid.Should().BeFalse();
+    }
 
     [Theory]
     [DataInlineUnit(false, SourceKnownEntityIdFormat.Plain)]
@@ -826,45 +924,80 @@ public class SourceKnownEntityIdUtilsTests
     }
 
     [Theory]
-    [DataInlineUnit]
-    public async Task Parse_Should_Reject_Tampered_Variant_Byte(DrnTestContextUnit context)
+    [DataInlineUnit(0x8D, -1, true, 0)]
+    [DataInlineUnit(0x8E, -1, true, 1)]
+    [DataInlineUnit(0x8E, 0x8D, false, 1)]
+    [DataInlineUnit(0x8F, -1, true, 2)]
+    [DataInlineUnit(0x8F, 0x8D, false, 2)]
+    [DataInlineUnit(0x8F, 0x8E, false, 1)]
+    [DataInlineUnit(0xBF, -1, true, 50)]
+    [DataInlineUnit(0xBF, 0x8D, false, 50)]
+    [DataInlineUnit(0xBF, 0xA0, false, 31)]
+    [DataInlineUnit(0x8C, -1, false, 0)]
+    [DataInlineUnit(0xC0, -1, false, 0)]
+    public void Collision_Guard_Should_Require_Every_Preceding_Collision(
+        byte recoveredVariant, int nonCollidingVariant, bool expectedValid, int expectedChecks)
     {
-        var nexusSettings = new NexusAppSettings { AppId = 5, AppInstanceId = 12 };
+        var checkedVariants = new List<byte>();
+
+        // A collision at 0x8E alone must not justify 0x8F when the base candidate did not collide.
+        var valid = SourceKnownEntityIdUtils.VerifyCollisionGuardChain(recoveredVariant, variant =>
+        {
+            checkedVariants.Add(variant);
+            return variant != nonCollidingVariant;
+        });
+
+        valid.Should().Be(expectedValid);
+        checkedVariants.Should().Equal(Enumerable.Range(0, expectedChecks)
+            .Select(offset => (byte)(recoveredVariant - 1 - offset)));
+    }
+
+    [Theory]
+    [DataInlineUnit(0x8C)]
+    [DataInlineUnit(0x8E)]
+    [DataInlineUnit(0x8F)]
+    [DataInlineUnit(0xBF)]
+    [DataInlineUnit(0xC0)]
+    public void Parse_Should_Reject_Authenticated_Noncanonical_Variants(DrnTestContextUnit context, byte variant)
+    {
+        var nexusSettings = new NexusAppSettings
+        {
+            AppId = 5,
+            AppInstanceId = 12,
+            Keys = [new NexusKey(new string('A', 32)) { Default = true }]
+        };
         context.AddToConfiguration(new { NexusAppSettings = nexusSettings });
-        var idUtils = context.GetRequiredService<ISourceKnownIdUtils>();
         var entityIdUtils = context.GetRequiredService<ISourceKnownEntityIdUtils>();
-
-        await Task.Delay(TimeStampManager.PrecisionUnitInMsSafeDelay);
-        var longId = idUtils.Next<XEntity>();
-        var secureId = entityIdUtils.GenerateSecure(new XEntity(longId));
-
-        // Decrypt the secure SKEID to access plaintext
-        var cipherBytes = secureId.EntityId.ToByteArray(bigEndian: true);
-        var aesKey = context.GetRequiredService<IAppSettings>()
-            .NexusAppSettings.GetDefaultKey().EncryptionKey.Bytes;
+        var longId = long.MinValue | (5L << 24) | (12L << 18);
+        var plainId = entityIdUtils.GeneratePlain(new XEntity(longId));
+        var key = context.GetRequiredService<IAppSettings>().NexusAppSettings.GetDefaultKey();
 
         using var aes = Aes.Create();
         aes.Mode = CipherMode.ECB;
         aes.Padding = PaddingMode.None;
-        aes.Key = aesKey;
+        aes.Key = key.EncryptionKey.Bytes;
 
-        var plainBytes = new byte[16];
-        aes.DecryptEcb(cipherBytes, plainBytes, PaddingMode.None);
+        var plainBytes = plainId.EntityId.ToByteArray(bigEndian: true);
+        var originalCipher = aes.EncryptEcb(plainBytes, PaddingMode.None);
+        var originalGuid = new Guid(originalCipher, bigEndian: true);
+        entityIdUtils.GenerateSecure(new XEntity(longId)).EntityId.Should().Be(originalGuid,
+            "the base variant must not trigger the collision guard for this fixture");
+        entityIdUtils.Parse(originalGuid, SourceKnownEntityIdFormat.Secure).Valid.Should().BeTrue();
 
-        // The default variant should be 0x8D at byte 8 (RFC 9562 octet 8) — tamper it to 0x8F
-        // (0x8F implies two successive collisions at 0x8D and 0x8E, which didn't actually happen)
-        plainBytes[8].Should().Be(0x8D, "default variant byte should be 0x8D");
-        plainBytes[8] = 0x8F; // tampered — no genuine collision at 0x8E
+        plainBytes[8] = variant;
+        plainBytes.AsSpan(12, 4).Clear();
+        // Keep the MAC valid so rejection exercises variant validation rather than stale-tag detection.
+        using (var hasher = Blake3.Hasher.NewKeyed(key.MacKey.Bytes))
+        {
+            hasher.Update(plainBytes);
+            hasher.Finalize(plainBytes.AsSpan(12, 4));
+        }
 
-        // Re-encrypt with tampered plaintext
-        var tamperedCipher = new byte[16];
-        aes.EncryptEcb(plainBytes, tamperedCipher, PaddingMode.None);
+        var tamperedCipher = aes.EncryptEcb(plainBytes, PaddingMode.None);
         var tamperedGuid = new Guid(tamperedCipher, bigEndian: true);
 
-        // Parse must reject: backward verification will reconstruct variant=0x8E,
-        // encrypt it, and find that its ciphertext does NOT have marker+MAC coincidence
-        var result = entityIdUtils.Parse(tamperedGuid);
-        result.Valid.Should().BeFalse("tampered variant byte must be rejected by backward verification");
+        entityIdUtils.Parse(tamperedGuid, SourceKnownEntityIdFormat.Secure).Valid.Should().BeFalse();
+        entityIdUtils.Parse(tamperedGuid, SourceKnownEntityIdFormat.Auto).Valid.Should().BeFalse();
     }
 
     [Theory]
@@ -922,6 +1055,7 @@ public class SourceKnownEntityIdUtilsTests
             {
                 AppId = 5,
                 AppInstanceId = 12,
+                UseSourceKnownIdKeyFallback = true,
                 Keys =
                 [
                     new NexusKey(new string('B', 32)) { Default = true },
@@ -958,6 +1092,9 @@ public class SourceKnownEntityIdUtilsTests
         });
         var idUtils = new SourceKnownIdUtils(settings);
         using var entityIdUtils = new SourceKnownEntityIdUtils(settings, idUtils);
+
+        settings.NexusAppSettings.UseSourceKnownIdKeyFallback.Should().BeFalse();
+        GetKeyRing(entityIdUtils).Fallback.Should().BeEmpty("fallback requires explicit opt-in even when old keys are configured");
 
         var id = SourceKnownIdUtils.Generate<XEntity>(settings.NexusAppSettings.AppId, settings.NexusAppSettings.AppInstanceId);
         var secureId = entityIdUtils.GenerateSecure<XEntity>(id);

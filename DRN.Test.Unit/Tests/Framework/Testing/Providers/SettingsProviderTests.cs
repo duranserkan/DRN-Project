@@ -1,5 +1,6 @@
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.SharedKernel.Enums;
+using DRN.Framework.Utils.Settings;
 
 namespace DRN.Test.Unit.Tests.Framework.Testing.Providers;
 
@@ -41,6 +42,65 @@ public class SettingsProviderTests
         createDefault.Should().Throw<ConfigurationException>().WithMessage("*AppId must match the declared AppId 0*");
         var createTyped = () => SettingsProvider.Development<DefaultApp>(new { NexusAppSettings = new { AppId = appId } });
         createTyped.Should().Throw<ConfigurationException>().WithMessage("*AppId must match the declared AppId 0*");
+    }
+
+    [Fact]
+    public void DevelopmentWithNexusSettings_Should_Select_Partition_And_Preserve_Settings_Precedence()
+    {
+        using var defaultNexus = new NexusAppSettings { AppId = DefaultApp.AppId, AppInstanceId = 2 };
+        using var defaults = SettingsProvider.DevelopmentWithNexusSettings(defaultNexus);
+        defaults.NexusAppSettings.AppId.Should().Be(DefaultApp.AppId);
+        defaults.Configuration.GetValue<byte>("NexusAppSettings:AppId").Should().Be(DefaultApp.AppId);
+        defaults.NexusAppSettings.AppInstanceId.Should().Be(2);
+        defaults.Configuration.GetValue<byte?>("NexusAppSettings:AppInstanceId").Should().Be(2);
+        defaults.Environment.Should().Be(AppEnvironment.Development);
+
+        using var typedNexus = new NexusAppSettings { AppId = TestApp.AppId, AppInstanceId = 5 };
+        using var typedSettings = SettingsProvider.DevelopmentWithNexusSettings<TestApp>(
+            typedNexus,
+            new { ApplicationName = "First", NexusAppSettings = new { AppInstanceId = 3 } },
+            new { ApplicationName = "Final", NexusAppSettings = new { AppId = TestApp.AppId, AppInstanceId = 7 } });
+        typedSettings.Environment.Should().Be(AppEnvironment.Development);
+        typedSettings.ApplicationName.Should().Be("Final");
+        typedSettings.NexusAppSettings.AppId.Should().Be(TestApp.AppId);
+        typedSettings.Configuration.GetValue<byte>("NexusAppSettings:AppId").Should().Be(TestApp.AppId);
+        typedSettings.NexusAppSettings.AppInstanceId.Should().Be(7);
+        var key = typedSettings.NexusAppSettings.GetDefaultKey();
+        typedSettings.Dispose();
+        var readDisposedKey = () => { _ = key.MacKey.Bytes; };
+        readDisposedKey.Should().Throw<ObjectDisposedException>();
+    }
+
+    [Fact]
+    public void DevelopmentWithNexusSettings_Should_Reject_Null_NexusAppSettings()
+    {
+        var actDefault = () => SettingsProvider.DevelopmentWithNexusSettings(null!);
+        actDefault.Should().Throw<ArgumentNullException>();
+
+        var actTyped = () => SettingsProvider.DevelopmentWithNexusSettings<TestApp>(null!);
+        actTyped.Should().Throw<ArgumentNullException>();
+    }
+
+    [Theory]
+    [DataInlineUnit((byte)1)]
+    [DataInlineUnit((byte)5)]
+    [DataInlineUnit((byte)128)]
+    public void DevelopmentWithNexusSettings_Should_Reject_NexusAppSettings_That_Do_Not_Match_Declared_AppId(byte appId)
+    {
+        using var mismatchedNexus = new NexusAppSettings { AppId = appId };
+        var createDefault = () => SettingsProvider.DevelopmentWithNexusSettings(mismatchedNexus);
+        createDefault.Should().Throw<ConfigurationException>().WithMessage("*AppId must match the declared AppId 0 for DefaultApp*");
+
+        var createTyped = () => SettingsProvider.DevelopmentWithNexusSettings<TestApp>(mismatchedNexus);
+        createTyped.Should().Throw<ConfigurationException>().WithMessage($"*AppId must match the declared AppId {TestApp.AppId} for TestApp*");
+    }
+
+    [Fact]
+    public void DevelopmentWithNexusSettings_Should_Reject_Override_Settings_That_Conflict_With_Declared_AppId()
+    {
+        using var matchingNexus = new NexusAppSettings { AppId = TestApp.AppId };
+        var actOverride = () => SettingsProvider.DevelopmentWithNexusSettings<TestApp>(matchingNexus, new { NexusAppSettings = new { AppId = 12 } });
+        actOverride.Should().Throw<ConfigurationException>().WithMessage($"*AppId must match the declared AppId {TestApp.AppId} for TestApp*");
     }
 
     [Fact]

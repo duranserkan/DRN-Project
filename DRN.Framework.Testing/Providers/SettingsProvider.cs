@@ -37,6 +37,32 @@ public static class SettingsProvider
         return new AppSettings(configuration);
     }
 
+    /// <summary>Creates standalone development settings with explicit <see cref="NexusAppSettings"/> for the default partition (AppId 0), rejecting conflicting AppId overrides.</summary>
+    public static AppSettings DevelopmentWithNexusSettings(NexusAppSettings nexusAppSettings, params object[] settings)
+        => DevelopmentWithNexusSettings<DefaultApp>(nexusAppSettings, settings);
+
+    /// <summary>Creates standalone development settings with explicit <see cref="NexusAppSettings"/> for the declared application partition, rejecting conflicting AppId overrides.</summary>
+    public static AppSettings DevelopmentWithNexusSettings<TApp>(NexusAppSettings nexusAppSettings, params object[] settings) where TApp : IAppId
+    {
+        ArgumentNullException.ThrowIfNull(nexusAppSettings);
+
+        var appId = TApp.AppId;
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(appId, IAppId.MaxAppId);
+        var builder = new ConfigurationManager().AddObjectToJsonConfiguration(new
+        {
+            Environment = "Development",
+            NexusAppSettings = nexusAppSettings
+        });
+        foreach (var setting in settings)
+            builder.AddObjectToJsonConfiguration(setting);
+
+        var configuration = builder.Build();
+        if (!byte.TryParse(configuration["NexusAppSettings:AppId"], out var configuredAppId) || configuredAppId != appId)
+            throw ExceptionFor.Configuration($"NexusAppSettings:AppId must match the declared AppId {appId} for {typeof(TApp).Name}.");
+
+        return new AppSettings(configuration);
+    }
+
     /// <summary>
     /// Creates <see cref="IAppSettings"/> from settings JSON file found in provided location.
     /// Alternate locations are the Settings subfolder of the test project or provided location by convention
