@@ -277,8 +277,7 @@ public sealed class Aes256 : IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void ThrowIfDisposed()
     {
-        if (_disposed != 0)
-            throw new ObjectDisposedException(nameof(Aes256));
+        ObjectDisposedException.ThrowIf(_disposed != 0, this);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
