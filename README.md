@@ -65,7 +65,7 @@ TL;DR: You can
 
 ### Prerequisites
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download) 10.0.401 or a later compatible SDK selected by [global.json](global.json)
 - [Docker](https://www.docker.com/) (for integration tests with Testcontainers)
 
 > **Nice to have**: [JetBrains Rider](https://www.jetbrains.com/rider/) (recommended), [Visual Studio](https://visualstudio.microsoft.com/), or [VS Code](https://code.visualstudio.com/) with [C# Dev Kit](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csdevkit). All operations can also be performed from the terminal.
@@ -76,13 +76,14 @@ TL;DR: You can
 dotnet build DRN.slnx                                  # Build the entire solution
 dotnet run --project Sample.Hosted                      # Run the sample web application (requires Docker)
 dotnet run --project DRN.Test.Unit                      # Run unit tests
+dotnet run --project DRN.Test.Analyzer                  # Run analyzer tests
 dotnet run --project DRN.Test.Integration               # Run integration tests (requires Docker)
 dotnet run --project DRN.Test.Performance -c Release     # Run all performance benchmarks (requires Release build)
 dotnet run --project DRN.Test.Performance -c Release -- --filter-method DRN.Test.Performance.Benchmark.Framework.Utils.SourceKnownIdUtilsPerformanceTests.Run_Benchmarks  # Run SKID/SKEID performance benchmark only
 dotnet run --project DRN.Test.Performance -c Release -- --filter-method DRN.Test.Performance.Benchmark.Framework.Utils.SourceKnownIdUtilsSaturationPerformanceTests.Run_Benchmarks  # Run SKID/SKEID saturation benchmark only
 ```
 
-> All test projects (unit, integration, and performance) use [Microsoft Testing Platform (MTP) 2.0](https://learn.microsoft.com/en-us/dotnet/core/testing/microsoft-testing-platform-intro) with xUnit v3 and are built as standalone executables. Use `dotnet run --project` to execute them.
+> All test projects (unit, analyzer, integration, and performance) use [Microsoft Testing Platform (MTP) 2.x](https://learn.microsoft.com/en-us/dotnet/core/testing/microsoft-testing-platform-intro) with xUnit v3 and are built as standalone executables. Use `dotnet run --project` to execute them.
 
 > **Debugging tip:** If the application fails to start in `Development` mode, `DrnProgramBase` attempts to generate a `StartupExceptionReport.html` in the output directory with a detailed, browsable error report.
 
@@ -135,8 +136,14 @@ For performance benchmarks, see [DRN.Test.Performance](DRN.Test.Performance) and
 
 ### Create an Application
 
+Replace the generated `MyApp/Program.cs` with the following minimal example. See [SampleProgram.cs](Sample.Hosted/SampleProgram.cs) for a full implementation.
+
 ```csharp
-// Minimal example — see SampleProgram.cs for a full implementation
+using DRN.Framework.Hosting.DrnProgram;
+using DRN.Framework.Utils.DependencyInjection;
+using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Settings;
+
 public class Program : DrnProgramBase<Program>, IDrnProgram
 {
     public static async Task Main(string[] args) => await RunAsync(args);
@@ -157,8 +164,8 @@ Integration tests use `[DataInline]` with `DrnTestContext` and [Testcontainers](
 - [QAContextTagTests.cs](DRN.Test.Integration/Tests/Sample/Infra/QA/QAContextTagTests.cs) — Entity ID generation, type-safe entity type checking, date-time filtering
 - [QAContextTests.cs](DRN.Test.Integration/Tests/Sample/Infra/QA/QAContextTests.cs) — CRUD operations, concurrency conflict detection, extended properties
 - [TagRepositoryTests.cs](DRN.Test.Integration/Tests/Sample/Infra/QA/Repositories/TagRepositoryTests.cs) — Source-Known Repository pattern, pagination, filtering
-- [SourceKnownEntityIdUtilsTests.cs](DRN.Test.Integration/Tests/Sample/Utils/SourceKnownEntityIdUtilsTests.cs) — SKID/SKEID stress test: ~786K concurrent IDs across 8 threads, uniqueness
-- [SourceKnownIdUtilsTests.cs](DRN.Test.Integration/Tests/Sample/Utils/SourceKnownIdUtilsTests.cs) — SKID stress test: ~786K concurrent IDs, sequence ordering, time-bucket distribution and cap validation
+- [SourceKnownEntityIdUtilsTests.cs](DRN.Test.Integration/Tests/Framework/Utils/SourceKnownIds/SourceKnownEntityIdUtilsTests.cs) — SKID/SKEID stress test: ~786K concurrent IDs across 8 threads, uniqueness
+- [SourceKnownIdUtilsTests.cs](DRN.Test.Integration/Tests/Framework/Utils/SourceKnownIds/SourceKnownIdUtilsTests.cs) — SKID stress test: ~786K concurrent IDs, sequence ordering, time-bucket distribution and cap validation
 
 > Entities use `[EntityType]` with `AggregateRoot<TModel>` — see [Tag.cs](Sample.Domain/QA/Tags/Tag.cs) for an example.
 
