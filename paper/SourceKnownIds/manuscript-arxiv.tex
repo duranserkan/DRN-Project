@@ -1,5 +1,5 @@
 %% Custom Pandoc template for arXiv preprint using wlpeerj.cls
-%% Usage: pandoc --template=template-arxiv.tex paper-peerj.md ...
+%% Usage: pandoc --template=template-arxiv.tex paper.md ...
 %%
 %% Derived from template-peerj.tex with arXiv-specific adjustments:
 %%   - Line numbers removed (arXiv rejects submissions with line numbers)
@@ -577,8 +577,6 @@ examines backpressure through separate saturation measurements.
 Database-engine performance is not evaluated, and the security analysis
 does not constitute a formal compositional proof.
 
-\begin{samepage}
-
 \subsection{Three-Tier Identity Model}\label{three-tier-identity-model}
 
 Source-Known Identifiers represent entity identity through a three-tier
@@ -609,8 +607,6 @@ communication (in-process or inter-process), and external access.
   digits; see Limitation 6).
 \end{enumerate}
 
-\end{samepage}
-
 The three tiers are not three separate identifiers but one entity
 identity projected for different trust boundaries. The database stores
 the compact SKID, trusted applications derive the SKEID on demand, and
@@ -632,8 +628,6 @@ the three tiers.
 
 \textbf{Figure 1:} Three-tier identity model: bidirectional data
 transformations.
-
-\newpage
 
 \subsection{Source-Known ID (SKID) 64-bit
 Specification}\label{source-known-id-skid-64-bit-specification}
@@ -782,6 +776,8 @@ This mechanism maintains nondecreasing generation timestamps within a
 running process. A new app instance ID is used to prevent collisions
 across application restarts and does not preserve chronological
 monotonicity across a restart after clock rollback.
+
+\newpage
 
 \subsection{Source-Known Entity ID (SKEID) 128-bit
 Specification}\label{source-known-entity-id-skeid-128-bit-specification}
@@ -1990,6 +1986,8 @@ partitions. For time-based sorting, CUID2 recommends a separate indexed
 \texttt{createdAt} column (Elliott, 2026). Source-Known Identifiers can
 avoid that additional column when their embedded generation timestamp
 satisfies the application's requirements.
+
+\newpage
 
 Tables 9 and 10 compare the security posture of the three-tier identity
 system against standard and alternative identifier schemes.

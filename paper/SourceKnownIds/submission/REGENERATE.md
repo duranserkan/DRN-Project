@@ -3,7 +3,7 @@
 If you update the source `paper-peerj.md` and need to dynamically rebuild the extracted PeerJ manuscript alongside its high-resolution `.png` images, execute the commands detailed in this document.
 
 ## 1. Rebuild the Manuscript and Assets
-Run the following from the `paper/peerj/SourceKnownIds/submission/` directory to invoke the Pandoc extraction pipeline. This will intercept all tables and figures, create LaTeX formatting fragments matching the `wlpeerj` template, and compile them natively using `lualatex` + macOS `sips` for perfect rasterization:
+Run the following from the `paper/SourceKnownIds/submission/` directory to invoke the Pandoc extraction pipeline. This will intercept all tables and figures, create LaTeX formatting fragments matching the `wlpeerj` template, and compile them natively using `lualatex` + macOS `sips` for perfect rasterization:
 
 ```bash
 # Ensure asset directories exist

@@ -4,7 +4,7 @@ using DRN.Framework.Utils.Time;
 namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 
 /// <summary>
-/// Verifies the throughput claims in paper/paper-peerj.md § Throughput Analysis and
+/// Verifies the throughput claims in paper/SourceKnownIds/paper.md § Throughput Analysis and
 /// § Interpretation of Results.
 /// All capacities are derived from reference implementation constants:
 /// <see cref="SourceKnownIdUtils.MaxAppId"/>, <see cref="SourceKnownIdUtils.MaxAppInstanceId"/>,

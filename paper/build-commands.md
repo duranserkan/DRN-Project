@@ -1,6 +1,12 @@
 # Paper Build Commands
 
-Both commands use `template-peerj.tex` (custom Pandoc template with `wlpeerj.cls`) and `peerj.csl` (citation formatting via `--citeproc`).
+The PeerJ commands use `template-peerj.tex`; the arXiv commands use `template-arxiv.tex`. Both templates use `wlpeerj.cls` and `peerj.csl` (citation formatting via `--citeproc`).
+
+Run all generation commands from `paper/SourceKnownIds/`. From the repository root:
+
+```bash
+cd paper/SourceKnownIds
+```
 
 ## Prerequisites
 
@@ -28,7 +34,7 @@ sudo tlmgr install collection-fontsrecommended dejavu preprint titlesec lastpage
 Converts the Markdown paper to a standalone `.tex` file. The output uses `wlpeerj.cls` and can be compiled directly with XeLaTeX or uploaded to Overleaf.
 
 ```bash
-pandoc ./paper-peerj.md --template=template-peerj.tex --citeproc --bibliography=./paper.bib --csl=./peerj.csl -t latex -o manuscript.tex
+pandoc ./paper.md --template=template-peerj.tex --citeproc --bibliography=./paper.bib --csl=./peerj.csl -t latex -o manuscript.tex
 ```
 
 ## Generate PDF (direct)
@@ -36,7 +42,7 @@ pandoc ./paper-peerj.md --template=template-peerj.tex --citeproc --bibliography=
 Converts the Markdown paper directly to PDF using XeLaTeX with the PeerJ layout (wlpeerj.cls title page, colored abstract box, line numbers, 5cm left margin).
 
 ```bash
-TMPDIR=/tmp pandoc ./paper-peerj.md --template=template-peerj.tex --citeproc --bibliography=./paper.bib --csl=./peerj.csl --pdf-engine=/Library/TeX/texbin/xelatex -o ./paper-peerj.pdf
+TMPDIR=/tmp pandoc ./paper.md --template=template-peerj.tex --citeproc --bibliography=./paper.bib --csl=./peerj.csl --pdf-engine=/Library/TeX/texbin/xelatex -o ./paper-peerj.pdf
 ```
 
 ## Generate PDF (from LaTeX)
@@ -51,18 +57,18 @@ Compiles the previously generated `manuscript.tex` to PDF. Produces the same out
 
 ## arXiv Submission
 
-arXiv rejects PDFs with line numbers. The `submission/template-arxiv.tex` template removes the `lineno` option and uses TeX filename fonts (arXiv has no macOS system fonts). All commands below run from the `submission/` directory.
+The `template-arxiv.tex` template removes the `lineno` option and uses TeX filename fonts. Run these commands from the same `paper/SourceKnownIds/` directory.
 
 ### Generate arXiv LaTeX
 
 ```bash
-pandoc ./paper-peerj.md --template=template-arxiv.tex --citeproc --bibliography=./paper.bib --csl=./peerj.csl -t latex -o manuscript-arxiv.tex
+pandoc ./paper.md --template=template-arxiv.tex --citeproc --bibliography=./paper.bib --csl=./peerj.csl -t latex -o manuscript-arxiv.tex
 ```
 
 ### Generate arXiv PDF (direct)
 
 ```bash
-TMPDIR=/tmp pandoc ./paper-peerj.md --template=template-arxiv.tex --citeproc --bibliography=./paper.bib --csl=./peerj.csl --pdf-engine=/Library/TeX/texbin/xelatex -o ./manuscript-arxiv.pdf
+TMPDIR=/tmp pandoc ./paper.md --template=template-arxiv.tex --citeproc --bibliography=./paper.bib --csl=./peerj.csl --pdf-engine=/Library/TeX/texbin/xelatex -o ./manuscript-arxiv.pdf
 ```
 
 ### Generate arXiv PDF (from LaTeX)
@@ -75,10 +81,10 @@ TMPDIR=/tmp pandoc ./paper-peerj.md --template=template-arxiv.tex --citeproc --b
 
 | File | Purpose |
 |------|---------|
-| `paper-peerj.md` | Single source of truth (content + metadata in YAML frontmatter) |
+| `paper.md` | Single source of truth (content + metadata in YAML frontmatter) |
 | `template-peerj.tex` | Custom Pandoc template — maps YAML to `wlpeerj.cls` macros (with line numbers) |
 | `template-arxiv.tex` | arXiv Pandoc template — no line numbers, TeX filename fonts |
 | `wlpeerj.cls` | PeerJ document class (page layout, fonts, title page) |
 | `peerj.csl` | Citation Style Language — formats `[@ref]` citations |
 | `paper.bib` | BibTeX bibliography database |
-| `build-commands.md` | This file |
+| `../build-commands.md` | This file |

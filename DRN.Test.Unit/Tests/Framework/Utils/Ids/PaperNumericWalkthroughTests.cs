@@ -6,7 +6,7 @@ using DRN.Framework.Utils.Numbers;
 namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 
 /// <summary>
-/// Verifies the numeric walkthrough example in paper/paper-peerj.md § Numeric Walkthrough.
+/// Verifies the numeric walkthrough example in paper/SourceKnownIds/paper.md § Numeric Walkthrough.
 /// These tests establish the correct hex values that the paper must reference.
 /// Uses big-endian byte layout per RFC 9562 V8.
 /// </summary>
@@ -55,7 +55,7 @@ public class PaperNumericWalkthroughTests
         // Assert — SKID hex matches paper walkthrough value exactly
         const long paperSkidHex = unchecked((long)0x8BEB_C200_1204_0005UL);
         skid.Should().Be(paperSkidHex,
-            "SKID hex must match value stated in paper-peerj.md § Numeric Walkthrough (0x8BEBC20012040005)");
+            "SKID hex must match value stated in paper.md § Numeric Walkthrough (0x8BEBC20012040005)");
         skid.Should().Be(ExpectedSkid,
             $"SKID for (ts={WalkthroughTimestamp}, appId={WalkthroughAppId}, " +
             $"instId={WalkthroughAppInstanceId}, seq={WalkthroughSequence}) " +

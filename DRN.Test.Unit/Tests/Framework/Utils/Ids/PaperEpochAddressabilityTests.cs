@@ -5,7 +5,7 @@ using DRN.Framework.Utils.Time;
 namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 
 /// <summary>
-/// Verifies the epoch addressability claims in paper/paper-peerj.md § Epoch and Extensibility (Table 6).
+/// Verifies the epoch addressability claims in paper/SourceKnownIds/paper.md § Epoch and Extensibility (Table 6).
 /// All values are absolute — computed from 2^30 and 2^31 seconds against the 2025-01-01 epoch.
 /// </summary>
 public class PaperEpochAddressabilityTests

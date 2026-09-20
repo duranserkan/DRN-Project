@@ -12,7 +12,7 @@ abstract: |
 ---
 
 <!-- PeerJ Computer Science Research Article -->
-<!-- Pipeline: paper-peerj.md → Pandoc + template-peerj.tex (wlpeerj.cls) → PDF/LaTeX -->
+<!-- Pipeline: paper.md → Pandoc + template-peerj.tex (wlpeerj.cls) → PDF/LaTeX -->
 <!-- Primary Subject Area: "Distributed and Parallel Computing" -->
 <!-- KEYWORDS: Distributed systems, Information security, Universally unique identifier, Primary key, Identity management, Software performance, Symmetric encryption, Message authentication code, Database indexing, Chronological sortability -->
 
