@@ -187,7 +187,7 @@ Table 2 details the corresponding fields.
 | App Instance ID   | 23--18 | 6 bits  | Instance discriminator (maximum 63)                                               |
 | Sequence counter  | 17--0  | 18 bits | Per application instance and entity-type monotonic counter                        |
 
-The sign bit controls epoch half selection. When set to 1, the resulting value is negative, covering the first approximately 34 years of the epoch. When set to 0, the value becomes positive, extending coverage for the second approximately 34 years. Together, the two halves span approximately 68 years per epoch while preserving monotonic sort order in signed 64-bit representation, since negative values sort before positive values. This timestamp-leading layout produces a chronologically sortable SKID optimized for internal database indexing and ordering.
+The sign bit controls epoch half selection. When set to 1, the resulting value is negative, covering the first approximately 34 years of the epoch. When set to 0, the value becomes nonnegative, extending coverage for the second approximately 34 years. Together, the two halves span approximately 68 years per epoch while preserving monotonic sort order in signed 64-bit representation, since negative values sort before nonnegative values. This timestamp-leading layout produces a chronologically sortable SKID optimized for internal database indexing and ordering.
 
 The 32-bit timestamp field stores unsigned 250-millisecond ticks elapsed since the start of the current epoch half. Sub-second ordering at 250ms granularity eliminates coarse-grained temporal ambiguity while preserving throughput within a compact 64-bit layout.
 
@@ -204,7 +204,7 @@ The SKID generation procedure operates as follows. Given `entityType`, `appId`, 
 1. Compute `elapsedTicks` as the floor of 250-millisecond ticks elapsed since the epoch (four ticks per second).
 2. Assert that the elapsed ticks are within the epoch range (0 to $2^{33} - 1$ ticks, covering both epoch halves).
 3. Determine the epoch half:
-   1. If `elapsedTicks` $< 2^{32}$, the current half is the first half (sign bit = 1, producing a negative SKID). Otherwise, the current half is the second half (sign bit = 0, producing a positive SKID).
+   1. If `elapsedTicks` $< 2^{32}$, the current half is the first half (sign bit = 1, producing a negative SKID). Otherwise, the current half is the second half (sign bit = 0, producing a nonnegative SKID).
    2. Compute `timestamp` = `elapsedTicks` mod $2^{32}$ (equivalently, `elapsedTicks` AND $2^{32} - 1$).
 4. Obtain the next sequence value from the per-entity-type atomic counter (resetting on timestamp change).
 5. Pack fields into a 64-bit signed integer: sign bit at position 63, timestamp at positions 62--31, `appId` at positions 30--24, `appInstanceId` at positions 23--18, and sequence counter at positions 17--0.
@@ -246,7 +246,7 @@ Table 3 details the byte-level layout of the SKEID fields.
 | SKID low bytes  | 9--11   | 24 bits | Remaining SKID lower half                             |
 | MAC             | 12--15  | 32 bits | BLAKE3 keyed MAC                                      |
 
-All fields are encoded in big-endian (network byte order) per RFC 9562. The epoch byte occupies byte 0 to ensure that higher epoch values sort lexicographically after lower epoch values, regardless of timestamp. The upper SKID half at bytes 1--4 is sign-toggled (XOR with `0x80000000`) before encoding. This converts the signed SKID sort order (negative before positive) to unsigned byte sort order, preserving chronological ordering in lexicographic comparisons across both epoch halves. The most significant byte of the lower SKID half occupies byte 5, immediately after the upper half, ensuring that the timestamp least-significant bit and leading application topology bits participate in lexicographic comparison before the entity type at byte 7. The remaining lower SKID half is split around the variant marker at byte 8, with bytes 9--11 holding the last three bytes. Since the version marker, entity type, and variant marker are constant for all plain SKEIDs of a given type, lexicographic comparison of the split lower half operates correctly.
+All fields are encoded in big-endian (network byte order) per RFC 9562. The epoch byte occupies byte 0 to ensure that higher epoch values sort lexicographically after lower epoch values, regardless of timestamp. The upper SKID half at bytes 1--4 is sign-toggled (XOR with `0x80000000`) before encoding. This converts the signed SKID sort order (negative before nonnegative) to unsigned byte sort order, preserving chronological ordering in lexicographic comparisons across both epoch halves. The most significant byte of the lower SKID half occupies byte 5, immediately after the upper half, ensuring that the timestamp least-significant bit and leading application topology bits participate in lexicographic comparison before the entity type at byte 7. The remaining lower SKID half is split around the variant marker at byte 8, with bytes 9--11 holding the last three bytes. Since the version marker, entity type, and variant marker are constant for all plain SKEIDs of a given type, lexicographic comparison of the split lower half operates correctly.
 
 The marker bytes at positions 6 and 8 serve dual purposes.
 
@@ -259,7 +259,7 @@ Integrity verification relies on BLAKE3 keyed MAC [@blake3]. The computation pro
 
 BLAKE3 was selected for performance and security margin. In the BenchmarkDotNet measurements, BLAKE3 keyed hashing with a reused hasher averaged 81.03 ns on 16-byte inputs, compared with 306.75 ns for HMAC-SHA-256, approximately 3.79 times faster (see supplementary file `supplementary-hash-benchmark-report.html`).
 
-Generated MAC is truncated to 32 bits, offering a $1/2^{32}$ false-positive rate. This truncation is acceptable within the defense-in-depth architecture where the MAC is one of multiple verification layers, not the sole security mechanism.
+Generated MAC is truncated to 32 bits, offering a $2^{-32}$ success probability per guessed tag. This truncation is acceptable within the defense-in-depth architecture where the MAC is one of multiple verification layers, not the sole security mechanism (see MAC Truncation Analysis).
 
 The epoch byte (byte 0) is not cleared before MAC computation. It participates in the MAC input, adding tamper-resistance for the epoch field.
 
@@ -277,12 +277,12 @@ Given a 64-bit SKID, epoch, entity type, and MAC key, the SKEID generation proce
 
 ### Parsing Algorithm
 
-Given a 16-byte UUID `entityId` and MAC key $K_{mac}$:
+Given a 16-byte UUID `entityId` and MAC key $K_{\mathrm{mac}}$:
 
 1. Convert the UUID to a 16-byte big-endian byte array (network byte order, per RFC 9562).
 2. Check that the epoch byte at position 0 represents a supported epoch (`guidBytes[0] <= MaxSupportedEpoch`) and check for exact primary marker bytes (`0x8D` at position 6, `0x8D` at position 8) in the byte array. If the epoch or markers do not match, return INVALID.
 3. Extract the 32-bit MAC from bytes 12--15 and clear bytes 12--15 to zero.
-4. Compute the 4-byte BLAKE3 keyed MAC over the 16-byte buffer using $K_{mac}$. If it does not match the extracted MAC, return INVALID.
+4. Compute the 4-byte BLAKE3 keyed MAC over the 16-byte buffer using $K_{\mathrm{mac}}$. If it does not match the extracted MAC, return INVALID.
 5. Extract the epoch byte (byte 0) and entity type (byte 7). Reconstruct the 64-bit SKID from the upper half (bytes 1--4, reversing the sign-bit toggle with `0x80000000`) and lower half (byte 5 and bytes 9--11).
 6. Return the extracted SKID, epoch, and entity type as a valid plaintext SKEID.
 
@@ -304,7 +304,7 @@ This conversion has zero expansion. A 16-byte SKEID becomes a 16-byte Secure SKE
 
 A Secure SKEID is produced by encrypting the entire 16-byte SKEID plaintext using AES-256 [@fips197] as a single-block cipher. AES has undergone extensive public cryptanalysis, reviewed in NIST IR 8319 [@nistir8319]. Under the pseudorandom permutation (PRP) assumption with a uniformly chosen key, AES-256 applied to a single 128-bit block is computationally indistinguishable from a uniformly random permutation. A pseudorandom function (PRF) is similarly computationally indistinguishable from a uniformly random function. The birthday threshold for distinguishing a random permutation from a random function is approximately $2^{n/2}$ queries [@bellare1998, Section 2.2]. For AES with $n = 128$, candidate ciphertexts for distinct plaintexts can be modeled approximately as independent, uniformly random blocks as long as the query count under a single key remains well below $2^{64}$.
 
-Because SKEID encryption always operates on exactly one block, the multi-block weakness of ECB mode does not apply. For a single block, ECB is mathematically identical to Cipher Block Chaining (CBC) with a zero initialization vector: $C = \text{AES}(Key, P \oplus 0) = \text{AES}(Key, P)$. No nonce is required, and there is no nonce-reuse vulnerability.
+Because SKEID encryption always operates on exactly one block, the multi-block weakness of ECB mode does not apply. For a single block, ECB is mathematically identical to Cipher Block Chaining (CBC) with a zero initialization vector: $C = \operatorname{AES}_{K_{\mathrm{aes}}}(P \oplus \mathbf{0}) = \operatorname{AES}_{K_{\mathrm{aes}}}(P)$, where $P$ is the plaintext block and $\mathbf{0}$ is the all-zero 128-bit block. No nonce is required, and there is no nonce-reuse vulnerability.
 
 Quantum attacks on AES via Grover's algorithm reduce the effective security of AES-256 to approximately 128 bits, which still remains computationally infeasible [@bonnetain2019].
 
@@ -314,27 +314,27 @@ The three-tier identity system uses separate MAC and encryption keys for each ke
 
 ### Generation Algorithm
 
-Given a 64-bit SKID, epoch, entity type, and key pair ($K_{mac}, K_{aes}$):
+Given a 64-bit SKID, epoch, entity type, and key pair $(K_{\mathrm{mac}}, K_{\mathrm{aes}})$:
 
-1. Construct the 16-byte plaintext SKEID buffer using the SKEID generation algorithm with default variant marker `0x8D`, and compute its MAC using $K_{mac}$.
-2. Encrypt the 16-byte buffer using AES-256-ECB with $K_{aes}$ to produce candidate ciphertext.
+1. Construct the 16-byte plaintext SKEID buffer using the SKEID generation algorithm with default variant marker `0x8D`, and compute its MAC using $K_{\mathrm{mac}}$.
+2. Encrypt the 16-byte buffer using AES-256-ECB with $K_{\mathrm{aes}}$ to produce candidate ciphertext.
 3. Check whether the ciphertext triggers the collision guard (Collision Guard Mechanism below): if the ciphertext exhibits a supported epoch, exact markers `0x8D` at byte 6 and `0x8D` at byte 8, and a valid MAC under any enabled verification key, regenerate with successive variant bytes from `0x8E` through `0xBF` (recomputing the MAC and re-encrypting with the same key pair) until a non-colliding ciphertext is obtained.
 4. Construct the UUID from the final 16-byte ciphertext in big-endian order and return the Secure SKEID.
 
 ### Collision Guard Mechanism
 
-Without the collision guard, there exists a combined approximately $1/2^{48}$ probability that ciphertext coincidentally matches both the plaintext marker bytes and produces a valid MAC when interpreted as a plaintext SKEID. This would cause a Secure SKEID to be misclassified as a plaintext SKEID with incorrect data.
+Without the collision guard, there exists a combined approximately $2^{-48}$ probability that ciphertext coincidentally matches both the plaintext marker bytes and produces a valid MAC when interpreted as a plaintext SKEID. This would cause a Secure SKEID to be misclassified as a plaintext SKEID with incorrect data.
 
-The collision guard eliminates this edge case for the verification keys enabled during generation. When the ciphertext passes plaintext marker, epoch, and MAC checks under any enabled key, the plaintext is regenerated with successive variant bytes from `0x8E` through `0xBF` (50 alternatives). Each candidate is authenticated and encrypted with the same generation key pair. Under the PRP assumption, each variant produces distinct pseudorandom ciphertext. Termination is deterministic. The loop is bounded at 51 total attempts (1 primary + 50 alternatives), with an implementation-defined error on exhaustion (the reference implementation throws `JackpotException`). For a single verification key, the idealized estimate for exhausting all 51 attempts is approximately $1/2^{48 \times 51}$. Multiple enabled keys increase the per-candidate collision probability.
+The collision guard eliminates this edge case for the verification keys enabled during generation. When the ciphertext passes plaintext marker, epoch, and MAC checks under any enabled key, the plaintext is regenerated with successive variant bytes from `0x8E` through `0xBF` (50 alternatives). Each candidate is authenticated and encrypted with the same generation key pair. Under the PRP assumption, each variant produces distinct pseudorandom ciphertext. Termination is deterministic. The loop is bounded at 51 total attempts (1 primary + 50 alternatives), with an implementation-defined error on exhaustion (the reference implementation throws `JackpotException`). For a single verification key, the idealized estimate for exhausting all 51 attempts is approximately $2^{-48 \times 51}$. Multiple enabled keys increase the per-candidate collision probability.
 
 ### Parsing Algorithm
 
-Given a 16-byte UUID `entityId` and key pair ($K_{mac}, K_{aes}$):
+Given a 16-byte UUID `entityId` and key pair $(K_{\mathrm{mac}}, K_{\mathrm{aes}})$:
 
 1. Convert the UUID to a 16-byte big-endian byte array (network byte order, per RFC 9562).
-2. Decrypt the 16-byte block using AES-256-ECB with $K_{aes}$.
+2. Decrypt the 16-byte block using AES-256-ECB with $K_{\mathrm{aes}}$.
 3. Check the decrypted plaintext for markers and supported epoch: `guidBytes[0] <= MaxSupportedEpoch`, `guidBytes[6] == 0x8D` (exact version match), and `(guidBytes[8] & 0xC0) == 0x80` (RFC 9562 §4.1 variant range `0x80`--`0xBF`). If any check fails, return INVALID.
-4. Verify the decrypted plaintext's MAC using $K_{mac}$ (extracting bytes 12--15, zeroing the slots, and recomputing the MAC). If verification fails, return INVALID.
+4. Verify the decrypted plaintext's MAC using $K_{\mathrm{mac}}$ (extracting bytes 12--15, zeroing the slots, and recomputing the MAC). If verification fails, return INVALID.
 5. Recover the variant byte $V = \text{guidBytes}[8]$. If $V < \text{0x8D}$, return INVALID without further key fallback.
 6. If $V > \text{0x8D}$, perform backward collision-guard verification as specified in the Backward Verification Algorithm section. If verification fails, return INVALID without further key fallback.
 7. Extract the epoch, entity type, and SKID, and return the result as a valid Secure SKEID (`Secure == true`).
@@ -355,10 +355,10 @@ Applications operating across both trusted internal and external boundaries can 
 
 1. Convert the UUID to a 16-byte big-endian byte array (network byte order, per RFC 9562).
 2. If the byte array exhibits a supported epoch (`guidBytes[0] <= MaxSupportedEpoch`) and exact primary markers (`0x8D` at position 6, `0x8D` at position 8), attempt plaintext verification using the Plain SKEID Parsing Algorithm. If MAC verification succeeds, return as a plaintext SKEID.
-3. Otherwise, attempt secure parsing using the Secure SKEID Parsing Algorithm by decrypting with $K_{aes}$ and validating markers, MAC, and backward collision proofs.
+3. Otherwise, attempt secure parsing using the Secure SKEID Parsing Algorithm by decrypting with $K_{\mathrm{aes}}$ and validating markers, MAC, and backward collision proofs.
 4. If neither path succeeds, return INVALID.
 
-The probability of a random or encrypted byte sequence coincidentally containing the two marker bytes `0x8D8D` at the exact positions is $2^{-16} = 1/65{,}536$. Requiring one specific 8-bit epoch further reduces this coincidental match probability to $2^{-(16+8)} = 2^{-24} \approx 1/16{,}777{,}216$. If plaintext MAC verification fails, parsing falls back to the decryption path. For generated Secure SKEIDs, the collision guard ensures that plaintext acceptance fails.
+The probability of a random or encrypted byte sequence coincidentally containing the two marker bytes `0x8D8D` at the exact positions is $2^{-16} = 1/65{,}536$. Requiring one specific 8-bit epoch further reduces this coincidental match probability to $2^{-(16+8)} = 2^{-24} = 1/16{,}777{,}216$. If plaintext MAC verification fails, parsing falls back to the decryption path. For generated Secure SKEIDs, the collision guard ensures that plaintext acceptance fails.
 
 Consequently, endpoints exposed to untrusted networks must avoid auto-detection or explicitly require the encrypted representation. Because plaintext SKEIDs expose internal metadata (timestamps, entity types, topology, and sequence counters) in fixed byte positions, accepting them at external boundaries permits structure-based enumeration. An attacker could then craft structured candidates and test guessed MACs directly against the 32-bit truncation bound, bypassing the confidentiality and anti-enumeration guarantees of AES-256 encryption. In the reference implementation, callers enforce this boundary by selecting `SourceKnownEntityIdFormat.Secure` rather than `Auto`.
 
@@ -371,7 +371,7 @@ Consequently, endpoints exposed to untrusted networks must avoid auto-detection 
 Implementations support bidirectional conversions between tiers (Figure 1) for already-validated identifiers:
 
 - **`ToSecure`:** Converts a plaintext SKEID to a Secure SKEID by invoking the Secure SKEID generation algorithm. If the identifier is already secure, it is returned unchanged.
-- **`ToPlain`:** Converts a Secure SKEID to a plaintext SKEID. When converting an encrypted identifier whose collision guard escalated the variant byte (`0x8E`--`0xBF`), `ToPlain` does not expose the raw decrypted block (which would fail standard plaintext marker parsing). Instead, it canonicalizes the identifier by reconstructing the canonical plaintext SKEID with the default variant byte `0x8D` and a freshly computed BLAKE3 keyed MAC under $K_{mac}$. If the identifier is already plaintext, it is returned unchanged.
+- **`ToPlain`:** Converts a Secure SKEID to a plaintext SKEID. When converting an encrypted identifier whose collision guard escalated the variant byte (`0x8E`--`0xBF`), `ToPlain` does not expose the raw decrypted block (which would fail standard plaintext marker parsing). Instead, it canonicalizes the identifier by reconstructing the canonical plaintext SKEID with the default variant byte `0x8D` and a freshly computed BLAKE3 keyed MAC under $K_{\mathrm{mac}}$. If the identifier is already plaintext, it is returned unchanged.
 
 ```{=latex}
 \end{samepage}
@@ -381,20 +381,20 @@ Implementations support bidirectional conversions between tiers (Figure 1) for a
 
 The following example illustrates the collision guard and backward verification with concrete values.
 
-**Setup:** Consider a SKID with value `0x8BEB_C200_1204_0005` (timestamp = 400,000,000 ticks from epoch, equivalent to 100,000,000 seconds at 250ms precision, app ID = 18, app instance ID = 1, sequence = 5), entity type `0x0A` (entity type 10), epoch `0x00`, and key pair $(K_{mac}, K_{aes})$.
+**Setup:** Consider a SKID with value `0x8BEB_C200_1204_0005` (timestamp = 400,000,000 ticks from epoch, equivalent to 100,000,000 seconds at 250ms precision, app ID = 18, app instance ID = 1, sequence = 5), entity type `0x0A` (entity type 10), epoch `0x00`, and key pair $(K_{\mathrm{mac}}, K_{\mathrm{aes}})$.
 
 **Step 1 SKEID Construction:** The 16-byte SKEID buffer is constructed in big-endian order. Byte 0 receives the epoch (`0x00`), bytes 1--4 receive the sign-toggled SKID upper half (`0x8BEBC200` XOR `0x80000000` = `0x0BEBC200`), byte 5 receives the most significant byte of the SKID lower half, byte 6 receives the version marker (`0x8D`), byte 7 receives the entity type (`0x0A`), byte 8 receives the default variant marker (`0x8D`), bytes 9--11 receive the remaining SKID lower half bytes, and the BLAKE3 keyed MAC is computed and placed at bytes 12--15. The UUID is constructed from the 16-byte buffer in big-endian order per RFC 9562.
 
-**Step 2 Encryption and Collision Check:** The 16-byte plaintext is encrypted with AES-256-ECB using $K_{aes}$, producing ciphertext $C_1$. The generator checks whether $C_1$ coincidentally has `0x8D` at byte position 6 and `0x8D` at byte position 8. In the overwhelming majority of cases (probability $\approx 1 - 1/65{,}536$), the ciphertext does not match, and $C_1$ is the final Secure SKEID.
+**Step 2 Encryption and Collision Check:** The 16-byte plaintext is encrypted with AES-256-ECB using $K_{\mathrm{aes}}$, producing ciphertext $C_1$. The generator checks whether $C_1$ coincidentally has `0x8D` at byte position 6 and `0x8D` at byte position 8. In the overwhelming majority of cases (probability $\approx 1 - 2^{-16}$), the ciphertext does not match, and $C_1$ is the final Secure SKEID.
 
-**Step 3 Collision Scenario:** Suppose $C_1$ has a supported epoch byte, happens to exhibit `0x8D` at position 6 and `0x8D` at position 8, and furthermore the bytes at positions 12--15 coincidentally form a valid BLAKE3 MAC over the non-MAC bytes of $C_1$ when interpreted as a plaintext SKEID. Conditional on the epoch byte being supported, this marker-plus-MAC coincidence has probability $\approx 1/2^{48}$.
+**Step 3 Collision Scenario:** Suppose $C_1$ has a supported epoch byte, happens to exhibit `0x8D` at position 6 and `0x8D` at position 8, and furthermore the bytes at positions 12--15 coincidentally form a valid BLAKE3 MAC over the non-MAC bytes of $C_1$ when interpreted as a plaintext SKEID. Conditional on the epoch byte being supported, this marker-plus-MAC coincidence has probability $\approx 2^{-48}$.
 
-When the collision guard activates, the plaintext variant byte (position 8) is changed from `0x8D` to `0x8E`. The BLAKE3 MAC is recomputed over the modified plaintext. The new plaintext is encrypted with the same $K_{aes}$, producing ciphertext $C_2$. Under the ideal-permutation approximation, the next distinct candidate has approximately the same collision probability ($\approx 1/2^{48}$). In practice, $C_2$ passes the check and becomes the final Secure SKEID.
+When the collision guard activates, the plaintext variant byte (position 8) is changed from `0x8D` to `0x8E`. The BLAKE3 MAC is recomputed over the modified plaintext. The new plaintext is encrypted with the same $K_{\mathrm{aes}}$, producing ciphertext $C_2$. Under the ideal-permutation approximation, the next distinct candidate's collision probability, including the single accepted epoch, is approximately $2^{-56}$. If $C_2$ passes the check, it becomes the final Secure SKEID; otherwise, generation continues with the next variant.
 
-**Step 4 Backward Verification at Parse Time:** When a consumer parses $C_2$ by decrypting with $K_{aes}$, the recovered plaintext reveals variant byte `0x8E` ($> \text{0x8D}$). The parser must verify that the escalation was legitimate.
+**Step 4 Backward Verification at Parse Time:** When a consumer parses $C_2$ by decrypting with $K_{\mathrm{aes}}$, the recovered plaintext reveals variant byte `0x8E` ($> \text{0x8D}$). The parser must verify that the escalation was legitimate.
 
 1. Reconstruct the SKEID with variant `0x8D` (replacing `0x8E` and recomputing the MAC).
-2. Encrypt that reconstruction with $K_{aes}$ to obtain $C_1$.
+2. Encrypt that reconstruction with $K_{\mathrm{aes}}$ to obtain $C_1$.
 3. Check that $C_1$ has a supported epoch, matching markers, and a valid MAC, confirming the collision that justified the escalation.
 4. For recovered variant `0x8E`, `0x8D` is the only preceding candidate, so this check covers the complete chain. Higher recovered variants require checking every preceding candidate down to `0x8D`.
 
@@ -452,7 +452,7 @@ The following comparison applies the HMAC guidance to BLAKE3 Keyed MAC and defau
 
 The SKEID 32-bit MAC truncation matches the minimum MacTag length specified for HMAC using approved hash algorithms in NIST SP 800-107 [@nistsp800107, Section 5.3.3]. Section 5.3.5 of the same document also discourages MacTags shorter than 64 bits. However, the 128-bit SKEID format constrains the space available for the MAC field, as the remaining bits carry the SKID, entity type, epoch, and marker bytes. Under the conditions stated in Defense-in-Depth Security Architecture, the probability that a uniformly random ciphertext passes all Secure SKEID default-variant validation checks is $2^{-71}$, lower than the per-attempt random-tag guessing probability of $2^{-64}$ for a 64-bit MacTag.
 
-Section 5.3.5 of the same document provides the general framework for assessing truncated MAC forgery risk. For a $\lambda$-bit MacTag with $2^t$ failed verifications allowed, the likelihood of accepting forged data is $(1/2)^{(\lambda - t)}$. Applying this estimate by analogy to the 32-bit MAC in plaintext SKEIDs ($\lambda = 32$): if a system permits $2^{12}$ (4,096) failed verification attempts before retiring that MAC key from verification, the forgery likelihood is $(1/2)^{20}$, approximately one in a million. At 100 rate-limited attempts per second, this $2^{12}$ budget is exhausted in roughly 41 seconds.
+Section 5.3.5 of the same document provides the general framework for assessing truncated MAC forgery risk. For a $\lambda$-bit MacTag and an attempt budget of $q = 2^t$, the idealized tag-guessing bound is $\Pr[\mathrm{forge}] \leq \min(1, q \cdot 2^{-\lambda}) = \min(1, 2^{t-\lambda})$. Applying this estimate by analogy to the 32-bit MAC in plaintext SKEIDs ($\lambda = 32$): if a system permits $2^{12}$ (4,096) failed verification attempts before retiring that MAC key from verification, the forgery likelihood is $2^{-20}$, approximately one in a million. At 100 rate-limited attempts per second, this $2^{12}$ budget is exhausted in roughly 41 seconds.
 
 Secure SKEIDs use AES-256 encryption under the PRP assumption to prevent structure-based enumeration. At endpoints that reject plaintext SKEIDs, encryption also prevents direct testing of guessed plaintext MAC values. Random ciphertext guesses remain subject to validation and rate limiting.
 
@@ -708,7 +708,7 @@ Future work concerns five areas where the present analysis and implementation le
 
 1. **Compositional analysis:** A formal analysis is needed to establish which security guarantees follow from combining single-block AES encryption, the truncated BLAKE3 MAC, and collision-guard verification under explicit assumptions. The present threat model and probability estimates do not provide such a proof.
 
-2. **AES-CMAC evaluation:** Integrity verification was initially planned with HMAC-SHA-256, then shifted toward SHA-3 motivated by potential post-quantum security benefits, and subsequently to BLAKE3 (descended from the SHA-3 finalist BLAKE) after benchmarks confirmed its speed advantage on small inputs. However, we discovered that single-block hardware-accelerated AES with cached keys may offer better performance. We plan to evaluate AES-256-CMAC as specified by the CMAC construction in NIST SP 800-38B [@nistsp80038b]. AES-256 retains a 128-bit block size, matching SKEID’s 16-byte authentication input. We plan to retain BLAKE3's domain-separated key derivation mode (derive_key) for generating independent encryption and authentication keys from master key material in the reference implementation.
+2. **AES-CMAC evaluation:** Integrity verification was initially planned with HMAC-SHA-256, then shifted toward SHA-3 motivated by potential post-quantum security benefits, and subsequently to BLAKE3 (descended from the SHA-3 finalist BLAKE) after benchmarks confirmed its speed advantage on small inputs. However, we discovered that single-block hardware-accelerated AES with cached keys may offer better performance. We plan to evaluate AES-256-CMAC as specified by the CMAC construction in NIST SP 800-38B [@nistsp80038b]. AES-256 retains a 128-bit block size, matching SKEID's 16-byte authentication input. We plan to retain BLAKE3's domain-separated key derivation mode (derive_key) for generating independent encryption and authentication keys from master key material in the reference implementation.
 
 3. **Operational lifecycle:** The mechanism for transitioning between epochs is not specified. Given that epoch `0x00` spans until approximately 2093 CE, this is left as future work. Future work must address how stored identifiers retain their epoch context during migration and across long-lived datasets. Key-ring fallback is configurable in the reference implementation, but coordinated key rollout, revocation, and cross-key ambiguity as the verification key set changes remain application responsibilities and subjects for further study. Instance identifier assignment and safe reuse across restarts likewise require an external coordination mechanism, as described in Limitation 2.
 
