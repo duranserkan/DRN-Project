@@ -165,9 +165,10 @@ Distributed Applications}
 \begin{abstract}
 \setlength{\parskip}{1ex}
 Distributed applications use identifiers across database storage,
-trusted communication, and external access. These roles require storage
-efficiency, chronological sortability, origin metadata embedding,
-zero-lookup verifiability, metadata confidentiality, and multi-century
+trusted communication, and external access. Depending on their use,
+these roles require different combinations of storage efficiency,
+chronological sortability, origin metadata embedding, zero-lookup
+verifiability, metadata confidentiality, and multi-century
 addressability. The identifier schemes compared in this paper, including
 Universally Unique Identifier (UUID) versions 4 and 7, do not
 individually provide all six properties. We present Source-Known
@@ -176,9 +177,9 @@ properties across representations of one entity identity, connected
 through deterministic transformations. A 64-bit Source-Known ID (SKID)
 provides a timestamp-ordered database key. A 128-bit Source-Known Entity
 ID (SKEID) adds entity type, epoch, and a keyed message authentication
-code to the SKID, enabling integrity and asserted origin metadata checks
-within a shared-key trust domain without record lookups. Secure SKEID
-encrypts this representation to conceal metadata while retaining
+(MAC) code to the SKID, enabling integrity and asserted origin metadata
+checks within a shared-key trust domain without record lookups. Secure
+SKEID encrypts this representation to conceal metadata while retaining
 linkability of repeated identifiers. A collision guard and cryptographic
 backward verification prevent generated ciphertext from being accepted
 as plaintext when generation and parsing use the same verification keys
@@ -187,7 +188,7 @@ analysis, implementation tests, and microbenchmarks of the C\#/.NET 10
 reference implementation. On Apple M2 hardware, SKEID and Secure SKEID
 generation averaged 207.28 ± 3.10 ns and 224.62 ± 3.90 ns, respectively,
 compared with 361.94 ± 1.94 ns for UUID Version 4 and 384.11 ± 1.95 ns
-for UUID Version 7. ± values indicate 99.90\% confidence interval (CI)
+for UUID Version 7. ± values indicate 99.9\% confidence interval (CI)
 margins. These results support the feasibility of deriving SKEIDs from
 64-bit Source-Known IDs on demand.
 \end{abstract}
@@ -331,8 +332,7 @@ and protecting identifiers. Snowflake packs timestamps, topology, and
 sequence counters into 64-bit identifiers (Twitter Engineering, 2012),
 while UUIDv8 permits application-defined fields within a standard
 128-bit layout (Davis, Peabody \& Leach, 2024, sec. 5.8). These provide
-precedents for SKID's topology fields and SKEID's custom metadata
-layout.
+precedents for SKID's topology fields and SKEID's metadata layout.
 
 The cryptographic foundations are also established. MACs provide
 integrity verification, and authenticated encryption combines
@@ -346,7 +346,7 @@ sec. 6). SKEID incorporates an embedded MAC, and Secure SKEID follows
 this principle by encrypting the structured representation and verifying
 it after decryption.
 
-For external use, Khuong (Khuong, 2022) describes using AES to convert a
+For external use, Khuong (2022) describes using AES to convert a
 structured 128-bit key into an opaque identifier of the same size. The
 article also discusses cycle walking and a specialized Feistel
 construction for producing encrypted identifiers with fixed format bits,
@@ -417,7 +417,7 @@ SKEID to Secure SKEID.
   \textbf{An epoch addressing system} embedded in the plaintext SKEID's
   UUIDv8-compatible layout that spans approximately 17,421 years of
   total coverage through 256 configurable epochs of \(2^{31}\) seconds
-  each.
+  each (approximately 68 years per epoch).
 \item
   \textbf{A reference implementation} in C\#/.NET 10 with open-source
   code, integration and unit test coverage, and BenchmarkDotNet
@@ -645,9 +645,9 @@ A SKID is a 64-bit signed integer with the following field layout
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|S|                    Timestamp (T - 32 bits)                   
+|S|                    Timestamp (T - 32 bits)                  |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- T| App ID (7)  | Inst (6)  |         Sequence (18 bits)        |
+|T| App ID (7)  | Inst (6)  |         Sequence (18 bits)        |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 \end{verbatim}
 
@@ -1123,12 +1123,13 @@ Given a 16-byte UUID \texttt{entityId} and key pair
   (extracting bytes 12--15, zeroing the slots, and recomputing the MAC).
   If verification fails, return INVALID.
 \item
-  Recover the variant byte \(V = \text{guidBytes}[8]\). If
-  \(V < \text{0x8D}\), return INVALID without further key fallback.
+  Recover the variant byte \(V = \texttt{guidBytes[8]}\). If
+  \(V < \texttt{0x8D}\), return INVALID without further key fallback.
 \item
-  If \(V > \text{0x8D}\), perform backward collision-guard verification
-  as specified in the Backward Verification Algorithm section. If
-  verification fails, return INVALID without further key fallback.
+  If \(V > \texttt{0x8D}\), perform backward collision-guard
+  verification as specified in the Backward Verification Algorithm
+  section. If verification fails, return INVALID without further key
+  fallback.
 \item
   Extract the epoch, entity type, and SKID, and return the result as a
   valid Secure SKEID (\texttt{Secure\ ==\ true}).
@@ -1139,7 +1140,7 @@ Algorithm}\label{backward-verification-algorithm}
 
 During parsing, the recovered candidate must first pass its own MAC
 verification. When a non-default variant byte \(V\) is recovered from
-the decrypted plaintext (\(\text{0x8D} < V \leq \text{0xBF}\)), the
+the decrypted plaintext (\(\texttt{0x8D} < V \leq \texttt{0xBF}\)), the
 parse algorithm must verify every preceding variant from \(V-1\) down to
 \texttt{0x8D}, inclusive. For each candidate, it reconstructs the SKEID
 with the same SKID, epoch, and entity type, recomputes its MAC, encrypts
@@ -1215,8 +1216,6 @@ In the reference implementation, callers enforce this boundary by
 selecting \texttt{SourceKnownEntityIdFormat.Secure} rather than
 \texttt{Auto}.
 
-\begin{samepage}
-
 \subsubsection{Tier Conversion}\label{tier-conversion}
 
 Implementations support bidirectional conversions between tiers (Figure
@@ -1239,8 +1238,6 @@ Implementations support bidirectional conversions between tiers (Figure
   MAC under \(K_{\mathrm{mac}}\). If the identifier is already
   plaintext, it is returned unchanged.
 \end{itemize}
-
-\end{samepage}
 
 \subsubsection{Numeric Walkthrough}\label{numeric-walkthrough}
 
@@ -1277,9 +1274,10 @@ the final Secure SKEID.
 \textbf{Step 3 Collision Scenario:} Suppose \(C_1\) has a supported
 epoch byte, happens to exhibit \texttt{0x8D} at position 6 and
 \texttt{0x8D} at position 8, and furthermore the bytes at positions
-12--15 coincidentally form a valid BLAKE3 MAC over the non-MAC bytes of
-\(C_1\) when interpreted as a plaintext SKEID. Conditional on the epoch
-byte being supported, this marker-plus-MAC coincidence has probability
+12--15 coincidentally form a valid BLAKE3 keyed MAC computed over a copy
+of the full 16-byte buffer of \(C_1\) with bytes 12--15 set to zero,
+when interpreted as a plaintext SKEID. Conditional on the epoch byte
+being supported, this marker-plus-MAC coincidence has probability
 \(\approx 2^{-48}\).
 
 When the collision guard activates, the plaintext variant byte (position
@@ -1294,7 +1292,7 @@ variant.
 
 \textbf{Step 4 Backward Verification at Parse Time:} When a consumer
 parses \(C_2\) by decrypting with \(K_{\mathrm{aes}}\), the recovered
-plaintext reveals variant byte \texttt{0x8E} (\(> \text{0x8D}\)). The
+plaintext reveals variant byte \texttt{0x8E} (\(> \texttt{0x8D}\)). The
 parser must verify that the escalation was legitimate.
 
 \begin{enumerate}
@@ -1464,9 +1462,10 @@ an attempt budget of \(q = 2^t\), the idealized tag-guessing bound is
 Applying this estimate by analogy to the 32-bit MAC in plaintext SKEIDs
 (\(\lambda = 32\)): if a system permits \(2^{12}\) (4,096) failed
 verification attempts before retiring that MAC key from verification,
-the forgery likelihood is \(2^{-20}\), approximately one in a million.
-At 100 rate-limited attempts per second, this \(2^{12}\) budget is
-exhausted in roughly 41 seconds.
+the forgery likelihood is bounded by \(2^{-20}\), approximately one in a
+million, under the idealized tag-guessing model. At 100 rate-limited
+attempts per second, this \(2^{12}\) budget is exhausted in roughly 41
+seconds.
 
 Secure SKEIDs use AES-256 encryption under the PRP assumption to prevent
 structure-based enumeration. At endpoints that reject plaintext SKEIDs,
@@ -1591,7 +1590,8 @@ RFC 9562 network byte order. To avoid the mixed-endian byte-array
 representation used by default in .NET \texttt{Guid} APIs, the reference
 implementation constructs values with
 \texttt{Guid(ReadOnlySpan\textless{}byte\textgreater{},\ bigEndian:\ true)}
-and extracts bytes with \texttt{Guid.ToByteArray(bigEndian:\ true)}.
+and extracts bytes with
+\texttt{Guid.TryWriteBytes(guidBytes,\ bigEndian:\ true,\ out\ \_)}.
 These conversions preserve the specified byte layout across runtimes.
 Secure SKEIDs retain UUID string formatting, but encryption does not
 preserve RFC version and variant bits (see Limitation 6).
@@ -1681,11 +1681,11 @@ outliers before computing summary statistics.
 
 Mean, Error, and Standard Deviation are reported in nanoseconds (ns) and
 rounded to two decimal places throughout the manuscript. Error denotes
-the 99.90\% confidence interval (CI) margin calculated by
-BenchmarkDotNet over iterations remaining after upper outlier removal.
-Speedup factors are calculated by dividing the baseline mean by the
-operation mean using the source report values before rounding the result
-to two decimal places.
+the 99.9\% confidence interval (CI) margin calculated by BenchmarkDotNet
+over iterations remaining after upper outlier removal. Speedup factors
+are calculated by dividing the baseline mean by the operation mean using
+the source report values before rounding the result to two decimal
+places.
 
 The benchmark configuration under normal load uses 120 measurement
 iterations with 262,144 invocations per iteration. This invocation count
@@ -2015,8 +2015,6 @@ partitions. For time-based sorting, CUID2 recommends a separate indexed
 avoid that additional column when their embedded generation timestamp
 satisfies the application's requirements.
 
-\newpage
-
 Tables 9 and 10 compare the security posture of the three-tier identity
 system against standard and alternative identifier schemes.
 
@@ -2342,8 +2340,9 @@ implementation leave open questions.
   restarts likewise require an external coordination mechanism, as
   described in Limitation 2.
 \item
-  \textbf{Portability and interoperability:} An author-hosted draft
-  specification (\texttt{draft-kilic-skid-00}) in Internet-Draft format
+  \textbf{Portability and interoperability:} An author-hosted
+  \href{https://github.com/duranserkan/DRN-Project/blob/release/v0.10.0/docs/draft-skid-00.md}{draft
+  specification (\texttt{draft-kilic-skid-00})} in Internet-Draft format
   (Kılıç, 2026b) is available in the archived DRN-Project v0.10.0
   release, containing algorithms, CDDL definitions, and test vectors.
   Formal IETF submission remains a separate dissemination step.
@@ -2480,8 +2479,8 @@ encryption: How to exploit nonces or redundancy in plaintexts for
 efficient cryptography}}.
 
 \bibitem[\citeproctext]{ref-bonnetain2019}
-Bonnetain X, Naya-Plasencia M, Schrottenloher A. 2019. Quantum security
-analysis of {AES}. \emph{IACR Transactions on Symmetric Cryptology}
+Bonnetain X, Naya-Plasencia M, Schrottenloher A. 2019. {Quantum Security
+Analysis of AES}. \emph{IACR Transactions on Symmetric Cryptology}
 2019:55--93. DOI:
 \href{https://doi.org/10.46586/tosc.v2019.i2.55-93}{10.46586/tosc.v2019.i2.55-93}.
 
@@ -2541,8 +2540,9 @@ Authenticated Encryption Using the Advanced Encryption Standard (AES)}}.
 IETF. DOI: \href{https://doi.org/10.17487/RFC5297}{10.17487/RFC5297}.
 
 \bibitem[\citeproctext]{ref-ieee1588}
-IEEE. 2020. \emph{{IEEE Standard for a Precision Clock Synchronization
-Protocol for Networked Measurement and Control Systems}}. DOI:
+IEEE. 2020. \emph{{IEEE Std 1588-2019: IEEE Standard for a Precision
+Clock Synchronization Protocol for Networked Measurement and Control
+Systems}}. DOI:
 \href{https://doi.org/10.1109/IEEESTD.2020.9120376}{10.1109/IEEESTD.2020.9120376}.
 
 \bibitem[\citeproctext]{ref-khuong2022}

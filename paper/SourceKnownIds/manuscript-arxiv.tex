@@ -1216,8 +1216,6 @@ In the reference implementation, callers enforce this boundary by
 selecting \texttt{SourceKnownEntityIdFormat.Secure} rather than
 \texttt{Auto}.
 
-\begin{samepage}
-
 \subsubsection{Tier Conversion}\label{tier-conversion}
 
 Implementations support bidirectional conversions between tiers (Figure
@@ -1240,8 +1238,6 @@ Implementations support bidirectional conversions between tiers (Figure
   MAC under \(K_{\mathrm{mac}}\). If the identifier is already
   plaintext, it is returned unchanged.
 \end{itemize}
-
-\end{samepage}
 
 \subsubsection{Numeric Walkthrough}\label{numeric-walkthrough}
 
@@ -1278,9 +1274,10 @@ the final Secure SKEID.
 \textbf{Step 3 Collision Scenario:} Suppose \(C_1\) has a supported
 epoch byte, happens to exhibit \texttt{0x8D} at position 6 and
 \texttt{0x8D} at position 8, and furthermore the bytes at positions
-12--15 coincidentally form a valid BLAKE3 MAC over the non-MAC bytes of
-\(C_1\) when interpreted as a plaintext SKEID. Conditional on the epoch
-byte being supported, this marker-plus-MAC coincidence has probability
+12--15 coincidentally form a valid BLAKE3 keyed MAC computed over a copy
+of the full 16-byte buffer of \(C_1\) with bytes 12--15 set to zero,
+when interpreted as a plaintext SKEID. Conditional on the epoch byte
+being supported, this marker-plus-MAC coincidence has probability
 \(\approx 2^{-48}\).
 
 When the collision guard activates, the plaintext variant byte (position
@@ -1465,9 +1462,10 @@ an attempt budget of \(q = 2^t\), the idealized tag-guessing bound is
 Applying this estimate by analogy to the 32-bit MAC in plaintext SKEIDs
 (\(\lambda = 32\)): if a system permits \(2^{12}\) (4,096) failed
 verification attempts before retiring that MAC key from verification,
-the forgery likelihood is \(2^{-20}\), approximately one in a million.
-At 100 rate-limited attempts per second, this \(2^{12}\) budget is
-exhausted in roughly 41 seconds.
+the forgery likelihood is bounded by \(2^{-20}\), approximately one in a
+million, under the idealized tag-guessing model. At 100 rate-limited
+attempts per second, this \(2^{12}\) budget is exhausted in roughly 41
+seconds.
 
 Secure SKEIDs use AES-256 encryption under the PRP assumption to prevent
 structure-based enumeration. At endpoints that reject plaintext SKEIDs,
