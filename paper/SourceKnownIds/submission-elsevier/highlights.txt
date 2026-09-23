@@ -1,0 +1,5 @@
+- Three-tier entity identity system for different trust boundaries.
+- Identifier integrity can be verified without looking up the record.
+- Zero-expansion identifier conversion using encode-then-encipher approach.
+- A collision guard keeps encrypted identifiers from being mistaken for plaintext.
+- Backward verification checks that all earlier variants caused plaintext collisions.

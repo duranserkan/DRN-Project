@@ -1,0 +1,117 @@
+%% Pandoc adapter for Elsevier CAS single-column output.
+%% Generate with --natbib; see ../build-commands.md for the BibTeX PDF pipeline.
+%% CAS 2.4 longmktitle uses a removed LaTeX3 command; use standard title mode.
+\documentclass[a4paper,fleqn]{cas-sc}
+\usepackage[authoryear]{natbib}
+
+%% XeLaTeX fonts follow the existing paper templates for Unicode support.
+\usepackage{fontspec}
+\setmainfont{texgyretermes-regular.otf}[
+  BoldFont = texgyretermes-bold.otf,
+  ItalicFont = texgyretermes-italic.otf,
+  BoldItalicFont = texgyretermes-bolditalic.otf
+]
+\setsansfont{texgyreheros-regular.otf}[
+  BoldFont = texgyreheros-bold.otf,
+  ItalicFont = texgyreheros-italic.otf,
+  BoldItalicFont = texgyreheros-bolditalic.otf
+]
+\setmonofont{DejaVuSansMono.ttf}[
+  Scale = 0.85,
+  BoldFont = DejaVuSansMono-Bold.ttf,
+  ItalicFont = DejaVuSansMono-Oblique.ttf,
+  BoldItalicFont = DejaVuSansMono-BoldOblique.ttf
+]
+
+%% Pandoc tables, including unnumbered tables and footnotes.
+\usepackage{calc} % Pandoc column widths use arithmetic and \real factors.
+\usepackage{longtable}
+\newcounter{none}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\AtBeginEnvironment{longtable}{%
+  \scriptsize
+  \setlength{\tabcolsep}{2pt}%
+}
+\setlength{\LTpre}{1.5em}
+\setlength{\LTpost}{1.5em}
+
+%% Pandoc image scaling (graphicx is loaded by cas-sc).
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{%
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi%
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
+\def\fps@figure{htbp}
+\makeatother
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+$if(highlighting-macros)$
+$highlighting-macros$
+$endif$
+
+\setlength{\emergencystretch}{3em}
+%% Honor Pandoc's --number-sections through subsubsections.
+$if(numbersections)$
+\setcounter{secnumdepth}{3}
+$else$
+\setcounter{secnumdepth}{-\maxdimen}
+$endif$
+%% Pandoc's natbib writer removes the trailing Markdown References heading;
+%% retain natbib's heading for the generated bibliography.
+
+%% hyperref is loaded by cas-sc; configure it without reloading it.
+\hypersetup{
+$if(title-meta)$
+  pdftitle={$title-meta$},
+$endif$
+$if(author-meta)$
+  pdfauthor={$author-meta$},
+$endif$
+  hidelinks,
+  pdfcreator={LaTeX via Pandoc}}
+
+$for(header-includes)$
+$header-includes$
+$endfor$
+
+\begin{document}
+\shorttitle{Source-Known Identifiers}
+\shortauthors{$author$}
+\title[mode=title]{$title$}
+\author[1]{$author$}$if(orcid)$[orcid={$orcid$}]$endif$
+$if(email)$
+\cormark[1]
+\ead{$email$}
+\cortext[1]{Corresponding author}
+$endif$
+$if(affiliation)$
+\affiliation[1]{organization={$affiliation$}}
+$endif$
+$if(abstract)$
+\begin{abstract}
+$abstract$
+\end{abstract}
+$endif$
+$if(keywords)$
+\begin{keywords}
+$for(keywords)$$keywords$$sep$ \sep $endfor$
+\end{keywords}
+$endif$
+\maketitle
+
+$body$
+
+\bibliographystyle{cas-model2-names}
+\bibliography{$for(bibliography)$$bibliography$$sep$,$endfor$}
+\end{document}

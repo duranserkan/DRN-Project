@@ -254,7 +254,7 @@ and achievable in a multi-tier distributed identity system:
 1. Storage efficiency
 2. Chronological sortability
 3. Origin metadata embedding
-4. Zero-lookup verifiability
+4. Zero-lookup verification
 5. Confidentiality for external consumers
 6. Multi-century addressability
 

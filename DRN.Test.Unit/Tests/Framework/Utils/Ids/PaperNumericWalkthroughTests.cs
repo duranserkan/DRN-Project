@@ -6,13 +6,13 @@ using DRN.Framework.Utils.Numbers;
 namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 
 /// <summary>
-/// Verifies the numeric walkthrough example in paper/SourceKnownIds/paper.md § Numeric Walkthrough.
-/// These tests establish the correct hex values that the paper must reference.
+/// Verifies the numeric walkthrough example retained in docs/draft-skid-00.md § Numeric Walkthrough.
+/// The paper now uses the Appendix A vector asserted by IetfDraftTestVectorTests.
 /// Uses big-endian byte layout per RFC 9562 V8.
 /// </summary>
 public class PaperNumericWalkthroughTests
 {
-    // Paper walkthrough fields (tick-based: 250ms precision, 4 ticks/s)
+    // Draft walkthrough fields (tick-based: 250ms precision, 4 ticks/s)
     private const uint WalkthroughTimestamp = 100_000_000U * 4; // 100M seconds × 4 ticks/s = 400,000,000 ticks
     private const byte WalkthroughAppId = 18;
     private const byte WalkthroughAppInstanceId = 1;
@@ -52,10 +52,10 @@ public class PaperNumericWalkthroughTests
         builder.TryAdd(WalkthroughSequence, 18);
         var skid = builder.GetValue();
 
-        // Assert — SKID hex matches paper walkthrough value exactly
-        const long paperSkidHex = unchecked((long)0x8BEB_C200_1204_0005UL);
-        skid.Should().Be(paperSkidHex,
-            "SKID hex must match value stated in paper.md § Numeric Walkthrough (0x8BEBC20012040005)");
+        // Assert — SKID hex matches draft walkthrough value exactly
+        const long draftSkidHex = unchecked((long)0x8BEB_C200_1204_0005UL);
+        skid.Should().Be(draftSkidHex,
+            "SKID hex must match docs/draft-skid-00.md § Numeric Walkthrough (0x8BEBC20012040005)");
         skid.Should().Be(ExpectedSkid,
             $"SKID for (ts={WalkthroughTimestamp}, appId={WalkthroughAppId}, " +
             $"instId={WalkthroughAppInstanceId}, seq={WalkthroughSequence}) " +

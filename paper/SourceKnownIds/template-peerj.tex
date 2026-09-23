@@ -141,8 +141,12 @@ $endif$
 %% Prevent overfull lines
 \setlength{\emergencystretch}{3em}
 
-%% Remove section numbering (Pandoc Markdown uses unnumbered sections)
+%% Honor Pandoc's --number-sections through subsubsections.
+$if(numbersections)$
+\setcounter{secnumdepth}{3}
+$else$
 \setcounter{secnumdepth}{-\maxdimen}
+$endif$
 
 %% ============================================================================
 %% Hyperlinks (must be loaded after other packages)

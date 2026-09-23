@@ -77,6 +77,44 @@
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 
 %% Code highlighting support
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\newenvironment{Shaded}{}{}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.49,0.56,0.16}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\BuiltInTok}[1]{\textcolor[rgb]{0.00,0.50,0.00}{#1}}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.53,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.56,0.13,0.00}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.73,0.13,0.13}{\textit{#1}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.02,0.16,0.49}{#1}}
+\newcommand{\ImportTok}[1]{\textcolor[rgb]{0.00,0.50,0.00}{\textbf{#1}}}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.40,0.40,0.40}{#1}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.74,0.48,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.73,0.40,0.53}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.10,0.09,0.49}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
 
 %% CSL citation support (for --citeproc)
 \NewDocumentCommand\citeproctext{}{}
@@ -136,8 +174,8 @@
 %% Prevent overfull lines
 \setlength{\emergencystretch}{3em}
 
-%% Remove section numbering (Pandoc Markdown uses unnumbered sections)
-\setcounter{secnumdepth}{-\maxdimen}
+%% Honor Pandoc's --number-sections through subsubsections.
+\setcounter{secnumdepth}{3}
 
 %% ============================================================================
 %% Hyperlinks (must be loaded after other packages)
@@ -165,31 +203,30 @@ Distributed Applications}
 \begin{abstract}
 \setlength{\parskip}{1ex}
 Distributed applications use identifiers across database storage,
-trusted communication, and external access. Depending on their use,
-these roles require different combinations of storage efficiency,
-chronological sortability, origin metadata embedding, zero-lookup
-verifiability, metadata confidentiality, and multi-century
-addressability. The identifier schemes compared in this paper, including
-Universally Unique Identifier (UUID) versions 4 and 7, do not
-individually provide all six properties. We present Source-Known
-Identifiers, a three-tier identity system that distributes these
-properties across representations of one entity identity, connected
-through deterministic transformations. A 64-bit Source-Known ID (SKID)
-provides a timestamp-ordered database key. A 128-bit Source-Known Entity
-ID (SKEID) adds entity type, epoch, and a keyed message authentication
-(MAC) code to the SKID, enabling integrity and asserted origin metadata
-checks within a shared-key trust domain without record lookups. Secure
-SKEID encrypts this representation to conceal metadata while retaining
-linkability of repeated identifiers. A collision guard and cryptographic
-backward verification prevent generated ciphertext from being accepted
-as plaintext when generation and parsing use the same verification keys
-and acceptance policy. Evaluation combines specification and threat
-analysis, implementation tests, and microbenchmarks of the C\#/.NET 10
-reference implementation. On Apple M2 hardware, SKEID and Secure SKEID
+trusted communication, and external access. These roles require
+different combinations of storage efficiency, chronological sortability,
+origin metadata embedding, zero-lookup verification, metadata
+confidentiality, and multi-century addressability. The identifier
+schemes compared in this paper, including Universally Unique Identifier
+(UUID) versions 4 and 7, do not individually provide all six properties.
+We present Source-Known Identifiers, a three-tier identity system that
+distributes these properties across representations of one entity
+identity, connected through deterministic transformations. A 64-bit
+Source-Known ID (SKID) provides a timestamp-ordered database key. A
+128-bit Source-Known Entity ID (SKEID) adds entity type, epoch, and a
+keyed message authentication code (MAC) to the SKID, enabling integrity
+and origin metadata checks within a shared-key trust domain without
+record lookups. Secure SKEID encrypts this representation to conceal
+metadata while retaining linkability of repeated identifiers. Collision
+checks prevent generated ciphertext from being accepted as plaintext.
+Evaluation combines specification and threat analysis, implementation
+tests, and microbenchmarks of the C\#/.NET 10 reference implementation.
+Within sequence capacity on Apple M2 hardware, SKEID and Secure SKEID
 generation averaged 207.28 ± 3.10 ns and 224.62 ± 3.90 ns, respectively,
 compared with 361.94 ± 1.94 ns for UUID Version 4 and 384.11 ± 1.95 ns
-for UUID Version 7. ± values indicate 99.9\% confidence interval (CI)
-margins. These results support the feasibility of deriving SKEIDs from
+for UUID Version 7. ± values indicate 99.9\% confidence interval
+margins. Under saturation, generation was slower than the UUID
+baselines. These results support the feasibility of deriving SKEIDs from
 64-bit Source-Known IDs on demand.
 \end{abstract}
 
@@ -259,7 +296,7 @@ system targets the following six properties across its tiers:
 \item
   Origin metadata embedding
 \item
-  Zero-lookup verifiability
+  Zero-lookup verification
 \item
   Confidentiality for external consumers
 \item
@@ -341,8 +378,8 @@ McGrew, 2008).
 
 Bellare and Rogaway's encode-then-encipher framework shows how checking
 embedded redundancy after deciphering can provide authenticity under a
-strong pseudorandom-permutation assumption (Bellare \& Rogaway, 1999,
-sec. 6). SKEID incorporates an embedded MAC, and Secure SKEID follows
+strong pseudorandom-permutation assumption (Bellare \& Rogaway, 2000,
+Theorem 2). SKEID incorporates an embedded MAC, and Secure SKEID follows
 this principle by encrypting the structured representation and verifying
 it after decryption.
 
@@ -371,8 +408,7 @@ representations of one identity, combining compact storage,
 authenticated entity-type and origin metadata, and encryption for
 external use. Conversion from SKEID to Secure SKEID preserves the
 128-bit size. Collision-guard and backward-verification mechanisms
-distinguish the plaintext and encrypted representations when generation
-and parsing use the same verification keys and acceptance policy.
+distinguish the plaintext and encrypted representations.
 
 \newpage
 
@@ -394,10 +430,13 @@ SKEID to Secure SKEID.
 \item
   \textbf{A defense-in-depth security architecture} combining AES-256
   encryption, BLAKE3 keyed MAC, marker byte detection, epoch validation,
-  and optional entity type and application ID matching. Its collision
-  guard prevents encrypted identifiers from being accepted as plaintext
-  when generation and parsing use the same verification keys and
-  acceptance policy.
+  and optional entity type and application ID matching.
+\item
+  \textbf{A collision guard for plaintext-to-encrypted identifier
+  conversion} that checks candidate ciphertext against plaintext
+  acceptance criteria and, on collision, recomputes the MAC and
+  re-encrypts successive variants. Successfully generated ciphertext
+  cannot be accepted as plaintext.
 \item
   \textbf{Cryptographic backward verification} that enables the parser
   to reconstruct and verify every preceding collision under the
@@ -406,8 +445,8 @@ SKEID to Secure SKEID.
   the collision guard, without trusting that an input was produced by
   the generator.
 \item
-  \textbf{Zero-expansion conversion from SKEID to Secure SKEID} that
-  combines embedded metadata, a truncated MAC, and collision-guard
+  \textbf{Zero-expansion plaintext-to-encrypted identifier conversion}
+  that combines embedded metadata, a truncated MAC, and collision-guard
   variants within the same 128-bit representation using AES's
   length-preserving block permutation. By comparison, AES-SIV and the
   AES-GCM profiles in RFC 5116 each add 16 bytes to the plaintext
@@ -437,14 +476,13 @@ prefix followed by random bits, providing millisecond-precision ordering
 and global uniqueness.
 
 The comparison includes the alternatives examined during the development
-of RFC 9562, Section 2.1, including Snowflake, ULID, KSUID, and the
-original CUID (Davis, Peabody \& Leach, 2024, sec. 2.1). These schemes
-illustrate different choices in identifier size, ordering, timestamp
-precision, and generator metadata. We include CUID2 as CUID's successor,
-UUID V4 and V7 as standardized random and time-ordered baselines, and
-database sequences as the compact storage baseline. This selection
-covers relevant design trade-offs without reproducing the RFC's full
-survey.
+of RFC 9562 including Snowflake, ULID, KSUID, and the original CUID
+(Davis, Peabody \& Leach, 2024, sec. 2.1). These schemes illustrate
+different choices in identifier size, ordering, timestamp precision, and
+generator metadata. We include CUID2 as CUID's successor, UUID V4 and V7
+as standardized random and time-ordered baselines, and database
+sequences as the compact storage baseline. This selection covers
+relevant design trade-offs without reproducing the RFC's full survey.
 
 Twitter's Snowflake architecture (Twitter Engineering, 2010, 2012)
 pioneered timestamp-prefixed, worker-partitioned 64-bit identifiers for
@@ -507,15 +545,15 @@ a detailed feature comparison.
 
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.2000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1692}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0923}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0692}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0846}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0769}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0769}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1308}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1000}}@{}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.2061}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1679}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0916}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0687}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0840}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0763}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0763}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.1298}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 16\tabcolsep) * \real{0.0992}}@{}}
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright
 Feature
@@ -551,7 +589,7 @@ Entity type & Yes (8-bit) & No & No & No & No & No & No & No \\
 Integrity check & Yes (BLAKE3 MAC) & No & No & No & No & No & No & No \\
 Confidentiality & Encryption (AES-256) & Randomness & No & No & No &
 Hashing & No & No \\
-Zero-lookup validation & Yes & No & No & No & No & No & No & No \\
+Zero-lookup verification & Yes & No & No & No & No & No & No & No \\
 DB primary key size & 8 B (SKID) & 16 B & 16 B & 8 B & 16 B & 24 chars &
 20 B & 4/8 B \\
 External ID size & 16 B (Secure SKEID) & 16 B & 16 B & 8 B & 26 chars &
@@ -565,8 +603,8 @@ No \\
 
 \section{Methods}\label{methods}
 
-Portions of this text were previously published as part of a preprint
-(https://doi.org/10.48550/arXiv.2604.00151).
+Portions of this text were previously published as part of an arXiv
+preprint (Kılıç, 2026a).
 
 The proposed identifier system is evaluated through specification
 analysis, implementation tests, performance measurement, and threat
@@ -1025,8 +1063,15 @@ the query count under a single key remains well below \(2^{64}\).
 Because SKEID encryption always operates on exactly one block, the
 multi-block weakness of ECB mode does not apply. For a single block, ECB
 is mathematically identical to Cipher Block Chaining (CBC) with a zero
-initialization vector:
-\(C = \operatorname{AES}_{K_{\mathrm{aes}}}(P \oplus \mathbf{0}) = \operatorname{AES}_{K_{\mathrm{aes}}}(P)\),
+initialization vector, as shown in Equation
+\eqref{eq:aes-cbc-equivalence}:
+
+\begin{equation}
+\label{eq:aes-cbc-equivalence}
+C = \operatorname{AES}_{K_{\mathrm{aes}}}(P \oplus \mathbf{0})
+  = \operatorname{AES}_{K_{\mathrm{aes}}}(P),
+\end{equation}
+
 where \(P\) is the plaintext block and \(\mathbf{0}\) is the all-zero
 128-bit block. No nonce is required, and there is no nonce-reuse
 vulnerability.
@@ -1241,44 +1286,81 @@ Implementations support bidirectional conversions between tiers (Figure
 
 \subsubsection{Numeric Walkthrough}\label{numeric-walkthrough}
 
-The following example illustrates the collision guard and backward
-verification with concrete values.
+This example reproduces the public test vector from Appendix A of the
+draft specification (Kılıç, 2026b). The collision-guard scenario that
+follows is hypothetical and is not triggered by this vector.
 
-\textbf{Setup:} Consider a SKID with value
-\texttt{0x8BEB\_C200\_1204\_0005} (timestamp = 400,000,000 ticks from
-epoch, equivalent to 100,000,000 seconds at 250ms precision, app ID =
-18, app instance ID = 1, sequence = 5), entity type \texttt{0x0A}
-(entity type 10), epoch \texttt{0x00}, and key pair
-\((K_{\mathrm{mac}}, K_{\mathrm{aes}})\).
+\textbf{Setup:} Consider a SKID with value \texttt{0x881B3200050C002A}
+(signed decimal \texttt{-8639256484514103254}), timestamp = 272,000,000
+ticks from epoch (68,000,000 seconds at 250ms precision), app ID = 5,
+app instance ID = 3, sequence = 42, entity type \texttt{0x01}, and epoch
+\texttt{0x00} beginning on 2025-01-01T00:00:00Z.
+
+The public test key material and derived keys are shown below. Each
+hexadecimal string represents 32 raw bytes, not UTF-8 text.
+Implementations can use the displayed derived keys directly to reproduce
+the wire vector in tests. These public test keys must not be used in
+production.
+
+The public master-key value also appears as the 256-bit key-encryption
+key in the test vector in RFC 3394 (Schaad \& Housley, 2002, sec. 4.3).
+The MAC and AES keys shown below are derived from this master key by the
+reference implementation.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Master key:}
+\NormalTok{000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F}
+\NormalTok{MAC key (K\_mac):}
+\NormalTok{5E293E89136745A96B70EB8C8F81CDFCAED177BE5358BC83D3039FB6607FD8FE}
+\NormalTok{AES key (K\_aes):}
+\NormalTok{4988F97FF724CD086BDFEC83497C3527B3656F35F0911BEEAA6BCE4BB92D3BC7}
+\end{Highlighting}
+\end{Shaded}
 
 \textbf{Step 1 SKEID Construction:} The 16-byte SKEID buffer is
 constructed in big-endian order. Byte 0 receives the epoch
 (\texttt{0x00}), bytes 1--4 receive the sign-toggled SKID upper half
-(\texttt{0x8BEBC200} XOR \texttt{0x80000000} = \texttt{0x0BEBC200}),
-byte 5 receives the most significant byte of the SKID lower half, byte 6
-receives the version marker (\texttt{0x8D}), byte 7 receives the entity
-type (\texttt{0x0A}), byte 8 receives the default variant marker
-(\texttt{0x8D}), bytes 9--11 receive the remaining SKID lower half
-bytes, and the BLAKE3 keyed MAC is computed and placed at bytes 12--15.
-The UUID is constructed from the 16-byte buffer in big-endian order per
-RFC 9562.
+(\texttt{0x881B3200} XOR \texttt{0x80000000} = \texttt{0x081B3200}),
+byte 5 receives \texttt{0x05}, byte 6 receives the version marker
+(\texttt{0x8D}), byte 7 receives the entity type (\texttt{0x01}), byte 8
+receives the default variant marker (\texttt{0x8D}), and bytes 9--11
+receive \texttt{0x0C002A}. With bytes 12--15 initially zero, the first
+four BLAKE3 keyed output bytes are \texttt{492C0E75}. Writing this MAC
+into bytes 12--15 produces:
 
-\textbf{Step 2 Encryption and Collision Check:} The 16-byte plaintext is
-encrypted with AES-256-ECB using \(K_{\mathrm{aes}}\), producing
-ciphertext \(C_1\). The generator checks whether \(C_1\) coincidentally
-has \texttt{0x8D} at byte position 6 and \texttt{0x8D} at byte position
-8. In the overwhelming majority of cases (probability
-\(\approx 1 - 2^{-16}\)), the ciphertext does not match, and \(C_1\) is
-the final Secure SKEID.
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{SKEID bytes: 00 08 1B 32 00 05 8D 01 8D 0C 00 2A 49 2C 0E 75}
+\NormalTok{SKEID UUID:  00081b32{-}0005{-}8d01{-}8d0c{-}002a492c0e75}
+\end{Highlighting}
+\end{Shaded}
 
-\textbf{Step 3 Collision Scenario:} Suppose \(C_1\) has a supported
-epoch byte, happens to exhibit \texttt{0x8D} at position 6 and
-\texttt{0x8D} at position 8, and furthermore the bytes at positions
-12--15 coincidentally form a valid BLAKE3 keyed MAC computed over a copy
-of the full 16-byte buffer of \(C_1\) with bytes 12--15 set to zero,
-when interpreted as a plaintext SKEID. Conditional on the epoch byte
+\textbf{Step 2 Encryption and Collision Check:} Encrypting the 16-byte
+plaintext with AES-256-ECB using \(K_{\mathrm{aes}}\) and no padding
+produces ciphertext \(C_1\):
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Secure bytes: 65 20 68 A4 36 12 CC 4B 8A BB 83 B8 53 DC 67 86}
+\NormalTok{Secure UUID:  652068a4{-}3612{-}cc4b{-}8abb{-}83b853dc6786}
+\end{Highlighting}
+\end{Shaded}
+
+Ciphertext bytes 6 and 8 are \texttt{0xCC} and \texttt{0x8A}, so the
+plaintext marker checks fail and the collision guard accepts \(C_1\)
+without variant escalation. Parsing either representation recovers SKID
+\texttt{-8639256484514103254} and entity type 1. With the same keys,
+\texttt{ToSecure} and \texttt{ToPlain} reproduce the two UUIDs above.
+
+\textbf{Hypothetical Collision Scenario:} For a different input or key
+pair, suppose the first ciphertext candidate \(C_1\) has a supported
+epoch byte, contains \texttt{0x8D} at positions 6 and 8, and has a valid
+BLAKE3 keyed MAC at positions 12--15 when interpreted as a plaintext
+SKEID. The MAC is computed over a copy of the full 16-byte buffer of
+\(C_1\) with bytes 12--15 set to zero. Conditional on the epoch byte
 being supported, this marker-plus-MAC coincidence has probability
-\(\approx 2^{-48}\).
+\(\approx 2^{-48}\) for one verification key.
 
 When the collision guard activates, the plaintext variant byte (position
 8) is changed from \texttt{0x8D} to \texttt{0x8E}. The BLAKE3 MAC is
@@ -1290,10 +1372,10 @@ approximately \(2^{-56}\). If \(C_2\) passes the check, it becomes the
 final Secure SKEID; otherwise, generation continues with the next
 variant.
 
-\textbf{Step 4 Backward Verification at Parse Time:} When a consumer
-parses \(C_2\) by decrypting with \(K_{\mathrm{aes}}\), the recovered
-plaintext reveals variant byte \texttt{0x8E} (\(> \texttt{0x8D}\)). The
-parser must verify that the escalation was legitimate.
+\textbf{Backward Verification:} When a consumer parses \(C_2\) by
+decrypting with \(K_{\mathrm{aes}}\), the recovered plaintext reveals
+variant byte \texttt{0x8E} (\(> \texttt{0x8D}\)). The parser must verify
+that the escalation was legitimate.
 
 \begin{enumerate}
 \def\labelenumi{\arabic{enumi}.}
@@ -1319,10 +1401,9 @@ the coincidence), the parser rejects the identifier as invalid. This
 prevents an attacker from crafting identifiers with arbitrary variant
 bytes.
 
-Exact hex values, byte layouts, and round-trip assertions in this
-walkthrough are verified by the \texttt{PaperNumericWalkthroughTests}
-unit test suite in the reference implementation. Any code change that
-would invalidate these values produces a test failure.
+\texttt{IetfDraftTestVectorTests} asserts the master-key derivation,
+SKID, MAC, plaintext and ciphertext bytes, UUID strings, and round trips
+shown above.
 
 \subsection{Epoch and Extensibility}\label{epoch-and-extensibility}
 
@@ -1457,8 +1538,15 @@ MacTag.
 
 Section 5.3.5 of the same document provides the general framework for
 assessing truncated MAC forgery risk. For a \(\lambda\)-bit MacTag and
-an attempt budget of \(q = 2^t\), the idealized tag-guessing bound is
-\(\Pr[\mathrm{forge}] \leq \min(1, q \cdot 2^{-\lambda}) = \min(1, 2^{t-\lambda})\).
+an attempt budget of \(q = 2^t\), Equation \eqref{eq:mac-forgery-bound}
+gives the idealized tag-guessing bound:
+
+\begin{equation}
+\label{eq:mac-forgery-bound}
+\Pr[\mathrm{forge}] \leq \min(1, q \cdot 2^{-\lambda})
+  = \min(1, 2^{t-\lambda}).
+\end{equation}
+
 Applying this estimate by analogy to the 32-bit MAC in plaintext SKEIDs
 (\(\lambda = 32\)): if a system permits \(2^{12}\) (4,096) failed
 verification attempts before retiring that MAC key from verification,
@@ -1523,7 +1611,7 @@ forge accepted identifiers.
 \subsection{Reference Implementation}\label{reference-implementation}
 
 The reference implementation is provided as part of the open-source
-DRN.Framework (Kılıç, 2026a), organized across four NuGet packages.
+DRN.Framework (Kılıç, 2026c), organized across four NuGet packages.
 
 The current implementation generates and accepts only encoded epoch
 \texttt{0}. Support for nonzero epochs and operational epoch transitions
@@ -1751,14 +1839,15 @@ originality of the work.
 Table 7 presents the BenchmarkDotNet performance measurements for the
 measured operations across all three tiers.
 
-\textbf{Table 7:} Generation performance under normal load.
+\textbf{Table 7:} Generation, parsing, and conversion performance under
+normal load.
 
 {\def\LTcaptype{none} % do not increment counter
 \begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.4789}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1690}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1690}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1831}}@{}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.4096}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1446}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1446}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.3012}}@{}}
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright
 Operation
@@ -1767,7 +1856,7 @@ Mean (ns)
 \end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
 Error (ns)
 \end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-StdDev (ns)
+Standard deviation (ns)
 \end{minipage} \\
 \midrule\noalign{}
 \endhead
@@ -1787,6 +1876,10 @@ ToSecure & 221.23 & 2.98 & 9.62 \\
 \end{longtable}
 }
 
+\textbf{Note:} Error denotes the 99.9\% confidence-interval margin.
+Statistics are calculated over measurement iterations remaining after
+upper outlier removal.
+
 Table 8 presents generation performance under saturation. Each batch
 contains 786,432 invocations (three times the per-tick sequence
 capacity), with a 260-millisecond delay between batches excluded from
@@ -1795,9 +1888,21 @@ measurement.
 \textbf{Table 8:} Generation performance under saturation.
 
 {\def\LTcaptype{none} % do not increment counter
-\begin{longtable}[]{@{}llll@{}}
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.3766}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1429}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1558}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.3247}}@{}}
 \toprule\noalign{}
-Operation & Mean (ns) & Error (ns) & StdDev (ns) \\
+\begin{minipage}[b]{\linewidth}\raggedright
+Operation
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Mean (ns)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Error (ns)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Standard deviation (ns)
+\end{minipage} \\
 \midrule\noalign{}
 \endhead
 \bottomrule\noalign{}
@@ -1810,27 +1915,30 @@ Random UUID V7 generation & 302.97 & 1.10 & 1.96 \\
 \end{longtable}
 }
 
+\textbf{Note:} Error denotes the 99.9\% confidence-interval margin.
+Statistics are calculated over measurement iterations remaining after
+upper outlier removal.
+
 \subsection{Performance Comparison with
 UUID}\label{performance-comparison-with-uuid}
 
-Under normal load, Secure SKEID generation at 224.62 ns is approximately
-1.71 times faster than UUID V7 at 384.11 ns. Secure SKEID generation
-incurred approximately 17.35 ns of additional end-to-end operation cost
-relative to plaintext SKEID generation.
+Under normal load, Secure SKEID generation is approximately 1.71 times
+faster than UUID V7 (Table 7). Secure SKEID generation incurred
+approximately 17.35 ns of additional end-to-end operation cost relative
+to plaintext SKEID generation.
 
-SKEID generation at 207.28 ns is approximately 1.85 times faster than
-UUID V7 (384.11 ns) despite embedding additional metadata (entity type,
-epoch) and computing a BLAKE3 keyed MAC within the same 128-bit
-footprint. Both plaintext and Secure SKEID generation report zero
-managed allocation per operation. Implementations in other managed
-runtimes may exhibit different allocation profiles.
+SKEID generation is approximately 1.85 times faster than UUID V7 despite
+embedding additional metadata (entity type, epoch) and computing a
+BLAKE3 keyed MAC within the same 128-bit footprint. Both plaintext and
+Secure SKEID generation report zero managed allocation per operation.
+Implementations in other managed runtimes may exhibit different
+allocation profiles.
 
-SKID generation at 10.85 ns is approximately 35.39 times faster than
-UUID V7 generation at 384.11 ns and 33.35 times faster than UUID V4 at
-361.94 ns. This performance advantage stems from the deterministic
-bit-packing approach. SKID generation requires only an atomic counter
-increment, a cached timestamp read, and bitwise operations, with no
-cryptographic random number generation.
+SKID generation is approximately 35.39 times faster than UUID V7 and
+33.35 times faster than UUID V4. This performance advantage stems from
+the deterministic bit-packing approach. SKID generation requires only an
+atomic counter increment, a cached timestamp read, and bitwise
+operations, with no cryptographic random number generation.
 
 \subsection{Throughput Analysis}\label{throughput-analysis}
 
@@ -1874,10 +1982,9 @@ from 24 to 8 bytes per record (66.67\%), deriving the external
 representation on demand.
 
 Tier transformations had sub-microsecond mean execution times in the
-benchmark environment. ToSecure averaged 221.23 ns and ToPlain averaged
-208.46 ns (Table 7), with no database or network access. Assuming
-millisecond-scale latency for I/O-bound identifier resolution, the
-measured transformation cost is negligible by comparison.
+benchmark environment (Table 7), with no database or network access.
+Assuming millisecond-scale latency for I/O-bound identifier resolution,
+the measured transformation cost is negligible by comparison.
 
 64-bit SKIDs are timestamp-ordered signed integers within a configured
 epoch, and plaintext SKEIDs preserve timestamp order under lexicographic
@@ -1901,16 +2008,13 @@ tiers was faster on average than UUID V4 and V7 within sequence
 capacity, but slower under saturation, with mean generation times
 remaining below one microsecond in both conditions.
 
-The measurements under normal load establish the computational cost
-within sequence capacity in the benchmark environment. Secure SKEID
-generation averaged 224.62 ns, compared with 384.11 ns for UUID V7. The
-approximately 35.39× speed advantage of SKID over UUID V7 stems from the
-deterministic generation approach. Bit packing from cached values avoids
-the cryptographic random number generation required by the measured UUID
-implementations. The most expensive Source-Known operation under normal
-load, Secure SKEID parsing, averaged 250.95 ns. Under saturation,
-Source-Known generation means ranged from 611.22 ns to 611.67 ns because
-of backpressure.
+The measurements distinguish computational cost within sequence capacity
+(Table 7) from generation cost under backpressure (Table 8). SKID's
+deterministic generation avoids the cryptographic random number
+generation required by the measured UUID implementations. Secure SKEID
+parsing was the most expensive Source-Known operation under normal load,
+while generation costs across the three tiers converged under saturation
+because of shared sequence backpressure.
 
 Zero-allocation behavior in core SKID and SKEID operations is important
 for managed runtime environments (e.g., .NET, JVM) where garbage
@@ -2088,6 +2192,8 @@ Cross-type confusion & Entity type check & Possible & Possible &
 Possible & Possible \\
 \end{longtable}
 }
+
+\textbf{Note:} TS denotes timestamp.
 
 \subsection{Threat Analysis}\label{threat-analysis}
 
@@ -2292,7 +2398,7 @@ not provide that strategy.
   \texttt{UuidVersionAndVariantBatchCompatibilityTests},
   \texttt{SourceKnownEntityIdPostgresUuidCompatibilityTests} and
   \texttt{SourceKnownEntityIdJsonCompatibilityTests} integration tests
-  (Kılıç, 2026a). However, AES-256 encryption replaces the plaintext
+  (Kılıç, 2026c). However, AES-256 encryption replaces the plaintext
   Version and Variant marker bytes with pseudorandom ciphertext. The
   encrypted output is not guaranteed to preserve the version and variant
   bits required by RFC 9562 Sections 4.1 and 5.8. Strict RFC 9562
@@ -2411,12 +2517,8 @@ illustrates how an entity's identity can remain stable while its
 representation changes across trust boundaries to satisfy all six target
 properties.
 
-\section{Acknowledgments}\label{acknowledgments}
-
-GitHub CodeQL and SonarCloud provided static analysis and code quality
-scanning that strengthened the security posture of the implementation.
-
-\section{Data Availability}\label{data-availability}
+\section*{Data Availability}\label{data-availability}
+\addcontentsline{toc}{section}{Data Availability}
 
 The source code for DRN-Project is available on
 \href{https://github.com/duranserkan/DRN-Project}{GitHub}. Version
@@ -2428,23 +2530,28 @@ Benchmark data (CSV) and rendered reports (HTML) are included as six
 supplementary files covering the benchmarks under normal load,
 saturation benchmarks, and hash comparison benchmarks.
 
-\section{Competing Interests}\label{competing-interests}
+\section*{Competing Interests}\label{competing-interests}
+\addcontentsline{toc}{section}{Competing Interests}
 
 The author declares no competing interests.
 
-\section{Funding}\label{funding}
+\section*{Funding}\label{funding}
+\addcontentsline{toc}{section}{Funding}
 
 This work received no external financial support.
 
-\section{Author Contributions}\label{author-contributions}
+\section*{Author Contributions}\label{author-contributions}
+\addcontentsline{toc}{section}{Author Contributions}
 
 Duran Serkan Kılıç conducted the research, conceived the design,
 implemented the software, conducted the benchmarks, and wrote the
 manuscript.
 
-\section{Declaration of generative AI and AI-assisted technologies in
+\section*{Declaration of generative AI and AI-assisted technologies in
 the manuscript preparation
 process}\label{declaration-of-generative-ai-and-ai-assisted-technologies-in-the-manuscript-preparation-process}
+\addcontentsline{toc}{section}{Declaration of generative AI and
+AI-assisted technologies in the manuscript preparation process}
 
 During manuscript preparation, the author used Claude Opus 4.6, Gemini
 3.1 Pro, Gemini 3.8 Flash, and ChatGPT 6 Astra to assist with drafting,
@@ -2453,6 +2560,12 @@ correction and editorial refinement. The author reviewed and edited the
 AI-assisted content, verified all technical claims against the
 implementation, and made all final editorial decisions. The author takes
 full responsibility for the content of the manuscript.
+
+\section*{Acknowledgements}\label{acknowledgements}
+\addcontentsline{toc}{section}{Acknowledgements}
+
+GitHub CodeQL and SonarCloud provided static analysis and code quality
+scanning that strengthened the security posture of the implementation.
 
 \newpage
 
@@ -2472,16 +2585,18 @@ Increasing Security by Making Block Ciphers Non-Invertible}. In:
 \emph{Advances in cryptology -- EUROCRYPT '98}. LNCS. 266--280. DOI:
 \href{https://doi.org/10.1007/BFb0054132}{10.1007/BFb0054132}.
 
-\bibitem[\citeproctext]{ref-bellare1999}
-Bellare M, Rogaway P. 1999.
-\href{https://escholarship.org/content/qt80n3m1fj/qt80n3m1fj_noSplash_361a5dfee4f53c7caaaf5eb0a73bc570.pdf}{{Encode-then-encipher
-encryption: How to exploit nonces or redundancy in plaintexts for
-efficient cryptography}}.
+\bibitem[\citeproctext]{ref-bellare2000}
+Bellare M, Rogaway P. 2000. {Encode-then-encipher encryption: How to
+exploit nonces or redundancy in plaintexts for efficient cryptography}.
+In: Okamoto T ed. \emph{Advances in cryptology -- ASIACRYPT 2000}.
+Lecture notes in computer science. Berlin, Heidelberg: Springer,
+317--330. DOI:
+\href{https://doi.org/10.1007/3-540-44448-3_24}{10.1007/3-540-44448-3\_24}.
 
 \bibitem[\citeproctext]{ref-bonnetain2019}
 Bonnetain X, Naya-Plasencia M, Schrottenloher A. 2019. {Quantum Security
-Analysis of AES}. \emph{IACR Transactions on Symmetric Cryptology}
-2019:55--93. DOI:
+Analysis of AES}. \emph{IACR Trans. Symmetric Cryptol.} 2019:55--93.
+DOI:
 \href{https://doi.org/10.46586/tosc.v2019.i2.55-93}{10.46586/tosc.v2019.i2.55-93}.
 
 \bibitem[\citeproctext]{ref-brooks1995}
@@ -2551,13 +2666,18 @@ Khuong P. 2022.
 B for UUIDs: double AES-128}}.
 
 \bibitem[\citeproctext]{ref-drn-project}
-Kılıç DS. 2026a. {DRN-Project: Distributed Reliable .Net}. DOI:
+Kılıç DS. 2026c. {DRN-Project: Distributed Reliable .Net}. DOI:
 \href{https://doi.org/10.5281/zenodo.22863243}{10.5281/zenodo.22863243}.
 
 \bibitem[\citeproctext]{ref-draft-skid}
 Kılıç DS. 2026b. {Source Known Identifiers (SKIDs): Technical
 Specification Draft}. DOI:
 \href{https://doi.org/10.5281/zenodo.22863243}{10.5281/zenodo.22863243}.
+
+\bibitem[\citeproctext]{ref-skid-preprint}
+Kılıç DS. 2026a. {Source Known Identifiers: A Three-Tier Identity System
+for Distributed Applications}. DOI:
+\href{https://doi.org/10.48550/arXiv.2604.00151}{10.48550/arXiv.2604.00151}.
 
 \bibitem[\citeproctext]{ref-rfc5116}
 McGrew D. 2008. \emph{{An Interface and Algorithms for Authenticated
@@ -2601,9 +2721,14 @@ One function, fast everywhere}}.
 
 \bibitem[\citeproctext]{ref-ruggles1947}
 Ruggles R, Brodie H. 1947. {An Empirical Approach to Economic
-Intelligence in World War II}. \emph{Journal of the American Statistical
-Association} 42:72--91. DOI:
+Intelligence in World War II}. \emph{J. Am. Stat. Assoc.} 42:72--91.
+DOI:
 \href{https://doi.org/10.1080/01621459.1947.10501915}{10.1080/01621459.1947.10501915}.
+
+\bibitem[\citeproctext]{ref-rfc3394}
+Schaad J, Housley R. 2002. \emph{{Advanced Encryption Standard (AES) Key
+Wrap Algorithm}}. IETF. DOI:
+\href{https://doi.org/10.17487/RFC3394}{10.17487/RFC3394}.
 
 \bibitem[\citeproctext]{ref-ksuid}
 Segment. 2023.

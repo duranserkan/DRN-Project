@@ -137,6 +137,7 @@ StyleCopReport.xml
 *.synctex.gz
 *.toc
 *.xdv
+*.abs
 *.tlog
 *.vspscc
 *.vssscc

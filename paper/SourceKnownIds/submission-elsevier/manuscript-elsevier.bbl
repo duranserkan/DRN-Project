@@ -1,0 +1,333 @@
+\begin{thebibliography}{36}
+\expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
+\providecommand{\url}[1]{\texttt{#1}}
+\providecommand{\href}[2]{#2}
+\providecommand{\path}[1]{#1}
+\providecommand{\DOIprefix}{doi:}
+\providecommand{\ArXivprefix}{arXiv:}
+\providecommand{\URLprefix}{URL: }
+\providecommand{\Pubmedprefix}{pmid:}
+\providecommand{\doi}[1]{\href{http://dx.doi.org/#1}{\path{#1}}}
+\providecommand{\Pubmed}[1]{\href{pmid:#1}{\path{#1}}}
+\providecommand{\bibinfo}[2]{#2}
+\ifx\xfnm\relax \def\xfnm[#1]{\unskip,\space#1}\fi
+%Type = Misc
+\bibitem[{Akinshin(2025)}]{benchmarkdotnet}
+\bibinfo{author}{Akinshin, A.}, \bibinfo{year}{2025}.
+\newblock \bibinfo{title}{{BenchmarkDotNet: Powerful .NET library for
+  benchmarking}}.
+\newblock \URLprefix
+  \url{https://github.com/dotnet/BenchmarkDotNet/releases/tag/v0.15.8}.
+  \bibinfo{note}{project introduced in 2013. Software release v0.15.8 dated
+  2025-11-30. Accessed 23 September 2026.}
+%Type = Inproceedings
+\bibitem[{Bellare et~al.(1998)Bellare, Krovetz and Rogaway}]{bellare1998}
+\bibinfo{author}{Bellare, M.}, \bibinfo{author}{Krovetz, T.},
+  \bibinfo{author}{Rogaway, P.}, \bibinfo{year}{1998}.
+\newblock \bibinfo{title}{{Luby-Rackoff Backwards: Increasing Security by
+  Making Block Ciphers Non-Invertible}}, in: \bibinfo{booktitle}{Advances in
+  Cryptology -- EUROCRYPT '98}, pp. \bibinfo{pages}{266--280}.
+\newblock \URLprefix \url{https://www.cs.ucdavis.edu/~rogaway/papers/p2f.pdf},
+  \DOIprefix\doi{10.1007/BFb0054132}.
+%Type = Inproceedings
+\bibitem[{Bellare and Rogaway(2000)}]{bellare2000}
+\bibinfo{author}{Bellare, M.}, \bibinfo{author}{Rogaway, P.},
+  \bibinfo{year}{2000}.
+\newblock \bibinfo{title}{{Encode-then-encipher encryption: How to exploit
+  nonces or redundancy in plaintexts for efficient cryptography}}, in:
+  \bibinfo{editor}{Okamoto, T.} (Ed.), \bibinfo{booktitle}{Advances in
+  Cryptology -- ASIACRYPT 2000}, \bibinfo{publisher}{Springer},
+  \bibinfo{address}{Berlin, Heidelberg}. pp. \bibinfo{pages}{317--330}.
+\newblock \URLprefix
+  \url{https://link.springer.com/chapter/10.1007/3-540-44448-3_24},
+  \DOIprefix\doi{10.1007/3-540-44448-3_24}. \bibinfo{note}{lecture Notes in
+  Computer Science, volume 1976.}
+%Type = Article
+\bibitem[{Bonnetain et~al.(2019)Bonnetain, Naya-Plasencia and
+  Schrottenloher}]{bonnetain2019}
+\bibinfo{author}{Bonnetain, X.}, \bibinfo{author}{Naya-Plasencia, M.},
+  \bibinfo{author}{Schrottenloher, A.}, \bibinfo{year}{2019}.
+\newblock \bibinfo{title}{{Quantum Security Analysis of AES}}.
+\newblock \bibinfo{journal}{IACR Trans. Symmetric Cryptol.}
+  \bibinfo{volume}{2019}, \bibinfo{pages}{55--93}.
+\newblock \URLprefix \url{https://inria.hal.science/hal-02397049/document},
+  \DOIprefix\doi{10.46586/tosc.v2019.i2.55-93}.
+%Type = Book
+\bibitem[{Brooks(1995)}]{brooks1995}
+\bibinfo{author}{Brooks, Jr., F.P.}, \bibinfo{year}{1995}.
+\newblock \bibinfo{title}{{The Mythical Man-Month: Essays on Software
+  Engineering}}.
+\newblock \bibinfo{edition}{Anniversary} ed.,
+  \bibinfo{publisher}{Addison-Wesley}.
+\newblock \URLprefix
+  \url{https://www.oreilly.com/library/view/mythical-man-month-the/0201835959/}.
+%Type = Techreport
+\bibitem[{Dang(2012)}]{nistsp800107}
+\bibinfo{author}{Dang, Q.}, \bibinfo{year}{2012}.
+\newblock \bibinfo{title}{{Recommendation for Applications Using Approved Hash
+  Algorithms}}.
+\newblock \bibinfo{type}{Technical Report} \bibinfo{number}{SP 800-107 Rev. 1}.
+  NIST.
+\newblock \URLprefix \url{https://csrc.nist.gov/pubs/sp/800/107/r1/final},
+  \DOIprefix\doi{10.6028/NIST.SP.800-107r1}.
+%Type = Techreport
+\bibitem[{Davis et~al.(2024)Davis, Peabody and Leach}]{rfc9562}
+\bibinfo{author}{Davis, K.}, \bibinfo{author}{Peabody, B.},
+  \bibinfo{author}{Leach, P.}, \bibinfo{year}{2024}.
+\newblock \bibinfo{title}{{Universally Unique IDentifiers (UUIDs)}}.
+\newblock \bibinfo{type}{Technical Report} \bibinfo{number}{RFC 9562}. IETF.
+\newblock \URLprefix \url{https://www.rfc-editor.org/rfc/rfc9562},
+  \DOIprefix\doi{10.17487/RFC9562}.
+%Type = Techreport
+\bibitem[{Dworkin(2005)}]{nistsp80038b}
+\bibinfo{author}{Dworkin, M.}, \bibinfo{year}{2005}.
+\newblock \bibinfo{title}{{Recommendation for Block Cipher Modes of Operation:
+  the CMAC Mode for Authentication}}.
+\newblock \bibinfo{type}{Technical Report} \bibinfo{number}{SP 800-38B}. NIST.
+\newblock \URLprefix \url{https://csrc.nist.gov/pubs/sp/800/38/b/upd1/final},
+  \DOIprefix\doi{10.6028/NIST.SP.800-38B}. \bibinfo{note}{updated October 6,
+  2016.}
+%Type = Techreport
+\bibitem[{Dworkin(2007)}]{nistsp80038d}
+\bibinfo{author}{Dworkin, M.}, \bibinfo{year}{2007}.
+\newblock \bibinfo{title}{{Recommendation for Block Cipher Modes of Operation:
+  Galois/Counter Mode (GCM) and GMAC}}.
+\newblock \bibinfo{type}{Technical Report} \bibinfo{number}{SP 800-38D}. NIST.
+\newblock \URLprefix \url{https://csrc.nist.gov/pubs/sp/800/38/d/final},
+  \DOIprefix\doi{10.6028/NIST.SP.800-38D}.
+%Type = Misc
+\bibitem[{Elliott(2023)}]{cuid-deprecated}
+\bibinfo{author}{Elliott, E.}, \bibinfo{year}{2023}.
+\newblock \bibinfo{title}{{CUID: Collision-resistant ids (deprecated)}}.
+\newblock \URLprefix
+  \url{https://github.com/paralleldrive/cuid/blob/29b8fbfbaadead797ac3b38201c50c55e491a8ce/README.md}.
+  \bibinfo{note}{project introduced in 2012. Documentation revision dated
+  2023-01-24, commit 29b8fbfbaadead797ac3b38201c50c55e491a8ce. Includes the
+  deprecation notice. Successor: CUID2. Accessed 23 September 2026.}
+%Type = Misc
+\bibitem[{Elliott(2026)}]{cuid2}
+\bibinfo{author}{Elliott, E.}, \bibinfo{year}{2026}.
+\newblock \bibinfo{title}{{CUID2: Secure, collision-resistant ids}}.
+\newblock \URLprefix
+  \url{https://github.com/paralleldrive/cuid2/blob/d296cc84463064e511c2d698ce221730d40fdd09/README.md}.
+  \bibinfo{note}{project introduced in 2022. Documentation revision dated
+  2026-02-07, commit d296cc84463064e511c2d698ce221730d40fdd09. Accessed 23
+  September 2026.}
+%Type = Book
+\bibitem[{Evans(2003)}]{evans2003}
+\bibinfo{author}{Evans, E.}, \bibinfo{year}{2003}.
+\newblock \bibinfo{title}{{Domain-Driven Design: Tackling Complexity in the
+  Heart of Software}}.
+\newblock \bibinfo{publisher}{Addison-Wesley}.
+\newblock \URLprefix
+  \url{https://www.oreilly.com/library/view/domain-driven-design-tackling/0321125215/}.
+%Type = Misc
+\bibitem[{Favre(2023)}]{idmask}
+\bibinfo{author}{Favre, P.}, \bibinfo{year}{2023}.
+\newblock \bibinfo{title}{{IDMask: Encryption and Obfuscation of IDs}}.
+\newblock \URLprefix
+  \url{https://github.com/patrickfav/id-mask/blob/v0.6.0/README.md}.
+  \bibinfo{note}{version 0.6.0, released March 5, 2023. See Encryption Schema.
+  Accessed 23 September 2026.}
+%Type = Misc
+\bibitem[{Feerasta(2019)}]{ulid}
+\bibinfo{author}{Feerasta, A.}, \bibinfo{year}{2019}.
+\newblock \bibinfo{title}{{ULID: Universally Unique Lexicographically Sortable
+  Identifier}}.
+\newblock \URLprefix
+  \url{https://github.com/ulid/spec/blob/d0c7170df4517939e70129b4d6462cc162f2d5bf/README.md}.
+  \bibinfo{note}{project introduced in 2016. Specification revision dated
+  2019-05-23, commit d0c7170df4517939e70129b4d6462cc162f2d5bf. Accessed 23
+  September 2026.}
+%Type = Techreport
+\bibitem[{Harkins(2008)}]{rfc5297}
+\bibinfo{author}{Harkins, D.}, \bibinfo{year}{2008}.
+\newblock \bibinfo{title}{{Synthetic Initialization Vector (SIV) Authenticated
+  Encryption Using the Advanced Encryption Standard (AES)}}.
+\newblock \bibinfo{type}{Technical Report} \bibinfo{number}{RFC 5297}. IETF.
+\newblock \URLprefix \url{https://www.rfc-editor.org/rfc/rfc5297},
+  \DOIprefix\doi{10.17487/RFC5297}.
+%Type = Misc
+\bibitem[{{IEEE}(2020)}]{ieee1588}
+\bibinfo{author}{{IEEE}}, \bibinfo{year}{2020}.
+\newblock \bibinfo{title}{{IEEE Std 1588-2019: IEEE Standard for a Precision
+  Clock Synchronization Protocol for Networked Measurement and Control
+  Systems}}.
+\newblock \DOIprefix\doi{10.1109/IEEESTD.2020.9120376}.
+%Type = Misc
+\bibitem[{Khuong(2022)}]{khuong2022}
+\bibinfo{author}{Khuong, P.}, \bibinfo{year}{2022}.
+\newblock \bibinfo{title}{{Plan B for UUIDs: double AES-128}}.
+\newblock \URLprefix
+  \url{https://pvk.ca/Blog/2022/07/11/plan-b-for-uuids-double-aes-128/}.
+  \bibinfo{note}{technical blog post. Accessed 23 September 2026.}
+%Type = Misc
+\bibitem[{K{\i}l{\i}\c{c}(2026a)}]{drn-project}
+\bibinfo{author}{K{\i}l{\i}\c{c}, D.S.}, \bibinfo{year}{2026}a.
+\newblock \bibinfo{title}{{DRN-Project: Distributed Reliable .Net}}.
+\newblock \URLprefix
+  \url{https://github.com/duranserkan/DRN-Project/tree/release/v0.10.0},
+  \DOIprefix\doi{10.5281/zenodo.22863243}. \bibinfo{note}{software release
+  v0.10.0 dated 2026-09-20, tag release/v0.10.0. Repository containing the
+  DRN.Framework packages.}
+%Type = Misc
+\bibitem[{K{\i}l{\i}\c{c}(2026b)}]{skid-preprint}
+\bibinfo{author}{K{\i}l{\i}\c{c}, D.S.}, \bibinfo{year}{2026}b.
+\newblock \bibinfo{title}{{Source Known Identifiers: A Three-Tier Identity
+  System for Distributed Applications}}.
+\newblock \URLprefix \url{https://arxiv.org/abs/2604.00151},
+  \DOIprefix\doi{10.48550/arXiv.2604.00151}. \bibinfo{note}{{arXiv} preprint
+  arXiv:2604.00151, version 1, submitted 31 March 2026.}
+%Type = Misc
+\bibitem[{K{\i}l{\i}\c{c}(2026c)}]{draft-skid}
+\bibinfo{author}{K{\i}l{\i}\c{c}, D.S.}, \bibinfo{year}{2026}c.
+\newblock \bibinfo{title}{{Source Known Identifiers (SKIDs): Technical
+  Specification Draft}}.
+\newblock \URLprefix
+  \url{https://github.com/duranserkan/DRN-Project/blob/release/v0.10.0/docs/draft-skid-00.md},
+  \DOIprefix\doi{10.5281/zenodo.22863243}. \bibinfo{note}{author-hosted
+  draft-kilic-skid-00, prepared in Internet-Draft format. Located at
+  docs/draft-skid-00.md in DRN-Project v0.10.0, released 2026-09-20 under tag
+  release/v0.10.0. DOI identifies the containing software release archive.
+  Accessed 23 September 2026.}
+%Type = Techreport
+\bibitem[{McGrew(2008)}]{rfc5116}
+\bibinfo{author}{McGrew, D.}, \bibinfo{year}{2008}.
+\newblock \bibinfo{title}{{An Interface and Algorithms for Authenticated
+  Encryption}}.
+\newblock \bibinfo{type}{Technical Report} \bibinfo{number}{RFC 5116}. IETF.
+\newblock \URLprefix \url{https://www.rfc-editor.org/rfc/rfc5116},
+  \DOIprefix\doi{10.17487/RFC5116}.
+%Type = Techreport
+\bibitem[{Mills et~al.(2010)Mills, Martin, Burbank and Kasch}]{rfc5905}
+\bibinfo{author}{Mills, D.}, \bibinfo{author}{Martin, J.},
+  \bibinfo{author}{Burbank, J.}, \bibinfo{author}{Kasch, W.},
+  \bibinfo{year}{2010}.
+\newblock \bibinfo{title}{{Network Time Protocol Version 4: Protocol and
+  Algorithms Specification}}.
+\newblock \bibinfo{type}{Technical Report} \bibinfo{number}{RFC 5905}. IETF.
+\newblock \URLprefix \url{https://www.rfc-editor.org/rfc/rfc5905},
+  \DOIprefix\doi{10.17487/RFC5905}.
+%Type = Misc
+\bibitem[{{MITRE Corporation}(2026a)}]{cwe345}
+\bibinfo{author}{{MITRE Corporation}}, \bibinfo{year}{2026}a.
+\newblock \bibinfo{title}{{CWE-345: Insufficient Verification of Data
+  Authenticity}}.
+\newblock \URLprefix \url{https://cwe.mitre.org/data/definitions/345.html}.
+  \bibinfo{note}{common Weakness Enumeration, version 4.20. Accessed 23
+  September 2026.}
+%Type = Misc
+\bibitem[{{MITRE Corporation}(2026b)}]{cwe639}
+\bibinfo{author}{{MITRE Corporation}}, \bibinfo{year}{2026}b.
+\newblock \bibinfo{title}{{CWE-639: Authorization Bypass Through
+  User-Controlled Key}}.
+\newblock \URLprefix \url{https://cwe.mitre.org/data/definitions/639.html}.
+  \bibinfo{note}{common Weakness Enumeration, version 4.20. Accessed 23
+  September 2026.}
+%Type = Techreport
+\bibitem[{Mouha(2021)}]{nistir8319}
+\bibinfo{author}{Mouha, N.}, \bibinfo{year}{2021}.
+\newblock \bibinfo{title}{{Review of the Advanced Encryption Standard}}.
+\newblock \bibinfo{type}{Technical Report} \bibinfo{number}{NIST IR 8319}.
+  NIST.
+\newblock \URLprefix \url{https://csrc.nist.gov/pubs/ir/8319/final},
+  \DOIprefix\doi{10.6028/NIST.IR.8319}.
+%Type = Techreport
+\bibitem[{{National Institute of Standards and Technology}(2023)}]{fips197}
+\bibinfo{author}{{National Institute of Standards and Technology}},
+  \bibinfo{year}{2023}.
+\newblock \bibinfo{title}{{Advanced Encryption Standard (AES)}}.
+\newblock \bibinfo{type}{Technical Report} \bibinfo{number}{FIPS 197}. NIST.
+\newblock \URLprefix \url{https://csrc.nist.gov/pubs/fips/197/final},
+  \DOIprefix\doi{10.6028/NIST.FIPS.197-upd1}.
+%Type = Misc
+\bibitem[{{NIST}(2022)}]{nistsp800107withdrawal}
+\bibinfo{author}{{NIST}}, \bibinfo{year}{2022}.
+\newblock \bibinfo{title}{{Withdrawal of NIST Special Publication 800-107
+  Revision 1}}.
+\newblock \URLprefix
+  \url{https://csrc.nist.gov/news/2022/withdrawal-of-nist-sp-800-107-revision-1}.
+  \bibinfo{note}{accessed 23 September 2026.}
+%Type = Misc
+\bibitem[{O'Connor et~al.(2021)O'Connor, Aumasson, Neves and
+  Wilcox-O'Hearn}]{blake3}
+\bibinfo{author}{O'Connor, J.}, \bibinfo{author}{Aumasson, J.P.},
+  \bibinfo{author}{Neves, S.}, \bibinfo{author}{Wilcox-O'Hearn, Z.},
+  \bibinfo{year}{2021}.
+\newblock \bibinfo{title}{{BLAKE3: One function, fast everywhere}}.
+\newblock \URLprefix
+  \url{https://github.com/BLAKE3-team/BLAKE3-specs/blob/ac78a717924dd9e6f16f547baa916c6f71470b1a/blake3.pdf}.
+  \bibinfo{note}{originally published in 2020. Specification revision dated
+  2021-11-02, commit ac78a717924dd9e6f16f547baa916c6f71470b1a. Accessed 23
+  September 2026.}
+%Type = Article
+\bibitem[{Ruggles and Brodie(1947)}]{ruggles1947}
+\bibinfo{author}{Ruggles, R.}, \bibinfo{author}{Brodie, H.},
+  \bibinfo{year}{1947}.
+\newblock \bibinfo{title}{{An Empirical Approach to Economic Intelligence in
+  World War II}}.
+\newblock \bibinfo{journal}{J. Am. Stat. Assoc.} \bibinfo{volume}{42},
+  \bibinfo{pages}{72--91}.
+\newblock \DOIprefix\doi{10.1080/01621459.1947.10501915}.
+%Type = Techreport
+\bibitem[{Schaad and Housley(2002)}]{rfc3394}
+\bibinfo{author}{Schaad, J.}, \bibinfo{author}{Housley, R.},
+  \bibinfo{year}{2002}.
+\newblock \bibinfo{title}{{Advanced Encryption Standard (AES) Key Wrap
+  Algorithm}}.
+\newblock \bibinfo{type}{Technical Report} \bibinfo{number}{RFC 3394}. IETF.
+\newblock \URLprefix \url{https://www.rfc-editor.org/rfc/rfc3394},
+  \DOIprefix\doi{10.17487/RFC3394}.
+%Type = Misc
+\bibitem[{{Segment}(2023)}]{ksuid}
+\bibinfo{author}{{Segment}}, \bibinfo{year}{2023}.
+\newblock \bibinfo{title}{{KSUID: K-Sortable Globally Unique IDs}}.
+\newblock \URLprefix
+  \url{https://github.com/segmentio/ksuid/blob/d33724947fcfba7949906c2b1821e96a1c8d06e7/README.md}.
+  \bibinfo{note}{project introduced in 2017. Documentation revision dated
+  2023-10-04, commit d33724947fcfba7949906c2b1821e96a1c8d06e7. Accessed 23
+  September 2026.}
+%Type = Book
+\bibitem[{Shostack(2014)}]{shostack2014}
+\bibinfo{author}{Shostack, A.}, \bibinfo{year}{2014}.
+\newblock \bibinfo{title}{{Threat Modeling: Designing for Security}}.
+\newblock \bibinfo{publisher}{Wiley}.
+\newblock \URLprefix
+  \url{https://www.wiley.com/en-us/Threat+Modeling%3A+Designing+for+Security-p-9781118809990}.
+%Type = Techreport
+\bibitem[{Song et~al.(2006)Song, Poovendran, Lee and Iwata}]{rfc4493}
+\bibinfo{author}{Song, J.H.}, \bibinfo{author}{Poovendran, R.},
+  \bibinfo{author}{Lee, J.}, \bibinfo{author}{Iwata, T.}, \bibinfo{year}{2006}.
+\newblock \bibinfo{title}{{The AES-CMAC Algorithm}}.
+\newblock \bibinfo{type}{Technical Report} \bibinfo{number}{RFC 4493}. IETF.
+\newblock \URLprefix \url{https://www.rfc-editor.org/rfc/rfc4493},
+  \DOIprefix\doi{10.17487/RFC4493}.
+%Type = Techreport
+\bibitem[{Turan and Brand{\~a}o(2024)}]{nistsp800224}
+\bibinfo{author}{Turan, M.S.}, \bibinfo{author}{Brand{\~a}o, L.T.A.N.},
+  \bibinfo{year}{2024}.
+\newblock \bibinfo{title}{{Keyed-Hash Message Authentication Code (HMAC):
+  Specification of HMAC and Recommendations for Message Authentication (Initial
+  Public Draft)}}.
+\newblock \bibinfo{type}{Technical Report} \bibinfo{number}{SP 800-224 (Initial
+  Public Draft)}. NIST.
+\newblock \URLprefix \url{https://csrc.nist.gov/pubs/sp/800/224/ipd},
+  \DOIprefix\doi{10.6028/NIST.SP.800-224.ipd}.
+%Type = Misc
+\bibitem[{{Twitter Engineering}(2010)}]{snowflake-announcement}
+\bibinfo{author}{{Twitter Engineering}}, \bibinfo{year}{2010}.
+\newblock \bibinfo{title}{{Announcing Snowflake}}.
+\newblock \URLprefix
+  \url{https://blog.x.com/engineering/en_us/a/2010/announcing-snowflake}.
+  \bibinfo{note}{accessed 23 September 2026.}
+%Type = Misc
+\bibitem[{{Twitter Engineering}(2012)}]{snowflake}
+\bibinfo{author}{{Twitter Engineering}}, \bibinfo{year}{2012}.
+\newblock \bibinfo{title}{{Snowflake: IdWorker.scala (snowflake-2010)}}.
+\newblock \URLprefix
+  \url{https://github.com/twitter-archive/snowflake/blob/b3f6a3c6ca8e1b6847baa6ff42bf72201e2c2231/src/main/scala/com/twitter/service/snowflake/IdWorker.scala}.
+  \bibinfo{note}{project introduced in 2010. Source revision dated 2012-10-01
+  from the snowflake-2010 tag, commit b3f6a3c6ca8e1b6847baa6ff42bf72201e2c2231.
+  Accessed 23 September 2026.}
+
+\end{thebibliography}

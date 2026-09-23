@@ -1,66 +1,48 @@
-%% Custom Pandoc template for PeerJ CS using wlpeerj.cls
-%% Usage: pandoc --template=template-peerj.tex paper.md ...
-%%
-%% This template maps YAML frontmatter to wlpeerj.cls macros and includes
-%% all Pandoc-required LaTeX support (CSL citations, longtable, tight lists,
-%% code highlighting, graphics). It absorbs the former preamble.tex formatting.
-%%
-\PassOptionsToPackage{numbers}{natbib} % citeproc handles citation formatting; prevent natbib author-year conflict
-\documentclass[fleqn,10pt,lineno]{wlpeerj}
+%% Pandoc adapter for Elsevier CAS single-column output.
+%% Generate with --natbib; see ../build-commands.md for the BibTeX PDF pipeline.
+%% CAS 2.4 longmktitle uses a removed LaTeX3 command; use standard title mode.
+\documentclass[a4paper,fleqn]{cas-sc}
+\usepackage[authoryear]{natbib}
 
-%% ============================================================================
-%% Additional packages for Pandoc output (not included by wlpeerj.cls)
-%% ============================================================================
-
-%% Unicode font support via fontspec (XeLaTeX) — fixes Turkish chars and box-drawing glyphs
+%% XeLaTeX fonts follow the existing paper templates for Unicode support.
 \usepackage{fontspec}
-
-% Load TeX Gyre Termes by filename (Times New Roman metric-compatible clone)
 \setmainfont{texgyretermes-regular.otf}[
-  BoldFont       = texgyretermes-bold.otf,
-  ItalicFont     = texgyretermes-italic.otf,
+  BoldFont = texgyretermes-bold.otf,
+  ItalicFont = texgyretermes-italic.otf,
   BoldItalicFont = texgyretermes-bolditalic.otf
 ]
-
-% Load TeX Gyre Heros by filename (Helvetica metric-compatible clone)
 \setsansfont{texgyreheros-regular.otf}[
-  BoldFont       = texgyreheros-bold.otf,
-  ItalicFont     = texgyreheros-italic.otf,
+  BoldFont = texgyreheros-bold.otf,
+  ItalicFont = texgyreheros-italic.otf,
   BoldItalicFont = texgyreheros-bolditalic.otf
 ]
-
-% Load DejaVu Sans Mono by filename (monospace with full Unicode coverage)
 \setmonofont{DejaVuSansMono.ttf}[
-  Scale          = 0.85,
-  BoldFont       = DejaVuSansMono-Bold.ttf,
-  ItalicFont     = DejaVuSansMono-Oblique.ttf,
+  Scale = 0.85,
+  BoldFont = DejaVuSansMono-Bold.ttf,
+  ItalicFont = DejaVuSansMono-Oblique.ttf,
   BoldItalicFont = DejaVuSansMono-BoldOblique.ttf
 ]
-%% Override wlpeerj.cls author fonts — cls hardcodes \usefont{OT1}{phv}{b}{n} which lacks Turkish chars
-\renewcommand\Authfont{\fontsize{12}{14}\selectfont\sffamily\bfseries}
-\renewcommand\Affilfont{\fontsize{10}{12}\selectfont\sffamily\bfseries}
 
-%% Tables — Pandoc converts Markdown tables to longtable
+%% Pandoc tables, including unnumbered tables and footnotes.
+\usepackage{calc} % Pandoc column widths use arithmetic and \real factors.
 \usepackage{longtable}
-\usepackage{array}
-\newcounter{none} % Pandoc uses \def\LTcaptype{none} for unnumbered tables
-
-%% etoolbox — needed for \AtBeginEnvironment hook
-\usepackage{etoolbox}
-
-%% Correct order of tables after \paragraph or \subparagraph
+\newcounter{none}
 \makeatletter
 \patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
 \makeatother
-
-%% Allow footnotes in longtable head/foot
 \IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
 \makesavenoteenv{longtable}
+\AtBeginEnvironment{longtable}{%
+  \scriptsize
+  \setlength{\tabcolsep}{2pt}%
+}
+\setlength{\LTpre}{1.5em}
+\setlength{\LTpost}{1.5em}
 
-%% Graphics — Pandoc image scaling support
+%% Pandoc image scaling (graphicx is loaded by cas-sc).
 \makeatletter
 \newsavebox\pandoc@box
-\newcommand*\pandocbounded[1]{% scales image to fit in text height/width
+\newcommand*\pandocbounded[1]{%
   \sbox\pandoc@box{#1}%
   \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
   \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
@@ -71,12 +53,9 @@
 }
 \def\fps@figure{htbp}
 \makeatother
-
-%% Tight lists — Pandoc uses this for compact lists
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 
-%% Code highlighting support
 \usepackage{color}
 \usepackage{fancyvrb}
 \newcommand{\VerbBar}{|}
@@ -116,92 +95,31 @@
 \newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
 \newcommand{\WarningTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
 
-%% CSL citation support (for --citeproc)
-\NewDocumentCommand\citeproctext{}{}
-\NewDocumentCommand\citeproc{mm}{%
-  \begingroup\def\citeproctext{#2}\cite{#1}\endgroup}
-\makeatletter
- \let\@cite@ofmt\@firstofone
- \def\@biblabel#1{}
- \def\@cite#1#2{{#1\if@tempswa , #2\fi}}
-\makeatother
-\newlength{\cslhangindent}
-\setlength{\cslhangindent}{1.5em}
-\newlength{\csllabelwidth}
-\setlength{\csllabelwidth}{3em}
-\newenvironment{CSLReferences}[2]
- {\begin{list}{}{%
-  \setlength{\itemindent}{0pt}
-  \setlength{\leftmargin}{0pt}
-  \setlength{\parsep}{0pt}
-  \ifodd #1
-   \setlength{\leftmargin}{\cslhangindent}
-   \setlength{\itemindent}{-1\cslhangindent}
-  \fi
-  \setlength{\itemsep}{#2\baselineskip}}}
- {\end{list}}
-\newcommand{\CSLBlock}[1]{\hfill\break\parbox[t]{\linewidth}{\strut\ignorespaces#1\strut}}
-\newcommand{\CSLLeftMargin}[1]{\parbox[t]{\csllabelwidth}{\strut#1\strut}}
-\newcommand{\CSLRightInline}[1]{\parbox[t]{\linewidth - \csllabelwidth}{\strut#1\strut}}
-\newcommand{\CSLIndent}[1]{\hspace{\cslhangindent}#1}
-
-%% ============================================================================
-%% Formatting (absorbed from preamble.tex)
-%% ============================================================================
-
-%% Reduce font size inside all longtables to prevent overflow
-\AtBeginEnvironment{longtable}{%
-  \scriptsize%
-  \setlength{\tabcolsep}{2pt}%
-}
-
-%% Explicit Spacing for Figures
-\setlength{\intextsep}{1.5em}
-\setlength{\textfloatsep}{1.5em}
-
-%% Explicit Spacing for Tables (longtable)
-\setlength{\LTpre}{1.5em}
-\setlength{\LTpost}{1.5em}
-
-%% Prevent orphan/widow lines (single lines stranded on a page)
-\widowpenalties 3 10000 10000 150
-\clubpenalties  3 10000 10000 150
-
-%% PeerJ requires left-justified text (not full-width justified)
-\raggedright
-\setlength{\parindent}{1.5em} % Restore first-line indent zeroed by \raggedright
-
-%% Prevent overfull lines
 \setlength{\emergencystretch}{3em}
-
 %% Honor Pandoc's --number-sections through subsubsections.
 \setcounter{secnumdepth}{3}
+%% Pandoc's natbib writer removes the trailing Markdown References heading;
+%% retain natbib's heading for the generated bibliography.
 
-%% ============================================================================
-%% Hyperlinks (must be loaded after other packages)
-%% ============================================================================
-\usepackage{hyperref}
+%% hyperref is loaded by cas-sc; configure it without reloading it.
 \hypersetup{
   pdftitle={Source-Known Identifiers: A Three-Tier Identity System for Distributed Applications},
   pdfauthor={Duran Serkan Kılıç},
   hidelinks,
   pdfcreator={LaTeX via Pandoc}}
 
-%% ============================================================================
-%% Extra header includes from YAML (if any)
-%% ============================================================================
 
-%% ============================================================================
-%% PeerJ metadata from YAML frontmatter
-%% ============================================================================
-\title{Source-Known Identifiers: A Three-Tier Identity System for
-Distributed Applications}
-\author[1]{Duran Serkan Kılıç}
-\affil[1]{Independent Researcher, Ankara, Türkiye}
-\corrauthor[1]{Duran Serkan Kılıç}{duran.serkan@outlook.com}
-
+\begin{document}
+\shorttitle{Source-Known Identifiers}
+\shortauthors{Duran Serkan Kılıç}
+\title[mode=title]{Source-Known Identifiers: A Three-Tier Identity
+System for Distributed Applications}
+\author[1]{Duran Serkan Kılıç}[orcid={0009-0002-0716-6903}]
+\cormark[1]
+\ead{duran.serkan@outlook.com}
+\cortext[1]{Corresponding author}
+\affiliation[1]{organization={Independent Researcher, Ankara, Türkiye}}
 \begin{abstract}
-\setlength{\parskip}{1ex}
 Distributed applications use identifiers across database storage,
 trusted communication, and external access. These roles require
 different combinations of storage efficiency, chronological sortability,
@@ -229,15 +147,7 @@ margins. Under saturation, generation was slower than the UUID
 baselines. These results support the feasibility of deriving SKEIDs from
 64-bit Source-Known IDs on demand.
 \end{abstract}
-
-%% ============================================================================
-%% Document body
-%% ============================================================================
-\begin{document}
-
-\flushbottom
 \maketitle
-\thispagestyle{empty}
 
 \raggedbottom
 
@@ -255,7 +165,7 @@ deterministic transformations can provide different representations of
 one entity identity across these boundaries.
 
 An \emph{entity} is a domain object with a distinct identity that
-persists across its lifecycle (Evans, 2003). Its \emph{entity
+persists across its lifecycle \citep{evans2003}. Its \emph{entity
 identifier} distinguishes it from other entities of the same type. While
 this terminology is established in Domain-Driven Design, the underlying
 requirement of uniquely and persistently identifying records across
@@ -269,13 +179,12 @@ properties.
 
 Database sequences offer compact storage (4 or 8 bytes) and natural
 ordering but expose creation patterns when passed to external consumers.
-UUID Version 4 (Davis, Peabody \& Leach, 2024) provides 122 bits of
-randomness for probabilistic uniqueness but sacrifices ordering. UUID
-Version 7 (Davis, Peabody \& Leach, 2024) restores time-ordering with a
-48-bit Unix timestamp but exposes creation patterns. Snowflake-style
-identifiers (Twitter Engineering, 2012) embed timestamp and worker
-topology in 64 bits but again expose creation patterns and lose
-multi-century addressability.
+UUID Version 4 \citep{rfc9562} provides 122 bits of randomness for
+probabilistic uniqueness but sacrifices ordering. UUID Version 7
+\citep{rfc9562} restores time-ordering with a 48-bit Unix timestamp but
+exposes creation patterns. Snowflake-style identifiers \citep{snowflake}
+embed timestamp and worker topology in 64 bits but again expose creation
+patterns and lose multi-century addressability.
 
 None of these schemes provides built-in verification of identifier
 integrity and authenticated origin metadata without a lookup. Exposing
@@ -314,14 +223,14 @@ random and time-ordered identifiers, respectively.
 \subsection{Motivation}\label{motivation}
 
 At the persistence tier, B-tree index performance favors sequential or
-time-ordered primary keys (Davis, Peabody \& Leach, 2024, secs. 2.1,
-6.11, and 6.13). However, exposing these identifiers through external
-APIs can make enumeration and exploitation of Insecure Direct Object
-Reference (IDOR) vulnerabilities easier (MITRE Corporation, 2026a).
-Exposure can also enable adversarial inference of generation velocity
-and record volume (the German Tank Problem (Ruggles \& Brodie, 1947)).
-As a workaround, the dual-identifier pattern with an integer primary key
-alongside a random UUID alternate key compromises storage efficiency.
+time-ordered primary keys \citep[Sections 2.1, 6.11, and 6.13]{rfc9562}.
+However, exposing these identifiers through external APIs can make
+enumeration and exploitation of Insecure Direct Object Reference (IDOR)
+vulnerabilities easier \citep{cwe639}. Exposure can also enable
+adversarial inference of generation velocity and record volume (the
+German Tank Problem \citep{ruggles1947}). As a workaround, the
+dual-identifier pattern with an integer primary key alongside a random
+UUID alternate key compromises storage efficiency.
 
 The full cost of such workarounds extends beyond the identifier columns
 themselves. For instance, a conventional schema using an auto-increment
@@ -343,20 +252,19 @@ factors. Additional composite indexes involving these fields would
 amplify the savings further.
 
 Where downstream applications require identifier authenticity
-verification (MITRE Corporation, 2026b), an embedded MAC enables
-verification of identifier integrity without a query or cache lookup for
-the corresponding record. This eliminates record-lookup I/O for that
+verification \citep{cwe345}, an embedded MAC enables verification of
+identifier integrity without a query or cache lookup for the
+corresponding record. This eliminates record-lookup I/O for that
 verification step.
 
-Time-ordered identifiers (Davis, Peabody \& Leach, 2024) can also
-support historical analysis when records from independent generators are
-combined. Their usefulness depends on timestamp precision, clock
-synchronization, and consistent epoch interpretation. When data from
-independent generators must be merged years or decades after creation,
-the identifier scheme must preserve consistent ordering beyond the
-operational lifespan of individual system components. This is especially
-critical for any system requiring long-term data retention and
-historical analysis.
+Time-ordered identifiers \citep{rfc9562} can also support historical
+analysis when records from independent generators are combined. Their
+usefulness depends on timestamp precision, clock synchronization, and
+consistent epoch interpretation. When data from independent generators
+must be merged years or decades after creation, the identifier scheme
+must preserve consistent ordering beyond the operational lifespan of
+individual system components. This is especially critical for any system
+requiring long-term data retention and historical analysis.
 
 These requirements motivate a multi-tier identifier system where a
 single entity identity is represented differently across trust
@@ -366,24 +274,23 @@ boundaries.
 
 Source-Known Identifiers build on established techniques for structuring
 and protecting identifiers. Snowflake packs timestamps, topology, and
-sequence counters into 64-bit identifiers (Twitter Engineering, 2012),
-while UUIDv8 permits application-defined fields within a standard
-128-bit layout (Davis, Peabody \& Leach, 2024, sec. 5.8). These provide
-precedents for SKID's topology fields and SKEID's metadata layout.
+sequence counters into 64-bit identifiers \citep{snowflake}, while
+UUIDv8 permits application-defined fields within a standard 128-bit
+layout \citep[Section 5.8]{rfc9562}. These provide precedents for SKID's
+topology fields and SKEID's metadata layout.
 
 The cryptographic foundations are also established. MACs provide
 integrity verification, and authenticated encryption combines
-confidentiality with authenticity (Song et al., 2006; Harkins, 2008;
-McGrew, 2008).
+confidentiality with authenticity \citep{rfc4493, rfc5297, rfc5116}.
 
 Bellare and Rogaway's encode-then-encipher framework shows how checking
 embedded redundancy after deciphering can provide authenticity under a
-strong pseudorandom-permutation assumption (Bellare \& Rogaway, 2000,
-Theorem 2). SKEID incorporates an embedded MAC, and Secure SKEID follows
-this principle by encrypting the structured representation and verifying
-it after decryption.
+strong pseudorandom-permutation assumption \citep[Theorem
+2]{bellare2000}. SKEID incorporates an embedded MAC, and Secure SKEID
+follows this principle by encrypting the structured representation and
+verifying it after decryption.
 
-For external use, Khuong (2022) describes using AES to convert a
+For external use, \citet{khuong2022} describes using AES to convert a
 structured 128-bit key into an opaque identifier of the same size. The
 article also discusses cycle walking and a specialized Feistel
 construction for producing encrypted identifiers with fixed format bits,
@@ -392,7 +299,7 @@ preserving UUID version and variant bits may be unnecessary where the
 complete application path accepts opaque 128-bit identifiers.
 
 IDMask combines reversible identifier encryption with forgery checks
-(Favre, 2023). Its default deterministic 64-bit mode encrypts the
+\citep{idmask}. Its default deterministic 64-bit mode encrypts the
 identifier and 64 bits of validation redundancy in one AES block, then
 adds a version byte to produce a 17-byte output. Its default
 deterministic 128-bit mode adds an 8-byte MAC and a version byte to the
@@ -409,8 +316,6 @@ authenticated entity-type and origin metadata, and encryption for
 external use. Conversion from SKEID to Secure SKEID preserves the
 128-bit size. Collision-guard and backward-verification mechanisms
 distinguish the plaintext and encrypted representations.
-
-\newpage
 
 \subsection{Contributions}\label{contributions}
 
@@ -445,13 +350,14 @@ SKEID to Secure SKEID.
   the collision guard, without trusting that an input was produced by
   the generator.
 \item
-  \textbf{Zero-expansion plaintext-to-encrypted identifier conversion}
-  that combines embedded metadata, a truncated MAC, and collision-guard
-  variants within the same 128-bit representation using AES's
-  length-preserving block permutation. By comparison, AES-SIV and the
-  AES-GCM profiles in RFC 5116 each add 16 bytes to the plaintext
-  length, excluding any separately transmitted nonce (Harkins, 2008,
-  sec. 2.6; McGrew, 2008, sec. 5.1 and 5.2).
+  \textbf{Zero-expansion identifier conversion using
+  encode-then-encipher approach} that combines embedded metadata, a
+  truncated MAC, and collision-guard variants within the same 128-bit
+  representation using AES's length-preserving block permutation. By
+  comparison, AES-SIV and the AES-GCM profiles in RFC 5116 each add 16
+  bytes to the plaintext length, excluding any separately transmitted
+  nonce \citetext{\citealp[Section 2.6]{rfc5297}; \citealp[Sections 5.1
+  and 5.2]{rfc5116}}.
 \item
   \textbf{An epoch addressing system} embedded in the plaintext SKEID's
   UUIDv8-compatible layout that spans approximately 17,421 years of
@@ -468,65 +374,66 @@ SKEID to Secure SKEID.
 \subsection{Related Work}\label{related-work}
 
 Distributed identifier schemes have evolved considerably since the
-original UUID specification. RFC 9562 (Davis, Peabody \& Leach, 2024)
-standardized UUID versions 1, 3--8, with Version 7 introducing
-timestamp-ordered UUIDs that address the B-tree fragmentation problems
-of random Version 4 UUIDs. UUID Version 7 uses a 48-bit Unix timestamp
-prefix followed by random bits, providing millisecond-precision ordering
-and global uniqueness.
+original UUID specification. RFC 9562 \citep{rfc9562} standardized UUID
+versions 1, 3--8, with Version 7 introducing timestamp-ordered UUIDs
+that address the B-tree fragmentation problems of random Version 4
+UUIDs. UUID Version 7 uses a 48-bit Unix timestamp prefix followed by
+random bits, providing millisecond-precision ordering and global
+uniqueness.
 
 The comparison includes the alternatives examined during the development
 of RFC 9562 including Snowflake, ULID, KSUID, and the original CUID
-(Davis, Peabody \& Leach, 2024, sec. 2.1). These schemes illustrate
-different choices in identifier size, ordering, timestamp precision, and
-generator metadata. We include CUID2 as CUID's successor, UUID V4 and V7
-as standardized random and time-ordered baselines, and database
-sequences as the compact storage baseline. This selection covers
-relevant design trade-offs without reproducing the RFC's full survey.
+\citep[Section 2.1]{rfc9562}. These schemes illustrate different choices
+in identifier size, ordering, timestamp precision, and generator
+metadata. We include CUID2 as CUID's successor, UUID V4 and V7 as
+standardized random and time-ordered baselines, and database sequences
+as the compact storage baseline. This selection covers relevant design
+trade-offs without reproducing the RFC's full survey.
 
-Twitter's Snowflake architecture (Twitter Engineering, 2010, 2012)
-pioneered timestamp-prefixed, worker-partitioned 64-bit identifiers for
-high-throughput systems. Snowflake identifiers embed a 41-bit timestamp
-with millisecond precision, a 10-bit machine identifier (5-bit
-datacenter ID and 5-bit worker ID), and a 12-bit sequence number,
-enabling approximately 4,096 identifiers per millisecond per machine.
-Its custom epoch starts from November 4, 2010 and extends to July 10,
-2080 (\textasciitilde69.68 years).
+Twitter's Snowflake architecture
+\citep{snowflake, snowflake-announcement} pioneered timestamp-prefixed,
+worker-partitioned 64-bit identifiers for high-throughput systems.
+Snowflake identifiers embed a 41-bit timestamp with millisecond
+precision, a 10-bit machine identifier (5-bit datacenter ID and 5-bit
+worker ID), and a 12-bit sequence number, enabling approximately 4,096
+identifiers per millisecond per machine. Its custom epoch starts from
+November 4, 2010 and extends to July 10, 2080 (\textasciitilde69.68
+years).
 
-ULIDs (Feerasta, 2019) provide a 128-bit value composed of a 48-bit
+ULIDs \citep{ulid} provide a 128-bit value composed of a 48-bit
 timestamp with millisecond precision. Its Unix epoch starts from January
 1, 1970 and extends to \textasciitilde10889 CE (\textasciitilde8,919
 years). ULIDs are encoded as 26-character Crockford Base32 strings that
 sort lexicographically by creation time, targeting environments where
 string-based identifiers are standard.
 
-The original CUID (Elliott, 2023) was a collision-resistant identifier
-specification that used a k-sortable, timestamp-prefixed structure. It
-was deprecated by its author due to security concerns. The CUID
-deprecation notice warns that ``all monotonically increasing
+The original CUID \citep{cuid-deprecated} was a collision-resistant
+identifier specification that used a k-sortable, timestamp-prefixed
+structure. It was deprecated by its author due to security concerns. The
+CUID deprecation notice warns that ``all monotonically increasing
 (auto-increment, k-sortable), and timestamp-based ids share the security
 issues with Cuid'' and further states that ``UUID V6-V8 are also
 insecure because they leak information which could be used to exploit
-systems or violate user privacy'' (Elliott, 2023). We note that this
-warning is valuable but too broad for UUIDv8. Whether UUIDv8 shares
-these security issues depends on its application-defined payload (Davis,
-Peabody \& Leach, 2024, sec. 5.8).
+systems or violate user privacy'' \citep{cuid-deprecated}. We note that
+this warning is valuable but too broad for UUIDv8. Whether UUIDv8 shares
+these security issues depends on its application-defined payload
+\citep[Section 5.8]{rfc9562}.
 
 CUID2, the successor to CUID, takes a fundamentally different approach.
 The CUID2 authors observe that ``insecure ids can cause problems in
 unexpected ways, including unauthorized user account access,
 unauthorized access to user data, and accidental leaks of user's
 personal data which can lead to catastrophic effects, even in
-innocent-sounding applications like fitness run trackers'' (Elliott,
-2026). CUID2 intentionally removed timestamps from the identifier for
-security reasons and instead recommends a separate indexed
-\texttt{createdAt} column for time-based sorting. CUID2 generates
-identifiers by using independent entropy sources then hashing the
-concatenation with SHA3. This produces identifiers with strong collision
-resistance but relies on probabilistic uniqueness rather than
+innocent-sounding applications like fitness run trackers''
+\citep{cuid2}. CUID2 intentionally removed timestamps from the
+identifier for security reasons and instead recommends a separate
+indexed \texttt{createdAt} column for time-based sorting. CUID2
+generates identifiers by using independent entropy sources then hashing
+the concatenation with SHA3. This produces identifiers with strong
+collision resistance but relies on probabilistic uniqueness rather than
 deterministic construction.
 
-KSUIDs (Segment, 2023) (K-Sortable Unique Identifier) provide a 160-bit
+KSUIDs \citep{ksuid} (K-Sortable Unique Identifier) provide a 160-bit
 (20-byte) binary value composed of a 32-bit timestamp. It has 1-second
 precision, a custom epoch from May 13, 2014 to June 19, 2150, and a
 128-bit cryptographically random payload. KSUIDs also have a
@@ -604,7 +511,7 @@ No \\
 \section{Methods}\label{methods}
 
 Portions of this text were previously published as part of an arXiv
-preprint (Kılıç, 2026a).
+preprint \citep{skid-preprint}.
 
 The proposed identifier system is evaluated through specification
 analysis, implementation tests, performance measurement, and threat
@@ -819,8 +726,6 @@ running process. A new app instance ID is used to prevent collisions
 across application restarts and does not preserve chronological
 monotonicity across a restart after clock rollback.
 
-\newpage
-
 \subsection{Source-Known Entity ID (SKEID) 128-bit
 Specification}\label{source-known-entity-id-skeid-128-bit-specification}
 
@@ -908,11 +813,11 @@ The marker bytes at positions 6 and 8 serve dual purposes.
 
 \subsubsection{MAC Computation}\label{mac-computation}
 
-Integrity verification relies on BLAKE3 keyed MAC (O'Connor et al.,
-2021). The computation procedure clears the four MAC bytes (positions
-12--15) to zero, then computes a 4-byte BLAKE3 keyed MAC over the full
-16-byte buffer. The resulting 4 bytes are written into the contiguous
-MAC positions (bytes 12--15).
+Integrity verification relies on BLAKE3 keyed MAC \citep{blake3}. The
+computation procedure clears the four MAC bytes (positions 12--15) to
+zero, then computes a 4-byte BLAKE3 keyed MAC over the full 16-byte
+buffer. The resulting 4 bytes are written into the contiguous MAC
+positions (bytes 12--15).
 
 BLAKE3 was selected for performance and security margin. In the
 BenchmarkDotNet measurements, BLAKE3 keyed hashing with a reused hasher
@@ -1035,30 +940,31 @@ repeated identifiers to be recognized.
 This conversion has zero expansion. A 16-byte SKEID becomes a 16-byte
 Secure SKEID. By comparison, AES-SIV supports deterministic
 authenticated encryption but adds 16 bytes of overhead, producing 32
-bytes for a 16-byte plaintext (Harkins, 2008, sec. 2.6 and 4). The
+bytes for a 16-byte plaintext \citep[Sections 2.6 and 4]{rfc5297}. The
 AES-GCM profiles in RFC 5116 likewise add a 16-byte authentication tag,
-excluding any separately transmitted nonce (McGrew, 2008, sec. 5.1 and
-5.2). Although NIST SP 800-38D permits several tag lengths, all require
-additional space, so the complete authenticated output still expands
-(Dworkin, 2007, sec. 5.2.1.2). Neither construction can therefore
-reversibly carry a SKEID in a self-contained 128-bit output. Zero
-expansion does not imply security equivalent to AES-SIV or AES-GCM, or
-preservation of UUID version and variant bits (see Limitations 4 and 6).
+excluding any separately transmitted nonce \citep[Sections 5.1 and
+5.2]{rfc5116}. Although NIST SP 800-38D permits several tag lengths, all
+require additional space, so the complete authenticated output still
+expands \citep[Section 5.2.1.2]{nistsp80038d}. Neither construction can
+therefore reversibly carry a SKEID in a self-contained 128-bit output.
+Zero expansion does not imply security equivalent to AES-SIV or AES-GCM,
+or preservation of UUID version and variant bits (see Limitations 4 and
+6).
 
 A Secure SKEID is produced by encrypting the entire 16-byte SKEID
-plaintext using AES-256 (National Institute of Standards and Technology,
-2023) as a single-block cipher. AES has undergone extensive public
-cryptanalysis, reviewed in NIST IR 8319 (Mouha, 2021). Under the
-pseudorandom permutation (PRP) assumption with a uniformly chosen key,
-AES-256 applied to a single 128-bit block is computationally
-indistinguishable from a uniformly random permutation. A pseudorandom
-function (PRF) is similarly computationally indistinguishable from a
-uniformly random function. The birthday threshold for distinguishing a
-random permutation from a random function is approximately \(2^{n/2}\)
-queries (Bellare, Krovetz \& Rogaway, 1998, sec. 2.2). For AES with
-\(n = 128\), candidate ciphertexts for distinct plaintexts can be
-modeled approximately as independent, uniformly random blocks as long as
-the query count under a single key remains well below \(2^{64}\).
+plaintext using AES-256 \citep{fips197} as a single-block cipher. AES
+has undergone extensive public cryptanalysis, reviewed in NIST IR 8319
+\citep{nistir8319}. Under the pseudorandom permutation (PRP) assumption
+with a uniformly chosen key, AES-256 applied to a single 128-bit block
+is computationally indistinguishable from a uniformly random
+permutation. A pseudorandom function (PRF) is similarly computationally
+indistinguishable from a uniformly random function. The birthday
+threshold for distinguishing a random permutation from a random function
+is approximately \(2^{n/2}\) queries \citep[Section 2.2]{bellare1998}.
+For AES with \(n = 128\), candidate ciphertexts for distinct plaintexts
+can be modeled approximately as independent, uniformly random blocks as
+long as the query count under a single key remains well below
+\(2^{64}\).
 
 Because SKEID encryption always operates on exactly one block, the
 multi-block weakness of ECB mode does not apply. For a single block, ECB
@@ -1078,8 +984,7 @@ vulnerability.
 
 Quantum attacks on AES via Grover's algorithm reduce the effective
 security of AES-256 to approximately 128 bits, which still remains
-computationally infeasible (Bonnetain, Naya-Plasencia \& Schrottenloher,
-2019).
+computationally infeasible \citep{bonnetain2019}.
 
 \subsubsection{Key Separation}\label{key-separation}
 
@@ -1090,7 +995,7 @@ The two keys must not be the same value. Implementations should derive
 both keys from a single master secret using a key derivation function
 with domain separation, such as BLAKE3's \texttt{derive\_key} mode with
 distinct, hardcoded, globally unique context strings identifying the
-application and key purpose (O'Connor et al., 2021, sec. 6.2).
+application and key purpose \citep[Section 6.2]{blake3}.
 
 \subsubsection{Generation Algorithm}\label{generation-algorithm-2}
 
@@ -1287,8 +1192,8 @@ Implementations support bidirectional conversions between tiers (Figure
 \subsubsection{Numeric Walkthrough}\label{numeric-walkthrough}
 
 This example reproduces the public test vector from Appendix A of the
-draft specification (Kılıç, 2026b). The collision-guard scenario that
-follows is hypothetical and is not triggered by this vector.
+draft specification \citep{draft-skid}. The collision-guard scenario
+that follows is hypothetical and is not triggered by this vector.
 
 \textbf{Setup:} Consider a SKID with value \texttt{0x881B3200050C002A}
 (signed decimal \texttt{-8639256484514103254}), timestamp = 272,000,000
@@ -1303,8 +1208,8 @@ the wire vector in tests. These public test keys must not be used in
 production.
 
 The public master-key value also appears as the 256-bit key-encryption
-key in the test vector in RFC 3394 (Schaad \& Housley, 2002, sec. 4.3).
-The MAC and AES keys shown below are derived from this master key by the
+key in the test vector in RFC 3394 \citep[Section 4.3]{rfc3394}. The MAC
+and AES keys shown below are derived from this master key by the
 reference implementation.
 
 \begin{Shaded}
@@ -1526,9 +1431,9 @@ compliance with NIST HMAC guidance.
 
 The SKEID 32-bit MAC truncation matches the minimum MacTag length
 specified for HMAC using approved hash algorithms in NIST SP 800-107
-(Dang, 2012, sec. 5.3.3). Section 5.3.5 of the same document also
-discourages MacTags shorter than 64 bits. However, the 128-bit SKEID
-format constrains the space available for the MAC field, as the
+\citep[Section 5.3.3]{nistsp800107}. Section 5.3.5 of the same document
+also discourages MacTags shorter than 64 bits. However, the 128-bit
+SKEID format constrains the space available for the MAC field, as the
 remaining bits carry the SKID, entity type, epoch, and marker bytes.
 Under the conditions stated in Defense-in-Depth Security Architecture,
 the probability that a uniformly random ciphertext passes all Secure
@@ -1562,9 +1467,9 @@ Random ciphertext guesses remain subject to validation and rate
 limiting.
 
 In December 2022, NIST announced plans to withdraw SP 800-107 Rev.~1
-(NIST, 2022). The 2024 Initial Public Draft of NIST SP 800-224 (Turan \&
-Brandão, 2024) includes guidance on truncated HMACs. Its recommendations
-inform this BLAKE3 analysis by analogy.
+\citep{nistsp800107withdrawal}. The 2024 Initial Public Draft of NIST SP
+800-224 \citep{nistsp800224} includes guidance on truncated HMACs. Its
+recommendations inform this BLAKE3 analysis by analogy.
 
 \subsection{Key Rotation and Key-Ring
 Fallback}\label{key-rotation-and-key-ring-fallback}
@@ -1611,7 +1516,7 @@ forge accepted identifiers.
 \subsection{Reference Implementation}\label{reference-implementation}
 
 The reference implementation is provided as part of the open-source
-DRN.Framework (Kılıç, 2026c), organized across four NuGet packages.
+DRN.Framework \citep{drn-project}, organized across four NuGet packages.
 
 The current implementation generates and accepts only encoded epoch
 \texttt{0}. Support for nonzero epochs and operational epoch transitions
@@ -1668,7 +1573,7 @@ The implementation uses attribute-based dependency injection
 \texttt{{[}Transient\textless{}Type\textgreater{}{]}}) and entity type
 attributes (\texttt{{[}EntityType\textless{}TApp\textgreater{}(byte){]}}
 for entity type and application partition registration) and integrates
-with Domain-Driven Design (Evans, 2003) patterns through the
+with Domain-Driven Design \citep{evans2003} patterns through the
 \texttt{SourceKnownEntity} abstract base class. The testing strategy and
 validation evidence for these packages are described in the Validation
 and Maturity section.
@@ -1739,7 +1644,7 @@ that runs the complete test suite before each release.
 Environment}\label{reference-benchmark-environment}
 
 The identifier-generation, parsing, and conversion benchmarks under
-normal load were conducted using BenchmarkDotNet (Akinshin, 2025)
+normal load were conducted using BenchmarkDotNet \citep{benchmarkdotnet}
 v0.15.8 with the following hardware and software configuration.
 
 \begin{itemize}
@@ -1990,10 +1895,10 @@ the measured transformation cost is negligible by comparison.
 epoch, and plaintext SKEIDs preserve timestamp order under lexicographic
 comparison of their specified big-endian representation. These
 properties support an expectation of index locality similar to
-conventional time-ordered integer and UUID keys (Davis, Peabody \&
-Leach, 2024, sec. 2.1 and 6.11). However, database-engine benchmarks
-were not conducted, so improvements in index size, insertion throughput,
-and query latency remain unverified.
+conventional time-ordered integer and UUID keys \citep[Sections 2.1 and
+6.11]{rfc9562}. However, database-engine benchmarks were not conducted,
+so improvements in index size, insertion throughput, and query latency
+remain unverified.
 
 \section{Discussion}\label{discussion}
 
@@ -2054,27 +1959,26 @@ in deployed systems were not evaluated.
 \subsection{Comparison with Existing
 Work}\label{comparison-with-existing-work}
 
-Compared to UUID V7 (Davis, Peabody \& Leach, 2024), the most directly
-comparable recent standard, the three-tier identity system offers origin
-metadata, integrity verification (MAC), and confidentiality (encryption)
-that UUID V7 lacks. UUID V7 provides millisecond-precision timestamps
-while SKID uses 250-millisecond tick precision (see Design Trade-offs
-for the rationale and throughput analysis of this choice).
+Compared to UUID V7 \citep{rfc9562}, the most directly comparable recent
+standard, the three-tier identity system offers origin metadata,
+integrity verification (MAC), and confidentiality (encryption) that UUID
+V7 lacks. UUID V7 provides millisecond-precision timestamps while SKID
+uses 250-millisecond tick precision (see Design Trade-offs for the
+rationale and throughput analysis of this choice).
 
-Snowflake (Twitter Engineering, 2012) shares the same compact 64-bit
-footprint as SKID, but SKEID adds integrity verification and Secure
-SKEID adds confidentiality, neither of which Snowflake provides.
-Snowflake's 10-bit machine ID (1,024 machines) is comparable to SKID's
-combined 13-bit topology (7-bit app ID + 6-bit app instance ID), but
-SKEID adds explicit entity type discrimination. Both require
-coordination to assign machine/instance identifiers and both schemes
-converge on similar single-epoch durations. However, Snowflake's epoch
-is non-extensible while SKEID provides extended epoch coverage. Lastly,
-Snowflake uses 41-bit millisecond timestamps while SKID achieves
-comparable coverage with a 32-bit 250-millisecond timestamp and an
-epoch-half bit.
+Snowflake \citep{snowflake} shares the same compact 64-bit footprint as
+SKID, but SKEID adds integrity verification and Secure SKEID adds
+confidentiality, neither of which Snowflake provides. Snowflake's 10-bit
+machine ID (1,024 machines) is comparable to SKID's combined 13-bit
+topology (7-bit app ID + 6-bit app instance ID), but SKEID adds explicit
+entity type discrimination. Both require coordination to assign
+machine/instance identifiers and both schemes converge on similar
+single-epoch durations. However, Snowflake's epoch is non-extensible
+while SKEID provides extended epoch coverage. Lastly, Snowflake uses
+41-bit millisecond timestamps while SKID achieves comparable coverage
+with a 32-bit 250-millisecond timestamp and an epoch-half bit.
 
-ULIDs (Feerasta, 2019) require twice the primary key storage (16 bytes
+ULIDs \citep{ulid} require twice the primary key storage (16 bytes
 versus 8 for SKID) and carry less embedded metadata. ULIDs use a 48-bit
 millisecond timestamp with \textasciitilde8,919 years of coverage from
 the Unix epoch, while SKEIDs provide longer coverage through epoch
@@ -2086,7 +1990,7 @@ environments, but lack UUID format compatibility. SKEIDs are valid RFC
 9562 Version 8 UUIDs. ULIDs provide neither integrity verification nor
 confidentiality.
 
-KSUIDs (Segment, 2023) use 20 bytes per binary identifier (see Table 1).
+KSUIDs \citep{ksuid} use 20 bytes per binary identifier (see Table 1).
 Source-Known Identifiers provide more compact representations (8/16
 bytes) with richer metadata. KSUIDs use second-precision timestamps
 while SKIDs use 250-millisecond ticks. KSUIDs provide \textasciitilde136
@@ -2105,17 +2009,17 @@ identifier properties. KSUIDs use a custom 160-bit format with binary
 and Base62 representations and are not compatible with standard UUID
 parsers.
 
-The original CUID (Elliott, 2023) was deprecated by its maintainer over
-security concerns associated with its timestamp-prefixed structure, as
-discussed in the Related Work section. Secure SKEIDs address this
-metadata exposure directly. The AES-256 encryption layer encrypts the
-entire SKEID payload, concealing its timestamp and source metadata from
-external consumers without the key.
+The original CUID \citep{cuid-deprecated} was deprecated by its
+maintainer over security concerns associated with its timestamp-prefixed
+structure, as discussed in the Related Work section. Secure SKEIDs
+address this metadata exposure directly. The AES-256 encryption layer
+encrypts the entire SKEID payload, concealing its timestamp and source
+metadata from external consumers without the key.
 
 CUID2 provides probabilistic uniqueness, whereas the three-tier identity
 system provides deterministic uniqueness within configured deployment
 partitions. For time-based sorting, CUID2 recommends a separate indexed
-\texttt{createdAt} column (Elliott, 2026). Source-Known Identifiers can
+\texttt{createdAt} column \citep{cuid2}. Source-Known Identifiers can
 avoid that additional column when their embedded generation timestamp
 satisfies the application's requirements.
 
@@ -2199,7 +2103,7 @@ Possible & Possible \\
 
 To evaluate the security posture of the three-tier identity system
 systematically, we apply a threat analysis informed by the STRIDE
-categories (Shostack, 2014) (Spoofing, Tampering, Repudiation,
+categories \citep{shostack2014} (Spoofing, Tampering, Repudiation,
 Information Disclosure, Denial of Service, Elevation of Privilege) to
 the three-tier identity model.
 
@@ -2251,8 +2155,8 @@ for one entity type (e.g., User with entity type 1) submitted as another
 (e.g., AdminRole with entity type 5). The unchanged identifier still
 passes MAC verification but fails the expected-type comparison.
 Applications must separately authorize access to the referenced record,
-even when the identifier is valid and matches the expected type (MITRE
-Corporation, 2026a).
+even when the identifier is valid and matches the expected type
+\citep{cwe639}.
 
 \subsection{Design Trade-offs}\label{design-trade-offs}
 
@@ -2273,14 +2177,14 @@ SKID profiles remain future work.
 
 \textbf{Clock synchronization versus drift protection:} The SKID
 generator delegates wall-clock synchronization to the operating system.
-Accurate timekeeping through Network Time Protocol (NTP) (Mills et al.,
-2010), Precision Time Protocol (PTP) (IEEE, 2020), or equivalent
-protocols is an infrastructure responsibility outside the scope of the
-identifier generator. The clock drift protection mechanism described in
-the SKID specification handles only the consequences of clock jumps or
-drifts. External coordination is required for app instance ID assignment
-as discussed in Limitation 2. Timestamp monotonicity is guaranteed only
-within a running process.
+Accurate timekeeping through Network Time Protocol (NTP)
+\citep{rfc5905}, Precision Time Protocol (PTP) \citep{ieee1588}, or
+equivalent protocols is an infrastructure responsibility outside the
+scope of the identifier generator. The clock drift protection mechanism
+described in the SKID specification handles only the consequences of
+clock jumps or drifts. External coordination is required for app
+instance ID assignment as discussed in Limitation 2. Timestamp
+monotonicity is guaranteed only within a running process.
 
 \textbf{Coordination versus probabilistic uniqueness:} The three-tier
 identity system requires deployment-time coordination to assign app ID
@@ -2299,10 +2203,10 @@ instance field bound the default profile to 128 applications and 64
 instance identifiers per application to keep coordination manageable.
 The potential number of pairwise communication relationships
 (\(n(n-1)/2\)) motivates this conservative design assumption by analogy
-with Brooks's discussion of communication overhead (Brooks, 1995, chap.
-2). For 128 applications, this yields 8,128 possible paths.
+with Brooks's discussion of communication overhead \citep[Chapter
+2]{brooks1995}. For 128 applications, this yields 8,128 possible paths.
 Well-designed systems mitigate this coordination complexity through
-bounded contexts (Evans, 2003) rather than unbounded application
+bounded contexts \citep{evans2003} rather than unbounded application
 proliferation. Similarly, we assume that beyond approximately 10
 concurrently active instances per application, resource contention on
 shared infrastructure (databases, message brokers, etc.) becomes the
@@ -2398,13 +2302,13 @@ not provide that strategy.
   \texttt{UuidVersionAndVariantBatchCompatibilityTests},
   \texttt{SourceKnownEntityIdPostgresUuidCompatibilityTests} and
   \texttt{SourceKnownEntityIdJsonCompatibilityTests} integration tests
-  (Kılıç, 2026c). However, AES-256 encryption replaces the plaintext
-  Version and Variant marker bytes with pseudorandom ciphertext. The
-  encrypted output is not guaranteed to preserve the version and variant
-  bits required by RFC 9562 Sections 4.1 and 5.8. Strict RFC 9562
-  validators may therefore reject a Secure SKEID. Systems requiring
-  strict RFC 9562 compliance at the validator level should accept Secure
-  SKEIDs as opaque strings or 128-bit integers.
+  \citep{drn-project}. However, AES-256 encryption replaces the
+  plaintext Version and Variant marker bytes with pseudorandom
+  ciphertext. The encrypted output is not guaranteed to preserve the
+  version and variant bits required by RFC 9562 Sections 4.1 and 5.8.
+  Strict RFC 9562 validators may therefore reject a Secure SKEID.
+  Systems requiring strict RFC 9562 compliance at the validator level
+  should accept Secure SKEIDs as opaque strings or 128-bit integers.
 \end{enumerate}
 
 \subsection{Future Work}\label{future-work}
@@ -2428,7 +2332,7 @@ implementation leave open questions.
   its speed advantage on small inputs. However, we discovered that
   single-block hardware-accelerated AES with cached keys may offer
   better performance. We plan to evaluate AES-256-CMAC as specified by
-  the CMAC construction in NIST SP 800-38B (Dworkin, 2005). AES-256
+  the CMAC construction in NIST SP 800-38B \citep{nistsp80038b}. AES-256
   retains a 128-bit block size, matching SKEID's 16-byte authentication
   input. We plan to retain BLAKE3's domain-separated key derivation mode
   (derive\_key) for generating independent encryption and authentication
@@ -2449,7 +2353,7 @@ implementation leave open questions.
   \textbf{Portability and interoperability:} An author-hosted
   \href{https://github.com/duranserkan/DRN-Project/blob/release/v0.10.0/docs/draft-skid-00.md}{draft
   specification (\texttt{draft-kilic-skid-00})} in Internet-Draft format
-  (Kılıç, 2026b) is available in the archived DRN-Project v0.10.0
+  \citep{draft-skid} is available in the archived DRN-Project v0.10.0
   release, containing algorithms, CDDL definitions, and test vectors.
   Formal IETF submission remains a separate dissemination step.
   Independent implementations in other languages would test the draft's
@@ -2462,21 +2366,21 @@ implementation leave open questions.
   PostgreSQL and .NET integration tests demonstrate that Secure SKEIDs
   can be stored and parsed without preserving UUIDv8 version and variant
   bits. RFC 9562 recommends treating UUIDs opaquely and avoiding
-  unnecessary inspection (Davis, Peabody \& Leach, 2024, sec. 6.12). It
-  also defines Nil and Max UUIDs with all 128 bits set to zero or one,
-  respectively, and version values 9--15 remain reserved for future
-  definitions rather than being permanently excluded from the UUID
-  version space (Davis, Peabody \& Leach, 2024, secs. 4.2, 5.9, and
-  5.10). These provisions distinguish general UUID handling from
-  validation of a particular version, but do not establish RFC
-  conformance for arbitrary ciphertext or require parsers to accept it.
-  The current results suggest that preserving UUIDv8 bits may also be
-  unnecessary on other contemporary platforms. Whether this holds for
-  most practical deployments remains to be established. Documenting
-  compatibility across platform and library versions is left as future
-  work. Where the complete application path accepts Secure SKEIDs,
-  techniques such as cycle walking or specialized Feistel constructions
-  (Khuong, 2022) may be unnecessary solely for UUID compatibility.
+  unnecessary inspection \citep[Section 6.12]{rfc9562}. It also defines
+  Nil and Max UUIDs with all 128 bits set to zero or one, respectively,
+  and version values 9--15 remain reserved for future definitions rather
+  than being permanently excluded from the UUID version space
+  \citep[Sections 4.2, 5.9, and 5.10]{rfc9562}. These provisions
+  distinguish general UUID handling from validation of a particular
+  version, but do not establish RFC conformance for arbitrary ciphertext
+  or require parsers to accept it. The current results suggest that
+  preserving UUIDv8 bits may also be unnecessary on other contemporary
+  platforms. Whether this holds for most practical deployments remains
+  to be established. Documenting compatibility across platform and
+  library versions is left as future work. Where the complete
+  application path accepts Secure SKEIDs, techniques such as cycle
+  walking or specialized Feistel constructions \citep{khuong2022} may be
+  unnecessary solely for UUID compatibility.
 \end{enumerate}
 
 \section{Conclusions}\label{conclusions}
@@ -2508,7 +2412,7 @@ sub-microsecond mean execution times.
 The open-source reference implementation, published as NuGet packages
 with integration and unit test coverage, is available for community
 review and adoption. A draft specification prepared in Internet-Draft
-format is available (Kılıç, 2026b) to support cross-platform
+format is available \citep{draft-skid} to support cross-platform
 implementation and interoperability testing. Formal submission to the
 IETF remains future work.
 
@@ -2569,198 +2473,6 @@ scanning that strengthened the security posture of the implementation.
 
 \newpage
 
-\section*{References}\label{references}
-\addcontentsline{toc}{section}{References}
-
-\protect\phantomsection\label{refs}
-\begin{CSLReferences}{1}{0}
-\bibitem[\citeproctext]{ref-benchmarkdotnet}
-Akinshin A. 2025.
-\href{https://github.com/dotnet/BenchmarkDotNet/releases/tag/v0.15.8}{{BenchmarkDotNet:
-Powerful .NET library for benchmarking}}.
-
-\bibitem[\citeproctext]{ref-bellare1998}
-Bellare M, Krovetz T, Rogaway P. 1998. {Luby-Rackoff Backwards:
-Increasing Security by Making Block Ciphers Non-Invertible}. In:
-\emph{Advances in cryptology -- EUROCRYPT '98}. LNCS. 266--280. DOI:
-\href{https://doi.org/10.1007/BFb0054132}{10.1007/BFb0054132}.
-
-\bibitem[\citeproctext]{ref-bellare2000}
-Bellare M, Rogaway P. 2000. {Encode-then-encipher encryption: How to
-exploit nonces or redundancy in plaintexts for efficient cryptography}.
-In: Okamoto T ed. \emph{Advances in cryptology -- ASIACRYPT 2000}.
-Lecture notes in computer science. Berlin, Heidelberg: Springer,
-317--330. DOI:
-\href{https://doi.org/10.1007/3-540-44448-3_24}{10.1007/3-540-44448-3\_24}.
-
-\bibitem[\citeproctext]{ref-bonnetain2019}
-Bonnetain X, Naya-Plasencia M, Schrottenloher A. 2019. {Quantum Security
-Analysis of AES}. \emph{IACR Trans. Symmetric Cryptol.} 2019:55--93.
-DOI:
-\href{https://doi.org/10.46586/tosc.v2019.i2.55-93}{10.46586/tosc.v2019.i2.55-93}.
-
-\bibitem[\citeproctext]{ref-brooks1995}
-Brooks FP Jr. 1995.
-\emph{\href{https://www.oreilly.com/library/view/mythical-man-month-the/0201835959/}{{The
-Mythical Man-Month: Essays on Software Engineering}}}. Addison-Wesley.
-
-\bibitem[\citeproctext]{ref-nistsp800107}
-Dang Q. 2012. \emph{{Recommendation for Applications Using Approved Hash
-Algorithms}}. NIST. DOI:
-\href{https://doi.org/10.6028/NIST.SP.800-107r1}{10.6028/NIST.SP.800-107r1}.
-
-\bibitem[\citeproctext]{ref-rfc9562}
-Davis K, Peabody B, Leach P. 2024. \emph{{Universally Unique IDentifiers
-(UUIDs)}}. IETF. DOI:
-\href{https://doi.org/10.17487/RFC9562}{10.17487/RFC9562}.
-
-\bibitem[\citeproctext]{ref-nistsp80038b}
-Dworkin M. 2005. \emph{{Recommendation for Block Cipher Modes of
-Operation: the CMAC Mode for Authentication}}. NIST. DOI:
-\href{https://doi.org/10.6028/NIST.SP.800-38B}{10.6028/NIST.SP.800-38B}.
-
-\bibitem[\citeproctext]{ref-nistsp80038d}
-Dworkin M. 2007. \emph{{Recommendation for Block Cipher Modes of
-Operation: Galois/Counter Mode (GCM) and GMAC}}. NIST. DOI:
-\href{https://doi.org/10.6028/NIST.SP.800-38D}{10.6028/NIST.SP.800-38D}.
-
-\bibitem[\citeproctext]{ref-cuid-deprecated}
-Elliott E. 2023.
-\href{https://github.com/paralleldrive/cuid/blob/29b8fbfbaadead797ac3b38201c50c55e491a8ce/README.md}{{CUID:
-Collision-resistant ids (deprecated)}}.
-
-\bibitem[\citeproctext]{ref-cuid2}
-Elliott E. 2026.
-\href{https://github.com/paralleldrive/cuid2/blob/d296cc84463064e511c2d698ce221730d40fdd09/README.md}{{CUID2:
-Secure, collision-resistant ids}}.
-
-\bibitem[\citeproctext]{ref-evans2003}
-Evans E. 2003.
-\emph{\href{https://www.oreilly.com/library/view/domain-driven-design-tackling/0321125215/}{{Domain-Driven
-Design: Tackling Complexity in the Heart of Software}}}. Addison-Wesley.
-
-\bibitem[\citeproctext]{ref-idmask}
-Favre P. 2023.
-\href{https://github.com/patrickfav/id-mask/blob/v0.6.0/README.md}{{IDMask:
-Encryption and Obfuscation of IDs}}.
-
-\bibitem[\citeproctext]{ref-ulid}
-Feerasta A. 2019.
-\href{https://github.com/ulid/spec/blob/d0c7170df4517939e70129b4d6462cc162f2d5bf/README.md}{{ULID:
-Universally Unique Lexicographically Sortable Identifier}}.
-
-\bibitem[\citeproctext]{ref-rfc5297}
-Harkins D. 2008. \emph{{Synthetic Initialization Vector (SIV)
-Authenticated Encryption Using the Advanced Encryption Standard (AES)}}.
-IETF. DOI: \href{https://doi.org/10.17487/RFC5297}{10.17487/RFC5297}.
-
-\bibitem[\citeproctext]{ref-ieee1588}
-IEEE. 2020. \emph{{IEEE Std 1588-2019: IEEE Standard for a Precision
-Clock Synchronization Protocol for Networked Measurement and Control
-Systems}}. DOI:
-\href{https://doi.org/10.1109/IEEESTD.2020.9120376}{10.1109/IEEESTD.2020.9120376}.
-
-\bibitem[\citeproctext]{ref-khuong2022}
-Khuong P. 2022.
-\href{https://pvk.ca/Blog/2022/07/11/plan-b-for-uuids-double-aes-128/}{{Plan
-B for UUIDs: double AES-128}}.
-
-\bibitem[\citeproctext]{ref-drn-project}
-Kılıç DS. 2026c. {DRN-Project: Distributed Reliable .Net}. DOI:
-\href{https://doi.org/10.5281/zenodo.22863243}{10.5281/zenodo.22863243}.
-
-\bibitem[\citeproctext]{ref-draft-skid}
-Kılıç DS. 2026b. {Source Known Identifiers (SKIDs): Technical
-Specification Draft}. DOI:
-\href{https://doi.org/10.5281/zenodo.22863243}{10.5281/zenodo.22863243}.
-
-\bibitem[\citeproctext]{ref-skid-preprint}
-Kılıç DS. 2026a. {Source Known Identifiers: A Three-Tier Identity System
-for Distributed Applications}. DOI:
-\href{https://doi.org/10.48550/arXiv.2604.00151}{10.48550/arXiv.2604.00151}.
-
-\bibitem[\citeproctext]{ref-rfc5116}
-McGrew D. 2008. \emph{{An Interface and Algorithms for Authenticated
-Encryption}}. IETF. DOI:
-\href{https://doi.org/10.17487/RFC5116}{10.17487/RFC5116}.
-
-\bibitem[\citeproctext]{ref-rfc5905}
-Mills D, Martin J, Burbank J, Kasch W. 2010. \emph{{Network Time
-Protocol Version 4: Protocol and Algorithms Specification}}. IETF. DOI:
-\href{https://doi.org/10.17487/RFC5905}{10.17487/RFC5905}.
-
-\bibitem[\citeproctext]{ref-cwe639}
-MITRE Corporation. 2026a.
-\href{https://cwe.mitre.org/data/definitions/639.html}{{CWE-639:
-Authorization Bypass Through User-Controlled Key}}.
-
-\bibitem[\citeproctext]{ref-cwe345}
-MITRE Corporation. 2026b.
-\href{https://cwe.mitre.org/data/definitions/345.html}{{CWE-345:
-Insufficient Verification of Data Authenticity}}.
-
-\bibitem[\citeproctext]{ref-nistir8319}
-Mouha N. 2021. \emph{{Review of the Advanced Encryption Standard}}.
-NIST. DOI:
-\href{https://doi.org/10.6028/NIST.IR.8319}{10.6028/NIST.IR.8319}.
-
-\bibitem[\citeproctext]{ref-fips197}
-National Institute of Standards and Technology. 2023. \emph{{Advanced
-Encryption Standard (AES)}}. NIST. DOI:
-\href{https://doi.org/10.6028/NIST.FIPS.197-upd1}{10.6028/NIST.FIPS.197-upd1}.
-
-\bibitem[\citeproctext]{ref-nistsp800107withdrawal}
-NIST. 2022.
-\href{https://csrc.nist.gov/news/2022/withdrawal-of-nist-sp-800-107-revision-1}{{Withdrawal
-of NIST Special Publication 800-107 Revision 1}}.
-
-\bibitem[\citeproctext]{ref-blake3}
-O'Connor J, Aumasson J-P, Neves S, Wilcox-O'Hearn Z. 2021.
-\href{https://github.com/BLAKE3-team/BLAKE3-specs/blob/ac78a717924dd9e6f16f547baa916c6f71470b1a/blake3.pdf}{{BLAKE3:
-One function, fast everywhere}}.
-
-\bibitem[\citeproctext]{ref-ruggles1947}
-Ruggles R, Brodie H. 1947. {An Empirical Approach to Economic
-Intelligence in World War II}. \emph{J. Am. Stat. Assoc.} 42:72--91.
-DOI:
-\href{https://doi.org/10.1080/01621459.1947.10501915}{10.1080/01621459.1947.10501915}.
-
-\bibitem[\citeproctext]{ref-rfc3394}
-Schaad J, Housley R. 2002. \emph{{Advanced Encryption Standard (AES) Key
-Wrap Algorithm}}. IETF. DOI:
-\href{https://doi.org/10.17487/RFC3394}{10.17487/RFC3394}.
-
-\bibitem[\citeproctext]{ref-ksuid}
-Segment. 2023.
-\href{https://github.com/segmentio/ksuid/blob/d33724947fcfba7949906c2b1821e96a1c8d06e7/README.md}{{KSUID:
-K-Sortable Globally Unique IDs}}.
-
-\bibitem[\citeproctext]{ref-shostack2014}
-Shostack A. 2014.
-\emph{\href{https://www.wiley.com/en-us/Threat+Modeling\%3A+Designing+for+Security-p-9781118809990}{{Threat
-Modeling: Designing for Security}}}. Wiley.
-
-\bibitem[\citeproctext]{ref-rfc4493}
-Song JH, Poovendran R, Lee J, Iwata T. 2006. \emph{{The AES-CMAC
-Algorithm}}. IETF. DOI:
-\href{https://doi.org/10.17487/RFC4493}{10.17487/RFC4493}.
-
-\bibitem[\citeproctext]{ref-nistsp800224}
-Turan MS, Brandão LTAN. 2024. \emph{{Keyed-Hash Message Authentication
-Code (HMAC): Specification of HMAC and Recommendations for Message
-Authentication (Initial Public Draft)}}. NIST. DOI:
-\href{https://doi.org/10.6028/NIST.SP.800-224.ipd}{10.6028/NIST.SP.800-224.ipd}.
-
-\bibitem[\citeproctext]{ref-snowflake-announcement}
-Twitter Engineering. 2010.
-\href{https://blog.x.com/engineering/en_us/a/2010/announcing-snowflake}{{Announcing
-Snowflake}}.
-
-\bibitem[\citeproctext]{ref-snowflake}
-Twitter Engineering. 2012.
-\href{https://github.com/twitter-archive/snowflake/blob/b3f6a3c6ca8e1b6847baa6ff42bf72201e2c2231/src/main/scala/com/twitter/service/snowflake/IdWorker.scala}{{Snowflake:
-IdWorker.scala (snowflake-2010)}}.
-
-\end{CSLReferences}
-
+\bibliographystyle{cas-model2-names}
+\bibliography{./paper.bib}
 \end{document}
