@@ -1,7 +1,7 @@
 ---
 name: basic-code-review
 description: Use when reviewing code changes, pull requests, staged diffs, or self-reviewing work for security, correctness, clarity, simplicity, performance, breaking changes, and missing verification.
-last-updated: 2026-09-05
+last-updated: 2026-10-03
 difficulty: intermediate
 tokens: ~1.3K
 ---
@@ -52,6 +52,12 @@ A change that is fast but incorrect fails. A change that is clever but unreadabl
 - Never use obsolete or deprecated code: reject deprecated APIs, types, interfaces, or members (e.g. `[Obsolete]`, `ASPDEPR*`); require active, first-class framework primitives and never suppress deprecation diagnostics with `#pragma` or `[SuppressMessage]`.
 - Prefer pit of success.
 - Verify third-party API accessibility independently of XML documentation, which may include internal members. Prefer documented public factories and registration APIs over constructing implementation types.
+
+## UI Accessibility
+
+- Prefer native buttons for actions and anchors with `href` for navigation. Set `type="button"` on non-submit buttons.
+- Preserve layout and visible focus when replacing elements.
+- If a native control cannot be used, provide the appropriate role, keyboard focus, keyboard activation, and visible focus indicators.
 
 ## Dependency Injection And Configuration
 

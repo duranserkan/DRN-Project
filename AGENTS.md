@@ -64,7 +64,11 @@ Use the profile first. If it is missing or silent, discover by convention:
 
 - Read before editing. Treat code and source-owned docs as truth.
 - **Under Scrutiny**: Agents operate under continuous scrutiny and peer review. Every assumption must be verified against source truth or explicitly marked "[ASSUMPTION - unverified]". Every code modification, recommendation, diff, tool call, and command proposal must be backed by verifiable evidence and transparent rationale.
-- Keep edits scoped.
+- Keep edits scoped, minimal, natural, and surgical.
+- Use natural language
+- Avoid long sentences to improve readability.
+- Avoid semicolons to join long sentences. Split them into separate sentences.
+- Never use em dashes or en dashes.
 - Preserve user changes and unrelated worktree changes.
 - Prefer established local patterns over new abstractions.
 - Design and optimize for pit of success
@@ -72,10 +76,12 @@ Use the profile first. If it is missing or silent, discover by convention:
 - Update docs and skills when code or convention changes would otherwise create drift.
 - Do not amend and commit unless explicitly approved.
 - Decide release-note impact before finishing source, packaging, or published-doc changes; record "not required" when no trigger applies.
+- Keep release notes focused on consumer impact. Omit documentation-only edits, internal refactors, and duplicate entries. Follow profile-specific release rules.
 - Omit restore/build/run/test/benchmark/load-test steps from plans unless explicitly allowed; use static verification instead.
 - **No Unapproved Helper Script Generation or Execution**: Agents must NOT create, write, or execute ad-hoc helper scripts or code (e.g. Python, Bash, Node, custom tools) to automate or perform tasks. Ad-hoc scripts are strictly prohibited under the sync safety contract. If writing or executing an ad-hoc script or code is strictly required for a non-sync task, the agent MUST first provide a detailed description (including purpose, full content, exact commands, and potential risks) and obtain explicit user approval before writing or running it.
 - **Digest and Commit Verification on Version Updates**: Whenever container base images, Docker/Docker Compose services, or package dependency versions are added or updated, verify their content digests (or provenance hashes) against canonical registry manifests or repository metadata prior to committing. Require third-party GitHub Actions to use full immutable Git commit SHAs (with version comments), verifying tag-to-commit alignment separately according to the repository profile.
 - **No CAD Artifact Bypassing**: `/clarify`, `/answer`, and `/develop` must create or update workspace-local artifacts such as `CLARIFY-*.md` and `DEVELOP-*.md` in `.agent/temp/`. System plans must reference and link those documents.
+- After `/clarify`, route target edits through `/answer`, a valid `DEVELOP-*` handoff, and `/develop`. Manual mode waits for the next workflow invocation. Automatic progression must satisfy the owning autonomy and approval gates.
 - Run `git diff --check` after documentation or code edits unless blocked.
 
 ## Lessons Learned

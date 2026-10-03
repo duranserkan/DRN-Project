@@ -1,7 +1,7 @@
 ---
 name: drn-utils
 description: "DRN.Framework.Utils - Attribute-based dependency injection, settings, logging, scoped cancellation, ID generation, Base32/TOTP encoding and authentication utilities, entity date filtering, validators, and core utilities. Keywords: dependency-injection, configuration, appsettings, appdata, logging, cancellation, source-known-id, base32, totp, mfa, entity-date-filter, tick-boundary, validators, extensions, http-client"
-last-updated: 2026-09-12
+last-updated: 2026-10-03
 difficulty: intermediate
 tokens: ~2.7K
 ---
@@ -293,6 +293,13 @@ scope.Merge(workflowLifetimeToken);
 - Keys are opaque and factory-created; the default value is invalid.
 - `ICancellationUtils` owns child scopes. Callers own and dispose local linked sources used for operation-only cancellation.
 - Replace removed root members with their `cancellation.Root` equivalents.
+
+When maintaining cancellation internals:
+
+- Keep the effective token stable across incremental merges. Detach external registrations after terminal cancellation.
+- Mark the parent disposed and detach children under its lock. Cancel and dispose them outside the lock.
+- During reentrant disposal from a root callback, defer child and root cleanup until root cancellation completes.
+- A single linked source is suitable for fixed inputs. Dispose it only after all consumers finish.
 
 See the package [Scoped Cancellation](../../../DRN.Framework.Utils/README.md#scoped-cancellation) guide for the complete API and migration example.
 

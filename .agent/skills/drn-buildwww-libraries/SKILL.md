@@ -1,7 +1,7 @@
 ---
 name: drn-buildwww-libraries
 description: "DRN buildwww JavaScript architecture - DRN browser utilities, onmount lifecycle, RSJS mounting, htmx CSP nonce security, and Bootstrap customization. Keywords: drn, buildwww, javascript, rsjs, onmount, htmx, csp, nonce, bootstrap, cookie-management, component-mounting"
-last-updated: 2026-06-23
+last-updated: 2026-10-03
 difficulty: intermediate
 tokens: ~1.8K
 ---
@@ -206,12 +206,15 @@ buildwww/lib/bootstrap/
 
 ### Configuration
 
-**`bootstrap.scss`**:
+**`bootstrap.scss`: existing stylesheet pattern**:
+
+The relative paths below reflect existing Sass imports. For new imports, follow [Package Imports](../drn-buildwww-packages/SKILL.md#package-imports). Migrate these paths only after verifying package resolution and the frontend build.
+
 ```scss
 // 1. Configure default variables
 $primary: #0750bc;
 
-// 2. Import Bootstrap partials from node_modules in the required order
+// 2. Existing relative Sass imports, retained pending migration verification
 @import "../../../node_modules/bootstrap/scss/functions";
 @import "../../../node_modules/bootstrap/scss/variables";
 @import "../../../node_modules/bootstrap/scss/maps";

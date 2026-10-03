@@ -1,8 +1,6 @@
 <Solution>
   <Folder Name="/Docker/">
-    <Project Path="docker-compose.dcproj">
-      <Build Solution="*|*" Project="false" />
-    </Project>
+    <Project Path="docker-compose.dcproj" />
   </Folder>
   <Folder Name="/Docker/Infra/">
     <File Path="Docker\Infra\.dockerignore" />
@@ -44,6 +42,7 @@
     <File Path=".gitignore" />
     <File Path=".coderabbit.yaml" />
     <File Path=".dockerignore" />
+    <File Path="AGENTS.LessonsLearned.md" />
     <File Path="AGENTS.md" />
     <File Path="Directory.Build.targets" />
     <File Path="global.json" />

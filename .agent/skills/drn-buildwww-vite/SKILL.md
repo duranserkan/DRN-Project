@@ -1,7 +1,7 @@
 ---
 name: drn-buildwww-vite
 description: "DRN buildwww Vite build system - multi-build configuration, TypeScript aliases, wwwroot output, appPreload/appPostload, and Vite manifest discovery. Keywords: drn, buildwww, vite, typescript, bundling, asset-compilation, npm, javascript, css, scss, build-pipeline, entry-points, manifest"
-last-updated: 2026-07-07
+last-updated: 2026-10-03
 difficulty: intermediate
 tokens: ~2K
 ---
@@ -48,6 +48,8 @@ tokens: ~2K
 ---
 
 ## Vite Configuration
+
+Follow [Package Imports](../drn-buildwww-packages/SKILL.md#package-imports) when choosing dependency paths. Verify stylesheet resolution before migrating existing Sass imports.
 
 ### Multi-Build Setup
 

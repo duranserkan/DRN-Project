@@ -1,7 +1,7 @@
 ---
 name: drn-buildwww-react
 description: "DRN buildwww React 19 mounted islands - Shadow DOM, Tailwind CSS 4, typed registry, DRN.React mount/update/dispose API, Razor integration, and Vite IIFE build. Keywords: drn, buildwww, react, islands-architecture, onmount, components, shadow-dom, typescript, tailwind, mount-api, iife"
-last-updated: 2026-08-25
+last-updated: 2026-10-03
 difficulty: advanced
 tokens: ~4K
 ---
@@ -440,6 +440,8 @@ npm run build:react   # BUILD_TYPE=react vite build
 ---
 
 ## Conventions
+
+Follow the [UI accessibility rules](../basic-code-review/SKILL.md#ui-accessibility) when implementing controls. React event handler props do not require CSP permission for inline scripts. Keep the existing bundle loading and nonce requirements.
 
 ### Callback Convention
 

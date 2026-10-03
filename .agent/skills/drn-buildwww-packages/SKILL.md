@@ -1,7 +1,7 @@
 ---
 name: drn-buildwww-packages
 description: 'DRN buildwww package dependencies - npm packages for Bootstrap, htmx, ASP.NET validation, onmount, React, Tailwind, and Vite. Keywords: drn, buildwww, npm, packages, dependencies, bootstrap, htmx, aspnet-client-validation, onmount, react, tailwind'
-last-updated: 2026-06-23
+last-updated: 2026-10-03
 difficulty: basic
 tokens: ~0.5K
 ---
@@ -15,6 +15,7 @@ tokens: ~0.5K
 - Updating existing dependencies
 - Checking version compatibility
 - Understanding the purpose of installed packages
+- Choosing third-party import paths
 
 ---
 
@@ -41,6 +42,12 @@ node -e 'const fs=require("fs"); const dir=process.argv[1]; const p=JSON.parse(f
 ```
 
 ---
+
+## Package Imports
+
+- Use package specifiers and public subpaths for third-party scripts and styles. Verify entry points against package metadata or upstream documentation. Do not depend on private package internals.
+- Do not add relative imports that traverse into `node_modules`.
+- Existing stylesheet traversals may remain until their replacement is verified with the configured resolver and an authorized frontend build. Treat them as migration work, not examples for new imports.
 
 ## Dependency Details
 
