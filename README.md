@@ -39,7 +39,7 @@
 [![General badge](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white.svg)](https://www.linkedin.com/in/duranserkan/)
 [![General badge](https://img.shields.io/badge/Medium-12100E?style=for-the-badge&logo=medium&logoColor=white)](https://duranserkan.medium.com)
 
-TL;DR: You can 
+TL;DR: You can
 * use Nuget packages to easily develop and test distributed reliable dotnet applications.
 * use Argo CD GitOps to easily deploy your apps to a kubernetes cluster with Linkerd service mesh.
 * use Nexus App (not functional yet)
@@ -66,7 +66,8 @@ TL;DR: You can
 ### Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download) 10.0.401 or a later compatible SDK selected by [global.json](global.json)
-- [Docker](https://www.docker.com/) (for integration tests with Testcontainers)
+- [Docker](https://www.docker.com/) with the daemon running (for the sample app and integration tests with Testcontainers)
+- Node.js >=24.18.0 and npm for rebuilding frontend assets (see [package.json](Sample.Hosted/package.json)). Built assets are checked in, so this is optional when simply running the sample.
 
 > **Nice to have**: [JetBrains Rider](https://www.jetbrains.com/rider/) (recommended), [Visual Studio](https://visualstudio.microsoft.com/), or [VS Code](https://code.visualstudio.com/) with [C# Dev Kit](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csdevkit). All operations can also be performed from the terminal.
 
@@ -81,6 +82,15 @@ dotnet run --project DRN.Test.Integration               # Run integration tests 
 dotnet run --project DRN.Test.Performance -c Release     # Run all performance benchmarks (requires Release build)
 dotnet run --project DRN.Test.Performance -c Release -- --filter-method DRN.Test.Performance.Benchmark.Framework.Utils.SourceKnownIdUtilsPerformanceTests.Run_Benchmarks  # Run SKID/SKEID performance benchmark only
 dotnet run --project DRN.Test.Performance -c Release -- --filter-method DRN.Test.Performance.Benchmark.Framework.Utils.SourceKnownIdUtilsSaturationPerformanceTests.Run_Benchmarks  # Run SKID/SKEID saturation benchmark only
+```
+
+The sample runs at http://localhost:5998. Its default Debug/Development startup provisions PostgreSQL through Testcontainers on host port **6432**. Keep that port available.
+
+After changing frontend sources in `Sample.Hosted/buildwww/`, rebuild the assets from `Sample.Hosted/`:
+
+```bash
+npm ci --ignore-scripts
+npm run build
 ```
 
 > All test projects (unit, analyzer, integration, and performance) use [Microsoft Testing Platform (MTP) 2.x](https://learn.microsoft.com/en-us/dotnet/core/testing/microsoft-testing-platform-intro) with xUnit v3 and are built as standalone executables. Use `dotnet run --project` to execute them.
@@ -109,17 +119,26 @@ cd .. && dotnet new xunit -n MyApp.Tests && cd MyApp.Tests && dotnet add package
 
 After scaffolding, compare your `.csproj` files with the reference projects and apply the adjustments (see [Sample.Hosted.csproj](Sample.Hosted/Sample.Hosted.csproj), [DRN.Test.Integration.csproj](DRN.Test.Integration/DRN.Test.Integration.csproj), [DRN.Test.Unit.csproj](DRN.Test.Unit/DRN.Test.Unit.csproj)).
 
+For the test project, replace the template's xUnit/VSTest package references with `xunit.v3.mtp-v2` and set `<OutputType>Exe</OutputType>` and `<UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>`. Keep `DRN.Framework.Testing` and use the runner version from the reference test projects.
+
 Update your configuration files (see [appsettings.json](Sample.Hosted/appsettings.json), [appsettings.Development.json](Sample.Hosted/appsettings.Development.json)):
 
-**appsettings.json** — Kestrel excerpt to merge into the linked full DRN configuration:
+**appsettings.json** — required development identity settings and Kestrel endpoint:
 ```json
 {
+  "Environment": "Development",
+  "NexusAppSettings": {
+    "AppId": 0,
+    "AppInstanceId": 0
+  },
   "Kestrel": {
     "EndpointDefaults": { "Protocols": "Http1" },
     "Endpoints": { "All": { "Url": "http://*:5998" } }
   }
 }
 ```
+
+`Environment`, `NexusAppSettings:AppId`, and `NexusAppSettings:AppInstanceId` must be explicitly configured. Zero is valid for both IDs.
 
 **appsettings.Development.json** — development-only settings:
 ```json
@@ -129,6 +148,8 @@ Update your configuration files (see [appsettings.json](Sample.Hosted/appsetting
   }
 }
 ```
+
+`LaunchExternalDependencies` requires a startup hook that calls `LaunchExternalDependenciesAsync`, plus a development reference to `DRN.Framework.Testing`. See [SampleProgramActions.cs](Sample.Hosted/SampleProgramActions.cs) and [Sample.Hosted.csproj](Sample.Hosted/Sample.Hosted.csproj). The setting alone does not provision dependencies in a new application.
 
 > Use the Drn.Framework Nuget badges for detailed documentation such as configuration options, features, and examples.
 
@@ -257,7 +278,7 @@ Replace `drn-project-sample` with `drn-project-nexus` to verify the Nexus image.
 
 ## About Project
 
-Distributed Reliable .Net project aims to provide somewhat opinionated design and out of the box solutions to enterprise application development. 
+Distributed Reliable .Net project aims to provide somewhat opinionated design and out of the box solutions to enterprise application development.
 Expected result is spending less time on wiring while getting better maintainability and observability.
 The project benefits from the best practices, open source solutions and personal production experience.
 This project is about managing software complexity, architecting good solutions and a promise to deliver a good software.
@@ -332,7 +353,7 @@ This solution consists of 6 parts that are being developed with Jetbrains Rider 
 
 ### Quality Management
 * Follow best practices and solutions. Don't reinvent the wheel
-* Denormalize when needed. Understand how it works. Don't follow rules blindly. 
+* Denormalize when needed. Understand how it works. Don't follow rules blindly.
   * You can accomplish things that considered not possible if you understand how things works.
   * Understand concepts and how they relate with each other.
 * Prefer quality over quantity.
@@ -351,7 +372,7 @@ This solution consists of 6 parts that are being developed with Jetbrains Rider 
 * Be persistent and pay attention to details
 * Be good to yourself
 * Don't compromise your integrity
-* You can only expand yourself as your environment allows. Don't hesitate to change it when necessary 
+* You can only expand yourself as your environment allows. Don't hesitate to change it when necessary
 * You are not a tree. You can always walk away. Don't stay in hostile or harmful environment.
 * "Never attribute to malice that which is adequately explained by stupidity." - Hanson's razor
 
