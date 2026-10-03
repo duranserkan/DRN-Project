@@ -74,7 +74,7 @@ Use the profile first. If it is missing or silent, discover by convention:
 - Design and optimize for pit of success
 - Comment only to explain non-obvious intent.
 - Update docs and skills when code or convention changes would otherwise create drift.
-- Do not amend and commit unless explicitly approved.
+- Do not stage changes, commit, or amend commits unless the user explicitly authorizes the action. Keep changes unstaged for review by default. Preserve any pre-existing staged changes.
 - Decide release-note impact before finishing source, packaging, or published-doc changes; record "not required" when no trigger applies.
 - Keep release notes focused on consumer impact. Omit documentation-only edits, internal refactors, and duplicate entries. Follow profile-specific release rules.
 - Omit restore/build/run/test/benchmark/load-test steps from plans unless explicitly allowed; use static verification instead.

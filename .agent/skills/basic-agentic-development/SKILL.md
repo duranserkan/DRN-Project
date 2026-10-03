@@ -1,7 +1,7 @@
 ---
 name: basic-agentic-development
 description: "Agentic development standards - Silent Partner Protocol, context economy, development loop (discovery, planning, execution, verification), and anti-patterns for efficient autonomous development. Keywords: agentic, ai-agent, development-loop, context-economy, autonomous, discovery, planning, execution, verification, anti-patterns, silent-partner"
-last-updated: 2026-09-05
+last-updated: 2026-10-03
 difficulty: basic
 tokens: ~1.5K
 ---
@@ -65,6 +65,7 @@ Context is a **finite resource**. Every token consumed reduces remaining capacit
 ### 3. Execution
 
 - Work incrementally: smallest testable unit first
+- Keep changes unstaged for review by default. Do not stage changes, commit, or amend commits unless the user explicitly authorizes the action. Preserve any pre-existing staged changes.
 - Validate after each change (build, lint, test) only when the active instructions allow those commands
 - Follow existing patterns in the codebase
 - Prefer efficient algorithms and avoid unnecessary allocations, especially in established hot paths. Justify performance-driven complexity with measurements or clear source evidence. Preserve correctness and readability; do not require allocation-free code universally.
@@ -128,6 +129,7 @@ Capture only durable, generalizable insights discovered during the task into `AG
 | Destructive/irreversible | Ask first |
 | Security-related | Ask first |
 | Reading/analysis | Proceed |
+| Staging changes, committing, or amending commits | Require explicit user authorization for the action. Otherwise leave changes unstaged for review. |
 | Testing your own work | Proceed only when current instructions allow build/test commands |
 | Ambiguous architecture | Ask first |
 | Ad-hoc helper script writing or execution | Prohibited under the sync safety contract; for non-sync tasks, provide a detailed description (purpose, full content, exact commands, potential risks) & obtain explicit user approval first |

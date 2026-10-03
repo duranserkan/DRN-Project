@@ -1,7 +1,7 @@
 ---
 name: basic-git-conventions
 description: "Git workflow conventions - GitFlow-inspired branching (integration→release→tag), commit message format, PR workflow (draft→review→squash), branch naming (feature/fix/chore/docs), repository-declared release tagging, and release notes management. Keywords: git, branching, commit-messages, pull-request, pr-workflow, release, tagging, versioning, gitflow, conventional-commits"
-last-updated: 2026-06-14
+last-updated: 2026-10-03
 difficulty: basic
 tokens: ~1.5K
 ---
@@ -92,7 +92,8 @@ docs(skills): add security development checklist
 ```
 
 ### Rules
-- Do not amend and commit unless explicitly approved.
+- Do not stage changes, commit, or amend commits unless the user explicitly authorizes the action. Keep changes unstaged for review by default. Preserve any pre-existing staged changes.
+- Implementation or review requests do not authorize staging or committing. Stage only explicitly authorized paths or hunks when staging is requested.
 - **Subject line ≤ 72 characters**
 - **Start with lowercase** after the colon
 - **No period** at the end of the subject
