@@ -47,7 +47,7 @@ public class LoginWith2Fa(SignInManager<SampleUser> signInManager) : PageModel
 
             // ReturnUrl is already a browser URL, including any deployment prefix.
             return Url.IsLocalUrl(returnUrl)
-                ? LocalRedirect(returnUrl!)
+                ? LocalRedirect(returnUrl)
                 : RedirectToPage(Get.Page.Root.Home);
         }
 

@@ -13,6 +13,8 @@ namespace DRN.Test.Unit.Tests.Framework.Hosting.Endpoints;
 [SuppressMessage("ReSharper", "CoVariantArrayConversion")]
 public class UrlHelperEndpointTests
 {
+    private static readonly string[] Areas = ["", "Admin"];
+
     [Theory]
     [DataInlineUnit("", "", "Admin", "/Api/Items/a%20b?q=one%26two")]
     [DataInlineUnit("/api", "", "Admin", "/api/Api/Items/a%20b?q=one%26two")]
@@ -20,7 +22,7 @@ public class UrlHelperEndpointTests
     public void Endpoint_Should_Generate_Urls_Through_Real_Routing(
         DrnTestContextUnit context, string pathBase, string targetArea, string ambientArea, string expected)
     {
-        var routes = new[] { "", "Admin" }.Select(area =>
+        var routes = Areas.Select(area =>
         {
             var action = new ControllerActionDescriptor { ActionName = "Read", ControllerName = "Items" };
             action.RouteValues["area"] = area;
