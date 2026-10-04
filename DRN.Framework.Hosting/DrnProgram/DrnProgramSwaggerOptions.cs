@@ -25,6 +25,11 @@ public class DrnProgramSwaggerOptions
     }
 
     public bool AddSwagger { get; set; }
+
+    /// <summary>
+    /// Builds the Swagger server URL from the processed request's Scheme, Host, and PathBase.
+    /// Forwarded headers must be applied by middleware before the document is served.
+    /// </summary>
     public bool ApplyTargetServerForwardedHeadersCorrection { get; set; } = true;
     public bool AddBearerTokenSecurityRequirement { get; set; } = true;
 
