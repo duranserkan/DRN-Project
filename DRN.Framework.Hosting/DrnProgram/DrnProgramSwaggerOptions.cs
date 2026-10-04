@@ -1,7 +1,6 @@
 using DRN.Framework.SharedKernel;
-using Flurl;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.Swagger;
@@ -77,21 +76,7 @@ public class DrnProgramSwaggerOptions
 
     private void SwaggerProxyPathFilter(OpenApiDocument swaggerDoc, HttpRequest httpRequest)
     {
-        var path = httpRequest.Path.ToString();
-        var normalizedRequestPath = path.Contains("swagger")
-            ? string.Empty
-            : path;
-
-        var url = new Url
-        {
-            Scheme = httpRequest.Scheme,
-            Host = httpRequest.Headers.TryGetValue(ForwardedHeadersDefaults.XForwardedHostHeaderName, out var forwardedHostName)
-                ? forwardedHostName.ToString()
-                : httpRequest.Host.ToString(),
-            Path = httpRequest.Headers.TryGetValue(ForwardedHeadersDefaults.XForwardedPrefixHeaderName, out var forwardedPathPrefix)
-                ? forwardedPathPrefix.ToString()
-                : normalizedRequestPath
-        };
+        var url = UriHelper.BuildAbsolute(httpRequest.Scheme, httpRequest.Host, httpRequest.PathBase);
 
         swaggerDoc.Servers = new List<OpenApiServer> { new() { Url = url } };
     }

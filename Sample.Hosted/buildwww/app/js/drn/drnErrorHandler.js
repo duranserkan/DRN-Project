@@ -9,10 +9,12 @@
  * Deduplication: same message+source within 10 seconds suppressed.
  */
 
+import drnApp from './drnApp';
+
 const MAX_ERRORS_PER_WINDOW = 5;
 const RATE_WINDOW_MS = 60000;
 const DEDUP_WINDOW_MS = 10000;
-const REPORT_ENDPOINT = '/Api/Sample/ClientError/Report';
+const REPORT_ENDPOINT = '~/Api/Sample/ClientError/Report';
 
 let errorCount = 0;
 let windowStart = Date.now();
@@ -58,16 +60,17 @@ function shouldReport(key) {
  */
 function sendReport(payload) {
     const json = JSON.stringify(payload);
+    const endpoint = drnApp.url(REPORT_ENDPOINT);
 
     // Prefer sendBeacon for non-blocking fire-and-forget
     if (typeof navigator.sendBeacon === 'function') {
         const blob = new Blob([json], { type: 'application/json' });
-        const sent = navigator.sendBeacon(REPORT_ENDPOINT, blob);
+        const sent = navigator.sendBeacon(endpoint, blob);
         if (sent) return;
     }
 
     // Fetch fallback
-    fetch(REPORT_ENDPOINT, {
+    fetch(endpoint, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

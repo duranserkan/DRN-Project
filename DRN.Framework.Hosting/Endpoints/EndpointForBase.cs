@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Reflection;
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.SharedKernel;
@@ -12,6 +16,7 @@ public interface IApiEndpointForBase
     ApiEndpoint[] Endpoints { get; }
 }
 
+[SuppressMessage("ReSharper", "StaticMemberInGenericType")]
 public abstract class ControllerForBase<TController>
     : IApiEndpointForBase where TController : ControllerBase
 {

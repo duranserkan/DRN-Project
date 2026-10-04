@@ -1,7 +1,7 @@
 ---
 name: drn-buildwww-libraries
 description: "DRN buildwww JavaScript architecture - DRN browser utilities, onmount lifecycle, RSJS mounting, htmx CSP nonce security, and Bootstrap customization. Keywords: drn, buildwww, javascript, rsjs, onmount, htmx, csp, nonce, bootstrap, cookie-management, component-mounting"
-last-updated: 2026-10-03
+last-updated: 2026-10-04
 difficulty: intermediate
 tokens: ~1.8K
 ---
@@ -110,6 +110,8 @@ Define behaviors directly in Razor Pages `<script>` tags. Use `idempotencyKey` t
 
 Global utilities are exposed under `window.DRN`.
 
+Use `DRN.App.url('~/Api/Sample/ClientError/Report')` for application-owned browser requests. Only `~/` paths receive the deployment prefix; external, fragment, relative, and already-resolved URLs stay unchanged. The layout must render `<meta name="drn-app-base" content="@Url.Content("~/")"/>` before the preload bundle so early error reporting can resolve URLs. Controller `/Api` route segments remain intact. Rebuild the owning frontend bundle after changing browser sources when execution is authorized.
+
 ### Directory Structure
 
 ```
@@ -184,7 +186,7 @@ htmx.defineExtension('safe-nonce', {
 
 ```razor
 <!-- Auto-includes request verification token (CSRF) via headers if configured -->
-<button hx-post="@Get.Page.Test.Htmx?handler=Auto"
+<button hx-post="~@Get.Page.Test.Htmx?handler=Auto"
         hx-target="#result">
     Submit
 </button>

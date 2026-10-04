@@ -53,7 +53,7 @@ public class ExceptionPageContentProvider(
     public async Task<ExceptionContentResult> CreateCompilationErrorContentResult(HttpContext context, Exception exception, ICompilationException compilationException)
     {
         var exceptionPage = new CompilationExceptionPage { ErrorModel = exceptionUtils.CreateCompilationErrorModel(context, exception, compilationException) };
-        var pageResult = await pageUtils.RenderPageAsync(ExceptionPageAccessor.CompilationExceptionPagePath, exceptionPage);
+        var pageResult = await pageUtils.RenderPageAsync(ExceptionPageAccessor.CompilationExceptionPagePath, exceptionPage, context);
 
         var result = new ExceptionContentResult("text/html; charset=utf-8", pageResult);
 

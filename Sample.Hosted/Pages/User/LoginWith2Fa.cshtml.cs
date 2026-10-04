@@ -1,7 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using DRN.Framework.Hosting.Identity;
-using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Utils.Auth.MFA;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -10,7 +9,7 @@ using Sample.Domain.Users;
 namespace Sample.Hosted.Pages.User;
 
 [Authorize(IdentityMfaPolicy.Challenge)]
-public class LoginWith2Fa(SignInManager<SampleUser> signInManager, MfaRedirectionOptions redirectionOptions) : PageModel
+public class LoginWith2Fa(SignInManager<SampleUser> signInManager) : PageModel
 {
     private const string InvalidCodeAttempts = nameof(InvalidCodeAttempts);
 
@@ -20,7 +19,7 @@ public class LoginWith2Fa(SignInManager<SampleUser> signInManager, MfaRedirectio
     public IActionResult OnGet(bool rememberMe, string? returnUrl = null)
     {
         if (!MfaPrincipal.HasState(User, MfaClaimValues.MfaInProgress))
-            return LocalRedirect(Get.Page.User.Login);
+            return RedirectToPage(Get.Page.User.Login);
 
         Login2FaModel.RememberMe = rememberMe;
         ViewData[Get.ViewDataKeys.ReturnUrl] = returnUrl;
@@ -31,7 +30,7 @@ public class LoginWith2Fa(SignInManager<SampleUser> signInManager, MfaRedirectio
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
     {
         if (!MfaPrincipal.HasState(User, MfaClaimValues.MfaInProgress))
-            return LocalRedirect(Get.Page.User.Login);
+            return RedirectToPage(Get.Page.User.Login);
 
         var pendingUser = await signInManager.GetTwoFactorAuthenticationUserAsync();
         if (pendingUser == null || signInManager.UserManager.GetUserId(User) != await signInManager.UserManager.GetUserIdAsync(pendingUser))
@@ -46,15 +45,10 @@ public class LoginWith2Fa(SignInManager<SampleUser> signInManager, MfaRedirectio
         {
             ResetInvalidCodeAttempts(HttpContext);
 
-            returnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : Get.Page.Root.Home;
-
-            var url = new Flurl.Url(returnUrl);
-            if (redirectionOptions.AppPages.Contains(url.Path))
-                return url.QueryParams.Count == 0
-                    ? RedirectToPage(url.Path)
-                    : RedirectToPage(url.Path, url.QueryParams.ToDictionary(tuple => tuple.Name, tuple => tuple.Value));
-
-            return LocalRedirect(returnUrl);
+            // ReturnUrl is already a browser URL, including any deployment prefix.
+            return Url.IsLocalUrl(returnUrl)
+                ? LocalRedirect(returnUrl!)
+                : RedirectToPage(Get.Page.Root.Home);
         }
 
         if (result.IsLockedOut)

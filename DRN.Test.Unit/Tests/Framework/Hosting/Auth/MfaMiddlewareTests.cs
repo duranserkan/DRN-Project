@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting.Auth;
 
@@ -184,6 +185,79 @@ public class MfaMiddlewareTests
         nextCalled.Should().Be(selectedPrincipalIsExempt);
         http.Response.StatusCode.Should().Be(selectedPrincipalIsExempt ? 200 : 302);
         http.Response.Headers.Location.ToString().Should().Be(selectedPrincipalIsExempt ? string.Empty : "/login");
+    }
+
+    [Theory]
+    [DataInlineUnit("", "", "/login")]
+    [DataInlineUnit("/api", "", "/api/login")]
+    [DataInlineUnit("", MfaClaimValues.MfaInProgress, "/mfa-login")]
+    [DataInlineUnit("/api", MfaClaimValues.MfaInProgress, "/api/mfa-login")]
+    [DataInlineUnit("", MfaClaimValues.MfaSetupRequired, "/mfa-setup")]
+    [DataInlineUnit("/api", MfaClaimValues.MfaSetupRequired, "/api/mfa-setup")]
+    public async Task Mfa_Destinations_Should_Preserve_PathBase(
+        DrnTestContextUnit context, string pathBase, string state, string expectedLocation)
+    {
+        context.ServiceCollection.AddAuthorization();
+        var user = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim(ClaimConventions.AuthenticationMethod, state)], "Cookies"));
+        var evaluator = Substitute.For<IPolicyEvaluator>();
+        evaluator.AuthenticateAsync(Arg.Any<AuthorizationPolicy>(), Arg.Any<HttpContext>())
+            .Returns(AuthenticateResult.Success(new AuthenticationTicket(user, "Cookies")));
+        context.ServiceCollection.AddSingleton(evaluator);
+        var http = new DefaultHttpContext { RequestServices = context, User = user };
+        http.Request.PathBase = pathBase;
+        http.Request.Path = "/swagger";
+        SelectPolicy(http, "Cookies");
+        var options = new MfaRedirectionOptions();
+        options.MapFromConfig(new MfaRedirectionConfig(
+            "/mfa-setup", "/mfa-login", "/login", "/logout", ["/swagger"]));
+        var nextCalled = false;
+        var middleware = new MfaRedirectionMiddleware(_ => { nextCalled = true; return Task.CompletedTask; });
+
+        await middleware.InvokeAsync(http, options);
+
+        nextCalled.Should().BeFalse();
+        http.Response.StatusCode.Should().Be(StatusCodes.Status302Found);
+        http.Response.Headers.Location.ToString().Should().Be(expectedLocation);
+    }
+
+    [Theory]
+    [DataInlineUnit("", "/login", "/login", "")]
+    [DataInlineUnit("/api", "/login", "/api/login", "")]
+    [DataInlineUnit("/gateway/api", "/login", "/gateway/api/login", "?tag=one&tag=two&next=%2Fitems%3Fx%3D1&empty=&flag")]
+    [DataInlineUnit("/api", "https://identity.example/login", "https://identity.example/login", "?q=a%20b")]
+    [DataInlineUnit("/api", "//identity.example/login", "//identity.example/login", "")]
+    public async Task Unauthorized_Redirection_Should_Preserve_Public_ReturnUrl(
+        DrnTestContextUnit context, string pathBase, string loginUrl, string expectedLoginUrl, string query)
+    {
+        context.ServiceCollection.AddAuthorization();
+        var evaluator = Substitute.For<IPolicyEvaluator>();
+        evaluator.AuthenticateAsync(Arg.Any<AuthorizationPolicy>(), Arg.Any<HttpContext>())
+            .Returns(AuthenticateResult.NoResult());
+        context.ServiceCollection.AddSingleton(evaluator);
+        var http = new DefaultHttpContext { RequestServices = context };
+        http.Request.PathBase = pathBase;
+        http.Request.Path = "/swagger";
+        http.Request.QueryString = new QueryString(query);
+        SelectPolicy(http, "Cookies");
+        var options = new MfaRedirectionOptions();
+        options.MapFromConfig(new MfaRedirectionConfig(
+            "/mfa-setup", "/mfa-login", loginUrl, "/logout", ["/swagger"]));
+        var middleware = new MfaRedirectionMiddleware(ctx =>
+        {
+            ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        });
+
+        await middleware.InvokeAsync(http, options);
+
+        http.Response.StatusCode.Should().Be(StatusCodes.Status302Found);
+        var location = http.Response.Headers.Location.ToString();
+        var separator = location.IndexOf('?');
+        separator.Should().BeGreaterThan(0);
+        location[..separator].Should().Be(expectedLoginUrl);
+        QueryHelpers.ParseQuery(location[separator..])[DrnRedirection.ReturnUrl].ToString()
+            .Should().Be(pathBase + "/swagger" + query);
     }
 
     private static void SelectPolicy(HttpContext context, string scheme)

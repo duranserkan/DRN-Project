@@ -126,6 +126,8 @@ Framework conventions and defaults live in framework-scoped DRN skills, especial
 
 ### Documentation Sync
 
+Application URLs: keep static route accessors request-independent and resolve URLs at the request boundary. Follow [Hosting application URL conventions](../DRN.Framework.Hosting/README.md#application-urls). Changes to those contracts belong in the Hosting README, `drn-hosting`, and affected frontend skills.
+
 Document public usage, behavior, configuration, and migration steps; omit implementation details. Release notes describe the net change from the last published release (`release/v0.9.8` for the upcoming 0.10.0 release). Do not list documentation changes, including README or release-note packaging changes, or fixes for bugs introduced after that baseline. Describe new features in their final form instead of recording their development history. Preserve published release history.
 
 NuGet release-note metadata: each package's `PreparePackageReleaseNotes` target delegates to `_PrepareCurrentPackageReleaseNotes` in `Directory.Build.targets`. Select the first `## Version ...` section, stopping at the next version heading or the `---` footer separator, then always append the canonical DiSC OS attribution and bold `Semper Progressivus: Always Progressive` signature. Every release-note document and NuGet release-note output must retain this signature. Keep the selected section limited to changes since the previous documented release, including preview work under the upcoming release version. Packing fails when no version section exists or the final metadata including the signature exceeds 35,000 characters. The packed `RELEASE-NOTES.md` file retains the complete history, prefix, and footer.

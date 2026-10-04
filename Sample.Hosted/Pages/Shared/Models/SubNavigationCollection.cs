@@ -4,7 +4,7 @@ public class DefaultSubNavigationCollection() : SubNavigationCollection(DefaultI
 {
     public static IReadOnlyList<SubNavigationItem> DefaultItems { get; } =
     [
-        new(Get.Page.Root.Home, nameof(Get.Page.Root.Home), "bi-house-door"),
+        SubNavigationItem.ForPage(Get.Page.Root.Home, nameof(Get.Page.Root.Home), "bi-house-door"),
     ];
 }
 
@@ -16,6 +16,15 @@ public class SubNavigationCollection(IReadOnlyList<SubNavigationItem> items, boo
 
 public class SubNavigationItem(string href, string title, string? icon = null)
 {
+    public static SubNavigationItem ForPage(string pageName, string title, string? icon = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pageName);
+        return new(pageName, title, icon) { PageName = pageName };
+    }
+
+    public static SubNavigationItem ForUrl(string href, string title, string? icon = null) => new(href, title, icon);
+
+    public string? PageName { get; private init; }
     public string Href { get; } = href;
     public string Title { get; } = title;
     public string? Icon { get; } = icon;

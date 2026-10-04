@@ -1,10 +1,34 @@
 using DRN.Framework.Hosting.DrnProgram;
+using Microsoft.AspNetCore.Http;
+using Microsoft.OpenApi;
+using Swashbuckle.AspNetCore.Swagger;
 using Swashbuckle.AspNetCore.SwaggerUI;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting.DrnProgram;
 
 public class DrnProgramSwaggerOptionsTests
 {
+    [Theory]
+    [DataInlineUnit("", "https://public.example:8443/")]
+    [DataInlineUnit("/api", "https://public.example:8443/api")]
+    public void Swagger_Server_Should_Use_Processed_Request_And_Ignore_Raw_Headers(string pathBase, string expected)
+    {
+        var options = new SwaggerEndpointOptions();
+        new DrnProgramSwaggerOptions().ConfigureSwaggerEndpointOptions(options);
+        var request = new DefaultHttpContext().Request;
+        request.Scheme = "https";
+        request.Host = new HostString("public.example", 8443);
+        request.PathBase = pathBase;
+        request.Path = "/custom-docs/v1/openapi.json";
+        request.Headers["X-Forwarded-Host"] = "untrusted.example";
+        request.Headers["X-Forwarded-Prefix"] = "/untrusted";
+        var document = new OpenApiDocument();
+
+        options.PreSerializeFilters.Single()(document, request);
+
+        document.Servers.Should().ContainSingle().Which.Url.Should().Be(expected);
+    }
+
     [Theory]
     [DataInlineUnit(null!)]
     [DataInlineUnit("")]

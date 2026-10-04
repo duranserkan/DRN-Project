@@ -42,7 +42,10 @@ public class PageUtils(
         context.ServiceScopeFactory = serviceScopeFactory;
         context.Initialize(context.Features);
         if (parentContext != null)
+        {
+            context.Request.PathBase = parentContext.Request.PathBase;
             context.Items["NETESCAPADES_NONCE"] = parentContext.GetNonce();
+        }
         try
         {
             var razorView = (RazorView)viewResult.View;

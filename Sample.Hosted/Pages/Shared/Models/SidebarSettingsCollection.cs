@@ -8,9 +8,9 @@ public class SidebarSettingsCollection(IReadOnlyList<SidebarSettingsItem> items,
     {
         new("New project..."),
         new("Advanced"),
-        new("My Profile", Get.Page.User.Profile.Details),
+        SidebarSettingsItem.ForPage(Get.Page.User.Profile.Details, "My Profile"),
         new(1),
-        new("Log out", Get.Page.User.Logout, 1)
+        SidebarSettingsItem.ForPage(Get.Page.User.Logout, "Log out", 1)
     }.OrderBy(i => i.Order).ToArray();
     
     public SidebarSettingsCollection() : this(DefaultItems)
@@ -22,6 +22,15 @@ public class SidebarSettingsCollection(IReadOnlyList<SidebarSettingsItem> items,
 
 public class SidebarSettingsItem
 {
+    public static SidebarSettingsItem ForPage(string pageName, string title, int order = 0)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pageName);
+        return new(title, pageName, order) { PageName = pageName };
+    }
+
+    public static SidebarSettingsItem ForUrl(string href, string title, int order = 0) => new(title, href, order);
+
+    public string? PageName { get; private init; }
     public SidebarSettingsItem(string title, string href = "#", int order = 0)
     {
         Title = title;
