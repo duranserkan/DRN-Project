@@ -156,6 +156,7 @@ public sealed class RecurringActionAsync : IAsyncDisposable
         if (previousLoop != null)
         {
             await previousLoop.ConfigureAwait(false);
+            // Release the completed task from the long-lived async state machine.
             previousLoop = null;
         }
 

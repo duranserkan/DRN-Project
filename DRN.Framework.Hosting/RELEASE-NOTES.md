@@ -9,6 +9,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Bug Fixes
 
+*   **Developer Log Viewer**: JSON editor styles now use the request nonce, fixing blocked Ace and color-picker styles on runtime exception pages under the default CSP.
 *   **Proxy-Aware References**: Swagger server URLs now use processed scheme, host, port, and path base instead of raw forwarded headers. Developer error-page assets and active navigation links support deployment prefixes. Active href links compare resolved root-relative paths with the public request path, supporting custom routes without marking external URLs or paths outside the deployment prefix as current. Use `asp-page` for page-identity matching.
 *   **MFA Redirects Behind Proxy Prefixes**: Login, MFA challenge, and setup redirects now include `Request.PathBase` in local destinations. Unauthorized redirects also preserve the public return path and its original query string. Root-hosted paths and configured external destinations retain their existing behavior.
 *   **Vite Assets Behind Proxy Prefixes**: Vite script and link TagHelpers now include `Request.PathBase` in manifest asset URLs, including preload links. Root-hosted URLs, external URLs, and integrity attributes retain their existing behavior.

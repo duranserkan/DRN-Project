@@ -1,1 +1,6 @@
 //Source codes under this folder is obtained/derived from https://github.com/josdejong/jsoneditor and have same license restrictions with original source codes. 
+
+DRN customization: json-editor.js captures document.currentScript.nonce when the
+classic script loads and applies it to Ace and vanilla-picker style elements
+before insertion. Preserve all three changes when replacing the vendor bundle.
+The loading script must carry the request nonce under DRN's default CSP.
