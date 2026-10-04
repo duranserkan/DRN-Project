@@ -1,5 +1,4 @@
 using DRN.Framework.Utils.DependencyInjection.Attributes;
-using DRN.Framework.Utils.Scope;
 
 namespace DRN.Framework.Hosting.Endpoints;
 

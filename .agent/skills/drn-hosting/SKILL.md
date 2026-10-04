@@ -1,7 +1,7 @@
 ---
 name: drn-hosting
 description: "DRN.Framework.Hosting - DrnProgramBase for web application bootstrapping, endpoint configuration, security middleware (CSP, nonce), authentication/authorization, TagHelpers for asset management, and Razor Pages integration. Essential for web application setup and hosting. Keywords: hosting, web-application, drnprogrambase, endpoints, middleware, security, csp, nonce, authentication, authorization, taghelpers, razor-pages, mfa, background-service"
-last-updated: 2026-09-10
+last-updated: 2026-10-04
 difficulty: advanced
 tokens: ~3K
 ---
@@ -200,7 +200,13 @@ protected override void ConfigureSecurityHeaderPolicyBuilder(SecurityHeaderPolic
 
 ## Page & Endpoint Management
 
+### Application URL Convention
+
+Keep static route accessors request-independent. Prefer MVC page/action routing or `Url.Endpoint(endpoint, values)` for initialized API accessors. Use `~/` for application-relative HTML and HTMX URLs, and `Url.Content` in C#. Reserve `Request.ApplicationUrl` for configured destinations such as MFA pages. Leave validated return URLs unchanged. See [Application URLs](../../../DRN.Framework.Hosting/README.md#application-urls) for contracts and examples.
+
 ### PageCollectionBase
+
+Use `ForPage` for page navigation and `ForUrl` for URL entries. Active page links match page identity. Active href links match the resolved local request path, ignoring queries and fragments.
 
 ```csharp
 public class SamplePageFor : PageCollectionBase<SamplePageFor>

@@ -1,4 +1,7 @@
-using Flurl;
+using System.Net;
+using System.Text.Encodings.Web;
+using Microsoft.AspNetCore.Html;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Razor.TagHelpers;
@@ -26,16 +29,30 @@ public class PageAnchorHrefTagHelper : TagHelper
 
     public override void Process(TagHelperContext context, TagHelperOutput output)
     {
-        if (!context.AllAttributes.TryGetAttribute(HrefAttributeName, out var hrefAttribute))
+        if (!output.Attributes.TryGetAttribute(HrefAttributeName, out var hrefAttribute))
             return;
 
         var hrefValue = hrefAttribute.Value?.ToString();
-        if (string.IsNullOrEmpty(hrefValue))
+        if (hrefAttribute.Value is IHtmlContent htmlContent)
+        {
+            using var writer = new StringWriter();
+            htmlContent.WriteTo(writer, HtmlEncoder.Default);
+            hrefValue = WebUtility.HtmlDecode(writer.ToString());
+        }
+
+        // URL resolution runs first. Only resolved root-relative URLs identify local navigation.
+        if (string.IsNullOrEmpty(hrefValue) || !hrefValue.StartsWith('/') ||
+            hrefValue.StartsWith("//", StringComparison.Ordinal) || hrefValue.Contains('\\'))
             return;
 
-        var hrefPage = new Url(hrefValue).Path.Trim('/');
-        var currentRoutePage = ViewContext.ActionDescriptor.RouteValues["page"]?.Trim('/') ?? string.Empty;
-        if (!hrefPage.Equals(currentRoutePage, StringComparison.OrdinalIgnoreCase))
+        if (!ViewContext.ActionDescriptor.RouteValues.TryGetValue("page", out var page) || string.IsNullOrEmpty(page))
+            return;
+
+        var suffixIndex = hrefValue.IndexOfAny(['?', '#']);
+        var hrefPath = PathString.FromUriComponent(suffixIndex < 0 ? hrefValue : hrefValue[..suffixIndex]);
+        var request = ViewContext.HttpContext.Request;
+        var currentPath = request.PathBase.Add(request.Path);
+        if (!string.Equals(hrefPath.Value?.TrimEnd('/'), currentPath.Value?.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
             return;
 
         output.Attributes.SetAttribute("aria-current", "page");

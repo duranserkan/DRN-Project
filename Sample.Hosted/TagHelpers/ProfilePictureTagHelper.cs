@@ -1,16 +1,22 @@
 using DRN.Framework.Utils.Scope;
+using DRN.Framework.Hosting.Extensions;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.AspNetCore.Mvc.Routing;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Razor.TagHelpers;
-using Sample.Hosted.Controllers;
 using Sample.Hosted.Helpers;
 
 namespace Sample.Hosted.TagHelpers;
 
 [HtmlTargetElement("profile-picture")]
-public class ProfilePictureTagHelper : TagHelper
+public class ProfilePictureTagHelper(IUrlHelperFactory urlHelperFactory) : TagHelper
 {
     public string? Alt { get; set; }
     public string? Class { get; set; }
     public string? Style { get; set; }
+
+    [ViewContext, HtmlAttributeNotBound]
+    public ViewContext ViewContext { get; set; } = null!;
 
     public override void Process(TagHelperContext context, TagHelperOutput output)
     {
@@ -19,7 +25,9 @@ public class ProfilePictureTagHelper : TagHelper
         output.TagMode = TagMode.SelfClosing;
 
         // Include the user id so browser caches are partitioned by account even when PPVersion values match.
-        output.Attributes.SetAttribute("src", $"{Get.Endpoint.User.PP.ControllerRoute}/{ScopeContext.UserId}?v={Get.Claim.Profile.PPVersion}");
+        var src = urlHelperFactory.GetUrlHelper(ViewContext).Endpoint(Get.Endpoint.User.PP.Get,
+            new { userId = ScopeContext.UserId, v = Get.Claim.Profile.PPVersion });
+        output.Attributes.SetAttribute("src", src);
         output.Attributes.SetAttribute("alt", Alt ?? "Profile Picture");
 
         if (!string.IsNullOrWhiteSpace(Class))

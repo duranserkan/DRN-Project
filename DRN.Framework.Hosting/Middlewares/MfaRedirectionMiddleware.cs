@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.DrnProgram;
@@ -48,7 +49,7 @@ public class MfaRedirectionMiddleware(RequestDelegate next)
             if (pathIsMFALoginUrl)
                 await next(httpContext);
             else
-                httpContext.Response.Redirect(redirectionOptions.MfaLoginUrl);
+                httpContext.Response.Redirect(httpContext.Request.ApplicationUrl(redirectionOptions.MfaLoginUrl));
             return;
         }
 
@@ -58,13 +59,13 @@ public class MfaRedirectionMiddleware(RequestDelegate next)
             if (pathIsMFASetupUrl)
                 await next(httpContext);
             else
-                httpContext.Response.Redirect(redirectionOptions.MfaSetupUrl);
+                httpContext.Response.Redirect(httpContext.Request.ApplicationUrl(redirectionOptions.MfaSetupUrl));
             return;
         }
 
         if (user.Identities.Any(identity => identity.IsAuthenticated) || pathIsMFALoginUrl || pathIsMFASetupUrl)
         {
-            httpContext.Response.Redirect(redirectionOptions.LoginUrl);
+            httpContext.Response.Redirect(httpContext.Request.ApplicationUrl(redirectionOptions.LoginUrl));
             return;
         }
 
@@ -79,15 +80,10 @@ public class MfaRedirectionMiddleware(RequestDelegate next)
         if (httpContext.Response.StatusCode != 401 || !redirectionOptions.AppPages.Contains(requestPath))
             return;
 
-        var returnUrl = new Url(requestPath);
-        if (httpContext.Request.Query.Count > 0)
-            foreach (var pair in httpContext.Request.Query)
-            {
-                foreach (var parameterValue in pair.Value)
-                    returnUrl.SetQueryParam(pair.Key, parameterValue);
-            }
-
-        var redirectionUrl = new Url(redirectionOptions.LoginUrl).SetQueryParam(DrnRedirection.ReturnUrl, returnUrl.ToString());
+        var request = httpContext.Request;
+        var returnUrl = request.PathBase.Add(request.Path).ToUriComponent() + request.QueryString.ToUriComponent();
+        var redirectionUrl = new Url(request.ApplicationUrl(redirectionOptions.LoginUrl))
+            .SetQueryParam(DrnRedirection.ReturnUrl, returnUrl);
         httpContext.Response.Redirect(redirectionUrl.ToString());
     }
 }

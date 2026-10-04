@@ -7,7 +7,7 @@ public class SidebarNavigationCollection(IReadOnlyList<SidebarNavigationItem> it
     public static IReadOnlyList<SidebarNavigationItem> DefaultItems { get; } =
         new List<SidebarNavigationItem>
         {
-            new(Get.Page.Root.Home, nameof(Get.Page.Root.Home), "bi-house-door"),
+            SidebarNavigationItem.ForPage(Get.Page.Root.Home, nameof(Get.Page.Root.Home), "bi-house-door"),
             new("#", "Dashboard", "bi-speedometer2"),
             new("#", "Orders", "bi-table"),
             new("#", "Products", "bi-grid"),
@@ -26,6 +26,16 @@ public class SidebarNavigationCollection(IReadOnlyList<SidebarNavigationItem> it
 
 public class SidebarNavigationItem(string href, string title, string icon, int order = 0)
 {
+    public static SidebarNavigationItem ForPage(string pageName, string title, string icon, int order = 0)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pageName);
+        return new(pageName, title, icon, order) { PageName = pageName };
+    }
+
+    public static SidebarNavigationItem ForUrl(string href, string title, string icon, int order = 0) =>
+        new(href, title, icon, order);
+
+    public string? PageName { get; private init; }
     public string Href { get; } = href;
     public string Title { get; } = title;
     public string Icon { get; } = icon;

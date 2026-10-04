@@ -1,7 +1,7 @@
 ---
 name: frontend-razor-accessors
 description: "Type-safe static accessor pattern - 'Get' class for refactoring-safe routing (Get.Page, Get.Endpoint), permission checks (Get.Claim), and ViewData keys. Eliminates magic strings in Razor views and provides centralized navigation. Keywords: razor-pages, type-safety, navigation, routing, accessors, get-pattern, page-routing, endpoint-routing, refactoring-safety"
-last-updated: 2026-02-15
+last-updated: 2026-10-04
 difficulty: intermediate
 tokens: ~1K
 ---
@@ -97,9 +97,11 @@ public class ExampleUserIdentityLoginFor : ControllerForBase<ExampleIdentityLogi
 **Usage in Razor**:
 ```razor
 <!-- Refactoring-safe link generation -->
-<a href="@Get.Page.User.Login">Login</a>
-<form hx-post="@Get.Endpoint.User.LoginController.Login.Path()">
+<a asp-page="@Get.Page.User.Login">Login</a>
+<form hx-post="~@Get.Endpoint.User.LoginController.Login.Path()">
 ```
+
+Keep accessor paths independent of deployment prefixes. Resolve them at the rendering boundary with page routing or explicit `~/` URLs. Navigation factories should distinguish page identifiers from arbitrary URLs so page declarations do not carry URL syntax. In C#, prefer MVC URL generation or request-aware `LinkGenerator` overloads over custom prefix concatenation. Use the profile-declared endpoint URL helper when available to encapsulate effective action metadata and generation failures. Static accessors must not retain request-specific URLs.
 
 ### Logical Accessors (`ClaimFor` / `FeatureFor`)
 

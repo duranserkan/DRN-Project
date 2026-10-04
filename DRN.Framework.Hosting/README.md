@@ -316,6 +316,32 @@ Minimal NLog configuration for console output. Add and route a Graylog target if
 
 `ConfigureForwardedHeadersOptions` configures ASP.NET Core `ForwardedHeadersOptions` for reverse proxy, load balancer, and gateway header forwarding.
 
+When a trusted proxy strips a deployment prefix, forward it with `X-Forwarded-Prefix` to populate `Request.PathBase`. Generate URLs from processed request properties, as Swagger does, rather than raw forwarding headers.
+
+#### Application URLs
+
+Keep routes independent of deployment prefixes. Under `/gateway`, the route `/Api/Items` becomes `/gateway/Api/Items`.
+
+| Context | Convention |
+|---|---|
+| Razor Pages navigation | Prefer `asp-page` and `RedirectToPage`. |
+| Razor URLs | Use `~/...` in `href`, `src`, `action`, `formaction`, and HTMX request attributes. Import `@addTagHelper *, DRN.Framework.Hosting` for `ApplicationUrlTagHelper`. |
+| C# URL generation | Use MVC page/action routing or request-aware `LinkGenerator`. Use `Url.Content("~/...")` for application-relative paths. |
+| Endpoint accessors | Import `DRN.Framework.Hosting.Extensions` and use `Url.Endpoint(Get.Endpoint.QA.Tag.GetAsync, new { id })`. |
+| Sample navigation | Use `ForPage(pageName, title)` for pages and `ForUrl(href, title)` for URLs. Shared views render `asp-page` or `href` accordingly. |
+| Configured destinations | Use `Request.ApplicationUrl(path)` from `DRN.Framework.Hosting.Extensions` for application-owned `/...` or `~/...` paths, such as MFA destinations. Queries and fragments are retained; other URLs are unchanged. |
+| Sample browser code | Use `DRN.App.url('~/Api/Items')`. It resolves only `~/` using the layout's `drn-app-base` metadata. |
+
+Validate return URLs with `Url.IsLocalUrl` and redirect unchanged. Never pass resolved URLs through `ApplicationUrl`. Deployment prefixes and route segments are separate, even when both are `/api`. Literal `/...` HTML and JavaScript URLs remain origin-root-relative.
+
+Configure MFA destinations without the deployment prefix. Redirects add `PathBase` and retain the public return path and query.
+
+Pass `parentContext` to `IPageUtils.RenderPageAsync` to retain the request's `PathBase` and CSP nonce.
+
+`Url.Endpoint` requires metadata populated by DRN startup validation. It uses MVC's effective action name and destination area without modifying supplied route values. Missing or ambiguous metadata and failed generation throw `InvalidOperationException`. Existing `ApiEndpoint.Path(...)` methods remain available. Keep static `Get` accessors request-independent.
+
+#### Proxy Trust Configuration
+
 DRN trusts loopback and RFC 1918 networks (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`) with `ForwardLimit = 2`. This supports private-network proxies. Without trusted forwarding, requests can share the proxy IP and its rate-limit quota.
 
 - **Remove private-network defaults** with `TrustPrivateNetworks: false`:
@@ -793,7 +819,7 @@ Without the DRN directive, Vite resolution, CSP nonces, HTMX CSRF headers, activ
 | `AnonymousOnlyTagHelper` | `*[anonymous-only]` | Renders the element only if the user is **not** authenticated. |
 | `PolicyOnlyTagHelper` | `*[policy-only="PolicyName"]` | Renders the element only when the current request user satisfies the named authorization policy. Accepts an optional `policy-resource`. |
 | `PageAnchorAspPageTagHelper` | `<a asp-page="...">` | Adds `active fw-bold` and `aria-current="page"` when the link matches the current page. |
-| `PageAnchorHrefTagHelper` | `<a href="...">` | Adds `active fw-bold` when the href path matches the Razor page identifier. Custom URL routes may differ. |
+| `PageAnchorHrefTagHelper` | `<a href="...">` | On Razor Pages, adds `active fw-bold` and `aria-current="page"` when the resolved root-relative href path matches the public request path, including custom routes and deployment prefixes. Ignores queries and fragments. Absolute, protocol-relative, fragment-only, and relative links are not marked active. Use `asp-page` for page-identity matching. |
 | `ScriptDefaultsTagHelper` | `<script>` | Modern defaults: `defer` for external scripts, `type="module"` for inline scripts. Opt-out via `defer="false"` or explicit `type`. |
 
 ### Authorization Visibility

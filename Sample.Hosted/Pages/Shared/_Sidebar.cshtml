@@ -19,13 +19,26 @@
                 var titleAsTooltip = isSlim ? navItem.Title : string.Empty;
                 var borderBottom = ++index == sidebarNavigationCollection.Items.Count ? "border-bottom" : "";
                 <li class="nav-item">
-                    <a href="@navItem.Href" aria-label="@navItem.Title"
-                       class="btn btn-light nav-link d-flex align-items-center py-2 @borderBottom border-top rounded-0"
-                       title="@titleAsTooltip" data-bs-toggle="tooltip" data-bs-placement="right">
-                        <i class="bi @navItem.Icon @iconStyle" style="font-size: 1.25rem;"
-                           aria-hidden="true"></i>
-                        @titleAsText
-                    </a>
+                    @if (navItem.PageName is { } pageName)
+                    {
+                        <a asp-page="@pageName" aria-label="@navItem.Title"
+                           class="btn btn-light nav-link d-flex align-items-center py-2 @borderBottom border-top rounded-0"
+                           title="@titleAsTooltip" data-bs-toggle="tooltip" data-bs-placement="right">
+                            <i class="bi @navItem.Icon @iconStyle" style="font-size: 1.25rem;"
+                               aria-hidden="true"></i>
+                            @titleAsText
+                        </a>
+                    }
+                    else
+                    {
+                        <a href="@navItem.Href" aria-label="@navItem.Title"
+                           class="btn btn-light nav-link d-flex align-items-center py-2 @borderBottom border-top rounded-0"
+                           title="@titleAsTooltip" data-bs-toggle="tooltip" data-bs-placement="right">
+                            <i class="bi @navItem.Icon @iconStyle" style="font-size: 1.25rem;"
+                               aria-hidden="true"></i>
+                            @titleAsText
+                        </a>
+                    }
                 </li>
             }
         </ul>
@@ -47,6 +60,10 @@
                                 @if (settingsItem.Divider)
                                 {
                                     <hr class="dropdown-divider">
+                                }
+                                else if (settingsItem.PageName is { } pageName)
+                                {
+                                    <a class="dropdown-item" asp-page="@pageName">@settingsItem.Title</a>
                                 }
                                 else
                                 {

@@ -6,6 +6,8 @@ export interface IDrnApp {
     CsrfToken: string;
     DefaultCulture: string,
     SupportedCultures: string[],
+    /** Resolves ~/ paths under the server-provided application base. Other URLs are unchanged. */
+    url(path: string): string;
     State: {
         // Define state structure if needed, e.g.:
         // components?: Record<string, any>;

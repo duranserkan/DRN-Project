@@ -22,7 +22,8 @@ They automatically resolve the correct script and stylesheet paths for both deve
     <meta name="author" content="Duran Serkan KILIÇ">
     <meta name="htmx-config" content='{"inlineScriptNonce":"@nonce","inlineStyleNonce":"@nonce"}'>
     <title>@ViewData[Get.ViewDataKeys.Title] - @ScopeContext.Settings.ApplicationName</title>
-    <link rel="canonical" href="@(Context.Request.Scheme + "://" + Context.Request.Host + Context.Request.Path)"/>
+    <link rel="canonical" href="@Microsoft.AspNetCore.Http.Extensions.UriHelper.BuildAbsolute(Context.Request.Scheme, Context.Request.Host, Context.Request.PathBase, Context.Request.Path)"/>
+    <meta name="drn-app-base" content="@Url.Content("~/")"/>
     <link href="~/images/100.jpeg" rel="icon" type="image/x-icon"/>
 
     <!-- Preload -->

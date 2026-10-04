@@ -1,4 +1,5 @@
 using DRN.Framework.SharedKernel.Domain.Pagination;
+using DRN.Framework.Hosting.Extensions;
 using Sample.Contract.QA.Tags;
 using Sample.Domain.QA.Tags;
 
@@ -59,8 +60,7 @@ public class TagController(ITagRepository repository) : ControllerBase
         };
 
         await repository.CreateAsync(tag);
-        var location = Get.Endpoint.QA.Tag.GetAsync.Path(tag.EntityId);
-
+        var location = Url.Endpoint(Get.Endpoint.QA.Tag.GetAsync, new { id = tag.EntityId.ToString("N") });
         return Created(location, tag.ToDto());
     }
 

@@ -1,7 +1,7 @@
 ---
 name: frontend-razor-pages-navigation
 description: "Razor Pages navigation system - SidebarNavigationCollection for main navigation, SidebarSettingsCollection for user menu, SubNavigationCollection for tabs, and navigation data structures. Use for implementing and customizing application navigation UI. Keywords: razor-pages, navigation, sidebar, menu, sub-navigation, tabs, ui-components, navigation-collections, layout"
-last-updated: 2026-02-15
+last-updated: 2026-10-04
 difficulty: intermediate
 tokens: ~1K
 ---
@@ -23,6 +23,8 @@ tokens: ~1K
 
 Navigation is driven by collection classes registered in Dependency Injection (DI) or passed via `ViewData`.
 
+Use `ForPage(pageName, title, ...)` for Razor Page identifiers and `ForUrl(href, title, ...)` for URL entries. Shared views render page entries with `asp-page` so active state uses page identity. URL entries retain their href, including external URLs and fragments; Razor resolves explicit `~/` URL entries. Resolved root-relative href paths are compared with the public request path for active state. Existing constructors continue to create URL entries. Keep route accessors independent of deployment prefixes.
+
 ### SidebarNavigationCollection
 
 Defines the main scrollable vertical sidebar items. This pattern allows for dynamic generation and ordering of sidebar elements.
@@ -34,7 +36,7 @@ public class SidebarNavigationCollection(IReadOnlyList<SidebarNavigationItem> it
     public static IReadOnlyList<SidebarNavigationItem> DefaultItems { get; } =
         new List<SidebarNavigationItem>
         {
-            new(Get.Page.Root.Home, nameof(Get.Page.Root.Home), "bi-house-door"),
+            SidebarNavigationItem.ForPage(Get.Page.Root.Home, nameof(Get.Page.Root.Home), "bi-house-door"),
             new("#", "Dashboard", "bi-speedometer2"),
             // ...
         }.OrderBy(i => i.Order).ToArray();
@@ -49,6 +51,14 @@ Individual items are defined using a standardized class structure:
 ```csharp
 public class SidebarNavigationItem(string href, string title, string icon, int order = 0)
 {
+    public static SidebarNavigationItem ForPage(string pageName, string title, string icon, int order = 0)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pageName);
+        return new(pageName, title, icon, order) { PageName = pageName };
+    }
+    public static SidebarNavigationItem ForUrl(string href, string title, string icon, int order = 0) =>
+        new(href, title, icon, order);
+    public string? PageName { get; private init; }
     public string Href { get; } = href;
     public string Title { get; } = title;
     public string Icon { get; } = icon;
@@ -89,8 +99,8 @@ In your Page Model or Controller:
 ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = new MainContentLayoutOptions 
 { 
     SubNavigation = new SubNavigationCollection([
-        new(Get.Page.User.Profile.Details, "Profile", "bi-person"),
-        new(Get.Page.User.Profile.Edit, "Edit", "bi-pencil-square")
+        SubNavigationItem.ForPage(Get.Page.User.Profile.Details, "Profile", "bi-person"),
+        SubNavigationItem.ForPage(Get.Page.User.Profile.Edit, "Edit", "bi-pencil-square")
     ])
 };
 ```
@@ -123,9 +133,14 @@ Key responsibilities include:
 @foreach (var navItem in sidebarNavigationCollection.Items)
 {
     // ... rendering logic ...
-    <a href="@navItem.Href" class="...">
-        <i class="bi @navItem.Icon ..."></i> @titleAsText
-    </a>
+    @if (navItem.PageName is { } pageName)
+    {
+        <a asp-page="@pageName" class="...">@navItem.Title</a>
+    }
+    else
+    {
+        <a href="@navItem.Href" class="...">@navItem.Title</a>
+    }
 }
 ```
 
