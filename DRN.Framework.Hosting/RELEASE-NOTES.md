@@ -1,5 +1,11 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
+## Version 0.10.1
+
+### Bug Fixes
+
+*   **Vite Assets Behind Proxy Prefixes**: Vite script and link TagHelpers now include `Request.PathBase` in manifest asset URLs, including preload links. Root-hosted URLs, external URLs, and integrity attributes retain their existing behavior.
+
 ## Version 0.10.0
 
 ### Breaking Changes

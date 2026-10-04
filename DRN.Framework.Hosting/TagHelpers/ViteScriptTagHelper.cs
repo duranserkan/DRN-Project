@@ -1,5 +1,7 @@
-using DRN.Framework.Hosting.Utils;
 using DRN.Framework.Hosting.Utils.Vite;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.AspNetCore.Mvc.Routing;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Razor.TagHelpers;
 
 namespace DRN.Framework.Hosting.TagHelpers;
@@ -14,6 +16,9 @@ public class ViteScriptTagHelper(IViteManifest viteManifest) : TagHelper
 
     [HtmlAttributeName(SrcAttributeName)]
     public string? Src { get; set; }
+
+    [ViewContext, HtmlAttributeNotBound]
+    public ViewContext ViewContext { get; set; } = null!;
 
     public override void Process(TagHelperContext context, TagHelperOutput output)
     {
@@ -34,7 +39,8 @@ public class ViteScriptTagHelper(IViteManifest viteManifest) : TagHelper
             return;
         }
 
-        output.Attributes.Insert(0, new TagHelperAttribute(SrcAttributeName, manifestItem.Path));
+        var path = new UrlHelper(ViewContext).Content($"~{manifestItem.Path}");
+        output.Attributes.Insert(0, new TagHelperAttribute(SrcAttributeName, path));
         output.Attributes.Add(IntegrityAttributeName, manifestItem.Integrity);
     }
 }

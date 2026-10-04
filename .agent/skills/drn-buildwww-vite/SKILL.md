@@ -144,7 +144,7 @@ CI validation runs `.github/actions/frontend-build` in parallel with backend che
 
 ```javascript
 const sharedConfig = {
-    base: '/',
+    base: './',
     build: {
         emptyOutDir: true,
         manifest: true,
@@ -273,6 +273,8 @@ wwwroot/
 ```
 
 TagHelpers resolve these source paths through the per-output `.vite/manifest.json` files and emit content-hashed `wwwroot` paths with SRI where applicable.
+
+The emitted script and link URLs include `Request.PathBase`, including manifest-backed preload links. Use a shared relative `base: './'` so generated CSS asset references and Vite-managed imports/preloads resolve relative to their output files under any proxy prefix. Keep manually authored application assets application-relative with `@Url.Content("~/images/favicon.ico")`. Non-Vite URLs pass through the Vite helpers unchanged.
 
 Runtime manifest discovery is source-owned by `DRN.Framework.Hosting.Utils.Vite.ViteManifest`. DRN Hosting currently discovers Vite's default `.vite/manifest.json` files below the active web root, or `ContentRootPath/wwwroot` when the web root is empty. When changing environment defaults, publish behavior, or static-web-asset roots, verify that the running app can still see the Vite manifests; a rendered page can otherwise be missing CSS/JS even when server startup succeeds.
 

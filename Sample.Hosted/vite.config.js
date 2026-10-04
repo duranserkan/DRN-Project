@@ -7,10 +7,8 @@ import tailwindcss from '@tailwindcss/vite';
 import {iifeWrap, stripHtmxEval} from './vite.config.plugin.js';
 
 const sharedConfig = {
-    // Set the base public path for assets (important for ASP.NET)
-    // This should match the virtual path where your dist folder is served from
-    // E.g., if served from ~/dist/, set to '/dist/'
-    base: '/',
+    // Resolve generated asset URLs relative to each bundle under any Request.PathBase.
+    base: './',
     build: {
         chunkSizeWarningLimit: 6000,
         // Ensure the output directory is cleaned before each build
@@ -83,9 +81,6 @@ const builds = {
         },
     },
     bootstrap: {
-        // Relative base ensures @font-face url() in compiled CSS resolves
-        // relative to the CSS file's location (wwwroot/lib/bootstrap/)
-        base: './',
         plugins: [iifeWrap()],
         build: {
             outDir: 'wwwroot/lib/bootstrap',
