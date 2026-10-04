@@ -2,7 +2,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.10.1
 
-Version alignment release; no package-specific behavior changes.
+*   **Linkerd Diagnostics**: Flurl exception logs capture proxy error and connection response headers. Call `AddLinkerdProxyDiagnostics` to capture the same diagnostics for explicitly handled responses without consuming their body.
 
 ## Version 0.10.0
 

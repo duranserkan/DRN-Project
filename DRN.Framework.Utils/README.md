@@ -623,6 +623,8 @@ public class PaymentService(IExternalRequest request)
 
 #### Recommended Pattern: Request Wrappers
 
+Linkerd timeout and retry overrides remain explicit per-call choices through Flurl's `WithHeader`: `l5d-timeout`, `l5d-response-timeout`, `l5d-retry-http`, `l5d-retry-grpc`, `l5d-retry-limit`, and `l5d-retry-timeout`. These require Linkerd's `--allow-l5d-request-headers` policy-controller option. Apply retries only to operations safe to repeat and avoid multiplying application and mesh retries. Never copy these headers from untrusted incoming requests. Keep `l5d-dst-override` infrastructure-owned. See [Linkerd per-request policies](https://linkerd.io/docs/features/retries-and-timeouts/).
+
 Instead of using `IInternalRequest` directly in business logic, wrap it in a typed request factory for better maintainability and configuration encapsulation.
 
 ```csharp
@@ -1320,6 +1322,7 @@ Casing and safe path helpers live in `DRN.Framework.SharedKernel.Extensions`.
 
 *   **Logging**: `PrepareScopeLogForFlurlExceptionAsync()` adds Flurl failure diagnostics to `IScopedLog`, and DRN Hosting applies it to unhandled Flurl exceptions. Captured request and response data is not automatically redacted; catch sensitive failures before they reach Hosting, or use the `Try*` converters and log only sanitized fields.
 *   **Status Codes**: `GetGatewayStatusCode()` preserves `4xx`, `503`, and `504` statuses and maps other statuses to `502`.
+*   **Linkerd Diagnostics**: Flurl exception logging captures `l5d-proxy-error` and `l5d-proxy-connection` response headers before reading the body. For explicitly handled responses, call `response.AddLinkerdProxyDiagnostics(scopedLog)` before conversion or disposal. The helper records present, nonempty values under `Response_l5d-proxy-error` and `Response_l5d-proxy-connection`, without reading or disposing the response. Header values are untrusted diagnostics, may reveal internal topology, and must not be used for authorization or returned to clients. Absence of a header does not prove a failure originated in the application. Incoming `l5d-client-id` logging remains informational. Automatic capture applies to the existing Flurl exception path, not every response or `Try*` result.
 *   **Testing**: `ClearFilteredSetups()` utility for complex test scenarios.
 
 ### Object & Dictionary Extensions

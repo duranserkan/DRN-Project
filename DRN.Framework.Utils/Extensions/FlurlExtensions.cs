@@ -36,9 +36,23 @@ public static class FlurlExtensions
 
         if (call.Response != null)
         {
+            call.Response.AddLinkerdProxyDiagnostics(scopedLog);
             var response = await call.Response.GetStringAsync();
             scopedLog.AddIfNotNullOrEmpty("FlurlEx_Response", response);
         }
+    }
+
+    /// <summary>
+    /// Records Linkerd proxy response headers without reading or disposing the response.
+    /// Values are untrusted diagnostic data and must not be exposed to clients or used for authorization.
+    /// </summary>
+    public static void AddLinkerdProxyDiagnostics(this IFlurlResponse response, IScopedLog scopedLog)
+    {
+        var headers = response.ResponseMessage.Headers;
+        if (headers.TryGetValues("l5d-proxy-error", out var errors))
+            scopedLog.AddIfNotNullOrEmpty("Response_l5d-proxy-error", string.Join(", ", errors));
+        if (headers.TryGetValues("l5d-proxy-connection", out var connections))
+            scopedLog.AddIfNotNullOrEmpty("Response_l5d-proxy-connection", string.Join(", ", connections));
     }
 
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_filteredSetups")]
