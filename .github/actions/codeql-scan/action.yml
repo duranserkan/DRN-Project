@@ -37,6 +37,8 @@ runs:
       with:
         languages: ${{ inputs.languages }}
         source-root: ${{ inputs.source-root }}
+        # Avoid immutable TRAP cache collisions across scans of the same commit.
+        trap-caching: false
 
     - name: Build for CodeQL
       uses: ./.github/actions/dotnet-build

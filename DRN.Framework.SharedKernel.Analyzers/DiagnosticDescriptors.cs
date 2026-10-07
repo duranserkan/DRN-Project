@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.CodeAnalysis;
 
 namespace DRN.Framework.SharedKernel.Analyzers;
@@ -5,6 +6,7 @@ namespace DRN.Framework.SharedKernel.Analyzers;
 public static class DiagnosticDescriptors
 {
     private const string Category = "DRN.Domain";
+    [SuppressMessage("SonarQube", "S1075", Justification = "Canonical public documentation URL for Roslyn diagnostic help links, not an environment-specific resource endpoint.")]
     public const string HelpLinkUri = "https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/README.md#compile-time-roslyn-analyzers";
 
     public static readonly DiagnosticDescriptor InvalidAppIdArgument = new(
