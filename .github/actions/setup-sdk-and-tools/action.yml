@@ -22,11 +22,11 @@ runs:
         ' global.json >/dev/null || { echo "global.json violates the pinned SDK policy" >&2; exit 1; }
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
       with:
         global-json-file: ${{ inputs.working-directory }}/global.json
     - name: Set up JDK 21
-      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+      uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
       with:
         java-version: 21
         distribution: 'temurin'

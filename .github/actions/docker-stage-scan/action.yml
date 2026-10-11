@@ -49,7 +49,7 @@ runs:
         version: ${{ inputs.version }}
     - name: Build and stage Docker image
       id: container-build-digest
-      uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
       env:
         BUILDX_GIT_LABELS: full
       with:
@@ -168,7 +168,7 @@ runs:
     - name: Docker Scout (linux/amd64)
       id: docker-scout-amd64
       if: ${{ steps.container-build-digest.outcome == 'success' && steps.validate-image-digest.outcome == 'success' }}
-      uses: docker/scout-action@7c6b6c3f7844478ace1ffd4e7aef649053d1f87d # v1.24.0
+      uses: docker/scout-action@221e7f4860634eeb1579e3bd7ca232e577bd1864 # v1.26.0
       with:
         command: cves
         image: registry://${{ inputs.registry }}/${{ inputs.image-repository-prefix }}/${{ inputs.image-repository-name }}@${{ steps.container-build-digest.outputs.digest }}
@@ -181,7 +181,7 @@ runs:
     - name: Docker Scout (linux/arm64)
       id: docker-scout-arm64
       if: ${{ always() && steps.container-build-digest.outcome == 'success' && steps.validate-image-digest.outcome == 'success' }}
-      uses: docker/scout-action@7c6b6c3f7844478ace1ffd4e7aef649053d1f87d # v1.24.0
+      uses: docker/scout-action@221e7f4860634eeb1579e3bd7ca232e577bd1864 # v1.26.0
       with:
         command: cves
         image: registry://${{ inputs.registry }}/${{ inputs.image-repository-prefix }}/${{ inputs.image-repository-name }}@${{ steps.container-build-digest.outputs.digest }}
@@ -194,14 +194,14 @@ runs:
     - name: Upload Docker Scout SARIF result (linux/amd64)
       id: upload-container-sarif-amd64
       if: ${{ always() && steps.docker-scout-amd64.outcome != 'skipped' }}
-      uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+      uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
       with:
         sarif_file: sarif.${{ inputs.image-repository-name }}.linux-amd64.output.json
         category: docker-scout-${{ inputs.image-repository-name }}-linux-amd64
     - name: Upload Docker Scout SARIF result (linux/arm64)
       id: upload-container-sarif-arm64
       if: ${{ always() && steps.docker-scout-arm64.outcome != 'skipped' }}
-      uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+      uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
       with:
         sarif_file: sarif.${{ inputs.image-repository-name }}.linux-arm64.output.json
         category: docker-scout-${{ inputs.image-repository-name }}-linux-arm64

@@ -1,45 +1,84 @@
+# Hidden files and directories are excluded by default, at every depth.
+# Add only verified build inputs here. Reopen parents before their files.
+**/.*
+!.editorconfig
+!**/wwwroot/**/.vite
+**/wwwroot/**/.vite/*
+!**/wwwroot/**/.vite/manifest.json
+
+# Whitelisting a folder permits its contents unless another rule excludes them.
+# Keep exceptions narrow. Shared Git configuration is not automatically a build input.
+# Non-hidden build output and credential files use the exclusions below.
+
+# Repository license
 LICENSE
-README.md
+
+# Dependencies and build output
 **/node_modules
 **/npm-debug.log
 **/obj
 **/bin
 **/out
 **/build
-**/.project
-**/.settings
-**/.toolstarget
-**/.vscode
-**/.vs
+
+# Editor and local tooling state
 **/*.*proj.user
 **/*.dbmdl
 **/*.jfm
+
+# Deployment and environment configuration
 **/azds.yaml
 **/charts
-**/.env
-**/.git
-**/.gitignore
-**/.dockerignore
+**/*.env
+# Exclude environment-specific configuration regardless of its environment name.
+**/secrets.*.yaml
+**/values.*.yaml
+
+# Container build definitions
 **/docker-compose*
 **/Dockerfile*
-**/secrets.dev.yaml
-**/values.dev.yaml
-**/*.md
-**/.cache
-**/.project
-**/.idea
-**/.idea/workspace.xml
-**/.DS_Store
-**/.classpath
 
-# Alternative approach first ignore everything uncomment nextline
-#*
-# explictly add exceptions for required files/paths
+# Documentation, except analyzer release metadata required by the build
+**/*.md
+
+# Preserve explicit build-input exceptions
 !src/**/*.cs
 !**/*.csproj
 !**/*.sln
-!NuGet.config
+!**/*.slnx
+!**/NuGet.Config
 !global.json
-!Directory.build.props
+!Directory.Build.props
 !**/AnalyzerReleases.Shipped.md
 !**/AnalyzerReleases.Unshipped.md
+
+# Local credentials and private keys must not enter a build context.
+**/AppData/Roaming/gcloud
+**/AppData/Roaming/terraform.d
+**/kubeconfig
+**/kubeconfig.*
+**/*.kubeconfig
+**/*.key
+**/*.keys
+**/*.priv
+**/*.rsa
+**/*.key.json
+**/*.ssh
+**/*.ssh-key
+**/*.pfx
+
+# Research documentation
+paper/
+
+# Generated build, test, and analysis output.
+**/artifacts
+**/BenchmarkDotNet.Artifacts
+**/*.binlog
+**/*.trx
+**/TestResults
+**/coverage*.json
+**/coverage*.xml
+**/coverage*.info
+**/*.coverage
+**/*.coveragexml
+trivy-results.sarif

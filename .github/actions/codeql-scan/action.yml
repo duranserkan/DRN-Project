@@ -31,7 +31,7 @@ runs:
         working-directory: ${{ inputs.working-directory }}
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+      uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
       env:
         CODEQL_OVERLAY_DATABASE_MODE: "none"
       with:
@@ -49,7 +49,7 @@ runs:
         sonarqube-targets-imported: "true"
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+      uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
       with:
         output: sarif-results
         checkout_path: ${{ inputs.checkout-path }}

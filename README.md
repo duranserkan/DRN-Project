@@ -65,7 +65,7 @@ TL;DR: You can
 
 ### Prerequisites
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download) 10.0.401 or a later compatible SDK selected by [global.json](global.json)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download) 10.0.402 or a later compatible SDK selected by [global.json](global.json)
 - [Docker](https://www.docker.com/) with the daemon running (for the sample app and integration tests with Testcontainers)
 - Node.js >=24.18.0 and npm for rebuilding frontend assets (see [package.json](Sample.Hosted/package.json)). Built assets are checked in, so this is optional when simply running the sample.
 
