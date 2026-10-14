@@ -96,9 +96,6 @@ public class LoginModel(SignInManager<SampleUser> signInManager, UserManager<Sam
             return new UserLoginValidation(false, false, false);
         }
 
-        if (userManager.SupportsUserLockout)
-            await userManager.ResetAccessFailedCountAsync(user);
-
         var twoFactorEnabled = await userManager.GetTwoFactorEnabledAsync(user);
         return new UserLoginValidation(false, true, twoFactorEnabled);
     }
