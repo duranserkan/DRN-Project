@@ -1,5 +1,6 @@
 ﻿# PostgreSQL Configuration for drn-postgres
-# Replace 'drn' with a strong password before using in production or any exposed environment.
+# PUBLIC local development credentials. Replace the password for shared deployments.
+# Existing databases retain their password until explicitly rotated in PostgreSQL.
 
 POSTGRES_USER=drn
 POSTGRES_PASSWORD=drn

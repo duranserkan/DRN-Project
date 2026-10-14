@@ -28,6 +28,7 @@ services:
       Identity__RequireConfirmedEmail: ${Identity__RequireConfirmedEmail:-false}
       Identity__RequireConfirmedPhoneNumber: ${Identity__RequireConfirmedPhoneNumber:-false}
       DrnDevelopmentSettings__AutoMigrateStaging: ${DrnDevelopmentSettings__AutoMigrateStaging:-true}
+      DrnAppFeatures__SeedKey: ${DrnAppFeatures__SeedKey:?configure a unique SeedKey matching the requirements in .sample-env}
       # This service runs as Staging, so NexusAppSettings__Keys__0__KeyMaterial is required.
       # DrnAppFeatures__SeedKey is not used to derive Nexus key material for this Staging service.
       # Alternative formats: set NexusAppSettings__Keys__0__Format to Hex, Base64, or Base64UrlEncoded; decoded bytes must be exactly 32.
@@ -42,7 +43,7 @@ services:
       NLog__targets__graylog-http__address: ${NLOG_GRAYLOG_HTTP_ADDRESS:-http://graylog:12201/gelf}
       NLog__rules__0__writeTo: ${NLog__rules__0__writeTo:-console,graylog-udp}
     ports:
-      - "5998:5998/tcp"
+      - "127.0.0.1:5998:5998/tcp"
     networks:
       - default
       - graylog
@@ -61,7 +62,7 @@ services:
     volumes:
       - drn-postgres-data:/data/postgres
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:? configure in the .env file}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:? configure in the .env file}
@@ -78,6 +79,7 @@ services:
   rabbit:
     image: rabbitmq:4.3.6-management-alpine@sha256:3ef7f7e89fed709a78f79b8b5f4e30e1312a1d4089da752e23595566d9d61a95
     container_name: drn-infra-rabbit
+    hostname: ${RABBITMQ_HOSTNAME:?set a stable hostname for a new broker or preserve the existing hostname; see Docker/Rabbitmq/README.md}
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:?configure a non-guest username in the .env file}
@@ -150,9 +152,9 @@ services:
         soft: 65536
         hard: 65536
     ports:
-      - "8999:8999/tcp"   # DataNode API
-      - "9200:9200/tcp"
-      - "9300:9300/tcp"
+      - "127.0.0.1:8999:8999/tcp"   # DataNode API
+      - "127.0.0.1:9200:9200/tcp"
+      - "127.0.0.1:9300:9300/tcp"
     networks:
       - graylog
     volumes:
@@ -194,18 +196,18 @@ services:
       GRAYLOG_HTTP_EXTERNAL_URI: http://localhost:9000/
       GRAYLOG_MONGODB_URI: mongodb://mongodb:27017/graylog
     ports:
-      - "5044:5044/tcp"   # Beats
-      - "5140:5140/udp"   # Syslog
-      - "5140:5140/tcp"   # Syslog
-      - "5555:5555/tcp"   # RAW TCP
-      - "5555:5555/udp"   # RAW UDP
-      - "9000:9000/tcp"   # Server API
-      - "12201:12201/tcp" # GELF TCP
-      - "12201:12201/udp" # GELF UDP
-      #- "10000:10000/tcp" # Custom TCP port
-      #- "10000:10000/udp" # Custom UDP port
-      - "13301:13301/tcp" # Forwarder data
-      - "13302:13302/tcp" # Forwarder config
+      - "127.0.0.1:5044:5044/tcp"   # Beats
+      - "127.0.0.1:5140:5140/udp"   # Syslog
+      - "127.0.0.1:5140:5140/tcp"   # Syslog
+      - "127.0.0.1:5555:5555/tcp"   # RAW TCP
+      - "127.0.0.1:5555:5555/udp"   # RAW UDP
+      - "127.0.0.1:9000:9000/tcp"   # Server API
+      - "127.0.0.1:12201:12201/tcp" # GELF TCP
+      - "127.0.0.1:12201:12201/udp" # GELF UDP
+      #- "127.0.0.1:10000:10000/tcp" # Custom TCP port
+      #- "127.0.0.1:10000:10000/udp" # Custom UDP port
+      - "127.0.0.1:13301:13301/tcp" # Forwarder data
+      - "127.0.0.1:13302:13302/tcp" # Forwarder config
     networks:
       - graylog
     volumes:

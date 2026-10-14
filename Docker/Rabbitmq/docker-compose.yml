@@ -4,6 +4,7 @@ services:
   rabbit:
     image: rabbitmq:4.3.6-management-alpine@sha256:3ef7f7e89fed709a78f79b8b5f4e30e1312a1d4089da752e23595566d9d61a95
     container_name: drn-rabbit
+    hostname: ${RABBITMQ_HOSTNAME:?set a stable hostname for a new broker or preserve the existing hostname; see README.md}
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:?configure a non-guest username in the .env file}

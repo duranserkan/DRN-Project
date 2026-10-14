@@ -7,7 +7,16 @@ This digest was verified against [Docker Hub tag metadata](https://hub.docker.co
 
 ## Credentials and access
 
-Copy the relevant `.sample-env` to `.env`. Set `RABBITMQ_DEFAULT_USER` to a non-guest username and `RABBITMQ_DEFAULT_PASS` to a unique generated password before starting the stack. Compose rejects empty credentials. The mounted definitions contain no users or passwords.
+For a fresh standalone local broker, run from `Docker/Rabbitmq`:
+
+```bash
+cp -n .sample-env .env
+docker compose up -d
+```
+
+The template supplies public local credentials `drn` / `drn` and hostname `drn-rabbit`. Open http://localhost:15672 for management. Root and Infra templates supply the same defaults. Use these credentials only for local development and replace the password before any shared deployment. The copy command preserves existing `.env` files; existing databases need the migration steps below. Compose rejects empty credentials. The mounted definitions contain no users or passwords.
+
+For a new database, retain the template's `RABBITMQ_HOSTNAME=drn-rabbit` for the lifetime of the volume. Compose assigns it as the container hostname, so the default node name remains `rabbit@<hostname>` across recreation. For an existing database, follow the migration steps below instead of adopting the template's hostname. Compose rejects an empty hostname to prevent an unnoticed node identity change.
 
 Each stack mounts `Image/enabled_plugins`, `Image/definitions.json`, and `Image/rabbitmq.conf` read-only at their RabbitMQ configuration paths. The configuration fragment is mounted as `/etc/rabbitmq/conf.d/90-drn.conf` to override the official image's guest access default. Keep these files readable by the container's `rabbitmq` user. The remaining image configuration stays intact.
 
@@ -31,6 +40,8 @@ Before using an existing volume, back it up and use the current administrator ac
 
 Preserve the data volume and existing node identity during migration. Do not delete volumes to apply this change. Stored users are not migrated automatically.
 
+Before removing or recreating the old container, record its hostname with `docker inspect --format '{{.Config.Hostname}}' drn-rabbit`. Use `drn-infra-rabbit` for the root or Infra stack. Set `RABBITMQ_HOSTNAME` in that stack's existing `.env` to the exact returned hostname, even if it looks like a container ID. Keep the same Compose project name and volume. If the deployment overrides `RABBITMQ_NODENAME` or uses long node names, preserve those settings too. If the old container is already gone, recover the original node identity from a backup or the stored database metadata before starting the replacement. Do not guess a new hostname for a populated volume.
+
 ## Plugins
 
 The mounted `enabled_plugins` file selects management, Prometheus, consistent-hash exchange, Shovel, and Shovel management. All are bundled in the official image. The file replaces the image's plugin selection, so management and Prometheus are explicitly retained. See the [official plugin list](https://www.rabbitmq.com/docs/plugins).
@@ -44,3 +55,4 @@ The [archived delayed-message exchange plugin](https://github.com/rabbitmq/rabbi
 - Required explicit bootstrap credentials and restricted published ports to localhost in all three Compose stacks.
 - Added a credential-free example topology imported by Compose after broker initialization.
 - Wait for the explicitly configured broker PID file before importing definitions to avoid an early startup RPC race.
+- Require a stable hostname and preserve the original hostname when migrating existing data volumes.

@@ -86,9 +86,33 @@ dotnet run --project DRN.Test.Performance -c Release -- --filter-method DRN.Test
 
 The sample runs at http://localhost:5998. Its default Debug/Development startup provisions PostgreSQL through Testcontainers on host port **6432**. Keep that port available.
 
-For the root Docker Compose stack, copy `.sample-env` to `.env` and fill the required empty values before startup, including for local use. Generate a unique Nexus key with `openssl rand -hex 32`, paste the 64 hexadecimal characters into `NexusAppSettings__Keys__0__KeyMaterial`, and keep `NexusAppSettings__Keys__0__Format=Hex`. Preserve this key across restarts. The published example key is rejected in every environment. Compose rejects an empty key before starting services.
+For a fresh local Docker Compose stack, use Docker Compose 2.30 or newer and run these commands from the repository root:
 
-The root Compose stack explicitly serves Sample over HTTP at http://localhost:5998. It does not publish port 5999 or mount a TLS certificate. For HTTPS, configure a separate deployment override with an explicit Kestrel HTTPS endpoint, certificate settings, and the corresponding port mapping. RabbitMQ also requires a generated password in `.env`; see the [RabbitMQ setup and migration instructions](Docker/Rabbitmq/README.md).
+```bash
+cp -n .sample-env .env
+docker compose up -d --build
+```
+
+The templates include working, public local development credentials and keys. No manual secret generation is needed. The copy command preserves an existing `.env`; existing installations should edit their current file and follow the migration notes below. For standalone dependencies, run the same copy command in `Docker/Postgre`, `Docker/Rabbitmq`, `Docker/Graylog`, or `Docker/Infra`, then run `docker compose up -d` there. Choose one stack for each dependency because the stacks share host ports.
+
+| Service | Local address | Username | Password |
+|---|---|---|---|
+| Sample | http://localhost:5998 | Register through the app | Choose during registration |
+| PostgreSQL | localhost:5432, database `drn` | `drn` | `drn` |
+| RabbitMQ management | http://localhost:15672 | `drn` | `drn` |
+| Graylog | http://localhost:9000 | `admin` | `drn` |
+
+Graylog requires its initial Data Node setup through the preflight UI. Use the temporary credentials shown in its container logs for that step; the configured `admin` / `drn` login applies afterward. See [Graylog's Docker setup instructions](https://go2docs.graylog.org/current/downloading_and_installing_graylog/docker_installation.htm).
+
+These public credentials and encryption keys are only for local development with disposable data. Before using a shared deployment, replace them with unique secrets. Generate a Nexus key with `openssl rand -hex 32` and keep `NexusAppSettings__Keys__0__Format=Hex`. Generate `DrnAppFeatures__SeedKey` independently: use 58-256 ASCII characters with uppercase, lowercase, digits, and at least one of `!*()-_`, with no more than four sequential or three identical characters in a row. Preserve both keys across restarts. The application still rejects its built-in staging example keys; the local template supplies separate values that satisfy validation.
+
+The root Compose stack explicitly serves Sample over HTTP at http://localhost:5998. It does not publish port 5999 or mount a TLS certificate. For HTTPS, configure a separate deployment override with an explicit Kestrel HTTPS endpoint, certificate settings, and the corresponding port mapping. See the [RabbitMQ setup and migration instructions](Docker/Rabbitmq/README.md) before reusing an existing broker volume.
+
+All published ports in the root and standalone dependency Compose stacks bind to `127.0.0.1`, including the Sample app, PostgreSQL, RabbitMQ, and Graylog. Container-to-container connections still use service names and container ports. Remote access requires an explicit deployment override with appropriate authentication and transport protection.
+
+For new local databases, the templates provide PostgreSQL and RabbitMQ password `drn`, a fixed Graylog secret, the hash of Graylog password `drn`, and RabbitMQ hostname `drn-rabbit`. For an existing broker volume, preserve its original hostname as described in the [RabbitMQ migration instructions](Docker/Rabbitmq/README.md). Compose still rejects missing required values if the template has not been copied or a required value is cleared.
+
+For existing databases, edit the existing `.env` rather than replacing it with the template. Changing `POSTGRES_PASSWORD` in `.env` does not rotate the stored PostgreSQL password. Rotate it in PostgreSQL and update clients together. Change Graylog's root password through `GRAYLOG_ROOT_PASSWORD_SHA2`, but preserve its existing `GRAYLOG_PASSWORD_SECRET`: changing that secret can invalidate sessions and encrypted data. These configuration changes do not automatically migrate stored credentials.
 
 The root, Infra, and standalone PostgreSQL Compose stacks fix `PGDATA` to `/data/postgres`, matching their `drn-postgres-data` volume mount. A `PGDATA` value in `.env` no longer overrides this path. Existing databases using the default path need no migration. If you previously used another path, back up that database and migrate it to the named volume before recreating the container. Changing the configuration does not move existing data.
 
@@ -325,7 +349,7 @@ This solution consists of 6 parts that are being developed with Jetbrains Rider 
    * **Framework:** DRN.Framework source codes belongs to generalized solutions that can be used within compatible .NET 10 projects as nuget packages.
    * **Sample:** Nexus connectable sample app demonstrates **DRN.Framework** usage. It is used for testing, presentation and documentation purposes.
 5. **Test:** It contains all the unit, integration and performance tests.
-6. **docker-compose:** Root application compose for `Sample.Hosted` plus its local PostgreSQL, RabbitMQ, and Graylog dependencies. Use root `.sample-env` as the template for root `.env`. Configure RabbitMQ credentials before startup and follow the [existing-volume migration instructions](Docker/Rabbitmq/README.md) when upgrading a broker.
+6. **docker-compose:** Root application compose for `Sample.Hosted` plus its local PostgreSQL, RabbitMQ, and Graylog dependencies. Copy root `.sample-env` to root `.env` for working local defaults. Follow the [existing-volume migration instructions](Docker/Rabbitmq/README.md) when upgrading a broker.
 
 ## About Design and Architecture
 * [Chris Patterson's Great Article - Software Architect for Life](http://blog.phatboyg.com/2017/03/08/software-architect-for-life.html)

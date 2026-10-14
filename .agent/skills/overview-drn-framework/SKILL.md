@@ -275,7 +275,7 @@ RabbitMQ:
 | Property | Default |
 |----------|---------|
 | `DefaultImage` | `"rabbitmq"` |
-| `DefaultVersion` | `"4.3.5-management-alpine"` |
+| `DefaultVersion` | `"4.3.6-management-alpine"` |
 | `Username` | unset |
 | `Password` | unset |
 

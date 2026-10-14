@@ -1,4 +1,7 @@
-# Required for first startup. Use a non-guest username and a generated password.
+# PUBLIC local development credentials. Replace the password for shared deployments.
 # Existing volumes retain their users. See README.md for migration instructions.
 RABBITMQ_DEFAULT_USER=drn
-RABBITMQ_DEFAULT_PASS=
+RABBITMQ_DEFAULT_PASS=drn
+# New database: choose a stable name such as drn-rabbit. Existing database: preserve its hostname.
+# See README.md before recreating an existing broker.
+RABBITMQ_HOSTNAME=drn-rabbit
