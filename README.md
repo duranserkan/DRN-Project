@@ -86,6 +86,10 @@ dotnet run --project DRN.Test.Performance -c Release -- --filter-method DRN.Test
 
 The sample runs at http://localhost:5998. Its default Debug/Development startup provisions PostgreSQL through Testcontainers on host port **6432**. Keep that port available.
 
+For the root Docker Compose stack, copy `.sample-env` to `.env` and fill the required empty values before startup, including for local use. Generate a unique Nexus key with `openssl rand -hex 32`, paste the 64 hexadecimal characters into `NexusAppSettings__Keys__0__KeyMaterial`, and keep `NexusAppSettings__Keys__0__Format=Hex`. Preserve this key across restarts. The published example key is rejected in every environment. Compose rejects an empty key before starting services.
+
+The root Compose stack explicitly serves Sample over HTTP at http://localhost:5998. It does not publish port 5999 or mount a TLS certificate. For HTTPS, configure a separate deployment override with an explicit Kestrel HTTPS endpoint, certificate settings, and the corresponding port mapping. RabbitMQ also requires a generated password in `.env`; see the [RabbitMQ setup and migration instructions](Docker/Rabbitmq/README.md).
+
 After changing frontend sources in `Sample.Hosted/buildwww/`, rebuild the assets from `Sample.Hosted/`:
 
 ```bash

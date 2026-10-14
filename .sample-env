@@ -1,4 +1,5 @@
 # Root Docker Compose configuration for Sample.Hosted plus local dependencies.
+# Fill every required empty value before startup, including for local use.
 # Replace these values before using any exposed or production-like environment.
 
 ASPNETCORE_ENVIRONMENT=Staging
@@ -25,11 +26,12 @@ PGDATA=/data/postgres
 RABBITMQ_DEFAULT_USER=drn
 RABBITMQ_DEFAULT_PASS=
 
-# Development without an explicit default NexusKey derives deterministic key material from DrnAppFeatures__SeedKey.
-# Changing SeedKey changes generated IDs unless the previous key remains in NexusAppSettings__Keys.
-# Alternative NexusKey formats: set Format to Hex, Base64, or Base64UrlEncoded; decoded bytes must be exactly 32.
-NexusAppSettings__Keys__0__KeyMaterial=sample-nexus-key-material-000000
-NexusAppSettings__Keys__0__Format=Utf8
+# Required even for local use. Generate a unique key with: openssl rand -hex 32
+# Paste the 64 hexadecimal characters below and keep Format=Hex.
+# Preserve the key across restarts. Retain previous keys when rotating existing IDs.
+# Other formats are Utf8, Base64, or Base64UrlEncoded; decoded bytes must be exactly 32.
+NexusAppSettings__Keys__0__KeyMaterial=
+NexusAppSettings__Keys__0__Format=Hex
 NexusAppSettings__Keys__0__Default=true
 
 NLOG_GRAYLOG_UDP_ADDRESS=udp://graylog:12201
