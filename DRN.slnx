@@ -25,7 +25,7 @@
   </Folder>
   <Folder Name="/Docker/Rabbitmq/Image/">
     <File Path="Docker\Rabbitmq\Image\definitions.json" />
-    <File Path="Docker\Rabbitmq\Image\Dockerfile" />
+    <File Path="Docker\Rabbitmq\Image\enabled_plugins" />
     <File Path="Docker\Rabbitmq\Image\rabbitmq.conf" />
   </Folder>
   <Folder Name="/Docs/">

@@ -6,6 +6,10 @@ POSTGRES_PASSWORD=drn
 POSTGRES_DB=drn
 PGDATA=/data/postgres
 
+# Required for a new RabbitMQ database. Existing users require explicit migration.
+RABBITMQ_DEFAULT_USER=drn
+RABBITMQ_DEFAULT_PASS=
+
 # You MUST set a secret to secure/pepper the stored user passwords here. Use at least 64 characters.
 # Generate one by using for example: pwgen -N 1 -s 96
 # ATTENTION: This value must be the same on all Graylog nodes in the cluster.

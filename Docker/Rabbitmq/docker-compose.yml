@@ -2,19 +2,28 @@ name: drn-rabbit
 services:
   # https://hub.docker.com/_/rabbitmq
   rabbit:
-    image: rabbitmq-drn:4.3.5-management-alpine
-    build:
-      context: ./Image/
+    image: rabbitmq:4.3.6-management-alpine@sha256:3ef7f7e89fed709a78f79b8b5f4e30e1312a1d4089da752e23595566d9d61a95
     container_name: drn-rabbit
     restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:?configure a non-guest username in the .env file}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?configure a generated password in the .env file}
+      RABBITMQ_PID_FILE: /var/lib/rabbitmq/rabbitmq.pid
+    # Requires Docker Compose 2.30+. Import only after bootstrap credentials exist.
+    post_start:
+      - command: ["rabbitmqctl", "wait", "/var/lib/rabbitmq/rabbitmq.pid", "--timeout", "120"]
+        user: rabbitmq
+      - command: ["rabbitmqctl", "import_definitions", "/etc/rabbitmq/definitions.json", "--timeout", "120"]
+        user: rabbitmq
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
     volumes:
       - drn-rabbit-log:/var/log/rabbitmq/
       - drn-rabbit-lib:/var/lib/rabbitmq/
-      # Keep /etc/rabbitmq image-owned so rebuilt definitions.json, rabbitmq.conf,
-      # and enabled_plugins are not masked by a stale named volume.
+      - ./Image/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+      - ./Image/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - ./Image/rabbitmq.conf:/etc/rabbitmq/conf.d/90-drn.conf:ro
     healthcheck:
       test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
       interval: 30s

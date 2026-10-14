@@ -21,6 +21,10 @@ POSTGRES_PASSWORD=drn
 POSTGRES_DB=drn
 PGDATA=/data/postgres
 
+# Required for a new RabbitMQ database. Existing users require explicit migration.
+RABBITMQ_DEFAULT_USER=drn
+RABBITMQ_DEFAULT_PASS=
+
 # Development without an explicit default NexusKey derives deterministic key material from DrnAppFeatures__SeedKey.
 # Changing SeedKey changes generated IDs unless the previous key remains in NexusAppSettings__Keys.
 # Alternative NexusKey formats: set Format to Hex, Base64, or Base64UrlEncoded; decoded bytes must be exactly 32.

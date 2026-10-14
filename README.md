@@ -304,7 +304,7 @@ It is not about coding. It is about process of creating and enhancing good thing
 
 ### Solution Structure
 This solution consists of 6 parts that are being developed with Jetbrains Rider on macOS with arm-based M2 chip. However, I expect it to work on any modern machine since it is a cross-platform solution
-1. **Docker Folder:** It contains Dockerfile and standalone compose definitions for dependencies. `Docker/Infra/docker-compose.yml` remains the combined infra compose for PostgreSQL, RabbitMQ, and Graylog.
+1. **Docker Folder:** It contains standalone Compose definitions and dependency configuration files. `Docker/Infra/docker-compose.yml` remains the combined infra compose for PostgreSQL, RabbitMQ, and Graylog. RabbitMQ uses the official image with read-only configuration mounts.
 2. **Docs:** It contains project documents. This docs will be supported with articles and a YouTube playlist.
 3. **Items:** It contains file that does not belong anywhere else such as .gitignore, .dockerignore and .github workflows
 4. **Src:** It contains 3 folders that define 3 different **DRN** domain.
@@ -319,7 +319,7 @@ This solution consists of 6 parts that are being developed with Jetbrains Rider 
    * **Framework:** DRN.Framework source codes belongs to generalized solutions that can be used within compatible .NET 10 projects as nuget packages.
    * **Sample:** Nexus connectable sample app demonstrates **DRN.Framework** usage. It is used for testing, presentation and documentation purposes.
 5. **Test:** It contains all the unit, integration and performance tests.
-6. **docker-compose:** Root application compose for `Sample.Hosted` plus its local PostgreSQL, RabbitMQ, and Graylog dependencies. Use root `.sample-env` as the template for root `.env`.
+6. **docker-compose:** Root application compose for `Sample.Hosted` plus its local PostgreSQL, RabbitMQ, and Graylog dependencies. Use root `.sample-env` as the template for root `.env`. Configure RabbitMQ credentials before startup and follow the [existing-volume migration instructions](Docker/Rabbitmq/README.md) when upgrading a broker.
 
 ## About Design and Architecture
 * [Chris Patterson's Great Article - Software Architect for Life](http://blog.phatboyg.com/2017/03/08/software-architect-for-life.html)

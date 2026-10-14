@@ -579,8 +579,8 @@ RabbitMQ defaults used when a test explicitly calls `RabbitMQContext.StartAsync(
 | Property | Default |
 |----------|---------|
 | `DefaultImage` | `"rabbitmq"` |
-| `DefaultVersion` | `"4.3.5-management-alpine"` |
-| `DefaultDigest` | `"sha256:e2f08f846de10bb09649a8b020f286ed362a8f72ee45e5a8d043851f1533fda8"` |
+| `DefaultVersion` | `"4.3.6-management-alpine"` |
+| `DefaultDigest` | `"sha256:3ef7f7e89fed709a78f79b8b5f4e30e1312a1d4089da752e23595566d9d61a95"` |
 | `Username` | unset |
 | `Password` | unset |
 
