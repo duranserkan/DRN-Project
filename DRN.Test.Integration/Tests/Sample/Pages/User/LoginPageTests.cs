@@ -112,6 +112,107 @@ public class LoginPageTests
         (await userManager.IsLockedOutAsync(user)).Should().BeTrue();
     }
 
+    [Theory]
+    [DataInline(false)]
+    [DataInline(true)]
+    public async Task Password_Login_Should_Preserve_Mfa_Failures_Until_Lockout_Or_Success(
+        DrnTestContext context, bool completeMfa)
+    {
+        var application = context.ApplicationContext.CreateApplication<SampleProgram>();
+        await context.ContainerContext.BindExternalDependenciesAsync();
+        application.Server.PreserveExecutionContext = true;
+        using var client = application.CreateClient(new() { AllowAutoRedirect = false });
+        using var scope = application.Services.CreateScope();
+        var manager = scope.ServiceProvider.GetRequiredService<UserManager<SampleUser>>();
+        var credentials = CredentialsProvider.GenerateCredentials();
+        var email = $"{credentials.Username}@example.com";
+        var user = new SampleUser
+        {
+            UserName = email, Email = email, EmailConfirmed = true, PhoneNumberConfirmed = true
+        };
+        (await manager.CreateAsync(user, credentials.Password)).Succeeded.Should().BeTrue();
+        (await manager.ResetAuthenticatorKeyAsync(user)).Succeeded.Should().BeTrue();
+        (await manager.SetTwoFactorEnabledAsync(user, true)).Succeeded.Should().BeTrue();
+        (await manager.GetLockoutEnabledAsync(user)).Should().BeTrue();
+        var failureLimit = manager.Options.Lockout.MaxFailedAccessAttempts;
+        failureLimit.Should().BeGreaterThan(1);
+        var authenticatorKey = await manager.GetAuthenticatorKeyAsync(user);
+        authenticatorKey.Should().NotBeNullOrWhiteSpace();
+        var token = await GetAntiforgeryTokenAsync(client);
+        var challengePath = Get.Page.User.LoginWith2Fa;
+        var invalidAttempts = completeMfa ? failureLimit - 1 : failureLimit;
+
+        for (var attempt = 1; attempt <= invalidAttempts; attempt++)
+        {
+            using var loginForm = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["Input.Email"] = email,
+                ["Input.Password"] = credentials.Password,
+                ["__RequestVerificationToken"] = token
+            });
+            using var loginResponse = await client.PostAsync(Get.Page.User.Login, loginForm);
+            loginResponse.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+            challengePath = loginResponse.Headers.Location!.OriginalString;
+            challengePath.Should().StartWith(Get.Page.User.LoginWith2Fa);
+            (await ReadFailureCountAsync(application.Services, email)).Should().Be(attempt - 1);
+
+            token = await GetAntiforgeryTokenAsync(client, challengePath);
+            using var challengeForm = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                // Pass the page's length validation without risking a valid TOTP collision.
+                ["Login2FaModel.TwoFactorCode"] = "abcdef",
+                ["__RequestVerificationToken"] = token
+            });
+            using var challengeResponse = await client.PostAsync(challengePath, challengeForm);
+            if (attempt < failureLimit)
+            {
+                challengeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+                (await challengeResponse.Content.ReadAsStringAsync()).Should().Contain("Invalid authenticator code.");
+                (await ReadFailureCountAsync(application.Services, email)).Should().Be(attempt);
+            }
+            else
+            {
+                challengeResponse.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+                challengeResponse.Headers.Location!.OriginalString.Should().Be(Get.Page.User.Logout);
+            }
+        }
+
+        if (completeMfa)
+        {
+            using var successForm = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["__RequestVerificationToken"] = token,
+                ["Login2FaModel.TwoFactorCode"] = TotpUtils.GenerateTotpCode(authenticatorKey!),
+            });
+            using var successResponse = await client.PostAsync(challengePath, successForm);
+            successResponse.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+            successResponse.Headers.Location!.OriginalString.Should().Be(Get.Page.Root.Home);
+            (await ReadFailureCountAsync(application.Services, email)).Should().Be(0);
+            return;
+        }
+
+        // Keep the pending principal and antiforgery token paired by not following Logout.
+        using var lockedOutForm = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Email"] = email,
+            ["Input.Password"] = credentials.Password,
+            ["__RequestVerificationToken"] = token
+        });
+        using var lockedOutResponse = await client.PostAsync(Get.Page.User.Login, lockedOutForm);
+        lockedOutResponse.StatusCode.Should().Be(HttpStatusCode.SeeOther);
+        lockedOutResponse.Headers.Location!.OriginalString.Should().Be(Get.Page.User.Lockout);
+    }
+
+    private static async Task<int> ReadFailureCountAsync(IServiceProvider services, string email)
+    {
+        // A fresh scope reads persisted state instead of the setup context's tracked user.
+        using var scope = services.CreateScope();
+        var manager = scope.ServiceProvider.GetRequiredService<UserManager<SampleUser>>();
+        var user = await manager.FindByEmailAsync(email);
+        user.Should().NotBeNull();
+        return await manager.GetAccessFailedCountAsync(user!);
+    }
+
     private static async Task<string> GetAntiforgeryTokenAsync(HttpClient client, string? pagePath = null)
     {
         var loginPage = await client.GetStringAsync(pagePath ?? Get.Page.User.Login);
