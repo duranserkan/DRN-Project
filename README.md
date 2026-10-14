@@ -90,6 +90,8 @@ For the root Docker Compose stack, copy `.sample-env` to `.env` and fill the req
 
 The root Compose stack explicitly serves Sample over HTTP at http://localhost:5998. It does not publish port 5999 or mount a TLS certificate. For HTTPS, configure a separate deployment override with an explicit Kestrel HTTPS endpoint, certificate settings, and the corresponding port mapping. RabbitMQ also requires a generated password in `.env`; see the [RabbitMQ setup and migration instructions](Docker/Rabbitmq/README.md).
 
+The root, Infra, and standalone PostgreSQL Compose stacks fix `PGDATA` to `/data/postgres`, matching their `drn-postgres-data` volume mount. A `PGDATA` value in `.env` no longer overrides this path. Existing databases using the default path need no migration. If you previously used another path, back up that database and migrate it to the named volume before recreating the container. Changing the configuration does not move existing data.
+
 After changing frontend sources in `Sample.Hosted/buildwww/`, rebuild the assets from `Sample.Hosted/`:
 
 ```bash

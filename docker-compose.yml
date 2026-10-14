@@ -66,7 +66,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:? configure in the .env file}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:? configure in the .env file}
       POSTGRES_DB: ${POSTGRES_DB:-drn}
-      PGDATA: ${PGDATA:-/data/postgres}
+      # Keep the database inside the named volume mounted above.
+      PGDATA: /data/postgres
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
       interval: 10s

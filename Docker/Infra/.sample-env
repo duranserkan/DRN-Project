@@ -4,7 +4,7 @@
 POSTGRES_USER=drn
 POSTGRES_PASSWORD=drn
 POSTGRES_DB=drn
-PGDATA=/data/postgres
+# PGDATA is fixed to the persistent volume path in docker-compose.yml.
 
 # Required for a new RabbitMQ database. Existing users require explicit migration.
 RABBITMQ_DEFAULT_USER=drn
