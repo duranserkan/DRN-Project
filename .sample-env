@@ -1,5 +1,6 @@
 # Root Docker Compose configuration for Sample.Hosted plus local dependencies.
-# Replace these values before using any exposed or production-like environment.
+# Ready-to-use PUBLIC credentials for local development only.
+# Copy to .env for a fresh local stack. Replace all secrets for any shared deployment.
 
 ASPNETCORE_ENVIRONMENT=Staging
 Environment=Staging
@@ -17,15 +18,30 @@ DOCKER_REGISTRY=
 APP_VERSION=0.0.1
 
 POSTGRES_USER=drn
+# Existing databases need explicit password rotation.
 POSTGRES_PASSWORD=drn
 POSTGRES_DB=drn
-PGDATA=/data/postgres
+# PGDATA is fixed to the persistent volume path in docker-compose.yml.
 
-# Development without an explicit default NexusKey derives deterministic key material from DrnAppFeatures__SeedKey.
-# Changing SeedKey changes generated IDs unless the previous key remains in NexusAppSettings__Keys.
-# Alternative NexusKey formats: set Format to Hex, Base64, or Base64UrlEncoded; decoded bytes must be exactly 32.
-NexusAppSettings__Keys__0__KeyMaterial=sample-nexus-key-material-000000
-NexusAppSettings__Keys__0__Format=Utf8
+# Required for a new RabbitMQ database. Existing users require explicit migration.
+RABBITMQ_DEFAULT_USER=drn
+RABBITMQ_DEFAULT_PASS=drn
+# New database: choose a stable name such as drn-rabbit. Existing database: preserve its hostname.
+# See Docker/Rabbitmq/README.md before recreating an existing broker.
+RABBITMQ_HOSTNAME=drn-rabbit
+
+# Public local SeedKey, independent of the Nexus key. For shared deployments generate a unique value.
+# Use 58-256 characters with ASCII uppercase, lowercase, digits, and at least one of: !*()-_
+# Use only those characters. Avoid runs longer than 4 sequential or 3 identical characters.
+# Preserve this secret across restarts: it protects persisted application data.
+DrnAppFeatures__SeedKey=LocalOnly!7mQ2pR9tV4wX6yZ8kN3sH5jL1bF0dG2uC9eA4rT6vW8xY3zP5nK1hJ
+
+# Public local Nexus key. For shared deployments generate a unique key with: openssl rand -hex 32
+# Paste the 64 hexadecimal characters below and keep Format=Hex.
+# Preserve the key across restarts. Retain previous keys when rotating existing IDs.
+# Other formats are Utf8, Base64, or Base64UrlEncoded; decoded bytes must be exactly 32.
+NexusAppSettings__Keys__0__KeyMaterial=000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+NexusAppSettings__Keys__0__Format=Hex
 NexusAppSettings__Keys__0__Default=true
 
 NLOG_GRAYLOG_UDP_ADDRESS=udp://graylog:12201
@@ -36,11 +52,11 @@ NLog__rules__0__writeTo=console,graylog-udp
 # Generate one by using for example: pwgen -N 1 -s 96
 # ATTENTION: This value must be the same on all Graylog nodes in the cluster.
 # Changing this value after installation will render all user sessions and encrypted values in the database invalid. (e.g. encrypted access tokens)
-GRAYLOG_PASSWORD_SECRET=kXgSJ3898pP9x4ddYnNPXIpmkYSeENcQMRmHcT3v4BdGQ4sBTzhMOS1mWZ40xMxnN3fkll0EZaAWEySvlD3hsR5vPajUSgm6
+GRAYLOG_PASSWORD_SECRET=LocalOnlyGraylogSecret7mQ2pR9tV4wX6yZ8kN3sH5jL1bF0dG2uC9eA4rT6vW8xY
 
 # You MUST specify a hash password for the Graylog root user.
 # Create one by using for example: echo -n yourpassword | shasum -a 256
-# CHANGE THIS! Default username and password is drn.
+# Public local login: admin / drn. Replace this hash for any shared deployment.
 GRAYLOG_ROOT_PASSWORD_SHA2=0b0f409cd36ec892ddd8db5dcd95453d0c1c7f7667894d3e4adcd138549a222c
 
 GRAYLOG_IMAGE=graylog/graylog:7.1.6@sha256:b9a4fd841e4c49c148043265f579554a3bdadf8137ff381b686c194ccb9a3365

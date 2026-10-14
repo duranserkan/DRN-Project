@@ -2,7 +2,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.10.1
 
-Version alignment release; no package-specific behavior changes.
+* **Container Defaults**: Updated the default RabbitMQ image to digest-pinned `4.3.6-management-alpine`.
 
 ## Version 0.10.0
 

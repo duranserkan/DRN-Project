@@ -1,16 +1,23 @@
 # PostgreSQL Configuration for drn-postgres
-# Replace 'drn' with a strong password before using in production or any exposed environment.
+# PUBLIC local development credentials. Replace all secrets for shared deployments.
 
 POSTGRES_USER=drn
 POSTGRES_PASSWORD=drn
 POSTGRES_DB=drn
-PGDATA=/data/postgres
+# PGDATA is fixed to the persistent volume path in docker-compose.yml.
+
+# Required for a new RabbitMQ database. Existing users require explicit migration.
+RABBITMQ_DEFAULT_USER=drn
+RABBITMQ_DEFAULT_PASS=drn
+# New database: choose a stable name such as drn-rabbit. Existing database: preserve its hostname.
+# See ../Rabbitmq/README.md before recreating an existing broker.
+RABBITMQ_HOSTNAME=drn-rabbit
 
 # You MUST set a secret to secure/pepper the stored user passwords here. Use at least 64 characters.
 # Generate one by using for example: pwgen -N 1 -s 96
 # ATTENTION: This value must be the same on all Graylog nodes in the cluster.
 # Changing this value after installation will render all user sessions and encrypted values in the database invalid. (e.g. encrypted access tokens)
-GRAYLOG_PASSWORD_SECRET="kXgSJ3898pP9x4ddYnNPXIpmkYSeENcQMRmHcT3v4BdGQ4sBTzhMOS1mWZ40xMxnN3fkll0EZaAWEySvlD3hsR5vPajUSgm6"
+GRAYLOG_PASSWORD_SECRET=LocalOnlyGraylogSecret7mQ2pR9tV4wX6yZ8kN3sH5jL1bF0dG2uC9eA4rT6vW8xY
 
 # You MUST specify a hash password for the root user (which you only need to initially set up the
 # system and in case you lose connectivity to your authentication backend)
@@ -18,8 +25,8 @@ GRAYLOG_PASSWORD_SECRET="kXgSJ3898pP9x4ddYnNPXIpmkYSeENcQMRmHcT3v4BdGQ4sBTzhMOS1
 # modify it in this file.
 # Create one by using for example: echo -n yourpassword | shasum -a 256
 # and put the resulting hash value into the following line
-# CHANGE THIS! Default username and password is drn
-GRAYLOG_ROOT_PASSWORD_SHA2="0b0f409cd36ec892ddd8db5dcd95453d0c1c7f7667894d3e4adcd138549a222c"
+# Public local login: admin / drn. Replace this hash for shared deployments.
+GRAYLOG_ROOT_PASSWORD_SHA2=0b0f409cd36ec892ddd8db5dcd95453d0c1c7f7667894d3e4adcd138549a222c
 
 # You can optionally specify the image versions
 GRAYLOG_IMAGE="graylog/graylog:7.1.6@sha256:b9a4fd841e4c49c148043265f579554a3bdadf8137ff381b686c194ccb9a3365"
