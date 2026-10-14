@@ -1,7 +1,8 @@
 ---
-title: "Source Known Identifiers (SKIDs)"
+title: "Source-Known Identifiers (SKIDs)"
 docname: draft-kilic-skid-00
 category: info
+submissiontype: independent
 ipr: trust200902
 area: Applications and Real-Time
 workgroup: "Independent Submission"
@@ -14,6 +15,8 @@ pi:
 
 author:
   - fullname: "Duran Serkan Kılıç"
+    initials: "D. S."
+    surname: "Kılıç"
     organization: "Independent"
     email: "duran.serkan@outlook.com"
 
@@ -21,6 +24,7 @@ normative:
   RFC2119:
   RFC8174:
   RFC9562:
+  RFC8610:
   FIPS197:
     title: "Advanced Encryption Standard (AES)"
     author:
@@ -40,344 +44,61 @@ normative:
     target: https://github.com/BLAKE3-team/BLAKE3-specs/blob/master/blake3.pdf
 
 informative:
-  RFC8610:
-  RFC5869:
-  RFC8439:
+  SKID-PAPER:
+    title: "Source-Known Identifiers: A Three-Tier Identity System for Distributed Applications"
+    author:
+      - name: Duran Serkan Kılıç
+    seriesinfo:
+      arXiv: "2604.00151"
+    target: https://arxiv.org/abs/2604.00151
   DRN-PROJECT:
     title: "DRN-Project Reference Implementation"
     target: https://github.com/duranserkan/DRN-Project
-  SKID-PAPER:
-    title: "Source Known Identifiers (SKIDs)"
-    author:
-      - name: Duran Serkan Kılıç
-    target: https://arxiv.org/abs/2604.00151
-  SNOWFLAKE:
-    title: "Snowflake ID"
-    author:
-      org: Twitter (X)
-    target: https://en.wikipedia.org/wiki/Snowflake_ID
-  ULID:
-    title: "Universally Unique Lexicographically Sortable Identifier"
-    target: https://github.com/ulid/spec
-  CUID-DEPRECATED:
-    title: "CUID - Collision-resistant ids (deprecated)"
-    author:
-      - name: Eric Elliott
-    target: https://github.com/paralleldrive/cuid
-  CUID2:
-    title: "CUID2 - Secure, collision-resistant ids"
-    author:
-      - name: Eric Elliott
-    target: https://github.com/paralleldrive/cuid2
-  KSUID:
-    title: "K-Sortable Globally Unique IDs"
-    author:
-      org: Segment
-    target: https://github.com/segmentio/ksuid
-  NISTSP800107:
-    title: "Recommendation for Applications Using Approved Hash Algorithms"
-    author:
-      org: National Institute of Standards and Technology
-    date: 2012-08
-    seriesinfo:
-      NIST: SP 800-107 Rev. 1
-    target: https://csrc.nist.gov/pubs/sp/800/107/r1/final
-  NISTSP800224:
-    title: "Keyed-Hash Message Authentication Code (HMAC): Specification of HMAC and Recommendations for Message Authentication"
-    author:
-      org: National Institute of Standards and Technology
-    date: 2024-06
-    seriesinfo:
-      NIST: SP 800-224 (Initial Public Draft)
-    target: https://csrc.nist.gov/pubs/sp/800/224/ipd
-  CWE639:
-    title: "CWE-639: Authorization Bypass Through User-Controlled Key"
-    author:
-      org: MITRE Corporation
-    target: https://cwe.mitre.org/data/definitions/639.html
-  NISTIR8319:
-    title: "Review of the Advanced Encryption Standard"
-    author:
-      org: National Institute of Standards and Technology
-    date: 2021-02
-    seriesinfo:
-      NISTIR: 8319
-    target: https://csrc.nist.gov/publications/detail/nistir/8319/final
-  BELLARE1998:
-    title: "A Concrete Security Treatment of Symmetric Encryption"
-    author:
-      - name: Mihir Bellare
-      - name: Anand Desai
-      - name: E. Jokipii
-      - name: Phillip Rogaway
-    date: 1998
-    target: https://eprint.iacr.org/1997/010
-  BONNETAIN2019:
-    title: "Quantum Security Analysis of AES"
-    author:
-      - name: Xavier Bonnetain
-      - name: María Naya-Plasencia
-      - name: André Schrottenloher
-    date: 2019
-    target: https://eprint.iacr.org/2019/272
-  RUGGLES1947:
-    title: "An Empirical Approach to Economic Intelligence in World War II"
-    author:
-      - name: Richard Ruggles
-      - name: Henry Brodie
-    date: 1947
-    seriesinfo:
-      Journal of the American Statistical Association: "Vol. 42, No. 237, pp. 72-91"
-    target: https://doi.org/10.1080/01621459.1947.10501915
-  SHOSTACK2014:
-    title: "Threat Modeling: Designing for Security"
-    author:
-      - name: Adam Shostack
-    date: 2014
-    target: https://www.wiley.com/en-us/Threat+Modeling%3A+Designing+for+Security-p-9781118809990
-  BENCHMARKDOTNET:
-    title: "BenchmarkDotNet: Powerful .NET library for benchmarking"
-    author:
-      - name: Andrey Akinshin
-    target: https://github.com/dotnet/BenchmarkDotNet
-  RFC5905:
-  IEEE1588:
-    title: "IEEE Standard for a Precision Clock Synchronization Protocol for Networked Measurement and Control Systems"
-    author:
-      org: IEEE
-    date: 2020
-    seriesinfo:
-      IEEE: 1588-2019
-    target: https://doi.org/10.1109/IEEESTD.2020.9120376
-  NISTSP800107W:
-    title: "Withdrawal of NIST Special Publication 800-107 Revision 1"
-    author:
-      org: National Institute of Standards and Technology
-    date: 2022-12
-    target: https://csrc.nist.gov/news/2022/withdrawal-of-nist-sp-800-107-revision-1
 
-date: 2026-07-09
+date: 2026-10-17
 ---
 
 --- abstract
 
-This document introduces Source Known Identifiers (SKIDs), a three-tier
-identity system for distributed applications.  A single entity is
-represented as a 64-bit Source Known ID (SKID) for database storage,
-a 128-bit Source Known Entity ID (SKEID) for trusted environment
-communication, or a 128-bit Secure Source Known Entity ID (Secure SKEID)
-for external communication.  Deterministic bidirectional transformations
-connect all three tiers.
-
-The first tier, Source Known ID (SKID), is a 64-bit signed integer
-embedding a timestamp with 250-millisecond precision, application
-topology (application identifier, application instance identifier), and a
-per-entity-type sequence counter.  It serves as the database primary
-key, providing compact storage (8 bytes) and natural B-tree ordering.
-
-The second tier, Source Known Entity ID (SKEID), extends the SKID into
-a strict RFC 9562 UUID Version 8 value by adding an entity type
-discriminator, an epoch selector, and a BLAKE3 keyed message
-authentication code (MAC).
-SKEIDs provide zero-lookup integrity checks over embedded origin and
-type fields within a shared-key trust domain.  Callers must still
-request expected-type validation, and the shared key does not
-authenticate an individual producer.  Their
-big-endian byte layout preserves SKID order in lexicographic UUID string
-comparisons for plain SKEIDs within a fixed entity type.
-
-The third tier, Secure SKEID, encrypts the entire SKEID using AES-256
-symmetric encryption as a single-block pseudo-random permutation (PRP).
-Under the AES PRP assumption, the result is pseudorandom-looking while
-remaining UUID-form and binary-compatible with standard UUID data-type
-parsers.  The deterministic form permits repeat-ID correlation, and its
-encrypted marker bytes usually fail strict RFC 9562 UUIDv8 validation.
-A collision guard prevents same-key ciphertext from being accepted as
-plaintext under the generation key.
-
-This document specifies the bit and byte layouts, generation and parsing
-algorithms, MAC computation, encryption procedures, key management
-model, and a defense-in-depth security analysis.
-
+This document specifies three representations of an entity identifier
+for database storage, communication between trusted services, and
+public interfaces. A 64-bit Source-Known ID (SKID) provides a
+timestamp-ordered database key. A 128-bit Source-Known Entity ID
+(SKEID) adds an entity type, epoch, and keyed message authentication
+code. Secure SKEID encrypts that representation for external use without
+increasing its size. The specification defines the layouts, generation
+and parsing procedures, and deployment requirements for these forms.
 
 --- middle
 
-
 # Introduction
 
-## Problem Statement
+Source-Known Identifiers (SKIDs) represent one entity in three forms:
 
-An entity is a domain object with a distinct identity that persists
-across its lifecycle.  Its entity identifier is the value that
-distinguishes it from all other entities of the same type.  Although
-this terminology is common in Domain-Driven Design, the underlying
-need for durable, unique record identity applies across distributed
-systems regardless of architectural style.
+| Representation | Size | Intended use |
+|----------------|------|--------------|
+| Source-Known ID (SKID) | 64 bits | Timestamp-ordered database key |
+| Source-Known Entity ID (SKEID) | 128 bits | Authenticated metadata in a shared-key trust domain |
+| Secure SKEID | 128 bits | Encrypted identifier for external use |
 
-Modern distributed systems require entity identifiers that serve
-multiple roles simultaneously: database primary keys, inter-service
-correlation tokens, and externally visible resource handles.  Existing
-identifier schemes force a choice between conflicting properties.
+For example, an order service can store a SKID as its database key,
+send a SKEID to a trusted service, and use a Secure SKEID in a public
+URL. These are representations of the same order. The service derives
+the two 128-bit forms from the SKID using entity-type and epoch context
+and cryptographic keys. Parsing recovers that context and the SKID
+without a record lookup. The application still checks that the order
+exists and that the caller may access it.
 
-- **Database sequences** (auto-increment `BIGINT`) offer compact storage
-  (4 or 8 bytes) and natural ordering but expose creation patterns when
-  passed to external consumers.  They are not an authorization boundary.
+A plaintext SKEID is a Universally Unique Identifier (UUID) Version 8
+as defined in [RFC9562]. Secure SKEID is an opaque 128-bit ciphertext
+that can use UUID string formatting, but encryption does not preserve
+UUID version or variant bits. SKID uniqueness is scoped to a deployment,
+entity type, and epoch, subject to the allocation rules below.
 
-- **UUID Version 4** ([RFC9562], Section 5.4) provides 122 bits of
-  randomness and global uniqueness but sacrifices ordering, embeds no
-  application semantics, and consumes 16 bytes of storage.
-
-- **UUID Version 7** ([RFC9562], Section 5.7) restores time-ordering
-  with a 48-bit Unix timestamp but exposes creation patterns, carries
-  no entity type, no integrity check, and no confidentiality layer.
-
-- **Snowflake-style IDs** [SNOWFLAKE] embed timestamp and worker
-  topology in 64 bits but expose creation patterns, lack integrity
-  verification, entity type metadata, and lose multi-century
-  addressability.
-
-None of these schemes provide a keyed mechanism for zero-lookup
-verification: confirming an identifier's structure and integrity without
-consulting a database or external service.  Record existence and access
-authorization remain application checks.
-Chronological sortability and confidentiality are also inherently
-contradictory properties, and dual-identifier alternatives (e.g.,
-integer primary key paired with UUID external-facing identifier) lose
-storage efficiency by maintaining two separate identifier columns and
-their associated indexes.
-
-A multi-tier identifier system can address these challenges by
-providing different identifier properties for different trust levels.
-This document defines the following identifier properties as desired
-and achievable in a multi-tier distributed identity system:
-
-1. Storage efficiency
-2. Chronological sortability
-3. Origin metadata embedding
-4. Zero-lookup verification
-5. Confidentiality for external consumers
-6. Multi-century addressability
-
-See "Feature Matrix" below for a comparative analysis of how the SKID
-system and existing identifier schemes satisfy these properties.
-
-## Motivation
-
-The necessity for a unified, multi-tier identifier protocol arises from
-the conflicting architectural requirements of modern distributed
-applications where data continuously flows across persistence, internal,
-and external trust tiers.  Each tier imposes different constraints on
-identifier design.  Existing schemes and dual-identifier patterns force
-systems to compromise at least one.
-
-At the persistence tier, compact, time-ordered primary keys improve
-B-tree locality and foreign-key density.  Exposing sequential identifiers
-through external APIs enables enumeration and inference of generation
-velocity or record volume (the German Tank Problem [RUGGLES1947]).  An
-opaque identifier can reduce this exposure, but it does not prevent an
-Insecure Direct Object Reference (IDOR) when authorization is missing
-[CWE639].  The common workaround, an integer primary key alongside a
-random UUID alternate key, compromises storage efficiency.
-
-The full cost of such workarounds extends beyond the identifier columns
-themselves.  For instance, a conventional schema using an auto-increment
-primary key (8 bytes), a UUID external identifier (16 bytes), and a
-created_at timestamp (8 bytes) requires 32 bytes of column data per
-record.  In a fully indexed schema, each column also demands a separate
-B-tree index and its associated maintenance operations, such as vacuum,
-reindex, and statistics collection.
-
-An identifier that embeds a timestamp and derives a UUID-compatible
-external representation deterministically at application runtime
-consolidates all three concerns into a single 8-byte primary key column
-with one index.  Under this fully indexed baseline, this is a 75%
-reduction in per-record column overhead and a reduction from three
-single-column indexes to one.  This calculation accounts only for the
-single-column indexes on each field.  Additional composite indexes
-involving these fields would amplify the savings further.
-
-A downstream application that receives an identifier needs to verify
-its structure and integrity.  Without embedded verification metadata,
-that check requires a query or cache lookup.  A MAC permits early
-rejection without I/O; existence and authorization checks are separate.
-
-Decentralized identifier generation across globally distributed
-networks demands chronologically sortable identifiers.  When data from
-independent generators must be merged years or decades after creation,
-the identifier scheme MUST guarantee sort-order consistency past the
-operational lifespan of individual system components.
-
-These conflicting trust-boundary constraints motivate a multi-tier
-identifier protocol in which each tier addresses a different trust
-boundary.
-
-## Related Work
-
-Distributed identifier schemes have evolved considerably since the
-original UUID specification.  [RFC9562] standardized UUID versions 1,
-3-8, with Version 7 introducing timestamp-ordered UUIDs that address
-the B-tree fragmentation problems of random Version 4 UUIDs.  UUID
-Version 7 uses a 48-bit Unix timestamp prefix followed by random bits,
-providing millisecond-precision ordering and global uniqueness.
-
-Twitter's Snowflake architecture [SNOWFLAKE] pioneered timestamp-
-prefixed, worker-partitioned 64-bit identifiers for high-throughput
-systems.  Snowflake identifiers embed a 41-bit timestamp with
-millisecond precision, a 10-bit machine identifier, and a 12-bit
-sequence number, enabling approximately 4,096 identifiers per
-millisecond per machine.  Its custom epoch starts from November 4,
-2010 and extends to July 10, 2080, approximately 69.7 years.
-
-ULIDs [ULID] provide a 128-bit value composed of a 48-bit timestamp
-with millisecond precision and 80 bits of randomness.  The Unix epoch
-starts from January 1, 1970 and extends to approximately 10889 CE
-(approximately 8,919 years).  ULIDs are encoded as 26-character
-Crockford Base32 strings that sort lexicographically by creation time,
-targeting environments where string-based identifiers are standard.
-
-The original CUID [CUID-DEPRECATED] was a collision-resistant
-identifier specification that used a k-sortable, timestamp-prefixed
-structure.  It was deprecated by its author due to security concerns.
-The CUID deprecation notice warns that "all monotonically increasing
-(auto-increment, k-sortable), and timestamp-based ids share the
-security issues with Cuid" and further states that "UUID V6-V8 are
-also insecure because they leak information which could be used to
-exploit systems or violate user privacy" [CUID-DEPRECATED].
-
-CUID2 [CUID2], the successor to CUID, takes a different
-approach.  CUID2 intentionally removed timestamps from the identifier
-for security reasons and instead recommends a separate `createdAt`
-column for time-based sorting, adding per-record storage overhead
-that timestamp-embedding schemes avoid.  CUID2 generates identifiers
-by using independent entropy sources then hashing the concatenation
-with SHA3.  This produces identifiers with strong collision resistance
-but relies on probabilistic uniqueness rather than deterministic
-construction.
-
-KSUIDs [KSUID] (K-Sortable Unique Identifier) provide a 160-bit
-(20-byte) value composed of a 32-bit timestamp.  KSUID has 1-second
-precision, a custom epoch from May 13, 2014 to June 19, 2150, and a
-128-bit cryptographically random payload.  KSUIDs are encoded as
-27-character Base62 strings that sort lexicographically by creation
-time.  The 128-bit random payload provides stronger collision
-resistance than UUID V4's 122 random bits.  The string-first design
-targets application-layer identifiers rather than database primary
-keys where compact binary representation is critical for B-tree
-performance.
-
-None of these approaches offers integrity verification or a
-confidentiality layer, and none combines all six properties evaluated
-here.
-
-## Document Scope
-
-This document specifies the core protocol, cryptographic constructions,
-bit and byte layouts, key lifecycle model, and security properties for
-the three-tier SKID system.
-
-Implementation details specific to any programming language or runtime
-appear only in the informative appendices.
-
+The companion paper [SKID-PAPER] presents the design rationale,
+comparisons with other identifier schemes, security analysis, and
+evaluation.
+{{test-vectors}} provides a worked example with exact byte values.
 
 # Conventions and Definitions
 
@@ -387,220 +108,120 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
 BCP 14 [RFC2119] [RFC8174] when, and only when, they appear in all
 capitals, as shown here.
 
+Byte offsets are zero-based. Multi-byte fields use big-endian
+(network) byte order. Signed integers use two's complement. SKID bit
+positions run from 0, the least significant bit, to 63, the sign bit.
+Hexadecimal constants begin with `0x`. Byte ranges include both
+endpoints. In arithmetic expressions, `2^n` denotes exponentiation.
 
-# Terminology
+An **epoch** is a time window of 2^31 seconds selected by an 8-bit
+**epoch index**. Its start is defined in {{epoch-definitions}}.
+An **entity type** is an 8-bit discriminator within an application.
+**App ID** identifies an application within a deployment. **App Instance
+ID** identifies a generator instance within that application.
 
-Source Known Identifiers (SKIDs):
-: The collective term for the three-tier identity system comprising
-  Source Known IDs (SKID), Source Known Entity IDs (SKEID), and Secure
-  Source Known Entity IDs (Secure SKEID).  All three representations
-  are deterministically convertible to each other when the required
-  context is provided (epoch, entity type, and cryptographic keys).
+A **key pair** contains a 32-byte BLAKE3 key for the message
+authentication code (MAC) and a separate 32-byte Advanced Encryption
+Standard (AES) key. Exactly one pair is designated the **default key**,
+used for generation and tried first during parsing. **Enabled keys**
+consist of that pair and, when fallback is enabled, the configured
+fallback pairs. The same enabled-key set and supported-epoch policy
+apply throughout a generation, parsing, or conversion operation.
 
-Source Known ID (SKID):
-: A 64-bit signed integer encoding a 250-millisecond-precision
-  timestamp, application topology fields (app ID, app instance ID),
-  and a per-entity-type sequence number.  Used as the database
-  primary key.
+`VALID`, `INVALID`, and `ERROR` denote procedure outcomes. They do not
+define an error encoding or require distinct client-visible responses.
 
-Source Known Entity ID (SKEID):
-: A strict RFC 9562 UUID Version 8 value embedding a SKID, entity type
-  byte, epoch byte, keyed MAC, and identification markers in big-endian
-  (network byte order) per RFC 9562.  Used for communication within
-  trusted environments.
-
-Secure Source Known Entity ID (Secure SKEID):
-: A UUID-form 128-bit opaque ciphertext produced by encrypting an SKEID
-  under AES-256-ECB.  Used for external communication where information
-  confidentiality is required.  Secure SKEIDs fit UUID storage and
-  string formats but are not guaranteed to preserve RFC 9562 UUIDv8
-  version and variant marker bits after encryption.
-
-Epoch:
-: A reference point in time from which SKID timestamps are measured.
-  The default epoch is 2025-01-01T00:00:00Z.  Each epoch spans
-  approximately 68 years (2 × 34-year halves via sign-bit extension).
-  The 8-bit epoch index in the SKEID selects a 2^31-second window,
-  giving 256 epochs and approximately 17,421 years of total coverage.
-
-Entity Type:
-: An 8-bit unsigned integer uniquely identifying the type of entity
-  (e.g., User, Order, Product) within an application.  Entity types
-  MUST be registered per deployment.
-
-Application Topology:
-: The combination of App ID (7 bits, max 127) and App Instance ID
-  (6 bits, max 63) identifying the originating application and its
-  specific instance within the deployment.
-
-MAC (Message Authentication Code):
-: A keyed cryptographic hash (BLAKE3 keyed MAC [BLAKE3], truncated
-  to 32 bits) embedded in the SKEID to provide integrity verification.
-
-PRP (Pseudo-Random Permutation):
-: A bijective mapping of n-bit blocks.  AES-256 [FIPS197] on a single
-  128-bit block functions as a PRP: every distinct plaintext maps to
-  a distinct ciphertext and vice versa.
-
-Key Separation:
-: The practice of using independent keys for different cryptographic
-  operations.  SKEID uses one key for the BLAKE3 MAC (integrity), and
-  Secure SKEID uses a cryptographically independent key for AES-256-ECB
-  (confidentiality).
-
-Marker Bytes:
-: The byte 0x8D at byte offset 6 (version marker, RFC 9562 Section 5.8
-  octet 6) and 0x8D at byte offset 8 (variant marker, RFC 9562
-  Section 4.1 octet 8) in the plaintext SKEID.  These values ensure
-  RFC 9562 UUID V8 compatibility in the non-secure form and serve as
-  a detection signal during parsing.
-
-
-# Source Known ID (SKID) - 64-bit Specification
+# Source-Known ID
 
 ## Bit Layout
 
-A SKID is a 64-bit signed integer with the following field layout,
-packed most-significant bit first:
+A SKID is a signed 64-bit integer with these fields:
 
-~~~text
- 0                   1                   2                   3
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|S|                    Timestamp (T - 32 bits)
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- T| App ID (7)  | Inst (6)  |    SequenceId (18 bits)           |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-~~~
+| Field | Bits | Width | Values |
+|-------|------|-------|--------|
+| Epoch half | 63 | 1 | 1 for first half, 0 for second half |
+| Timestamp | 62-31 | 32 | 250-millisecond ticks within the half |
+| App ID | 30-24 | 7 | 0-127 |
+| App Instance ID | 23-18 | 6 | 0-63 |
+| Sequence | 17-0 | 18 | 0-262,143 |
 
-Total: 1 (Sign) + 32 (Timestamp) + 7 (App ID) + 6 (App Instance Id)
-+ 18 (Sequence Id) = 64 bits.
+The first half of an epoch uses negative values and the second uses
+nonnegative values. Signed integer order therefore follows timestamp
+order across both halves. Within a tick, topology and sequence fields
+break ties. This order does not establish exact creation order between
+independent generators.
 
-## Field Definitions
+## Generation and Parsing
 
-Sign / Epoch Half (1 bit):
-: Epoch half indicator for smooth epoch transitions.  When set to 1,
-  the resulting `long` value is negative, covering the first
-  approximately 34 years of the epoch.  When set to 0, the value
-  becomes positive, extending coverage for the second approximately
-  34 years.  Together, the two halves span approximately 68 years per
-  epoch while preserving monotonic sort order in signed 64-bit
-  representation, since negative values sort before positive values.
+Given an entity type, app ID, instance ID, and epoch start, first reject
+field values outside their specified ranges. `now` is the current UTC
+time, and `epochStart` is the start of the selected epoch.
+Time arithmetic in this document excludes leap seconds and treats each
+UTC calendar day as 86,400 seconds.
 
-Timestamp (32 bits):
-: Unsigned 250-millisecond ticks elapsed since the configured epoch,
-  giving four ticks per second.  This provides sub-second time buckets;
-  it does not recover exact creation order within one bucket.  Topology
-  and sequence fields provide a deterministic order for ties.
-  Implementations MUST use 250-millisecond tick precision.
-  Implementations MAY cache the current timestamp with a sub-tick
-  refresh period.
+1. Compute `elapsedTicks = floor((now - epochStart) / 250 milliseconds)`.
+   Apply the clock-handling rules in {{clocks-and-instances}}.
+2. Reject elapsed ticks outside the range 0 through 2^33 - 1.
+3. Set the sign bit to 1 if elapsed ticks are below 2^32, otherwise 0.
+   Set the timestamp field to elapsed ticks modulo 2^32.
+4. Allocate the next sequence value for this application instance and
+   entity type. Reset the counter when the generation timestamp advances.
+5. Pack the fields at the positions specified above and return the
+   signed 64-bit value.
 
-  Maximum value: 2^32 - 1 ticks per epoch half ≈ 34 years per
-  half-epoch.
+Sequence allocation and timestamp changes MUST be coordinated across
+concurrent callers of a generator. For a given app ID, instance ID,
+epoch, and entity type, a generator MUST NOT reuse a sequence value
+within the same elapsed tick. After issuing all 262,144 sequence values,
+it MUST wait for a later tick and recompute the timestamp before issuing
+another identifier. Timestamp advancement refers to the full elapsed
+tick count across both epoch halves.
 
-App ID (7 bits):
-: Application identifier within the deployment.
-  Range: 0-127 (128 application identifiers; maximum value 127).
+To parse a SKID, extract the five fields. The elapsed tick count is
+the timestamp field when the sign bit is 1, or the timestamp field
+plus 2^32 when the sign bit is 0. The embedded time is the epoch start
+plus that count multiplied by 250 milliseconds. The entity type and
+epoch index are not present in the SKID and MUST come from its context.
 
-App Instance ID (6 bits):
-: Instance discriminator for the application.
-  Range: 0-63 (64 instance identifiers; maximum value 63).
+## Clocks and Instance Assignment {#clocks-and-instances}
 
-Sequence ID (18 bits):
-: Per-entity-type, per-tick monotonic counter.  Range: 0-262,143
-  (262,144 per 250ms tick; 1,048,576 per second).
-  Implementations MUST reset the sequence when the timestamp advances.
-  If the sequence is exhausted within a single tick, the generator
-  MUST wait for the next tick before issuing new identifiers,
-  applying backpressure to maintain uniqueness guarantees.
+Within a deployment and epoch, generators MUST NOT issue the same
+combination of app ID, instance ID, entity type, elapsed tick, and
+sequence more than once. This requirement applies across process
+restarts, crashes, and clock rollback. App IDs MUST distinguish
+applications within the deployment. The same app ID and instance ID
+MUST NOT be assigned to concurrent generator processes.
 
-## SKID CDDL Definition
+For a backward clock jump below the configured freeze threshold, the
+generator retains its last generation timestamp and continues allocating
+sequence values until the clock catches up. Sequence exhaustion still
+requires waiting. At or beyond the threshold, the generator MUST stop
+issuing identifiers and request application shutdown. The reference
+implementation uses a five-second threshold.
 
-~~~cddl
-; Source Known ID - 64-bit signed integer
-skid = int .size 8
+Restarting with an empty sequence counter can repeat identifiers from
+a previously used tick. The paper's deployment profile uses an external
+configuration or coordination service to assign a different instance ID
+on every restart, including ordinary restarts. It rotates through the
+64-value pool subject to the following reuse conditions:
 
-; Parsed components (informative)
-skid-parsed = {
-  sign-bit:       uint .size 1,    ; 0 or 1
-  timestamp:      uint .le 4294967295,
-  app-id:         uint .le 127,
-  app-instance-id: uint .le 63,
-  sequence-id:    uint .le 262143,
-}
-~~~
+- The previous holder of the app ID and instance ID pair MUST have
+  stopped before the pair is reassigned.
+- Before generation resumes under a reused pair, the new elapsed tick
+  MUST exceed the durably recorded maximum elapsed tick previously
+  issued under that pair in the epoch, across all entity types.
+- If no instance ID can be safely assigned, startup MUST wait or fail.
 
-## SKID Generation Algorithm
+Safe instance assignment prevents identifier reuse after
+restart but does not preserve chronological monotonicity across a clock
+rollback. Clock synchronization and instance allocation are deployment
+responsibilities.
 
-Given `entityType`, `appId`, `appInstanceId`, and a configured `epoch`:
-
-~~~pseudocode
-procedure GenerateSKID(entityType, appId, appInstanceId, epoch):
-  1. elapsedTicks ← floor((now_utc - epoch) / 250 milliseconds)
-     -- four ticks per second
-  2. Assert 0 ≤ elapsedTicks ≤ 2^33 - 1
-     -- covers both epoch halves
-  3. Determine epoch half:
-     a. If elapsedTicks < 2^32:
-        -- first half (sign bit = 1, producing negative SKID)
-     b. Else:
-        -- second half (sign bit = 0, producing positive SKID)
-     c. timestamp ← elapsedTicks mod 2^32
-        -- equivalently: elapsedTicks AND (2^32 - 1)
-  4. sequenceId ← GetNextSequence(entityType, timestamp)
-     -- per-entity-type atomic counter; resets on timestamp change
-     -- if sequenceId > 262,143: wait until timestamp advances
-  5. Pack fields into a 64-bit signed integer:
-     a. bit 63 (sign bit) ← 1 for first epoch half, 0 for second
-     b. bits [62..31] ← timestamp (32 bits, unsigned)
-     c. bits [30..24] ← appId       (7 bits)
-     d. bits [23..18] ← appInstanceId (6 bits)
-     e. bits [17..0]  ← sequenceId   (18 bits)
-  6. Return packed value
-~~~
-
-## SKID Parsing Algorithm
-
-Given a 64-bit signed integer `value` and a configured `epoch`:
-
-~~~pseudocode
-procedure ParseSKID(value, epoch):
-  1. Extract bit  63       → sign bit
-  2. Extract bits [62..31] → timestamp (32 bits, unsigned)
-  3. Extract bits [30..24] → appId (7 bits)
-  4. Extract bits [23..18] → appInstanceId (6 bits)
-  5. Extract bits [17..0]  → sequenceId (18 bits)
-  6. If sign bit == 0:
-       elapsedTicks ← timestamp + 2^32
-     Else:
-       elapsedTicks ← timestamp
-  7. createdAt ← epoch + (elapsedTicks × 250 milliseconds)
-  8. Return {value, createdAt, sequenceId, appId, appInstanceId, signBit}
-~~~
-
-## Clock Drift Protection
-
-The system handles backward time jumps at two levels:
-
-- **Minor drifts**: The generator freezes the timestamp until the wall
-  clock catches up, allowing the sequence counter to continue advancing
-  within the frozen tick.  The reference implementation uses 5 seconds
-  as the freeze threshold.
-
-- **Critical drifts (at or beyond the freeze threshold)**: The generator
-  MUST stop issuing identifiers and the application MUST initiate a
-  graceful shutdown.  The deployment MUST assign a new instance ID
-  before restart.  Detection is local; allocating the replacement
-  instance ID remains a deployment-coordination task.
-
-
-# Source Known Entity ID (SKEID) - 128-bit Specification
+# Source-Known Entity ID
 
 ## Byte Layout
 
-An SKEID occupies 16 bytes (128 bits), structured as follows in
-big-endian (network byte order) per RFC 9562:
+A plaintext SKEID occupies 16 bytes:
 
 ~~~text
 Byte:  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
@@ -609,1666 +230,546 @@ Byte:  0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
      +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
 ~~~
 
-| Field           | Byte(s) | Width   | Purpose                                               |
-|-----------------|---------|---------|-------------------------------------------------------|
-| Epoch           | 0       | 8 bits  | Epoch index (highest lexicographic priority)          |
-| SKID upper half | 1-4     | 32 bits | SKID bits 63-32, sign-toggled for lexicographic order |
-| SKID low byte 0 | 5      | 8 bits  | MSB of SKID lower half (timestamp LSB, App ID)        |
-| Version marker  | 6       | 8 bits  | `0x8D` (UUID V8, RFC 9562 Section 5.8 octet 6)        |
-| Entity Type     | 7       | 8 bits  | Domain entity classification                          |
-| Variant marker  | 8       | 8 bits  | `0x8D` (RFC 9562 Section 4.1 octet 8 variant)         |
-| SKID low bytes  | 9-11    | 24 bits | Remaining SKID lower half                             |
-| MAC             | 12-15   | 32 bits | BLAKE3 keyed MAC (contiguous)                         |
+| Field | Bytes | Encoding |
+|-------|-------|----------|
+| Epoch index | 0 | Unsigned 8-bit value |
+| SKID upper half | 1-4 | SKID bits 63-32 XOR 0x80000000 |
+| SKID low byte 0 | 5 | SKID bits 31-24 |
+| Version marker | 6 | 0x8D |
+| Entity type | 7 | Unsigned 8-bit value |
+| Variant marker | 8 | 0x8D for plaintext SKEID |
+| Remaining SKID bytes | 9-11 | SKID bits 23-0 |
+| MAC | 12-15 | First four bytes of BLAKE3 keyed output |
 
-All fields are encoded in big-endian (network byte order) per RFC 9562.
-The epoch byte occupies byte 0 to ensure that higher epoch values sort
-lexicographically after lower epoch values, regardless of timestamp.
+The sign toggle maps signed SKID order to unsigned byte order. For a
+fixed entity type, lexicographic comparison of the specified bytes or
+consistently formatted UUID strings preserves epoch and SKID order.
+Runtime UUID comparison functions can use different ordering rules.
 
-The upper SKID half at bytes 1-4 is sign-toggled (XOR with 0x80000000)
-before encoding.  This converts the signed SKID sort order (negative
-before positive) to unsigned byte sort order, preserving chronological
-ordering in lexicographic comparisons across both epoch halves.
+The version marker satisfies the UUIDv8 version field. The default
+variant marker satisfies the RFC 9562 variant field. Secure generation
+can use values 0x8E through 0xBF at byte 8 before encryption, as described
+below. These values MUST NOT be accepted by the plaintext parser.
 
-The most significant byte of the lower SKID half occupies byte 5,
-immediately after the upper half.  This placement ensures that the
-timestamp least-significant bit and leading application topology bits
-participate in lexicographic comparison before the entity type at byte
-7.  The remaining lower SKID half is split around the variant marker at
-byte 8, with bytes 9-11 holding the last three bytes.
+## MAC and Generation
 
-Since the version marker, entity type, and variant marker are constant
-for all plain SKEIDs of a given type, lexicographic comparison of the
-split lower half operates correctly.
-
-## Marker Bytes
-
-The marker bytes at positions 6 and 8 serve dual purposes:
-
-1. **UUID V8 Compatibility**: `0x8D` at byte 6 satisfies the RFC 9562
-   Section 5.8 version octet requirement, and `0x8D` at byte 8
-   satisfies the RFC 9562 Section 4.1 variant octet requirement,
-   making the SKEID a valid RFC 9562 UUID V8 when formatted as a
-   string.
-
-2. **Detection Signal**: During parsing, `0x8D` at bytes 6 and 8 marks
-   a candidate plain SKEID.  The MAC must also verify.  Missing markers
-   or failed plain verification triggers the secure parse path.
-
-### Variant Byte Range
-
-The variant marker position (byte 8) uses the primary value 0x8D plus
-50 alternative values 0x8E through 0xBF for the Secure SKEID collision
-guard ("Encryption" below), giving 51 total attempts.  The primary
-variant byte is 0x8D; alternative variant bytes are used when the
-AES-256-ECB ciphertext would otherwise pass the exact plain markers and
-MAC verification.
-
-All values in the range 0x80-0xBF share the RFC 9562 variant bit
-pattern: the two high bits are `10` (binary).  On the post-decryption
-(secure) path, `(byte & 0xC0) == 0x80` is only a structural precheck.
-The generator emits 0x8D-0xBF.  The parser MUST reject 0x80-0x8C and
-MUST require backward collision-guard proof for values above 0x8D.
-The plain path MUST accept only the primary value 0x8D.
-
-If all 51 attempts (1 primary + 50 alternatives) are exhausted without
-resolving the collision, the implementation MUST throw an error rather
-than loop indefinitely.  Treating the idealized guard events as
-independent gives probability ~1/2^(48×51).
-
-| Byte | Value | Usage |
-|------|-------|-------|
-| Version marker (byte 6) | 0x8D | Plain SKEID and Secure SKEID plaintext |
-| Variant marker (byte 8) | 0x8D | Plain SKEID and primary Secure SKEID plaintext |
-| Variant marker (byte 8) | 0x8E-0xBF | Secure SKEID plaintext after guard escalation |
-
-AES encryption does not preserve these values in Secure SKEID
-ciphertext.
-
-Total attempt budget: 1 primary (0x8D) + 50 alternatives (0x8E-0xBF) = 51.
-
-## MAC Computation
-
-Integrity verification relies on BLAKE3 keyed MAC [BLAKE3].  The
-computation procedure clears the four MAC bytes (positions 12-15)
-to zero, then computes a 4-byte BLAKE3 keyed MAC over the full
-16-byte buffer.  The resulting 4 bytes are written into the contiguous
-MAC positions (bytes 12-15).
-
-The reference implementation uses BLAKE3.  Its small-payload
-BenchmarkDotNet measurements report keyed BLAKE3 at approximately 3.5
-times the speed of HMAC-SHA-256 for this workload.
+To construct a plaintext SKEID, initialize a 16-byte buffer, write the
+fields above, and compute its MAC with BLAKE3 keyed mode [BLAKE3]:
 
 ~~~pseudocode
-procedure ComputeMAC(guidBytes[0..15], macKey):
-  1. Clear MAC bytes:
-     guidBytes[12] ← 0x00
-     guidBytes[13] ← 0x00
-     guidBytes[14] ← 0x00
-     guidBytes[15] ← 0x00
-  2. hashBytes ← BLAKE3-Keyed-MAC(key=macKey, message=guidBytes[0..15], output_length=4)
-     -- BLAKE3 is an XOF (extendable output function); implementations
-     -- request exactly 4 bytes from the XOF output to produce the
-     -- truncated MAC.  There is no need to compute the full default
-     -- output and discard the excess.
-  3. Return hashBytes[0..3]
+ComputeMAC(bytes, macKey):
+  input = copy(bytes)
+  input[12..15] = 0
+  return BLAKE3_keyed(macKey, input, output_length=4)
 ~~~
 
-The epoch byte (byte 0) is NOT cleared before MAC computation.  It
-participates in the MAC input, adding tamper-resistance for the epoch
-field.
+Write the four output bytes, in output order, to bytes 12-15. The MAC
+covers the full 16-byte input with only its own slots zeroed, including
+the epoch, entity type, and marker bytes. Implementations MAY request
+four output bytes directly rather than computing a longer output.
+MAC comparisons MUST avoid data-dependent early exit.
 
-The 4-byte MAC is written contiguously:
+In the procedures below,
+`Encode(skid, epoch, entityType, variant, macKey)` constructs this layout
+and writes the MAC. Here, `epoch` is the epoch index and `variant` is
+the complete byte at offset 8, including the UUID variant bits.
+Ordinary plaintext generation MUST use 0x8D. Secure generation can use
+the additional values specified below to construct guard candidates.
 
-~~~pseudocode
-procedure WriteMACToGUID(guidBytes, hashBytes[0..3]):
-  guidBytes[12] ← hashBytes[0]
-  guidBytes[13] ← hashBytes[1]
-  guidBytes[14] ← hashBytes[2]
-  guidBytes[15] ← hashBytes[3]
-~~~
+## Plaintext Parsing
 
-Reading extracts from the same positions:
+Given 16 bytes and a MAC key:
 
-~~~pseudocode
-procedure ReadMACFromGUID(guidBytes) → hashBytes[0..3]:
-  hashBytes[0] ← guidBytes[12]
-  hashBytes[1] ← guidBytes[13]
-  hashBytes[2] ← guidBytes[14]
-  hashBytes[3] ← guidBytes[15]
-~~~
+1. Require a supported epoch at byte 0 and exact markers 0x8D at
+   bytes 6 and 8. Otherwise return INVALID.
+2. Compare bytes 12-15 with `ComputeMAC` for the input and key.
+   Return INVALID on mismatch.
+3. Recover the epoch and entity type. Read bytes 1-4 and reverse the
+   sign toggle. Combine that upper half with byte 5 and bytes 9-11
+   to recover the signed SKID.
+4. Return the recovered fields as a valid plaintext SKEID.
 
-MAC verification MUST compare the actual and expected tags without a
-data-dependent early exit.
+Successful parsing authenticates the embedded fields. Expected
+entity-type and app-ID checks follow the rules in {{parsing-policy}}
+for both plaintext and secure input.
 
-## SKEID CDDL Definition
+## CDDL Types
+
+The following Concise Data Definition Language (CDDL) rules [RFC8610]
+describe value sizes. The layouts and validation procedures above define
+the contents of the byte strings. These rules do not introduce an
+additional wire envelope.
 
 ~~~cddl
-; Source Known Entity ID - 128-bit (16-byte) value
+skid = -9223372036854775808..9223372036854775807
 skeid = bytes .size 16
-
-; Parsed SKEID (informative structure)
-skeid-parsed = {
-  epoch:            uint .size 1,     ; byte 0
-  skid-upper-half:  uint .size 4,     ; bytes 1-4 (sign-toggled)
-  skid-low-byte-0:  uint .size 1,     ; byte 5
-  marker-version:   0x8D,             ; byte 6
-  entity-type:      uint .size 1,     ; byte 7
-  marker-variant:   uint .size 1,     ; byte 8 (0x8D default; 0x8E-0xBF collision guard)
-  skid-low-bytes:   bytes .size 3,    ; bytes 9-11
-  mac:              bytes .size 4,    ; bytes 12-15 (contiguous)
-}
+secure-skeid = bytes .size 16
 ~~~
 
-## SKEID Generation Algorithm
+# Secure SKEID
 
-Given a 64-bit SKID `id`, `epoch`, `entityType`, and `macKey`:
+Secure SKEID encrypts the entire SKEID as one AES-256 block [FIPS197],
+with no initialization vector, nonce, or padding. Implementations MUST
+use a 32-byte AES key. The resulting 16 ciphertext bytes replace all
+plaintext fields.
+
+## Generation and Collision Guard
+
+Secure generation uses the default key pair. A candidate ciphertext
+can coincidentally pass plaintext parsing. The collision guard rejects
+such candidates under every enabled verification key:
 
 ~~~pseudocode
-procedure GenerateSKEID(id, epoch, entityType, macKey, variantByte=0x8D):
-  1. Allocate guidBytes[0..15], initialize to zero
-  2. Split id into upper and lower 32-bit halves.
-     Toggle the most significant bit of the upper half
-     (XOR with 0x80000000) for lexicographic order.
-  3. guidBytes[0] ← epoch             -- epoch selector
-  4. Write sign-toggled upper half to guidBytes[1..4] (big-endian)
-  5. Write the MSB of the SKID lower half to guidBytes[5]
-  6. guidBytes[6] ← 0x8D              -- version marker (RFC 9562 §5.8)
-  7. guidBytes[7] ← entityType        -- entity type
-  8. guidBytes[8] ← variantByte       -- variant marker
-  9. Write the remaining 3 bytes of the SKID lower half to
-     guidBytes[9..11] (big-endian)
-  10. hashBytes ← ComputeMAC(guidBytes, macKey)
-  11. WriteMACToGUID(guidBytes, hashBytes)
-  12. entityId ← construct UUID from guidBytes
-      (interpreting all fields in big-endian per RFC 9562)
-  13. Return entityId
+HasPlainCollision(candidate, enabledKeys):
+  if candidate[0] is not a supported epoch:
+    return false
+  if candidate[6] != 0x8D or candidate[8] != 0x8D:
+    return false
+  for key in enabledKeys:
+    if candidate[12..15] matches ComputeMAC(candidate, key.macKey):
+      return true
+  return false
+
+GenerateSecure(skid, epoch, entityType, defaultKey, enabledKeys):
+  for variant from 0x8D through 0xBF:
+    plain = Encode(skid, epoch, entityType, variant, defaultKey.macKey)
+    candidate = AES256_EncryptBlock(defaultKey.aesKey, plain)
+    if not HasPlainCollision(candidate, enabledKeys):
+      return candidate
+  return ERROR
 ~~~
 
-## SKEID Parsing Algorithm
+The generator MUST recompute the MAC and encrypt with the same key pair
+for each candidate. There are 51 attempts, including the default
+variant. Exhaustion MUST return an error without issuing an identifier.
 
-Given a UUID `entityId`, `macKey` (for MAC verification), `aesKey`
-(for decryption if the secure path is needed), and `enabledKeys` (all
-enabled verification keys, used for collision checks):
+Generation, plaintext parsing, and backward verification MUST use the
+same epoch-acceptance policy and plaintext-acceptance checks. The guard
+guarantee also depends on using the same enabled verification keys.
+Expected entity-type and app-ID filters MUST NOT narrow the collision
+predicate, since another caller can accept different identities.
 
-Note: When a key-ring is in use, this procedure is invoked by the
-key-ring fallback loop described in "Parse with Key-Ring Fallback"
-below.  Each iteration supplies a different (macKey, aesKey) pair but
-passes the same `enabledKeys` set.  For a single-key invocation, that
-set contains only the supplied key pair.  See
-"Parse with Key-Ring Fallback" for the multi-key wrapper.  The
-reference implementation [DRN-PROJECT] generates with the configured
-default key and accepts only that key unless
-`UseSourceKnownIdKeyFallback` is explicitly enabled (default `false`).
-With fallback enabled, parsing tries the default key first, followed by
-remaining keys in configured order.  Once a candidate authenticates,
-its key pair remains fixed for variant and backward-proof checks; a
-failed check rejects the identifier without further key fallback.
-The parser does not scan for additional authenticated interpretations;
-see "Key-ring ambiguity" under Limitations and Appendix B.
+## Secure Parsing
 
-Both parsing paths MUST apply the same supported-epoch policy as
-`HasPlainCollision` before MAC verification.  The plaintext path checks
-the input epoch byte; the secure path checks the decrypted epoch byte.
-An unsupported input epoch skips plaintext verification but MUST NOT
-prevent a secure parse attempt, because ciphertext bytes do not encode
-the plaintext epoch.
+Given 16 ciphertext bytes and one key pair:
+
+1. Decrypt the block with the AES key to obtain the plaintext buffer
+   `plain`.
+2. Require a supported epoch at byte 0, byte 6 equal to 0x8D, and
+   `(plain[8] & 0xC0) == 0x80`. Otherwise return INVALID.
+3. Verify the decrypted block's MAC with the pair's MAC key.
+   If verification fails, return INVALID.
+4. Keep this authenticated key pair fixed for all remaining checks.
+   Reject variant values 0x80 through 0x8C without further key fallback.
+5. For a variant greater than 0x8D, perform backward verification below.
+   A failed proof MUST return INVALID without further key fallback.
+6. Recover the SKID, epoch, and entity type using the plaintext layout
+   and return them as a valid Secure SKEID.
+
+The structural variant check in step 2 allows 0x80 through 0xBF.
+Authentication does not make values below 0x8D valid. The parser MUST
+distinguish authentication failure from a subsequent variant or proof
+failure when applying key-ring fallback.
+
+## Backward Verification
+
+A variant above the default value 0x8D is valid only if every preceding
+variant would have triggered the collision guard:
 
 ~~~pseudocode
-procedure ParseSKEID(entityId, macKey, aesKey, enabledKeys):
-  -- Return both the parsed result and whether a candidate authenticated.
-  -- An authenticated candidate may still fail variant/proof checks.
-  1. guidBytes ← entityId as 16-byte big-endian byte array
-     (network byte order, per RFC 9562)
-  2. If guidBytes[0] is a supported epoch AND
-        guidBytes[6] == 0x8D AND guidBytes[8] == 0x8D:
-       -- Supported epoch and primary markers present: try plain parse
-       result ← VerifyAndExtract(guidBytes, macKey, secure=false)
-       If result.valid:
-         Return {result, authenticated=true}
-       -- Markers were coincidental (~1/65536 for ciphertext)
-       guidBytes ← entityId as byte array (restore)
-  3. -- Try secure path ("Secure SKEID Specification" above)
-     DecryptGUIDBlock(guidBytes, aesKey)
-     If guidBytes[0] is a supported epoch AND
-        guidBytes[6] == 0x8D AND
-        (guidBytes[8] AND 0xC0) == 0x80:
-       -- RFC 9562 variant structural precheck (matches 0x80-0xBF)
-       result ← VerifyAndExtract(guidBytes, macKey, secure=true)
-       If NOT result.valid:
-         Return {result=INVALID, authenticated=false}
-       recoveredVariant ← guidBytes[8]
-       If recoveredVariant > 0x8D AND recoveredVariant <= 0xBF:
-         -- Non-default variant: backward collision-guard verification
-         If NOT VerifyCollisionGuardProof(guidBytes, macKey, aesKey,
-                                          recoveredVariant, enabledKeys):
-           Return {result=INVALID, authenticated=true}
-       Else If recoveredVariant != 0x8D:
-         Return {result=INVALID, authenticated=true}
-       Return {result, authenticated=true}
-     Else:
-       Return {result=INVALID, authenticated=false}
+VerifyPredecessors(skid, epoch, entityType, variant,
+                   authenticatedKey, enabledKeys):
+  for previous from variant - 1 down through 0x8D:
+    plain = Encode(skid, epoch, entityType, previous,
+                   authenticatedKey.macKey)
+    candidate = AES256_EncryptBlock(authenticatedKey.aesKey, plain)
+    if not HasPlainCollision(candidate, enabledKeys):
+      return false
+  return true
 ~~~
 
-~~~pseudocode
-procedure VerifyAndExtract(guidBytes, macKey, secure):
-  1. actualMAC ← ReadMACFromGUID(guidBytes)
-  2. epochByte ← guidBytes[0]
-  3. upperHalf ← read uint32 from guidBytes[1..4] (big-endian)
-     -- Reverse the sign toggle (XOR with 0x80000000)
-  4. skidLowByte0 ← guidBytes[5]
-  5. entityType ← guidBytes[7]
-  6. skidLowBytes ← guidBytes[9..11]
-  7. Reconstruct the SKID lower half from skidLowByte0 and
-     skidLowBytes (big-endian)
-  8. id ← reconstruct 64-bit SKID from (upperHalf, lowerHalf)
-  9. ClearMACSlots(guidBytes)  -- clear bytes 12-15
-  10. expectedMAC ← ComputeMAC(guidBytes, macKey)
-  11. If actualMAC == expectedMAC:
-       epochStart ← ResolveEpochStart(epochByte)
-       sourceKnownId ← ParseSKID(id, epochStart)
-       Return {sourceKnownId, entityId, entityType, epoch: epochByte, valid=true, secure}
-     Else:
-       Return INVALID
-~~~
-
-
-# Secure SKEID Specification
-
-## Encryption
-
-A Secure SKEID is produced by encrypting the entire 16-byte SKEID
-plaintext using AES-256-ECB [FIPS197]:
-
-The generation pair (`macKey`, `aesKey`) is the current default key.
-`enabledKeys` contains that key and, only when fallback is enabled, all
-configured fallback keys, as in "Parse with Key-Ring Fallback".  Every
-candidate uses the generation pair for its MAC and encryption;
-collision checks use `enabledKeys`.
-
-~~~pseudocode
-procedure GenerateSecureSKEID(id, epoch, entityType, macKey, aesKey, enabledKeys):
-  1. variantByte ← 0x8D              -- primary variant
-  2. guidBytes ← GenerateSKEID(id, epoch, entityType, macKey,
-                               variantByte=variantByte)
-     -- produces the same plaintext layout as non-secure
-  3. EncryptGUIDBlock(guidBytes, aesKey)
-  4. -- Collision guard: detect plaintext acceptance under any enabled key
-     If HasPlainCollision(guidBytes, enabledKeys):
-       -- Iterate through variant space for deterministic termination
-       For variantByte ← 0x8E to 0xBF:
-         guidBytes ← GenerateSKEID(id, epoch, entityType, macKey,
-                                     variantByte=variantByte)
-         EncryptGUIDBlock(guidBytes, aesKey)
-         If NOT HasPlainCollision(guidBytes, enabledKeys):
-           Break    -- collision resolved
-       If variantByte > 0xBF:
-         Throw JackpotException
-         -- All 51 variants exhausted
-  5. entityId ← construct UUID from guidBytes
-  6. Return entityId
-~~~
-
-Generation and backward verification MUST use the same plaintext
-collision predicate.  It checks the supported epoch and exact plain
-markers, then accepts a MAC match under any enabled verification key:
-
-~~~pseudocode
-procedure HasPlainCollision(ciphertextBytes, enabledKeys):
-  1. If ciphertextBytes[0] is not a supported epoch: Return FALSE
-  2. If ciphertextBytes[6] != 0x8D OR ciphertextBytes[8] != 0x8D:
-       Return FALSE
-  3. For key in enabledKeys:
-       If HasCoincidentalMACMatch(ciphertextBytes, key.macKey):
-         Return TRUE
-  4. Return FALSE
-~~~
-
-The `HasCoincidentalMACMatch` procedure treats the ciphertext as if it
-were a plaintext SKEID, extracts the MAC bytes from contiguous
-positions 12-15, clears those positions, recomputes the MAC, and
-compares:
-
-~~~pseudocode
-procedure HasCoincidentalMACMatch(ciphertextBytes, macKey):
-  1. workingCopy ← copy of ciphertextBytes[0..15]
-  2. actualMAC ← ReadMACFromGUID(workingCopy)
-  3. ClearMACSlots(workingCopy)  -- clear bytes 12-15
-  4. expectedMAC ← ComputeMAC(workingCopy, macKey)
-  5. Return actualMAC == expectedMAC
-~~~
-
-~~~pseudocode
-procedure EncryptGUIDBlock(guidBytes[0..15], aesKey):
-  1. ciphertext ← AES-256-ECB-Encrypt(key=aesKey, plaintext=guidBytes)
-     -- single 128-bit block, no padding
-  2. Copy ciphertext → guidBytes[0..15]
-~~~
-
-## Decryption
-
-~~~pseudocode
-procedure DecryptGUIDBlock(guidBytes[0..15], aesKey):
-  1. plaintext ← AES-256-ECB-Decrypt(key=aesKey, ciphertext=guidBytes)
-     -- single 128-bit block, no padding
-  2. Copy plaintext → guidBytes[0..15]
-~~~
-
-## AES-ECB Justification
-
-AES in ECB mode has a well-known weakness: when encrypting multiple
-blocks with the same key, identical plaintext blocks produce identical
-ciphertext blocks, leaking structural patterns.
-
-The within-message, multi-block pattern weakness does not apply to
-SKEIDs, but equality across repeated observations remains visible:
-
-1. **Single block**: Each SKEID encryption operates on exactly one
-   128-bit block.  There are no multi-block patterns to leak.
-
-2. **Mathematical equivalence**: For a single block, ECB is
-   mathematically identical to CBC with a zero initialization vector:
-   `C = AES(Key, P ⊕ 0) = AES(Key, P)`.
-
-3. **PRP property**: Under the standard PRP assumption [NISTIR8319],
-   AES-256 on a single 128-bit block functions as a pseudo-random
-   permutation.  Every distinct plaintext maps to a distinct
-   ciphertext.  By the PRP/PRF switching lemma [BELLARE1998], a
-   single-block PRP encryption is indistinguishable from a random
-   function up to approximately 2^64 queries (the 2^(n/2)
-   distinguishing bound for an n=128-bit block cipher), which is
-   beyond any practical identifier generation volume.  No nonce is
-   required, and there is no nonce-reuse vulnerability.
-
-4. **No IV overhead**: ECB avoids the allocation and XOR overhead of
-   a CBC initialization vector that would provide no additional security
-   for single-block operations.
-
-5. **Post-quantum readiness**: Quantum attacks on AES via Grover's
-   algorithm reduce the effective security of AES-256 to 128 bits
-   [BONNETAIN2019].
-
-This construction is deterministic.  Repeating the same SKEID under
-the same AES key produces the same Secure SKEID.  Encryption hides the
-embedded fields but does not provide unlinkability: an observer can
-correlate repeated use of the same identifier.  Applications that
-require unlinkable public handles need a randomized token scheme.
-
-Implementations MUST use AES-256 (256-bit key) for the encryption key.
-
-## Key Separation
-
-A SKEID system MUST use two cryptographically independent keys derived
-from each key-ring entry:
-
-| Key | Algorithm | Purpose |
-|-----|-----------|---------|
-| MAC Key | BLAKE3 keyed MAC | Integrity verification |
-| AES Key | AES-256-ECB | Confidentiality (encryption) |
-
-The two keys MUST NOT be the same value.  Implementations MAY provision
-the MAC key and AES key as independent secrets, or derive both keys from
-a single master secret using a standard Key Derivation Function (such as
-HKDF per RFC 5869).  Key management and derivation mechanisms are
-implementation-specific operational policies outside the scope of this
-protocol specification.
-
-## Collision Guard Guarantee
-
-Without the collision guard, the ideal-cipher and MAC assumptions give
-a combined ~1/2^48 probability per verification key that ciphertext
-coincidentally matches the plaintext marker bytes and produces a valid
-MAC, before restricting accepted epochs.  With only epoch 0 accepted,
-this becomes approximately 1/2^56 per key.  Multiple enabled keys increase
-the per-candidate collision probability.  Such a collision would
-misclassify the Secure SKEID.
-
-The collision guard in GenerateSecureSKEID ("Encryption" above)
-eliminates this misclassification for the verification keys enabled
-during generation.  When HasPlainCollision detects a collision,
-the plaintext is regenerated with successive variant bytes from
-0x8E through 0xBF (50 alternatives).
-AES maps each distinct plaintext to a distinct ciphertext; under the
-ideal-PRP assumption, those ciphertexts are pseudorandom-looking.  The
-loop terminates after at most 51 attempts, either with an identifier or
-an error.  For one verification key accepting all epochs, treating
-attempts as independent gives an approximate exhaustion probability of
-1/2^(48×51); the estimate depends on the enabled key set and accepted epochs.
-
-The security model is described in "Security Considerations" below.
-
-### Backward Verification Algorithm
-
-During parsing, the recovered plaintext MUST pass its own MAC
-verification before variant or backward-proof checks.  The authenticated
-key pair MUST remain fixed throughout those checks.  When a non-default
-variant byte V is recovered (0x8D < V <= 0xBF), the parse algorithm MUST
-verify that every preceding variant from V-1 down to 0x8D, inclusive, triggered
-the collision guard.  Reconstruction uses the authenticated key pair;
-plaintext collision checks use `enabledKeys`:
-
-~~~pseudocode
-procedure VerifyCollisionGuardProof(decryptedBytes, macKey, aesKey,
-                                    recoveredVariant, enabledKeys):
-  1. Extract id, entityType from decryptedBytes
-  2. epochByte ← decryptedBytes[0]
-  3. For previousVariant from recoveredVariant - 1 down to 0x8D:
-       reconstructedPlaintext ← GenerateSKEID(id, epochByte, entityType, macKey,
-                                              variantByte=previousVariant)
-       candidateCiphertext ← copy of reconstructedPlaintext
-       EncryptGUIDBlock(candidateCiphertext, aesKey)
-       If NOT HasPlainCollision(candidateCiphertext, enabledKeys):
-         Return FALSE
-  4. Return TRUE
-~~~
-
-Each reconstruction MUST use the same collision predicate as generation,
-including any supported-epoch restriction on plaintext acceptance.  The
-reference implementation currently accepts only epoch 0.
-
-For example, if the base candidate encrypted under key A collides only
-with enabled fallback key B, generation advances to 0x8E.  Parsing that
-candidate reconstructs with A but MUST check both A and B to verify the
-base collision.  Checking only A would incorrectly reject the proof.
-
-The complete chain establishes that no preceding candidate would have
-stopped generation.  A collision at V-1 alone does not establish a
-collision at V-2, and parsing MUST NOT assume that generation verified
-earlier candidates.  For V = 0x8F, both 0x8E and 0x8D MUST collide.
-Verification requires at most 50 preceding-candidate checks and MUST
-stop at the first missing collision.  A failed proof MUST reject the
-identifier without trying another key; it is not a MAC-authentication
-failure that permits fallback.
-
-For every verification key enabled during generation, no returned Secure
-SKEID can pass the plain parse path as valid; generation fails if every
-guard variant collides.  Keys added later were not part of this check.
-Implementations SHOULD retain keys used during generation for the
-lifetime of identifiers produced under them; removing a key can
-invalidate non-default variants whose collision proof depended on it.
-See "Key-ring ambiguity" under Limitations.
-
-### Numeric Walkthrough
-
-The following example illustrates the collision guard and backward
-verification with concrete values.
-
-**Setup:** Consider a SKID with value `0x8BEB_C200_1204_0005`
-(timestamp = 400,000,000 ticks from epoch, equivalent to 100,000,000
-seconds at 250ms precision, App ID = 18, App Instance ID = 1,
-Sequence = 5), entity type `0x0A` (entity type 10), epoch `0x00`, and
-key pair (K_mac, K_aes).
-
-**Step 1 — SKEID Construction:** The 16-byte SKEID buffer is
-constructed in big-endian order.  Byte 0 receives the epoch (`0x00`),
-and bytes 1-4 receive the sign-toggled SKID upper half (`0x8BEBC200`
-XOR `0x80000000` = `0x0BEBC200`).  Byte 5 receives the most
-significant byte of the SKID lower half.
-
-Byte 6 receives the version marker (`0x8D`), byte 7 receives the entity
-type (`0x0A`), and byte 8 receives the default variant marker (`0x8D`).
-Bytes 9-11 receive the remaining SKID lower half bytes.  The BLAKE3
-keyed MAC is computed and placed at bytes 12-15.
-
-**Step 2 — Encryption and Collision Check:** The 16-byte plaintext is
-encrypted with AES-256-ECB using K_aes, producing ciphertext C1.  The
-generator checks whether C1 coincidentally has `0x8D` at byte
-position 6 and `0x8D` at byte position 8.  In approximately 65,535
-of every 65,536 cases, the ciphertext does not match, and C1 is the
-final Secure SKEID.
-
-**Step 3 — Collision Scenario:** Suppose C1 happens to exhibit `0x8D`
-at position 6 and `0x8D` at position 8, and furthermore the bytes at
-positions 12-15 coincidentally form a valid BLAKE3 MAC over the
-non-MAC bytes of C1 when interpreted as a plaintext SKEID.  This
-combined event has probability approximately 1/2^48.
-
-The generator changes the plaintext variant from 0x8D to 0x8E,
-recomputes the MAC, and encrypts the result with the same K_aes to
-produce C2.  Under the ideal-PRP model, C2 is a distinct,
-pseudorandom-looking block.  Treating the guard events as independent,
-the probability that C2 also collides is approximately 1/2^48.  In the
-usual case, C2 becomes the final Secure SKEID.
-
-**Step 4 — Backward Verification at Parse Time:** When a consumer
-parses C2 by decrypting with K_aes, it first authenticates the recovered
-plaintext with K_mac.  Only after authentication succeeds does it check
-variant byte 0x8E (greater than 0x8D) and verify that the escalation was
-legitimate, keeping that key pair fixed:
-
-~~~pseudocode
-1. Reconstruct the SKEID with variant 0x8D (replacing 0x8E and
-   recomputing the MAC).
-2. Encrypt that reconstruction with K_aes to obtain C1.
-3. Check that C1 exhibits the marker-plus-MAC coincidence,
-   confirming the collision that justified the escalation.
-4. For recovered variant 0x8E, 0x8D is the only preceding candidate,
-   so this check covers the complete chain.  Higher recovered variants
-   require checking every preceding candidate down to 0x8D.
-~~~
-
-If the backward check fails (the reconstructed C1 does not exhibit the
-coincidence), the parser MUST reject the identifier as invalid without
-further key fallback.  This rejects a non-default variant without a
-complete preceding collision chain.
-
-`PaperNumericWalkthroughTests` covers the SKID hex value, structural
-byte layout, ordering, and round trips in this walkthrough.  Appendix A
-MAC and ciphertext vectors are covered separately by
-`IetfDraftTestVectorTests` [DRN-PROJECT].
-
-## Secure ↔ Plain Conversion
-
-Given a valid (parsed) SKEID, implementations MAY convert between
-secure and plain representations.  `macKey` and `aesKey` are the current
-default key pair.  Secure conversion uses the same `enabledKeys` set
-and epoch-acceptance policy as secure generation:
-
-~~~pseudocode
-procedure ToSecure(skeid, enabledKeys):
-  If skeid.secure: Return skeid (already encrypted)
-  Return GenerateSecureSKEID(skeid.sourceKnownId.value, skeid.epoch, skeid.entityType,
-                              macKey, aesKey, enabledKeys)
-
-procedure ToPlain(skeid):
-  If NOT skeid.secure: Return skeid (already plaintext)
-  Return GenerateSKEID(skeid.sourceKnownId.value, skeid.epoch, skeid.entityType, macKey)
-~~~
-
-The underlying SKID is unchanged; only the 128-bit GUID
-representation changes.  ToSecure and ToPlain MUST validate the
-input SKEID before conversion.
-
-
-# Key Rotation and Key-Ring Fallback
-
-## Key-Ring Model
-
-Implementations MUST support a key-ring containing one or more key
-entries.  Exactly one key MUST be designated as the "default" (active)
-key at any time.  Applications MAY retain previous keys for routine
-rotation, but verification with non-default keys requires explicit
-opt-in.  The reference implementation uses
-`UseSourceKnownIdKeyFallback`, which defaults to `false`.
-
-Parse cost is linear in the number of attempted keys.  Implementations
-MUST set an operational limit on fallback entries and apply the failure
-budget in "Rate Limiting" across all attempted keys.
-
-Each key-ring entry produces two independent keys ("Key Separation"
-above): a MAC key for BLAKE3 and an AES key for encryption.
-
-## Generation
-
-All new SKEID and Secure SKEID generation MUST use the current default
-key for MAC computation and encryption.  Secure generation MUST pass
-`enabledKeys` to GenerateSecureSKEID for collision checks.
-
-## Parse with Key-Ring Fallback
-
-When parsing an SKEID, implementations MUST try the current default key
-first.  If fallback is enabled, remaining configured keys are tried in
-configured order only until a candidate authenticates.  Authentication
-fixes the key pair for variant and backward-proof checks: their failure
-MUST return INVALID without trying another key.  A successful result is
-returned immediately; this procedure does not detect multiple valid
-interpretations.  Operators SHOULD configure fallbacks newest first for
-consistent diagnostics:
-
-~~~pseudocode
-procedure ParseWithKeyRing(entityId, keyRing, useKeyFallback=false):
-  enabledKeys ← [keyRing.current]
-  If useKeyFallback:
-    Append keyRing.previousConfiguredOrder to enabledKeys
-  For key in enabledKeys:
-    attempt ← ParseSKEID(entityId, key.macKey, key.aesKey, enabledKeys)
-    If attempt.authenticated:
-      Return attempt.result  -- may be INVALID after variant/proof checks
-  Return INVALID  -- no candidate authenticated
-~~~
-
-## Rotation Window
-
-During a rotation window, implementations MUST generate with the new
-default key and explicitly enable verification with the retained previous
-key until the defined window closes.  In the reference implementation,
-set `UseSourceKnownIdKeyFallback=true` and recreate the ID utilities
-(normally by restarting the application) to apply key changes.
-Hot configuration reload and in-flight request handling are
-implementation-specific.
-
-Key rotation does not require re-encrypting existing database records
-because:
-
-1. **Source Known IDs are key-independent**: The 64-bit SKID stored in
-   the database contains no cryptographic material.  It is generated
-   purely from timestamp, topology, and sequence.
-
-2. **SKEID regeneration is deterministic**: Given the SKID, epoch,
-   entity type, and new key, a new SKEID or Secure SKEID can be
-   generated at any time.
-
-3. **Fallback parsing**: After rotation, new identifiers use the new
-   key.  Existing identifiers remain parseable while their previous key
-   remains enabled for verification and their format remains accepted.
-   Re-issuing an identifier changes its external value and can affect
-   links, caches, and clients.
-
-## Key Compromise Recovery
-
-In the event of a key compromise:
-
-1. Remove the compromised key from normal verification.  Deployments
-   that must parse legacy identifiers MAY instead retain it in a
-   separate entry labeled "compromised".  The choice depends on usage.
-   Retained keys MUST be isolated, and matches MUST NOT be treated as
-   proof of authenticity.
-2. Set a new key as the default and apply a new failure budget.
-3. Re-issue SKEIDs from trusted underlying SKIDs when clients need values
-   protected by the new key.  A deployment that persists derived
-   SKEIDs must update those copies separately.
-
-Because the 64-bit SKID is key-independent, no primary key data is at
-risk.  Only the 128-bit SKEID/Secure SKEID representations, which are
-derived values, need re-generation.
-
-
-# Context-Based Identity and Transformations
-
-## Three-Tier Model
+Reconstruction MUST use the authenticated key pair. Collision checks
+MUST use all enabled verification keys. For example, accepting variant
+0x8F requires collisions at both 0x8E and 0x8D. A collision at only the
+immediate predecessor is insufficient. Verification stops at the first
+missing collision and requires at most 50 predecessor checks.
+
+# Parsing Policy and Tier Conversion {#parsing-policy}
+
+SKEID and Secure SKEID parsing requires exactly 16 bytes after decoding
+any textual representation. Other lengths MUST be rejected. The caller
+selects the input policy before parsing:
+
+- **Plain:** apply only plaintext parsing.
+- **Secure:** apply only decryption and secure parsing.
+- **Auto:** for each attempted key pair, try plaintext parsing first,
+  then secure parsing if the plaintext epoch, markers, or MAC fail.
+
+For Auto, an unsupported epoch in the input MUST NOT prevent a secure
+attempt. Ciphertext byte 0 does not identify the encrypted epoch.
+Endpoints exposed to untrusted networks MUST require Secure input.
+Auto is suitable only where both representations are intentionally
+accepted within a trusted boundary.
+
+Use Secure SKEIDs in public responses, URLs, and cursors as well.
+Exposing the raw SKID or plaintext SKEID alongside an encrypted value
+reveals the metadata that encryption is intended to conceal.
+
+With a key ring, try the default key first. If fallback is explicitly
+enabled, try the remaining enabled keys in configured order. Apply the
+selected input policy under each key before moving to the next key.
+Proceed to the next key only if that policy fails without authenticating
+a candidate. Once a candidate authenticates, variant or backward-proof
+failure MUST reject the input without trying another key. Return the
+first successful result, or INVALID if no key succeeds. This procedure
+does not detect multiple authenticated interpretations.
+
+After successful parsing under any input policy, a caller handling a
+specific entity type or application partition MUST check the applicable
+expected entity type and app ID against the authenticated fields.
+A mismatch MUST reject the identifier without retrying other keys or
+input policies. These checks precede use of the recovered identity and
+remain separate from record existence and authorization checks.
+
+Conversion MUST start from a validated identifier:
+
+- **ToSecure:** return an already secure value unchanged. Otherwise,
+  generate a Secure SKEID from its SKID, epoch, and entity type using
+  the default key and current collision policy.
+- **ToPlain:** return an already plain value unchanged. Otherwise,
+  reconstruct the plaintext SKEID with variant 0x8D and recompute its
+  MAC with the default MAC key. Do not expose a decrypted non-default
+  variant as the plaintext representation.
+
+Conversions preserve the underlying identity. Regeneration is
+deterministic for the same identity fields, generation key pair,
+enabled-key set, and supported-epoch policy. Changing these inputs can
+change the 128-bit representation. A conversion that returns an input
+unchanged does not migrate it to the current default key.
+
+# Deployment Considerations
+
+## Epochs and Entity Types {#epoch-definitions}
+
+The default base epoch is 2025-01-01T00:00:00Z. Implementations SHOULD
+allow a different UTC origin to be configured before first use.
+An epoch index from 0 through 255 selects a window as follows:
 
 ~~~text
-+-------------------+    +-------------------+    +-------------------+
-| Database Tier     |    | Trusted Env Tier  |    | External Tier     |
-|                   |    |                   |    |                   |
-|  SKID (64-bit)    |<-->|  SKEID (128-bit)  |<-->| Secure SKEID      |
-|  long / BIGINT    |    |  UUID / GUID      |    |  (128-bit)        |
-|                   |    |                   |    |  Encrypted UUID   |
-+-------------------+    +-------------------+    +-------------------+
-
-    Primary Key             Internal ID             Public-Facing ID
-    Natural ordering        Type + MAC integrity    AES-256 encrypted
-    8 bytes                 16 bytes                16 bytes
+epochStart = baseEpoch + epochIndex * 2^31 seconds
 ~~~
 
-## Transformation Rules
-
-| Transformation | Operation |
-|----------------|-----------|
-| SKID → SKEID | `GenerateSKEID(skid, epoch, entityType, macKey)` |
-| SKID → Secure SKEID | `GenerateSecureSKEID(skid, epoch, entityType, macKey, aesKey, enabledKeys)` |
-| SKEID → SKID | `ParseSKEID(skeid).source.id` |
-| SKEID → Secure SKEID | `ToSecure(parsedSKEID, enabledKeys)` |
-| Secure SKEID → SKID | `ParseSKEID(secureSkeid).source.id` |
-| Secure SKEID → SKEID | `ToPlain(parsedSecureSKEID)` |
-
-All transformations are deterministic given the same epoch, entity
-type, generation key pair, enabled verification keys, and epoch-acceptance
-policy.  A valid SKEID yields its SKID when parsed with the matching context.
-
-## Context Security Configuration
-
-Implementations MAY support per-context security configuration:
-
-- **External-facing endpoints**: SHOULD use Secure SKEID to
-  prevent metadata disclosure.  They MUST still authorize access to
-  the referenced resource.
-- **Trusted environment communication**: MAY use plain SKEID for
-  reduced computational overhead when the network is trusted.
-- **Database storage**: MUST store the 64-bit SKID as the primary key
-  to obtain the specified compact, time-ordered storage profile.
-
-A global configuration flag (e.g., `UseSecureSourceKnownIds`) MAY
-control the default behavior of the `Generate` operation, while
-explicit `GenerateSecure` and `GeneratePlain` methods bypass this
-flag.
-
-
-# Type Safety and Validation
-
-## Entity Type Verification
-
-The entity type byte (byte 7 in the SKEID) enables type-safe
-operations:
-
-- **Generation**: The entity type is determined at generation time from
-  the entity class metadata (e.g., attribute, annotation, or registry).
-
-- **Validation**: A caller operating on a specific entity type MUST
-  compare the parsed value with that expected type.  A mismatch
-  indicates an incorrect identifier or cross-type use.
-
-- **Fail-Fast**: Implementations SHOULD throw a validation exception
-  immediately when an entity-type mismatch is detected.  Client-facing
-  errors SHOULD remain generic; implementations MAY log expected and
-  actual types in protected diagnostics.
-
-## Entity Type Registry
-
-Each deployment MUST maintain a mapping between entity types (byte
-values 0-255) and their corresponding entity classes.  The validity
-flag returned by parsing, not an entity-type byte, indicates an invalid
-or unrecognized identifier.
-
-Entity type assignments MUST be stable within a deployment.  Changing
-an entity type byte for an existing entity class would invalidate all
-previously generated SKEIDs for that entity.
-
-
-# Epoch and Extensibility
-
-## Epoch Structure
-
-The 32-bit timestamp field stores 250-millisecond ticks, giving 2^32
-ticks per epoch half (equivalent to 2^30 seconds).  Each epoch half
-covers approximately 34 years.  The sign bit doubles this to
-approximately 68 years per epoch while preserving monotonic sort order:
-
-- **First half** (~34 years): Sign bit = 1 (negative `long` values,
-  epoch-relative ticks 0 to 2^32 - 1).
-- **Second half** (~34 years): Sign bit = 0 (positive `long` values,
-  epoch-relative ticks 0 to 2^32 - 1).
-
-For plain SKEIDs within one entity type, the sign-bit toggle ensures
-that lexicographic UUID-string comparison matches signed SKID ordering.
-The transition between halves remains monotonic because negative SKIDs
-sort before positive SKIDs.  Secure SKEIDs do not preserve this order.
-
-## Epoch Byte
-
-Byte 0 in the SKEID carries an 8-bit epoch index for protocol-level
-epoch extension.  In a full multi-epoch implementation, each value
-selects a 2^31-second window starting from 2025-01-01.  Because the
-epoch index is the first SKEID byte, epoch ordering precedes timestamp
-ordering in lexicographic comparisons.  The value identifies which
-epoch the SKID timestamp is relative to:
-
-This section specifies the multi-epoch wire format.  The current DRN
-reference implementation emits epoch `0x00` and does not resolve
-nonzero epoch bytes during parsing.
-
-~~~text
-epochStart = baseEpoch + (epochByte × 2^31 seconds)
-~~~
-
-| Value | Epoch Start | Epoch End (approx.) |
-|-------|-------------|---------------------|
-| 0x00  | January 1, 2025    | January 19, 2093  |
-| 0x01  | January 19, 2093   | February 7, 2161  |
-| ...   | ...                | ...               |
-| 0xFF  | ~19378             | ~19446            |
-
-With 256 possible epoch values, a full multi-epoch implementation spans
-approximately 17,421 years of total coverage.  The 0xFF values above
-are year-level proleptic approximations because common runtime date
-types do not represent years in the 19000 range.  The exact invariant
-is 256 * 2^31 seconds of addressable epoch windows.
-
-## Epoch Configuration
-
-Implementations SHOULD allow the epoch to be configured at startup.
-The epoch value MUST be consistent across all nodes in a deployment.
-Implementations MUST validate that the system clock is ahead of the
-configured epoch's start time.
-
-## Epoch Integrity Requirement
-
-Parsers MUST include the epoch byte in MAC computation to prevent
-epoch-byte tampering.  This document does not specify compatibility
-with any historical pre-epoch encoding.
-
-## Future Considerations
-
-1. **Epoch transition**: The mechanism for transitioning from epoch
-   0x00 to epoch 0x01 is not specified.  Given that epoch 0x00 spans
-   until approximately 2093 CE, this is left as future work.  See
-   Appendix B for the current reference implementation status.
-
-2. **Managed key lifecycle and rollover interoperability**: The reference
-   implementation supports opt-in, default-first parse fallback through
-   remaining configured keys via `UseSourceKnownIdKeyFallback` (default
-   `false`).  Authentication fixes the key pair; failed variant or
-   backward-proof checks reject the identifier without further fallback.
-   Operational rotation policy, key retention windows, key labels,
-   compromise metadata, automated
-   grace-window management, and cross-implementation rollover guidance remain
-   future work.
-
-3. **Domain-tailored bit layouts**: Custom SKID profiles with
-   different field widths (e.g., nanosecond or picosecond timestamp
-   precision, single-year epoch windows for mission-scoped campaigns)
-   would enable workflows with different trade-off requirements.
-   Configurable custom profiles are not standardized in this document
-   but are under consideration.
-
-4. **IETF standardization**: This document is authored in Internet-
-   Draft format for independent review.  Formal submission to the
-   IETF would enable interoperability testing and community review.
-
-5. **Formal compositional security proof**: A formal cryptographic
-   reduction proving that the composition of single-block AES-PRP
-   encryption, BLAKE3 MAC, and the collision guard mechanism achieves
-   the intended security goals under standard assumptions would
-   strengthen the security analysis beyond the STRIDE-based threat
-   modeling and quantitative probability analysis provided here.
-
-6. **Cross-platform benchmarks**: The current benchmarks were
-   conducted on ARM64 (Apple M2) with .NET 10.  Benchmarks on x86-64
-   architectures and other language runtimes would validate
-   portability of the performance characteristics.
-
-7. **Multi-language implementations**: The SKID design is language-
-   agnostic.  Implementations in JavaScript, Java, Go, Rust, Python
-   and other languages would expand the ecosystem and validate the
-   specification's portability.
-
-
-# Support Operations and Observability
-
-## Zero-Lookup Diagnostics
-
-Any SKID or SKEID can be decomposed to reveal operational information
-without accessing a database:
-
-| Field | Information | Example Use |
-|-------|-------------|-------------|
-| Timestamp | Creation time (250ms precision) | "When was this resource created?" |
-| App ID | Claimed source application | "Which application ID is embedded?" |
-| App Instance ID | Claimed source instance | "Which instance ID is embedded?" |
-| Sequence ID | Generation order within that tick | Volume analysis |
-| Entity Type | Type of entity | "Is this a User, Order, or Product?" |
-| Secure flag | Whether AES encryption was applied | Security posture check |
-
-## Support Workflow
-
-A support engineer receiving a GUID from an end-user can:
-
-1. Parse the GUID as an SKEID with explicit `Auto` format to detect secure
-   vs plain.
-2. Extract creation time → "Embedded time: 2026-03-07 14:30:00 UTC."
-3. Extract app ID → "Claimed app ID 5 maps to order-service."
-4. Extract entity type → "Embedded type 12 maps to Order."
-5. All without any database query or service call.
-
-For Secure SKEIDs, parsing requires the appropriate AES key. Access to
-the key-ring permits field extraction; interpreting application and
-entity-type values also requires the deployment registries.  Successful
-parsing does not establish producer attribution, record existence, or
-access authorization.
-
-
-# Performance and Storage Analysis
-
-## Storage Impact
-
-SKID and SKEID serve different storage roles.  The 64-bit SKID is the
-database primary key.  SKEID and Secure SKEID are 128-bit UUID-form
-representations derived at application boundaries.  A scheme-by-scheme
-comparison of size, ordering, integrity, confidentiality, and UUID
-compatibility appears in "Comparison with Existing Schemes" below.
-
-## Index Optimization
-
-Compared with 128-bit UUIDs, 64-bit SKIDs have three relevant storage
-and query properties:
-
-- **Smaller keys**: 8 bytes vs 16 bytes can increase key density per
-  page and improve cache use.
-- **Time locality**: Timestamp-leading layout clusters inserts by
-  250-millisecond bucket.  Concurrent generators can interleave within
-  a bucket, so the layout does not guarantee right-edge insertion for
-  every record.
-- **Cursor-based pagination**: The SKID's ordered nature enables
-  efficient `WHERE id > :lastId ORDER BY id LIMIT :pageSize` queries
-  without offset-based pagination overhead.
-
-The companion paper does not report a comparative database-index
-benchmark; page-split and cache effects depend on the database and
-workload.
-
-## Throughput and Conversion Evidence
-
-The 18-bit sequence field caps generation at 262,144 identifiers per
-250ms tick (1,048,576 per second) per instance.  With 128 applications
-and 64 instances per application (8,192 total generators), the
-theoretical maximum system-wide throughput is approximately 8.6 billion
-identifiers per second if every generator sustains its cap.  This is an
-arithmetic ceiling, not measured deployment throughput.  Appendix B
-reports operation timings and saturation backpressure; integration
-tests separately cover generated-ID distinctness.
-
-
-# Comparison with Existing Schemes
-
-## Feature Matrix
-
-| Feature | SKID System | UUID V4 | UUID V7 | Snowflake | ULID | CUID2 | KSUID | DB Seq |
-|---------|-------------|---------|---------|-----------|------|-------|-------|--------|
-| **Uniqueness** | Per-entity-type, per-deployment | Deployment-independent; probabilistic | Deployment-independent; probabilistic | Per-datacenter | Deployment-independent; probabilistic | Deployment-independent; probabilistic | Deployment-independent; probabilistic | Per-table |
-| **Ordering** | Yes (timestamp) | No | Yes (timestamp) | Yes (timestamp) | Yes (timestamp) | No | Yes (timestamp) | Yes |
-| **Embedded timestamp** | Yes (250ms) | No | Yes (millisecond) | Yes (millisecond) | Yes (millisecond) | No (hashed) | Yes (second) | No |
-| **Multi-century addr.** | Yes | N/A | Yes | No | Yes | N/A | Partial | N/A |
-| **Entity type** | Yes (8-bit) | No | No | No | No | No | No | No |
-| **Integrity check** | Yes (BLAKE3 MAC) | No | No | No | No | No | No | No |
-| **Confidentiality** | Yes (AES-256) | No | No | No | No | Hashing | No | No |
-| **Zero-lookup validation** | Integrity; type when expected-type validation is requested | No | No | No | No | No | No | No |
-| **DB primary key size** | 8 B | 16 B | 16 B | 8 B | 16 B | 24 chars | 20 B | 4-8 B |
-| **External ID size** | 16 B | 16 B | 16 B | 8 B | 26 chars | 24 chars | 27 chars | N/A |
-| **UUID compatible** | Plain: UUIDv8; Secure: UUID-shaped | Yes | Yes | No | No | No | No | No |
-| **Key rotation** | Fallback key ring; lifecycle policy open | N/A | N/A | N/A | N/A | N/A | N/A | N/A |
-
-SKID 64-bit values are unique within an (entity-type, deployment)
-scope.  Two different entity types MAY share the same 64-bit SKID
-value; cross-entity-type disambiguation is provided by the SKEID's
-entity type byte (byte 7).
-
-## Security Notes
-
-The feature matrix captures the main security differences.  Random
-schemes such as UUID V4 avoid timestamp disclosure but do not embed
-origin, type, or integrity metadata.  Timestamp-ordered schemes such as
-UUID V7, Snowflake, ULID, and KSUID provide ordering but expose creation
-time and, in some layouts, generator topology.  CUID2 avoids timestamp
-disclosure by hashing its entropy inputs, but it does not provide
-typed identifier validation or a keyed integrity check.
-
-Plain SKEIDs expose metadata intentionally for trusted environments.
-Secure SKEIDs add AES-256 confidentiality for external use while
-retaining keyed integrity verification after decryption.
-
-## When to Use SKIDs
-
-SKIDs are most appropriate when:
-
-- Multiple trust boundaries exist (database, internal services, external
-  consumers) and identifiers must be adapted per boundary.
-- Zero-lookup integrity and origin-metadata checks within a shared-key
-  trust domain are valuable.
-- Entity type enforcement at the identifier level is desired.
-- Compact 8-byte database keys with natural ordering are preferred.
-
-SKIDs may not be the best choice when:
-
-- Global uniqueness without a deployment registry is required (use
-  UUID V4).
-- Ordering finer than 250 milliseconds is required (UUID V7 carries a
-  millisecond timestamp).
-- The system has no concept of entity types or trust boundaries.
-
-
-# Operational Assumptions
-
-## Time Synchronization
-
-The SKID system delegates clock synchronization to the operating
-system.  NTP [RFC5905], PTP [IEEE1588], or equivalent protocols are
-infrastructure responsibilities outside the scope of the identifier
-generator.  See "Design Trade-offs" below for the design rationale
-and the clock drift protection mechanism in SKID specification above
-for operational details.
-
-## Key Distribution
-
-Implementations MUST distribute MAC and AES keys through a
-secure channel.  Key material MUST NOT be stored in plaintext in
-application configuration files in production deployments.
-
-Clearly labeled public fixture or example keys MAY be committed for
-isolated local testing.  Secret or production key material MUST NOT be
-committed, including in development configuration files.  Committed
-fixtures MUST warn that they are non-secret and MUST NOT be used in
-shared, exposed, or production-like environments.
-
-## Topology Limits
-
-| Parameter | Maximum Value | Bits |
-|-----------|---------------|------|
-| App ID | 127 | 7 |
-| App Instance ID | 63 | 6 |
-| Sequence per 250ms tick | 262,143 | 18 |
-
-These limits define the default epoch-0 profile.  Custom deployment
-profiles MAY redistribute bit widths (e.g., fewer app bits for more
-sequence bits) provided all nodes in the deployment share the same
-profile.  Custom profiles are implementation-specific extensions
-and are not standardized in this document.
+The base epoch is deployment context and is not encoded in any
+identifier. Generators and parsers sharing a dataset MUST use the same
+base epoch. It MUST remain unchanged across services and restarts for
+the lifetime of those identifiers. A different origin changes timestamp
+interpretation without causing MAC verification to fail.
+
+Each epoch contains two halves of 2^32 quarter-second ticks. The
+256 possible epoch indices address 256 * 2^31 seconds, approximately
+17,421 years. Deployments MUST accept only supported epochs. The
+reference implementation currently generates and accepts only epoch 0.
+
+A stored SKID does not carry its epoch index. Datasets spanning epochs
+MUST retain that context through partitioning, an additional epoch
+field, or the SKEID representation. The eight-byte storage property
+applies when the epoch comes from the surrounding dataset or partition.
+Operational epoch transitions remain unspecified.
+
+Entity-type values MUST distinguish entity types within each application,
+and their assignments MUST remain stable for the lifetime of identifiers.
+Different entity types can have the same SKID. Cross-deployment data
+merges also need a deployment namespace or coordinated assignments.
+The field widths in this document are fixed. Alternative allocations
+would need a separate format and compatibility rules.
+
+## Key Management
+
+The MAC and AES keys MUST be cryptographically independent 32-byte
+values and MUST NOT be equal. Implementations SHOULD derive them using
+a domain-separated key derivation function from a master secret.
+BLAKE3's `derive_key` mode supports distinct, hardcoded, globally unique
+context strings identifying the application and each key purpose
+[BLAKE3]. Key derivation and distribution must be agreed by participating
+systems.
+
+All generation MUST use the current default key.
+Previous keys MAY remain enabled for verification during routine
+rotation. Fallback MUST require explicit opt-in. Key changes do not
+alter stored SKIDs, but reissuing derived identifiers changes external
+links and cached values.
+
+The collision guard covers only the verification keys and epoch policy
+used during generation. Adding keys can introduce another interpretation
+of an existing identifier. Removing keys can invalidate a non-default
+variant whose proof depended on them. Coordinated rollout, retention,
+and cross-key ambiguity remain application responsibilities. Retaining
+an origin key alone does not guarantee unchanged interpretation when
+another key is tried first.
+
+On compromise, set a fresh key as the default and remove the compromised
+key from verification on every instance. Reissue affected identifiers
+from trusted SKIDs, entity types, and epoch context as needed. Retaining
+a compromised verification key retains the attacker's ability to forge
+accepted identifiers.
 
 ## Serialization
 
-SKIDs SHOULD be serialized as 64-bit signed integers only in database
-columns and internal or otherwise trusted persistence channels.  Public
-APIs and externally visible contracts SHOULD NOT expose the internal
-SKID value.
+Use signed 64-bit storage for SKIDs. For the 128-bit forms, use the
+specified network-order bytes or UUID text with `8-4-4-4-12` hexadecimal
+grouping. Runtime UUID APIs MUST preserve this byte order when computing
+the MAC or encrypting. In particular, a mixed-endian UUID byte-array
+representation is not the specified wire representation.
 
-SKEIDs and Secure SKEIDs SHOULD be serialized using the standard UUID
-string format (8-4-4-4-12 hexadecimal) as defined in [RFC9562].  DRN
-public contracts use these UUID-form identifiers rather than the
-internal 64-bit SKID.
-
-## Timestamp Caching
-
-Implementations MUST use 250-millisecond tick precision timestamps.
-Implementations MAY cache the current timestamp to amortize the cost
-of system clock queries across high-throughput identifier generation.
-The cached value MUST refresh frequently enough to maintain tick
-accuracy.
-
-
-# Discussion
-
-## Design Trade-offs
-
-**250-millisecond tick vs. millisecond precision**: SKIDs use
-250-millisecond tick timestamps (32 bits, four ticks per second)
-instead of millisecond-precision (48 bits in UUID V7).  This
-sub-second quantization provides finer ordering than second-precision
-schemes while preserving sufficient bits for application topology and
-sequence fields within 64 bits.  The 18-bit sequence (262,144
-identifiers per tick; 1,048,576 per second) delivers high throughput
-within each tick.  Customized domain-tailored bit layouts can be more
-suitable for specific use cases.
-
-**Clock synchronization vs. drift protection**: The SKID system
-delegates clock synchronization to the operating system.  Accurate
-timekeeping through NTP, PTP, or equivalent protocols is an
-infrastructure responsibility outside the scope of the identifier
-generator.  The clock drift protection mechanism handles only the
-consequences of clock jumps.  Minor backward drifts freeze the
-timestamp until the wall clock catches up, while drifts beyond the
-freeze threshold stop generation and request shutdown.  Deployment
-orchestration must assign a new instance identifier before restart.
-
-**32-bit truncated MAC vs. full MAC**: The 4-byte tag preserves the
-128-bit layout at the cost of a 32-bit online-forgery margin.  AES
-protects confidentiality, while type, topology, existence, and
-authorization are separate checks; they do not increase the tag
-length.  Deployments must enforce a concrete failure budget.
-
-**AES-ECB vs. other modes**: Single-block ECB suitability and PRP
-equivalence are established in "AES-ECB Justification" above.
-Implementations MUST NOT apply ECB mode to multi-block data under this
-specification.
-
-**Entity type in identifier**: Embedding entity type adds 8 bits of
-overhead and supports zero-lookup type validation.  Callers must invoke
-that validation to reject cross-entity confusion.
-
-**Coordination vs. probabilistic uniqueness**: The SKID system
-requires deployment-time coordination to assign App ID (7 bits, up
-to 128 applications) and App Instance ID (6 bits, up to 64 instances
-per application).  This stands in contrast to UUID V4, UUID V7, and
-CUID2, which achieve uniqueness without any coordination through
-cryptographic random number generation.  The coordination cost is an
-intentional architectural trade-off: when topology assignments remain
-unique and clocks satisfy the stated rules, construction avoids the
-random-collision probability of probabilistic schemes.  It also enables
-zero-lookup verification through MAC and topology metadata and permits
-the compact 64-bit representation.
-
-**Topology field sizing**: The 7-bit application field (128
-applications) and 6-bit instance field (64 instances per application)
-define the default deployment profile.  The profile targets stable,
-bounded distributed application topologies where application and
-instance identifiers can be assigned during deployment.
-
-Larger deployments can use bounded contexts, deployment-specific
-routing, or domain-tailored bit layouts instead of extending a single
-global topology namespace.  The 6-bit instance field also leaves
-headroom for rolling deployments and application restarts triggered by
-clock drift protection, where the restarting instance must acquire a
-new instance identifier to prevent duplicate identifiers.
-
-**.NET Guid mixed endianness**: The .NET `Guid` struct uses a mixed-
-endian internal representation: the first three fields are stored in
-little-endian order, while the remaining eight bytes are sequential.
-This differs from the big-endian byte order specified by RFC 9562.
-The reference implementation uses constructors and serializers that
-explicitly request big-endian byte order, so SKEID byte arrays are
-constructed and interpreted in RFC 9562 order regardless of the
-runtime's internal `Guid` representation.  The UUID string
-representation remains big-endian and RFC 9562 compliant.
-
-## Limitations
-
-1. **Scoped uniqueness**: A SKID is unique within one entity type,
-   epoch configuration, and coordinated `(AppId, AppInstanceId)`
-   namespace.  Different entity types can produce the same 64-bit
-   value; SKEID's entity-type byte disambiguates them.  Cryptographic
-   keys do not affect SKID uniqueness.  Cross-deployment merging needs
-   an additional deployment namespace.
-
-2. **Topology limits and coordination requirement**: The default
-   profile supports at most 128 applications x 64 instances = 8,192
-   distinct generators.  Topology assignment (App ID and App Instance
-   ID) requires deployment-time coordination, unlike UUID V4/V7/CUID2
-   which achieve uniqueness without coordination.  The rationale for
-   this specific field sizing is discussed in Design Trade-offs above.
-   Reference implementation aims to provide a coordination application
-   called `Nexus` for this purpose.
-
-3. **Key dependency**: SKEIDs and Secure SKEIDs require key material
-   for generation and parsing.  Loss of key material makes existing
-   SKEIDs unparseable, though the underlying 64-bit SKIDs in the
-   database remain valid and recoverable.
-
-4. **Security analysis scope**: The security analysis in this document
-   uses STRIDE-based threat modeling and quantitative probability
-   analysis within the defense-in-depth architecture.  It does not
-   provide formal cryptographic reductions for the composition of
-   AES-PRP encryption, BLAKE3 MAC, and the collision guard mechanism.
-   The single-block AES PRP assumption is established in
-   "AES-ECB Justification" above.  Deterministic encryption reveals
-   repeated use of the same identifier even though it hides the
-   embedded fields.  A formal compositional security proof is left as
-   future work.  The reference implementation provides test vectors in
-   its test suites enabling independent verification.
-
-5. **Epoch-scoped storage efficiency**: The 8-byte SKID storage
-   efficiency claim applies within a single epoch (~68 years).  The
-   64-bit SKID encodes a 32-bit timestamp relative to the configured
-   epoch but does not carry the epoch index itself.  A database
-   spanning multiple epochs has the following options.
-
-   1. A composite key storing the epoch byte separately alongside
-      the SKID.  This adds per-row overhead that negates the 8-byte
-      claim.
-
-   2. Migration to the 16-byte SKEID, which includes the epoch at
-      byte 0.  This also negates the 8-byte claim.
-
-   3. Epoch-partitioned storage, where the table or archive name
-      implicitly carries the epoch context (e.g.,
-      `Entity_Epoch0`, `Entity_Epoch1`).  This preserves 8-byte
-      rows by encoding the epoch in the partition structure rather
-      than in each record.
-
-   Deployments whose storage horizon fits within one epoch retain the
-   8-byte storage property.  Longer-lived deployments need one of the
-   epoch-storage options above.
-
-6. **Secure SKEID UUID format compliance**: A Secure SKEID is a valid
-   UUID in length and string format (8-4-4-4-12 hexadecimal grouping)
-   and is accepted by standard data-type parsers.  However, AES-256
-   encryption replaces the plaintext Version and Variant marker bytes
-   with pseudorandom ciphertext.  Under that model, only about 1 in 64
-   outputs satisfies both the UUIDv8 version nibble and RFC variant
-   bits by chance.  Strict RFC 9562 validators therefore reject most
-   Secure SKEIDs.  Systems requiring strict RFC 9562 compliance at the
-   validator level SHOULD
-   use plaintext SKEIDs or accept Secure SKEIDs as opaque 128-bit
-   values.
-
-7. **Key-ring ambiguity**: The plaintext collision guard covers every
-   verification key enabled during generation.  Under idealized
-   independence, a later MAC key can
-   make an existing ciphertext look like a plain SKEID, or a later
-   AES/MAC pair can decrypt it to a false valid Secure SKEID.  The
-   primary-marker path is on the order of 1/2^48 per random candidate.
-   The parser stops at the first authenticated candidate and does not
-   detect multiple valid interpretations.  Even a parser that scanned
-   all keys could reject ambiguity only while the origin key remained
-   present; after removal, a sole false match cannot be distinguished
-   without a key identifier.  During normal rotation, explicitly enable
-   verification with retained origin keys until affected identifiers
-   expire or are reissued.
-   Compromised keys require the isolated migration procedure above.
-
-## Open Questions for Community
-
-1. Is a 32-bit MAC acceptable for aggregate verification volume across
-   all services and fallback keys, or should another profile allocate
-   at least 64 bits?
-2. Should the wire format carry a key identifier to bound fallback work
-   and make rotation deterministic?
-3. Should a non-default collision-guard variant prove only its immediate
-   predecessor or the full chain from 0x8D?
-4. What epoch-transition and multi-epoch storage procedure should be
-   interoperable?
-5. How should deployments allocate and safely reuse App Instance IDs
-   across restarts and rolling deployments?
-
+Strict UUIDv8 validators can reject Secure SKEIDs. Deployments MUST
+check compatibility across the complete application path or transport
+Secure SKEIDs as opaque strings or 128-bit values. They MUST NOT alter
+ciphertext bits to force a UUID version or variant.
 
 # Security Considerations
 
-## Threat Analysis (STRIDE)
+## Trust Boundaries
 
-The following systematic threat analysis applies the STRIDE
-categories [SHOSTACK2014] to the three-tier identity model:
+A valid identifier is not a bearer credential. Applications MUST
+check record existence and authorize access independently. The MAC
+authenticates fields within a shared-key trust domain. It does not
+identify an individual producer, provide non-repudiation, or prevent
+replay. Any holder of the MAC key can assert another generator's
+topology fields.
 
-**Spoofing (Identifier Fabrication)**:
-AES-256 hides the fields of an intercepted Secure SKEID.  The keyed MAC
-lets a parser reject fabricated plain or decrypted values, subject to
-the 32-bit tag bound below.  A valid MAC shows that some holder of the
-shared MAC key created the value; it does not identify which holder did
-so.  Record existence and caller authorization are separate checks.
+Plain SKEIDs expose timestamps, topology, entity types, and sequences.
+Secure SKEIDs conceal these fields under the AES pseudorandom-permutation
+assumption, but repeated plaintexts encrypted under the same key produce
+the same ciphertext. This permits correlation of repeated identifiers.
+Secure SKEIDs do not preserve timestamp order or provide unlinkability.
 
-**Tampering (Identifier Modification)**:
-A modification to either representation changes the MAC input after
-decryption or direct parsing.  Verification rejects it except with the
-forgery probability of the 32-bit tag under the MAC assumption.
+## Forgery Bounds
 
-**Repudiation**:
-The SKEID system does not provide non-repudiation.  Topology metadata
-can support diagnostics, but any holder of the shared MAC key can mint
-an identifier that claims another application or instance.  Audit
-attribution therefore requires protected application logs or a
-separate signing mechanism.
+The following estimates assume secret, cryptographically independent
+MAC and AES keys. The tag-guessing model treats the 32-bit BLAKE3 keyed
+output for a message without a known tag as uniformly distributed and
+unpredictable. Confidentiality relies on treating AES-256 as a secure
+pseudorandom permutation over 128-bit blocks. These assumptions do not
+establish a security proof for the combined construction.
 
-**Information Disclosure**:
-Plaintext SKEIDs deliberately expose metadata within trusted
-environments where this information supports routing and validation.
-For external consumers, Secure SKEIDs encrypt the entire identifier
-using AES-256-ECB, which functions as a PRP on the single 128-bit
-block.  The ciphertext is computationally indistinguishable from
-random bytes without the key under the stated PRP assumptions.  The
-construction hides embedded fields but permits correlation when the
-same identifier is observed more than once.
+For plaintext SKEIDs, an attacker can choose the public fields and
+guess the 32-bit tag. Under the idealized tag-guessing model, success
+over q attempts is bounded by `min(1, q * 2^-32)`. Public marker and
+identity fields do not extend that tag bound. Reusing a known valid
+identifier is replay and is outside this guessing model.
 
-**Denial of Service**:
-The 18-bit sequence counter limits generation to 262,144 identifiers
-per 250-millisecond tick (1,048,576 per second) per instance.  Exceeding
-this rate triggers backpressure (the generator waits for the next tick),
-which is a deliberate safety mechanism rather than a vulnerability.
-Capacity is partitioned by active generator; deployment-wide impact
-depends on routing and resource controls.  Parsing is fixed-size per
-key but linear in key-ring length.  Implementations MUST cap fallback
-keys and rate-limit invalid inputs.
+For one key pair, a ciphertext sampled uniformly from all 128-bit values
+decrypts to a uniformly distributed plaintext block. For each choice of
+the non-MAC bytes, exactly one four-byte tag is valid. Fixing both marker
+bytes to 0x8D therefore leaves 2^80 accepted plaintext blocks out of
+2^128 before epoch or expected-identity restrictions. AES permutes these
+blocks without changing their number.
 
-**Elevation of Privilege (Cross-Entity Confusion)**:
-The 8-bit discriminator enables rejection when an identifier for one
-entity type is submitted as another.  Callers MUST supply and validate
-the expected type; MAC verification alone accepts a structurally valid
-SKEID of any type.  Type validation does not replace object-level
-authorization.
+On this default-variant path, a uniformly random ciphertext has an
+acceptance probability of 2^-48. Additionally requiring one epoch gives
+2^-56, then one entity type gives 2^-64, and then one app ID gives
+2^-71. Each added restriction fixes separate bits in the plaintext.
+AES confidentiality is not an additional independent probability factor.
 
-## Authorization Boundary
+Variants above 0x8D also require a complete backward proof. The figures
+above count only the default-variant path. Accepting multiple epochs,
+identities, or key pairs changes the accepted set. These random-input
+calculations do not bound replay or arbitrary adaptive attacks against
+the combined construction. The companion paper provides further
+analysis and discusses its limitations [SKID-PAPER].
 
-An SKEID is an identifier, not a bearer credential.  Every operation
-MUST authorize the authenticated principal against the referenced
-resource after parsing.  Secure SKEIDs reduce metadata disclosure and
-enumeration; they do not prevent IDOR by themselves.
+## Operational Controls
 
-## Defense in Depth
+Deployments MUST protect and securely distribute key material and
+rate-limit untrusted input.
 
-The controls operate at different boundaries:
+For plaintext tag guessing, if a deployment allows 4,096 failed
+verification attempts before retiring a MAC key, the idealized bound
+is 2^-20, approximately one in a million. At 100 failed attempts per
+second, that budget lasts about 41 seconds. These values illustrate
+the risk under the model in [SKID-PAPER]. They do not prescribe a
+budget or rate.
 
-| Control | Purpose | Boundary |
-|---------|---------|----------|
-| AES-256 PRP | Conceal SKEID fields | Confidentiality; deterministic, not authentication |
-| 32-bit BLAKE3 keyed MAC | Detect fabrication or modification | Approximately 2^(-32) per independent attempt before failure-budget effects |
-| Marker bytes | Select a candidate parse path | Approximately 2^(-16) for an exact random-byte match; not secret |
-| Expected entity type | Reject cross-type use | Caller must request this check |
-| Topology policy | Reject unassigned app or instance values | Application registry; parser only extracts fields |
-| Existence and authorization | Resolve and protect the resource | Database and application policy |
-| Rate and failure limits | Bound online guesses and fallback work | Deployment policy |
-
-The barriers are assumed to be operationally independent under secure
-key derivation.  Their multiplicative combination provides stronger
-security than any individual barrier.  A formal proof of independence
-is outside the scope of this document.
-
-## MAC Truncation Analysis
-
-NIST SP 800-107 Rev. 1 specifies 32 bits as the minimum truncated HMAC
-tag length in Section 5.3.3 and discourages tags shorter than 64 bits
-in Section 5.3.5.  The 128-bit SKEID layout leaves 32 bits after the
-SKID, entity type, epoch, and markers.  A deployment MUST determine
-whether that online-forgery margin is acceptable for its traffic and
-threat model.
-
-Section 5.3.5 of the same document provides the general framework for
-assessing truncated MAC forgery risk.  For a lambda-bit MacTag with
-2^t failed verifications allowed, the likelihood of accepting forged
-data is (1/2)^(lambda - t).  Applying this to the 32-bit SKEID MAC
-(lambda = 32): if a system permits 2^12 (4,096) failed verification
-attempts across all endpoints and fallback keys before retiring the MAC
-key, the aggregate forgery likelihood is approximately (1/2)^20, or
-one in a million, under independent attempts.  At 100 failed attempts
-per second, that budget lasts roughly 41 seconds.  This is a risk
-example, not a recommended default.
-
-NIST decided in 2022 to withdraw SP 800-107 Rev. 1 after its remaining
-requirements are moved [NISTSP800107W].  As of 2026-07-09, SP 800-224
-is an Initial Public Draft for HMAC and likewise requires careful risk
-analysis below 64 bits [NISTSP800224].  These HMAC publications inform
-tag-length risk; they do not approve or validate BLAKE3 keyed mode.
-
-## AES-256 Post-Quantum Estimate
-
-AES-256 retains an idealized 128-bit security level under Grover's
-quantum search algorithm [BONNETAIN2019].
-
-Implementations MUST use 256-bit AES keys (32 bytes).  128-bit or
-192-bit keys MUST NOT be used.
-
-## Rate Limiting
-
-Endpoints that accept SKEID values from untrusted sources (e.g.,
-public APIs) MUST implement rate limiting to prevent brute-force
-attacks against the MAC.  Such endpoints MUST account for failed parse
-and validation attempts per relevant subject (for example client,
-principal, route, or tenant), SHOULD expose an operator-configurable
-failure budget aggregated across fallback keys, and SHOULD log and
-alert on sustained or bursty SKEID validation failures.
-
-## Information Leakage (Plain SKEID)
-
-The plain SKEID exposes the creation timestamp, app topology,
-entity type, and sequence in plaintext, with the MAC occupying
-the contiguous tail bytes (12-15).  This is acceptable for
-communication within trusted environments but MUST NOT be used for
-external-facing identifiers in security-sensitive deployments.
-
-Deployments SHOULD configure external-facing endpoints to use
-Secure SKEIDs exclusively.
-
+Implementations MUST bound fallback-key counts. Each key attempt has
+fixed-size input, but fallback and backward verification increase work.
+Client-facing failures SHOULD remain generic. Protected diagnostics
+can record validation failures without exposing keys or plaintext
+metadata to untrusted callers.
 
 # IANA Considerations
 
 This document has no IANA actions.
 
-
 # Acknowledgments
 
-The reference implementation and this specification were developed
-with the assistance of AI coding and research tools.  All generated
-content was reviewed, validated, and modified by the author.  The
-architectural design, cryptographic choices, and all technical
-decisions are solely the work of the author.  The companion paper
-[SKID-PAPER] contains a full AI disclosure per journal policy.
+AI tools assisted preparation of the reference implementation and
+this document. The companion paper contains the author's disclosure
+[SKID-PAPER].
 
 --- back
 
-# Appendix A. Test Vectors
+# Test Vectors {#test-vectors}
 
-The following test vectors were generated by
-`IetfDraftTestVectorTests.Generate_IETF_Test_Vectors`.
-Implementers SHOULD verify that their implementation produces
-identical outputs for these inputs before substituting production key
-material.
+This vector appears in the companion paper and the reference
+implementation's `IetfDraftTestVectorTests`. Implementers SHOULD
+reproduce it before using production keys. Hexadecimal key strings
+below denote raw bytes, not UTF-8 text. These public test keys
+MUST NOT be used in production.
 
-Each hexadecimal string below represents raw octets, not UTF-8 text.
-The DRN reference implementation accepts the master key through
-`NexusKey` with `Format = Hex` and derives the two displayed subkeys.
-Other implementations MAY supply the derived MAC and AES keys directly
-to reproduce the wire vectors.
+## Test Key Material {#test-key-material}
 
-## A.1. Test Key Material
+The derived keys can be supplied directly. The master key is included
+to identify the reference fixture. Its implementation-specific
+derivation is not part of the wire format.
 
 ~~~text
-Master Key (32 bytes, hex):      000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F
-Derived MAC Key (32 bytes, hex): 5E293E89136745A96B70EB8C8F81CDFCAED177BE5358BC83D3039FB6607FD8FE
-Derived AES Key (32 bytes, hex): 4988F97FF724CD086BDFEC83497C3527B3656F35F0911BEEAA6BCE4BB92D3BC7
-Epoch:                           2025-01-01T00:00:00Z
+Master key:
+000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F
+MAC key:
+5E293E89136745A96B70EB8C8F81CDFCAED177BE5358BC83D3039FB6607FD8FE
+AES key:
+4988F97FF724CD086BDFEC83497C3527B3656F35F0911BEEAA6BCE4BB92D3BC7
 ~~~
 
-The SKEID and Secure SKEID operations below use the exact derived MAC
-and AES key bytes shown above.  Master-key derivation is an
-implementation detail and is not part of the wire format.
-These public test keys MUST NOT be used in production.
-
-## A.2. SKID Generation
+## SKID Generation {#skid-generation-vector}
 
 ~~~text
-Input:
-  entityType     = 1
-  appId          = 5
-  appInstanceId  = 3
-  timestamp      = 272000000 (250ms ticks since epoch = 68000000 seconds)
-  sequenceId     = 42
+Epoch start:     2025-01-01T00:00:00Z
+Epoch index:     0
+Elapsed ticks:   272000000
+App ID:          5
+App Instance ID: 3
+Sequence:        42
+Entity type:     1
 
-Expected bit layout (MSB first):
-  Sign:          1                                      (1 bit)
-  Timestamp:     0001_0000_0011_0110_0110_0100_0000_0000 (32 bits)
-  AppId:         000_0101                                (7 bits)
-  AppInstanceId: 00_0011                                 (6 bits)
-  SequenceId:    00_0000_0000_0010_1010                   (18 bits)
-
-Expected SKID (decimal):  -8639256484514103254
-Expected SKID (hex):      0x881B3200050C002A
-
-Parsed fields:
-  AppId:           5
-  AppInstanceId:   3
-  SequenceId:      42
-  CreatedAt:       2027-02-27T00:53:20.0000000+00:00
+SKID (hex):      0x881B3200050C002A
+SKID (decimal):  -8639256484514103254
+Embedded time:   2027-02-27T00:53:20Z
 ~~~
 
-## A.3. SKEID Generation (Plain)
+## SKEID Generation (Plain) {#plain-generation-vector}
 
 ~~~text
-Input:
-  SKID       = -8639256484514103254 (0x881B3200050C002A)
-  entityType = 1
-  macKey     = [from A.1]
-
-Expected byte layout (big-endian per RFC 9562):
-  Byte  0: 0x00   (Epoch)
-  Byte  1: 0x08   (ID upper half (sign-toggled, big-endian))
-  Byte  2: 0x1B   (ID upper half (sign-toggled, big-endian))
-  Byte  3: 0x32   (ID upper half (sign-toggled, big-endian))
-  Byte  4: 0x00   (ID upper half (sign-toggled, big-endian))
-  Byte  5: 0x05   (ID lower byte 0 (MSB))
-  Byte  6: 0x8D   (Marker Version (0x8D) - RFC 9562 octet 6)
-  Byte  7: 0x01   (Entity Type)
-  Byte  8: 0x8D   (Marker Variant (0x8D) - RFC 9562 octet 8)
-  Byte  9: 0x0C   (ID lower bytes 1-3)
-  Byte 10: 0x00   (ID lower bytes 1-3)
-  Byte 11: 0x2A   (ID lower bytes 1-3)
-  Byte 12: 0x49   (MAC (BLAKE3 keyed))
-  Byte 13: 0x2C   (MAC (BLAKE3 keyed))
-  Byte 14: 0x0E   (MAC (BLAKE3 keyed))
-  Byte 15: 0x75   (MAC (BLAKE3 keyed))
-
-Expected GUID:  00081b32-0005-8d01-8d0c-002a492c0e75
-Expected hex:   00081B3200058D018D0C002A492C0E75
+MAC input:       00081B3200058D018D0C002A00000000
+MAC:             492C0E75
+SKEID bytes:     00081B3200058D018D0C002A492C0E75
+SKEID UUID:      00081b32-0005-8d01-8d0c-002a492c0e75
 ~~~
 
-## A.4. Secure SKEID Generation
+## Secure SKEID Generation {#secure-generation-vector}
 
 ~~~text
-Input:
-  SKEID plaintext from A.3
-  aesKey = [from A.1]
-
-Operation:
-  ciphertext = AES-256-ECB-Encrypt(key=aesKey, plaintext=SKEID)
-
-Expected Secure GUID:  652068a4-3612-cc4b-8abb-83b853dc6786
-Expected hex:          652068A43612CC4B8ABB83B853DC6786
+Secure bytes:    652068A43612CC4B8ABB83B853DC6786
+Secure UUID:     652068a4-3612-cc4b-8abb-83b853dc6786
 ~~~
 
-## A.5. Round-Trip Verification
+Ciphertext bytes 6 and 8 are 0xCC and 0x8A, so the collision guard
+accepts the default candidate. This vector does not exercise variant
+escalation.
 
-~~~text
-1. Parse SKEID:
-   Valid=True, SKID=-8639256484514103254                         ✓
-2. Parse Secure SKEID:
-   Valid=True, SKID=-8639256484514103254                         ✓
-3. ToSecure(SKEID):
-   GUID=652068a4-3612-cc4b-8abb-83b853dc6786 == Secure           ✓
-4. ToPlain(Secure):
-   GUID=00081b32-0005-8d01-8d0c-002a492c0e75 == Plain            ✓
+## Round-Trip Verification
 
-All round-trip verifications passed.
-~~~
+Parsing either representation recovers the same SKID, epoch, and entity
+type. With the same keys, ToSecure and ToPlain reproduce the two UUIDs
+above.
 
+## Boundary and Rejection Cases {#boundary-and-rejection-cases}
 
-# Appendix B. Reference Implementation (Informative)
+The following SKID vectors use app ID 0, instance ID 0, and sequence 0.
+Hexadecimal values represent the complete 64-bit pattern. Tick inputs
+are after clock handling. Parsing MUST recover the listed elapsed ticks,
+and signed order MUST increase across the four valid rows. Generation
+MUST reject the out-of-range rows.
 
-## DRN-Project
+| Elapsed ticks | Expected SKID (hex) |
+|---------------|---------------------|
+| -1 | ERROR |
+| 0 | 8000000000000000 |
+| 2^32 - 1 | FFFFFFFF80000000 |
+| 2^32 | 0000000000000000 |
+| 2^33 - 1 | 7FFFFFFF80000000 |
+| 2^33 | ERROR |
 
-The DRN-Project [DRN-PROJECT] provides a reference implementation of
-the SKID system in .NET 10, organized across four NuGet packages:
+At tick 2^33 - 1, app ID 127, instance ID 63, and sequence 262,143
+produce 7FFFFFFFFFFFFFFF. A generator that has issued all sequence
+values in a tick MUST wait, then recompute the timestamp before issuing
+another value. It MUST NOT wrap the sequence in the same tick.
 
-- `DRN.Framework.SharedKernel`: Interfaces, base classes, and parsed
-  identity structs, including `ISourceKnownEntityIdOperations`,
-  `SourceKnownEntity`, `SourceKnownId`, and `SourceKnownEntityId`.
-- `DRN.Framework.Utils`: Cryptographic operations, timestamp
-  management, sequence management, bit packing, and the
-  `SourceKnownIdUtils` / `SourceKnownEntityIdUtils` implementations.
-- `DRN.Framework.EntityFramework`: EF Core value generation,
-  save-changes and materialization interceptors, and repository
-  integration for SKID assignment, SKEID reconstruction, validation,
-  and cursor-based pagination.
-- `DRN.Framework.Testing`: Unit and integration test infrastructure,
-  including Testcontainers orchestration for ephemeral PostgreSQL
-  instances and convention-based test contexts.
+For the parser cases below, use only the key pair in {{test-key-material}}
+and accept only epoch 0. Start each modification from
+{{plain-generation-vector}}. "Re-MAC" means recomputing bytes 12-15 with
+ComputeMAC after the stated edit. "Encrypt" means encrypting that
+complete block with the AES key in {{test-key-material}}. These are
+fixture recipes and expected outcomes, not additional published
+ciphertexts.
 
-The implementation uses attribute-based dependency injection and
-entity type attributes for entity type registration, and integrates
-with Domain-Driven Design patterns through the `SourceKnownEntity`
-abstract base class.  Key implementation types include
-`SequenceManager<TEntity>` for thread-safe per-entity-type sequence
-management and `NexusAppSettings` for `Keys[]` key-ring
-configuration, key separation, and default key designation.
+| Input or operation | Policy | Expected result |
+|--------------------|--------|-----------------|
+| {{plain-generation-vector}} unchanged | Plain | VALID, fields from {{skid-generation-vector}} |
+| {{secure-generation-vector}} unchanged | Secure or Auto | VALID, fields from {{skid-generation-vector}} |
+| {{secure-generation-vector}} unchanged | Plain | INVALID |
+| A byte string of length 15 or 17 | Plain, Secure, or Auto | INVALID length |
+| Set byte 12 to 0x48 without re-MAC | Plain | INVALID MAC |
+| Set byte 0 to 0x01, then re-MAC | Plain | INVALID epoch |
+| Set byte 0 to 0x01, re-MAC, then encrypt | Secure | INVALID epoch |
+| Set byte 8 to 0x8C, then re-MAC | Plain | INVALID marker |
+| Set byte 8 to 0x80 or 0x8C, re-MAC, then encrypt | Secure | INVALID authenticated variant |
+| Set byte 8 to 0x8E, re-MAC, then encrypt | Secure | INVALID backward proof |
+| Set byte 8 to 0xC0, re-MAC, then encrypt | Secure | INVALID structure |
+| Validate the unchanged plaintext against entity type 2 or app ID 6 | Plain | Reject expected-identity mismatch |
+| Validate the unchanged ciphertext against entity type 2 or app ID 6 | Secure or Auto | Reject expected-identity mismatch |
 
-Current implementation status: DRN-Project emits epoch byte `0x00` and
-does not yet resolve nonzero epoch bytes during parsing.  The protocol
-behavior for nonzero epoch bytes is specified above; nonzero epoch
-support is reserved for a future reference implementation extension.
-The parser accepts only the default key unless
-`UseSourceKnownIdKeyFallback=true`; enabled fallback keys are tried in
-configured order.  It authenticates the candidate before variant and
-backward-proof checks, retaining the authenticated key pair.  Failed
-checks reject the identifier without further fallback; a successful
-result is returned immediately.  It does not detect rare cross-key
-ambiguous interpretations.
-The current tag comparison uses the runtime sequence-comparison API;
-fixed-time behavior is not established by the test suite.
+The ciphertext in {{secure-generation-vector}} begins with 0x65, an
+unsupported plaintext epoch in this fixture. Auto MUST still decrypt
+it. For the 0x8E case, that ciphertext is the predecessor. It does not
+collide with plaintext, so the backward proof fails.
 
-## Database Patterns
+## Synthetic Collision and Fallback Cases {#synthetic-collision-and-fallback-cases}
 
-The reference implementation uses PostgreSQL with the following
-optimizations:
+These cases inject collision-predicate or per-key parser results in a
+test harness. They test control flow, not AES or BLAKE3, and do not
+represent discovered cryptographic collisions. Real cryptographic
+generation and parsing MUST still pass the cases from
+{{plain-generation-vector}} through {{boundary-and-rejection-cases}}.
 
-- **Primary key**: `BIGINT` (8 bytes) storing the 64-bit SKID, with a
-  default B-tree index for ordered access and time-localized inserts.
-- **External identifier derivation**: DRN does not persist a separate
-  UUID column for SKEID or Secure SKEID.  `EntityId` and
-  `EntityIdSource` are runtime-computed properties initialized by
-  interceptors and ignored by EF Core mapping.  Repository external
-  lookups parse the UUID to recover and validate the source SKID, then
-  query by the internal `BIGINT` primary key.
-- **Cursor-based pagination**: Uses `WHERE id > :lastSkid ORDER BY id
-  LIMIT :pageSize` for efficient, offset-free pagination.
-- **CreatedAt filtering**: The SKID's embedded timestamp enables
-  time-range queries directly on the primary key without a separate
-  `created_at` column.
+For backward verification, assume the candidate has authenticated.
+Predecessors are checked in descending order. For generation, inject
+the stated HasPlainCollision results in ascending variant order.
 
-## Validation and Maturity
+| Operation | Injected condition | Expected result |
+|-----------|--------------------|-----------------|
+| Generate | 0x8D collides and 0x8E does not | Emit candidate 0x8E |
+| Generate | All 51 candidates collide | ERROR, no identifier |
+| Verify 0x8E | 0x8D collides | Accept proof after 1 check |
+| Verify 0x8F | 0x8E collides and 0x8D does not | Reject proof after 2 checks |
+| Verify 0x8F | Both predecessors collide | Accept proof after 2 checks |
+| Verify 0xBF | All 50 predecessors collide | Accept proof after 50 checks |
 
-Active development of the SKID system began in November 2023 as part
-of DRN.Framework.  The repository validates the identifier system
-through multiple evidence tiers:
+For key-ring parsing, configure default key A and fallback key B.
+Use these injected outcomes to verify the fallback state machine:
 
-- **Unit tests** cover SKID generation, SKEID construction with MAC
-  verification, and Secure SKEID encryption/decryption round-trips.
-- **Paper-verification tests** (`PaperNumericWalkthroughTests`,
-  `PaperEpochAddressabilityTests`, `PaperThroughputAnalysisTests`, and
-  `IetfDraftTestVectorTests`)
-  assert the exact numeric walkthrough values, byte layouts, epoch
-  boundaries, lexicographic ordering, Appendix A vectors, and arithmetic
-  throughput limits cited by the specification and companion paper
-  [SKID-PAPER].  Runtime backpressure and latency claims are benchmark
-  evidence, not unit-test evidence.
-- **Integration tests** exercise EF Core value generation,
-  interceptors, repository behavior, and cursor-based pagination with
-  PostgreSQL test containers.
-- **Static analysis workflows** include CodeQL and SonarCloud scans in
-  the repository's GitHub Actions configuration.
-- **Evidence limits**: Tests do not force a marker-and-MAC collision,
-  generate or parse a nonzero-epoch SKEID, simulate clock rollback, or
-  establish uniqueness across process restarts.  They do cover nonzero
-  epoch addressability arithmetic.  Probability bounds and physical
-  B-tree effects are analytical rather than test results.
+| A result | B result | Fallback | Expected result |
+|----------|----------|----------|-----------------|
+| Authentication failure | Valid | Disabled | INVALID. Do not try B |
+| Authentication failure | Valid | Enabled | Return B's identity |
+| Authenticated, invalid variant or proof | Valid | Enabled | INVALID. Do not try B |
+| Valid | Valid with a different identity | Enabled | Return A's identity. B is not tried |
 
-## Benchmark Summary
+# Implementation Status
 
-Performance characteristics observed in the reference implementation
-(BenchmarkDotNet [BENCHMARKDOTNET] v0.15.8; Apple M2, 1 CPU, 8
-logical and 8 physical cores; macOS Tahoe 26.4; .NET 10.0.5 Arm64
-RyuJIT; SDK 10.0.201; OutlierMode=RemoveUpper,
-InvocationCount=262,144, IterationCount=120, WarmupCount=120):
+[DRN-PROJECT] provides a C#/.NET implementation with database integration.
+It currently generates and accepts epoch 0 only. Key fallback is
+disabled by default and enabled through `UseSourceKnownIdKeyFallback`.
 
-Generation and parsing used one default key.  Fallback-key scanning was
-not measured; parse work grows linearly with the number of attempted
-keys.
+The implementation uses explicit big-endian .NET `Guid` construction
+and extraction. Its PostgreSQL and .NET compatibility tests accept
+Secure SKEIDs, but this does not establish acceptance by every UUID
+library or strict RFC 9562 validator.
 
-| Operation | Mean (ns) | Error (ns) | StdDev (ns) | Allocated |
-|-----------|-----------|------------|-------------|-----------|
-| Random 64-bit integer generation | 171.3 | 2.36 | 7.66 | 32 B |
-| Random UUID V4 generation | 354.1 | 3.64 | 11.81 | 0 B |
-| Random UUID V7 generation | 377.5 | 3.24 | 10.53 | 0 B |
-| Timestamp manager current time generation | 4.1 | 0.46 | 1.43 | 0 B |
-| Sequence manager time-scoped ID generation | 15.4 | 0.69 | 2.19 | 0 B |
-| SKID generation | 35.3 | 1.21 | 3.92 | 0 B |
-| SKEID generation (with provided SKID) | 219.0 | 3.25 | 10.56 | 0 B |
-| SKEID generation (with SKID generation) | 230.3 | 3.45 | 11.20 | 0 B |
-| SKEID generation (with entity allocation) | 248.3 | 3.87 | 12.58 | 192 B |
-| Secure SKEID generation | 544.0 | 5.67 | 18.42 | 72 B |
-| SKEID parsing | 223.6 | 2.87 | 9.31 | 0 B |
-| Secure SKEID parsing | 540.7 | 3.15 | 10.22 | 72 B |
-| ToPlain (regenerate plain form) | 217.3 | 2.40 | 7.76 | 0 B |
-| ToSecure (regenerate secure form) | 524.2 | 5.56 | 17.98 | 72 B |
-
-Error values represent the 99.9% confidence interval margin
-computed by BenchmarkDotNet over iterations remaining after upper
-outlier removal.
-
-A separate saturation configuration used 786,432 invocations per
-iteration with 40 measurement and 40 warmup iterations.  It reported a
-610.0 ns mean for SKID generation, including waits at tick boundaries.
-This measures backpressure behavior, not deployment-wide throughput.
-
-These are informative benchmarks and will vary by hardware, runtime,
-and application workload.
-
-
-# Practical Utilities (Informative)
-
-## Cursor-Based Pagination
-
-Given the SKID's total order, cursor-based pagination can use:
-
-~~~sql
-SELECT * FROM entities
-WHERE id > :last_skid
-ORDER BY id ASC
-LIMIT :page_size
-~~~
-
-Trusted internal clients may send the last SKID from the previous page
-as the cursor.  A public API MUST instead use an opaque protected cursor
-or a Secure SKEID that the server validates and converts to its SKID.
-Public APIs MUST NOT expose the raw SKID.  No offset tracking is needed.
-
-## CreatedAt Extraction
-
-Given a SKID and the configured epoch, the creation timestamp can be
-extracted without a database query:
-
-~~~pseudocode
-parsed = ParseSKID(skid, epoch)
-createdAt = parsed.createdAt
-~~~
-
-This enables time-based filtering, audit logging, and SLA monitoring
-using only the identifier value.
-
-## Validation and Conversion Helpers
-
-Common utility operations:
-
-| Operation | Input | Output |
-|-----------|-------|--------|
-| `Parse(guid, format = null)` | UUID | SKEID record using the selected format |
-| `Validate<TEntity>(guid, format = null)` | UUID | SKEID record or throws if invalid or the entity type/application partition does not match |
-| `ToSecure(skeid)` | Parsed SKEID | Secure SKEID (no-op if already secure) |
-| `ToPlain(skeid)` | Parsed SKEID | Plain SKEID (no-op if already plain) |
-
-In DRN-Project, omitted or null `format` follows
-`NexusAppSettings.UseSecureSourceKnownIds`: `true` selects `Secure`, and
-`false` selects `Plain`. An explicit `SourceKnownEntityIdFormat` overrides
-configuration: `Secure` only decrypts and verifies, `Plain` only verifies
-plain input, and `Auto` retains automatic secure/plain detection.
-Conversions continue to accept both formats.
+Implementation tests, benchmarks, and evidence limits are described
+in [SKID-PAPER]. The additional cases in {{boundary-and-rejection-cases}}
+and {{synthetic-collision-and-fallback-cases}} specify conformance
+expectations. Their inclusion is not a claim of executed tests or full
+reference-implementation coverage. Independent implementations,
+operational epoch transitions, and formal analysis of the combined
+cryptographic construction remain future work.
