@@ -24,6 +24,8 @@ ARG BUILDPLATFORM
 #https://docs.docker.com/build/building/multi-platform/
 
 ENV APP_VERSION=${APP_VERSION}
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
+ENV TESTINGPLATFORM_TELEMETRY_OPTOUT=1
 # Default the image to Staging while allowing runtime Environment, DOTNET_ENVIRONMENT,
 # mounted settings, or command-line values to override through DRN config precedence.
 ENV ASPNETCORE_ENVIRONMENT=Staging
@@ -44,6 +46,8 @@ LABEL org.opencontainers.image.version=${APP_VERSION} \
 #https://mcr.microsoft.com/en-us/artifact/mar/dotnet/sdk/tags
 #build image should use same distro with base image to prevent mismatches such as Alpine (Musl) vs. Ubuntu (Glibc)
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:${DOTNET_SDK_VERSION}-${DOTNET_DISTRO}@${DOTNET_SDK_DIGEST} AS build
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
+ENV TESTINGPLATFORM_TELEMETRY_OPTOUT=1
 ARG PROJECT
 ARG TARGETARCH
 ARG DOTNET_RUNTIME_VERSION

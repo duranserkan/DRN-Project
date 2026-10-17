@@ -74,7 +74,7 @@ TL;DR: You can
 
 ```bash
 dotnet build DRN.slnx                                  # Build the entire solution
-dotnet run --project Sample.Hosted                      # Run the sample web application (requires Docker)
+dotnet run --project Sample.Hosted -c Debug              # Run the sample with local dependencies (requires Docker)
 dotnet run --project DRN.Test.Unit                      # Run unit tests
 dotnet run --project DRN.Test.Analyzer                  # Run analyzer tests
 dotnet run --project DRN.Test.Integration               # Run integration tests (requires Docker)
@@ -110,49 +110,15 @@ For test projects (see [DRN.Test.Integration.csproj](DRN.Test.Integration/DRN.Te
 dotnet add package DRN.Framework.Testing
 ```
 
-> `Hosting` pulls `Utils` and `SharedKernel` transitively. `Testing` pulls `Hosting`, `EntityFramework`, `Utils`, and `SharedKernel` transitively.
-
 To create a new project from scratch:
 ```bash
 dotnet new web -n MyApp && cd MyApp && dotnet add package DRN.Framework.Hosting
 cd .. && dotnet new xunit -n MyApp.Tests && cd MyApp.Tests && dotnet add package DRN.Framework.Testing
 ```
 
-After scaffolding, compare your `.csproj` files with the reference projects and apply the adjustments (see [Sample.Hosted.csproj](Sample.Hosted/Sample.Hosted.csproj), [DRN.Test.Integration.csproj](DRN.Test.Integration/DRN.Test.Integration.csproj), [DRN.Test.Unit.csproj](DRN.Test.Unit/DRN.Test.Unit.csproj)).
+After scaffolding, follow the [Testing NuGet README](https://nuget.org/packages/DRN.Framework.Testing/#readme-body-tab) to configure the test runner, using the reference projects linked above.
 
-For the test project, replace the template's xUnit/VSTest package references with `xunit.v3.mtp-v2` and set `<OutputType>Exe</OutputType>` and `<UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>`. Keep `DRN.Framework.Testing` and use the runner version from the reference test projects.
-
-Update your configuration files (see [appsettings.json](Sample.Hosted/appsettings.json), [appsettings.Development.json](Sample.Hosted/appsettings.Development.json)):
-
-**appsettings.json** — required development identity settings and Kestrel endpoint:
-```json
-{
-  "Environment": "Development",
-  "NexusAppSettings": {
-    "AppId": 0,
-    "AppInstanceId": 0
-  },
-  "Kestrel": {
-    "EndpointDefaults": { "Protocols": "Http1" },
-    "Endpoints": { "All": { "Url": "http://*:5998" } }
-  }
-}
-```
-
-`Environment`, `NexusAppSettings:AppId`, and `NexusAppSettings:AppInstanceId` must be explicitly configured. Zero is valid for both IDs.
-
-**appsettings.Development.json** — development-only settings:
-```json
-{
-  "DrnDevelopmentSettings": {
-    "LaunchExternalDependencies": true
-  }
-}
-```
-
-`LaunchExternalDependencies` requires a startup hook that calls `LaunchExternalDependenciesAsync`, plus a development reference to `DRN.Framework.Testing`. See [SampleProgramActions.cs](Sample.Hosted/SampleProgramActions.cs) and [Sample.Hosted.csproj](Sample.Hosted/Sample.Hosted.csproj). The setting alone does not provision dependencies in a new application.
-
-> Use the Drn.Framework Nuget badges for detailed documentation such as configuration options, features, and examples.
+Use [appsettings.json](Sample.Hosted/appsettings.json) and [appsettings.Development.json](Sample.Hosted/appsettings.Development.json) as configuration references. Set `Environment`, `NexusAppSettings:AppId`, and `NexusAppSettings:AppInstanceId` explicitly. For local dependency launch, use `Environment: Development` and `DrnDevelopmentSettings:LaunchExternalDependencies: true` with the startup action below. See the [Hosting NuGet README](https://nuget.org/packages/DRN.Framework.Hosting/#readme-body-tab) for configuration details.
 
 For performance benchmarks, see [DRN.Test.Performance](DRN.Test.Performance) and its [benchmark reports](DRN.Test.Performance/Reports).
 
@@ -179,24 +145,13 @@ public class Program : DrnProgramBase<Program>, IDrnProgram
 }
 ```
 
-### Integration Tests
+To launch local PostgreSQL during development, add a `DrnProgramActions` class that calls `builder.LaunchExternalDependenciesAsync` from `ApplicationBuilderCreatedAsync`, as shown in [SampleProgramActions.cs](Sample.Hosted/SampleProgramActions.cs). The class is discovered automatically. Wrap the file in `#if DEBUG` and reference `DRN.Framework.Testing` only in Debug builds, following [Sample.Hosted.csproj](Sample.Hosted/Sample.Hosted.csproj). Launching also requires the Development environment and `LaunchExternalDependencies` setting shown above.
 
-Integration tests use `[DataInline]` with `DrnTestContext` and [Testcontainers](https://testcontainers.com/) for real database testing:
+Read the [Hosting](https://nuget.org/packages/DRN.Framework.Hosting/#readme-body-tab) and [Testing](https://nuget.org/packages/DRN.Framework.Testing/#readme-body-tab) NuGet READMEs for configuration details and more examples.
 
-- [QAContextTagTests.cs](DRN.Test.Integration/Tests/Sample/Infra/QA/QAContextTagTests.cs) — Entity ID generation, type-safe entity type checking, date-time filtering
-- [QAContextTests.cs](DRN.Test.Integration/Tests/Sample/Infra/QA/QAContextTests.cs) — CRUD operations, concurrency conflict detection, extended properties
-- [TagRepositoryTests.cs](DRN.Test.Integration/Tests/Sample/Infra/QA/Repositories/TagRepositoryTests.cs) — Source-Known Repository pattern, pagination, filtering
-- [SourceKnownEntityIdUtilsTests.cs](DRN.Test.Integration/Tests/Framework/Utils/SourceKnownIds/SourceKnownEntityIdUtilsTests.cs) — SKID/SKEID stress test: ~786K concurrent IDs across 8 threads, uniqueness
-- [SourceKnownIdUtilsTests.cs](DRN.Test.Integration/Tests/Framework/Utils/SourceKnownIds/SourceKnownIdUtilsTests.cs) — SKID stress test: ~786K concurrent IDs, sequence ordering, time-bucket distribution and cap validation
+### Testing
 
-> Entities use `[EntityType]` with `AggregateRoot<TModel>` — see [Tag.cs](Sample.Domain/QA/Tags/Tag.cs) for an example.
-
-### Unit Tests
-
-Unit tests use `[DataInlineUnit]` with `DrnTestContextUnit` for fast, isolated testing without external dependencies:
-
-- [SourceKnownEntityIdUtilsTests.cs](DRN.Test.Unit/Tests/Framework/Utils/Ids/SourceKnownEntityIdUtilsTests.cs) — SKID/SKEID generation, parsing, secure/plain conversion, tamper detection
-- [SourceKnownIdUtilsTests.cs](DRN.Test.Unit/Tests/Framework/Utils/Ids/SourceKnownIdUtilsTests.cs) — Source-Known ID bit layout, timestamp extraction, ordering
+Read the [Testing NuGet README](https://nuget.org/packages/DRN.Framework.Testing/#readme-body-tab) for unit and integration testing guidance, and see [QAContextTests.cs](DRN.Test.Integration/Tests/Sample/Infra/QA/QAContextTests.cs) for a database integration example.
 
 ### Developer Environment
 
