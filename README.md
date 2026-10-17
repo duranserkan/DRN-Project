@@ -54,7 +54,6 @@ TL;DR: You can
 
 - [Quick Start](#quick-start)
 - [Verify Published NuGet Packages](#verify-published-nuget-packages)
-- [Verify Published Container Images](#verify-published-container-images)
 - [About Project](#about-project)
 - [Solution Structure](#solution-structure)
 - [About Design and Architecture](#about-design-and-architecture)
@@ -84,37 +83,9 @@ dotnet run --project DRN.Test.Performance -c Release -- --filter-method DRN.Test
 dotnet run --project DRN.Test.Performance -c Release -- --filter-method DRN.Test.Performance.Benchmark.Framework.Utils.SourceKnownIdUtilsSaturationPerformanceTests.Run_Benchmarks  # Run SKID/SKEID saturation benchmark only
 ```
 
-The sample runs at http://localhost:5998. Its default Debug/Development startup provisions PostgreSQL through Testcontainers on host port **6432**. Keep that port available.
+The sample runs at http://localhost:5998.
 
-For a fresh local Docker Compose stack, use Docker Compose 2.30 or newer and run these commands from the repository root:
-
-```bash
-cp -n .sample-env .env
-docker compose up -d --build
-```
-
-The templates include working, public local development credentials and keys. No manual secret generation is needed. The copy command preserves an existing `.env`; existing installations should edit their current file and follow the migration notes below. For standalone dependencies, run the same copy command in `Docker/Postgre`, `Docker/Rabbitmq`, `Docker/Graylog`, or `Docker/Infra`, then run `docker compose up -d` there. Choose one stack for each dependency because the stacks share host ports.
-
-| Service | Local address | Username | Password |
-|---|---|---|---|
-| Sample | http://localhost:5998 | Register through the app | Choose during registration |
-| PostgreSQL | localhost:5432, database `drn` | `drn` | `drn` |
-| RabbitMQ management | http://localhost:15672 | `drn` | `drn` |
-| Graylog | http://localhost:9000 | `admin` | `drn` |
-
-Graylog requires its initial Data Node setup through the preflight UI. Use the temporary credentials shown in its container logs for that step; the configured `admin` / `drn` login applies afterward. See [Graylog's Docker setup instructions](https://go2docs.graylog.org/current/downloading_and_installing_graylog/docker_installation.htm).
-
-These public credentials and encryption keys are only for local development with disposable data. Before using a shared deployment, replace them with unique secrets. Generate a Nexus key with `openssl rand -hex 32` and keep `NexusAppSettings__Keys__0__Format=Hex`. Generate `DrnAppFeatures__SeedKey` independently: use 58-256 ASCII characters with uppercase, lowercase, digits, and at least one of `!*()-_`, with no more than four sequential or three identical characters in a row. Preserve both keys across restarts. The application still rejects its built-in staging example keys; the local template supplies separate values that satisfy validation.
-
-The root Compose stack explicitly serves Sample over HTTP at http://localhost:5998. It does not publish port 5999 or mount a TLS certificate. For HTTPS, configure a separate deployment override with an explicit Kestrel HTTPS endpoint, certificate settings, and the corresponding port mapping. See the [RabbitMQ setup and migration instructions](Docker/Rabbitmq/README.md) before reusing an existing broker volume.
-
-All published ports in the root and standalone dependency Compose stacks bind to `127.0.0.1`, including the Sample app, PostgreSQL, RabbitMQ, and Graylog. Container-to-container connections still use service names and container ports. Remote access requires an explicit deployment override with appropriate authentication and transport protection.
-
-For new local databases, the templates provide PostgreSQL and RabbitMQ password `drn`, a fixed Graylog secret, the hash of Graylog password `drn`, and RabbitMQ hostname `drn-rabbit`. For an existing broker volume, preserve its original hostname as described in the [RabbitMQ migration instructions](Docker/Rabbitmq/README.md). Compose still rejects missing required values if the template has not been copied or a required value is cleared.
-
-For existing databases, edit the existing `.env` rather than replacing it with the template. Changing `POSTGRES_PASSWORD` in `.env` does not rotate the stored PostgreSQL password. Rotate it in PostgreSQL and update clients together. Change Graylog's root password through `GRAYLOG_ROOT_PASSWORD_SHA2`, but preserve its existing `GRAYLOG_PASSWORD_SECRET`: changing that secret can invalidate sessions and encrypted data. These configuration changes do not automatically migrate stored credentials.
-
-The root, Infra, and standalone PostgreSQL Compose stacks fix `PGDATA` to `/data/postgres`, matching their `drn-postgres-data` volume mount. A `PGDATA` value in `.env` no longer overrides this path. Existing databases using the default path need no migration. If you previously used another path, back up that database and migrate it to the named volume before recreating the container. Changing the configuration does not move existing data.
+See the [Docker and Docker Compose guide](Docker/README.md) for local container setup, credentials, data migration, and published image verification.
 
 After changing frontend sources in `Sample.Hosted/buildwww/`, rebuild the assets from `Sample.Hosted/`:
 
@@ -285,27 +256,6 @@ gh attestation verify \
 
 Repeat for each package. If verification fails, use the exact package from the workflow's `packages` artifact.
 
-## Verify Published Container Images
-
-Stable and preview releases publish provenance for each multi-platform image index and a separate SPDX 2.3 SBOM attestation for each `linux/amd64` and `linux/arm64` manifest. Separate platform bindings prevent one architecture's inventory from representing another. Replace `RELEASE_VERSION`, inspect the image, then replace `PLATFORM_MANIFEST_HEX_DIGEST` with the hexadecimal part of the corresponding platform digest (for preview images, replace `release.yml` with `release-preview.yml`):
-
-```bash
-docker buildx imagetools inspect docker.io/duranserkan/drn-project-sample:RELEASE_VERSION
-
-gh attestation verify \
-  oci://index.docker.io/duranserkan/drn-project-sample:RELEASE_VERSION \
-  -R duranserkan/DRN-Project \
-  --signer-workflow duranserkan/DRN-Project/.github/workflows/release.yml
-
-gh attestation verify \
-  oci://index.docker.io/duranserkan/drn-project-sample@sha256:PLATFORM_MANIFEST_HEX_DIGEST \
-  -R duranserkan/DRN-Project \
-  --signer-workflow duranserkan/DRN-Project/.github/workflows/release.yml \
-  --predicate-type https://spdx.dev/Document/v2.3
-```
-
-Replace `drn-project-sample` with `drn-project-nexus` to verify the Nexus image.
-
 ## About Project
 
 Distributed Reliable .Net project aims to provide somewhat opinionated design and out of the box solutions to enterprise application development.
@@ -334,7 +284,7 @@ It is not about coding. It is about process of creating and enhancing good thing
 
 ### Solution Structure
 This solution consists of 6 parts that are being developed with Jetbrains Rider on macOS with arm-based M2 chip. However, I expect it to work on any modern machine since it is a cross-platform solution
-1. **Docker Folder:** It contains standalone Compose definitions and dependency configuration files. `Docker/Infra/docker-compose.yml` remains the combined infra compose for PostgreSQL, RabbitMQ, and Graylog. RabbitMQ uses the official image with read-only configuration mounts.
+1. **Docker Folder:** Standalone dependency stacks and container configuration.
 2. **Docs:** It contains project documents. This docs will be supported with articles and a YouTube playlist.
 3. **Items:** It contains file that does not belong anywhere else such as .gitignore, .dockerignore and .github workflows
 4. **Src:** It contains 3 folders that define 3 different **DRN** domain.
@@ -349,7 +299,7 @@ This solution consists of 6 parts that are being developed with Jetbrains Rider 
    * **Framework:** DRN.Framework source codes belongs to generalized solutions that can be used within compatible .NET 10 projects as nuget packages.
    * **Sample:** Nexus connectable sample app demonstrates **DRN.Framework** usage. It is used for testing, presentation and documentation purposes.
 5. **Test:** It contains all the unit, integration and performance tests.
-6. **docker-compose:** Root application compose for `Sample.Hosted` plus its local PostgreSQL, RabbitMQ, and Graylog dependencies. Copy root `.sample-env` to root `.env` for working local defaults. Follow the [existing-volume migration instructions](Docker/Rabbitmq/README.md) when upgrading a broker.
+6. **docker-compose:** Local application stack for `Sample.Hosted` and its dependencies.
 
 ## About Design and Architecture
 * [Chris Patterson's Great Article - Software Architect for Life](http://blog.phatboyg.com/2017/03/08/software-architect-for-life.html)
