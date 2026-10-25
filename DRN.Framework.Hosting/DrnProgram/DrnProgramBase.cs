@@ -812,7 +812,8 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// </summary>
     /// <remarks>
     /// Runs before builder creation. Call base before changes to start with the application title and Development-only enablement.
-    /// The resulting options are shared by registration and pipeline mapping; enabling Swagger does not itself define access policy.
+    /// The resulting options are shared by registration and pipeline mapping. Set AuthorizationPolicy to protect the UI,
+    /// its assets, and documents with a named policy; enabling Swagger alone does not define access policy.
     /// </remarks>
     protected virtual void ConfigureSwaggerOptions(DrnProgramSwaggerOptions options, IAppSettings appSettings)
     {

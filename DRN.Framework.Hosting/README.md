@@ -256,6 +256,13 @@ For MFA hooks and examples, see [MFA](#mfa).
 
 `DrnProgramBase` also automatically registers the public `IEndpointAccessor` dependency-injection contract as a singleton. Consumers can inject `IEndpointAccessor` to query the endpoint collections (`Endpoints`, `ApiEndpoints`, `PageEndpoints`, and `PageEndpointByPaths`) populated by `ValidateEndpoints` before service validation (`ValidateServicesAsync`) runs.
 
+### Swagger Access Outside Development
+
+Override `ConfigureSwaggerOptions`, call base, then set `AddSwagger = true` and `AuthorizationPolicy` to an application-owned named policy. Register that policy with `RequireAuthenticatedUser()` and the appropriate administrative role. The default MFA enforcement also applies.
+
+`AuthorizationPolicy` protects Swagger UI, its assets, and JSON/YAML documents, including a document route outside the UI prefix. A null policy preserves existing authorization behavior. Empty or whitespace policy names are rejected. The framework still enables Swagger only in Development by default.
+
+
 ## Configuration
 
 ### Layering

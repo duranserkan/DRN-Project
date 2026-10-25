@@ -2,6 +2,7 @@ using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
+using Sample.Domain.Identity;
 
 namespace Sample.Hosted;
 
@@ -15,6 +16,13 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
 
     protected override Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings, IScopedLog scopedLog)
         => Task.FromResult(builder.Services.AddSampleHostedServices(appSettings));
+
+    protected override void ConfigureSwaggerOptions(DrnProgramSwaggerOptions options, IAppSettings appSettings)
+    {
+        base.ConfigureSwaggerOptions(options, appSettings);
+        options.AddSwagger = true;
+        options.AuthorizationPolicy = UserClaims.SwaggerAccess;
+    }
 
     protected override MfaRedirectionConfig ConfigureMFARedirection()
         => new(Get.Page.User.Management.EnableAuthenticator,

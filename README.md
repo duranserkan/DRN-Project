@@ -87,6 +87,8 @@ dotnet run --project DRN.Test.Performance -c Release -- --filter-method DRN.Test
 
 The sample runs at http://localhost:5998.
 
+In the sample, signed-in users who complete MFA can access `/swagger`, `/Test/Htmx`, and `/Test/DeveloperView` in Development. In Staging and Production, `SystemAdmin` grants both tools. Other users need a `SwaggerAccess` claim set to `true` for Swagger or a `TestPagesAccess` claim set to `true` for Test Pages. MFA is required in every environment. Navigation uses the same policies as the endpoints. Developer View is an explicit diagnostics preview. Ordinary Staging and Production errors remain redacted.
+
 See the [Docker and Docker Compose guide](Docker/README.md) for local container setup, credentials, data migration, and published image verification.
 
 After changing frontend sources in `Sample.Hosted/buildwww/`, rebuild the assets from `Sample.Hosted/`:

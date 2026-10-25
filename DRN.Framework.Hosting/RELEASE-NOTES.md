@@ -2,8 +2,13 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.10.1
 
+### Breaking Changes
+
+*   **Diagnostic Page Routing**: `DeveloperView` paths no longer trigger diagnostics before authentication. Protect pages that display sample errors with an authorization policy. Replace the removed two-argument `ExceptionPageAccessor.IsExceptionPage` overload with `IsExceptionPage(path)`. Internal exception templates still block direct access.
+
 ### New Features
 
+*   **Swagger Authorization**: Added `DrnProgramSwaggerOptions.AuthorizationPolicy` to protect Swagger UI, its assets, and OpenAPI documents with an application-owned named policy. Applications can enable Swagger in Staging and Production while retaining role and MFA requirements. Development-only enablement remains the framework default.
 *   **Endpoint URL Generation**: Added `Url.Endpoint(ApiEndpoint, values)` to generate request-aware MVC URLs from endpoint accessors. It preserves deployment prefixes, uses effective MVC action names and destination areas, and reports uninitialized or ambiguous metadata and failed URL generation explicitly. Existing `Path(...)` APIs remain compatible.
 *   **Application URLs**: Added `HttpRequest.ApplicationUrl` for application-owned route paths and `ApplicationUrlTagHelper` for `~/` HTML and HTMX URLs. Deployment prefixes are preserved without changing controller route prefixes or already-resolved URLs.
 

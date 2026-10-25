@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Sample.Application;
+using Sample.Domain.Identity;
 using Sample.Domain.Users;
 using Sample.Hosted.Settings;
 using Sample.Infra;
@@ -28,6 +29,21 @@ public static class SampleModule
             .AddSignInManager<DrnSignInManager<SampleUser>>();
 
         services.AddDrnIdentityMfaPolicies();
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy(UserClaims.SwaggerAccess, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireAssertion(context => settings.IsDevelopmentEnvironment ||
+                    context.User.IsInRole(UserRoles.SystemAdmin) ||
+                    context.User.HasClaim(claim => claim.Type == UserClaims.SwaggerAccess &&
+                        bool.TryParse(claim.Value, out var enabled) && enabled)));
+            options.AddPolicy(UserClaims.TestPagesAccess, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireAssertion(context => settings.IsDevelopmentEnvironment ||
+                    context.User.IsInRole(UserRoles.SystemAdmin) ||
+                    context.User.HasClaim(claim => claim.Type == UserClaims.TestPagesAccess &&
+                        bool.TryParse(claim.Value, out var enabled) && enabled)));
+        });
 
         //https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/configuration/overview
         //https://www.nuget.org/packages/Microsoft.AspNetCore.DataProtection.EntityFrameworkCore/

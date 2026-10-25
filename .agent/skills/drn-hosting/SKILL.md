@@ -1,7 +1,7 @@
 ---
 name: drn-hosting
 description: "DRN.Framework.Hosting - DrnProgramBase for web application bootstrapping, endpoint configuration, security middleware (CSP, nonce), authentication/authorization, TagHelpers for asset management, and Razor Pages integration. Essential for web application setup and hosting. Keywords: hosting, web-application, drnprogrambase, endpoints, middleware, security, csp, nonce, authentication, authorization, taghelpers, razor-pages, mfa, background-service"
-last-updated: 2026-10-04
+last-updated: 2026-10-18
 difficulty: advanced
 tokens: ~3K
 ---
@@ -181,6 +181,11 @@ protected override void ConfigureAuthorizationOptions(AuthorizationOptions optio
 - `ConsentCookie` represents the policy consent state and is script-readable under `HttpOnlyPolicy.None`.
 - `ScopedUserMiddleware` populates `IScopedLog` with consent flags (`Consent_Analytics`, `Consent_Marketing`) and `ScopeContext` with `ConsentCookie`.
 - Applications remain responsible for analytics and marketing script activation, category-specific preferences, and accurate `IsEssential` classification.
+
+### Swagger And Developer Tool Authorization
+
+Swagger remains enabled only in Development by default. Consumers can override `ConfigureSwaggerOptions`, call base, then set `AddSwagger = true` and `AuthorizationPolicy` to a named application policy. The policy protects UI, assets, and JSON/YAML documents, including custom document routes outside the UI prefix. Default MFA enforcement still applies. Null preserves existing authorization behavior; blank names are rejected.
+
 
 ### Per-Route Security Headers
 

@@ -1,5 +1,3 @@
-@using DRN.Framework.SharedKernel.Enums
-
 <header class="navbar navbar-expand-md container-xxl bg-primary" data-bs-theme="dark">
     <div class="container-fluid">
         <a class="navbar-brand d-flex align-items-center link-body-emphasis text-decoration-none" asp-page="@Get.Page.Root.HomeAnonymous" mark-when-active="false">
@@ -14,27 +12,25 @@
                 <li class="nav-item">
                     <a class="nav-link" asp-page="@Get.Page.Root.Home" authorized-only>Home</a>
                 </li>
-                <environment include="@nameof(AppEnvironment.Development)">
-                    <li class="nav-item">
-                        <a class="nav-link" authorized-only href="~@Get.Page.Root.Swagger" target="_blank">Swagger</a>
-                    </li>
-                    <li class="btn-group nav-item" authorized-only>
-                        <button class="nav-link dropdown-toggle" id="navbarTestPages" data-bs-toggle="dropdown" aria-expanded="false">
-                            Test Pages
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end" data-bs-theme="light" aria-labelledby="navbarTestPages">
-                            <li>
-                                <a class="dropdown-item" authorized-only href="~@Get.Page.Test.DeveloperView" target="_blank">Developer View</a>
-                            </li>
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
-                            <li>
-                                <a class="dropdown-item" authorized-only asp-page="@Get.Page.Test.Htmx">Htmx</a>
-                            </li>
-                        </ul>
-                    </li>
-                </environment>
+                <li class="nav-item" policy-only="@UserClaims.SwaggerAccess">
+                    <a class="nav-link" href="~@Get.Page.Root.Swagger" target="_blank">Swagger</a>
+                </li>
+                <li class="btn-group nav-item" policy-only="@UserClaims.TestPagesAccess">
+                    <button class="nav-link dropdown-toggle" id="navbarTestPages" data-bs-toggle="dropdown" aria-expanded="false">
+                        Test Pages
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" data-bs-theme="light" aria-labelledby="navbarTestPages">
+                        <li>
+                            <a class="dropdown-item" asp-page="@Get.Page.Test.DeveloperView" target="_blank">Developer View</a>
+                        </li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li>
+                            <a class="dropdown-item" asp-page="@Get.Page.Test.Htmx">Htmx</a>
+                        </li>
+                    </ul>
+                </li>
                 <!-- Add more links here if needed -->
             </ul>
             <ul class="navbar-nav ms-auto">

@@ -16,17 +16,43 @@ namespace DRN.Test.Integration.Tests.Sample.Pages.User;
 public class LoginPageTests
 {
     [Theory]
-    [DataInline("")]
-    [DataInline("/gateway")]
-    public async Task Mfa_Login_Should_Preserve_Public_ReturnUrl_And_Render_Prefixed_Links(
-        DrnTestContext context, string pathBase)
+    [DataInline("Development", "", null, true, true)]
+    [DataInline("Development", "/gateway", UserRoles.SystemAdmin, true, true)]
+    [DataInline("Staging", "/gateway", UserRoles.SystemAdmin, true, true)]
+    [DataInline("Production", "/gateway", UserRoles.SystemAdmin, true, true)]
+    [DataInline("Staging", "/gateway", UserClaims.SwaggerAccess, true, false)]
+    [DataInline("Staging", "/gateway", UserClaims.TestPagesAccess, false, true)]
+    [DataInline("Production", "/gateway", UserClaims.SwaggerAccess, true, false)]
+    [DataInline("Production", "/gateway", UserClaims.TestPagesAccess, false, true)]
+    [DataInline("Production", "/gateway", null, false, false)]
+    public async Task Mfa_Login_Should_Enforce_Developer_Tool_Policies_And_Preserve_Prefixed_Links(
+        DrnTestContext context, string environment, string pathBase, string? grant, bool swaggerAllowed, bool testPagesAllowed)
     {
+        context.AddToConfiguration("Environment", environment);
+        context.AddToConfiguration("AllowedHosts", "localhost");
         var application = context.ApplicationContext.CreateApplication<SampleProgram>(builder =>
             builder.ConfigureServices(services =>
                 services.AddSingleton<IStartupFilter>(new PathBaseStartupFilter(pathBase))));
         await context.ContainerContext.BindExternalDependenciesAsync();
         application.Server.PreserveExecutionContext = true;
-        using var client = application.CreateClient(new() { AllowAutoRedirect = false });
+        using var client = application.CreateClient(new()
+        {
+            AllowAutoRedirect = false,
+            BaseAddress = new Uri("https://localhost")
+        });
+        application.Services.GetRequiredService<IAppSettings>().Environment.ToString().Should().Be(environment);
+        var toolPaths = new[]
+        {
+            ("/swagger/index.html", swaggerAllowed), ("/swagger/swagger-ui.css", swaggerAllowed),
+            ("/swagger/swagger-ui-bundle.js", swaggerAllowed), ("/swagger/v1/swagger.json", swaggerAllowed),
+            ("/swagger/v1/swagger.yaml", swaggerAllowed), (Get.Page.Test.Htmx, testPagesAllowed),
+            (Get.Page.Test.DeveloperView, testPagesAllowed)
+        };
+        foreach (var (path, _) in toolPaths)
+        {
+            using var denied = await client.GetAsync(pathBase + path);
+            denied.StatusCode.Should().BeOneOf(HttpStatusCode.Unauthorized, HttpStatusCode.SeeOther);
+        }
         using var scope = application.Services.CreateScope();
         var manager = scope.ServiceProvider.GetRequiredService<UserManager<SampleUser>>();
         var credentials = CredentialsProvider.GenerateCredentials();
@@ -36,15 +62,21 @@ public class LoginPageTests
             UserName = email, Email = email, EmailConfirmed = true, PhoneNumberConfirmed = true
         };
         (await manager.CreateAsync(user, credentials.Password)).Succeeded.Should().BeTrue();
-        (await manager.AddClaimAsync(user, new Claim(manager.Options.ClaimsIdentity.RoleClaimType, UserRoles.SystemAdmin)))
-            .Succeeded.Should().BeTrue();
+        if (grant != null)
+        {
+            var claim = grant == UserRoles.SystemAdmin
+                ? new Claim(manager.Options.ClaimsIdentity.RoleClaimType, UserRoles.SystemAdmin)
+                : new Claim(grant, bool.TrueString);
+            (await manager.AddClaimAsync(user, claim)).Succeeded.Should().BeTrue();
+        }
         (await manager.ResetAuthenticatorKeyAsync(user)).Succeeded.Should().BeTrue();
         (await manager.SetTwoFactorEnabledAsync(user, true)).Succeeded.Should().BeTrue();
         var key = await manager.GetAuthenticatorKeyAsync(user);
         key.Should().NotBeNullOrEmpty();
 
         var loginPath = pathBase + Get.Page.User.Login;
-        var returnUrl = $"{pathBase}{Get.Page.Test.Htmx}?tag=one&tag=two&next=%2Fitems%3Fx%3D1#details";
+        var landingPage = testPagesAllowed ? Get.Page.Test.Htmx : Get.Page.Root.Home;
+        var returnUrl = $"{pathBase}{landingPage}?tag=one&tag=two&next=%2Fitems%3Fx%3D1#details";
         var token = await GetAntiforgeryTokenAsync(client, loginPath);
         using var loginForm = new FormUrlEncodedContent(new Dictionary<string, string>
         {
@@ -57,6 +89,12 @@ public class LoginPageTests
         loginResponse.StatusCode.Should().Be(HttpStatusCode.SeeOther);
         var challengePath = loginResponse.Headers.Location!.OriginalString;
         challengePath.Should().StartWith(pathBase + Get.Page.User.LoginWith2Fa + "?");
+
+        foreach (var (path, _) in toolPaths)
+        {
+            using var denied = await client.GetAsync(pathBase + path);
+            denied.StatusCode.Should().BeOneOf(HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden, HttpStatusCode.SeeOther);
+        }
 
         token = await GetAntiforgeryTokenAsync(client, challengePath);
         using var challengeForm = new FormUrlEncodedContent(new Dictionary<string, string>
@@ -73,9 +111,25 @@ public class LoginPageTests
         var html = await landingResponse.Content.ReadAsStringAsync();
         html.Should().Contain($"name=\"drn-app-base\" content=\"{pathBase}/\"")
             .And.Contain($"href=\"{pathBase}{Get.Page.Root.Home}\"")
-            .And.Contain($"hx-post=\"{pathBase}{Get.Page.Test.Htmx}?handler=Auto\"")
             .And.Contain($"src=\"{pathBase}{Get.Endpoint.User.PP.ControllerRoute}/{user.Id}?v=")
             .And.NotContain("hx-post=\"~/");
+        html.Contains($"href=\"{pathBase}{Get.Page.Root.Swagger}\"").Should().Be(swaggerAllowed);
+        html.Contains($"href=\"{pathBase}{Get.Page.Test.DeveloperView}\"").Should().Be(testPagesAllowed);
+        if (testPagesAllowed)
+            html.Should().Contain($"hx-post=\"{pathBase}{Get.Page.Test.Htmx}?handler=Auto\"");
+
+        foreach (var (path, allowed) in toolPaths)
+        {
+            using var response = await client.GetAsync(pathBase + path);
+            response.StatusCode.Should().Be(allowed ? HttpStatusCode.OK : HttpStatusCode.Forbidden,
+                $"the {environment} policy should enforce the user's permission for {path}");
+        }
+        if (testPagesAllowed)
+        {
+            using var preview = await client.GetAsync(pathBase + Get.Page.Test.DeveloperView);
+            (await preview.Content.ReadAsStringAsync()).Should().Contain("Developer diagnostics preview.");
+            preview.Headers.CacheControl!.NoStore.Should().BeTrue();
+        }
     }
 
     [Theory]

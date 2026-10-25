@@ -27,6 +27,12 @@ public class DrnProgramSwaggerOptions
     public bool AddSwagger { get; set; }
 
     /// <summary>
+    /// Optional named policy required by the Swagger UI, its assets, and OpenAPI documents.
+    /// Null preserves the application's existing authorization behavior.
+    /// </summary>
+    public string? AuthorizationPolicy { get; set; }
+
+    /// <summary>
     /// Builds the Swagger server URL from the processed request's Scheme, Host, and PathBase.
     /// Forwarded headers must be applied by middleware before the document is served.
     /// </summary>

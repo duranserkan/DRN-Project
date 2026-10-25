@@ -20,18 +20,11 @@ public class ExceptionPageAccessor(IEndpointAccessor accessor) : IExceptionPageA
     public PageEndpoint RuntimeExceptionPage { get; } = accessor.PageEndpointByPaths[RuntimeExceptionPagePath];
     public PageEndpoint CompilationExceptionPage { get; } = accessor.PageEndpointByPaths[CompilationExceptionPagePath];
 
-    public static bool IsExceptionPage(string? path, bool isDevEnvironment)
+    public static bool IsExceptionPage(string? path)
     {
         if (path == null)
             return false;
 
-        if (isDevEnvironment && path.Contains(DeveloperPageName))
-            throw new DeveloperViewException();
-
         return path.Contains(RuntimeExceptionPageName) || path.Contains(CompilationExceptionPageName);
     }
-}
-
-internal class DeveloperViewException : Exception
-{
 }

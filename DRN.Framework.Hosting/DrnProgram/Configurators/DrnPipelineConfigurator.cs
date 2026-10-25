@@ -78,8 +78,18 @@ internal sealed class DrnPipelineConfigurator
     {
         if (!options.AddSwagger) return;
 
-        application.MapSwagger(options.DefaultRouteTemplate, options.ConfigureSwaggerEndpointOptions);
-        application.UseSwaggerUI(options.ConfigureSwaggerUI);
+        if (options.AuthorizationPolicy is { } policy)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(policy);
+            application.MapSwagger(options.DefaultRouteTemplate, options.ConfigureSwaggerEndpointOptions)
+                .RequireAuthorization(policy);
+            application.MapSwaggerUI(setupAction: options.ConfigureSwaggerUI).RequireAuthorization(policy);
+        }
+        else
+        {
+            application.MapSwagger(options.DefaultRouteTemplate, options.ConfigureSwaggerEndpointOptions);
+            application.UseSwaggerUI(options.ConfigureSwaggerUI);
+        }
     }
 
     internal static void MapApplicationEndpoints(WebApplication application)
