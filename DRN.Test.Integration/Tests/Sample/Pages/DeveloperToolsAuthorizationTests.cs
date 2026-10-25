@@ -31,7 +31,9 @@ public class DeveloperToolsAuthorizationTests
         context.AddToConfiguration("AllowedHosts", "localhost");
         // Keep the multi-request authorization flow independent of token-bucket quotas.
         context.AddToConfiguration("DrnAppFeatures:DrnRateLimit:Disabled", "true");
-        var application = context.ApplicationContext.CreateApplication<SampleProgram>(builder =>
+        var output = TestContext.Current.TestOutputHelper;
+        output?.WriteLine($"Developer tools authorization: environment={environment}, pathBase='{pathBase}', grant='{grant ?? "none"}'");
+        var application = context.ApplicationContext.CreateApplicationCore<SampleProgram>(output, builder =>
             builder.ConfigureServices(services =>
                 services.AddSingleton<IStartupFilter>(new PathBaseStartupFilter(pathBase))));
         await context.ContainerContext.BindExternalDependenciesAsync();

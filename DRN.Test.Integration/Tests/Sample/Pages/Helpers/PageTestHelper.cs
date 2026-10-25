@@ -26,7 +26,17 @@ internal static class PageTestHelper
 
     public static async Task<string> GetAntiforgeryTokenAsync(HttpClient client, string pagePath)
     {
-        var html = await client.GetStringAsync(pagePath);
+        using var response = await client.GetAsync(pagePath);
+        var html = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+        {
+            const int responseLimit = 4096;
+            var excerpt = html.Length <= responseLimit ? html : html[..responseLimit] + " [truncated]";
+            response.IsSuccessStatusCode.Should().BeTrue(
+                "GET {0} must succeed before extracting an antiforgery token, but returned HTTP {1} ({2}). Response: {3}",
+                response.RequestMessage?.RequestUri?.ToString() ?? pagePath,
+                (int)response.StatusCode, response.ReasonPhrase, excerpt);
+        }
         const string tokenName = "__RequestVerificationToken";
         var nameIndex = html.IndexOf($"name=\"{tokenName}\"", StringComparison.Ordinal);
         nameIndex.Should().BeGreaterThanOrEqualTo(0);
