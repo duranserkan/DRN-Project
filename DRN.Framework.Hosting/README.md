@@ -930,6 +930,18 @@ All three models expose `RequestId` from `HttpContext.TraceIdentifier`. Internal
 
 For other response formats, derive from `DrnExceptionHandler`, register it for `IDrnExceptionHandler`, and override `WriteProductionErrorResponseAsync(HttpContext)`. Preserve the HTTP status and omit exception details.
 
+For a 403 page, use `@model DRN.Framework.Hosting.Middlewares.ExceptionHandler.AccessDeniedPageModel`. It allows anonymous access and disables caching. To preserve the denied request's reference across a cookie redirect, configure the application cookie after registering Identity and assigning other redirect callbacks:
+
+```csharp
+services.ConfigureApplicationCookie(options =>
+{
+    options.AccessDeniedPath = "/AccessDenied";
+    options.Events.PreserveAccessDeniedRequestId();
+});
+```
+
+`PreserveAccessDeniedRequestId()` is in the same namespace and requires MVC TempData services. It preserves the existing callback and stores the reference only for 302 redirects, leaving API 401/403 responses unchanged. `AccessDeniedPageModel` returns 403 on GET and consumes the stored reference once; direct visits otherwise use their own `HttpContext.TraceIdentifier`. This is separate from `DrnErrorPageOptions` status-page rendering. If the cookie scheme uses `EventsType`, call the extension on that events instance instead of `options.Events`.
+
 ### Request Body Buffering
 
 Request diagnostics buffer POST, PUT, and PATCH bodies only when `Content-Length` is known and within the configured limit. Kestrel request-size limits still apply.

@@ -1,0 +1,2 @@
+// The exception-page implementation in this folder includes code derived from:
+// https://github.com/dotnet/aspnetcore/blob/v9.0.0/src/Middleware/Diagnostics/src/DeveloperExceptionPage/

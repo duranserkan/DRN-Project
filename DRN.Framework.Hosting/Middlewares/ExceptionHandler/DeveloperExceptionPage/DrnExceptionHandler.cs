@@ -79,7 +79,7 @@ public class DrnExceptionHandler(
 
         return new ExceptionPageModel(context, model);
     }
-    
+
     public async Task<ExceptionContentResult?> GetStartupExceptionContentAsync(IServiceProvider serviceProvider, Exception exception, IScopedLog startupLog)
     {
         using var requestServices = serviceProvider.CreateScope();

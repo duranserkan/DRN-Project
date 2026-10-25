@@ -5,7 +5,6 @@ using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Sample.Application;
 using Sample.Domain.Identity;
 using Sample.Domain.Users;
@@ -26,10 +25,11 @@ public static class SampleModule
             .AddSampleInfraServices()
             .AddSampleApplicationServices()
             .Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 1000 * 1024) // size limit
-            .ConfigureCookieAuthenticationOptions(settings)
             .AddIdentityApiEndpoints<SampleUser>(ConfigureIdentity(settings))
             .AddSignInManager<DrnSignInManager<SampleUser>>();
 
+        // Identity replaces cookie events, so apply application customizations after its registration.
+        services.ConfigureCookieAuthenticationOptions(settings);
         services.AddDrnIdentityMfaPolicies();
         services.Configure<DrnErrorPageOptions>(options =>
         {
@@ -81,18 +81,7 @@ public static class SampleModule
             options.LogoutPath = Get.Page.User.Logout;
             options.AccessDeniedPath = Get.Page.Root.AccessDenied;
             options.ReturnUrlParameter = Get.ViewDataKeys.ReturnUrl;
-            var redirectToAccessDenied = options.Events.OnRedirectToAccessDenied;
-            options.Events.OnRedirectToAccessDenied = async context =>
-            {
-                await redirectToAccessDenied(context);
-                if (context.Response.StatusCode != StatusCodes.Status302Found)
-                    return;
-
-                var tempData = context.HttpContext.RequestServices.GetRequiredService<ITempDataDictionaryFactory>()
-                    .GetTempData(context.HttpContext);
-                tempData[Get.TempDataKeys.AccessDeniedRequestId] = context.HttpContext.TraceIdentifier;
-                tempData.Save();
-            };
+            options.Events.PreserveAccessDeniedRequestId();
         });
 
         return services;

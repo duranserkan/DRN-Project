@@ -260,6 +260,8 @@ public class TagFor() : ControllerForBase<TagController>(QaApiFor.ControllerRout
 
 Use `DrnErrorPageOptions` for application-owned 400, 404, and 5xx error pages. Preserve status codes, the original request reference when rendering internally, redaction, existing response bodies, API validation responses, Development exception diagnostics, deployment prefixes, and fallback authorization for unmatched routes. Keep error pages anonymous, non-cacheable, and independent of application data. See [Hosting custom error pages](../../../DRN.Framework.Hosting/README.md#custom-error-pages) for configuration, models, and response customization.
 
+For access-denied redirects, use `AccessDeniedPageModel` and opt in with `PreserveAccessDeniedRequestId()` on the active cookie events instance after Identity registration and other callback assignments. Preserve the existing callback, nonredirect responses, and single-use TempData reference. Keep routes, markup and authorization policies application-owned. See the same README section for setup and `EventsType` guidance.
+
 | Middleware | Purpose |
 |------------|---------|
 | `HttpScopeMiddleware` | Request/response logging with IScopedLog, TraceId, duration |

@@ -147,7 +147,9 @@ public class ErrorPageTests
         (await apiNotFound.Content.ReadAsStringAsync()).Should().NotContain("Page not found")
             .And.NotContain("<html");
 
-        var registerPath = pathBase + Get.Endpoint.User.Identity.RegisterController.Register.RoutePattern!;
+        var registerRoute = Get.Endpoint.User.Identity.RegisterController.Register.RoutePattern;
+        registerRoute.Should().NotBeNullOrWhiteSpace();
+        var registerPath = pathBase + "/" + registerRoute!.TrimStart('/');
         var invalidRegistration = new { Email = "invalid-email", Password = "Unused-password-123!" };
         using var jsonRequest = new HttpRequestMessage(HttpMethod.Post, registerPath)
         {
