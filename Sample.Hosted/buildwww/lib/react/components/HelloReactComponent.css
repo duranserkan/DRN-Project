@@ -115,3 +115,19 @@
     color: #94a3b8;
     margin: 0.75rem 0 0 0;
 }
+
+@media (prefers-reduced-motion: reduce) {
+    .drn-react-root .hello-react-badge,
+    .drn-react-root .hello-react-card {
+        transition: none;
+    }
+
+    .drn-react-root .hello-react-badge.is-transitioning {
+        opacity: 1;
+        transform: none;
+    }
+
+    .drn-react-root .hello-react-card:hover {
+        transform: none;
+    }
+}

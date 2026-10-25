@@ -37,21 +37,19 @@ public static class SampleModule
             options.NotFoundPage = Get.Page.Root.NotFound;
             options.BadRequestPage = Get.Page.Root.BadRequest;
         });
-        services.AddAuthorization(options =>
-        {
-            options.AddPolicy(UserClaims.SwaggerAccess, policy => policy
+        services.AddAuthorizationBuilder()
+            .AddPolicy(UserClaims.SwaggerAccess, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireAssertion(context => settings.IsDevelopmentEnvironment ||
                     context.User.IsInRole(UserRoles.SystemAdmin) ||
                     context.User.HasClaim(claim => claim.Type == UserClaims.SwaggerAccess &&
-                        bool.TryParse(claim.Value, out var enabled) && enabled)));
-            options.AddPolicy(UserClaims.TestPagesAccess, policy => policy
+                        bool.TryParse(claim.Value, out var enabled) && enabled)))
+            .AddPolicy(UserClaims.TestPagesAccess, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireAssertion(context => settings.IsDevelopmentEnvironment ||
                     context.User.IsInRole(UserRoles.SystemAdmin) ||
                     context.User.HasClaim(claim => claim.Type == UserClaims.TestPagesAccess &&
                         bool.TryParse(claim.Value, out var enabled) && enabled)));
-        });
 
         //https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/configuration/overview
         //https://www.nuget.org/packages/Microsoft.AspNetCore.DataProtection.EntityFrameworkCore/
@@ -66,7 +64,7 @@ public static class SampleModule
         return services;
     }
 
-    private static IServiceCollection ConfigureCookieAuthenticationOptions(this IServiceCollection services, IAppSettings settings)
+    private static void ConfigureCookieAuthenticationOptions(this IServiceCollection services, IAppSettings settings)
     {
         services.ConfigureApplicationCookie(options =>
         {
@@ -83,8 +81,6 @@ public static class SampleModule
             options.ReturnUrlParameter = Get.ViewDataKeys.ReturnUrl;
             options.Events.PreserveAccessDeniedRequestId();
         });
-
-        return services;
     }
 
     private static Action<IdentityOptions> ConfigureIdentity(IAppSettings settings) => options =>
