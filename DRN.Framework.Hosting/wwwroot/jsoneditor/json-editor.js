@@ -42392,7 +42392,7 @@ exports.MarkerGroup = MarkerGroup;
 });
 
 ace.define("ace/autocomplete/text_completer",["require","exports","module","ace/range"], function(require, exports, module){var Range = require("../range").Range;
-var splitRegex = /[^a-zA-Z_0-9\$\-\u00C0-\u1FFF\u2C00-\uD7FF\w]+/;
+var splitRegex = /[^\w\$\-\u00C0-\u1FFF\u2C00-\uD7FF]+/;
 function getWordIndex(doc, pos) {
     var textBefore = doc.getTextRange(Range.fromPoints({
         row: 0,
