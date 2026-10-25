@@ -1,0 +1,19 @@
+@page
+@model DRN.Framework.Hosting.Middlewares.ExceptionHandler.ServerErrorPageModel
+@{
+    Layout = "_ErrorLayout";
+    ViewData[Get.ViewDataKeys.Title] = "Something went wrong";
+    ViewData[Get.ViewDataKeys.ErrorStatus] = "Server error";
+}
+
+<h1 id="error-title" class="h2 mb-0">Even software has an off day.</h1>
+<p class="my-4 text-body-secondary">Something went wrong, and we could not complete your request. Please try again later.</p>
+<div class="p-3 border-start border-3 border-primary rounded-end bg-body-tertiary">
+    <h2 class="h6 mb-2">If it keeps happening</h2>
+    <p class="mb-0 text-body-secondary">Contact support and share this reference so they can investigate:</p>
+    <p class="mb-0 text-body-secondary">Request reference:</p>
+    <code class="d-block mt-3 px-3 py-2 border rounded bg-body text-body text-break user-select-all" aria-label="Request reference">@Model.RequestId</code>
+</div>
+<nav class="mt-4 d-grid d-sm-flex" aria-label="Recovery actions">
+    <a class="btn btn-primary d-inline-flex align-items-center justify-content-center gap-3 px-3 py-2" asp-page="@Get.Page.Root.HomeAnonymous">Back to home <span aria-hidden="true">→</span></a>
+</nav>

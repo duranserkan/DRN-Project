@@ -343,7 +343,7 @@ Validate return URLs with `Url.IsLocalUrl` and redirect unchanged. Never pass re
 
 Configure MFA destinations without the deployment prefix. Redirects add `PathBase` and retain the public return path and query.
 
-Pass `parentContext` to `IPageUtils.RenderPageAsync` to retain the request's `PathBase` and CSP nonce.
+Pass `parentContext` to `IPageUtils.RenderPageAsync` to retain the request's `PathBase` and CSP nonce. Standard `_ViewStart` files and layouts follow normal Razor rendering. Page links use endpoint routing, including when the original request has no matching endpoint. Each render owns a separate DI scope and awaits its disposal on success or failure. The parent request scope remains owned by its caller.
 
 `Url.Endpoint` requires metadata populated by DRN startup validation. It uses MVC's effective action name and destination area without modifying supplied route values. Missing or ambiguous metadata and failed generation throw `InvalidOperationException`. Existing `ApiEndpoint.Path(...)` methods remain available. Keep static `Get` accessors request-independent.
 
@@ -614,7 +614,7 @@ DRN Hosting adds two composable limiter phases:
 - **Pre-auth** runs after routing and before authentication. It evaluates singleton rules only and uses a coarse IP default to reject obvious abuse before auth and MFA work. Add a custom singleton rule for trusted-header partitioning behind a correctly configured edge proxy.
 - **Post-auth** runs after `ScopedUserMiddleware`. It can use singleton and scoped rules, including user, tenant, account, claim, or endpoint partitions.
 
-Defaults are token buckets: 1,000 tokens/minute per pre-auth IP partition and 100 tokens/minute per post-auth user partition. Post-auth uses the authenticated subject and authentication type; requests without a usable authenticated subject fall back to IP. Rejections return `429 Too Many Requests`; `Retry-After` is included only when the rejecting limiter supplies retry metadata.
+Defaults are token buckets: 2,500 tokens/minute per pre-auth IP partition and 250 tokens/minute per post-auth user partition. Post-auth uses the authenticated subject and authentication type; requests without a usable authenticated subject fall back to IP. Rejections return `429 Too Many Requests`; `Retry-After` is included only when the rejecting limiter supplies retry metadata.
 
 > [!IMPORTANT]
 > DRN's built-in limiter state is process-local. In horizontally scaled production deployments, enforce coarse limits at the edge (WAF/CDN/API gateway/load balancer) or add a distributed/custom limiter for quotas that must hold across every application instance.
@@ -635,8 +635,8 @@ Configure defaults under `DrnAppFeatures:DrnRateLimit`. Read them through `IAppS
 |---|---:|---|---|
 | `Disabled` | `false` | Both phases | Disables DRN pre-auth and post-auth rate limiting. |
 | `PartitionLogMode` | `KeyedHash` | Both phases | Controls rejected IP and partition logging. See [Telemetry](#telemetry) for hash format and privacy limits. |
-| `TokenLimit`, `ReplenishmentSeconds`, `TokensPerPeriod` | `100`, `60`, `100` | Shared fallback | Base token bucket values for both phases. |
-| `PreAuthTokenLimit`, `PreAuthReplenishmentSeconds`, `PreAuthTokensPerPeriod` | `1000`, `60`, `1000` | Pre-auth | Coarse IP limits before authentication. `0` inherits the shared value. |
+| `TokenLimit`, `ReplenishmentSeconds`, `TokensPerPeriod` | `250`, `60`, `250` | Shared fallback | Base token bucket values for both phases. |
+| `PreAuthTokenLimit`, `PreAuthReplenishmentSeconds`, `PreAuthTokensPerPeriod` | `2500`, `60`, `2500` | Pre-auth | Coarse IP limits before authentication. `0` inherits the shared value. |
 | `PostAuthTokenLimit`, `PostAuthReplenishmentSeconds`, `PostAuthTokensPerPeriod` | `0`, `0`, `0` | Post-auth | Authenticated user or anonymous IP limits after `ScopedUserMiddleware`. `0` inherits the shared value. |
 
 #### Rule Extension Points
@@ -707,6 +707,12 @@ DRN emits metrics through the `DRN.Framework.Hosting.RateLimiting` meter:
 | `drn.rate_limiting.request_lease.duration` | Pre-auth lease duration in seconds |
 
 All instruments use `drn.rate_limiting.phase`, `aspnetcore.rate_limiting.policy`, `aspnetcore.rate_limiting.result`, and `drn.rate_limiting.action`. The action is `limit`, `allow`, `deny`, or `unknown`. `drn.rate_limiting.rule` is added when a DRN rule is known; native policy rejections have no DRN rule tag. ASP.NET Core supplies post-auth request and lease metrics.
+
+Subscribe to this meter through the host's metrics exporter to derive requests per second from counter deltas. A rate averaged over a collection interval is not an exact count for the preceding second. `drn.rate_limiting.requests` counts pre-auth acquisition outcomes, excluding endpoints that bypass limiting; it is not total application traffic. Do not add pre-auth and post-auth counts together, since a request can pass through both phases.
+
+Use actual `drn.rate_limiting.rejections` with action `limit` to identify limiter rejections. Treat `deny` as an explicit rule decision and `unknown` as unattributed, not proof of token exhaustion. Rejection logs expose the same action as `PreAuthRateLimitRejectedAction` or `PostAuthRateLimitRejectedAction`. A rejection alone does not prove abusive traffic. Keep phase, rule, policy, and application instance distinct when investigating; use the redacted partition in logs for bucket correlation rather than adding partition identifiers as metric tags.
+
+Do not compare one-second traffic to `TokensPerPeriod / ReplenishmentSeconds` to declare a limit exceeded. Token buckets allow bursts up to their available capacity and replenish on their configured schedule. Fleet-wide or cross-partition traffic is not one bucket's usage. Limiter leases remain the source of truth, including custom rules and algorithms; use `Retry-After` only when the rejecting lease supplies it.
 
 By default, rate-limit-specific IP and partition fields are written as deterministic keyed hashes with a `blake3-keyed:` prefix. This supports correlation but does not anonymize the complete request log; standard request and user fields may still contain raw identifiers. Treat logs as sensitive, and enable `PlainText` only for controlled development or a dedicated encrypted audit sink.
 
@@ -898,6 +904,31 @@ When generated, the report can include:
 The framework includes built-in Razor Pages for developer-time exception handling:
 -   **RuntimeExceptionPage**: Detailed breakdown of unhandled exceptions with request state and logs.
 -   **CompilationExceptionPage**: Visualizes Razor or code compilation errors with line-specific highlighting.
+
+Configure application-owned error pages with Hosting's `DrnErrorPageOptions`:
+
+```csharp
+services.Configure<DrnErrorPageOptions>(options =>
+{
+    options.ServerErrorPage = Get.Page.Root.SomethingWentWrong;
+    options.NotFoundPage = Get.Page.Root.NotFound;
+    options.BadRequestPage = Get.Page.Root.BadRequest;
+});
+```
+
+The types are in `DRN.Framework.Hosting.Middlewares.ExceptionHandler`. Use Razor page names under `Pages`, without `.cshtml`. Each option defaults to `null`, independently disabling that custom page. Invalid page-name syntax fails options validation at startup.
+
+The application's Razor page uses `@model DRN.Framework.Hosting.Middlewares.ExceptionHandler.ServerErrorPageModel`. This anonymous, non-cacheable model exposes only `RequestId` and returns HTTP 500 on direct GET requests. Keep its content generic and use a layout that does not require authentication or depend on application data.
+
+Hosting renders the configured page internally for Staging/Production 5xx exceptions and bodyless HTML 5xx responses, preserving the status, request reference, and deployment prefix. It requires an explicit `text/html` Accept value and excludes API-controller endpoints. Development exception diagnostics remain unchanged. Rendering failures before the response starts fall back to redacted plain text.
+
+`NotFoundPage` uses `@model DRN.Framework.Hosting.Middlewares.ExceptionHandler.NotFoundPageModel`. This anonymous, non-cacheable model returns 404 on direct GET. Hosting renders it for bodyless HTML 404 responses and Staging/Production exceptions mapped to 404, preserving the status without redirecting. Existing response bodies and API-controller responses remain unchanged. Missing routes still pass through the application's authorization and fallback policies before they can return 404; the option does not bypass authentication.
+
+`BadRequestPage` uses `BadRequestPageModel` and follows the same opt-in HTML rendering rules for bodyless 400 responses and Staging/Production exceptions mapped to 400. Direct GET requests return 400. API validation responses, existing validation messages, and Development exception diagnostics remain unchanged.
+
+All three models expose `RequestId` from `HttpContext.TraceIdentifier`. Internally rendered pages retain the original request's reference; direct visits use the page request's reference. Display it as a request reference for support, without exception details.
+
+For other response formats, derive from `DrnExceptionHandler`, register it for `IDrnExceptionHandler`, and override `WriteProductionErrorResponseAsync(HttpContext)`. Preserve the HTTP status and omit exception details.
 
 ### Request Body Buffering
 

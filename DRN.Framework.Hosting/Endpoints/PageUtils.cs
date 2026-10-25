@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
@@ -36,8 +35,9 @@ public class PageUtils(
         if (viewResult.View == null)
             throw new InvalidOperationException($"The Razor page at '{pagePath}' could not be found.");
 
+        await using var scope = serviceScopeFactory.CreateAsyncScope();
         var context = new DefaultHttpContext();
-        context.RequestServices = serviceScopeFactory.CreateScope().ServiceProvider;
+        context.RequestServices = scope.ServiceProvider;
         context.FormOptions = formOptions.Value;
         context.ServiceScopeFactory = serviceScopeFactory;
         context.Initialize(context.Features);
@@ -51,6 +51,8 @@ public class PageUtils(
             var razorView = (RazorView)viewResult.View;
             var razorPage = (Page)razorView.RazorPage;
             var pageEndpoint = endpointAccessor.PageEndpointByPaths[pagePath];
+            // URL helpers require an endpoint to select endpoint routing for page links.
+            context.SetEndpoint(pageEndpoint.PrimaryEndpoint);
             var actionContext = new ActionContext(context, context.GetRouteData(), pageEndpoint.ActionDescriptor);
             model.PageContext = new PageContext(actionContext);
             model.PageContext.ViewData = new ViewDataDictionary<TModel>(new ViewDataDictionary(modelMetadataProvider, actionContext.ModelState), model);
@@ -61,29 +63,15 @@ public class PageUtils(
             var viewContext = new ViewContext(actionContext, razorView, model.PageContext.ViewData, tempDictionary, writer, new HtmlHelperOptions());
             viewContext.HttpContext = context;
 
-            SetOnAfterPageActivated(razorView, static (rp, vc) =>
-            {
-                var p = (Page)rp;
-                _ = p;
-            });
-
             await razorView.RenderAsync(viewContext);
 
             var response = writer.ToString();
 
             return response;
         }
-        catch (Exception e)
-        {
-            _ = e;
-            throw;
-        }
         finally
         {
             context.Uninitialize();
         }
     }
-
-    [UnsafeAccessor(UnsafeAccessorKind.Method, Name = "set_OnAfterPageActivated")]
-    private static extern void SetOnAfterPageActivated(RazorView view, Action<IRazorPage, ViewContext>? value);
 }

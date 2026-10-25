@@ -29,4 +29,5 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
             Get.Page.User.LoginWith2Fa,
             Get.Page.User.Login,
             Get.Page.User.Logout, Get.Page.All);
+
 }

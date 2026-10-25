@@ -1,0 +1,19 @@
+@page
+@model DRN.Framework.Hosting.Middlewares.ExceptionHandler.NotFoundPageModel
+@{
+    Layout = "_ErrorLayout";
+    ViewData[Get.ViewDataKeys.Title] = "Page not found";
+    ViewData[Get.ViewDataKeys.ErrorStatus] = "404 / Page not found";
+}
+
+<h1 id="error-title" class="h2 mb-0">This page took a wrong turn.</h1>
+<p class="my-4 text-body-secondary">This page couldn’t be found.</p>
+<div class="p-3 border-start border-3 border-primary rounded-end bg-body-tertiary">
+    <h2 class="h6 mb-2">Let’s find your way back.</h2>
+    <p class="mb-0 text-body-secondary">Check the address, or start again from the home page.</p>
+    <p class="mb-0 text-body-secondary">Request reference:</p>
+    <code class="d-block mt-3 px-3 py-2 border rounded bg-body text-body text-break user-select-all" aria-label="Request reference">@Model.RequestId</code>
+</div>
+<nav class="mt-4 d-grid d-sm-flex" aria-label="Recovery actions">
+    <a class="btn btn-primary d-inline-flex align-items-center justify-content-center gap-3 px-3 py-2" asp-page="@Get.Page.Root.HomeAnonymous">Explore from home <span aria-hidden="true">→</span></a>
+</nav>

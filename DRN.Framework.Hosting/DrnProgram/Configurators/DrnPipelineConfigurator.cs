@@ -1,9 +1,12 @@
 using DRN.Framework.Hosting.Middlewares;
+using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Hosting.Utils.Vite;
+using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace DRN.Framework.Hosting.DrnProgram.Configurators;
 
@@ -26,6 +29,28 @@ internal sealed class DrnPipelineConfigurator
         PreScopeStart(application, appSettings);
         application.UseMiddleware<HttpScopeMiddleware>();
         PostScopeStart(application, appSettings);
+
+        var errorPages = application.Services.GetRequiredService<IOptions<DrnErrorPageOptions>>().Value;
+        if (errorPages.ServerErrorPage != null || errorPages.NotFoundPage != null || errorPages.BadRequestPage != null)
+            application.UseStatusCodePages(async statusContext =>
+            {
+                var context = statusContext.HttpContext;
+                var renderer = context.RequestServices.GetRequiredService<ErrorPageRenderer>();
+                if (!renderer.CanRender(context))
+                    return;
+
+                var statusCode = context.Response.StatusCode;
+                try
+                {
+                    await renderer.WriteErrorAsync(context);
+                }
+                catch (Exception exception) when (!context.Response.HasStarted && !context.RequestAborted.IsCancellationRequested)
+                {
+                    context.RequestServices.GetRequiredService<IScopedLog>().AddException(exception);
+                    context.Response.StatusCode = statusCode;
+                    await DrnExceptionHandler.WriteSafeErrorResponseAsync(context);
+                }
+            });
 
         application.UseRouting();
 

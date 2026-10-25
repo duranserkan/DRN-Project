@@ -412,12 +412,12 @@ This JSON shows Development defaults. Replace `SeedKey` with private key materia
     "MaxRequestBufferingSize": 0,
     "DrnRateLimit": {
       "Disabled": false,
-      "TokenLimit": 100,
+      "TokenLimit": 250,
       "ReplenishmentSeconds": 60,
-      "TokensPerPeriod": 100,
-      "PreAuthTokenLimit": 1000,
+      "TokensPerPeriod": 250,
+      "PreAuthTokenLimit": 2500,
       "PreAuthReplenishmentSeconds": 60,
-      "PreAuthTokensPerPeriod": 1000,
+      "PreAuthTokensPerPeriod": 2500,
       "PostAuthTokenLimit": 0,
       "PostAuthReplenishmentSeconds": 0,
       "PostAuthTokensPerPeriod": 0
@@ -460,12 +460,12 @@ Changing `SeedKey` changes app-specific names, rate-limit keyed hashes, Developm
 | `MaxRequestBufferingSize` | `int` | `0` (→ 30,000) | Maximum request body size to buffer in bytes. Values below 10,000 are ignored; 0 uses the 30,000-byte default. |
 | `DrnRateLimit.Disabled` | `bool` | `false` | Disables both pre-auth and post-auth DRN Hosting rate limiting layers. |
 | `DrnRateLimit.PartitionLogMode` | `RateLimitPartitionLogMode` | `KeyedHash` | Controls rejected IP/partition logging. `KeyedHash` logs deterministic keyed hashes for correlation; `PlainText` logs raw values and should be limited to controlled development or dedicated audit sinks. |
-| `DrnRateLimit.TokenLimit` | `int` | `100` | Token bucket burst capacity. Must be positive. |
+| `DrnRateLimit.TokenLimit` | `int` | `250` | Token bucket burst capacity. Must be positive. |
 | `DrnRateLimit.ReplenishmentSeconds` | `int` | `60` | Token replenishment period in seconds. Must be positive. |
-| `DrnRateLimit.TokensPerPeriod` | `int` | `100` | Tokens added per replenishment period. Must be positive. |
-| `DrnRateLimit.PreAuthTokenLimit` | `int` | `1000` | Coarse pre-auth burst capacity for shared B2B NAT/VPN/CDN egress addresses. 0 inherits `TokenLimit`. |
+| `DrnRateLimit.TokensPerPeriod` | `int` | `250` | Tokens added per replenishment period. Must be positive. |
+| `DrnRateLimit.PreAuthTokenLimit` | `int` | `2500` | Coarse pre-auth burst capacity for shared B2B NAT/VPN/CDN egress addresses. 0 inherits `TokenLimit`. |
 | `DrnRateLimit.PreAuthReplenishmentSeconds` | `int` | `60` | Pre-auth replenishment period. 0 inherits `ReplenishmentSeconds`. |
-| `DrnRateLimit.PreAuthTokensPerPeriod` | `int` | `1000` | Pre-auth tokens per period. 0 inherits `TokensPerPeriod`. |
+| `DrnRateLimit.PreAuthTokensPerPeriod` | `int` | `2500` | Pre-auth tokens per period. 0 inherits `TokensPerPeriod`. |
 | `DrnRateLimit.PostAuthTokenLimit` | `int` | `0` | Optional post-auth burst capacity. 0 inherits `TokenLimit`. |
 | `DrnRateLimit.PostAuthReplenishmentSeconds` | `int` | `0` | Optional post-auth replenishment period. 0 inherits `ReplenishmentSeconds`. |
 | `DrnRateLimit.PostAuthTokensPerPeriod` | `int` | `0` | Optional post-auth tokens per period. 0 inherits `TokensPerPeriod`. |

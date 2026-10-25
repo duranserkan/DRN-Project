@@ -10,9 +10,16 @@ public class DeveloperView(IExceptionUtils exceptionUtils, IExceptionPageContent
 {
     public async Task<IActionResult> OnGetAsync()
     {
-        var model = await exceptionUtils.CreateErrorPageModelAsync(HttpContext,
-            new InvalidOperationException("Developer diagnostics preview."));
-        var result = await contentProvider.CreateHtmlErrorContentResult(HttpContext, model);
-        return Content(result.Content, result.ContentType);
+        try
+        {
+            // Throw the preview exception to capture stack frames for the diagnostics page.
+            throw new InvalidOperationException("Developer diagnostics preview.");
+        }
+        catch (InvalidOperationException exception)
+        {
+            var model = await exceptionUtils.CreateErrorPageModelAsync(HttpContext, exception);
+            var result = await contentProvider.CreateHtmlErrorContentResult(HttpContext, model);
+            return Content(result.Content, result.ContentType);
+        }
     }
 }

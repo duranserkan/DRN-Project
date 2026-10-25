@@ -70,7 +70,7 @@ public sealed class RateLimitTelemetry
         return tags;
     }
 
-    private static string GetActionTag(RateLimitRuleMatch? match) =>
+    internal static string GetActionTag(RateLimitRuleMatch? match) =>
         match?.Result.Action switch
         {
             RateLimitRuleAction.Allow => "allow",

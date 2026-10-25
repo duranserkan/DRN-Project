@@ -2,18 +2,28 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.10.1
 
+### Changed
+
+*   **Rate Limit Defaults**: Post-auth buckets now allow 250 tokens per user and pre-auth buckets allow 2,500 tokens per IP, with matching refills every 60 seconds. Explicit configuration overrides remain supported.
+*   **Rate Limit Diagnostics**: Rejection logs include the rule action, distinguishing limiter rejections from explicit deny rules and unattributed rejections, consistent with rate-limit metrics.
+
 ### Breaking Changes
 
 *   **Diagnostic Page Routing**: `DeveloperView` paths no longer trigger diagnostics before authentication. Protect pages that display sample errors with an authorization policy. Replace the removed two-argument `ExceptionPageAccessor.IsExceptionPage` overload with `IsExceptionPage(path)`. Internal exception templates still block direct access.
 
 ### New Features
 
+*   **Error Pages**: Configure `DrnErrorPageOptions.ServerErrorPage`, `NotFoundPage`, and `BadRequestPage` with application-owned Razor pages using `ServerErrorPageModel`, `NotFoundPageModel`, and `BadRequestPageModel`. Hosting renders HTML 5xx, 404, and 400 errors internally while preserving status codes, API-controller responses, and a redacted fallback. All three models expose the request reference through `RequestId`. Each custom page is disabled by default. `DrnExceptionHandler.WriteProductionErrorResponseAsync` supports other response customizations.
 *   **Swagger Authorization**: Added `DrnProgramSwaggerOptions.AuthorizationPolicy` to protect Swagger UI, its assets, and OpenAPI documents with an application-owned named policy. Applications can enable Swagger in Staging and Production while retaining role and MFA requirements. Development-only enablement remains the framework default.
 *   **Endpoint URL Generation**: Added `Url.Endpoint(ApiEndpoint, values)` to generate request-aware MVC URLs from endpoint accessors. It preserves deployment prefixes, uses effective MVC action names and destination areas, and reports uninitialized or ambiguous metadata and failed URL generation explicitly. Existing `Path(...)` APIs remain compatible.
 *   **Application URLs**: Added `HttpRequest.ApplicationUrl` for application-owned route paths and `ApplicationUrlTagHelper` for `~/` HTML and HTMX URLs. Deployment prefixes are preserved without changing controller route prefixes or already-resolved URLs.
 
 ### Bug Fixes
 
+*   **Page Rendering**: `IPageUtils.RenderPageAsync` now supports standard `_ViewStart` files, layouts, and endpoint-generated links even for unmatched requests. Rendering also awaits scoped-service cleanup on success or failure.
+*   **Developer JSON Viewer**: Updated bundled JSONEditor to 10.4.3, including upstream editor fixes and corrected dark-theme search highlighting. Request-nonce support is preserved.
+
+*   **Redirects**: Fixed errors when converting started redirects to HTTP 303 and corrected the logged response status.
 *   **Developer Log Viewer**: JSON editor styles now use the request nonce, fixing blocked Ace and color-picker styles on runtime exception pages under the default CSP.
 *   **Proxy-Aware References**: Swagger server URLs now use processed scheme, host, port, and path base instead of raw forwarded headers. Developer error-page assets and active navigation links support deployment prefixes. Active href links compare resolved root-relative paths with the public request path, supporting custom routes without marking external URLs or paths outside the deployment prefix as current. Use `asp-page` for page-identity matching.
 *   **MFA Redirects Behind Proxy Prefixes**: Login, MFA challenge, and setup redirects now include `Request.PathBase` in local destinations. Unauthorized redirects also preserve the public return path and its original query string. Root-hosted paths and configured external destinations retain their existing behavior.

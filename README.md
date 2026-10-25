@@ -89,6 +89,12 @@ The sample runs at http://localhost:5998.
 
 In the sample, signed-in users who complete MFA can access `/swagger`, `/Test/Htmx`, and `/Test/DeveloperView` in Development. In Staging and Production, `SystemAdmin` grants both tools. Other users need a `SwaggerAccess` claim set to `true` for Swagger or a `TestPagesAccess` claim set to `true` for Test Pages. MFA is required in every environment. Navigation uses the same policies as the endpoints. Developer View is an explicit diagnostics preview. Ordinary Staging and Production errors remain redacted.
 
+The sample provides anonymous, non-cacheable `/BadRequest` (400), `/AccessDenied` (403), `/NotFound` (404), and `/SomethingWentWrong` (500) pages. Staging and Production HTML server errors preserve their 5xx status and show only a request reference. HTML bad-request and not-found responses preserve 400 and 404. API error responses are unchanged.
+
+These pages share a lightweight, responsive layout with keyboard focus indicators, a skip link, and status-specific recovery guidance. Each displays a request reference for support. Cookie-authentication redirects to `/AccessDenied` preserve the denied request's reference for the next visit; direct visits use the page request's reference. They use Bootstrap classes and the existing Vite-built Bootstrap stylesheet, with no JavaScript required. Browser authentication still redirects to login for 401 responses.
+
+For configuration and page requirements, see [Hosting custom error pages](DRN.Framework.Hosting/README.md#custom-error-pages).
+
 See the [Docker and Docker Compose guide](Docker/README.md) for local container setup, credentials, data migration, and published image verification.
 
 After changing frontend sources in `Sample.Hosted/buildwww/`, rebuild the assets from `Sample.Hosted/`:

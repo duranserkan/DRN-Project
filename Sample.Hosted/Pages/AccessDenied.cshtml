@@ -1,0 +1,19 @@
+@page
+@model Sample.Hosted.Pages.AccessDenied
+@{
+    Layout = "_ErrorLayout";
+    ViewData[Get.ViewDataKeys.Title] = "Access denied";
+    ViewData[Get.ViewDataKeys.ErrorStatus] = "403 / Access denied";
+}
+
+<h1 id="error-title" class="h2 mb-0">This door needs a different key.</h1>
+<p class="my-4 text-body-secondary">You do not have permission to view this page.</p>
+<div class="p-3 border-start border-3 border-primary rounded-end bg-body-tertiary">
+    <h2 class="h6 mb-2">Need access?</h2>
+    <p class="mb-0 text-body-secondary">Ask your administrator to check your permissions for this page.</p>
+    <p class="mb-0 text-body-secondary">Request reference:</p>
+    <code class="d-block mt-3 px-3 py-2 border rounded bg-body text-body text-break user-select-all" aria-label="Request reference">@Model.RequestId</code>
+</div>
+<nav class="mt-4 d-grid d-sm-flex" aria-label="Recovery actions">
+    <a class="btn btn-primary d-inline-flex align-items-center justify-content-center gap-3 px-3 py-2" asp-page="@Get.Page.Root.HomeAnonymous">Return home <span aria-hidden="true">→</span></a>
+</nav>

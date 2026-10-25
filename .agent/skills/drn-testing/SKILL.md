@@ -1,7 +1,7 @@
 ---
 name: drn-testing
 description: "DRN.Framework.Testing - canonical DTT attribute/context matrix with DrnTestContext, DrnTestContextUnit, ContainerContext, ApplicationContext, DataInline/DataMember/DataSelf, MTP command guidance, AwesomeAssertions, AutoFixture, NSubstitute, Testcontainers, and xUnit v3. Keywords: testing, dtt, drntest-context, applicationcontext, testcontainers, mtp, xunit, data-attributes, unit-testing, integration-testing"
-last-updated: 2026-09-10
+last-updated: 2026-10-25
 difficulty: intermediate
 tokens: ~1.7K
 ---
@@ -143,7 +143,11 @@ Apply this at decision boundaries such as authorization, tenant isolation, soft-
 
 ## UnsafeAccessors in Test Utilities
 
-When test helpers, assertion extensions, or mocks need access to private or internal framework/library state (such as `HttpTest._filteredSetups`, `RazorView.set_OnAfterPageActivated`, or `WebApplication` pipeline details), always prefer `[UnsafeAccessor]` (`System.Runtime.CompilerServices`) over reflection (`Type.GetField`, `Type.GetMethod`, `BindingFlags`). Reserve runtime reflection strictly for dynamically discovered types whose compile-time metadata is inaccessible.
+When test helpers, assertion extensions, or mocks need access to private or internal framework/library state (such as `HttpTest._filteredSetups` or `WebApplication` pipeline details), always prefer `[UnsafeAccessor]` (`System.Runtime.CompilerServices`) over reflection (`Type.GetField`, `Type.GetMethod`, `BindingFlags`). Reserve runtime reflection strictly for dynamically discovered types whose compile-time metadata is inaccessible.
+
+## Razor Rendering
+
+For Razor rendering helpers, exercise a real `RazorView` with `_ViewStart` and a layout as well as a standalone page. These templates participate in activation but do not derive from Razor Pages' `Page` type. Keep scope-disposal coverage on both successful and failing renders.
 
 ## MTP Commands
 

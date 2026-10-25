@@ -1,9 +1,11 @@
 using DRN.Framework.SharedKernel.Extensions;
 using DRN.Framework.Hosting.Identity;
+using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Sample.Application;
 using Sample.Domain.Identity;
 using Sample.Domain.Users;
@@ -29,6 +31,12 @@ public static class SampleModule
             .AddSignInManager<DrnSignInManager<SampleUser>>();
 
         services.AddDrnIdentityMfaPolicies();
+        services.Configure<DrnErrorPageOptions>(options =>
+        {
+            options.ServerErrorPage = Get.Page.Root.SomethingWentWrong;
+            options.NotFoundPage = Get.Page.Root.NotFound;
+            options.BadRequestPage = Get.Page.Root.BadRequest;
+        });
         services.AddAuthorization(options =>
         {
             options.AddPolicy(UserClaims.SwaggerAccess, policy => policy
@@ -71,8 +79,20 @@ public static class SampleModule
             options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
             options.LoginPath = Get.Page.User.Login;
             options.LogoutPath = Get.Page.User.Logout;
-            options.AccessDeniedPath = "/AccessDenied"; // Optional: for authorized-but-forbidden
+            options.AccessDeniedPath = Get.Page.Root.AccessDenied;
             options.ReturnUrlParameter = Get.ViewDataKeys.ReturnUrl;
+            var redirectToAccessDenied = options.Events.OnRedirectToAccessDenied;
+            options.Events.OnRedirectToAccessDenied = async context =>
+            {
+                await redirectToAccessDenied(context);
+                if (context.Response.StatusCode != StatusCodes.Status302Found)
+                    return;
+
+                var tempData = context.HttpContext.RequestServices.GetRequiredService<ITempDataDictionaryFactory>()
+                    .GetTempData(context.HttpContext);
+                tempData[Get.TempDataKeys.AccessDeniedRequestId] = context.HttpContext.TraceIdentifier;
+                tempData.Save();
+            };
         });
 
         return services;

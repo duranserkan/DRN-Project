@@ -362,8 +362,50 @@ public class RateLimitRuleTests
         context.Response.StatusCode.Should().Be(StatusCodes.Status429TooManyRequests);
         scopedLog.Received().Add("PreAuthRateLimitRejectedIp", Arg.Is<object>(value => IsRedacted(value, rawIp)));
         scopedLog.Received().Add("PreAuthRateLimitRejectedPartition", Arg.Is<object>(value => IsRedacted(value, rawPartition)));
+        scopedLog.Received().Add("PreAuthRateLimitRejectedAction", "deny");
         scopedLog.DidNotReceive().Add("PreAuthRateLimitRejectedIp", rawIp);
         scopedLog.DidNotReceive().Add("PreAuthRateLimitRejectedPartition", rawPartition);
+    }
+
+    [Fact]
+    public async Task Token_Bucket_Burst_Should_Log_Rejection_Only_After_Capacity_Is_Exhausted()
+    {
+        var rule = new SensitivePreAuthRule();
+        var result = RateLimitRuleResult.TokenBucket("burst", _ => new TokenBucketRateLimiterOptions
+        {
+            TokenLimit = 2,
+            TokensPerPeriod = 1,
+            ReplenishmentPeriod = TimeSpan.FromSeconds(60),
+            AutoReplenishment = false,
+            QueueLimit = 0
+        });
+        using var limiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        {
+            context.SetRateLimitRuleMatch(rule, result);
+            return result.Partition;
+        });
+        var accepted = 0;
+        var middleware = new PreAuthRateLimitingMiddleware(_ =>
+        {
+            accepted++;
+            return Task.CompletedTask;
+        }, new DrnPreAuthRateLimiter(limiter), CreateTelemetry(), new DrnAppFeatures(), CreateSecuritySettings());
+        var log = Substitute.For<IScopedLog>();
+
+        for (var request = 0; request < 2; request++)
+            await middleware.InvokeAsync(new DefaultHttpContext(), log);
+
+        accepted.Should().Be(2);
+        log.DidNotReceive().Add("PreAuthRateLimitRejected", Arg.Any<object>());
+        log.DidNotReceive().Add("PreAuthRateLimitRejectedAction", Arg.Any<object>());
+
+        var rejected = new DefaultHttpContext();
+        await middleware.InvokeAsync(rejected, log);
+
+        accepted.Should().Be(2);
+        rejected.Response.StatusCode.Should().Be(StatusCodes.Status429TooManyRequests);
+        log.Received(1).Add("PreAuthRateLimitRejected", true);
+        log.Received(1).Add("PreAuthRateLimitRejectedAction", "limit");
     }
 
     [Fact]
@@ -616,6 +658,8 @@ public class RateLimitRuleTests
         observedContext.Should().BeSameAs(rejection);
         observedToken.Should().Be(cancellation.Token);
         observedStatus.Should().Be(StatusCodes.Status418ImATeapot);
+        scope.ServiceProvider.GetRequiredService<IScopedLog>().GetLogs()["PostAuthRateLimitRejectedAction"]
+            .Should().Be("unknown");
     }
 
     [Fact]
