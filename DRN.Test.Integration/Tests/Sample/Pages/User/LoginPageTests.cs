@@ -1,83 +1,17 @@
 using System.Net;
-using System.Security.Claims;
 using DRN.Framework.Utils.Auth.MFA;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
-using Sample.Domain.Identity;
 using Sample.Domain.Users;
 using Sample.Hosted;
 using Sample.Hosted.Helpers;
 using DRN.Test.Integration.Tests.Sample.Controller.Helpers;
+using DRN.Test.Integration.Tests.Sample.Pages.Helpers;
 
 namespace DRN.Test.Integration.Tests.Sample.Pages.User;
 
 public class LoginPageTests
 {
-    [Theory]
-    [DataInline("")]
-    [DataInline("/gateway")]
-    public async Task Mfa_Login_Should_Preserve_Public_ReturnUrl_And_Render_Prefixed_Links(
-        DrnTestContext context, string pathBase)
-    {
-        var application = context.ApplicationContext.CreateApplication<SampleProgram>(builder =>
-            builder.ConfigureServices(services =>
-                services.AddSingleton<IStartupFilter>(new PathBaseStartupFilter(pathBase))));
-        await context.ContainerContext.BindExternalDependenciesAsync();
-        application.Server.PreserveExecutionContext = true;
-        using var client = application.CreateClient(new() { AllowAutoRedirect = false });
-        using var scope = application.Services.CreateScope();
-        var manager = scope.ServiceProvider.GetRequiredService<UserManager<SampleUser>>();
-        var credentials = CredentialsProvider.GenerateCredentials();
-        var email = $"{credentials.Username}@example.com";
-        var user = new SampleUser
-        {
-            UserName = email, Email = email, EmailConfirmed = true, PhoneNumberConfirmed = true
-        };
-        (await manager.CreateAsync(user, credentials.Password)).Succeeded.Should().BeTrue();
-        (await manager.AddClaimAsync(user, new Claim(manager.Options.ClaimsIdentity.RoleClaimType, UserRoles.SystemAdmin)))
-            .Succeeded.Should().BeTrue();
-        (await manager.ResetAuthenticatorKeyAsync(user)).Succeeded.Should().BeTrue();
-        (await manager.SetTwoFactorEnabledAsync(user, true)).Succeeded.Should().BeTrue();
-        var key = await manager.GetAuthenticatorKeyAsync(user);
-        key.Should().NotBeNullOrEmpty();
-
-        var loginPath = pathBase + Get.Page.User.Login;
-        var returnUrl = $"{pathBase}{Get.Page.Test.Htmx}?tag=one&tag=two&next=%2Fitems%3Fx%3D1#details";
-        var token = await GetAntiforgeryTokenAsync(client, loginPath);
-        using var loginForm = new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            ["Input.Email"] = email,
-            ["Input.Password"] = credentials.Password,
-            ["Input.ReturnUrl"] = returnUrl,
-            ["__RequestVerificationToken"] = token
-        });
-        using var loginResponse = await client.PostAsync(loginPath, loginForm);
-        loginResponse.StatusCode.Should().Be(HttpStatusCode.SeeOther);
-        var challengePath = loginResponse.Headers.Location!.OriginalString;
-        challengePath.Should().StartWith(pathBase + Get.Page.User.LoginWith2Fa + "?");
-
-        token = await GetAntiforgeryTokenAsync(client, challengePath);
-        using var challengeForm = new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            ["Login2FaModel.TwoFactorCode"] = TotpUtils.GenerateTotpCode(key),
-            ["__RequestVerificationToken"] = token
-        });
-        using var challengeResponse = await client.PostAsync(challengePath, challengeForm);
-        challengeResponse.StatusCode.Should().Be(HttpStatusCode.SeeOther);
-        challengeResponse.Headers.Location!.OriginalString.Should().Be(returnUrl);
-
-        using var landingResponse = await client.GetAsync(challengeResponse.Headers.Location);
-        landingResponse.EnsureSuccessStatusCode();
-        var html = await landingResponse.Content.ReadAsStringAsync();
-        html.Should().Contain($"name=\"drn-app-base\" content=\"{pathBase}/\"")
-            .And.Contain($"href=\"{pathBase}{Get.Page.Root.Home}\"")
-            .And.Contain($"hx-post=\"{pathBase}{Get.Page.Test.Htmx}?handler=Auto\"")
-            .And.Contain($"src=\"{pathBase}{Get.Endpoint.User.PP.ControllerRoute}/{user.Id}?v=")
-            .And.NotContain("hx-post=\"~/");
-    }
-
     [Theory]
     [DataInline]
     public async Task Login_Page_Should_Record_Failed_Password_Attempts_For_Lockout(DrnTestContext context)
@@ -92,7 +26,7 @@ public class LoginPageTests
         };
         await AuthenticationHelper.RegisterUserAsync(client, registerRequest, endpoints);
 
-        var antiforgeryToken = await GetAntiforgeryTokenAsync(client);
+        var antiforgeryToken = await PageTestHelper.GetAntiforgeryTokenAsync(client, Get.Page.User.Login);
         for (var i = 0; i < 3; i++)
         {
             var form = new FormUrlEncodedContent(new Dictionary<string, string>
@@ -124,21 +58,12 @@ public class LoginPageTests
         using var client = application.CreateClient(new() { AllowAutoRedirect = false });
         using var scope = application.Services.CreateScope();
         var manager = scope.ServiceProvider.GetRequiredService<UserManager<SampleUser>>();
-        var credentials = CredentialsProvider.GenerateCredentials();
-        var email = $"{credentials.Username}@example.com";
-        var user = new SampleUser
-        {
-            UserName = email, Email = email, EmailConfirmed = true, PhoneNumberConfirmed = true
-        };
-        (await manager.CreateAsync(user, credentials.Password)).Succeeded.Should().BeTrue();
-        (await manager.ResetAuthenticatorKeyAsync(user)).Succeeded.Should().BeTrue();
-        (await manager.SetTwoFactorEnabledAsync(user, true)).Succeeded.Should().BeTrue();
+        var (user, credentials, authenticatorKey) = await PageTestHelper.CreateMfaUserAsync(manager);
+        var email = credentials.EmailAddress;
         (await manager.GetLockoutEnabledAsync(user)).Should().BeTrue();
         var failureLimit = manager.Options.Lockout.MaxFailedAccessAttempts;
         failureLimit.Should().BeGreaterThan(1);
-        var authenticatorKey = await manager.GetAuthenticatorKeyAsync(user);
-        authenticatorKey.Should().NotBeNullOrWhiteSpace();
-        var token = await GetAntiforgeryTokenAsync(client);
+        var token = await PageTestHelper.GetAntiforgeryTokenAsync(client, Get.Page.User.Login);
         var challengePath = Get.Page.User.LoginWith2Fa;
         var invalidAttempts = completeMfa ? failureLimit - 1 : failureLimit;
 
@@ -156,7 +81,7 @@ public class LoginPageTests
             challengePath.Should().StartWith(Get.Page.User.LoginWith2Fa);
             (await ReadFailureCountAsync(application.Services, email)).Should().Be(attempt - 1);
 
-            token = await GetAntiforgeryTokenAsync(client, challengePath);
+            token = await PageTestHelper.GetAntiforgeryTokenAsync(client, challengePath);
             using var challengeForm = new FormUrlEncodedContent(new Dictionary<string, string>
             {
                 // Pass the page's length validation without risking a valid TOTP collision.
@@ -182,7 +107,7 @@ public class LoginPageTests
             using var successForm = new FormUrlEncodedContent(new Dictionary<string, string>
             {
                 ["__RequestVerificationToken"] = token,
-                ["Login2FaModel.TwoFactorCode"] = TotpUtils.GenerateTotpCode(authenticatorKey!),
+                ["Login2FaModel.TwoFactorCode"] = TotpUtils.GenerateTotpCode(authenticatorKey),
             });
             using var successResponse = await client.PostAsync(challengePath, successForm);
             successResponse.StatusCode.Should().Be(HttpStatusCode.SeeOther);
@@ -210,37 +135,6 @@ public class LoginPageTests
         var manager = scope.ServiceProvider.GetRequiredService<UserManager<SampleUser>>();
         var user = await manager.FindByEmailAsync(email);
         user.Should().NotBeNull();
-        return await manager.GetAccessFailedCountAsync(user!);
-    }
-
-    private static async Task<string> GetAntiforgeryTokenAsync(HttpClient client, string? pagePath = null)
-    {
-        var loginPage = await client.GetStringAsync(pagePath ?? Get.Page.User.Login);
-        const string tokenName = "__RequestVerificationToken";
-        var nameIndex = loginPage.IndexOf($"name=\"{tokenName}\"", StringComparison.Ordinal);
-        nameIndex.Should().BeGreaterThanOrEqualTo(0);
-
-        const string valuePrefix = "value=\"";
-        var valueIndex = loginPage.IndexOf(valuePrefix, nameIndex, StringComparison.Ordinal);
-        valueIndex.Should().BeGreaterThanOrEqualTo(0);
-        valueIndex += valuePrefix.Length;
-
-        var valueEndIndex = loginPage.IndexOf('"', valueIndex);
-        valueEndIndex.Should().BeGreaterThan(valueIndex);
-
-        var token = loginPage[valueIndex..valueEndIndex];
-        token.Should().NotBeNullOrWhiteSpace();
-
-        return token;
-    }
-
-    private sealed class PathBaseStartupFilter(string pathBase) : IStartupFilter
-    {
-        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
-        {
-            if (pathBase.Length > 0)
-                app.UsePathBase(pathBase);
-            next(app);
-        };
+        return await manager.GetAccessFailedCountAsync(user);
     }
 }

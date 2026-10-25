@@ -1,10 +1,12 @@
 using DRN.Framework.SharedKernel.Extensions;
 using DRN.Framework.Hosting.Identity;
+using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Sample.Application;
+using Sample.Domain.Identity;
 using Sample.Domain.Users;
 using Sample.Hosted.Settings;
 using Sample.Infra;
@@ -23,11 +25,33 @@ public static class SampleModule
             .AddSampleInfraServices()
             .AddSampleApplicationServices()
             .Configure<FormOptions>(options => options.MultipartBodyLengthLimit = 1000 * 1024) // size limit
-            .ConfigureCookieAuthenticationOptions(settings)
             .AddIdentityApiEndpoints<SampleUser>(ConfigureIdentity(settings))
             .AddSignInManager<DrnSignInManager<SampleUser>>();
 
+        // Identity replaces cookie events, so apply application customizations after its registration.
+        services.ConfigureCookieAuthenticationOptions(settings);
         services.AddDrnIdentityMfaPolicies();
+        services.Configure<DrnErrorPageOptions>(options =>
+        {
+            options.ServerErrorPage = Get.Page.Root.SomethingWentWrong;
+            options.NotFoundPage = Get.Page.Root.NotFound;
+            options.BadRequestPage = Get.Page.Root.BadRequest;
+        });
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy(UserClaims.SwaggerAccess, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireAssertion(context => settings.IsDevelopmentEnvironment ||
+                    context.User.IsInRole(UserRoles.SystemAdmin) ||
+                    context.User.HasClaim(claim => claim.Type == UserClaims.SwaggerAccess &&
+                        bool.TryParse(claim.Value, out var enabled) && enabled)));
+            options.AddPolicy(UserClaims.TestPagesAccess, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireAssertion(context => settings.IsDevelopmentEnvironment ||
+                    context.User.IsInRole(UserRoles.SystemAdmin) ||
+                    context.User.HasClaim(claim => claim.Type == UserClaims.TestPagesAccess &&
+                        bool.TryParse(claim.Value, out var enabled) && enabled)));
+        });
 
         //https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/configuration/overview
         //https://www.nuget.org/packages/Microsoft.AspNetCore.DataProtection.EntityFrameworkCore/
@@ -55,8 +79,9 @@ public static class SampleModule
             options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
             options.LoginPath = Get.Page.User.Login;
             options.LogoutPath = Get.Page.User.Logout;
-            options.AccessDeniedPath = "/AccessDenied"; // Optional: for authorized-but-forbidden
+            options.AccessDeniedPath = Get.Page.Root.AccessDenied;
             options.ReturnUrlParameter = Get.ViewDataKeys.ReturnUrl;
+            options.Events.PreserveAccessDeniedRequestId();
         });
 
         return services;

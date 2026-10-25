@@ -1,7 +1,7 @@
 ---
 name: drn-hosting
 description: "DRN.Framework.Hosting - DrnProgramBase for web application bootstrapping, endpoint configuration, security middleware (CSP, nonce), authentication/authorization, TagHelpers for asset management, and Razor Pages integration. Essential for web application setup and hosting. Keywords: hosting, web-application, drnprogrambase, endpoints, middleware, security, csp, nonce, authentication, authorization, taghelpers, razor-pages, mfa, background-service"
-last-updated: 2026-10-04
+last-updated: 2026-10-25
 difficulty: advanced
 tokens: ~3K
 ---
@@ -182,6 +182,11 @@ protected override void ConfigureAuthorizationOptions(AuthorizationOptions optio
 - `ScopedUserMiddleware` populates `IScopedLog` with consent flags (`Consent_Analytics`, `Consent_Marketing`) and `ScopeContext` with `ConsentCookie`.
 - Applications remain responsible for analytics and marketing script activation, category-specific preferences, and accurate `IsEssential` classification.
 
+### Swagger And Developer Tool Authorization
+
+Swagger remains enabled only in Development by default. Consumers can override `ConfigureSwaggerOptions`, call base, then set `AddSwagger = true` and `AuthorizationPolicy` to a named application policy. The policy protects UI, assets, and JSON/YAML documents, including custom document routes outside the UI prefix. Default MFA enforcement still applies. Null preserves existing authorization behavior; blank names are rejected.
+
+
 ### Per-Route Security Headers
 
 Assign the validated slash-trimmed UI prefix back to `SwaggerUIOptions.RoutePrefix` so Swagger middleware and CSP selection use the same normalized path.
@@ -199,6 +204,8 @@ protected override void ConfigureSecurityHeaderPolicyBuilder(SecurityHeaderPolic
 ---
 
 ## Page & Endpoint Management
+
+`IPageUtils.RenderPageAsync` supports standard `_ViewStart` files and layouts. Page links use endpoint routing even when the original request has no matching endpoint. It owns a separate DI scope and awaits its disposal on success or failure. Passing `parentContext` preserves `PathBase` and the CSP nonce without transferring ownership of the parent request scope.
 
 ### Application URL Convention
 
@@ -249,6 +256,12 @@ public class TagFor() : ControllerForBase<TagController>(QaApiFor.ControllerRout
 
 ## Middlewares
 
+### Production Error Responses
+
+Use `DrnErrorPageOptions` for application-owned 400, 404, and 5xx error pages. Preserve status codes, the original request reference when rendering internally, redaction, existing response bodies, API validation responses, Development exception diagnostics, deployment prefixes, and fallback authorization for unmatched routes. Keep error pages anonymous, non-cacheable, and independent of application data. See [Hosting custom error pages](../../../DRN.Framework.Hosting/README.md#custom-error-pages) for configuration, models, and response customization.
+
+For access-denied redirects, use `AccessDeniedPageModel` and opt in with `PreserveAccessDeniedRequestId()` on the active cookie events instance after Identity registration and other callback assignments. Preserve the existing callback, nonredirect responses, and single-use TempData reference. Keep routes, markup and authorization policies application-owned. See the same README section for setup and `EventsType` guidance.
+
 | Middleware | Purpose |
 |------------|---------|
 | `HttpScopeMiddleware` | Request/response logging with IScopedLog, TraceId, duration |
@@ -268,11 +281,12 @@ public class TagFor() : ControllerForBase<TagController>(QaApiFor.ControllerRout
 - Default post-auth partitioning uses stable user id claims (`NameIdentifier`/`sub`) with auth scheme, not mutable display names.
 - Use scoped rules plus `IScopedUser` for post-auth claim-aware partitions. Prefer `RateLimitFor` (or app-owned wrappers around `RateLimitFor`) over repeated `HttpContext.User` parsing.
 - Set `PolicyName` on a rule only when it should run for endpoints marked with matching ASP.NET Core `[EnableRateLimiting("policy-name")]` metadata. `null` means global DRN rule; blank names are invalid.
-- Post-auth defaults to 100/minute; pre-auth defaults to a coarser 1,000/minute IP bucket for B2B NAT/VPN/CDN egress addresses. Configure settings under `DrnAppFeatures:DrnRateLimit`; phase override values of 0 inherit the shared settings. Settings are a startup snapshot exposed through `IAppSettings.Features.RateLimit`.
+- Post-auth defaults to 250/minute; pre-auth defaults to a coarser 2,500/minute IP bucket for B2B NAT/VPN/CDN egress addresses. Configure settings under `DrnAppFeatures:DrnRateLimit`; phase override values of 0 inherit the shared settings. Settings are a startup snapshot exposed through `IAppSettings.Features.RateLimit`.
 - Treat `DrnRateLimitOptions` as global defaults. Tenant plan, feature-flag, account, or endpoint-specific quotas belong in app-owned rules; because rule evaluation is synchronous, load plan data into the request scope or a refreshed in-memory snapshot before evaluating the rule.
 - Limiter partition factories must not capture `HttpContext` or scoped services; pass immutable values because limiters are reused per partition.
 - Post-auth uses DI-configured `RateLimiterOptions`, so named policies and rejection callbacks registered through `AddRateLimiter(options => ...)` remain available to `[EnableRateLimiting("policy-name")]`.
 - DRN emits metrics through the `DRN.Framework.Hosting.RateLimiting` meter; add this meter to OpenTelemetry exports when pre-auth metrics or DRN rule-level rejection metrics are needed. The action tag distinguishes `limit`, `allow`, `deny`, and `unknown`.
+- Derive traffic rates from existing counters without combining pre-auth and post-auth counts. Use actual rejected leases and their action for limiter diagnostics, not a one-second threshold derived from refill rates. Preserve burst capacity, phase/partition/instance boundaries, and explicit `deny` versus `limit` decisions. See [Telemetry](../../../DRN.Framework.Hosting/README.md#telemetry) for sampling limits and rejection log fields.
 - Rate-limit-specific rejected IP and partition fields default to deterministic keyed hashes with a `blake3-keyed:` prefix. This preserves correlation for those fields but does not anonymize the complete request log; standard request and user fields may still contain raw identifiers. Treat logs as sensitive, and use `DrnRateLimit.PartitionLogMode = PlainText` only for controlled development or dedicated encrypted audit sinks.
 - Built-in limiter state is process-local. `HybridCache` can cache policy data, but hard multi-replica quotas need edge enforcement or a Redis-backed custom `RateLimiter` returned through `RateLimitRuleResult.CustomPartition(...)`.
 

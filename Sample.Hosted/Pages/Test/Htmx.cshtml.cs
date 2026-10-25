@@ -4,7 +4,7 @@ using Sample.Domain.Identity;
 
 namespace Sample.Hosted.Pages.Test;
 
-[Authorize(Roles = UserRoles.SystemAdmin)]
+[Authorize(Policy = UserClaims.TestPagesAccess)]
 public class Htmx(IAntiforgery antiForgery) : PageModel
 {
     private const string TimestampFormat = "HH:mm:ss";

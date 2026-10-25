@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>@ViewData[Get.ViewDataKeys.Title]</title>
+    <link href="buildwww/lib/bootstrap/bootstrap.scss" rel="stylesheet" />
+</head>
+<body class="bg-secondary-subtle">
+    <a class="visually-hidden-focusable position-absolute top-0 start-0 m-3 p-3 bg-primary text-white rounded z-3" href="#error-content">Skip to message</a>
+    <div class="container min-vh-100 d-flex flex-column pt-4">
+        <main id="error-content" class="col-12 col-md-10 col-lg-8 col-xl-7 m-auto p-4 p-sm-5 border rounded bg-body shadow" tabindex="-1" aria-labelledby="error-title">
+            <div class="d-inline-flex align-items-center justify-content-center p-3 mb-4 rounded text-primary bg-primary-subtle" aria-hidden="true">
+                <svg viewBox="0 0 48 48" width="48" height="48" fill="none">
+                    <path d="M24 5 43 24 24 43 5 24Z" stroke="currentColor" stroke-width="2" />
+                    <path d="M24 14v13m0 6v1" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                </svg>
+            </div>
+            <p class="small fw-bold text-uppercase text-body-secondary mb-3">@ViewData[Get.ViewDataKeys.ErrorStatus]</p>
+            @RenderBody()
+        </main>
+        <footer class="py-4 text-center small text-body-secondary">One step at a time. We’ll help you find your way.</footer>
+    </div>
+</body>
+</html>

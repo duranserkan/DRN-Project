@@ -73,6 +73,8 @@ Attributes inheriting from `ServiceRegistrationAttribute` handle complex registr
 
 ## Configuration (IAppSettings)
 
+`DrnAppFeatures:DrnRateLimit` configures Hosting's token buckets. Defaults provide 250 post-auth tokens and 2,500 pre-auth tokens, with matching refills every 60 seconds. Phase override values of 0 inherit shared settings.
+
 ```csharp
 public interface IAppSettings
 {

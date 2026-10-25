@@ -70,6 +70,7 @@ public class PreAuthRateLimitingMiddleware(
         telemetry.RecordRequest(context, RateLimitRulePhase.PreAuth, "rejected", rejectedMatch);
         telemetry.RecordRejection(context, RateLimitRulePhase.PreAuth, rejectedMatch);
         scopedLog.Add("PreAuthRateLimitRejected", true);
+        scopedLog.Add("PreAuthRateLimitRejectedAction", RateLimitTelemetry.GetActionTag(rejectedMatch));
         scopedLog.Add("PreAuthRateLimitRejectedIp", RateLimitPartitionRedactor.Format(ipAddress, features.RateLimit, securitySettings));
         scopedLog.Add("PreAuthRateLimitRejectedRule", rejectedMatch?.Rule.GetType().FullName ?? string.Empty);
         scopedLog.Add("PreAuthRateLimitRejectedPartition", RateLimitPartitionRedactor.Format(partitionKey, features.RateLimit, securitySettings));

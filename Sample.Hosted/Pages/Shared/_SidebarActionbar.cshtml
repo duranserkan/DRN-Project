@@ -1,6 +1,4 @@
-@using DRN.Framework.SharedKernel.Enums
 @using DRN.Framework.Utils.Models
-@inject IAppSettings AppSettings
 @inject DevelopmentStatus DevelopmentStatus
 
 @{
@@ -43,12 +41,9 @@
             }
         </ul>
     </nav>
-    <nav aria-label="Sidebar actionbar status badges" style="overflow-y:auto; overflow-x: hidden">
+    <nav aria-label="Sidebar actionbar status badges" style="overflow-y:auto; overflow-x: hidden" policy-only="@UserClaims.TestPagesAccess">
         <ul id="ActionBarBadgeList" class="nav nav-pills nav-flush flex-column mt-1 mb-auto">
-            @if (AppSettings.Environment == AppEnvironment.Development)
-            {
-                <partial name="_SidebarActionbarBadges" model="DevelopmentStatus"/>
-            }
+            <partial name="_SidebarActionbarBadges" model="DevelopmentStatus"/>
         </ul>
     </nav>
 </aside>

@@ -79,7 +79,7 @@ public class DrnExceptionHandler(
 
         return new ExceptionPageModel(context, model);
     }
-    
+
     public async Task<ExceptionContentResult?> GetStartupExceptionContentAsync(IServiceProvider serviceProvider, Exception exception, IScopedLog startupLog)
     {
         using var requestServices = serviceProvider.CreateScope();
@@ -117,7 +117,7 @@ public class DrnExceptionHandler(
             if (appSettings.IsDevelopmentEnvironment)
                 await context.Response.WriteAsJsonAsync(scopedLog.GetLogs(), context.RequestAborted);
             else
-                await WriteProductionErrorResponseAsync(context);
+                await WriteSafeErrorResponseAsync(context);
         }
         catch (Exception exception) when (IsRequestAbortFailure(context, exception))
         {
@@ -137,8 +137,6 @@ public class DrnExceptionHandler(
         var model = await ExecuteExceptionPageModel(context, exception);
         if (!appSettings.IsDevelopmentEnvironment)
         {
-            //todo: prod exception page, if error page is configured redirect to it
-            //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling#exception-handler-page
             await WriteProductionErrorResponseAsync(context);
             return;
         }
@@ -155,7 +153,18 @@ public class DrnExceptionHandler(
         await WriteProductionErrorResponseAsync(context);
     }
 
-    private static async Task WriteProductionErrorResponseAsync(HttpContext context)
+    /// <summary>
+    /// Renders an error response. Overrides must preserve the HTTP status and omit exception details.
+    /// </summary>
+    protected virtual Task WriteProductionErrorResponseAsync(HttpContext context)
+    {
+        var renderer = context.RequestServices?.GetService<ErrorPageRenderer>();
+        return renderer?.CanRender(context) == true
+            ? renderer.WriteErrorAsync(context)
+            : WriteSafeErrorResponseAsync(context);
+    }
+
+    internal static async Task WriteSafeErrorResponseAsync(HttpContext context)
     {
         context.Response.ContentType = "text/plain; charset=utf-8";
         var statusCode = ((HttpStatusCode)context.Response.StatusCode).ToString();

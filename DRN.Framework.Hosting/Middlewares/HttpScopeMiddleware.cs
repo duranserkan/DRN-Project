@@ -21,19 +21,38 @@ public class HttpScopeMiddleware(RequestDelegate next)
     public async Task InvokeAsync(HttpContext context, IScopedLog scopedLog, IScopedUser scopedUser, IServiceProvider serviceProvider,
         ILogger<HttpScopeMiddleware> logger, IAppSettings appSettings, IDrnExceptionHandler exceptionHandler)
     {
+        var responseHandled = false;
+        var responseLogged = 0;
+
+        void LogResponse()
+        {
+            if (Interlocked.Exchange(ref responseLogged, 1) != 0)
+                return;
+
+            scopedLog.Add("Response_StatusCode", context.Response.StatusCode);
+            scopedLog.Add("Response_ContentLength", context.Response.ContentLength ?? 0);
+            logger.LogScoped(scopedLog);
+        }
+
         try
         {
+            context.Response.OnCompleted(() =>
+            {
+                LogResponse();
+                return Task.CompletedTask;
+            });
             RequestBufferingState.TryEnableBuffering(context, appSettings.Features);
             ResponseControls(context);
             PrepareScopeLog(context, scopedLog);
             ScopeContext.Initialize(context.TraceIdentifier, scopedLog, scopedUser, appSettings, serviceProvider);
-            if (ExceptionPageAccessor.IsExceptionPage(context.Request.Path.Value, appSettings.IsDevelopmentEnvironment))
+            if (ExceptionPageAccessor.IsExceptionPage(context.Request.Path.Value))
             {
                 context.Abort(); //Requesting exception pages are malicious. Exception pages are rendered when an exception occurs.
                 return;
             }
 
             await next(context);
+            responseHandled = true;
         }
         catch (Exception e)
         {
@@ -53,19 +72,13 @@ public class HttpScopeMiddleware(RequestDelegate next)
                 scopedLog.Add("Response_Started", true);
 
             await exceptionHandler.HandleExceptionAsync(context, e);
+            responseHandled = true;
         }
         finally
         {
-            scopedLog.Add("Response_StatusCode", context.Response.StatusCode);
-            scopedLog.Add("Response_ContentLength", context.Response.ContentLength ?? 0);
-            logger.LogScoped(scopedLog);
-
-            //If you need to preserve the original HTTP method during redirection,
-            //the correct status code to use is 307 (Temporary Redirect) or 308 (Permanent Redirect)
-            //Use 303 instead of 302 for redirects because it is explicit, adheres to modern HTTP standards,
-            //ensures predictable behavior across all clients, and clearly communicates your intent to convert the request method.
-            if (context.Response.StatusCode == 302)
-                context.Response.StatusCode = 303;
+            // Aborted or failed processing might not reach response completion.
+            if (!responseHandled || context.RequestAborted.IsCancellationRequested)
+                LogResponse();
         }
     }
 
@@ -73,6 +86,10 @@ public class HttpScopeMiddleware(RequestDelegate next)
     {
         context.Response.OnStarting(() =>
         {
+            // Preserve the framework redirect policy before headers become read-only.
+            if (context.Response.StatusCode == StatusCodes.Status302Found)
+                context.Response.StatusCode = StatusCodes.Status303SeeOther;
+
             var headers = context.Response.Headers;
             if (headers.ContainsKey("Cache-Control"))
                 return Task.CompletedTask;
