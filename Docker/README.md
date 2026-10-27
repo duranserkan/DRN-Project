@@ -2,6 +2,10 @@
 
 This guide covers local containers, Docker Compose stacks, existing data volumes, and published image verification for [DRN-Project](../README.md).
 
+## Container updates
+
+2026-10-27: Sample and Nexus images now use ASP.NET Core runtime 10.0.14 and SDK 10.0.403, incorporating the [.NET 10.0.14 security release](https://github.com/dotnet/core/blob/main/release-notes/10.0/10.0.14/10.0.14.md). Both retain Ubuntu Resolute, with the chiseled-extra runtime, and pin verified Microsoft Container Registry multi-platform manifest digests. Rebuild and redeploy the application images to apply the update.
+
 ## Local development
 
 Install [Docker](https://www.docker.com/) and keep its daemon running. Docker Compose stacks require Compose 2.30 or newer.

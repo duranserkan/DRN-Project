@@ -2,6 +2,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.10.1
 
+Dependencies upgraded to dotnet 10.0.14
+
 *   **Rate Limit Defaults**: Increased post-auth burst capacity and refill from 100 to 250 tokens, and pre-auth capacity and refill from 1,000 to 2,500 tokens. Refill periods remain 60 seconds. Explicit configuration overrides remain supported.
 
 *   **Linkerd Diagnostics**: Flurl exception logs capture proxy error and connection response headers. Call `AddLinkerdProxyDiagnostics` to capture the same diagnostics for explicitly handled responses without consuming their body.
