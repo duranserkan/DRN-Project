@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "//": "Dependency versions are pinned exactly to prevent supply chain attacks and guarantee reproducible builds.",
   "engines": {
-    "node": ">=24.18.0"
+    "node": ">=24.22.1"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

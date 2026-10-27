@@ -68,7 +68,7 @@ TL;DR: You can
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download) 10.0.403 or a later compatible SDK selected by [global.json](global.json)
 - [Docker](https://www.docker.com/) with the daemon running (for the sample app and integration tests with Testcontainers)
-- Node.js >=24.18.0 and npm for rebuilding frontend assets (see [package.json](Sample.Hosted/package.json)). Built assets are checked in, so this is optional when simply running the sample.
+- Node.js >=24.22.1 and npm for rebuilding frontend assets (see [package.json](Sample.Hosted/package.json)). Built assets are checked in, so this is optional when simply running the sample. GitHub Actions pins Node.js 24.22.1 on Ubuntu 26.04 runners.
 
 > **Nice to have**: [JetBrains Rider](https://www.jetbrains.com/rider/) (recommended), [Visual Studio](https://visualstudio.microsoft.com/), or [VS Code](https://code.visualstudio.com/) with [C# Dev Kit](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csdevkit). All operations can also be performed from the terminal.
 

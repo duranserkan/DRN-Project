@@ -23,7 +23,7 @@ jobs:
   frontend:
     permissions:
       contents: read
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
       - name: Checkout trusted CI code
@@ -48,7 +48,7 @@ jobs:
   backend:
     permissions:
       contents: read
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     env:
       SOLUTION_FILE: DRN.slnx
@@ -83,7 +83,7 @@ jobs:
       contents: read
       # Upload SARIF/code scanning results.
       security-events: write
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     env:
       SOLUTION_FILE: DRN.slnx
@@ -122,7 +122,7 @@ jobs:
   dependency-review:
     permissions:
       contents: read
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
       - name: Checkout trusted CI code
@@ -147,7 +147,7 @@ jobs:
 
   gatekeeper:
     permissions: {}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     if: ${{ always() }}
     # Repository rulesets/branch protection must require this aggregate status
