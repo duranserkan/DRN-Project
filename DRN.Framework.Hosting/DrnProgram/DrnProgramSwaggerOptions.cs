@@ -1,4 +1,5 @@
 using DRN.Framework.SharedKernel;
+using DRN.Framework.Hosting.Middlewares.ApiErrors;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.DependencyInjection;
@@ -62,6 +63,7 @@ public class DrnProgramSwaggerOptions
     {
         ConfigureOpenApiInfo?.Invoke(OpenApiInfo);
         options.SwaggerDoc(OpenApiInfo.Version, OpenApiInfo);
+        options.OperationFilter<DrnApiErrorOperationFilter>();
 
         if (AddBearerTokenSecurityRequirement)
             BearerTokenSecurityRequirement(options);

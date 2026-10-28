@@ -1,5 +1,6 @@
 using DRN.Framework.SharedKernel.Extensions;
 using DRN.Framework.Hosting.Identity;
+using DRN.Framework.Hosting.Middlewares.ApiErrors;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.DataProtection;
@@ -31,6 +32,7 @@ public static class SampleModule
         // Identity replaces cookie events, so apply application customizations after its registration.
         services.ConfigureCookieAuthenticationOptions(settings);
         services.AddDrnIdentityMfaPolicies();
+        services.Configure<DrnApiErrorOptions>(options => options.PathPrefixes = ["/Api"]);
         services.Configure<DrnErrorPageOptions>(options =>
         {
             options.ServerErrorPage = Get.Page.Root.SomethingWentWrong;

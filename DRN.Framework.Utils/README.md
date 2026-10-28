@@ -697,6 +697,22 @@ await response.Payload!.CopyToAsync(destination);
 
 `ScopeContext` provides ambient access to request-scoped data after a DRN Hosting request scope has been initialized. Use injected services during startup, in background work, and outside request scopes.
 
+Use the lazy `ScopeContext.Problem` object for public error defaults: `Type`, `Title`, `Detail`, `Instance`, and `Extensions`. DRN Hosting fills null fields and missing extension keys from these values. Existing values take precedence, including framework-generated titles and types. Status, request ID, and validation errors stay framework controlled. Exception messages and logs are not copied. This mutable object is shared within the request; do not use it for separate errors from concurrent operations.
+
+```csharp
+using DRN.Framework.SharedKernel;
+using DRN.Framework.Utils.Scope;
+
+ScopeContext.Problem.Detail = "A tag with this name already exists.";
+ScopeContext.Problem.Extensions["code"] = "tag_already_exists";
+ScopeContext.Problem.Conflict("Duplicate tag detected during creation.");
+// same as: throw ExceptionFor.Conflict("Duplicate tag detected during creation.");
+```
+
+`ScopeProblem` provides throwing helpers for every `ExceptionFor` factory with the same arguments. Public defaults remain unchanged, and helper frames are hidden from formatted stack traces so the caller remains visible.
+
+With DRN API error handling enabled, both approaches return 409 Conflict with the public detail and `code`. See [API failure responses](../DRN.Framework.Hosting/README.md#api-failure-responses) for configuration and opt-out behavior.
+
 *   **Contextual Identity**: Access `UserId`, `TraceId`, and `Authenticated` status within an initialized request scope.
 *   **Static Accessors**: Provides request-scope access to `IAppSettings`, `IScopedLog`, and `IServiceProvider`.
 *   **RBAC Helpers**: Built-in support for role and claim checks.

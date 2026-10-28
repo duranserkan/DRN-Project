@@ -1,12 +1,15 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Hosting.Utils.Vite;
+using DRN.Test.Integration.Helpers;
 using DRN.Test.Integration.Tests.Sample.Pages.Helpers;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Sample.Hosted;
@@ -45,7 +48,7 @@ public class ErrorPageTests
         var bootstrap = application.Services.GetRequiredService<IViteManifest>()
             .GetManifestItem("buildwww/lib/bootstrap/bootstrap.scss");
         bootstrap.Should().NotBeNull();
-        bootstrap!.Path.Should().NotBeNullOrEmpty();
+        bootstrap.Path.Should().NotBeNullOrEmpty();
         var stylesheetPath = pathBase + bootstrap.Path;
 
         foreach (var (path, status, message) in new[]
@@ -142,39 +145,46 @@ public class ErrorPageTests
 
         // This anonymous API action returns NotFound outside Development, even when HTML is requested.
         using var apiNotFound = await client.GetAsync(pathBase + "/Api/Sample/Exception/NotFoundException");
-        apiNotFound.StatusCode.Should().Be(HttpStatusCode.NotFound);
         apiNotFound.Headers.Location.Should().BeNull();
+        using var notFoundProblem = await ProblemDetailsAssertions.ReadProblemAsync(apiNotFound, 404);
         (await apiNotFound.Content.ReadAsStringAsync()).Should().NotContain("Page not found")
             .And.NotContain("<html");
 
         var registerRoute = Get.Endpoint.User.Identity.RegisterController.Register.RoutePattern;
         registerRoute.Should().NotBeNullOrWhiteSpace();
-        var registerPath = pathBase + "/" + registerRoute!.TrimStart('/');
+        var registerPath = pathBase + "/" + registerRoute.TrimStart('/');
         var invalidRegistration = new { Email = "invalid-email", Password = "Unused-password-123!" };
-        using var jsonRequest = new HttpRequestMessage(HttpMethod.Post, registerPath)
-        {
-            Content = JsonContent.Create(invalidRegistration)
-        };
+        using var jsonRequest = new HttpRequestMessage(HttpMethod.Post, registerPath);
+        jsonRequest.Content = JsonContent.Create(invalidRegistration);
         jsonRequest.Headers.Accept.ParseAdd("application/json");
         using var jsonResponse = await client.SendAsync(jsonRequest);
-        jsonResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        var expectedProblem = await jsonResponse.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+        using var expectedDocument = await ProblemDetailsAssertions.ReadProblemAsync(jsonResponse, 400);
+        var expectedProblem = expectedDocument.RootElement.Deserialize<ValidationProblemDetails>();
         expectedProblem.Should().NotBeNull();
         expectedProblem.Errors.Should().NotBeEmpty();
 
         // The client still requests text/html; API validation must retain its JSON payload.
         using var apiValidation = await client.PostAsJsonAsync(registerPath, invalidRegistration);
-        apiValidation.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         apiValidation.Headers.Location.Should().BeNull();
-        apiValidation.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
-        var actualProblem = await apiValidation.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+        using var actualDocument = await ProblemDetailsAssertions.ReadProblemAsync(apiValidation, 400);
+        var actualProblem = actualDocument.RootElement.Deserialize<ValidationProblemDetails>();
         actualProblem.Should().NotBeNull();
-        actualProblem.Status.Should().Be(StatusCodes.Status400BadRequest);
         actualProblem.Type.Should().Be(expectedProblem.Type);
         actualProblem.Title.Should().Be(expectedProblem.Title);
         actualProblem.Errors.Should().BeEquivalentTo(expectedProblem.Errors);
         (await apiValidation.Content.ReadAsStringAsync()).Should().NotContain("<html")
             .And.NotContain("id=\"error-content\"").And.NotContain(stylesheetPath);
+
+        var loginPath = pathBase + "/" + Get.Endpoint.User.Identity.LoginController.Login.RoutePattern!.TrimStart('/');
+        using var invalidLogin = await client.PostAsJsonAsync(loginPath,
+            new LoginRequest { Email = "missing-api-error-user@example.com", Password = "Invalid-password-123!" });
+        using var loginProblem = await ProblemDetailsAssertions.ReadProblemAsync(invalidLogin, 401);
+        loginProblem.RootElement.GetProperty("detail").GetString().Should().Be("Invalid email or password.");
+
+        var refreshPath = pathBase + "/" + Get.Endpoint.User.Identity.LoginController.Refresh.RoutePattern!.TrimStart('/');
+        using var invalidRefresh = await client.PostAsJsonAsync(refreshPath, new RefreshRequest { RefreshToken = "invalid" });
+        invalidRefresh.Headers.WwwAuthenticate.Should().Contain(value => value.Scheme == "Bearer");
+        using var refreshProblem = await ProblemDetailsAssertions.ReadProblemAsync(invalidRefresh, 401);
 
         client.DefaultRequestHeaders.Accept.Clear();
         client.DefaultRequestHeaders.Accept.ParseAdd("application/json");

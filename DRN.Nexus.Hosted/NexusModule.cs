@@ -1,5 +1,6 @@
 using DRN.Framework.Utils.Settings;
 using DRN.Framework.Hosting.Identity;
+using DRN.Framework.Hosting.Middlewares.ApiErrors;
 using DRN.Nexus.Application;
 using DRN.Nexus.Domain.User;
 using DRN.Nexus.Hosted.Settings;
@@ -23,6 +24,7 @@ public static class NexusModule
         //.AddPersonalDataProtection<>() //todo: enable personal data protection
 
         services.AddDrnIdentityMfaPolicies();
+        services.Configure<DrnApiErrorOptions>(options => options.PathPrefixes = ["/Api"]);
         services.AddServicesWithAttributes();
 
         return services;

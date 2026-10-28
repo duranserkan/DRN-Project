@@ -6,6 +6,22 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Scope;
 
 public class ScopeContextTests
 {
+    [Theory]
+    [DataInlineUnit]
+    public void Problem_Should_Be_Lazy_And_Reset_With_The_Scope(DrnTestContextUnit context)
+    {
+        ScopeContext.InitializeForTest(context);
+        ScopeContext.CurrentProblem.Should().BeNull();
+        var problem = ScopeContext.Problem;
+        problem.Detail = "Public detail";
+        ScopeContext.Problem.Should().BeSameAs(problem);
+
+        ScopeContext.InitializeForTest(context);
+        ScopeContext.CurrentProblem.Should().BeNull();
+        ScopeContext.Problem.Detail.Should().BeNull();
+        ScopeContext.Problem.Should().NotBeSameAs(problem);
+    }
+
     private const string ClaimType = "permission";
     private const string TrustedIssuer = "trusted";
     private const string NumericIssuer = "numeric";

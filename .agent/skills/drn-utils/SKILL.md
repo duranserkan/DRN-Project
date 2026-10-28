@@ -1,7 +1,7 @@
 ---
 name: drn-utils
 description: "DRN.Framework.Utils - Attribute-based dependency injection, settings, logging, scoped cancellation, ID generation, Base32/TOTP encoding and authentication utilities, entity date filtering, validators, and core utilities. Keywords: dependency-injection, configuration, appsettings, appdata, logging, cancellation, source-known-id, base32, totp, mfa, entity-date-filter, tick-boundary, validators, extensions, http-client"
-last-updated: 2026-10-03
+last-updated: 2026-10-28
 difficulty: intermediate
 tokens: ~2.7K
 ---
@@ -218,6 +218,10 @@ Use `HttpCallResult<T>.ThrowIfFailure()` to rethrow a captured processing failur
 ## ScopeContext (Ambient Context)
 
 Access ambient data only after DRN Hosting initializes the current request scope or a test explicitly calls `ScopeContext.InitializeForTest(...)`. A `DrnTestContext` alone does not initialize `ScopeContext`; use injected services during startup, background work, console execution, and other uninitialized scopes.
+
+`ScopeContext.Problem` lazily stores public error defaults (`Type`, `Title`, `Detail`, `Instance`, `Extensions`) without ASP.NET dependencies. Hosting fills missing response fields only. Do not copy logs or exception messages into it. The mutable object belongs to one scope, resets with test initialization, and must not coordinate separate concurrent errors.
+
+`ScopeProblem` mirrors every `ExceptionFor` factory with the same arguments and throws immediately without changing public defaults. `[StackTraceHidden]` hides helper frames from formatted traces without relocating the throw instruction. Examples show the scoped shorthand and equivalent `throw ExceptionFor` call together.
 
 ```csharp
 ScopeContext.UserId;                      // Current user

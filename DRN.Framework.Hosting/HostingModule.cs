@@ -1,7 +1,9 @@
 using DRN.Framework.Hosting.DrnProgram;
+using DRN.Framework.Hosting.Middlewares.ApiErrors;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.SharedKernel.Json;
 using DRN.Framework.Utils.DependencyInjection;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -24,11 +26,17 @@ public static class HostingModule
                 "NotFoundPage must be a Razor page name such as /NotFound, without .cshtml, or null.")
             .ValidateOnStart();
         sc.ConfigureHttpJsonOptions(jsonOptions => JsonConventions.SetJsonDefaults(jsonOptions.SerializerOptions));
+        sc.AddOptions<DrnApiErrorOptions>()
+            .Validate(apiOptions => apiOptions.PathPrefixes != null && apiOptions.PathPrefixes.All(DrnApiErrorOptions.IsValidPrefix),
+                "API path prefixes must be absolute application paths such as /Api, without a trailing slash, query, or fragment.")
+            .ValidateOnStart();
+        sc.Configure<MvcOptions>(mvcOptions => mvcOptions.Filters.AddService<DrnApiProblemDetailsFilter>(int.MaxValue));
         sc.AddLogging();
         sc.AddEndpointsApiExplorer();
         sc.AddHttpContextAccessor();
 
         sc.AddServicesWithAttributes();
+        sc.AddProblemDetails();
         if (options.AddSwagger)
             sc.AddSwaggerGen(options.ConfigureSwaggerGenOptions);
 

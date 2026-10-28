@@ -4,6 +4,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 Dependencies upgraded to dotnet 10.0.14
 
+*   **Scoped Public Errors**: Added lazy `ScopeContext.Problem` for public error details and extensions, with throwing helpers for every `ExceptionFor` factory. Helpers preserve public defaults, keep diagnostic data private, and hide their frames from formatted stack traces. DRN Hosting uses these defaults while preserving existing response values and framework-controlled fields.
+
 *   **Rate Limit Defaults**: Increased post-auth burst capacity and refill from 100 to 250 tokens, and pre-auth capacity and refill from 1,000 to 2,500 tokens. Refill periods remain 60 seconds. Explicit configuration overrides remain supported.
 
 *   **Linkerd Diagnostics**: Flurl exception logs capture proxy error and connection response headers. Call `AddLinkerdProxyDiagnostics` to capture the same diagnostics for explicitly handled responses without consuming their body.

@@ -56,6 +56,12 @@ public class HttpScopeMiddleware(RequestDelegate next)
         }
         catch (Exception e)
         {
+            if (context.Response.HasStarted)
+            {
+                scopedLog.AddException(e);
+                scopedLog.Add("Response_Started", true);
+                throw;
+            }
             context.Response.StatusCode = GetHttpStatusCode(e);
             if (e is FlurlHttpException f)
                 await f.PrepareScopeLogForFlurlExceptionAsync(scopedLog, appSettings.Features);

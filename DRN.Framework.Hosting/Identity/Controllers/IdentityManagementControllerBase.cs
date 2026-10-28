@@ -15,6 +15,7 @@ using Microsoft.Extensions.Options;
 
 namespace DRN.Framework.Hosting.Identity.Controllers;
 
+[ApiController]
 public abstract class IdentityManagementControllerBase<TUser> : ControllerBase
     where TUser : IdentityUser, new()
 {

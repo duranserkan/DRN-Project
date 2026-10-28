@@ -92,6 +92,34 @@ public class HttpScopeMiddlewareTests
         logger.ReceivedCalls().Count(call => call.GetMethodInfo().Name == "Log").Should().Be(1);
     }
 
+    [Theory]
+    [DataInlineUnit]
+    public async Task Started_Response_Failure_Should_Preserve_Status_And_Propagate_Original_Exception(DrnTestContextUnit services)
+    {
+        var response = new LifecycleResponseFeature();
+        var http = new DefaultHttpContext();
+        http.Features.Set<IHttpResponseFeature>(response);
+        http.Request.Protocol = "HTTP/1.1";
+        http.Request.Path = "/started";
+        var settings = services.GetRequiredService<IAppSettings>();
+        var log = new ScopedLog(settings);
+        var exceptionHandler = Substitute.For<IDrnExceptionHandler>();
+        var original = new InvalidOperationException("Original streaming failure");
+        var middleware = new HttpScopeMiddleware(async context =>
+        {
+            context.Response.StatusCode = 202;
+            await response.StartAsync();
+            throw original;
+        });
+
+        Func<Task> invoke = () => middleware.InvokeAsync(http, log, Substitute.For<IScopedUser>(), services,
+            Substitute.For<ILogger<HttpScopeMiddleware>>(), settings, exceptionHandler);
+
+        (await invoke.Should().ThrowAsync<InvalidOperationException>()).Which.Should().BeSameAs(original);
+        http.Response.StatusCode.Should().Be(202);
+        await exceptionHandler.DidNotReceive().HandleExceptionAsync(Arg.Any<HttpContext>(), Arg.Any<Exception>());
+    }
+
     // Model server callback ordering and reject status changes after headers are sent.
     private sealed class LifecycleResponseFeature : HttpResponseFeature, IHttpResponseFeature
     {

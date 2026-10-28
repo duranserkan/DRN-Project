@@ -1,11 +1,11 @@
 using System.Net;
 using DRN.Framework.Hosting.Auth.Policies;
+using DRN.Test.Integration.Helpers;
 using DRN.Test.Utils.Hosting.Auth;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
-using Xunit.Sdk;
 
 namespace DRN.Test.Integration.Tests.Framework.Hosting.Auth;
 
@@ -139,22 +139,5 @@ public class AuthenticationConfigurationTests
         if (endpoint == "inline") scriptPolicy.Should().Be("script-src 'self' 'unsafe-inline'");
         if (endpoint == "self") scriptPolicy.Should().Be("script-src 'self'");
         if (endpoint == "anonymous") scriptPolicy.Should().Contain("'nonce-");
-    }
-
-    // The integration assembly's startup job provisions Sample/Nexus databases. These hosts need neither.
-    // Use the existing no-startup context constructor; do not change the shared startup job or production code.
-    [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
-    private sealed class IsolatedHostingDataAttribute(params object?[] values) : DataSelfAttribute
-    {
-        public override ValueTask<IReadOnlyCollection<ITheoryDataRow>> GetData(MethodInfo testMethod, DisposalTracker disposalTracker)
-        {
-            var context = new DrnTestContext(testMethod, triggerStartUp: false);
-            disposalTracker.Add(context);
-            object?[] data = [context, .. values];
-            context.MethodContext.SetTestData(data!);
-            return ValueTask.FromResult<IReadOnlyCollection<ITheoryDataRow>>([new TheoryDataRow(data)]);
-        }
-
-        public override bool SupportsDiscoveryEnumeration() => false;
     }
 }

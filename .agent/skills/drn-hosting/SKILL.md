@@ -1,7 +1,7 @@
 ---
 name: drn-hosting
 description: "DRN.Framework.Hosting - DrnProgramBase for web application bootstrapping, endpoint configuration, security middleware (CSP, nonce), authentication/authorization, TagHelpers for asset management, and Razor Pages integration. Essential for web application setup and hosting. Keywords: hosting, web-application, drnprogrambase, endpoints, middleware, security, csp, nonce, authentication, authorization, taghelpers, razor-pages, mfa, background-service"
-last-updated: 2026-10-25
+last-updated: 2026-10-28
 difficulty: advanced
 tokens: ~3K
 ---
@@ -256,9 +256,15 @@ public class TagFor() : ControllerForBase<TagController>(QaApiFor.ControllerRout
 
 ## Middlewares
 
-### Production Error Responses
+### Error Responses
 
-Use `DrnErrorPageOptions` for application-owned 400, 404, and 5xx error pages. Preserve status codes, the original request reference when rendering internally, redaction, existing response bodies, API validation responses, Development exception diagnostics, deployment prefixes, and fallback authorization for unmatched routes. Keep error pages anonymous, non-cacheable, and independent of application data. See [Hosting custom error pages](../../../DRN.Framework.Hosting/README.md#custom-error-pages) for configuration, models, and response customization.
+API errors from 400 through 599 use Problem Details in every environment, serialized with SharedKernel `JsonConventions.DefaultOptions`. MVC and HTTP JSON overrides do not apply. Classify matched endpoints by API metadata and unmatched routes or routing-generated 405 responses by `DrnApiErrorOptions.PathPrefixes`. Preserve authentication decisions, headers, cookies, validation errors, and public extensions. Use `HttpContext.TraceIdentifier` for requestId and default instance to PathBase + Path without queries. Keep exceptions private and serialization fallbacks redacted.
+
+`ScopeContext.Problem` supplies missing fields and extension keys without allocation on reads. Existing values win, including framework-generated titles and types. Scoped extensions cannot replace standard fields or validation errors. `CustomizeProblemDetails` runs once for MVC-generated and typed problems, but not generic exception or empty-error responses. See [Hosting API failure responses](../../../DRN.Framework.Hosting/README.md#api-failure-responses) for examples and migration.
+
+Swagger adds only a representative 400 response describing all 4xx and 5xx errors. Preserve other declared statuses, validation schemas, custom response types, and browser/HEAD metadata. Honor inherited `[DisableDrnProblemDetails]` on controllers or actions: it disables DRN formatting and automatic Swagger error metadata while retaining native ASP.NET Core responses and authentication behavior.
+
+Use `DrnErrorPageOptions` for application-owned browser 400, 404, and 5xx error pages. Preserve status codes, the original request reference when rendering internally, redaction, existing response bodies, browser Development diagnostics, deployment prefixes, and fallback authorization for unmatched routes. Keep error pages anonymous, non-cacheable, and independent of application data. Supported API exceptions bypass the browser-oriented `WriteProductionErrorResponseAsync` override unless opted out. See [Hosting custom error pages](../../../DRN.Framework.Hosting/README.md#custom-error-pages) for configuration, models, and response customization.
 
 For access-denied redirects, use `AccessDeniedPageModel` and opt in with `PreserveAccessDeniedRequestId()` on the active cookie events instance after Identity registration and other callback assignments. Preserve the existing callback, nonredirect responses, and single-use TempData reference. Keep routes, markup and authorization policies application-owned. See the same README section for setup and `EventsType` guidance.
 

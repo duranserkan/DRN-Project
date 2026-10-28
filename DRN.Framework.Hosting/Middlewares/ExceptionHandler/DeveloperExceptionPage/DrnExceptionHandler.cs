@@ -3,6 +3,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
+using DRN.Framework.Hosting.Middlewares.ApiErrors;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
@@ -114,6 +115,10 @@ public class DrnExceptionHandler(
 
         try
         {
+            var apiErrors = context.RequestServices?.GetService<DrnApiErrorResponse>();
+            if (apiErrors != null && await apiErrors.TryWriteAsync(context))
+                return;
+
             if (appSettings.IsDevelopmentEnvironment)
                 await context.Response.WriteAsJsonAsync(scopedLog.GetLogs(), context.RequestAborted);
             else
@@ -135,6 +140,9 @@ public class DrnExceptionHandler(
 
         //even in production we may want to execute IDrnExceptionFilter filters
         var model = await ExecuteExceptionPageModel(context, exception);
+        var apiErrors = context.RequestServices?.GetService<DrnApiErrorResponse>();
+        if (apiErrors != null && await apiErrors.TryWriteAsync(context))
+            return;
         if (!appSettings.IsDevelopmentEnvironment)
         {
             await WriteProductionErrorResponseAsync(context);
@@ -154,7 +162,8 @@ public class DrnExceptionHandler(
     }
 
     /// <summary>
-    /// Renders an error response. Overrides must preserve the HTTP status and omit exception details.
+    /// Renders browser, non-API, and opted-out API errors. Other API failures use the shared Problem Details formatter.
+    /// Overrides must preserve the HTTP status and omit exception details.
     /// </summary>
     protected virtual Task WriteProductionErrorResponseAsync(HttpContext context)
     {
