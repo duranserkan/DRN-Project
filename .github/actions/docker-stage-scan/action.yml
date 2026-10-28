@@ -41,7 +41,7 @@ runs:
   steps:
     - name: Extract Docker metadata for image labels
       id: metadata
-      uses: ./.github/actions/docker-release-metadata
+      uses: $/.github/actions/docker-release-metadata
       with:
         registry: ${{ inputs.registry }}
         image-repository-prefix: ${{ inputs.image-repository-prefix }}

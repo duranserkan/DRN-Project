@@ -35,7 +35,7 @@ runs:
         username: ${{ inputs.username }}
         password: ${{ inputs.password }}
     - name: Promote Sample Docker image tags
-      uses: ./.github/actions/docker-promote
+      uses: $/.github/actions/docker-promote
       with:
         registry: ${{ inputs.registry }}
         image-repository-prefix: ${{ inputs.image-repository-prefix }}
@@ -43,7 +43,7 @@ runs:
         version: ${{ inputs.version }}
         image-digest: ${{ inputs.sample-image-digest }}
     - name: Promote Nexus Docker image tags
-      uses: ./.github/actions/docker-promote
+      uses: $/.github/actions/docker-promote
       with:
         registry: ${{ inputs.registry }}
         image-repository-prefix: ${{ inputs.image-repository-prefix }}

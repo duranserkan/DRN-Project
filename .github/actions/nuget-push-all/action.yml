@@ -20,35 +20,35 @@ runs:
         user: ${{ inputs.nuget-user }}
 
     - name: Push SharedKernel
-      uses: ./.github/actions/nuget-push
+      uses: $/.github/actions/nuget-push
       with:
         project-name: DRN.Framework.SharedKernel
         version: ${{ inputs.version }}
         package-source-url: ${{ inputs.package-source-url }}
         nuget-api-key: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
     - name: Push Utils
-      uses: ./.github/actions/nuget-push
+      uses: $/.github/actions/nuget-push
       with:
         project-name: DRN.Framework.Utils
         version: ${{ inputs.version }}
         package-source-url: ${{ inputs.package-source-url }}
         nuget-api-key: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
     - name: Push EntityFramework
-      uses: ./.github/actions/nuget-push
+      uses: $/.github/actions/nuget-push
       with:
         project-name: DRN.Framework.EntityFramework
         version: ${{ inputs.version }}
         package-source-url: ${{ inputs.package-source-url }}
         nuget-api-key: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
     - name: Push Hosting
-      uses: ./.github/actions/nuget-push
+      uses: $/.github/actions/nuget-push
       with:
         project-name: DRN.Framework.Hosting
         version: ${{ inputs.version }}
         package-source-url: ${{ inputs.package-source-url }}
         nuget-api-key: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
     - name: Push Testing
-      uses: ./.github/actions/nuget-push
+      uses: $/.github/actions/nuget-push
       with:
         project-name: DRN.Framework.Testing
         version: ${{ inputs.version }}

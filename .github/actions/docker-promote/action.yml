@@ -32,7 +32,7 @@ runs:
         fi
     - name: Extract Docker metadata for promotion tags
       id: metadata
-      uses: ./.github/actions/docker-release-metadata
+      uses: $/.github/actions/docker-release-metadata
       with:
         registry: ${{ inputs.registry }}
         image-repository-prefix: ${{ inputs.image-repository-prefix }}

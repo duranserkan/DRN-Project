@@ -51,12 +51,12 @@ runs:
   using: "composite"
   steps:
     - name: Setup SDK
-      uses: ./.github/actions/setup-sdk-and-tools
+      uses: $/.github/actions/setup-sdk-and-tools
       with:
         working-directory: ${{ inputs.working-directory }}
 
     - name: Sonar Scan Begin
-      uses: ./.github/actions/sonar-begin
+      uses: $/.github/actions/sonar-begin
       with:
         working-directory: ${{ inputs.working-directory }}
         sonar-token: ${{ inputs.sonar-token }}
@@ -72,20 +72,20 @@ runs:
 
     - name: Build
       id: build
-      uses: ./.github/actions/dotnet-build
+      uses: $/.github/actions/dotnet-build
       with:
         working-directory: ${{ inputs.working-directory }}
         solution-file: ${{ inputs.solution-file }}
         version: ${{ inputs.version }}
 
     - name: Test with Coverage
-      uses: ./.github/actions/dotnet-test-coverage
+      uses: $/.github/actions/dotnet-test-coverage
       with:
         working-directory: ${{ inputs.working-directory }}
 
     - name: Sonar Scan End
       if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-      uses: ./.github/actions/sonar-end
+      uses: $/.github/actions/sonar-end
       with:
         working-directory: ${{ inputs.working-directory }}
         sonar-token: ${{ inputs.sonar-token }}

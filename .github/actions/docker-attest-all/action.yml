@@ -42,7 +42,7 @@ runs:
   using: "composite"
   steps:
     - name: Attest Sample Docker image
-      uses: ./.github/actions/docker-attest
+      uses: $/.github/actions/docker-attest
       with:
         registry: ${{ inputs.registry }}
         image-repository-prefix: ${{ inputs.image-repository-prefix }}
@@ -55,7 +55,7 @@ runs:
         push-to-registry: "true"
 
     - name: Attest Nexus Docker image
-      uses: ./.github/actions/docker-attest
+      uses: $/.github/actions/docker-attest
       with:
         registry: ${{ inputs.registry }}
         image-repository-prefix: ${{ inputs.image-repository-prefix }}

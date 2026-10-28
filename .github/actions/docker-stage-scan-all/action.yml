@@ -67,7 +67,7 @@ runs:
         password: ${{ inputs.password }}
     - name: Stage and scan Sample Docker image
       id: sample
-      uses: ./.github/actions/docker-stage-scan
+      uses: $/.github/actions/docker-stage-scan
       with:
         project-name: Sample.Hosted
         registry: ${{ inputs.registry }}
@@ -77,7 +77,7 @@ runs:
         platforms: ${{ inputs.platforms }}
     - name: Stage and scan Nexus Docker image
       id: nexus
-      uses: ./.github/actions/docker-stage-scan
+      uses: $/.github/actions/docker-stage-scan
       with:
         project-name: DRN.Nexus.Hosted
         registry: ${{ inputs.registry }}

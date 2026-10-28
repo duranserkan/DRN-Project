@@ -48,7 +48,7 @@ runs:
   using: "composite"
   steps:
     - name: Set up Sonar tools
-      uses: ./.github/actions/sonar-tools
+      uses: $/.github/actions/sonar-tools
       with:
         working-directory: ${{ inputs.working-directory }}
     - name: Sonar Scan Begin # Sonar Begin
