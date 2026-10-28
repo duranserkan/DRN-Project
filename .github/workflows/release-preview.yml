@@ -64,6 +64,7 @@ jobs:
           solution-file: ${{ env.SOLUTION_FILE }}
           version: ${{ steps.version.outputs.version }}
           sonar-token: ${{ secrets.SONAR_TOKEN }}
+          sonar-typescript-tsconfig-paths: Sample.Hosted/tsconfig.json
           sonar-branch-name: develop
           sonar-branch-target: master
 

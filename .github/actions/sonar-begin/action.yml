@@ -21,9 +21,13 @@ inputs:
     required: false
     default: "duranserkan"
   sonar-exclusions:
-    description: "Source-analysis exclusions; defaults to generated wwwroot output to avoid scanning built assets as source."
+    description: "Source-analysis exclusions; defaults to generated wwwroot, bin, and obj output to avoid scanning build artifacts as source."
     required: false
-    default: "**/wwwroot/**"
+    default: "**/wwwroot/**,**/bin/**,**/obj/**"
+  sonar-typescript-tsconfig-paths:
+    description: "Comma-separated TSConfig paths or patterns relative to working-directory. Empty uses Sonar discovery."
+    required: false
+    default: ""
   sonar-secrets-excluded-file-suffixes:
     description: "Binary suffixes excluded from Secrets decoding so valid image and font assets are not parsed as UTF-8 text."
     required: false
@@ -55,6 +59,7 @@ runs:
         SONAR_HOST_URL: ${{ inputs.sonar-host-url }}
         SONAR_ORGANIZATION: ${{ inputs.sonar-organization }}
         SONAR_EXCLUSIONS: ${{ inputs.sonar-exclusions }}
+        SONAR_TYPESCRIPT_TSCONFIG_PATHS: ${{ inputs.sonar-typescript-tsconfig-paths }}
         SONAR_SECRETS_EXCLUDED_FILE_SUFFIXES: ${{ inputs.sonar-secrets-excluded-file-suffixes }}
         SONAR_PROJECT_VERSION: ${{ inputs.version }}
         SONAR_TOKEN: ${{ inputs.sonar-token }}
@@ -79,6 +84,10 @@ runs:
 
         if (-not [string]::IsNullOrWhiteSpace($env:SONAR_EXCLUSIONS)) {
           $scannerArgs += "/d:sonar.exclusions=$env:SONAR_EXCLUSIONS"
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($env:SONAR_TYPESCRIPT_TSCONFIG_PATHS)) {
+          $scannerArgs += "/d:sonar.typescript.tsconfigPaths=$env:SONAR_TYPESCRIPT_TSCONFIG_PATHS"
         }
 
         if (-not [string]::IsNullOrWhiteSpace($env:SONAR_SECRETS_EXCLUDED_FILE_SUFFIXES)) {

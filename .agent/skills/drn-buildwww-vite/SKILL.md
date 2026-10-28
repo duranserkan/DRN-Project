@@ -138,7 +138,6 @@ npm run build:bootstrap
 npm run build:react
 ```
 
-CI validation runs `.github/actions/frontend-build` in parallel with backend checks. Release workflows run it before .NET build/test and publishing so generated `wwwroot` assets stay in the release job workspace.
 
 ### Shared Configuration
 

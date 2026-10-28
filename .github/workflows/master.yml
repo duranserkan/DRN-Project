@@ -45,11 +45,17 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Install frontend dependencies for Sonar
+        uses: ./.github/actions/frontend-build
+        with:
+          build-assets: "false"
+
       - name: Run backend Sonar scan
         uses: ./.github/actions/dotnet-sonar-scan
         with:
           solution-file: ${{ env.SOLUTION_FILE }}
           sonar-token: ${{ secrets.SONAR_TOKEN }}
+          sonar-typescript-tsconfig-paths: Sample.Hosted/tsconfig.json
 
   codeql:
     permissions:

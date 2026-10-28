@@ -12,6 +12,8 @@ runs:
   using: "composite"
   steps:
     - name: Sonar Scan End
+      # The caller gates this action on a successful build, even when tests fail.
+      if: ${{ !cancelled() }}
       shell: pwsh
       working-directory: ${{ inputs.working-directory }}
       env:
