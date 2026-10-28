@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using DRN.Framework.SharedKernel.Json;
 using DRN.Test.Integration.Helpers;
 using DRN.Test.Utils.Hosting.ApiErrors;
 using Microsoft.AspNetCore.Authentication.BearerToken;
@@ -211,7 +212,10 @@ public class ApiErrorResponseTests
 
         using var tokenResponse = await client.GetAsync(root + "/token");
         tokenResponse.EnsureSuccessStatusCode();
-        var token = await tokenResponse.Content.ReadFromJsonAsync<AccessTokenResponse>();
+        var token = await tokenResponse.Content.ReadFromJsonAsync<AccessTokenResponse>(new JsonSerializerOptions(JsonConventions.DefaultOptions)
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.KebabCaseLower
+        });
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token!.AccessToken);
         using var methodRejected = await client.PostAsync(root + "/minimal", null);
         using var methodProblem = await AssertProblemAsync(methodRejected, 405);
