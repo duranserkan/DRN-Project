@@ -28,7 +28,7 @@ jobs:
           persist-credentials: false
 
       - name: Build frontend
-        uses: ./.github/actions/frontend-build
+        uses: $/.github/actions/frontend-build
 
   backend:
     permissions:
@@ -44,7 +44,7 @@ jobs:
           persist-credentials: false
 
       - name: Run backend validation
-        uses: ./.github/actions/dotnet-validate
+        uses: $/.github/actions/dotnet-validate
         with:
           solution-file: ${{ env.SOLUTION_FILE }}
 

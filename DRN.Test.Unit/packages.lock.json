@@ -714,10 +714,10 @@
       },
       "Microsoft.Testing.Extensions.GitHubActionsReport": {
         "type": "Transitive",
-        "resolved": "2.5.1",
-        "contentHash": "NdcPRLl7aTlodLo0JGa4kQIx1HNMkSHYn4AVWCdgsVrQ9OgaAVX3KEFXN1daDoV0fy29ehMW5wuJj6k8fjupsg==",
+        "resolved": "2.5.2",
+        "contentHash": "ObAmHg/k9CpQNCGeT9s3Y5wpJIaPBh488KFkJj4dcZkzFJ6TkL+XXqqHn9OShNTgswbslb+QEQd/q1OxCoambQ==",
         "dependencies": {
-          "Microsoft.Testing.Platform": "[2.5.1, 3.0.0)"
+          "Microsoft.Testing.Platform": "[2.5.2, 3.0.0)"
         }
       },
       "Microsoft.Testing.Extensions.Telemetry": {
@@ -739,8 +739,8 @@
       },
       "Microsoft.Testing.Platform": {
         "type": "Transitive",
-        "resolved": "2.5.1",
-        "contentHash": "FAMaFFWnULW+hDHMb40Qzhcgz9cAU2/EtgRCBNX/DdQoKo0sPG2EiY+w7bQdl/BgHnf/DbpXLbf5Xy0o15M8NA=="
+        "resolved": "2.5.2",
+        "contentHash": "ocX0rgGY78dKfmZlZe4hB0/dvlh7wJgUAWS+KfwrqxB9DpNsjshnne9dppCKnFNEOkX4QYsrdUU++NInFPiCBw=="
       },
       "Microsoft.Testing.Platform.MSBuild": {
         "type": "Transitive",
@@ -1127,7 +1127,7 @@
           "DRN.Framework.EntityFramework": "[1.0.0, )",
           "DRN.Framework.Hosting": "[1.0.0, )",
           "Microsoft.AspNetCore.Mvc.Testing": "[10.0.14, )",
-          "Microsoft.Testing.Extensions.GitHubActionsReport": "[2.5.1, )",
+          "Microsoft.Testing.Extensions.GitHubActionsReport": "[2.5.2, )",
           "NSubstitute.Analyzers.CSharp": "[1.0.17, )",
           "Testcontainers.PostgreSql": "[4.16.0, )",
           "Testcontainers.RabbitMq": "[4.16.0, )",

@@ -28,9 +28,13 @@ inputs:
     required: false
     default: "duranserkan"
   sonar-exclusions:
-    description: "Source-analysis exclusions; defaults to generated wwwroot output to avoid scanning built assets as source."
+    description: "Source-analysis exclusions; defaults to generated wwwroot, bin, and obj output to avoid scanning build artifacts as source."
     required: false
-    default: "**/wwwroot/**"
+    default: "**/wwwroot/**,**/bin/**,**/obj/**"
+  sonar-typescript-tsconfig-paths:
+    description: "Comma-separated TSConfig paths or patterns relative to working-directory. Empty uses Sonar discovery."
+    required: false
+    default: ""
   sonar-secrets-excluded-file-suffixes:
     description: "Binary suffixes excluded from Secrets decoding so valid image and font assets are not parsed as UTF-8 text."
     required: false
@@ -47,12 +51,12 @@ runs:
   using: "composite"
   steps:
     - name: Setup SDK
-      uses: ./.github/actions/setup-sdk-and-tools
+      uses: $/.github/actions/setup-sdk-and-tools
       with:
         working-directory: ${{ inputs.working-directory }}
 
     - name: Sonar Scan Begin
-      uses: ./.github/actions/sonar-begin
+      uses: $/.github/actions/sonar-begin
       with:
         working-directory: ${{ inputs.working-directory }}
         sonar-token: ${{ inputs.sonar-token }}
@@ -60,25 +64,28 @@ runs:
         sonar-host-url: ${{ inputs.sonar-host-url }}
         sonar-organization: ${{ inputs.sonar-organization }}
         sonar-exclusions: ${{ inputs.sonar-exclusions }}
+        sonar-typescript-tsconfig-paths: ${{ inputs.sonar-typescript-tsconfig-paths }}
         sonar-secrets-excluded-file-suffixes: ${{ inputs.sonar-secrets-excluded-file-suffixes }}
         version: ${{ inputs.version }}
         sonar-branch-name: ${{ inputs.sonar-branch-name }}
         sonar-branch-target: ${{ inputs.sonar-branch-target }}
 
     - name: Build
-      uses: ./.github/actions/dotnet-build
+      id: build
+      uses: $/.github/actions/dotnet-build
       with:
         working-directory: ${{ inputs.working-directory }}
         solution-file: ${{ inputs.solution-file }}
         version: ${{ inputs.version }}
 
     - name: Test with Coverage
-      uses: ./.github/actions/dotnet-test-coverage
+      uses: $/.github/actions/dotnet-test-coverage
       with:
         working-directory: ${{ inputs.working-directory }}
 
     - name: Sonar Scan End
-      uses: ./.github/actions/sonar-end
+      if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+      uses: $/.github/actions/sonar-end
       with:
         working-directory: ${{ inputs.working-directory }}
         sonar-token: ${{ inputs.sonar-token }}

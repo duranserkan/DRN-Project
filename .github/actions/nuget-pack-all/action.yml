@@ -8,27 +8,27 @@ runs:
   using: "composite"
   steps:
     - name: Pack SharedKernel
-      uses: ./.github/actions/nuget-pack
+      uses: $/.github/actions/nuget-pack
       with:
         project-name: DRN.Framework.SharedKernel
         version: ${{ inputs.version }}
     - name: Pack Utils
-      uses: ./.github/actions/nuget-pack
+      uses: $/.github/actions/nuget-pack
       with:
         project-name: DRN.Framework.Utils
         version: ${{ inputs.version }}
     - name: Pack EntityFramework
-      uses: ./.github/actions/nuget-pack
+      uses: $/.github/actions/nuget-pack
       with:
         project-name: DRN.Framework.EntityFramework
         version: ${{ inputs.version }}
     - name: Pack Hosting
-      uses: ./.github/actions/nuget-pack
+      uses: $/.github/actions/nuget-pack
       with:
         project-name: DRN.Framework.Hosting
         version: ${{ inputs.version }}
     - name: Pack Testing
-      uses: ./.github/actions/nuget-pack
+      uses: $/.github/actions/nuget-pack
       with:
         project-name: DRN.Framework.Testing
         version: ${{ inputs.version }}

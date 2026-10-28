@@ -41,33 +41,34 @@ jobs:
           persist-credentials: false
 
       - name: Verify tag commit is origin/master HEAD
-        uses: ./.github/actions/verify-release-tag-head
+        uses: $/.github/actions/verify-release-tag-head
         with:
           source-branch: master
           release-channel: stable
 
       - name: Set version from tag
         id: version
-        uses: ./.github/actions/release-version-from-tag
+        uses: $/.github/actions/release-version-from-tag
         with:
           release-channel: stable
 
       - name: Setup SDK
-        uses: ./.github/actions/setup-sdk-and-tools
+        uses: $/.github/actions/setup-sdk-and-tools
 
       - name: Build frontend
-        uses: ./.github/actions/frontend-build
+        uses: $/.github/actions/frontend-build
 
       - name: Run Sonar release gate
-        uses: ./.github/actions/dotnet-sonar-scan
+        uses: $/.github/actions/dotnet-sonar-scan
         with:
           solution-file: ${{ env.SOLUTION_FILE }}
           version: ${{ steps.version.outputs.version }}
           sonar-token: ${{ secrets.SONAR_TOKEN }}
+          sonar-typescript-tsconfig-paths: Sample.Hosted/tsconfig.json
           sonar-branch-name: master
 
       - name: Run CodeQL scan
-        uses: ./.github/actions/codeql-scan
+        uses: $/.github/actions/codeql-scan
         with:
           solution-file: ${{ env.SOLUTION_FILE }}
           source-root: .
@@ -84,7 +85,7 @@ jobs:
       # Builds the multi-platform index with OCI SLSA provenance and per-platform SPDX SBOM attestations.
       - name: Stage and scan Docker images
         id: docker-images
-        uses: ./.github/actions/docker-stage-scan-all
+        uses: $/.github/actions/docker-stage-scan-all
         with:
           registry: ${{ env.DOCKER_REGISTRY }}
           username: ${{ env.DOCKER_IMAGE_REPOSITORY_PREFIX }}
@@ -93,13 +94,13 @@ jobs:
           version: ${{ steps.version.outputs.version }}
 
       - name: Pack Packages
-        uses: ./.github/actions/nuget-pack-all
+        uses: $/.github/actions/nuget-pack-all
         with:
           version: ${{ steps.version.outputs.version }}
 
       - name: Generate NuGet packages SBOM
         id: nuget-sbom
-        uses: ./.github/actions/nuget-sbom
+        uses: $/.github/actions/nuget-sbom
         with:
           version: ${{ steps.version.outputs.version }}
 
@@ -126,7 +127,7 @@ jobs:
           sbom-path: ${{ steps.nuget-sbom.outputs.sbom-path }}
 
       - name: Attest Docker images
-        uses: ./.github/actions/docker-attest-all
+        uses: $/.github/actions/docker-attest-all
         with:
           registry: ${{ env.DOCKER_REGISTRY }}
           image-repository-prefix: ${{ env.DOCKER_IMAGE_REPOSITORY_PREFIX }}
@@ -147,14 +148,14 @@ jobs:
           path: artifacts/packages
 
       - name: Push Packages
-        uses: ./.github/actions/nuget-push-all
+        uses: $/.github/actions/nuget-push-all
         with:
           version: ${{ steps.version.outputs.version }}
           package-source-url: ${{ env.NUGET_PACKAGE_SOURCE_URL }}
           nuget-user: ${{ secrets.NUGET_USER }}
 
       - name: Promote Docker image tags
-        uses: ./.github/actions/docker-promote-all
+        uses: $/.github/actions/docker-promote-all
         with:
           registry: ${{ env.DOCKER_REGISTRY }}
           username: ${{ env.DOCKER_IMAGE_REPOSITORY_PREFIX }}
@@ -166,7 +167,7 @@ jobs:
 
       - name: Clean up staged Docker image tags
         if: ${{ always() && steps.version.outcome == 'success' && steps.docker-images.outcome != 'skipped' && env.DOCKER_REGISTRY == 'docker.io' }}
-        uses: ./.github/actions/docker-cleanup-staged-all
+        uses: $/.github/actions/docker-cleanup-staged-all
         with:
           username: ${{ env.DOCKER_IMAGE_REPOSITORY_PREFIX }}
           password: ${{ secrets.DOCKER_CLEANUP_TOKEN }}

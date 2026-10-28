@@ -101,6 +101,7 @@ After changing frontend sources in `Sample.Hosted/buildwww/`, rebuild the assets
 
 ```bash
 npm ci --ignore-scripts
+npm audit signatures
 npm run build
 ```
 

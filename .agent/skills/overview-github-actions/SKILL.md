@@ -27,6 +27,7 @@ Common workflow families:
 - Use `pull_request`, not `pull_request_target`, when PR code executes.
 - Keep PR workflows secretless unless the workflow is carefully split between trusted and untrusted code.
 - For split-checkout PR workflows, checkout trusted CI/control-plane code at the immutable event base SHA and checkout PR-controlled source into a separate path.
+- Use `$/` for same-repository actions that should resolve at the running commit. Preserve workspace-relative `./` references when a split-checkout workflow or its shared composite actions intentionally load trusted code from the checked-out base SHA.
 - Set explicit `timeout-minutes` on jobs that run untrusted or expensive code, and keep aggregate gatekeeper jobs short.
 - Pin third-party actions according to repository policy using full immutable Git commit SHAs with version comments; verify both the SHA and the explanatory version comment from the official upstream repository; annotated tags require the dereferenced tag commit. Container base images must use verified registry content digests.
 - Protect `.github/workflows/**`, `.github/actions/**`, and `CODEOWNERS` with code-owner review.
