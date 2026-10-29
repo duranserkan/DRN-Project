@@ -9,6 +9,7 @@ namespace DRN.Framework.Utils.Scope;
 public class ScopeContext
 {
     private bool _initialized;
+    private ScopeProblem? _problem;
 
     private ScopeContext()
     {
@@ -28,6 +29,9 @@ public class ScopeContext
 
     public static string TraceId => Value.Trace;
     public static ScopeData Data => Value.ScopeData;
+    /// <summary>Public error defaults, created only when accessed. Explicit response values take precedence.</summary>
+    public static ScopeProblem Problem => Value._problem ??= new ScopeProblem();
+    internal static ScopeProblem? CurrentProblem => Local.Value?._problem;
     public static IScopedLog Log => Value.ScopedLog;
     public static IScopedUser User => Value.ScopedUser;
     public static string? UserId => User.Id;

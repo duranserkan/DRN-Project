@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
+using DRN.Test.Integration.Helpers;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -43,7 +44,11 @@ public class MfaRevocationTests
                 services.PostConfigure<BearerTokenOptions>(IdentityConstants.BearerScheme, options => options.TimeProvider = clock);
             }));
         await context.ContainerContext.BindExternalDependenciesAsync();
-        using var client = application.CreateClient();
+        using var client = application.CreateClient(new() { AllowAutoRedirect = false });
+        using (var unauthenticated = await client.GetAsync(Get.Endpoint.User.Identity.ManagementController.GetInfo.RoutePattern!))
+        {
+            using var problem = await ProblemDetailsAssertions.ReadProblemAsync(unauthenticated, 401);
+        }
         using var accountScope = application.Services.CreateScope();
         var manager = accountScope.ServiceProvider.GetRequiredService<UserManager<SampleUser>>();
         var signIn = accountScope.ServiceProvider.GetRequiredService<SignInManager<SampleUser>>();
@@ -120,6 +125,10 @@ public class MfaRevocationTests
         using var request = new HttpRequestMessage(HttpMethod.Get, Get.Endpoint.User.Identity.ManagementController.GetInfo.RoutePattern!);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         using var response = await client.SendAsync(request);
+        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+        {
+            using var problem = await ProblemDetailsAssertions.ReadProblemAsync(response, (int)response.StatusCode);
+        }
         return response.StatusCode;
     }
 
@@ -127,6 +136,11 @@ public class MfaRevocationTests
     {
         using var response = await client.PostAsJsonAsync(Get.Endpoint.User.Identity.LoginController.Refresh.RoutePattern!,
             new RefreshRequest { RefreshToken = token });
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            response.Headers.WwwAuthenticate.Should().Contain(value => value.Scheme == "Bearer");
+            using var problem = await ProblemDetailsAssertions.ReadProblemAsync(response, 401);
+        }
         return response.StatusCode;
     }
 

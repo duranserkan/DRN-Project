@@ -129,6 +129,14 @@ Framework conventions and defaults live in framework-scoped DRN skills, especial
 
 ### Documentation Sync
 
+API failure responses: [DrnApiErrorResponse.cs](../DRN.Framework.Hosting/Middlewares/ApiErrors/DrnApiErrorResponse.cs) owns the shared Problem Details contract for all 4xx and 5xx statuses (400 through 599). Keep the Hosting README/release notes and `drn-hosting` aligned. `DrnApiErrorOptions.PathPrefixes` defaults empty; Sample and Nexus configure `/Api` for unmatched routes. Preserve API metadata classification, browser behavior, authentication/retry headers, production redaction, and requestId semantics. Swagger adds only a representative 400 response describing the full error range while preserving other declared statuses, validation schemas, and custom response types.
+
+`[DisableDrnProblemDetails]` opts controllers or actions out of DRN error formatting and automatic Swagger error metadata. Preserve native ASP.NET Core responses and authentication behavior.
+
+`ScopeContext.Problem` owns lazy, ASP.NET-independent public error defaults. Hosting fills missing fields only and defaults instance to PathBase + Path without queries. Keep Utils/Hosting docs and skills aligned. Do not expose exception messages or logs implicitly, or let scoped extensions override standard fields or validation errors.
+
+`ScopeProblem` mirrors every `ExceptionFor` factory with a throwing helper, leaves public defaults unchanged, and hides helper frames from formatted stack traces. Keep both usage forms in Utils and Hosting examples.
+
 Error-page configuration and contracts belong in the [Hosting README](../DRN.Framework.Hosting/README.md#custom-error-pages). Keep sample routes and behavior in the [root README](../README.md#build-run--test) and maintenance guidance in `drn-hosting`.
 
 Application URLs: keep static route accessors request-independent and resolve URLs at the request boundary. Follow [Hosting application URL conventions](../DRN.Framework.Hosting/README.md#application-urls). Changes to those contracts belong in the Hosting README, `drn-hosting`, and affected frontend skills.
