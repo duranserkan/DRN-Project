@@ -10,11 +10,11 @@
       },
       "NLog.Targets.Network": {
         "type": "Direct",
-        "requested": "[6.1.6, )",
-        "resolved": "6.1.6",
-        "contentHash": "138Hftj/oV5ZjiA3H8Msv3c/V/ukC4nMSveKaJ1+ukJY9vrCirL/bRhzK/bkRrzvgFm8l+fsQDcexM6vnt0c7A==",
+        "requested": "[6.2.2, )",
+        "resolved": "6.2.2",
+        "contentHash": "DyQfNK+XZkmLQU4HV0wcIXeQ8kDC3BGq1KOuyoCdCDAUo3Smq1u9tY4oOjgnrAOX7JZryQo4dMTu++/RSVqfSQ==",
         "dependencies": {
-          "NLog": "6.1.4"
+          "NLog": "6.2.2"
         }
       },
       "NLog.Web.AspNetCore": {

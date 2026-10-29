@@ -8,6 +8,8 @@ namespace DRN.Framework.Hosting.Middlewares.ApiErrors;
 
 public sealed class DrnApiErrorOperationFilter : IOperationFilter
 {
+    private static readonly int[] DefaultStatuses = [400];
+
     public void Apply(OpenApiOperation operation, OperationFilterContext context)
     {
         var metadata = context.ApiDescription.ActionDescriptor.EndpointMetadata;
@@ -18,44 +20,47 @@ public sealed class DrnApiErrorOperationFilter : IOperationFilter
 
         operation.Responses ??= new OpenApiResponses();
         var defaultType = context.ApiDescription.SupportedResponseTypes.FirstOrDefault(response => response.IsDefaultResponse)?.Type;
-        var statuses = new[] { 400 }
+        var statuses = DefaultStatuses
             .Concat(context.ApiDescription.SupportedResponseTypes.Select(response => response.StatusCode))
             .Where(DrnApiErrorResponse.IsSupportedStatus).Distinct();
 
         foreach (var status in statuses)
-        {
-            var declared = context.ApiDescription.SupportedResponseTypes.FirstOrDefault(response => response.StatusCode == status);
-            var type = declared?.Type ?? defaultType;
-            if (type != null && type != typeof(void) && !typeof(ProblemDetails).IsAssignableFrom(type))
-                continue;
+            ApplyResponse(operation.Responses, context, status, defaultType);
+    }
 
-            var key = status.ToString(CultureInfo.InvariantCulture);
-            if (!operation.Responses.TryGetValue(key, out var existing))
-                operation.Responses[key] = existing = new OpenApiResponse
-                {
-                    Description = TypedResults.Problem(statusCode: status).ProblemDetails.Title ?? "API error"
-                };
+    private static void ApplyResponse(OpenApiResponses responses, OperationFilterContext context, int status, Type? defaultType)
+    {
+        var declared = context.ApiDescription.SupportedResponseTypes.FirstOrDefault(response => response.StatusCode == status);
+        var type = declared?.Type ?? defaultType;
+        if (type != null && type != typeof(void) && !typeof(ProblemDetails).IsAssignableFrom(type))
+            return;
 
-            if (existing is not OpenApiResponse response)
-                continue;
-
-            // Preserve content supplied by another convention when no response type identifies it as a problem.
-            if (type is null && response.Content is { Count: > 0 })
-                continue;
-
-            if (status == 400)
-                response.Description = "Representative error response. API errors across all 4xx (400-499) and 5xx (500-599) " +
-                    "statuses use Problem Details with the actual HTTP status and requestId. Validation includes errors. " +
-                    "Explicit custom response bodies are preserved.";
-
-            response.Content = new Dictionary<string, OpenApiMediaType>
+        var key = status.ToString(CultureInfo.InvariantCulture);
+        if (!responses.TryGetValue(key, out var existing))
+            responses[key] = existing = new OpenApiResponse
             {
-                ["application/problem+json"] = new()
-                {
-                    Schema = CreateSchema(context, type == null || type == typeof(void) ? typeof(ProblemDetails) : type)
-                }
+                Description = TypedResults.Problem(statusCode: status).ProblemDetails.Title ?? "API error"
             };
-        }
+
+        if (existing is not OpenApiResponse response)
+            return;
+
+        // Preserve content supplied by another convention when no response type identifies it as a problem.
+        if (type is null && response.Content is { Count: > 0 })
+            return;
+
+        if (status == 400)
+            response.Description = "Representative error response. API errors across all 4xx (400-499) and 5xx (500-599) " +
+                "statuses use Problem Details with the actual HTTP status and requestId. Validation includes errors. " +
+                "Explicit custom response bodies are preserved.";
+
+        response.Content = new Dictionary<string, OpenApiMediaType>
+        {
+            ["application/problem+json"] = new()
+            {
+                Schema = CreateSchema(context, type == null || type == typeof(void) ? typeof(ProblemDetails) : type)
+            }
+        };
     }
 
     private static OpenApiSchema CreateSchema(OperationFilterContext context, Type type) => new()

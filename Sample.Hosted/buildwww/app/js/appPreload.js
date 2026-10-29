@@ -10,6 +10,7 @@ import drnOnmount from './drn/drnOnmount';
 import drnUtils from './drn/drnUtils';
 import drnCookieManager from './drn/drnCookieManager';
 import drnToast from './drn/drnToast';
+import drnProblem from './drn/drnProblem';
 
 if (typeof window !== 'undefined') {
     window.DRN = window.DRN || {};
@@ -18,6 +19,7 @@ if (typeof window !== 'undefined') {
     window.DRN.Utils = drnUtils;
     window.DRN.Cookie = drnCookieManager;
     window.DRN.Toast = drnToast;
+    window.DRN.Problem = drnProblem;
     window.DRN.ErrorHandler = drnErrorHandler;
     window.DRN.React = window.DRN.React || {}; //react will be mounted lazily in reactBundle.tsx
 

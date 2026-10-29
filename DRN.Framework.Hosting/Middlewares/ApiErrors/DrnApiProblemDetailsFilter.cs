@@ -17,13 +17,13 @@ public sealed class DrnApiProblemDetailsFilter(DrnApiErrorResponse response) : I
             return;
 
         problem.Status = status;
-        context.Result = new ApiProblemResult(response, problem);
+        context.Result = new ApiProblemResult(problem);
     }
 
     public void OnResultExecuted(ResultExecutedContext context) { }
 
-    private sealed class ApiProblemResult(DrnApiErrorResponse response, ProblemDetails problem) : IActionResult
+    private sealed class ApiProblemResult(ProblemDetails problem) : IActionResult
     {
-        public Task ExecuteResultAsync(ActionContext context) => response.WriteAsync(context.HttpContext, problem);
+        public Task ExecuteResultAsync(ActionContext context) => DrnApiErrorResponse.WriteAsync(context.HttpContext, problem);
     }
 }

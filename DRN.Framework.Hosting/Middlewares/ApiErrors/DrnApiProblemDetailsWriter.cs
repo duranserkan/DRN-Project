@@ -14,6 +14,6 @@ public sealed class DrnApiProblemDetailsWriter(DrnApiErrorResponse response, IOp
     public ValueTask WriteAsync(ProblemDetailsContext context)
     {
         options.Value.CustomizeProblemDetails?.Invoke(context);
-        return new(response.WriteAsync(context.HttpContext, context.ProblemDetails));
+        return new(DrnApiErrorResponse.WriteAsync(context.HttpContext, context.ProblemDetails));
     }
 }

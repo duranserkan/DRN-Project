@@ -39,7 +39,7 @@ public sealed class DrnApiErrorResponse(IOptions<DrnApiErrorOptions> options)
         return true;
     }
 
-    public Task WriteAsync(HttpContext context, ProblemDetails? problem = null)
+    public static Task WriteAsync(HttpContext context, ProblemDetails? problem = null)
     {
         if (context.Response.HasStarted || context.RequestAborted.IsCancellationRequested)
             return Task.CompletedTask;

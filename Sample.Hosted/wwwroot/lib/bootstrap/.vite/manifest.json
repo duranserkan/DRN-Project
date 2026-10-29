@@ -1,6 +1,6 @@
 {
   "buildwww/lib/bootstrap/bootstrap.scss": {
-    "file": "bootstrap.CkYzSIUFX0e5RbEY.css",
+    "file": "bootstrap.DXl9JswsL3ZjS2l5.css",
     "name": "bootstrap",
     "names": [
       "bootstrap.css"
@@ -8,7 +8,7 @@
     "src": "buildwww/lib/bootstrap/bootstrap.scss",
     "isEntry": true,
     "assets": [
-      "bootstrap-icons.mSm7cUeBf97kh3Wp.woff2"
+      "bootstrap-icons.DJdhg9lHFABfkZuu.woff2"
     ]
   },
   "buildwww/lib/bootstrap/bootstrapBundle.js": {
@@ -18,7 +18,7 @@
     "isEntry": true
   },
   "node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff2": {
-    "file": "bootstrap-icons.mSm7cUeBf97kh3Wp.woff2",
+    "file": "bootstrap-icons.DJdhg9lHFABfkZuu.woff2",
     "src": "node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff2"
   }
 }

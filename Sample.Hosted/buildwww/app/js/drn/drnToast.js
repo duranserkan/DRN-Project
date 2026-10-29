@@ -69,7 +69,7 @@ function createToastElement(type, message, duration) {
         '  <strong class="me-auto">' + title + '</strong>',
         '  <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>',
         '</div>',
-        '<div class="toast-body">' + drnUtils.escapeHtml(message) + '</div>'
+        '<div class="toast-body text-break user-select-text">' + drnUtils.escapeHtml(message) + '</div>'
     ].join('\n');
 
     return el;

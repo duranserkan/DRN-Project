@@ -12,6 +12,7 @@ import type {IDrnReact} from './DrnReact';
 import type {IDrnOnmount} from './DrnOnmount';
 import type {IDrnUtils} from './DrnUtils';
 import type {IDrnCookieManager} from './DrnCookieManager';
+import type {IDrnProblem} from './DrnProblem';
 
 // The Main Global Augmentation
 declare global {
@@ -34,6 +35,7 @@ declare global {
         Cookie: IDrnCookieManager;
         React: IDrnReact;
         Toast: any;
+        Problem: IDrnProblem;
         ErrorHandler: any;
         Validation: any;
     }

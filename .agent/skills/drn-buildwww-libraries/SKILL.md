@@ -1,7 +1,7 @@
 ---
 name: drn-buildwww-libraries
 description: "DRN buildwww JavaScript architecture - DRN browser utilities, onmount lifecycle, RSJS mounting, htmx CSP nonce security, and Bootstrap customization. Keywords: drn, buildwww, javascript, rsjs, onmount, htmx, csp, nonce, bootstrap, cookie-management, component-mounting"
-last-updated: 2026-10-04
+last-updated: 2026-10-29
 difficulty: intermediate
 tokens: ~1.8K
 ---
@@ -123,6 +123,14 @@ buildwww/app/js/drn/
 ├── drnOnmount.js       # Component mounting system
 └── drnToast.js         # Bootstrap toast helper
 ```
+
+### Problem Details Consumer
+
+`DRN.Problem` exposes `parse(body, contentType, status)`, `fromXhr(xhr)`, `fromResponse(response)`, and `show(problem)`. Fetch parsing preserves the original response body. HTMX response errors show text notifications in every environment with a selectable request reference when supplied. Fetch callers opt in explicitly.
+
+Only `application/problem+json` is parsed. The actual HTTP status wins. Unknown types remain identifiers, while malformed, non-problem, or oversized responses receive generic text. Display public fields as text. Form owners can render `problem.errors` with `textContent`; the helper does not update form fields or retry requests.
+
+Use stable application-owned problem types and retain an unknown-type fallback. Keep server redaction unchanged. Document the application's current public contract, usage, and limits in application-owned documentation.
 
 ### Cookie Manager
 

@@ -129,6 +129,8 @@ Framework conventions and defaults live in framework-scoped DRN skills, especial
 
 ### Documentation Sync
 
+Browser API errors: the [Sample API documentation](../README.md#sample-api) owns the Category HTTP contract and `DRN.Problem` public behavior. Keep browser declarations and `drn-buildwww-libraries` aligned with that public surface.
+
 API failure responses: [DrnApiErrorResponse.cs](../DRN.Framework.Hosting/Middlewares/ApiErrors/DrnApiErrorResponse.cs) owns the shared Problem Details contract for all 4xx and 5xx statuses (400 through 599). Keep the Hosting README/release notes and `drn-hosting` aligned. `DrnApiErrorOptions.PathPrefixes` defaults empty; Sample and Nexus configure `/Api` for unmatched routes. Preserve API metadata classification, browser behavior, authentication/retry headers, production redaction, and requestId semantics. Swagger adds only a representative 400 response describing the full error range while preserving other declared statuses, validation schemas, and custom response types.
 
 `[DisableDrnProblemDetails]` opts controllers or actions out of DRN error formatting and automatic Swagger error metadata. Preserve native ASP.NET Core responses and authentication behavior.

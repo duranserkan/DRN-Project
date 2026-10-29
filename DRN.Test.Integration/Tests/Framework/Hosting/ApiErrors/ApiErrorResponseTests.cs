@@ -14,6 +14,8 @@ namespace DRN.Test.Integration.Tests.Framework.Hosting.ApiErrors;
 
 public class ApiErrorResponseTests
 {
+    private static readonly string[] UndeclaredErrorStatuses = ["401", "403", "429", "500", "5XX"];
+
     [Theory]
     [IsolatedHostingData]
     public async Task Scoped_Problem_Should_Flow_To_Errors_Without_Leaking_To_Later_Requests(DrnTestContext context)
@@ -91,7 +93,7 @@ public class ApiErrorResponseTests
         foreach (var path in new[] { "/unhandled", "/minimal" })
         {
             var responses = document.Paths[root + path].Operations![HttpMethod.Get].Responses!;
-            responses.Keys.Should().NotContain(new[] { "401", "403", "429", "500", "5XX" });
+            responses.Keys.Should().NotContain(UndeclaredErrorStatuses);
             var content = responses["400"].Content!;
             content.Keys.Should().Equal("application/problem+json");
             var schema = content["application/problem+json"].Schema!;

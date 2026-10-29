@@ -7,7 +7,7 @@
     "node": ">=24.22.1"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test buildwww/tests/*.test.js",
     "type-check": "tsc --noEmit",
     "build": "tsc --noEmit && npm run build:app && npm run build:appPostload && npm run build:htmx && npm run build:bootstrap && npm run build:react",
     "build:app": "BUILD_TYPE=app vite build",

@@ -52,10 +52,10 @@ public sealed class ApiErrorTestProgram : DrnProgramBase<ApiErrorTestProgram>, I
 
     protected override void ConfigureSwaggerOptions(DrnProgramSwaggerOptions options, IAppSettings appSettings) => options.AddSwagger = true;
 
-    protected override void ConfigurePostAuthRateLimiterOptions(RateLimiterOptions options, IServiceProvider services, IAppSettings settings)
+    protected override void ConfigurePostAuthRateLimiterOptions(RateLimiterOptions options, IServiceProvider serviceProvider, IAppSettings appSettings)
     {
-        base.ConfigurePostAuthRateLimiterOptions(options, services, settings);
-        if (settings.Configuration["ApiErrorProbe:Reject503"] == "true")
+        base.ConfigurePostAuthRateLimiterOptions(options, serviceProvider, appSettings);
+        if (appSettings.Configuration["ApiErrorProbe:Reject503"] == "true")
             options.RejectionStatusCode = 503;
     }
 
