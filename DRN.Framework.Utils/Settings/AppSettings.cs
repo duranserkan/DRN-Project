@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.SharedKernel.Extensions;
 using DRN.Framework.Utils.Configurations;
@@ -29,6 +30,7 @@ public interface IAppSettings
     /// <summary>
     ///  Default app key, can be used publicly. For example, to separate development and production data.
     /// </summary>
+    [Sensitive(false, Justification = "Public application discriminator, not key material.")]
     string AppKey { get; }
 
     string ApplicationName { get; }
@@ -131,6 +133,7 @@ public sealed class AppSettings : IAppSettings, IDisposable
     /// <summary>
     ///  Default app key, can be used publicly. For example, to separate development and production data.
     /// </summary>
+    [Sensitive(false, Justification = "Public application discriminator, not key material.")]
     public string AppKey { get; }
 
     public string ApplicationName { get; }

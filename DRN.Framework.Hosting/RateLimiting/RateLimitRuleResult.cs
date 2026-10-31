@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using DRN.Framework.SharedKernel.Attributes;
 
 namespace DRN.Framework.Hosting.RateLimiting;
 
@@ -44,6 +45,7 @@ public readonly record struct RateLimitRuleResult
     /// <summary>
     /// Partition key for rate limiter lease acquisition (for example IP address, user id, or tenant id).
     /// </summary>
+    [Personal]
     public string PartitionKey { get; } = string.Empty;
 
     /// <summary>

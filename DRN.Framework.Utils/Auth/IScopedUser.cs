@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Json.Serialization;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Extensions;
 
 namespace DRN.Framework.Utils.Auth;
@@ -9,6 +10,7 @@ public interface IScopedUser
     [JsonIgnore] ClaimsPrincipal? Principal { get; }
     [JsonIgnore] ClaimsIdentity? PrimaryIdentity { get; }
 
+    [Sensitive(false, Justification = "Authentication outcome flag.")]
     bool Authenticated { get; }
 
     string? Id { get; }
@@ -17,16 +19,16 @@ public interface IScopedUser
     string? Name { get; }
     [JsonIgnore] ClaimGroup? NameClaim { get; }
 
-    string? Email { get; }
-    [JsonIgnore] ClaimGroup? EmailClaim { get; }
+    [Personal] string? Email { get; }
+    [Personal, JsonIgnore] ClaimGroup? EmailClaim { get; }
 
     //https://datatracker.ietf.org/doc/html/rfc8176#section-2
     //https://github.com/dotnet/aspnetcore/blob/b2c348b222ffd4f5f5a49ff90f5cd237d51e5231/src/Identity/Core/src/SignInManager.cs#L501
     string? Amr { get; }
     [JsonIgnore] public ClaimGroup? AmrClaim { get; }
     
-    string? AuthenticationMethod { get; }
-    [JsonIgnore] ClaimGroup? AuthenticationMethodClaim { get; }
+    [Personal] string? AuthenticationMethod { get; }
+    [Personal, JsonIgnore] ClaimGroup? AuthenticationMethodClaim { get; }
 
     [JsonIgnore] ClaimGroup? RoleClaim { get; }
     bool IsInRole(string role);

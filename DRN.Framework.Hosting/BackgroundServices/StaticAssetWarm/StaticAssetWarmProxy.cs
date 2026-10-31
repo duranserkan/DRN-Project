@@ -1,8 +1,9 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.Hosting.Utils.Vite.Models;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Extensions;
-using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
 using Microsoft.AspNetCore.Hosting;
 
@@ -12,6 +13,10 @@ public sealed class StaticAssetWarmProxy(string baseAddress,IScopedLog scopedLog
     IStaticAssetWarmProxyClientFactory clientFactory,  IWebHostEnvironment environment)
     : IDisposable
 {
+    [SuppressMessage("ReSharper", "NotAccessedPositionalProperty.Local")]
+    private sealed record FailedRequest(string Path, string Encoding,
+        [property: Sensitive(false, Justification = "HTTP response status, not a secret code.")] int StatusCode);
+
     private readonly HttpClient _client = clientFactory.GetClient(baseAddress);
 
     private readonly string _contentRoot = string.IsNullOrEmpty(environment.WebRootPath)
@@ -47,12 +52,7 @@ public sealed class StaticAssetWarmProxy(string baseAddress,IScopedLog scopedLog
             if (!response.IsSuccessStatusCode)
             {
                 sw.Stop();
-                scopedLog.AddToList(WarmScopeLogKeys.FailedRequests, new
-                {
-                    work.Item.Path,
-                    work.Encoding,
-                    StatusCode = statusCode
-                });
+                scopedLog.AddToList(WarmScopeLogKeys.FailedRequests, new FailedRequest(work.Item.Path, work.Encoding, statusCode));
 
                 return ViteManifestWarmAssetReport.Failed(work.Item.Path, statusCode, sw.ElapsedMilliseconds);
             }

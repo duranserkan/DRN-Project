@@ -250,11 +250,11 @@ public class SourceKnownEntityIdUtilsTests
     {
         using var settings = SettingsProvider.Development<SampleApp5>(new
         {
-            NexusAppSettings = new
+            NexusAppSettings = new Dictionary<string, object>
             {
-                UseSecureSourceKnownIds = configuredSecure,
-                UseSourceKnownIdKeyFallback = true,
-                Keys = new[] { new NexusKey(new string('A', 32)), new NexusKey(new string('B', 32)) { Default = true } }
+                [nameof(NexusAppSettings.UseSecureSourceKnownIds)] = configuredSecure,
+                [nameof(NexusAppSettings.UseSourceKnownIdKeyFallback)] = true,
+                [nameof(NexusAppSettings.Keys)] = new[] { new NexusKey(new string('A', 32)), new NexusKey(new string('B', 32)) { Default = true } }
             }
         });
         using var reader = new SourceKnownEntityIdUtils(settings, new SourceKnownIdUtils(settings));
@@ -264,7 +264,7 @@ public class SourceKnownEntityIdUtilsTests
         {
             using var writerSettings = SettingsProvider.Development<SampleApp5>(new
             {
-                NexusAppSettings = new { Keys = new[] { new NexusKey(new string(key, 32)) { Default = true } } }
+                NexusAppSettings = new Dictionary<string, object> { [nameof(NexusAppSettings.Keys)] = new[] { new NexusKey(new string(key, 32)) { Default = true } } }
             });
             using var writer = new SourceKnownEntityIdUtils(writerSettings, new SourceKnownIdUtils(writerSettings));
             var plain = writer.GeneratePlain(numericId, expected);
@@ -304,7 +304,7 @@ public class SourceKnownEntityIdUtilsTests
             {
                 using var removedSettings = SettingsProvider.Development<SampleApp5>(new
                 {
-                    NexusAppSettings = new { Keys = new[] { new NexusKey(new string('B', 32)) { Default = true } } }
+                    NexusAppSettings = new Dictionary<string, object> { [nameof(NexusAppSettings.Keys)] = new[] { new NexusKey(new string('B', 32)) { Default = true } } }
                 });
                 using var removed = new SourceKnownEntityIdUtils(removedSettings, new SourceKnownIdUtils(removedSettings));
                 removed.Parse(plain.EntityId, SourceKnownEntityIdFormat.Plain).Valid.Should().BeFalse();
@@ -320,7 +320,7 @@ public class SourceKnownEntityIdUtilsTests
     {
         using var settings = SettingsProvider.Development<SampleApp5>(new
         {
-            NexusAppSettings = new { Keys = new[] { new NexusKey(new string('A', 32)) { Default = true } } }
+            NexusAppSettings = new Dictionary<string, object> { [nameof(NexusAppSettings.Keys)] = new[] { new NexusKey(new string('A', 32)) { Default = true } } }
         });
         using var ids = new SourceKnownEntityIdUtils(settings, new SourceKnownIdUtils(settings));
         var plain = ids.GeneratePlain(long.MinValue, new EntityTypeId(1, 0));
@@ -361,10 +361,10 @@ public class SourceKnownEntityIdUtilsTests
     {
         using var settings = SettingsProvider.Development<SampleApp5>(new
         {
-            NexusAppSettings = new
+            NexusAppSettings = new Dictionary<string, object>
             {
-                UseSourceKnownIdKeyFallback = enabled,
-                Keys = new[] { new NexusKey(new string('B', 32)) { Default = true }, new NexusKey(new string('A', 32)) }
+                [nameof(NexusAppSettings.UseSourceKnownIdKeyFallback)] = enabled,
+                [nameof(NexusAppSettings.Keys)] = new[] { new NexusKey(new string('B', 32)) { Default = true }, new NexusKey(new string('A', 32)) }
             }
         });
         using var reader = new SourceKnownEntityIdUtils(settings, new SourceKnownIdUtils(settings));
@@ -377,7 +377,7 @@ public class SourceKnownEntityIdUtilsTests
         {
             using var writerSettings = SettingsProvider.Development<SampleApp5>(new
             {
-                NexusAppSettings = new { Keys = new[] { new NexusKey(new string(key, 32)) { Default = true } } }
+                NexusAppSettings = new Dictionary<string, object> { [nameof(NexusAppSettings.Keys)] = new[] { new NexusKey(new string(key, 32)) { Default = true } } }
             });
             using var writer = new SourceKnownEntityIdUtils(writerSettings, new SourceKnownIdUtils(writerSettings));
             var plain = writer.GeneratePlain(numericId, identity);
@@ -405,10 +405,10 @@ public class SourceKnownEntityIdUtilsTests
     {
         using var settings = SettingsProvider.Development<SampleApp5>(new
         {
-            NexusAppSettings = new
+            NexusAppSettings = new Dictionary<string, object>
             {
-                UseSourceKnownIdKeyFallback = true,
-                Keys = new[]
+                [nameof(NexusAppSettings.UseSourceKnownIdKeyFallback)] = true,
+                [nameof(NexusAppSettings.Keys)] = new[]
                 {
                     new NexusKey(new string('A', 32)) { Default = true },
                     new NexusKey(new string('B', 32)),
@@ -420,7 +420,7 @@ public class SourceKnownEntityIdUtilsTests
         var key = settings.NexusAppSettings.Keys[authenticateWithFallback ? 1 : 0];
         using var writerSettings = SettingsProvider.Development<SampleApp5>(new
         {
-            NexusAppSettings = new { Keys = new[] { new NexusKey(key.KeyMaterial) { Default = true } } }
+            NexusAppSettings = new Dictionary<string, object> { [nameof(NexusAppSettings.Keys)] = new[] { new NexusKey(key.KeyMaterial) { Default = true } } }
         });
         using var writer = new SourceKnownEntityIdUtils(writerSettings, new SourceKnownIdUtils(writerSettings));
         var bytes = writer.GeneratePlain(long.MinValue | (5L << 24), new EntityTypeId(200, 5))
@@ -482,7 +482,7 @@ public class SourceKnownEntityIdUtilsTests
     {
         using var settings = SettingsProvider.Development<SampleApp5>(new
         {
-            NexusAppSettings = new { Keys = new[] { new NexusKey(new string('A', 32)) { Default = true } } }
+            NexusAppSettings = new Dictionary<string, object> { [nameof(NexusAppSettings.Keys)] = new[] { new NexusKey(new string('A', 32)) { Default = true } } }
         });
         using var ids = new SourceKnownEntityIdUtils(settings, new SourceKnownIdUtils(settings));
         var key = settings.NexusAppSettings.GetDefaultKey();

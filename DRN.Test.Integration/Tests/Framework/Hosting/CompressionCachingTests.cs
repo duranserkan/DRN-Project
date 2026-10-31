@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Hosting.Utils.Vite;
 using Sample.Hosted;
 
@@ -145,7 +146,7 @@ public class CompressionCachingTests(ITestOutputHelper outputHelper)
 }
 
 public record CacheResult(
-    HttpStatusCode StatusCode,
+    [property: Sensitive(false, Justification = "HTTP response status, not a secret code.")] HttpStatusCode StatusCode,
     TimeSpan? Age,
     ICollection<string> ContentEncoding,
     ICollection<string> Vary,

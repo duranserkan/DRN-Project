@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using DRN.Framework.SharedKernel.Attributes;
 
 namespace DRN.Framework.Testing.Providers;
 
@@ -97,7 +98,8 @@ public static class CredentialsProvider
     }
 }
 
-public record TestUserCredentials(string Username, string Password)
+public record TestUserCredentials(string Username, [property: Sensitive] string Password)
 {
+    [Personal]
     public string EmailAddress => $"{Username}@example.com";
 }

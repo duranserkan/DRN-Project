@@ -4,7 +4,6 @@ Source codes under this file is derived from https://github.com/dotnet/aspnetcor
 *@
 
 @page
-@using System.Reflection
 @using DRN.Framework.Hosting.TagHelpers
 
 @addTagHelper *, DRN.Framework.Hosting
@@ -66,13 +65,13 @@ Source codes under this file is derived from https://github.com/dotnet/aspnetcor
         <p class="location">Unknown Location</p>
     }
 
-    if (errorDetail.Error is ReflectionTypeLoadException { LoaderExceptions.Length: > 0 } reflectionTypeLoadException)
+    if (errorDetail.LoaderExceptionMessages.Length > 0)
     {
         <h3>Loader Exceptions:</h3>
         <ul>
-            @foreach (var ex in reflectionTypeLoadException.LoaderExceptions)
+            @foreach (var message in errorDetail.LoaderExceptionMessages)
             {
-                <li>@ex!.Message</li>
+                <li>@message</li>
             }
         </ul>
     }
@@ -116,7 +115,7 @@ Source codes under this file is derived from https://github.com/dotnet/aspnetcor
             var exceptionDetailId = "exceptionDetail" + exceptionCount;
 
             <li>
-                <h2>@errorDetail.Error!.GetType().Name: @errorDetail.Error.Message</h2>
+                <h2>@errorDetail.ExceptionType: @errorDetail.ExceptionMessage</h2>
                 <ul>
                     @foreach (var frame in errorDetail.StackFrames)
                     {
@@ -172,9 +171,9 @@ Source codes under this file is derived from https://github.com/dotnet/aspnetcor
             <li>
                 <br/>
                 <div class="rawExceptionBlock">
-                    <button class="showRawException" data-exceptionDetailId="@exceptionDetailId">Show raw exception details</button>
+                    <button class="showRawException" data-exceptionDetailId="@exceptionDetailId">Show exception details</button>
                     <div id="@exceptionDetailId" class="rawExceptionDetails">
-                        <pre class="rawExceptionStackTrace">@errorDetail.Error.ToString()</pre>
+                        <pre class="rawExceptionStackTrace">@errorDetail.FormattedException</pre>
                     </div>
                 </div>
             </li>

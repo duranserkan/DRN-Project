@@ -1,6 +1,7 @@
 using DRN.Framework.Hosting.Consent;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Logging.Diagnostics;
 using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -14,7 +15,8 @@ public class ScopedUserMiddleware(RequestDelegate next)
     {
         ((ScopedUser)scopedUser).SetUser(httpContext.User);
 
-        log.Add("User_Authenticated", scopedUser.Authenticated);
+        log.Add("User_Authenticated", scopedUser.Authenticated,
+            exemptionReason: "Authentication outcome flag, not a credential.");
         log.AddIfNotNullOrEmpty("User_Id", scopedUser.Id ?? string.Empty);
         log.AddIfNotNullOrEmpty("User_Amr", scopedUser.Amr ?? string.Empty);
 

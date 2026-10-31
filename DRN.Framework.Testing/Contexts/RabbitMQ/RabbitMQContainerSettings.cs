@@ -1,3 +1,5 @@
+using DRN.Framework.SharedKernel.Attributes;
+
 namespace DRN.Framework.Testing.Contexts.RabbitMQ;
 
 public class RabbitMQContainerSettings
@@ -17,7 +19,9 @@ public class RabbitMQContainerSettings
     public string? Username { get; init; }
     public bool HasUsername => !string.IsNullOrWhiteSpace(Username);
 
+    [Sensitive]
     public string? Password { get; init; }
+    [Sensitive(false, Justification = "Password configuration presence flag.")]
     public bool HasPassword => !string.IsNullOrWhiteSpace(Password);
 
     public string GetImageTag()

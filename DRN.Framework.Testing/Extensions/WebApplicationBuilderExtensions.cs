@@ -1,4 +1,5 @@
 using DRN.Framework.Testing.Contexts.Postgres;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Builder;
@@ -24,8 +25,7 @@ public static class WebApplicationBuilderExtensions
         result.PostgresCollection = postgresCollection;
 
         scopedLog?.AddToActions("External dependencies launched");
-        scopedLog?.Add(nameof(result.PostgresConnection), result.PostgresConnection);
-        scopedLog?.Add(nameof(result.PostgresPrototypeConnection), result.PostgresPrototypeConnection);
+        scopedLog?.AddProperties("Dependencies", result);
 
         return result;
     }
@@ -42,8 +42,12 @@ public class ExternalDependencyLaunchOptions
 
 public class ExternalDependencyLaunchResult(IAppSettings appSettings)
 {
+    [IgnoreLog]
+    [Sensitive]
     public PostgresCollection? PostgresCollection { get; internal set; }
+    [Sensitive]
     public string PostgresConnection => PostgresCollection?.PostgresContainer?.GetConnectionString() ?? "";
+    [Sensitive]
     public string PostgresPrototypeConnection => PostgresCollection?.PostgresPrototypeContainer?.GetConnectionString() ?? "";
 
     /// <summary>

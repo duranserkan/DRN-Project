@@ -1,4 +1,5 @@
 using System.Reflection;
+using DRN.Framework.SharedKernel.Attributes;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Utils.DependencyInjection.Attributes;
@@ -11,7 +12,9 @@ public abstract class LifetimeAttribute(ServiceLifetime serviceLifetime, Type se
     public Type ServiceType { get; } = serviceType;
     public Type ImplementationType { get; internal set; } = serviceType; //will be overridden by implementation when assembly scanning performed
     public bool TryAdd { get; } = tryAdd;
+    [Sensitive(false, Justification = "Dependency injection service selector.")]
     public object? Key { get; } = key;
+    [Sensitive(false, Justification = "Whether the registration has a service selector.")]
     public bool HasKey => Key != null;
     //todo: add replace
 
@@ -91,6 +94,7 @@ public class ConfigAttribute(
     bool bindNonPublicProperties = true)
     : SingletonAttribute<object>
 {
+    [Sensitive(false, Justification = "Configuration section name, not its value.")]
     public string? ConfigKey { get; } = configKey;
     public bool ValidateAnnotations { get; } = validateAnnotations;
     public bool BindNonPublicProperties { get; } = bindNonPublicProperties;

@@ -1,6 +1,7 @@
 // This file is licensed to you under the MIT license.
 
 using System.Text.Json.Serialization;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Configurations;
 using Microsoft.AspNetCore.Builder;
 
@@ -35,6 +36,7 @@ public class DrnExceptionModel
     /// <summary>
     /// Request cookies.
     /// </summary>
+    [Sensitive]
     public Dictionary<string, string?> Cookies { get; init; } = new();
 
     /// <summary>

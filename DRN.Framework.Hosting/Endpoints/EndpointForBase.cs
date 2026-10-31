@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.SharedKernel;
 using Microsoft.AspNetCore.Mvc;
@@ -60,12 +61,14 @@ public class ApiEndpoint
 
     public string ActionMethodName { get; }
     public string ControllerName { get; }
+    [Sensitive(false, Justification = "Controller type name.")]
     public string ControllerClassName { get; }
     public string EndpointName { get; }
     public string? RoutePattern { get; private set; }
     public string[]? RoutePatterns { get; private set; }
     public RouteEndpoint[] RouteEndpoints { get; private set; } = null!;
     public ControllerActionDescriptor[] ActionDescriptor { get; private set; } = null!;
+    [Sensitive(false, Justification = "Endpoint lookup identifier.")]
     public string EndpointKey { get; private set; } = null!;
 
 

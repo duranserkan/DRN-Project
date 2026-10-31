@@ -20,6 +20,11 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.Compliance.Abstractions" Version="10.11.0" />
+        <EmbeddedResource Include="../DRN.Framework.Utils/Logging/Diagnostics/diagnostic-rules.json" LogicalName="DRN.DiagnosticRules.json" />
+    </ItemGroup>
+
+    <ItemGroup>
         <None Update="README.md">
             <Pack>True</Pack>
             <PackagePath>\</PackagePath>
@@ -46,6 +51,8 @@
         <ItemGroup>
             <TfmSpecificPackageFile Include="..\DRN.Framework.SharedKernel.Analyzers\bin\$(Configuration)\net10.0\DRN.Framework.SharedKernel.Analyzers.dll"
                                     PackagePath="analyzers/dotnet/cs" />
+            <TfmSpecificPackageFile Include="..\DRN.Framework.SharedKernel.CodeFixes\bin\$(Configuration)\net10.0\DRN.Framework.SharedKernel.CodeFixes.dll"
+                                    PackagePath="analyzers/dotnet/cs" />
         </ItemGroup>
     </Target>
 
@@ -53,6 +60,9 @@
         <ProjectReference Include="..\DRN.Framework.SharedKernel.Analyzers\DRN.Framework.SharedKernel.Analyzers.csproj"
                           OutputItemType="Analyzer"
                           ReferenceOutputAssembly="false"
+                          UndefineProperties="RuntimeIdentifier;TargetArchitecture;PlatformTarget;SelfContained;PublishReadyToRun" />
+        <ProjectReference Include="..\DRN.Framework.SharedKernel.CodeFixes\DRN.Framework.SharedKernel.CodeFixes.csproj"
+                          OutputItemType="Analyzer" ReferenceOutputAssembly="false"
                           UndefineProperties="RuntimeIdentifier;TargetArchitecture;PlatformTarget;SelfContained;PublishReadyToRun" />
     </ItemGroup>
 

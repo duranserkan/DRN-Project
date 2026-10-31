@@ -1,7 +1,10 @@
+using DRN.Framework.SharedKernel.Attributes;
+
 namespace DRN.Framework.Utils.Logging;
 
 public struct ScopeDuration(string key, IScopedLog? log = null) : IDisposable
 {
+    [Sensitive(false, Justification = "Operation name for duration aggregation.")]
     public string Key { get; } = key;
     public DateTimeOffset Start { get; } = DateTimeOffset.Now;
     public DateTimeOffset? End { get; private set; }

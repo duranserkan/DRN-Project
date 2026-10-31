@@ -43,6 +43,8 @@ public class ExceptionDetails
     public string ExceptionMessage { get; init; } = string.Empty;
     public string? InnerExceptionType { get; init; }
     public string? InnerExceptionMessage { get; init; }
+    public string FormattedException { get; init; } = string.Empty;
+    public string[] LoaderExceptionMessages { get; init; } = [];
 
     /// <summary>
     /// The generated stack frames

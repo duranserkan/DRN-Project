@@ -25,7 +25,7 @@ public class DrnAppFeatures : IValidatableObject
 
     public bool SeedData { get; init; }
 
-    [SecureKey(MinLength = 58)]
+    [Sensitive, SecureKey(MinLength = 58)]
     public string SeedKey { get; init; } = DefaultSeedKey;
     public string InternalRequestHttpVersion { get; init; } = "1.1";
     public string InternalRequestProtocol { get; init; } = "http";
@@ -89,6 +89,7 @@ public sealed class DrnRateLimitOptions
     /// Shared by both pre-auth (IP) and post-auth (user) rate limiters.
     /// </summary>
     [Range(1, int.MaxValue)]
+    [Sensitive(false, Justification = "Rate limit bucket capacity.")]
     public int TokenLimit { get; init; } = 250;
 
     /// <summary>
@@ -103,6 +104,7 @@ public sealed class DrnRateLimitOptions
     /// Shared by both pre-auth (IP) and post-auth (user) rate limiters.
     /// </summary>
     [Range(1, int.MaxValue)]
+    [Sensitive(false, Justification = "Rate limit replenishment quantity.")]
     public int TokensPerPeriod { get; init; } = 250;
 
     /// <summary>
@@ -110,36 +112,42 @@ public sealed class DrnRateLimitOptions
     /// throttling legitimate users behind shared NAT/VPN/CDN egress addresses. Set to 0 to inherit <see cref="TokenLimit"/>.
     /// </summary>
     [Range(0, int.MaxValue)]
+    [Sensitive(false, Justification = "Rate limit bucket capacity.")]
     public int PreAuthTokenLimit { get; init; } = 2500;
 
     /// <summary>
     /// Pre-auth token replenishment period in seconds. Defaults to 60. Set to 0 to inherit <see cref="ReplenishmentSeconds"/>.
     /// </summary>
     [Range(0, int.MaxValue)]
+    [Sensitive(false, Justification = "Rate limit replenishment interval.")]
     public int PreAuthReplenishmentSeconds { get; init; } = 60;
 
     /// <summary>
     /// Pre-auth tokens added per replenishment period. Defaults to 2500 (B2B-friendly coarse limit). Set to 0 to inherit <see cref="TokensPerPeriod"/>.
     /// </summary>
     [Range(0, int.MaxValue)]
+    [Sensitive(false, Justification = "Rate limit replenishment quantity.")]
     public int PreAuthTokensPerPeriod { get; init; } = 2500;
 
     /// <summary>
     /// Optional post-auth token bucket burst capacity. 0 inherits <see cref="TokenLimit"/>.
     /// </summary>
     [Range(0, int.MaxValue)]
+    [Sensitive(false, Justification = "Rate limit bucket capacity.")]
     public int PostAuthTokenLimit { get; init; } = 0;
 
     /// <summary>
     /// Optional post-auth token replenishment period in seconds. 0 inherits <see cref="ReplenishmentSeconds"/>.
     /// </summary>
     [Range(0, int.MaxValue)]
+    [Sensitive(false, Justification = "Rate limit replenishment interval.")]
     public int PostAuthReplenishmentSeconds { get; init; } = 0;
 
     /// <summary>
     /// Optional post-auth tokens added per replenishment period. 0 inherits <see cref="TokensPerPeriod"/>.
     /// </summary>
     [Range(0, int.MaxValue)]
+    [Sensitive(false, Justification = "Rate limit replenishment quantity.")]
     public int PostAuthTokensPerPeriod { get; init; } = 0;
 }
 

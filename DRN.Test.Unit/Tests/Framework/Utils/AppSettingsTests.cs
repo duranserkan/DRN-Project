@@ -143,9 +143,9 @@ public class AppSettingsTests
             .AddObjectToJsonConfiguration(new
             {
                 Environment = "Staging",
-                DrnAppFeatures = new
+                DrnAppFeatures = new Dictionary<string, object>
                 {
-                    SeedKey = "Our true mentor in life is science! - Mustafa Kemal Atatürk (1924)"
+                    [nameof(DrnAppFeatures.SeedKey)] = "Our true mentor in life is science! - Mustafa Kemal Atatürk (1924)"
                 },
                 NexusAppSettings = new NexusAppSettings { AppId = 1, AppInstanceId = 1 }
             })
@@ -195,9 +195,9 @@ public class AppSettingsTests
             .AddObjectToJsonConfiguration(new
             {
                 Environment = environment.ToString(),
-                DrnAppFeatures = new
+                DrnAppFeatures = new Dictionary<string, object>
                 {
-                    SeedKey = DrnAppFeatures.SampleSeedKey
+                    [nameof(DrnAppFeatures.SeedKey)] = DrnAppFeatures.SampleSeedKey
                 },
                 NexusAppSettings = new NexusAppSettings
                 {

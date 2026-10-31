@@ -23,7 +23,7 @@ public class EndpointMetadataCollectionModel
 public class MetadataModel
 {
     [JsonConstructor]
-    private MetadataModel(string name, string value)
+    public MetadataModel(string name, string value)
     {
         Name = name;
         Value = value;

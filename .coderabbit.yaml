@@ -20,6 +20,19 @@ reviews:
     - "!**/wwwroot/**"
     - "!Sample.Hosted/package-lock.json"
   path_instructions:
+    - path: "**/*.cs"
+      instructions: |
+        Review diagnostic usefulness and safe capture with concrete evidence from the changed code and its callers.
+        - Independently inspect model semantics for personal data and secrets, including names the deterministic catalog misses. Warn when an exposed property needs [Personal], [Sensitive], or an attribute derived from those families. Do not choose a classification solely from a broad name match. [IgnoreLog] does not replace classification, even when no diagnostic call currently uses the model.
+        - Evaluate [IgnoreLog] separately: recommend it when a getter is costly, side-effecting, unsafe, or its value is unnecessary for diagnostics. Positive classification still takes precedence over [Sensitive(false)].
+        - When a newly discovered sensitive naming pattern is stable and suitable for deterministic detection, recommend a focused addition to the shared diagnostic-rules.json catalog with analyzer/runtime and browser regression cases. Explain expected false positives. Never add a broad pattern solely from one ambiguous example or maintain a separate analyzer catalog.
+        - Check whether diagnostics provide enough context to investigate a failure without collecting unnecessary data. Prefer structured outcomes, operation names, durations, and correlation IDs. Flag whole-object capture when a small diagnostic projection would suffice.
+        - Flag direct logging of classified or ignored property values when it bypasses attribute-aware capture. C# evaluates the getter before the logger receives the value; property annotations cannot protect that call. Recommend a supported capture path that preserves classification and getter suppression.
+        - Preserve capture limits on size, depth, collection entries, and processing time. Flag unbounded projection and expensive or side-effecting getters; processing budgets cannot preempt an executing getter. Consider [IgnoreLog] separately from classification when capture is inappropriate or unnecessary.
+        - Diagnostic capture failures must not break application behavior. Preserve unavailable/limited markers and capture-warning state instead of silently dropping failures or falling back to raw values. Do not claim guaranteed delivery or add recursive logging from capture failure paths.
+        - Preserve structural URL sanitization at URL capture boundaries, including user information, named query values, and sensitive path segments. Name-rule exemptions must not bypass URL protection. Do not restore content-based scanning of arbitrary text or embedded URLs.
+        - Flag useful operational fields lost to broad name rules. Recommend a narrow, explicitly reviewed exemption only when supported by the implemented capture contract; otherwise recommend a safe projection or identify the missing capability. Never weaken the shared catalog globally or imply that [IgnoreLog] replaces classification.
+
     - path: "DRN.Framework.*/**"
       instructions: |
         Review as public DRN Framework package surface.

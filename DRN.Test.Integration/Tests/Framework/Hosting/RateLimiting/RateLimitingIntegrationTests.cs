@@ -301,18 +301,18 @@ public class RateLimitingIntegrationTests
         {
             DrnAppFeatures = new
             {
-                DrnRateLimit = new
+                DrnRateLimit = new Dictionary<string, object>
                 {
-                    Disabled = rateLimitDisabled,
-                    TokenLimit = 100,
-                    ReplenishmentSeconds = 60,
-                    TokensPerPeriod = 100,
-                    PreAuthTokenLimit = preAuthTokenLimit,
-                    PreAuthReplenishmentSeconds = 60,
-                    PreAuthTokensPerPeriod = preAuthTokenLimit,
-                    PostAuthTokenLimit = postAuthTokenLimit,
-                    PostAuthReplenishmentSeconds = 60,
-                    PostAuthTokensPerPeriod = postAuthTokenLimit
+                    [nameof(DrnRateLimitOptions.Disabled)] = rateLimitDisabled,
+                    [nameof(DrnRateLimitOptions.TokenLimit)] = 100,
+                    [nameof(DrnRateLimitOptions.ReplenishmentSeconds)] = 60,
+                    [nameof(DrnRateLimitOptions.TokensPerPeriod)] = 100,
+                    [nameof(DrnRateLimitOptions.PreAuthTokenLimit)] = preAuthTokenLimit,
+                    [nameof(DrnRateLimitOptions.PreAuthReplenishmentSeconds)] = 60,
+                    [nameof(DrnRateLimitOptions.PreAuthTokensPerPeriod)] = preAuthTokenLimit,
+                    [nameof(DrnRateLimitOptions.PostAuthTokenLimit)] = postAuthTokenLimit,
+                    [nameof(DrnRateLimitOptions.PostAuthReplenishmentSeconds)] = 60,
+                    [nameof(DrnRateLimitOptions.PostAuthTokensPerPeriod)] = postAuthTokenLimit
                 }
             }
         });

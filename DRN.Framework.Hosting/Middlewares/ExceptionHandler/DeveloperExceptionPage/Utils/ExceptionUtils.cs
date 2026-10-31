@@ -6,13 +6,14 @@ using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
 using DRN.Framework.SharedKernel.Json;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Logging.Diagnostics;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -46,22 +47,27 @@ public class ExceptionUtils(
             Title = includeExceptionDetails
                 ? TypeNameHelper.GetTypeDisplayName(exception.GetType())
                 : "An error occurred while processing the request.",
-            Detail = includeExceptionDetails ? exception.Message : null,
             Status = context.Response.StatusCode
         };
 
         if (!includeExceptionDetails)
             return problemDetails;
 
+        var sanitizer = Sanitizer(context);
+        var projection = new DiagnosticModelProjection(sanitizer);
+        problemDetails.Detail = projection.Text(exception.Message);
+
         // Problem details source gen serialization doesn't know about IHeaderDictionary or RouteValueDictionary.
         // Serialize payload to a JsonElement here. Problem details serialization can write JsonElement in extensions dictionary.
         problemDetails.Extensions["exception"] = JsonSerializer.SerializeToElement(new ExceptionExtensionData
         (
-            details: exception.ToString(),
-            headers: context.Request.Headers,
-            path: context.Request.Path.ToString(),
-            endpoint: context.GetEndpoint()?.ToString(),
-            routeValues: context.Features.Get<IRouteValuesFeature>()?.RouteValues
+            details: projection.Format(exception),
+            headers: new HeaderDictionary(projection.Strings(context.Request.Headers.Select(pair =>
+                    new KeyValuePair<string, string?[]>(pair.Key, pair.Value.Take(sanitizer.Options.MaxCollectionEntries).ToArray())))
+                .ToDictionary(pair => pair.Key, pair => new Microsoft.Extensions.Primitives.StringValues(pair.Value))),
+            path: sanitizer.SanitizeUrl(context.Request.Path.ToString()),
+            endpoint: projection.Text(context.GetEndpoint()?.DisplayName),
+            routeValues: new RouteValueDictionary(SafeRoutes(context, sanitizer))
         ), SerializationContext.ExceptionExtensionData);
 
         return problemDetails;
@@ -73,40 +79,48 @@ public class ExceptionUtils(
             throw new InvalidOperationException("Developer compilation exception page models are only available in Development.");
 
         var model = new CompilationErrorModel(ExceptionPageOptions);
+        var sanitizer = Sanitizer(context);
+        var projection = new DiagnosticModelProjection(sanitizer);
         if (compilationException.CompilationFailures == null)
             return model;
 
-        foreach (var compilationFailure in compilationException.CompilationFailures)
+        var remainingFrames = sanitizer.Options.MaxCollectionEntries;
+        foreach (var compilationFailure in compilationException.CompilationFailures.Take(sanitizer.Options.MaxCollectionEntries))
         {
+            if (remainingFrames <= 0)
+            {
+                model.ErrorDetails.Add(new ExceptionDetails(DiagnosticSanitizer.Limited, []));
+                break;
+            }
             if (compilationFailure == null)
                 continue;
 
             var stackFrames = new List<StackFrameSourceCodeInfo>();
-            var exceptionDetails = new ExceptionDetails(compilationFailure.FailureSummary!, stackFrames);
+            var exceptionDetails = new ExceptionDetails(projection.Text(compilationFailure.FailureSummary), stackFrames);
             model.ErrorDetails.Add(exceptionDetails);
-            model.CompiledContent.Add(compilationFailure.CompiledContent);
+            model.CompiledContent.Add(projection.Text(compilationFailure.CompiledContent));
 
             if (compilationFailure.Messages == null)
                 continue;
 
-            var sourceLines = compilationFailure.SourceFileContent?.Split([Environment.NewLine], StringSplitOptions.None);
-            foreach (var item in compilationFailure.Messages)
+            var sourceLines = projection.Text(compilationFailure.SourceFileContent).Split([Environment.NewLine], StringSplitOptions.None);
+            foreach (var item in compilationFailure.Messages.Take(remainingFrames))
             {
                 if (item == null)
                     continue;
 
                 var frame = new StackFrameSourceCodeInfo
                 {
-                    File = compilationFailure.SourceFilePath,
+                    File = projection.Text(compilationFailure.SourceFilePath),
                     Line = item.StartLine,
                     Function = string.Empty
                 };
 
-                if (sourceLines != null)
-                    exceptionDetailsProvider.ReadFrameContent(frame, sourceLines, item.StartLine, item.EndLine);
+                exceptionDetailsProvider.ReadFrameContent(frame, sourceLines, item.StartLine, item.EndLine);
 
-                frame.ErrorDetails = item.Message;
+                frame.ErrorDetails = projection.Text(item.Message);
                 stackFrames.Add(frame);
+                remainingFrames--;
             }
         }
 
@@ -117,30 +131,44 @@ public class ExceptionUtils(
     {
         var request = context.Request;
         var scopedLog = context.RequestServices.GetRequiredService<IScopedLog>();
+        var sanitizer = Sanitizer(context);
+        var projection = new DiagnosticModelProjection(sanitizer);
         var title = GetPageTitle(exception);
         var body = await RequestBufferingState.ReadBodyAsync(context, context.RequestAborted);
+        var safeUrl = sanitizer.SanitizeUrl(request.PathBase.Add(request.Path).Value + request.QueryString.Value);
+        var queryStart = safeUrl.IndexOf('?');
+        var safeQuery = queryStart < 0 ? string.Empty : safeUrl[queryStart..];
 
         var model = new DrnExceptionModel
         {
             Title = title,
             Options = ExceptionPageOptions,
-            ErrorDetails = exceptionDetailsProvider.GetDetails(exception).ToArray(),
-            Query = new QueryStringModel(request.Query, request.QueryString),
-            Cookies = request.Cookies.ToDictionary(pair => pair.Key, pair => request.Cookies[pair.Key]),
-            Headers = request.Headers.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray()),
-            RouteValues = request.RouteValues.ToDictionary(pair => pair.Key, pair => pair.Value),
-            Endpoint = EndpointUtils.GetEndpointModel(context.GetEndpoint()),
+            ErrorDetails = exceptionDetailsProvider.GetDetails(exception).Take(sanitizer.Options.MaxCollectionEntries).Select(projection.Exception).ToArray(),
+            Query = new QueryStringModel { QueryString = safeQuery, Queries = QueryHelpers.ParseQuery(safeQuery).ToDictionary(pair => pair.Key, pair => pair.Value.ToArray()) },
+            Cookies = projection.Strings(request.Cookies.Select(pair => new KeyValuePair<string, string?[]>(pair.Key, [pair.Value])), true)
+                .ToDictionary(pair => pair.Key, pair => pair.Value.FirstOrDefault()),
+            Headers = projection.Strings(request.Headers.Select(pair => new KeyValuePair<string, string?[]>(pair.Key, pair.Value.Take(sanitizer.Options.MaxCollectionEntries).ToArray()))),
+            RouteValues = SafeRoutes(context, sanitizer),
+            Endpoint = projection.Endpoint(context.GetEndpoint()),
             ConfigurationDebugViewSummary = appSettings.GetDebugView().ToSummary(),
-            Logs = scopedLog.GetLogs(),
-            RequestMethod = request.Method,
-            RequestPath = request.Path,
-            RequestBody = body,
-            RequestScheme = request.Scheme,
-            RequestProtocol = request.Protocol
+            Logs = scopedLog is ScopedLog ? scopedLog.GetLogs() : sanitizer.SanitizeValue("", scopedLog.GetLogs()) as IReadOnlyDictionary<string, object>
+                ?? new Dictionary<string, object> { ["DiagnosticCapture"] = DiagnosticSanitizer.Limited },
+            RequestMethod = projection.Text(request.Method),
+            RequestPath = queryStart < 0 ? safeUrl : safeUrl[..queryStart],
+            RequestBody = sanitizer.SanitizeBody(body, request.ContentType, request.Path.ToString()),
+            RequestScheme = projection.Text(request.Scheme),
+            RequestProtocol = projection.Text(request.Protocol)
         };
 
         return model;
     }
+
+    private IDiagnosticSanitizer Sanitizer(HttpContext context) =>
+        (context.RequestServices.GetService<IScopedLog>() as ScopedLog)?.Sanitizer ?? DiagnosticSanitizer.FromSettings(appSettings);
+
+    private static Dictionary<string, object?> SafeRoutes(HttpContext context, IDiagnosticSanitizer sanitizer) =>
+        sanitizer.SanitizeValue(context.Request.Path + ".RouteValues", context.Request.RouteValues) as Dictionary<string, object?> ??
+        new Dictionary<string, object?> { ["DiagnosticCapture"] = DiagnosticSanitizer.Limited };
 
     private static string GetPageTitle(Exception ex)
     {

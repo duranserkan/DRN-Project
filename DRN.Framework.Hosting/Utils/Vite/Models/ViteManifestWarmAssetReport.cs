@@ -1,8 +1,11 @@
+using DRN.Framework.SharedKernel.Attributes;
+
 namespace DRN.Framework.Hosting.Utils.Vite.Models;
 
 public class ViteManifestWarmAssetReport
 {
     public string Path { get; }
+    [Sensitive(false, Justification = "HTTP asset warmup status.")]
     public int StatusCode { get; }
     public bool Success { get; }
     public string? Error { get; }

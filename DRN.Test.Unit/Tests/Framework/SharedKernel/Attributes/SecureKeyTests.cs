@@ -5,7 +5,7 @@ namespace DRN.Test.Unit.Tests.Framework.SharedKernel.Attributes;
 
 public class ToBeValidated
 {
-    [SecureKey]
+    [Sensitive, SecureKey]
     public required string Key { get; init; }
 }
 

@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.EntityFramework.Extensions;
 using DRN.Framework.SharedKernel.Domain;
@@ -437,6 +438,7 @@ public class TestValidationDbContext(DbContextOptions<TestValidationDbContext> o
 public class TestMultiAppValidationDbContext(DbContextOptions<TestMultiAppValidationDbContext> options) : DbContext(options)
 {
     public DbSet<FirstPartitionEntity> FirstEntities => Set<FirstPartitionEntity>();
+    [IgnoreLog]
     public DbSet<SecondPartitionEntity> SecondEntities => Set<SecondPartitionEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

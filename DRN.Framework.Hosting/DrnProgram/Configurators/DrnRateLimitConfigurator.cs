@@ -1,6 +1,7 @@
 using System.Threading.RateLimiting;
 using DRN.Framework.Hosting.RateLimiting;
 using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Logging.Diagnostics;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
@@ -10,6 +11,8 @@ namespace DRN.Framework.Hosting.DrnProgram.Configurators;
 
 internal static class DrnRateLimitConfigurator
 {
+    private static readonly DiagnosticCapturePolicy RejectionCapture = new();
+
     internal static PartitionedRateLimiter<HttpContext> CreatePreAuthRateLimiter(IServiceProvider serviceProvider) =>
         RateLimitRuleChainFactory.Create(serviceProvider.GetRequiredService<RateLimitRuleRegistry>(), RateLimitRulePhase.PreAuth,
             static (rule, context) => rule.EvaluatePreAuth(context), includeScopedRules: false);
@@ -45,10 +48,11 @@ internal static class DrnRateLimitConfigurator
             var rejectedMatch = context.HttpContext.GetRejectedRateLimitRuleMatch();
             var partitionKey = rejectedMatch?.Result.PartitionKey ?? RateLimitPartitionKeys.GetPostAuthPartitionKey(context.HttpContext);
             telemetry.RecordRejection(context.HttpContext, RateLimitRulePhase.PostAuth, rejectedMatch);
-            scopedLog.Add("PostAuthRateLimitRejected", true);
-            scopedLog.Add("PostAuthRateLimitRejectedAction", RateLimitTelemetry.GetActionTag(rejectedMatch));
-            scopedLog.Add("PostAuthRateLimitRejectedRule", rejectedMatch?.Rule.GetType().FullName ?? string.Empty);
-            scopedLog.Add("PostAuthRateLimitRejectedPartition", RateLimitPartitionRedactor.Format(partitionKey, features.RateLimit, securitySettings));
+            scopedLog.Add("PostAuthRateLimitRejected", true, exemptionReason: "Rate limit outcome flag.");
+            scopedLog.Add("PostAuthRateLimitRejectedAction", RateLimitTelemetry.GetActionTag(rejectedMatch), exemptionReason: "Rate limit action category.");
+            scopedLog.Add("PostAuthRateLimitRejectedRule", rejectedMatch?.Rule.GetType().FullName ?? string.Empty, exemptionReason: "Rate limit rule type name.");
+            // Partition identifiers receive no name exemption, including when plaintext mode is configured.
+            scopedLog.AddWithPolicy("PostAuthRateLimitRejectedPartition", RateLimitPartitionRedactor.Format(partitionKey, features.RateLimit, securitySettings), RejectionCapture);
 
             var matchedRule = rejectedMatch?.Rule;
             if (matchedRule != null)

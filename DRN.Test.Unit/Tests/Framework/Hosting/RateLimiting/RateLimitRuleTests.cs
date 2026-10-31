@@ -5,7 +5,9 @@ using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Hosting.RateLimiting;
 using DRN.Framework.Utils.Auth;
+using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Logging.Diagnostics;
 using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -215,14 +217,14 @@ public class RateLimitRuleTests
         {
             DrnAppFeatures = new
             {
-                DrnRateLimit = new
+                DrnRateLimit = new Dictionary<string, object>
                 {
-                    Disabled = true,
-                    TokenLimit = 7,
-                    ReplenishmentSeconds = 11,
-                    TokensPerPeriod = 13,
-                    PreAuthTokenLimit = 17,
-                    PartitionLogMode = "PlainText"
+                    [nameof(DrnRateLimitOptions.Disabled)] = true,
+                    [nameof(DrnRateLimitOptions.TokenLimit)] = 7,
+                    [nameof(DrnRateLimitOptions.ReplenishmentSeconds)] = 11,
+                    [nameof(DrnRateLimitOptions.TokensPerPeriod)] = 13,
+                    [nameof(DrnRateLimitOptions.PreAuthTokenLimit)] = 17,
+                    [nameof(DrnRateLimitOptions.PartitionLogMode)] = "PlainText"
                 }
             }
         });
@@ -242,14 +244,14 @@ public class RateLimitRuleTests
         {
             DrnAppFeatures = new
             {
-                DrnRateLimit = new
+                DrnRateLimit = new Dictionary<string, object>
                 {
-                    TokenLimit = 20,
-                    ReplenishmentSeconds = 30,
-                    TokensPerPeriod = 20,
-                    PreAuthTokenLimit = 200,
-                    PreAuthReplenishmentSeconds = 30,
-                    PreAuthTokensPerPeriod = 200
+                    [nameof(DrnRateLimitOptions.TokenLimit)] = 20,
+                    [nameof(DrnRateLimitOptions.ReplenishmentSeconds)] = 30,
+                    [nameof(DrnRateLimitOptions.TokensPerPeriod)] = 20,
+                    [nameof(DrnRateLimitOptions.PreAuthTokenLimit)] = 200,
+                    [nameof(DrnRateLimitOptions.PreAuthReplenishmentSeconds)] = 30,
+                    [nameof(DrnRateLimitOptions.PreAuthTokensPerPeriod)] = 200
                 }
             }
         });
@@ -731,7 +733,7 @@ public class RateLimitRuleTests
 
     private static IDictionary GetPolicyMap(RateLimiterOptions options)
     {
-        var property = typeof(RateLimiterOptions).GetProperty("PolicyMap", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+        var property = typeof(RateLimiterOptions).GetProperty("PolicyMap", BindingFlag.Instance);
         property.Should().NotBeNull("ASP.NET Core RateLimiterOptions should retain configured policy registrations");
 
         return (IDictionary)property!.GetValue(options)!;

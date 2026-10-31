@@ -1,8 +1,11 @@
 using System.Diagnostics;
+// These fixtures deliberately retain unclassified/ignored members to verify runtime getter suppression.
+#pragma warning disable DRN0015, DRN0017
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Logging.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -20,22 +23,22 @@ public class ScopedLogTests
         {
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(cultureName);
             var source = CreateLog();
-            source.Add("Key.\u00e9", "composed");
-            source.Add("Key.z", "lowercase");
-            source.Add("Key.e\u0301", "decomposed");
-            source.Add("Key.Z", "uppercase");
+            source.Add("Field.\u00e9", "composed");
+            source.Add("Field.z", "lowercase");
+            source.Add("Field.e\u0301", "decomposed");
+            source.Add("Field.Z", "uppercase");
 
             var destination = CreateLog();
             destination.CopyFrom(source);
 
             foreach (var snapshot in new[] { source.GetLogs(), destination.GetLogs() })
             {
-                snapshot.Keys.Where(key => key.StartsWith("Key.", StringComparison.Ordinal))
-                    .Should().Equal("Key.Z", "Key.e\u0301", "Key.z", "Key.\u00e9");
-                snapshot["Key.\u00e9"].Should().Be("composed");
-                snapshot["Key.e\u0301"].Should().Be("decomposed");
-                snapshot["Key.Z"].Should().Be("uppercase");
-                snapshot["Key.z"].Should().Be("lowercase");
+                snapshot.Keys.Where(key => key.StartsWith("Field.", StringComparison.Ordinal))
+                    .Should().Equal("Field.Z", "Field.e\u0301", "Field.z", "Field.\u00e9");
+                snapshot["Field.\u00e9"].Should().Be("composed");
+                snapshot["Field.e\u0301"].Should().Be("decomposed");
+                snapshot["Field.Z"].Should().Be("uppercase");
+                snapshot["Field.z"].Should().Be("lowercase");
             }
         }
         finally
@@ -68,7 +71,7 @@ public class ScopedLogTests
     {
         var log = CreateLog();
 
-        log.AddProperties("Map", new Dictionary<string, string> { ["key"] = "value" });
+        log.AddProperties("Map", new Dictionary<string, string> { ["entry"] = "value" });
 
         var snapshot = log.GetLogs();
         snapshot["Map.Count"].Should().Be(1);
@@ -267,6 +270,7 @@ public class ScopedLogTests
         snapshot["Stats_TimeSpentOn_Work_Counter"].Should().Be(1L);
         snapshot["Stats_TimeSpentOn_Work_Seconds"].Should().Be(2d);
         destination.Increase("Items").Should().Be(5);
+        destination.GetLogs()["Stats_TimeSpentOn_Work_Seconds"].Should().Be(2d);
         destination.IncreaseTimeSpentOn("Work", TimeSpan.FromSeconds(1)).Should().Be(TimeSpan.FromSeconds(3));
         source.GetLogs()["Stats_Items"].Should().Be(7L);
         source.GetLogs()["Stats_TimeSpentOn_Work_Seconds"].Should().Be(6d);
@@ -287,6 +291,7 @@ public class ScopedLogTests
         log.Increase("c", 3, "ab").Should().Be(5);
 
         log.Add("Custom_TimeSpentOn_Work_Seconds", 10d);
+        log.GetLogs()["Custom_TimeSpentOn_Work_Seconds"].Should().Be(10d);
         log.IncreaseTimeSpentOn("Work", TimeSpan.FromSeconds(2), "Custom_").Should().Be(TimeSpan.FromSeconds(12));
         log.Add("Custom_TimeSpentOn_Work_Seconds", "reset");
         log.IncreaseTimeSpentOn("Work", TimeSpan.FromSeconds(3), "Custom_").Should().Be(TimeSpan.FromSeconds(3));
@@ -349,13 +354,13 @@ public class ScopedLogTests
     {
         var log = CreateLog();
         log.AddProperties("First", new AttributedLogData(), nameof(AttributedLogData.Visible));
-        log.AddProperties("Second", new AttributedLogData());
+        log.AddProperties("Other", new AttributedLogData());
 
         var snapshot = log.GetLogs();
         snapshot["First.Visible"].Should().Be(ScopedLogConventions.IgnoredLogValue);
-        snapshot["Second.Visible"].Should().Be("visible");
+        snapshot["Other.Visible"].Should().Be("visible");
         snapshot["First.Secret"].Should().Be(ScopedLogConventions.IgnoredLogValue);
-        snapshot["Second.Secret"].Should().Be(ScopedLogConventions.IgnoredLogValue);
+        snapshot["Other.Secret"].Should().Be(ScopedLogConventions.IgnoredLogValue);
     }
 
     private sealed class AttributedLogData

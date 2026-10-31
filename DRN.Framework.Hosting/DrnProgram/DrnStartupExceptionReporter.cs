@@ -38,13 +38,16 @@ internal static class DrnStartupExceptionReporter
                     var reportUrl = $"file://{reportPath}";
                     await File.WriteAllTextAsync(reportPath, exceptionReportContent);
                     scopedLog.Add("StartupExceptionReportPath", reportUrl);
-                    logger.LogError("Startup Exception Report Path: {ReportUrl}", reportUrl);
+                    logger.LogScoped(scopedLog, LogLevel.Error);
                 }
             }
         }
         catch (Exception e)
         {
-            logger.LogDebug(e, "Failed to generate startup exception report");
+            scopedLog.Add("StartupReportFailure.Type", e.GetType().FullName ?? e.GetType().Name);
+            scopedLog.Add("StartupReportFailure.Message", e.Message);
+            scopedLog.Add("StartupReportFailure.Stack", e.StackTrace ?? string.Empty);
+            logger.LogScoped(scopedLog, LogLevel.Debug);
         }
     }
 }

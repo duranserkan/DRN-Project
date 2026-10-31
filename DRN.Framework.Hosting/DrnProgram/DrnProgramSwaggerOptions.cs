@@ -1,4 +1,5 @@
 using DRN.Framework.SharedKernel;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Hosting.Middlewares.ApiErrors;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
@@ -31,6 +32,7 @@ public class DrnProgramSwaggerOptions
     /// Optional named policy required by the Swagger UI, its assets, and OpenAPI documents.
     /// Null preserves the application's existing authorization behavior.
     /// </summary>
+    [Sensitive(false, Justification = "Authorization policy name, not a credential.")]
     public string? AuthorizationPolicy { get; set; }
 
     /// <summary>
@@ -38,6 +40,7 @@ public class DrnProgramSwaggerOptions
     /// Forwarded headers must be applied by middleware before the document is served.
     /// </summary>
     public bool ApplyTargetServerForwardedHeadersCorrection { get; set; } = true;
+    [Sensitive(false, Justification = "OpenAPI security configuration flag.")]
     public bool AddBearerTokenSecurityRequirement { get; set; } = true;
 
     public string Title { get; set; } = AppConstants.EntryAssemblyName;

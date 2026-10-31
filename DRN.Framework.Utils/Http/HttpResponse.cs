@@ -1,9 +1,12 @@
+using DRN.Framework.SharedKernel.Attributes;
+
 namespace DRN.Framework.Utils.Http;
 
 public class HttpResponse(int httpStatus)
 {
     public int HttpStatus { get; } = httpStatus;
     public HttpStatusClass StatusClass { get; } = HttpStatusClassifier.Classify(httpStatus);
+    [Sensitive(false, Justification = "HTTP outcome flag.")]
     public bool IsSuccessStatusCode => StatusClass == HttpStatusClass.Success;
 }
 

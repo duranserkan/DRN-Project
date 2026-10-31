@@ -68,6 +68,7 @@
 
     <ItemGroup>
         <Folder Include="Tests\Framework\Testing\"/>
+        <EmbeddedResource Include="Tests\Framework\Utils\Logging\diagnostic-golden-cases.json" LogicalName="DiagnosticGoldenCases.json" />
     </ItemGroup>
 
 </Project>

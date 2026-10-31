@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Data.Encodings;
 using DRN.Framework.Utils.Data.Hashing;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
@@ -12,16 +13,19 @@ public interface IAppSecuritySettings
     /// <summary>
     ///  Default app key, can be used publicly. For example, to separate development and production data.
     /// </summary>
+    [Sensitive(false, Justification = "Public application discriminator, not key material.")]
     string AppKey { get; }
 
     /// <summary>
     ///  Default app specific hash Key, use privately, never expose
     /// </summary>
+    [Sensitive]
     string AppHashKey { get; }
 
     /// <summary>
     ///  Default app specific encryption Key, use privately, never expose
     /// </summary>
+    [Sensitive]
     string AppEncryptionKey { get; }
 
     long AppSeed { get; }
@@ -92,16 +96,19 @@ public class AppSecuritySettings : IAppSecuritySettings
     /// <summary>
     ///  Default app key, can be used publicly. For example, to separate development and production data.
     /// </summary>
+    [Sensitive(false, Justification = "Public application discriminator, not key material.")]
     public string AppKey { get; }
 
     /// <summary>
     ///  Default app specific hash Key, use privately, never expose
     /// </summary>
+    [Sensitive]
     public string AppHashKey { get; }
 
     /// <summary>
     ///  Default app specific encryption Key, use privately, never expose
     /// </summary>
+    [Sensitive]
     public string AppEncryptionKey { get; }
 
     public long AppSeed { get; }
