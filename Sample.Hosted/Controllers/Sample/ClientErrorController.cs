@@ -5,9 +5,10 @@ namespace Sample.Hosted.Controllers.Sample;
 
 /// <summary>
 /// Receives client-side JavaScript error reports.
-/// Rate-limited by payload size (3.6KB max) and client-side throttling.
+/// Authenticated reports are limited to five per minute per user and 3,600 bytes per request.
 /// </summary>
 [ApiController]
+[Authorize]
 [Route(SampleApiFor.ControllerRouteTemplate)]
 public class ClientErrorController(IScopedLog scopedLog) : ControllerBase
 {
@@ -15,6 +16,9 @@ public class ClientErrorController(IScopedLog scopedLog) : ControllerBase
     [RequestSizeLimit(3600)]
     public IActionResult Report([FromBody] ClientErrorPayload? payload)
     {
+        if (string.IsNullOrWhiteSpace(ScopeContext.UserId))
+            return Forbid();
+
         if (payload is null || string.IsNullOrWhiteSpace(payload.Message))
             return BadRequest();
 
@@ -27,10 +31,14 @@ public class ClientErrorController(IScopedLog scopedLog) : ControllerBase
 
 /// <summary>
 /// Payload shape for client-side error reports.
-/// Field lengths are enforced client-side; server validates non-null message only.
+/// The client bounds serialized UTF-8 bytes; the server enforces request size and field validation.
 /// </summary>
 public record ClientErrorPayload
 {
+    [StringLength(32)]
+    [RegularExpression("^[a-f0-9]{32}$")]
+    public string? ClientErrorId { get; init; }
+
     [StringLength(500)]
     public string Message { get; init; } = string.Empty;
 

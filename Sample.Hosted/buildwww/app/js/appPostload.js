@@ -1,7 +1,9 @@
 //appPostload.js
 import notificationPanel from './drn/drnNotificationPanel';
 import { installNotificationEvents } from './drn/drnNotificationEvents';
+import { installActionbarEvents } from './drn/drnActionbar';
 
+installActionbarEvents();
 installNotificationEvents(notificationPanel);
 if (typeof window.onmount === 'function') {
     onmount();

@@ -2,6 +2,7 @@ using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.Utils.Entity;
 using Microsoft.EntityFrameworkCore;
+using Sample.Application.Services;
 using Sample.Contract.QA.Categories;
 using Sample.Domain.QA.Categories;
 using Sample.Infra.QA;
@@ -10,7 +11,7 @@ namespace Sample.Hosted.Controllers.QA;
 
 [ApiController]
 [Route(QaApiFor.ControllerRouteTemplate)]
-public class CategoryController(QAContext context, IPaginationUtils pagination) : ControllerBase
+public class CategoryController(QAContext context, IPaginationUtils pagination, ICategoryService categories) : ControllerBase
 {
     [HttpGet]
     public async Task<PaginationResultModel<CategoryDto>> PaginateAsync(
@@ -29,11 +30,9 @@ public class CategoryController(QAContext context, IPaginationUtils pagination) 
     [HttpGet("{id:guid}")]
     public async Task<CategoryDto> GetAsync([FromRoute] Guid id, CancellationToken cancellationToken = default)
     {
-        var category = await context.Categories.AsNoTracking()
-            .FirstOrDefaultAsync(c => c.EntityIdSource.EntityId == id, cancellationToken);
+        var category = await categories.GetOrDefaultAsync(id, cancellationToken);
         if (category == null)
         {
-            ScopeContext.Problem.Type = CategoryProblemTypes.NotFound;
             ScopeContext.Problem.Title = "Category not found";
             ScopeContext.Problem.NotFound($"Category: {id}");
         }

@@ -4,12 +4,15 @@ using System.Text.Json;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.Utils.Data.Serialization;
 using DRN.Framework.Utils.Entity;
+using DRN.Framework.Utils.Ids;
 using DRN.Test.Integration.Tests.Sample.Controller.Helpers;
 using DRN.Test.Integration.Tests.Sample.Pages.Helpers;
 using Flurl;
 using Microsoft.AspNetCore.Hosting;
+using Sample.Application.Services;
 using Sample.Contract.QA.Categories;
 using Sample.Domain.QA.Categories;
+using Sample.Domain.QA.Tags;
 using Sample.Hosted;
 using Sample.Hosted.Controllers.QA;
 using Sample.Hosted.Helpers;
@@ -33,14 +36,16 @@ public class CategoryControllerTests
         application.Server.PreserveExecutionContext = true;
         using var client = application.CreateClient(new() { AllowAutoRedirect = false });
 
-        var collectionPath = pathBase + Get.Endpoint.QA.Category.PaginateAsync.Path();
+        var collectionPath = pathBase + "/" + Get.Endpoint.QA.Category.PaginateAsync.Path().TrimStart('/');
+        collectionPath.Should().Be(pathBase + "/Api/QA/Category");
         using var unauthorized = await client.GetAsync(collectionPath);
         unauthorized.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         await AuthenticationHelper<SampleProgram>.AuthenticateClientAsync(client);
 
-        using var created = await client.PostAsJsonAsync(pathBase + Get.Endpoint.QA.Category.PostAsync.Path(),
+        var createPath = pathBase + "/" + Get.Endpoint.QA.Category.PostAsync.Path().TrimStart('/');
+        using var created = await client.PostAsJsonAsync(createPath,
             new CategoryPostRequest { Name = "Contract category" });
-        created.StatusCode.Should().Be(HttpStatusCode.Created);
+        created.StatusCode.Should().Be(HttpStatusCode.Created, "response body: {0}", await created.Content.ReadAsStringAsync());
         var expected = await created.Content.ReadFromJsonAsync<CategoryDto>();
         expected.Should().NotBeNull();
         expected!.Id.Should().NotBeEmpty();
@@ -50,17 +55,27 @@ public class CategoryControllerTests
         var actual = await client.GetFromJsonAsync<CategoryDto>(location);
         actual.Should().BeEquivalentTo(expected);
 
-        using var missing = await client.GetAsync(pathBase + Get.Endpoint.QA.Category.GetAsync.Path(Guid.NewGuid()));
-        missing.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        missing.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
-        using var problem = JsonDocument.Parse(await missing.Content.ReadAsStringAsync());
-        problem.RootElement.GetProperty("type").GetString().Should().Be(CategoryProblemTypes.NotFound);
-        problem.RootElement.GetProperty("status").GetInt32().Should().Be(404);
-        problem.RootElement.GetProperty("requestId").GetString().Should().NotBeNullOrWhiteSpace();
-        problem.RootElement.TryGetProperty("stackTrace", out _).Should().BeFalse();
+        using var scope = application.Services.CreateScope();
+        var entityIds = scope.ServiceProvider.GetRequiredService<ISourceKnownEntityIdUtils>();
+        var categoryId = entityIds.Parse(expected.Id);
+        var wrongTypeId = entityIds.Generate<Tag>(categoryId.Source.Id).EntityId;
+        var absentId = entityIds.Generate<Category>().EntityId;
+        foreach (var missingId in new[] { Guid.NewGuid(), absentId, wrongTypeId })
+        {
+            var missingPath = pathBase + "/" + Get.Endpoint.QA.Category.GetAsync.Path(missingId).TrimStart('/');
+            using var missing = await client.GetAsync(missingPath);
+            missing.StatusCode.Should().Be(HttpStatusCode.NotFound);
+            missing.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
+            using var problem = JsonDocument.Parse(await missing.Content.ReadAsStringAsync());
+            problem.RootElement.GetProperty("type").GetString().Should().Be(
+                Microsoft.AspNetCore.Http.TypedResults.Problem(statusCode: 404).ProblemDetails.Type);
+            problem.RootElement.GetProperty("title").GetString().Should().Be("Category not found");
+            problem.RootElement.GetProperty("status").GetInt32().Should().Be(404);
+            problem.RootElement.GetProperty("requestId").GetString().Should().NotBeNullOrWhiteSpace();
+            problem.RootElement.TryGetProperty("stackTrace", out _).Should().BeFalse();
+        }
 
         // Leave more than a full page after the first bounded request to exercise the cursor ceiling too.
-        using var scope = application.Services.CreateScope();
         var database = scope.ServiceProvider.GetRequiredService<QAContext>();
         database.Categories.AddRange(Enumerable.Range(0, 201).Select(i => new Category($"Pagination category {i}")));
         await database.SaveChangesAsync();
@@ -72,8 +87,12 @@ public class CategoryControllerTests
         first.Info.Request.UpdateTotalCount.Should().BeFalse();
         first.Info.Total.Count.Should().Be(-1);
 
-        var minimum = await client.GetFromJsonAsync<PaginationResultModel<CategoryDto>>(
-            collectionPath.AppendQueryParam("request.PageSize.Size", 0));
+        var minimumUrl = collectionPath.AppendQueryParam("request.PageSize.Size", value: "0");
+        minimumUrl.Query.Should().Be("request.PageSize.Size=0");
+        using var minimumResponse = await client.GetAsync(minimumUrl);
+        var minimumBody = await minimumResponse.Content.ReadAsStringAsync();
+        minimumResponse.StatusCode.Should().Be(HttpStatusCode.OK, "response body: {0}", minimumBody);
+        var minimum = await minimumResponse.Content.ReadFromJsonAsync<PaginationResultModel<CategoryDto>>();
         minimum.Should().NotBeNull();
         minimum!.Items.Should().HaveCount(1);
         minimum.Info.Request.PageSize.Size.Should().Be(1);
@@ -107,13 +126,14 @@ public class CategoryControllerTests
 
     [Theory]
     [DataInline]
-    public async Task Category_Should_Propagate_Cancellation_To_Direct_Database_Operations(DrnTestContext context)
+    public async Task Category_Should_Propagate_Cancellation_To_Database_Operations(DrnTestContext context)
     {
         using var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
         using var scope = context.CreateScope();
         var database = scope.ServiceProvider.GetRequiredService<QAContext>();
         var pagination = scope.ServiceProvider.GetRequiredService<IPaginationUtils>();
-        var controller = new CategoryController(database, pagination);
+        var categories = scope.ServiceProvider.GetRequiredService<ICategoryService>();
+        var controller = new CategoryController(database, pagination, categories);
         var cancelled = new CancellationToken(true);
 
         Func<Task> list = () => controller.PaginateAsync(cancellationToken: cancelled);

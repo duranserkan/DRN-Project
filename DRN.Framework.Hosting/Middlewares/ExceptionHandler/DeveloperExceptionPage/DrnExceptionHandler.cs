@@ -138,8 +138,7 @@ public class DrnExceptionHandler(
     {
         context.Response.StatusCode = context.Response.StatusCode < 1 ? 500 : context.Response.StatusCode;
 
-        //even in production we may want to execute IDrnExceptionFilter filters
-        var model = await ExecuteExceptionPageModel(context, exception);
+        var model = await ExecuteExceptionPageModel(context, exception, skipUnusedModel: true);
         var apiErrors = context.RequestServices?.GetService<DrnApiErrorResponse>();
         if (apiErrors != null && await apiErrors.TryWriteAsync(context))
             return;
@@ -191,17 +190,25 @@ public class DrnExceptionHandler(
         return result;
     }
 
-    private async Task<DrnExceptionModel?> ExecuteExceptionPageModel(HttpContext context, Exception exception)
+    private async Task<DrnExceptionModel?> ExecuteExceptionPageModel(HttpContext context, Exception exception, bool skipUnusedModel = false)
     {
+        var hasFilters = false;
         var skipPostCreationFilter = false;
         foreach (var filter in filters)
         {
+            hasFilters = true;
             var preFilterResult = await filter.HandlePreExceptionModelCreationAsync(context, exception);
             if (preFilterResult.SkipExceptionHandling)
                 return null;
             if (preFilterResult.SkipPostCreationFilter)
                 skipPostCreationFilter = true;
         }
+
+        // Evaluate after pre-filters, which can change the response status or endpoint metadata.
+        if (skipUnusedModel && (!hasFilters || skipPostCreationFilter) &&
+            (!appSettings.IsDevelopmentEnvironment ||
+             context.RequestServices?.GetService<DrnApiErrorResponse>()?.CanHandle(context) == true))
+            return null;
 
         var model = await exceptionUtils.CreateErrorPageModelAsync(context, exception);
 

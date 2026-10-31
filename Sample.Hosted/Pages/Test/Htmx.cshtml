@@ -2,7 +2,7 @@
 @model Sample.Hosted.Pages.Test.Htmx
 
 @{
-    var options = Get.LayoutOptions.Full("CSRF Token Test Page");
+    var options = Get.LayoutOptions.Full("HTMX Test Cases");
     options.Type = MainContentType.None;
     options.ColumnSize = BootstrapColumnSize.None;
 
@@ -233,12 +233,60 @@
                     </div>
                 </div>
             </div>
+            <div class="mb-5">
+                <h2 class="mb-4">Unhandled Exception Tests</h2>
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Server Exception (HTMX)</h5>
+                            </div>
+                            <div class="card-body d-flex flex-column">
+                                <p class="text-muted" id="server-exception-help">Triggers a server error. Expect a toast and a notification history entry with a request reference.</p>
+                                <button type="button" class="btn btn-danger w-100 mt-auto"
+                                        hx-post="~@Get.Page.Test.Htmx?handler=UnhandledException"
+                                        hx-swap="none"
+                                        data-notification-operation="Server exception test"
+                                        aria-describedby="server-exception-help">
+                                    Trigger server exception
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Browser Exception (JavaScript)</h5>
+                            </div>
+                            <div class="card-body d-flex flex-column">
+                                <p class="text-muted" id="browser-exception-help">Triggers an uncaught JavaScript error. Expect a generic error toast and a notification history entry with a client error reference. Repeat errors within 10 seconds are suppressed, with up to 5 reports per minute.</p>
+                                <button type="button" id="btnUnhandledBrowserException" class="btn btn-danger w-100 mt-auto"
+                                        aria-describedby="browser-exception-help">
+                                    Trigger browser exception
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 @section Scripts {
     <script>
+        DRN.Onmount.register('#btnUnhandledBrowserException', function (options) {
+            const button = this;
+            const onClick = () => {
+                throw new Error('Intentional unhandled browser exception from the HTMX test page.');
+            };
+
+            button.addEventListener('click', onClick);
+            options.disposable = {
+                dispose: () => button.removeEventListener('click', onClick)
+            };
+        }, 'unhandledBrowserException');
+
         console.log("Htmx scripts loaded pre");
 
         DRN.Onmount.register('#divJsTestOutput1', function () {

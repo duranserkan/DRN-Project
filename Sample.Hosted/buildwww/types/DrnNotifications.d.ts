@@ -7,6 +7,8 @@ export interface NotificationInput {
     problemType?: string;
     status?: number;
     requestId?: string;
+    /** Browser action failure reference, shared with its backend error report. */
+    clientErrorId?: string;
     /** Optional occurrence identity, up to 200 characters. Reuses a retained record when repeated. */
     sourceId?: string;
     operation?: string;
@@ -18,12 +20,17 @@ export interface NotificationInput {
 export interface DrnNotification extends Required<NotificationInput> {
     id: string;
     createdAt: number;
+    seen: boolean;
 }
 
 export interface IDrnNotifications {
-    /** Retains history without displaying a toast. */
+    /** Retains history locally immediately without a toast. Shared persistence completes asynchronously. */
     publish(input: NotificationInput): DrnNotification | null;
     list(): DrnNotification[];
+    /** Marks existing history as seen without dismissing it. Opening the panel calls this. */
+    markSeen(): void;
+    /** Refreshes saved history and seen state from other tabs without replaying toasts. */
+    sync(): void;
     subscribe(listener: () => void): () => void;
     dismiss(ids: string[]): DrnNotification[];
     clear(): DrnNotification[];

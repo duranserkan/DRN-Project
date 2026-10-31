@@ -121,7 +121,7 @@ System.Text.Json defaults overridden globally:
 
 ### 4. Exception Handling
 
-DRN exceptions map to HTTP status codes:
+DRN exceptions declare the HTTP status from which Hosting infers the default problem type. Both `ExceptionFor` and `ScopeContext.Problem` helpers use this path without a type catalog. Prefer existing semantic bases for custom exceptions; unmapped exceptions default to 500. See [Hosting mappings and overrides](../drn-hosting/SKILL.md#error-responses).
 
 | Exception | Status |
 |-----------|--------|

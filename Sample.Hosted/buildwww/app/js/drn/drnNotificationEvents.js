@@ -1,5 +1,12 @@
 import { mediaType } from './drnHttp.js';
 
+function affectsUserAction(detail) {
+    const element = detail?.requestConfig?.elt || detail?.elt;
+    const explicit = element?.closest?.('[data-notification-user-action]')?.dataset.notificationUserAction;
+    if (explicit !== undefined) return explicit === 'true';
+    return detail?.requestConfig?.triggeringEvent?.isTrusted === true;
+}
+
 function requestContext(detail) {
     const element = detail?.requestConfig?.elt || detail?.elt;
     let operation = 'Request';
@@ -39,6 +46,7 @@ export function installNotificationEvents(panel) {
     let loadingDetail = null;
     let activeMarker = null;
     let epoch = 0;
+    let observedActive = true;
     const requestEpochs = new WeakMap();
 
     function stale(detail) {
@@ -77,6 +85,7 @@ export function installNotificationEvents(panel) {
         const context = { app: marker.dataset.notificationApp, owner: marker.dataset.notificationOwner };
         activeMarker = marker;
         if (!DRN.Notifications.configure(context)) return;
+        observedActive = DRN.Notifications.isActive();
         // HTMX load triggers can start requests before the first DOMContentLoaded configuration.
         if (currentContext) epoch++;
         currentContext = context;
@@ -95,10 +104,7 @@ export function installNotificationEvents(panel) {
             channel = new BroadcastChannel(`drn.notifications:${currentContext.app}`);
             channel.onmessage = event => {
                 if (event.data?.type === 'account' && event.data.owner !== currentContext.owner) {
-                    epoch++;
                     DRN.Notifications.suspend();
-                    contextChanged();
-                    showAccountChange();
                 }
             };
         } catch { channel = null; }
@@ -108,16 +114,18 @@ export function installNotificationEvents(panel) {
         const xhr = detail?.xhr;
         if (!xhr || handled.has(xhr) || stale(detail)) return;
         handled.add(xhr);
-        const problem = DRN.Problem.fromXhr(xhr);
+        if (!affectsUserAction(detail)) return;
         if (title) {
-            problem.title = title;
-            problem.detail = message;
+            DRN.ErrorHandler.reportActionError(new Error(title), { ...requestContext(detail), message });
+            return;
         }
+        const problem = DRN.Problem.fromXhr(xhr);
         DRN.Problem.show(problem, requestContext(detail));
     }
 
     function refreshState() {
         configure();
+        syncHistory();
         if (currentContext) importStatusMessages(document, DRN.Notifications);
         ensureResources();
     }
@@ -135,6 +143,23 @@ export function installNotificationEvents(panel) {
     else start();
     document.addEventListener('htmx:load', refresh);
     window.addEventListener('pageshow', refresh);
+    function syncHistory() {
+        DRN.Notifications.sync();
+    }
+    DRN.Notifications.subscribe(() => {
+        const active = DRN.Notifications.isActive();
+        const becameInactive = observedActive && !active;
+        observedActive = active;
+        if (becameInactive && currentContext) {
+            epoch++;
+            contextChanged();
+            showAccountChange();
+        }
+    });
+    window.addEventListener('storage', event => {
+        if (currentContext && (event.key === null || event.key === `drn.notifications.v1:${currentContext.app}`))
+            syncHistory();
+    });
     window.addEventListener('pagehide', () => {
         channel?.close();
         channel = null;
@@ -200,6 +225,7 @@ export function installNotificationEvents(panel) {
         if (loadingResponse?.status >= 400) {
             if (handled.has(loadingResponse)) return;
             handled.add(loadingResponse);
+            if (!affectsUserAction(loadingDetail)) return;
         }
         const context = requestContext(loadingDetail);
         DRN.Toast.show({ type: detail.type, message: detail.message, duration: detail.duration,

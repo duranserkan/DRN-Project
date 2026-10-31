@@ -23,12 +23,14 @@ public class HtmxTests
         antiforgery.ValidateRequestAsync(http).Returns(invalidToken
             ? Task.FromException(new AntiforgeryValidationException("private-token-diagnostic"))
             : Task.CompletedTask);
+        var metadataProvider = new EmptyModelMetadataProvider();
         var page = new Htmx(antiforgery)
         {
+            MetadataProvider = metadataProvider,
             PageContext = new PageContext
             {
                 HttpContext = http,
-                ViewData = new ViewDataDictionary(new EmptyModelMetadataProvider(), new ModelStateDictionary())
+                ViewData = new ViewDataDictionary(metadataProvider, new ModelStateDictionary())
             }
         };
 

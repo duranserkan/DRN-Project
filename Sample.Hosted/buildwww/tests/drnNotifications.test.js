@@ -12,11 +12,65 @@ function fixture(options = {}) {
         setItem: (key, value) => cache.set(key, value),
         removeItem: key => cache.delete(key)
     };
-    const settings = { storage: () => storage, now: () => timestamp, newId: () => `id-${++sequence}`, ...options };
+    const settings = { locks: null, storage: () => storage, now: () => timestamp, newId: () => `id-${++sequence}`, ...options };
     const store = createNotificationStore(settings);
     store.configure({ app: '/app/', owner: 'account-a' });
     return { store, cache, settings, storage, advance: duration => { timestamp += duration; } };
 }
+
+for (const useLocks of [false, true]) {
+    test(`initial configuration retains startup feedback alongside saved history, locks: ${useLocks}`, async () => {
+        const locks = useLocks ? queuedLocks() : null;
+        const { store, settings, advance } = fixture({ locks });
+        const saved = store.publish({ message: 'Saved history' });
+        await locks?.drain();
+        advance(1);
+        const starting = createNotificationStore(settings);
+        const early = starting.publish({ type: 'error', message: 'Startup failed', clientErrorId: 'a'.repeat(32) });
+        const local = starting.publish({ message: 'Local startup feedback', persist: false });
+        starting.configure({ app: '/app/', owner: 'account-a' });
+        assert.deepEqual(new Set(starting.list().map(entry => entry.id)), new Set([saved.id, early.id, local.id]));
+        await locks?.drain();
+        assert.deepEqual(starting.list().find(entry => entry.id === early.id), early);
+        assert.deepEqual(starting.list().find(entry => entry.id === local.id), local);
+        const reloaded = createNotificationStore(settings);
+        reloaded.configure({ app: '/app/', owner: 'account-a' });
+        await locks?.drain();
+        assert.deepEqual(reloaded.list(), [early, saved]);
+
+        starting.configure({ app: '/app/', owner: 'account-b' });
+        await locks?.drain();
+        assert.deepEqual(starting.list(), []);
+    });
+
+    for (const invalidate of ['missing owner', 'suspended']) {
+        test(`startup feedback is discarded for ${invalidate}, locks: ${useLocks}`, async () => {
+            const locks = useLocks ? queuedLocks() : null;
+            const { settings } = fixture({ locks });
+            await locks?.drain();
+            const starting = createNotificationStore(settings);
+            starting.publish({ message: 'Do not retain', clientErrorId: 'b'.repeat(32) });
+            if (invalidate === 'suspended') starting.suspend();
+            starting.configure({ app: '/app/', owner: invalidate === 'missing owner' ? '' : 'account-a' });
+            await locks?.drain();
+            assert.deepEqual(starting.list(), []);
+            starting.configure({ app: '/app/', owner: 'account-b' });
+            await locks?.drain();
+            assert.deepEqual(starting.list(), []);
+        });
+    }
+}
+
+test('client error references survive storage and are searchable without using requestId', () => {
+    const { store, settings } = fixture();
+    const clientErrorId = 'a'.repeat(32);
+    const entry = store.publish({ type: 'error', message: 'Save failed', clientErrorId });
+    const restored = createNotificationStore(settings);
+    restored.configure({ app: '/app/', owner: 'account-a' });
+    assert.deepEqual(restored.list(), [entry]);
+    assert.equal(entry.requestId, '');
+    assert.deepEqual(filterNotifications(restored.list(), 'error', clientErrorId), [entry]);
+});
 
 test('default IDs preserve publishing, persistence and individual dismissal without randomUUID', () => {
     const originalCrypto = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
@@ -48,6 +102,274 @@ test('default IDs preserve publishing, persistence and individual dismissal with
     }
 });
 
+// Hold every exclusive callback until both simulated tabs have made their local mutations.
+function queuedLocks() {
+    const requests = [];
+    return {
+        request(name, callback) {
+            return new Promise((resolve, reject) => requests.push({ name, callback, resolve, reject }));
+        },
+        async drain() {
+            // Let each store submit its coalesced work before draining the shared lock queue.
+            await Promise.resolve();
+            while (requests.length) {
+                const request = requests.shift();
+                assert.equal(request.name, 'drn.notifications.v1:/app/');
+                try { request.resolve(request.callback()); } catch (error) { request.reject(error); }
+                // Allow the store's completion handlers to reconcile its local view.
+                await new Promise(resolve => setImmediate(resolve));
+            }
+        }
+    };
+}
+
+test('synchronous publications, acknowledgment and undo share one ordered storage write', async () => {
+    const locks = queuedLocks();
+    const { store, storage, cache, advance } = fixture({ locks });
+    await locks.drain();
+    const writes = [];
+    storage.setItem = (key, value) => { writes.push(value); cache.set(key, value); };
+    const first = store.publish({ message: 'First occurrence' });
+    advance(1);
+    const second = store.publish({ message: 'Second occurrence', sourceId: 'second' });
+    store.markSeen();
+    store.restore(store.dismiss([second.id]));
+    assert.deepEqual(store.publish({ message: 'Duplicate occurrence', sourceId: 'second' }), { ...second, seen: true });
+    advance(1);
+    const local = store.publish({ message: 'Only this page', persist: false });
+    assert.equal(writes.length, 0);
+    await locks.drain();
+    const expected = [{ ...second, seen: true }, { ...first, seen: true }];
+    assert.equal(writes.length, 1);
+    assert.deepEqual(JSON.parse(writes[0]).entries, expected);
+    assert.deepEqual(store.list(), [local, ...expected]);
+
+    store.expire();
+    await locks.drain();
+    assert.equal(writes.length, 1);
+});
+
+test('later publications keep their place behind another tab in the lock queue', async () => {
+    const locks = queuedLocks();
+    const { store, settings } = fixture({ locks });
+    const other = createNotificationStore(settings);
+    other.configure({ app: '/app/', owner: 'account-a' });
+    await locks.drain();
+    store.publish({ message: 'First queued change' });
+    await Promise.resolve();
+    const firstSource = other.publish({ message: 'Other tab owns this source', sourceId: 'shared-source' });
+    await Promise.resolve();
+    store.publish({ message: 'Later duplicate', sourceId: 'shared-source' });
+    await locks.drain();
+    store.sync();
+    assert.deepEqual(store.list().find(entry => entry.sourceId === 'shared-source'), firstSource);
+});
+
+for (const maxEntries of [1000, 3]) {
+    test(`same-timestamp publications preserve order through locked persistence, capacity: ${maxEntries}`, async () => {
+        const locks = queuedLocks();
+        const { store, settings } = fixture({ locks, maxEntries });
+        await locks.drain();
+        // The fixture clock stays fixed so equal timestamps exercise stable-sort ordering.
+        const published = ['First', 'Second', 'Third', 'Fourth'].map(message => store.publish({ message }));
+        const expected = published.toReversed().slice(0, maxEntries);
+        assert.deepEqual(store.list(), expected);
+        await locks.drain();
+        assert.deepEqual(store.list(), expected);
+        store.sync();
+        assert.deepEqual(store.list(), expected);
+
+        const restored = createNotificationStore(settings);
+        restored.configure({ app: '/app/', owner: 'account-a' });
+        assert.deepEqual(restored.list(), expected);
+        await locks.drain();
+        assert.deepEqual(restored.list(), expected);
+    });
+}
+
+test('contending publications and initialization merge the latest locked snapshot', async () => {
+    const locks = queuedLocks();
+    const { store, settings } = fixture({ locks });
+    const other = createNotificationStore(settings);
+    other.configure({ app: '/app/', owner: 'account-a' });
+    const first = store.publish({ message: 'First tab' });
+    const second = other.publish({ message: 'Second tab' });
+    // A newly opened tab has an empty snapshot while both publications wait for the lock.
+    const arriving = createNotificationStore(settings);
+    arriving.configure({ app: '/app/', owner: 'account-a' });
+    store.sync();
+    assert.deepEqual(store.list(), [first]);
+    await locks.drain();
+    for (const tab of [store, other, arriving]) {
+        tab.sync();
+        assert.deepEqual(new Set(tab.list().map(entry => entry.id)), new Set([first.id, second.id]));
+    }
+});
+
+for (const dismissFirst of [true, false]) {
+    test(`concurrent dismissal and publication preserve both changes, dismiss first: ${dismissFirst}`, async () => {
+        const locks = queuedLocks();
+        const { store, settings } = fixture({ locks });
+        const old = store.publish({ message: 'Dismiss me' });
+        await locks.drain();
+        const other = createNotificationStore(settings);
+        other.configure({ app: '/app/', owner: 'account-a' });
+        await locks.drain();
+        let next;
+        if (dismissFirst) {
+            store.dismiss([old.id]);
+            next = other.publish({ message: 'Keep me' });
+        } else {
+            next = other.publish({ message: 'Keep me' });
+            store.dismiss([old.id]);
+        }
+        await locks.drain();
+        store.sync();
+        other.sync();
+        assert.deepEqual(store.list(), [next]);
+        assert.deepEqual(other.list(), [next]);
+    });
+}
+
+test('queued seen changes do not acknowledge concurrent arrivals or share memory-only entries', async () => {
+    const locks = queuedLocks();
+    const { store, settings } = fixture({ locks });
+    const old = store.publish({ message: 'Existing' });
+    await locks.drain();
+    const other = createNotificationStore(settings);
+    other.configure({ app: '/app/', owner: 'account-a' });
+    await locks.drain();
+    const next = other.publish({ message: 'Arriving' });
+    const local = store.publish({ message: 'Only here', persist: false });
+    store.markSeen();
+    await locks.drain();
+    store.sync();
+    other.sync();
+    assert.deepEqual(other.list().find(entry => entry.id === old.id), { ...old, seen: true });
+    assert.deepEqual(other.list().find(entry => entry.id === next.id), next);
+    assert.ok(!other.list().some(entry => entry.id === local.id));
+    assert.deepEqual(store.list().find(entry => entry.id === local.id), { ...local, seen: true });
+});
+
+test('an owner change rejects old queued writes and preserves the new account history', async () => {
+    const locks = queuedLocks();
+    const { store, settings } = fixture({ locks });
+    await locks.drain();
+    const other = createNotificationStore(settings);
+    other.configure({ app: '/app/', owner: 'account-b' });
+    const current = other.publish({ message: 'Account B' });
+    store.publish({ message: 'Stale account A' });
+    await locks.drain();
+    other.sync();
+    assert.equal(store.isActive(), false);
+    assert.deepEqual(store.list(), []);
+    assert.deepEqual(other.list(), [current]);
+});
+
+test('concurrent duplicate sources retain one occurrence and its acknowledgment', async () => {
+    const locks = queuedLocks();
+    const { store, settings } = fixture({ locks });
+    const other = createNotificationStore(settings);
+    other.configure({ app: '/app/', owner: 'account-a' });
+    const first = store.publish({ message: 'Imported status', sourceId: 'status-one' });
+    other.publish({ message: 'Imported status', sourceId: 'status-one' });
+    other.markSeen();
+    await locks.drain();
+    store.sync();
+    other.sync();
+    assert.deepEqual(store.list(), [{ ...first, seen: true }]);
+    assert.deepEqual(other.list(), [{ ...first, seen: true }]);
+});
+
+test('queued dismissal removes a duplicate source with another shared ID and supports undo', async () => {
+    const locks = queuedLocks();
+    const { store, settings } = fixture({ locks });
+    const other = createNotificationStore(settings);
+    other.configure({ app: '/app/', owner: 'account-a' });
+    await locks.drain();
+    const first = store.publish({ message: 'Imported status', sourceId: 'status-one' });
+    const duplicate = other.publish({ message: 'Imported status', sourceId: 'status-one' });
+    assert.notEqual(first.id, duplicate.id);
+    other.markSeen();
+    const removed = other.dismiss([duplicate.id]);
+    const unrelated = store.publish({ message: 'Keep this', sourceId: 'status-two' });
+    await locks.drain();
+    for (const tab of [store, other]) {
+        tab.sync();
+        assert.deepEqual(tab.list(), [unrelated]);
+    }
+
+    other.restore(removed);
+    await locks.drain();
+    store.sync();
+    assert.equal(store.list().filter(entry => entry.sourceId === 'status-one').length, 1);
+    assert.deepEqual(store.list().find(entry => entry.sourceId === 'status-one'), { ...duplicate, seen: true });
+});
+
+test('failed lock requests keep local feedback without writing shared storage', async () => {
+    const locks = { request: () => Promise.reject(new Error('Locks unavailable')) };
+    const { store, cache } = fixture({ locks });
+    const entry = store.publish({ message: 'Local feedback' });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(cache.size, 0);
+    store.sync();
+    assert.deepEqual(store.list(), [entry]);
+});
+
+test('suspension cancels queued initialization and publications', async () => {
+    const locks = queuedLocks();
+    const { store, cache } = fixture({ locks });
+    store.publish({ message: 'Do not persist' });
+    store.suspend();
+    await locks.drain();
+    assert.equal(cache.size, 0);
+    assert.deepEqual(store.list(), []);
+});
+
+test('a local account switch cancels its previous queued writes', async () => {
+    const locks = queuedLocks();
+    const { store, cache } = fixture({ locks });
+    store.publish({ message: 'Account A pending' });
+    store.configure({ app: '/app/', owner: 'account-b' });
+    const entry = store.publish({ message: 'Account B pending' });
+    await locks.drain();
+    assert.deepEqual(store.list(), [entry]);
+    assert.deepEqual(JSON.parse([...cache.values()][0]).entries, [entry]);
+});
+
+test('a failed shared write preserves both saved history and local feedback', async () => {
+    const locks = queuedLocks();
+    const { store, storage, cache } = fixture({ locks });
+    const saved = store.publish({ message: 'Already saved' });
+    await locks.drain();
+    storage.setItem = () => { throw new Error('Quota exceeded'); };
+    const local = store.publish({ message: 'Not saved' });
+    await locks.drain();
+    store.sync();
+    assert.deepEqual(new Set(store.list().map(entry => entry.id)), new Set([saved.id, local.id]));
+    assert.deepEqual(JSON.parse([...cache.values()][0]).entries, [saved]);
+});
+
+test('without Web Locks the default store uses tab-local storage only', () => {
+    const originalSession = Object.getOwnPropertyDescriptor(globalThis, 'sessionStorage');
+    const originalLocal = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+    const { storage, cache, settings } = fixture();
+    Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: storage });
+    Object.defineProperty(globalThis, 'localStorage', { configurable: true,
+        get() { assert.fail('Unlocked shared storage must not be used'); } });
+    try {
+        const store = createNotificationStore({ ...settings, storage: undefined, locks: null });
+        store.configure({ app: '/app/', owner: 'account-a' });
+        const entry = store.publish({ message: 'Tab-local fallback' });
+        assert.deepEqual(JSON.parse([...cache.values()][0]).entries, [entry]);
+    } finally {
+        if (originalSession) Object.defineProperty(globalThis, 'sessionStorage', originalSession);
+        else delete globalThis.sessionStorage;
+        if (originalLocal) Object.defineProperty(globalThis, 'localStorage', originalLocal);
+        else delete globalThis.localStorage;
+    }
+});
+
 test('default IDs retain native randomUUID when it is available', () => {
     const originalCrypto = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
     const id = '8cdb9d4f-7a85-4399-988f-15ae79bc3ed8';
@@ -69,20 +391,67 @@ test('default IDs retain native randomUUID when it is available', () => {
     }
 });
 
-test('history survives reload, excludes memory-only entries and isolates application/account boundaries', () => {
+test('reload and undo preserve seen history, exclude memory-only entries and isolate account/application boundaries', () => {
     const { store, settings, cache } = fixture();
-    const publicEntry = store.publish({ type: 'error', title: 'Save failed', requestId: 'public-reference' });
+    const first = store.publish({ message: 'Ready', sourceId: 'operation-one' });
+    assert.equal(first.seen, false);
+    store.markSeen();
+    assert.deepEqual(store.list(), [{ ...first, seen: true }]);
+    assert.equal(store.publish({ message: 'Ready', sourceId: 'operation-one' }).seen, true);
     store.publish({ type: 'warning', message: 'Memory-only detail', persist: false });
     assert.equal(store.list().length, 2);
     assert.ok(![...cache.values()][0].includes('Memory-only detail'));
+
     const restored = createNotificationStore(settings);
     restored.configure({ app: '/app/', owner: 'account-a' });
-    assert.deepEqual(restored.list(), [publicEntry]);
+    assert.deepEqual(restored.list(), [{ ...first, seen: true }]);
+    const removed = restored.clear();
+    restored.restore(removed);
+    assert.equal(restored.list()[0].seen, true);
+    const next = restored.publish({ message: 'Another operation', seen: true });
+    assert.equal(next.seen, false);
+    assert.deepEqual(restored.list().filter(entry => !entry.seen), [next]);
+
     restored.configure({ app: '/app/', owner: 'account-b' });
+    restored.markSeen();
     assert.deepEqual(restored.list(), []);
     restored.publish({ type: 'info', message: 'Account B' });
     restored.configure({ app: '/other/', owner: 'account-b' });
     assert.deepEqual(restored.list(), []);
+    restored.suspend();
+    restored.markSeen();
+    assert.equal(restored.isActive(), false);
+});
+
+test('tabs share history and seen state without reviving dismissed entries or sharing memory-only content', () => {
+    const { store, settings } = fixture();
+    const other = createNotificationStore(settings);
+    other.configure({ app: '/app/', owner: 'account-a' });
+    const first = store.publish({ message: 'Report ready' });
+    const privateEntry = store.publish({ message: 'Current page only', persist: false });
+    other.sync();
+    assert.deepEqual(other.list(), [first]);
+    other.markSeen();
+    store.sync();
+    assert.equal(store.list().find(entry => entry.id === first.id).seen, true);
+    assert.equal(store.list().find(entry => entry.id === privateEntry.id).seen, false);
+
+    other.dismiss([first.id]);
+    // Publishing before a storage event arrives still reads the other tab's latest state.
+    const next = store.publish({ message: 'Another report' });
+    other.expire();
+    assert.deepEqual(other.list(), [next]);
+    other.clear();
+    store.sync();
+    assert.deepEqual(store.list(), [privateEntry]);
+
+    other.configure({ app: '/app/', owner: 'account-b' });
+    const accountB = other.publish({ message: 'Account B report' });
+    assert.equal(store.publish({ message: 'Stale account A response' }), null);
+    assert.equal(store.isActive(), false);
+    store.suspend();
+    other.sync();
+    assert.deepEqual(other.list(), [accountB]);
 });
 
 test('count, byte and age ceilings apply before presentation grouping', () => {
@@ -106,6 +475,19 @@ test('count, byte and age ceilings apply before presentation grouping', () => {
     assert.ok(new TextEncoder().encode(saved).length <= 1500);
     assert.ok(bounded.store.list().length < 10);
     assert.equal(bounded.store.list()[0].id, 'id-10');
+});
+
+test('list reads expire entries at their individual age boundaries', () => {
+    const { store, advance } = fixture({ maxAge: 10 });
+    const first = store.publish({ message: 'First' });
+    advance(3);
+    const second = store.publish({ message: 'Second' });
+    advance(6);
+    assert.deepEqual(store.list(), [second, first]);
+    advance(1);
+    assert.deepEqual(store.list(), [second]);
+    advance(3);
+    assert.deepEqual(store.list(), []);
 });
 
 test('corrupt, oversized, duplicate, future and unsafe restored fields cannot enter history', () => {
@@ -151,7 +533,7 @@ test('storage failures preserve memory and dismissal/undo do not duplicate or ex
     assert.equal(changes, 5);
 });
 
-test('search combines with severity and grouping preserves distinct operations, references and time windows', () => {
+test('search combines with severity and grouping preserves occurrences across time gaps and separates operations', () => {
     const { store, advance } = fixture();
     store.publish({ type: 'error', title: 'Save failed', operation: 'Save category', requestId: 'ref-one' });
     advance(10);
@@ -164,22 +546,43 @@ test('search combines with severity and grouping preserves distinct operations, 
     assert.equal(groups.length, 3);
     assert.equal(groups.find(group => group.entries.length === 2).entries[0].requestId, 'ref-two');
     advance(60_001);
-    store.publish({ type: 'error', title: 'Save failed', operation: 'Save category' });
-    assert.equal(groupNotifications(store.list()).length, 4);
+    const latest = store.publish({ type: 'error', title: 'Save failed', operation: 'Save category', requestId: 'ref-three' });
+    const regrouped = groupNotifications(store.list());
+    assert.equal(regrouped.length, 3);
+    assert.equal(regrouped[0].id, latest.id);
+    assert.deepEqual(regrouped[0].entries.map(entry => entry.requestId), ['ref-three', 'ref-two', 'ref-one']);
 });
 
-test('account invalidation blocks publishing and undo until a fresh owner is configured', () => {
-    const { store } = fixture();
-    const previous = store.publish({ type: 'error', message: 'Account A' });
-    store.suspend();
-    assert.equal(store.isActive(), false);
-    assert.equal(store.publish({ type: 'info', message: 'Outstanding response' }), null);
-    store.restore([previous]);
-    assert.deepEqual(store.list(), []);
-    store.configure({ app: '/app/', owner: 'account-b' });
-    assert.equal(store.isActive(), true);
-    assert.deepEqual(store.list(), []);
-});
+for (const [useLocks, invalidation] of [
+    [false, 'empty owner'], [true, 'empty owner'],
+    [false, 'suspend'], [true, 'suspend']
+]) {
+    test(`${invalidation} blocks publishing and undo until identified, locks: ${useLocks}`, async () => {
+        const locks = useLocks ? queuedLocks() : null;
+        const { store, cache } = fixture({ locks });
+        const previous = store.publish({ message: 'Previous account feedback' });
+        if (locks) await locks.drain();
+        assert.equal(cache.size, 1);
+
+        if (invalidation === 'empty owner') store.configure({ app: '/app/', owner: '' });
+        else store.suspend();
+        assert.equal(store.isActive(), false);
+        assert.deepEqual(store.list(), []);
+        assert.equal(store.publish({ message: 'Unidentified feedback' }), null);
+        store.restore([previous]);
+        store.markSeen();
+        if (locks) await locks.drain();
+        store.sync();
+        assert.deepEqual(store.list(), []);
+        assert.equal(cache.size, invalidation === 'empty owner' ? 0 : 1);
+
+        store.configure({ app: '/app/', owner: 'account-b' });
+        assert.equal(store.isActive(), true);
+        const current = store.publish({ message: 'Identified feedback' });
+        if (locks) await locks.drain();
+        assert.deepEqual(store.list(), [current]);
+    });
+}
 
 test('the byte ceiling evicts a continuous oldest suffix instead of retaining smaller old records', () => {
     const { store, advance } = fixture({ maxBytes: 1100 });

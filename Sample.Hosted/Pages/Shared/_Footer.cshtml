@@ -8,11 +8,11 @@ https://github.com/rstacruz/rsjs
 https://rstacruz.github.io/rsjs/
 *@
 <footer class="border-top footer text-muted mt-auto" data-js-drn-footer>
-    <div class="container-xxl bg-light d-flex justify-content-between align-items-center py-1">
-        <div id="FooterLeft">
+    <div class="container-xxl bg-light d-flex flex-wrap justify-content-between align-items-center gap-2 py-1">
+        <div id="FooterLeft" class="flex-shrink-0">
             &copy; @DateTime.Now.Year - @ScopeContext.Settings.ApplicationName
         </div>
-        <div id="FooterMiddle">
+        <div id="FooterMiddle" class="order-3 order-lg-0 col-12 col-lg-auto">
             <nav class="footerNavbar d-flex align-items-center">
                 <ul class="nav">
                     <li class="nav-item"><a class="nav-link py-0" href="#">Privacy</a></li>
@@ -22,8 +22,8 @@ https://rstacruz.github.io/rsjs/
                     <li class="nav-item"><a class="nav-link py-0" href="#">FAQ</a></li>
                 </ul>
             </nav>
-            <div class="preferenceCookieAlert d-none align-items-center" role="alert">
-                <span class="me-3">We use cookies to enhance your experience. Check out our <a href="~/Privacy" class="alert-link">Privacy Policy</a>.</span>
+            <div class="preferenceCookieAlert d-none flex-wrap align-items-center gap-2" role="alert">
+                <span>We use cookies to enhance your experience. Check out our <a href="~/Privacy" class="alert-link">Privacy Policy</a>.</span>
                 <button type="button" class="btn btn-primary btn-sm accept-policy me-2" aria-label="Accept" id="acceptPreferencesCookieBtn">
                     Accept
                 </button>

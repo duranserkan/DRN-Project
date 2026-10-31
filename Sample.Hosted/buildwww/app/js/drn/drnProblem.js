@@ -2,8 +2,24 @@ import { mediaType } from './drnHttp.js';
 
 const FALLBACK_TITLE = 'The request could not be completed.';
 const MAX_BODY_LENGTH = 65536;
+const MAX_BODY_BYTES = MAX_BODY_LENGTH * 4;
 const MAX_MESSAGE_LENGTH = 500;
 const MAX_ERRORS = 100;
+const FRIENDLY_TITLES = new Map([
+    ['bad request', 'Please try again. If the problem continues, contact support and share the error details from Notifications.'],
+    ['unauthorized', 'Please sign in to continue.'],
+    ['forbidden', 'You do not have access to this action.'],
+    ['not found', 'This item is no longer available.'],
+    ['request timeout', 'The request took too long. Check the current state before trying again.'],
+    ['conflict', 'Something changed. Refresh the page before trying again.'],
+    ['unprocessable entity', 'Please review your input and try again.'],
+    ['unprocessable content', 'Please review your input and try again.'],
+    ['too many requests', 'Please wait a moment before trying again.'],
+    ['internal server error', 'Something went wrong. Check the current state before trying again.'],
+    ['bad gateway', 'The service is temporarily unavailable. Please try again later.'],
+    ['service unavailable', 'The service is temporarily unavailable. Please try again later.'],
+    ['gateway timeout', 'The request took too long. Check the current state before trying again.']
+]);
 
 function isObject(value) {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -64,13 +80,40 @@ function fromXhr(xhr) {
     }
 }
 
-/** Read a clone so callers can still consume the original Fetch response. */
+async function readBoundedBody(response) {
+    if (!response.body) return '';
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let body = '';
+    let bytes = 0;
+    let complete = false;
+    try {
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) {
+                complete = true;
+                body += decoder.decode();
+                return body.length <= MAX_BODY_LENGTH ? body : '';
+            }
+            bytes += value.byteLength;
+            if (bytes > MAX_BODY_BYTES) return '';
+            body += decoder.decode(value, { stream: true });
+            if (body.length > MAX_BODY_LENGTH) return '';
+        }
+    } finally {
+        // A cloned stream's cancellation can wait for the caller's original stream.
+        if (!complete) void reader.cancel().catch(() => {});
+        reader.releaseLock();
+    }
+}
+
+/** Read a bounded clone so callers can still consume the original Fetch response. */
 async function fromResponse(response) {
     try {
         const contentType = response.headers.get('Content-Type');
         if (mediaType(contentType) !== 'application/problem+json')
             return parse('', '', response.status);
-        return parse(await response.clone().text(), contentType, response.status);
+        return parse(await readBoundedBody(response.clone()), contentType, response.status);
     } catch {
         return parse('', '', response.status);
     }
@@ -127,19 +170,21 @@ function appendText(parent, tag, value, className = '') {
     return element;
 }
 
-/** Display public text beside the failed operation and record a single compact history entry. */
+/** Keep validation beside the form; other failures use a toast and one history entry. */
 function show(problem, context = {}) {
     if (window.DRN.Notifications.isActive?.() === false) return null;
+    const title = FRIENDLY_TITLES.get(problem.title.toLowerCase()) || problem.title;
     const region = regionFor(context);
     const record = window.DRN.Notifications.publish({
-        type: 'error', title: problem.title, message: problem.detail,
+        type: 'error', title, message: problem.detail,
         problemType: problem.type, status: problem.status, requestId: problem.requestId,
         operation: context.operation || '',
         target: region?.id || (region ? `region-${Array.from(document.querySelectorAll('form, [data-problem-region]')).indexOf(region)}` : ''),
         persist: context.persist !== false
     });
-    if (!region) {
-        window.DRN.Toast.show({ type: 'error', message: problem.title, record: false });
+    if (!region || Object.keys(problem.errors).length === 0) {
+        clearRegion(region);
+        window.DRN.Toast.show({ type: 'error', message: problem.detail || title, record: false });
         return record;
     }
 
@@ -149,8 +194,8 @@ function show(problem, context = {}) {
     summary.dataset.drnProblemSummary = '';
     summary.tabIndex = -1;
     summary.setAttribute('aria-label', 'Request error');
-    appendText(summary, 'h2', problem.title, 'h6');
-    if (problem.detail && problem.detail !== problem.title) appendText(summary, 'p', problem.detail);
+    appendText(summary, 'h2', title, 'h6');
+    if (problem.detail && problem.detail !== title) appendText(summary, 'p', problem.detail);
     const list = document.createElement('ul');
     const fields = [];
     const form = region instanceof HTMLFormElement ? region : null;
@@ -182,6 +227,8 @@ function show(problem, context = {}) {
         const details = document.createElement('details');
         appendText(details, 'summary', 'Details');
         appendText(details, 'p', `Request reference: ${problem.requestId}`, 'small user-select-all mb-0');
+        appendText(details, 'p', 'Share this reference with support so they can find the request.',
+            'small text-body-secondary mb-0');
         summary.appendChild(details);
     }
     region.prepend(summary);
@@ -193,7 +240,7 @@ function show(problem, context = {}) {
     if (context.focus) summary.focus();
     else {
         const live = document.getElementById('drn-notification-assertive');
-        if (live) live.textContent = `${problem.title} ${problem.detail}`.trim();
+        if (live) live.textContent = `${title} ${problem.detail}`.trim();
     }
     return record;
 }

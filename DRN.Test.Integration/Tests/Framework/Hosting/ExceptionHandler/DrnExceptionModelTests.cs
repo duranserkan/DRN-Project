@@ -16,6 +16,8 @@ public class DrnExceptionModelTests
     public async Task ErrorPageModel_Should_Be_Serialized_As_Expected(DrnTestContext context)
     {
         var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
+        context.ApplicationContext.GetCreatedApplication<SampleProgram>()!.Services
+            .GetServices<IDrnExceptionFilter>().Should().BeEmpty();
         var errorModel = (await client.GetFromJsonAsync<DrnExceptionModel>(Get.Endpoint.Sample.Exception.GetErrorPageModel.RoutePattern))!;
 
         errorModel.Should().NotBeNull();
@@ -26,6 +28,7 @@ public class DrnExceptionModelTests
     [Theory]
     public async Task DrnExceptionFilter__Should_Be_Invoked_On_Exception(DrnTestContext context, IDrnExceptionFilter filter, ISampleDrnExceptionFilterDependency filterDependency)
     {
+        context.ServiceCollection.AddScoped<IDrnExceptionFilter, SampleDrnExceptionFilter>();
         var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
         
         filter.HandlePreExceptionModelCreationAsync(Arg.Any<HttpContext>(), Arg.Any<Exception>())

@@ -4,6 +4,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Changed
 
+*   **Exception Diagnostics**: Production responses and eligible API/HTMX errors avoid collecting an unused diagnostic model when no post-creation filter requires it. Existing filter callbacks, Development HTML diagnostics, and explicit model requests retain their behavior.
 *   **Rate Limit Defaults**: Post-auth buckets now allow 250 tokens per user and pre-auth buckets allow 2,500 tokens per IP, with matching refills every 60 seconds. Explicit configuration overrides remain supported.
 *   **Rate Limit Diagnostics**: Rejection logs include the rule action, distinguishing limiter rejections from explicit deny rules and unattributed rejections, consistent with rate-limit metrics.
 

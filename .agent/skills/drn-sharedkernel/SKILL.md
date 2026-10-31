@@ -261,6 +261,8 @@ return result.ToModel(entity => entity.ToDto());
 
 ## Exceptions
 
+Prefer a matching semantic base for custom exceptions: `ConflictException` subclasses inherit 409. Direct `DrnException` subclasses use the supplied status or default to 500. Hosting infers the standard problem type from status, with explicit overrides supported; no type catalog is required. Unmapped `System.Exception` subclasses default to 500 regardless of name. SharedKernel alone does not format HTTP responses. See [Hosting mapping and abort rules](../drn-hosting/SKILL.md#error-responses).
+
 | Factory | Exception | HTTP Status |
 |---------|-----------|-------------|
 | `ExceptionFor.Validation(msg)` | `ValidationException` | 400 |

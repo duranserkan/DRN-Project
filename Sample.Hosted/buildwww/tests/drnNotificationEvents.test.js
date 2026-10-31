@@ -14,6 +14,7 @@ function statusElement(id, message, persist = true) {
 
 function response(status = 200, contentType = 'text/html', headers = {}) {
     return {
+        requestConfig: { triggeringEvent: { isTrusted: true } },
         xhr: { status, responseText: '', getResponseHeader: name =>
             name === 'Content-Type' ? contentType : headers[name] ?? null },
         shouldSwap: status < 400,
@@ -41,10 +42,11 @@ function fixture(t, { start = true, statuses = [] } = {}) {
         close() { channels.delete(this); }
     }
     let sequence = 0;
-    const store = createNotificationStore({ storage: () => null, now: () => 100_000_000,
+    const store = createNotificationStore({ locks: null, storage: () => null, now: () => 100_000_000,
         newId: () => `event-${++sequence}` });
     const DRN = {
         Notifications: store,
+        ErrorHandler: { reportActionError: t.mock.fn() },
         Problem: { ...problem, show: t.mock.fn(), clear: t.mock.fn(), clearAll: t.mock.fn() },
         Toast: { show: t.mock.fn(), cleanup: t.mock.fn() }
     };
@@ -103,42 +105,35 @@ test('an account change rejects old responses before headers and still accepts n
     assert.equal(Problem.clear.mock.callCount(), 1);
 });
 
-test('cross-tab account changes suspend requests, untracked responses and status imports', t => {
-    const { emit, channels, store, statuses, Problem } = fixture(t);
-    store.publish({ message: 'Account A feedback' });
-    const detail = response(500, 'application/problem+json');
-    channels.values().next().value.onmessage({ data: { type: 'account', owner: 'account-b' } });
-    statuses.push(statusElement('a'.repeat(32), 'Stale status'));
-    emit('htmx:load');
+for (const invalidation of ['cross-tab account change', 'store suspension']) {
+    test(`${invalidation} blocks tracked/untracked responses, requests and status imports across refreshes`, t => {
+        const { emit, window, channels, store, statuses, Problem, Toast } = fixture(t);
+        store.publish({ message: 'Account A feedback' });
+        const pending = response(500, 'application/problem+json');
+        emit('htmx:beforeRequest', pending);
+        if (invalidation === 'cross-tab account change')
+            channels.values().next().value.onmessage({ data: { type: 'account', owner: 'account-b' } });
+        else store.suspend();
+        statuses.push(statusElement('a'.repeat(32), 'Stale status'));
+        emit('htmx:load');
+        window.dispatchEvent(new Event('pageshow'));
 
-    assert.equal(store.isActive(), false);
-    assert.deepEqual(store.list(), []);
-    assert.equal(statuses[0].dataset.notificationRecorded, undefined);
-    assert.equal(emit('htmx:beforeRequest', response()).defaultPrevented, true);
-    assert.equal(emit('htmx:beforeOnLoad', detail).defaultPrevented, true);
-    emit('htmx:responseError', detail);
-    assert.equal(Problem.show.mock.callCount(), 0);
-    assert.equal(Problem.clearAll.mock.callCount(), 2);
-});
-
-test('store suspension also pauses the event bridge across lifecycle refreshes', t => {
-    const { emit, window, store, Problem, Toast } = fixture(t);
-    const pending = response(500, 'application/problem+json');
-    emit('htmx:beforeRequest', pending);
-    store.suspend();
-    emit('htmx:load');
-    window.dispatchEvent(new Event('pageshow'));
-
-    assert.equal(store.isActive(), false);
-    assert.equal(emit('htmx:beforeRequest', response()).defaultPrevented, true);
-    assert.equal(emit('htmx:beforeOnLoad', pending).defaultPrevented, true);
-    emit('showToast', { message: 'Suspended feedback' });
-    emit('htmx:responseError', pending);
-    emit('htmx:afterRequest', response());
-    assert.equal(Problem.show.mock.callCount(), 0);
-    assert.equal(Problem.clear.mock.callCount(), 0);
-    assert.equal(Toast.show.mock.callCount(), 0);
-});
+        assert.equal(store.isActive(), false);
+        assert.deepEqual(store.list(), []);
+        assert.equal(statuses[0].dataset.notificationRecorded, undefined);
+        assert.equal(emit('htmx:beforeRequest', response()).defaultPrevented, true);
+        for (const detail of [pending, response(500, 'application/problem+json')]) {
+            assert.equal(emit('htmx:beforeOnLoad', detail).defaultPrevented, true);
+            emit('showToast', { message: 'Suspended feedback' });
+            emit('htmx:responseError', detail);
+        }
+        emit('htmx:afterRequest', response());
+        assert.equal(Problem.show.mock.callCount(), 0);
+        assert.equal(Problem.clear.mock.callCount(), 0);
+        assert.equal(Toast.show.mock.callCount(), 0);
+        assert.equal(Problem.clearAll.mock.callCount(), 2);
+    });
+}
 
 test('restoring a page recreates one timer and channel without replaying inline status', t => {
     const { emit, window, channels, timers, store } = fixture(t, {
@@ -156,7 +151,7 @@ test('restoring a page recreates one timer and channel without replaying inline 
 });
 
 test('Problem Details suppresses toast headers and presents one failure across HTMX callbacks', t => {
-    const { emit, Problem, Toast } = fixture(t);
+    const { emit, Problem, Toast, ErrorHandler } = fixture(t);
     const detail = response(409, ' Application/Problem+Json; charset=utf-8 ');
     detail.xhr.responseText = JSON.stringify({ title: 'Category is in use' });
     emit('htmx:beforeOnLoad', detail);
@@ -169,6 +164,7 @@ test('Problem Details suppresses toast headers and presents one failure across H
     assert.equal(detail.isError, true);
     assert.equal(Problem.show.mock.callCount(), 1);
     assert.equal(Problem.show.mock.calls[0].arguments[0].title, 'Category is in use');
+    assert.equal(ErrorHandler.reportActionError.mock.callCount(), 0);
     assert.equal(Problem.clear.mock.callCount(), 0);
     assert.equal(Toast.show.mock.callCount(), 0);
 });
@@ -194,12 +190,13 @@ for (const [event, title] of [
     ['htmx:timeout', 'The request timed out']
 ]) {
     test(`${event} gives recovery guidance once`, t => {
-        const { emit, Problem } = fixture(t);
+        const { emit, Problem, ErrorHandler } = fixture(t);
         const detail = response(0, '');
         emit(event, detail);
         emit('htmx:responseError', detail);
-        assert.equal(Problem.show.mock.callCount(), 1);
-        assert.equal(Problem.show.mock.calls[0].arguments[0].title, title);
+        assert.equal(Problem.show.mock.callCount(), 0);
+        assert.equal(ErrorHandler.reportActionError.mock.callCount(), 1);
+        assert.equal(ErrorHandler.reportActionError.mock.calls[0].arguments[0].message, title);
     });
 }
 
@@ -209,14 +206,45 @@ test('intentional request aborts do not show failures', t => {
     assert.equal(Problem.show.mock.callCount(), 0);
 });
 
+test('background request failures stay silent and explicit action opt-in gets a client reference', t => {
+    const { emit, Problem, ErrorHandler, Toast } = fixture(t);
+    for (const event of ['htmx:responseError', 'htmx:sendError', 'htmx:timeout']) {
+        emit(event, { ...response(500), requestConfig: {} });
+    }
+    emit('htmx:beforeOnLoad', { ...response(500), requestConfig: {} });
+    emit('showToast', { type: 'error', message: 'Background failure' });
+    assert.equal(Problem.show.mock.callCount(), 0);
+    assert.equal(ErrorHandler.reportActionError.mock.callCount(), 0);
+    assert.equal(Toast.show.mock.callCount(), 0);
+
+    emit('htmx:sendError', { ...response(0), requestConfig: {
+        elt: { closest: selector => selector === '[data-notification-user-action]'
+            ? { dataset: { notificationUserAction: 'true' } } : null }
+    } });
+    assert.equal(ErrorHandler.reportActionError.mock.callCount(), 1);
+});
+
+test('explicit background marking suppresses even a trusted action event', t => {
+    const { emit, Problem, ErrorHandler } = fixture(t);
+    const requestConfig = {
+        triggeringEvent: { isTrusted: true },
+        elt: { closest: selector => selector === '[data-notification-user-action]'
+            ? { dataset: { notificationUserAction: 'false' } } : null }
+    };
+    emit('htmx:responseError', { ...response(500), requestConfig });
+    emit('htmx:timeout', { ...response(0), requestConfig });
+    assert.equal(Problem.show.mock.callCount(), 0);
+    assert.equal(ErrorHandler.reportActionError.mock.callCount(), 0);
+});
+
 for (const contentType of ['application/json', 'text/html; charset=utf-8', 'text/plain']) {
     test(`a non-problem ${contentType} error toast owns feedback once and preserves request privacy`, t => {
-        const { emit, Problem, Toast } = fixture(t);
+        const { emit, Problem, Toast, ErrorHandler } = fixture(t);
         const element = { closest: selector => selector === '[data-notification-persist]'
             ? { dataset: { notificationPersist: 'false' } }
             : selector === '[data-notification-operation]'
                 ? { dataset: { notificationOperation: 'Remove category' } } : null };
-        const detail = { ...response(409, contentType), requestConfig: { elt: element } };
+        const detail = { ...response(409, contentType), requestConfig: { elt: element, triggeringEvent: { isTrusted: true } } };
         emit('htmx:beforeOnLoad', detail);
         emit('showToast', { type: 'error', message: 'Category is in use', persist: true, duration: 9000 });
         emit('htmx:beforeSwap', detail);
@@ -224,6 +252,7 @@ for (const contentType of ['application/json', 'text/html; charset=utf-8', 'text
         emit('showToast', { type: 'error', message: 'Duplicate message' });
 
         assert.equal(Toast.show.mock.callCount(), 1);
+        assert.equal(ErrorHandler.reportActionError.mock.callCount(), 0);
         assert.deepEqual(Toast.show.mock.calls[0].arguments[0], {
             type: 'error', message: 'Category is in use', duration: 9000,
             record: undefined, persist: false, operation: 'Remove category'
@@ -256,7 +285,7 @@ test('toast events outside their response processing are ignored', async t => {
 test('request context retains the operation path without sensitive query parameters', t => {
     const { emit, Problem } = fixture(t);
     emit('htmx:responseError', { ...response(500), requestConfig: {
-        verb: 'post', path: '/app/profile?token=private'
+        verb: 'post', path: '/app/profile?token=private', triggeringEvent: { isTrusted: true }
     } });
     assert.equal(Problem.show.mock.calls[0].arguments[1].operation, 'POST /app/profile');
 });
@@ -265,6 +294,7 @@ test('status import survives stored history and does not resurrect dismissed mes
     const cache = new Map();
     let sequence = 0;
     const options = {
+        locks: null,
         storage: () => ({ getItem: key => cache.get(key), setItem: (key, value) => cache.set(key, value),
             removeItem: key => cache.delete(key) }),
         now: () => 100_000_000, newId: () => `status-${++sequence}`
@@ -301,6 +331,7 @@ test('status import survives stored history and does not resurrect dismissed mes
 test('status import respects privacy, valid markup and suspended account state', () => {
     let saved = '';
     const store = createNotificationStore({
+        locks: null,
         storage: () => ({ getItem: () => null, setItem: (_key, value) => { saved = value; }, removeItem() {} }),
         now: () => 100_000_000, newId: () => 'private-status'
     });

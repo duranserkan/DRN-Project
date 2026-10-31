@@ -11,6 +11,7 @@ export interface DrnProblem {
 export interface IDrnProblem {
     parse(body: unknown, contentType: unknown, status: number): DrnProblem;
     fromXhr(xhr: XMLHttpRequest): DrnProblem;
+    /** Reads a bounded clone, leaving the original body available to the caller. */
     fromResponse(response: Response): Promise<DrnProblem>;
     show(problem: DrnProblem, context?: DrnProblemContext): import('./DrnNotifications').DrnNotification | null;
     clear(context?: DrnProblemContext): void;

@@ -17,6 +17,8 @@ import drnUtils from './drnUtils';
 
 const MAX_VISIBLE = 3;
 const DEFAULT_DURATION = 5000;
+const MAX_TOASTS_PER_WINDOW = 5;
+const TOAST_WINDOW_MS = 10000;
 
 const ICON_MAP = {
     success: 'bi-check-circle-fill text-success',
@@ -27,9 +29,10 @@ const ICON_MAP = {
 
 let container = null;
 let activeToasts = [];
+let presentedAt = [];
 
 /**
- * Lazily creates the fixed-position toast container in the DOM.
+ * Anchors toasts inside the content area, clear of the header and sidebars.
  * On subsequent calls, verifies the cached reference is still in the DOM (handles edge cases where the body is replaced during navigation).
  * @returns {HTMLElement}
  */
@@ -37,10 +40,14 @@ function getContainer() {
     if (container && document.body.contains(container)) return container;
 
     container = document.createElement('div');
-    container.className = 'toast-container position-fixed top-0 end-0 p-3';
-    container.style.zIndex = '1090'; //places toasts above Bootstrap modals (1055) but below popovers (1095).
+    const host = document.querySelector('[data-toast-host]');
+    container.className = host
+        ? 'toast-container position-absolute top-0 end-0 p-3 overflow-auto mh-100'
+        : 'toast-container position-fixed bottom-0 start-50 translate-middle-x p-3 overflow-auto mh-100';
+    // Keep content feedback below Bootstrap offcanvas backdrops (1040) and modal dialogs.
+    container.style.zIndex = '1030';
     container.setAttribute('aria-label', 'Toast notifications');
-    document.body.appendChild(container);
+    (host || document.body).appendChild(container);
     return container;
 }
 
@@ -57,12 +64,12 @@ function createToastElement(type, message, duration) {
     const title = drnUtils.escapeHtml(validType.charAt(0).toUpperCase() + validType.slice(1));
 
     const el = document.createElement('div');
-    el.className = 'toast';
+    el.className = 'toast bg-body';
     // The shared shell owns the pre-existing live region, avoiding duplicate announcements.
     el.dataset.bsDelay = String(duration);
 
     el.innerHTML = [
-        '<div class="toast-header">',
+        '<div class="toast-header bg-body">',
         '  <i class="bi ' + iconClass + ' me-2"></i>',
         '  <strong class="me-auto">' + title + '</strong>',
         '  <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>',
@@ -99,6 +106,12 @@ function show(options) {
     const duration = Number.isFinite(options.duration) ? Math.max(1000, Math.min(options.duration, 30000)) : DEFAULT_DURATION;
     // The store owns notification-field validation and discards toast-only options.
     if (options.record !== false) window.DRN.Notifications.publish({ ...options, type, message });
+
+    // Retain history, but do not queue a burst for later playback.
+    const now = Date.now();
+    presentedAt = presentedAt.filter(time => now - time < TOAST_WINDOW_MS);
+    if (presentedAt.length >= MAX_TOASTS_PER_WINDOW) return;
+    presentedAt.push(now);
 
     const live = document.getElementById(type === 'error' ? 'drn-notification-assertive' : 'drn-notification-polite');
     if (live) live.textContent = message;

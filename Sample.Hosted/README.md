@@ -9,6 +9,7 @@ This guide covers local startup, developer tools, error handling, notifications,
 - [Error pages and API failures](#error-pages-and-api-failures)
 - [Error handling conventions](#error-handling-conventions)
 - [HTMX errors](#htmx-errors)
+- [Browser error reporting](#browser-error-reporting)
 - [Notification history](#notification-history)
 - [Frontend assets](#frontend-assets)
 - [Frontend tests](#frontend-tests)
@@ -31,6 +32,10 @@ Signed-in users who complete MFA can access `/swagger`, `/Test/Htmx`, and `/Test
 
 Developer View is an explicit diagnostics preview. Ordinary Staging and Production errors remain redacted.
 
+`SampleDrnExceptionFilter` is an opt-in demonstration, registered explicitly by its integration test. It is not registered in the normal application, so its empty post-creation callback does not force diagnostic model collection for ordinary errors.
+
+The HTMX test page has separate **Trigger server exception** and **Trigger browser exception** buttons. The server test sends a CSRF-protected HTMX POST and throws an unhandled exception, producing a toast and a history entry with a request reference. The browser test throws an uncaught JavaScript error, producing a generic error toast and one history entry with a client error reference. Open notification history to inspect each result. See [Browser error reporting](#browser-error-reporting) for reporting limits.
+
 ## Error pages and API failures
 
 The sample provides anonymous, non-cacheable `/BadRequest` (400), `/AccessDenied` (403), `/NotFound` (404), and `/SomethingWentWrong` (500) pages. Staging and Production HTML server errors preserve their 5xx status and show only a request reference. HTML bad-request and not-found responses preserve 400 and 404. API failures for all 4xx and 5xx statuses use [Problem Details JSON](../DRN.Framework.Hosting/README.md#api-failure-responses) with a `requestId` in every environment. The sample configures `/Api` to identify unmatched API routes.
@@ -52,7 +57,16 @@ Choose the response in the handler:
 | Ordinary Razor form validation | Add ModelState errors and return `Page()` | Existing HTML fields and validation messages |
 | Full Razor navigation failure | Existing empty status or exception handling | Configured HTML error page or Development diagnostics |
 
-Preserve the failure's HTTP status. Use stable problem types such as `CategoryProblemTypes.NotFound`. Keep request-specific data out of type identifiers and private diagnostics out of public messages. See [Hosting API failure responses](../DRN.Framework.Hosting/README.md#api-failure-responses) for scoped defaults, request references, and endpoint opt-outs.
+Leave `Type` unset for routine errors. Hosting infers the standard type from the exception's status. Set a safe public title or detail only when useful:
+
+```csharp
+ScopeContext.Problem.Title = "Category not found";
+ScopeContext.Problem.NotFound($"Category: {id}");
+```
+
+This throws `NotFoundException` and returns HTTP 404 with the standard type and the public title above. The diagnostic message stays private. Use explicit stable types only for conditions clients must distinguish beyond HTTP status. See [Hosting mappings and overrides](../DRN.Framework.Hosting/README.md#api-failure-responses).
+
+Category lookup now uses the standard HTTP 404 problem type instead of `urn:sample:problem:category-not-found`. Clients matching that former Sample identifier should handle HTTP 404 for a missing category. The status, safe title, and request reference remain available.
 
 Field errors use the exact posted control name, including casing, property prefixes, and collection indices. Use `string.Empty` for form-level errors. Preserve existing API validation keys, including Identity error codes.
 
@@ -76,23 +90,70 @@ Returning `Page()` with invalid ModelState remains HTML. Selecting JSON validati
 
 ## HTMX errors
 
-The sample enables [HTMX Problem Details](../DRN.Framework.Hosting/README.md#htmx-partial-requests). Problem Details and failures without a usable toast header preserve the current page and input, show an error summary in the originating form or a `data-problem-region`, and record one notification. Errors without a local region use the page summary. A successful request clears its matching error. Dismissing history does not clear form validation. Network failures and timeouts show recovery guidance without automatically retrying a mutation.
+The sample enables [HTMX Problem Details](../DRN.Framework.Hosting/README.md#htmx-partial-requests). Failures preserve the current page and input and record one notification. Validation errors show a summary in the originating form or a `data-problem-region`, falling back to the page summary. Other failures show a brief toast with public guidance instead of a page banner. Generic HTTP titles such as "Bad Request" become plain-language messages. Request references remain available in history. A successful request clears its matching validation error. Dismissing history does not clear form validation. Network failures and timeouts show recovery guidance without automatically retrying a mutation.
 
 Set `data-notification-operation="Save profile"` on a form or component for a history label. Set `data-notification-persist="false"` to keep its Problem Details and HTMX toast messages in memory only.
 
+HTMX failure notifications are limited to requests triggered by trusted user events. Polling and load-triggered failures stay out of notification history. For a programmatically started request that belongs to a user action, set `data-notification-user-action="true"` on its element or containing component. Set it to `false` to suppress failure feedback even for trusted events. Connection failures and timeouts use a client error reference. Backend Problem Details retain their `requestId`. Both references can be searched and copied from notification details.
+
+HTMX HTTP failures and server-sent toast headers use the existing Problem Details and notification paths. They do not submit another client-error report. HTMX connection failures and timeouts remain client-side failures and may submit a report under the [browser reporting limits](#browser-error-reporting).
+
 Fetch callers can use `DRN.Problem.fromResponse(response)` followed by `DRN.Problem.show(problem, context)`. Parsing leaves the original response body available. Context accepts `{ element, target, operation, persist, focus }`. Only `application/problem+json` is parsed, and the HTTP status takes precedence. Malformed, non-problem, or oversized responses use generic text. Limits are 65,536 response characters, 500 characters per display message, and 100 validation messages. Public messages render as text. See the [browser API declarations](buildwww/types/DrnProblem.d.ts) for all methods.
+
+The Fetch reader consumes a clone incrementally and stops when the character limit or a 262,144-byte guard is exceeded, without trusting `Content-Length`. Cancelling the clone does not wait for the caller to consume the original. XHR parsing applies the character limit to its already-buffered response text.
 
 For an application-owned HTML validation fragment, return status `422`, `Content-Type: text/html`, and `X-DRN-Validation: true`. Only that combination permits a validation error swap. Other HTML errors and Problem Details JSON leave the target intact.
 
+## Browser error reporting
+
+For caught browser errors that prevent a user action, call the explicit action reporter:
+
+```javascript
+try {
+    await saveProfile();
+} catch (error) {
+    DRN.ErrorHandler.reportActionError(error, {
+        operation: 'Save profile',
+        message: 'Could not save your profile. Check the current state before trying again.'
+    });
+}
+```
+
+The reporter creates one notification and a brief toast. Its `clientErrorId` is shared with any backend report and retained in the backend scoped log. This is a correlation reference, not a distributed trace ID. Provide only safe public text in `message` and `operation`; exception messages and stacks are never copied into the notification. `persist: false` keeps the notification in memory. Use `DRN.Problem.show` for backend Problem Details rather than reporting the same failure again as a browser error.
+
+Action reporting returns `null` when notification services are unavailable or feedback fails, so a reporting error does not replace the original failure. Serialized reports are capped at 3,600 UTF-8 bytes, including JSON escaping and the client error reference. Diagnostics are truncated as needed before either transport sends them.
+
+Unhandled global errors and promise rejections show a generic error toast and one notification history entry when notifications are available and active. The toast uses `record: false` to avoid duplicate history. They use a `clientErrorId` shared with any backend report. Exception messages, stacks, and source URLs stay out of the notification and toast. The browser's default error reporting is preserved. Console calls are not forwarded.
+
+Startup feedback captured before notification initialization is retained when the first valid account context is configured. It keeps its original timestamp and client error reference and merges with saved history. An invalid initial owner or prior suspension discards this feedback. Later account changes never carry it into another account.
+
+Reports remain best effort, with a shared browser limit of five reports per minute. Global reports, toasts, and history entries also use ten-second duplicate suppression; throttled global failures create none. Separate explicit action failures keep separate references and local feedback even when reporting is throttled.
+
+The browser sends diagnostics only when the rendered notification context identifies a signed-in account and the store is not suspended. Reports before that context is available are skipped. A reference may have no backend report when offline, unauthenticated, or throttled. Reporting failures do not prevent local feedback. Suspended accounts receive no new history entries.
+
+The endpoint independently requires authentication. `ClientErrorRateLimitRule` composes with [DRN's rate limiting](../DRN.Framework.Hosting/README.md#rate-limiting) to apply a per-user sliding-window limit of five requests per minute per application instance, with no queue and HTTP 429 on rejection. Keep framework rate limiting enabled for this server limit to apply.
+
 ## Notification history
 
-The Notifications action opens a searchable history panel with All, Errors, Warnings, and Info filters. Info includes success messages. Matching failures within 60 seconds are grouped with individual request references. Use Load more to see additional history. Dismiss entries, groups, filtered results, or all history. Clear all offers Undo for 10 seconds. Closing a toast or the panel leaves history intact. Notifications are also available on login and pending-MFA pages.
+The Notifications action opens a searchable history panel with All, Errors, Warnings, and Info filters. Info includes success messages. Matching failures are grouped across retained history regardless of time gaps, with individual timestamps and request references preserved. Different operations, targets, severities, statuses, problem types, or message content remain separate. Use Load more to see additional history. Dismiss entries, groups, filtered results, or all history. Clear all offers Undo for 10 seconds. Closing a toast or the panel leaves history intact. Notifications are also available on login and pending-MFA pages.
 
-The default `SidebarActionCollection` includes Notifications. Custom collections can omit or reorder it. Its badge counts retained notifications and updates in the browser. The action hides when history is empty and the panel is closed.
+The default `SidebarActionCollection` includes Notifications. Custom collections can omit or reorder it. The bell remains visible even when history is empty. Its badge counts unseen notifications and hides at zero. Opening the panel marks existing history as seen without dismissing it. Notifications arriving afterward remain unseen until the panel is opened again. Seen state survives reloads and Undo; repeated source identities do not become unseen again. Older cached records without seen state start unseen.
+
+The badge updates immediately while the closed panel defers filtering, grouping, and list rendering until it opens. History reads avoid repeated sorting and entry serialization until records change or expire.
 
 Success alerts also appear once in history without an extra toast. Closing an inline alert leaves history intact.
 
-Toast display time and history retention are independent. `duration` controls only the toast, defaults to 5 seconds, and is clamped to 1 through 30 seconds. Timeout, the close button, eviction from the three visible toast slots, and HTMX cleanup leave history intact. History dismissal does not close a visible toast. Use `record: false` for transient feedback and `persist: false` for history that lasts only in memory.
+Actionbar items needing attention use Bootstrap `text-bg-warning` across the button. Opening an item's panel removes its warning highlight and restores the original button colors. Other action counts remain unchanged; opening Notifications also marks its history seen and clears the unseen badge. Count badges use Bootstrap `text-bg-danger`. Error severity remains visible inside history. Request references include a short instruction to share them with support so the request can be located.
+
+Actionbar attendance is saved in `localStorage` per application and account. New tabs, reloads, and HTMX navigation keep an unchanged count acknowledged. Buttons render in their normal color until saved attendance is read, preventing an incorrect warning flash on acknowledged items. Already-open tabs receive attendance updates through storage events. A changed count restores attention. For capped counts such as `9+`, set `data-actionbar-attention-version` on the button to a stable activity revision that changes when new activity arrives. Without a revision, equal counts cannot distinguish new activity. If storage is blocked, attendance lasts only for the current page.
+
+Acknowledgments of different action panels in overlapping tabs are retained independently. Existing saved attendance remains available after upgrading.
+
+Toasts appear at the upper-right of the main content column, below the header and inside the sidebars. The `data-toast-host` wrapper anchors them outside the scrolling content. Bootstrap limits their width to the available space and opaque, theme-aware backgrounds keep text readable. Pages without a host use a bottom-center viewport fallback.
+
+Toasts stay below offcanvas panels and modal backdrops, keeping Notifications and dialog controls unobstructed.
+
+Toast display time and history retention are independent. At most three toasts are visible at once. A shared per-page budget admits at most five new toasts in any ten seconds; excess presentation is dropped without queuing or discarding retained history. `duration` controls only the toast, defaults to 5 seconds, and is clamped to 1 through 30 seconds. Timeout, the close button, eviction from the three visible toast slots, and HTMX cleanup leave history intact. History dismissal does not close a visible toast. Use `record: false` for transient feedback and `persist: false` for history that lasts only in memory.
 
 ### Choose the feedback channel
 
@@ -103,15 +164,20 @@ Use a toast when the user needs immediate feedback. Retain a notification when t
 | Copied text or a routine preference change | Toast only | `DRN.Toast.show({ ..., record: false })` |
 | Export completed or a background operation failed | Toast and history | `DRN.Toast.show({ ... })` |
 | Background update that does not need immediate attention | History only | `DRN.Notifications.publish({ ... })` |
-| Server-reported validation or an actionable request failure | Inline feedback and history | `DRN.Problem.show(problem, context)` or the automatic HTMX error flow |
+| Server-reported validation | Inline feedback and history | `DRN.Problem.show(problem, context)` or the automatic HTMX error flow |
+| Request failure without validation errors | Brief toast and history with an unseen badge | `DRN.Problem.show(problem, context)` or the automatic HTMX error flow |
 
-Prefer inline feedback when it shows where the user needs to act. Do not add a toast that repeats an inline result. The Problem flow records history once and uses a toast only when no inline region is available. Routine client-side field validation does not need a history entry.
+Prefer inline feedback for validation that shows where the user needs to act. Do not add a toast that repeats an inline result. The Problem flow records history once. Validation uses a toast only when no inline region is available; other request failures use a toast without adding a second history entry. Routine client-side field validation does not need a history entry.
 
-`persist: false` is a separate storage choice. It keeps a retained notification in memory rather than `sessionStorage`. It does not make the message toast-only and does not make sensitive content safe to display.
+`persist: false` is a separate storage choice. It keeps a retained notification in current-page memory rather than shared `localStorage`. It does not make the message toast-only and does not make sensitive content safe to display.
 
 ### Retention and privacy
 
-History is limited to 1,000 records, 1 MiB of serialized UTF-8 data, and 24 hours. Old entries are removed first. `sessionStorage` preserves history through current-tab reloads, with memory-only fallback when storage is unavailable. Account changes clear history, Undo state, and contextual errors. A page that detects an account change in another tab pauses HTMX requests and notifications until reloaded. History is temporary and unsuitable for auditing. Keep secrets, request bodies, query values, and private diagnostics out of messages.
+History is limited to 1,000 records, 1 MiB of serialized UTF-8 data, and 24 hours. Old entries are removed first. `localStorage` shares saved history, seen state, and dismissals across tabs of the same origin and application. Web Locks serialize shared writes, merging each operation into the latest saved history so concurrent publications and dismissals cannot overwrite each other. Local feedback updates synchronously; persistence finishes asynchronously and may be lost if the page closes before its queued write runs. Browsers without Web Locks use tab-local `sessionStorage`. Storage or lock failures keep current-page feedback in memory. Receiving another tab's update does not replay its toast. Tab-only caches are not migrated into shared storage. Account changes clear history, Undo state, and contextual errors. A page that detects an account change in another tab pauses HTMX requests and notifications until reloaded. History is temporary and unsuitable for auditing. Keep secrets, request bodies, query values, and private diagnostics out of messages.
+
+Synchronous bursts share one queued Web Lock operation and storage write. Their deltas still apply in order, including dismissal followed by Undo. Unchanged history does not trigger another storage write. Web Storage access remains synchronous inside the lock.
+
+Authenticated users require a stable account ID. If it is missing or whitespace, the shell emits an empty notification owner, clears history, and suspends notifications and HTMX requests until a fresh account context is supplied. Request trace IDs are never used as account identities. Unauthenticated users retain the anonymous owner.
 
 ### Publish notifications
 

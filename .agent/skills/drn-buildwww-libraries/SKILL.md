@@ -126,9 +126,17 @@ buildwww/app/js/drn/
 
 ### Problem Details Consumer
 
-Use `DRN.Problem.fromResponse(response)` and `show(problem, context)` for Fetch errors. Context accepts `element`, `target`, `operation`, `persist`, and `focus`. HTMX errors are presented automatically in the originating form, a `data-problem-region`, or the page summary. Preserve input and clear only the matching operation's errors. Resolve the complete browser API, parsing limits, and examples from the profile-declared application guide and declarations.
+Use `DRN.Problem.fromResponse(response)` and `show(problem, context)` for Fetch errors. Context accepts `element`, `target`, `operation`, `persist`, and `focus`. HTMX validation errors appear in the originating form, a `data-problem-region`, or the page summary. Failures without validation errors use a brief toast and one history entry, with friendly text for generic HTTP titles. Preserve input and clear only the matching operation's errors. Resolve the complete browser API, parsing limits, and examples from the profile-declared application guide and declarations.
+
+Use `DRN.ErrorHandler.reportActionError(error, { operation, message, persist })` only for caught browser failures affecting a user action. Keep public messages safe. Its clientErrorId is shared by the notification and any backend report; backend Problem Details retain requestId. Preserve copy/search support for both references and never reinterpret them as trace IDs.
+
+Global failures publish one generic history entry and a toast with `record: false` when notifications are active. Apply shared rate limiting and duplicate suppression before publishing them. Bound toast presentation without queuing excess feedback or deleting history. Send diagnostics only for a rendered authenticated owner with a non-suspended store. Enforce authentication and per-user quotas at the endpoint through the hosting framework's rule extension point. Bound serialized UTF-8 payloads and contain reporting failures. Resolve exact limits from the profile-declared application guide.
+
+HTMX HTTP failures and server toast headers must not generate client-error reports; transport failures remain client errors. HTMX failure feedback requires a trusted triggering event or explicit `data-notification-user-action="true"`; false suppresses feedback. Keep private diagnostics out of notifications.
 
 Only `application/problem+json` is parsed, with the HTTP status taking precedence. Display public messages as text and retain a generic fallback for unusable responses. Do not retry mutations automatically or swap JSON as HTML. An HTML validation swap requires status 422, `text/html`, and `X-DRN-Validation: true`. Hosting's `HandleHtmxRequests` option controls error formatting without changing authentication behavior.
+
+Fetch parsing must bound incremental clone reads before buffering the whole body. Preserve streaming UTF-8 decoding and the original response, and do not await clone cancellation while the original may remain unread. Resolve byte and character limits from the application guide.
 
 Validation keys match complete posted names, including casing, prefixes, and collection indices. An empty key is form-level feedback. Keep Razor response selection explicit and preserve existing API validation keys. See [Hosting error guidance](../drn-hosting/SKILL.md#error-responses) for server-side conventions.
 
@@ -141,11 +149,30 @@ Choose immediate presentation and retention independently:
 - Routine acknowledgments, such as copying text: toast only with `record: false`.
 - Results worth revisiting, such as export completion or background failure: toast and history.
 - Updates that need no immediate attention: history only with `DRN.Notifications.publish`.
-- Server-reported validation and actionable request failures: contextual feedback through `DRN.Problem` and one history entry. Preserve its toast fallback when no inline region exists.
+- Server-reported validation: contextual feedback through `DRN.Problem` and one history entry, with a toast fallback when no inline region exists.
+- Request failures without validation errors: a brief toast and one history entry through `DRN.Problem`, without a page banner.
 
 Do not repeat inline feedback with an additional toast or record routine client-side field validation in history. Omit feedback when neither immediate attention nor later review is useful. `persist: false` controls storage only, not toast visibility or whether history is recorded. Keep the decision guide in the profile-declared application documentation aligned with these rules.
 
 Keep history bounded and isolated by application and account. Publish only safe public text. Account changes clear history and contextual errors. Stale pages pause until reloaded. Closing feedback and dismissing history are separate actions. Resolve retention limits, panel behavior, and API options from the profile-declared application guide and browser declarations.
+
+Keep the notification bell visible. Its badge counts unseen entries and hides at zero. Opening the panel marks existing history seen; later arrivals remain unseen until it is opened again. Persist seen state, preserve it through Undo, and keep deduplicated source identities seen. New publications always start unseen.
+
+Update badges immediately while deferring closed-panel filtering and list rendering until opening. Forced account-context refreshes must still clear prior-account DOM and Undo state. Cache entry sizing only for immutable internal records and invalidate history pruning at the next expiry. Batch synchronous persistence deltas in their original order without merging across queued browser tasks or weakening the ownership check inside the lock.
+
+Use Bootstrap `text-bg-warning` on action buttons needing attention and `text-bg-danger` for count badges. Render the normal button color initially and apply warning only after reading saved attendance, so acknowledged items do not flash yellow on navigation. On `shown.bs.offcanvas`, remove only the opened item's warning class, preserving its other classes and counts. Notifications additionally mark existing history seen and hide the zero unseen badge. Keep severity colors inside history. When displaying a request reference, briefly explain that users can share it with support to locate the request.
+
+Persist notification history and other actionbar attendance in local storage so new and existing tabs share the latest state. Scope attendance by application/account and validate the notification history owner. Refresh on storage events without replaying toasts. Serialize notification read/modify/write operations under an application-scoped Web Lock. Merge operation deltas against the latest saved history inside the lock, recheck ownership there, and never let a suspended account overwrite another account's history. Keep the public notification API synchronous while persistence queues asynchronously. Protect pending local changes from storage-event refreshes. Without Web Locks, use tab-local session storage. Storage or lock failures retain current-page feedback in memory. Keep `persist: false` notifications local to the page. Compare the acknowledged activity version, falling back to `data-actionbar-count` text. Capped or unchanged counts need an explicit `data-actionbar-attention-version` on the button to distinguish new activity. Blocked storage falls back to current-page memory.
+
+Persist actionbar attendance under independent panel keys within the application/account scope. Read legacy map entries as fallback, but never replace that shared map when acknowledging a panel. Preserve failed writes in current-page memory. Notification removal deltas must match nonempty source identities as well as IDs, because concurrent source deduplication can retain another tab's ID.
+
+Authenticated notification owners require a stable account ID. Never substitute a request trace ID or the anonymous owner. An empty owner clears history and suspends notifications and HTMX requests until a fresh account context is supplied. Preserve anonymous history for unauthenticated users.
+
+Retain bounded startup feedback through the first valid notification configuration, merging it with saved history as new persistence deltas. Preserve timestamps and client error references. Discard it for an invalid initial owner or prior suspension, and never carry it across later account changes.
+
+Anchor toasts in the positioned `data-toast-host` content wrapper, outside its scrolling content, to avoid covering the header or actionbar. Use opaque Bootstrap `bg-body` surfaces and constrain the stack to the host's width and height. Pages without a host use bottom-center viewport placement.
+
+Keep toast containers below Bootstrap offcanvas and modal backdrops so feedback cannot obscure panel controls. Apply the same stacking order to content-host and viewport placement.
 
 Toast `duration` controls presentation only. Timeout, manual close, visible-toast eviction, and HTMX cleanup must preserve retained history. Explicit history dismissal must not be undone by subsequent toast cleanup. Cover these boundaries with the browser fixture and real Bootstrap lifecycle.
 
