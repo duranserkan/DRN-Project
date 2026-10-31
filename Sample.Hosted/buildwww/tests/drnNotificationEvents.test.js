@@ -42,7 +42,7 @@ function fixture(t, { start = true, statuses = [] } = {}) {
         close() { channels.delete(this); }
     }
     let sequence = 0;
-    const store = createNotificationStore({ storage: () => null, now: () => 100_000_000,
+    const store = createNotificationStore({ locks: null, storage: () => null, now: () => 100_000_000,
         newId: () => `event-${++sequence}` });
     const DRN = {
         Notifications: store,
@@ -294,6 +294,7 @@ test('status import survives stored history and does not resurrect dismissed mes
     const cache = new Map();
     let sequence = 0;
     const options = {
+        locks: null,
         storage: () => ({ getItem: key => cache.get(key), setItem: (key, value) => cache.set(key, value),
             removeItem: key => cache.delete(key) }),
         now: () => 100_000_000, newId: () => `status-${++sequence}`
@@ -330,6 +331,7 @@ test('status import survives stored history and does not resurrect dismissed mes
 test('status import respects privacy, valid markup and suspended account state', () => {
     let saved = '';
     const store = createNotificationStore({
+        locks: null,
         storage: () => ({ getItem: () => null, setItem: (_key, value) => { saved = value; }, removeItem() {} }),
         now: () => 100_000_000, newId: () => 'private-status'
     });
