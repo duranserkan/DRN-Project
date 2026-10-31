@@ -78,18 +78,18 @@ public class EqualityComparisonBenchmark
 
     // --- MethodCacheKey Pre-allocated Instances ---
 
-    private static readonly MethodCacheKey KeyNonGeneric1 = new(typeof(EqualityComparisonBenchmark), nameof(SampleMethod), 1, BindingFlags.Public | BindingFlags.Static);
-    private static readonly MethodCacheKey KeyNonGeneric2 = new(typeof(EqualityComparisonBenchmark), nameof(SampleMethod), 1, BindingFlags.Public | BindingFlags.Static);
-    private static readonly MethodCacheKey KeyNonGenericDiffName = new(typeof(EqualityComparisonBenchmark), nameof(SampleMethod2), 1, BindingFlags.Public | BindingFlags.Static);
-    private static readonly MethodCacheKey KeyNonGenericDiffParams = new(typeof(EqualityComparisonBenchmark), nameof(SampleMethod), 2, BindingFlags.Public | BindingFlags.Static);
+    private static readonly MethodCacheKey KeyNonGeneric1 = new(typeof(EqualityComparisonBenchmark), nameof(SampleMethod), 1, BindingFlag.StaticPublic);
+    private static readonly MethodCacheKey KeyNonGeneric2 = new(typeof(EqualityComparisonBenchmark), nameof(SampleMethod), 1, BindingFlag.StaticPublic);
+    private static readonly MethodCacheKey KeyNonGenericDiffName = new(typeof(EqualityComparisonBenchmark), nameof(SampleMethod2), 1, BindingFlag.StaticPublic);
+    private static readonly MethodCacheKey KeyNonGenericDiffParams = new(typeof(EqualityComparisonBenchmark), nameof(SampleMethod), 2, BindingFlag.StaticPublic);
 
     private static readonly Type[] TypeArgsShared = [typeof(string), typeof(int), typeof(double), typeof(object)];
     private static readonly Type[] TypeArgsIdenticalArray = [typeof(string), typeof(int), typeof(double), typeof(object)];
     private static readonly Type[] TypeArgsDiffArray = [typeof(string), typeof(int), typeof(double), typeof(long)];
 
-    private static readonly MethodCacheKey KeyGeneric1 = new(typeof(EqualityComparisonBenchmark), nameof(SampleGenericMethod), 1, BindingFlags.Public | BindingFlags.Static, new EquatableSequence<Type>(TypeArgsShared));
-    private static readonly MethodCacheKey KeyGeneric2 = new(typeof(EqualityComparisonBenchmark), nameof(SampleGenericMethod), 1, BindingFlags.Public | BindingFlags.Static, new EquatableSequence<Type>(TypeArgsIdenticalArray));
-    private static readonly MethodCacheKey KeyGenericDiffTypeArgs = new(typeof(EqualityComparisonBenchmark), nameof(SampleGenericMethod), 1, BindingFlags.Public | BindingFlags.Static, new EquatableSequence<Type>(TypeArgsDiffArray));
+    private static readonly MethodCacheKey KeyGeneric1 = new(typeof(EqualityComparisonBenchmark), nameof(SampleGenericMethod), 1, BindingFlag.StaticPublic, new EquatableSequence<Type>(TypeArgsShared));
+    private static readonly MethodCacheKey KeyGeneric2 = new(typeof(EqualityComparisonBenchmark), nameof(SampleGenericMethod), 1, BindingFlag.StaticPublic, new EquatableSequence<Type>(TypeArgsIdenticalArray));
+    private static readonly MethodCacheKey KeyGenericDiffTypeArgs = new(typeof(EqualityComparisonBenchmark), nameof(SampleGenericMethod), 1, BindingFlag.StaticPublic, new EquatableSequence<Type>(TypeArgsDiffArray));
 
     // --- Sequence Pre-allocated Instances ---
 

@@ -1,6 +1,7 @@
 using DRN.Framework.SharedKernel.CodeFixes;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
 namespace DRN.Test.Analyzer.Tests;
@@ -64,8 +65,12 @@ public sealed class ClassificationCodeFixTests
                 .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
                 .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References);
             var document = project.AddDocument(name, source.Replace("[Sensitive(", "[DRN.Framework.SharedKernel.Attributes.Sensitive("));
-            var diagnostic = (await DiagnosticClassificationAnalyzerTests.Analyze(
-                (CSharpCompilation)(await document.Project.GetCompilationAsync())!)).Single();
+            (await DiagnosticClassificationAnalyzerTests.Analyze(
+                (CSharpCompilation)(await document.Project.GetCompilationAsync())!)).Should().BeEmpty();
+            var attribute = (await document.GetSyntaxRootAsync())!.DescendantNodes()
+                .OfType<AttributeSyntax>()
+                .First(item => item.Name.ToString().Contains("Sensitive"));
+            var diagnostic = Diagnostic.Create(DiagnosticClassificationAnalyzer.InvalidExemption, attribute.GetLocation(), "Invalid exemption");
             var actions = new List<CodeAction>();
             await new InvalidExemptionCodeFixProvider().RegisterCodeFixesAsync(new CodeFixContext(document, diagnostic,
                 (action, _) => actions.Add(action), CancellationToken.None));
@@ -201,8 +206,12 @@ public sealed class ClassificationCodeFixTests
             .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References);
         var document = project.AddDocument("Model.g.cs", "public class Model { public string Password { get; set; } }");
         var diagnostics = await DiagnosticClassificationAnalyzerTests.Analyze((CSharpCompilation)(await document.Project.GetCompilationAsync())!);
+        diagnostics.Should().BeEmpty();
+        var property = (await document.GetSyntaxRootAsync())!.DescendantNodes()
+            .OfType<PropertyDeclarationSyntax>().Single();
+        var diagnostic = Diagnostic.Create(DiagnosticClassificationAnalyzer.MissingClassification, property.Identifier.GetLocation(), "Password");
         var actions = new List<CodeAction>();
-        await new ClassificationCodeFixProvider().RegisterCodeFixesAsync(new CodeFixContext(document, diagnostics.Single(),
+        await new ClassificationCodeFixProvider().RegisterCodeFixesAsync(new CodeFixContext(document, diagnostic,
             (action, _) => actions.Add(action), CancellationToken.None));
         actions.Should().BeEmpty();
     }

@@ -106,6 +106,10 @@ For an application-owned HTML validation fragment, return status `422`, `Content
 
 ## Browser error reporting
 
+Browser and server URL sanitization use `redacted` for protected path segments, query values, and named fragment values. Bare fragments such as `#installation` are preserved. Ordinary diagnostic fields retain `[redacted]`.
+
+Browser diagnostic arrays retain at most the first 256 positions and append a limit marker when truncated. Sparse holes become null and getters are not invoked.
+
 For caught browser errors that prevent a user action, call the explicit action reporter:
 
 ```javascript
@@ -121,7 +125,11 @@ try {
 
 The reporter creates one notification and a brief toast. Its `clientErrorId` is shared with any backend report and retained in the backend scoped log. This is a correlation reference, not a distributed trace ID. Provide only safe public text in `message` and `operation`; exception messages and stacks are never copied into the notification. `persist: false` keeps the notification in memory. Use `DRN.Problem.show` for backend Problem Details rather than reporting the same failure again as a browser error.
 
-Action reporting returns `null` when notification services are unavailable or feedback fails, so a reporting error does not replace the original failure. Serialized reports are capped at 3,600 UTF-8 bytes, including JSON escaping and the client error reference. Diagnostics are truncated as needed before either transport sends them.
+The server captures the typed `ClientErrorPayload` using property names and annotations, without a root-prefix exemption. Correlation metadata and unmatched text fields are retained within capture budgets. Sensitive properties remain redacted, URL fields retain structural protection, and configured server rules still check complete paths such as `ClientError.Message`. Browser data remains untyped and carries no server exemption authority.
+
+Action reporting returns `null` when notification services are unavailable or feedback fails, so a reporting error does not replace the original failure. Serialized reports are capped at 3,600 UTF-8 bytes, including JSON escaping, loss flags, and the client error reference. Diagnostics are sanitized before clipping. `diagnosticRedacted` and `diagnosticLimited` describe browser capture; the server independently enforces its policy.
+
+`DRN.Diagnostics` imports the server's shared rule catalog. Use `DRN.Diagnostics.configure({ sensitiveFieldPaths: ['Checkout.Value'] })` to extend browser field rules. Configure matching server rules under `DiagnosticLogging`; browser configuration cannot weaken them. For typed server data, use `[Sensitive]` or `[Personal]`. Free-text contents, including exception messages and stacks sent in browser reports, are preserved within capture limits. Only explicit URL structure and field names drive browser redaction. There is no credential detection or known-value registration; remove former `registerSensitiveValue` calls and classify sensitive fields or omit sensitive text before capture. See the [diagnostic policy and linked-record contract](../DRN.Framework.Utils/Logging/Diagnostics/README.md). Source changes require the normal frontend bundle build before deployment.
 
 Unhandled global errors and promise rejections show a generic error toast and one notification history entry when notifications are available and active. The toast uses `record: false` to avoid duplicate history. They use a `clientErrorId` shared with any backend report. Exception messages, stacks, and source URLs stay out of the notification and toast. The browser's default error reporting is preserved. Console calls are not forwarded.
 

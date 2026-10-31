@@ -1,7 +1,7 @@
 ---
 name: drn-sharedkernel
 description: "DRN.Framework.SharedKernel - Foundational domain primitives, exception hierarchy, repository contracts and cancellation semantics, pagination, JSON conventions, app constants, and shared extensions. Keywords: entity, aggregate-root, domain-event, repository, repository-cancellation, cancellation, pagination, exception, json, domain-modeling, source-known-id, entity-type, appconstants, path-extensions"
-last-updated: 2026-10-29
+last-updated: 2026-11-01
 difficulty: intermediate
 tokens: ~2.5K
 ---
@@ -311,9 +311,18 @@ using DRN.Framework.SharedKernel.Extensions;
 
 ## Attributes
 
+DRN0017 accepts the exact compile-time string `[redacted]` as a capture value without an exemption policy. Runtime strings and values containing additional text remain checked.
+
+DRN0019 exempts direct EF migration column-definition and constraint-selector anonymous objects containing column-operation metadata. Recognition uses resolved EF APIs, not file paths. Ordinary data objects and logging in migrations remain checked.
+
+DRN0017/DRN0020 skip instance calls directly chained from resolved NSubstitute Received/DidNotReceive verification methods and their WithAnyArgs variants. Ordinary substitute calls and declaration diagnostics remain checked. Verification aliases and wrappers are not inferred.
+
 | Attribute | Purpose |
 |-----------|---------|
 | `[IgnoreLog]` | Exclude properties from scoped logging |
+| `[Sensitive]`, `[Personal]` | Extensible Microsoft classification families that redact without invoking getters. Derived attributes satisfy analysis. Direct property `[Sensitive(false)]` exempts built-in name rules only, never positive classification or explicit URL protection. |
+| `DRN0015` through `DRN0019` | Default build errors for missing property classification, invalid false annotations, matched scalar/untyped paths or external property names, unverifiable custom Microsoft classification, and matching anonymous properties. Anonymous matches require annotated named models, including nested and inferred members. Named models use property names without built-in logging-prefix matches. Apply across SharedKernel consumers, including test models and ignored properties. Generated sources are analyzed without reporting diagnostics. Personal/Sensitive fixes support selected Fix All. False-positive fixes and DRN0016 `Use Sensitive(true)` require individual selection. Generated declarations receive no source edits. No automatic anonymous-to-record fix. |
+| `DRN0020` | Matching constant dictionary keys at capture require AddDictionary/SanitizeDictionary. Checks initializers and direct local writes, including nested dictionaries. Dynamic/aliased data retains runtime protection. No automatic code fix. |
 | `[SecureKey]` | Validate string meets secure key requirements |
 | `[EntityType<TApp>(byte)]` | Unique entity type ID bound to application partition `TApp : IAppId` |
 | `[TestEntityType(byte)]` | Convenience entity type attribute bound directly to `TestApp` (`AppId = 127`) |

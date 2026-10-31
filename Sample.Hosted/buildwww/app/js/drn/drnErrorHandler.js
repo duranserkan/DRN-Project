@@ -11,6 +11,7 @@
  */
 
 import drnApp from './drnApp.js';
+import drnDiagnostics from './drnDiagnostics.js';
 
 const MAX_ERRORS_PER_WINDOW = 5;
 const RATE_WINDOW_MS = 60000;
@@ -26,6 +27,7 @@ function serializeReport(payload) {
     // Preserve the correlation ID and trim less useful diagnostics first.
     for (const field of ['stack', 'userAgent', 'url', 'source', 'message']) {
         if (encoder.encode(json).byteLength <= MAX_REPORT_BYTES) return json;
+        report.diagnosticLimited = true;
         const characters = Array.from(report[field]);
         let low = field === 'message' ? 1 : 0;
         let high = characters.length;
@@ -160,17 +162,29 @@ function reportActionErrorCore(error, context) {
  * @returns {Object}
  */
 function buildPayload(message, source, line, column, stack) {
-    return {
+    const capture = drnDiagnostics.createCapture();
+    let clipped = false;
+    function field(value, maximum, isUrl = false) {
+        const safe = isUrl ? capture.url(value || '') : capture.text(typeof value === 'string' ? value : '');
+        if (safe.length <= maximum) return safe;
+        clipped = true;
+        const end = /[\uD800-\uDBFF]/.test(safe[maximum - 1]) ? maximum - 1 : maximum;
+        return safe.slice(0, end);
+    }
+    const payload = {
         clientErrorId: createClientErrorId(),
-        message: String(message || '').substring(0, 500),
-        source: String(source || '').substring(0, 200),
+        message: field(message, 500),
+        source: field(source, 200),
         line: line || 0,
         column: column || 0,
-        stack: String(stack || '').substring(0, 2000),
-        url: window.location.href.substring(0, 500),
-        userAgent: navigator.userAgent.substring(0, 300),
+        stack: field(stack, 2000),
+        url: field(window.location.href, 500, true),
+        userAgent: field(navigator.userAgent, 300),
         timestamp: new Date().toISOString()
     };
+    payload.diagnosticRedacted = capture.status.redacted;
+    payload.diagnosticLimited = clipped || capture.status.limited;
+    return payload;
 }
 
 function reportUnhandledError(event, isRejection) {
@@ -184,10 +198,9 @@ function reportUnhandledError(event, isRejection) {
         const source = isRejection ? 'unhandledrejection' : event.filename || '';
         const line = isRejection ? 0 : event.lineno || 0;
         const column = isRejection ? 0 : event.colno || 0;
-        const key = isRejection ? 'promise|' + message : message + '|' + source + '|' + line;
-        if (!tryReserveReportSlot(key)) return;
-
         const payload = buildPayload(message, source, line, column, reason?.stack || '');
+        const key = (isRejection ? 'promise|' : '') + payload.message + '|' + payload.source + '|' + line;
+        if (!tryReserveReportSlot(key)) return;
         sendReport(payload);
 
         const notifications = window.DRN?.Notifications;

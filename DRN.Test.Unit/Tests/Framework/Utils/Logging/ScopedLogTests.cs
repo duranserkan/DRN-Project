@@ -14,6 +14,97 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Logging;
 public class ScopedLogTests
 {
     [Theory]
+    [DataInlineUnit("none")]
+    [DataInlineUnit("field")]
+    [DataInlineUnit("path")]
+    public void Metric_Identifiers_Should_Exempt_Built_In_Rules_But_Respect_Configured_Rules(string rule)
+    {
+        using var settings = SettingsProvider.Development();
+        var log = new ScopedLog(settings, new DiagnosticSanitizer(new DiagnosticLogOptions
+        {
+            SensitiveFields = rule == "field" ? ["ClientWork"] : [],
+            SensitiveFieldPaths = rule == "path" ? ["Stats_ClientWork"] : [],
+            MaxProcessingMilliseconds = 100
+        }));
+        var allowed = rule == "none";
+        log.Increase("ClientWork").Should().Be(allowed ? 1 : 0);
+        log.IncreaseTimeSpentOn("ClientWork", TimeSpan.FromSeconds(2))
+            .Should().Be(allowed ? TimeSpan.FromSeconds(2) : TimeSpan.Zero);
+        using (log.Measure("ClientWork")) { }
+        var snapshot = log.GetLogs();
+        snapshot.ContainsKey("Stats_ClientWork").Should().Be(allowed);
+        snapshot.ContainsKey(ScopedLogConventions.TimeSpentOnKey("ClientWork")).Should().Be(allowed);
+        if (allowed)
+            snapshot[ScopedLogConventions.TimeSpentOnCounter("ClientWork")].Should().Be(2L);
+    }
+
+    [Fact]
+    public void Metrics_Should_Keep_Foreign_Sanitizer_Sensitivity_Checks()
+    {
+        using var settings = SettingsProvider.Development();
+        var sanitizer = Substitute.For<IDiagnosticSanitizer>();
+        sanitizer.Options.Returns(new DiagnosticLogOptions());
+        sanitizer.SanitizeKey(Arg.Any<string>()).Returns(call => call.Arg<string>());
+        sanitizer.IsSensitive("Stats_ClientWork").Returns(true);
+        var log = new ScopedLog(settings, sanitizer);
+        log.Increase("ClientWork").Should().Be(0);
+        log.IncreaseTimeSpentOn("ClientWork", TimeSpan.FromSeconds(2)).Should().Be(TimeSpan.Zero);
+        using (log.Measure("ClientWork")) { }
+        sanitizer.Received(2).IsSensitive("Stats_ClientWork");
+    }
+
+    [Theory]
+    [DataInlineUnit("none")]
+    [DataInlineUnit("field")]
+    [DataInlineUnit("path")]
+    public void Metric_Copies_Should_Preserve_Exemptions_And_Respect_Destination_Rules(string rule)
+    {
+        using var settings = SettingsProvider.Development();
+        var options = new DiagnosticLogOptions { MaxProcessingMilliseconds = 100 };
+        var source = new ScopedLog(settings, new DiagnosticSanitizer(options));
+        source.Increase("ClientWork", 4);
+        source.Increase("ClientWork", 0);
+        source.IncreaseTimeSpentOn("ClientWork", TimeSpan.FromSeconds(2));
+        source.IncreaseTimeSpentOn("ClientWork", TimeSpan.Zero);
+        var first = new ScopedLog(settings, new DiagnosticSanitizer(options));
+        first.CopyFrom(source);
+        first.Increase("ClientWork").Should().Be(5);
+        first.IncreaseTimeSpentOn("ClientWork", TimeSpan.FromSeconds(1)).Should().Be(TimeSpan.FromSeconds(3));
+
+        var destination = new ScopedLog(settings, new DiagnosticSanitizer(options with
+        {
+            SensitiveFields = rule == "field" ? ["ClientWork"] : [],
+            SensitiveFieldPaths = rule == "path" ? ["Stats_ClientWork"] : []
+        }));
+        destination.CopyFrom(first);
+        var snapshot = destination.GetLogs();
+        var counterKey = ScopedLogConventions.TimeSpentOnCounter("ClientWork");
+        var durationKey = ScopedLogConventions.TimeSpentOnKey("ClientWork");
+        if (rule == "none")
+        {
+            snapshot["Stats_ClientWork"].Should().Be(5L);
+            snapshot[counterKey].Should().Be(3L);
+            snapshot[durationKey].Should().Be(3d);
+            destination.Increase("ClientWork").Should().Be(6);
+            destination.IncreaseTimeSpentOn("ClientWork", TimeSpan.FromSeconds(1)).Should().Be(TimeSpan.FromSeconds(4));
+        }
+        else
+        {
+            snapshot["Stats_ClientWork"].Should().Be(DiagnosticSanitizer.Redacted);
+            snapshot[counterKey].Should().Be(DiagnosticSanitizer.Redacted);
+            snapshot[durationKey].Should().Be(DiagnosticSanitizer.Redacted);
+            destination.Increase("ClientWork").Should().Be(0);
+            destination.IncreaseTimeSpentOn("ClientWork", TimeSpan.FromSeconds(1)).Should().Be(TimeSpan.Zero);
+        }
+        source.GetLogs()["Stats_ClientWork"].Should().Be(4L);
+        source.GetLogs()[durationKey].Should().Be(2d);
+
+        first.Add("Stats_ClientWork", "replacement-probe");
+        destination.CopyFrom(first);
+        destination.GetLogs()["Stats_ClientWork"].Should().Be(DiagnosticSanitizer.Redacted);
+    }
+
+    [Theory]
     [DataInlineUnit("en-US")]
     [DataInlineUnit("tr-TR")]
     public void Snapshots_And_Copies_Should_Preserve_Ordinal_Keys_Regardless_Of_Culture(string cultureName)

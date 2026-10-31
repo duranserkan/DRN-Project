@@ -1,4 +1,5 @@
 using DRN.Framework.Hosting.Endpoints;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Hosting.Identity.Controllers;
 using Sample.Domain.Users;
 
@@ -13,11 +14,13 @@ public class SampleIdentityPasswordController : IdentityPasswordControllerBase<S
 [Route(UserApiFor.ControllerRouteTemplate)]
 public class SampleIdentityManagementController : IdentityManagementControllerBase<SampleUser>
 {
+    [Sensitive(false, Justification = "Email confirmation endpoint descriptor.")]
     public override ApiEndpoint EmailEndpoint => Get.Endpoint.User.Identity.RegisterController.ConfirmEmail;
 }
 
 [Route(UserApiFor.ControllerRouteTemplate)]
 public class SampleIdentityRegister : IdentityRegisterControllerBase<SampleUser>
 {
+    [Sensitive(false, Justification = "Email confirmation endpoint descriptor.")]
     public override ApiEndpoint EmailEndpoint => Get.Endpoint.User.Identity.RegisterController.ConfirmEmail;
 }

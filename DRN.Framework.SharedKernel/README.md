@@ -143,6 +143,16 @@ Entity and aggregate base constructors accept an optional internal `long id = 0`
 
 ### Compile-Time Roslyn Analyzers
 
+DRN0019 exempts EF migration column definitions and constraint selectors recognized through EF API symbols and column-operation metadata. Data objects and logging inside migrations remain checked. See [schema boundaries](../DRN.Framework.Utils/Logging/Diagnostics/README.md#boundaries-and-migration).
+
+`DRN0020` redirects captured dictionaries with statically known matching keys to `AddDictionary` or `SanitizeDictionary`. This includes nested dictionaries and direct local Add/indexer writes. Dynamic keys retain runtime protection. See [dictionary classifications](../DRN.Framework.Utils/Logging/Diagnostics/README.md#dictionary-classifications).
+
+DRN0015 through DRN0020 analyze generated sources without reporting diagnostics in generated code. Runtime classification remains active.
+
+DRN0017 accepts the exact compile-time string `[redacted]` as a capture value without an exemption policy. Runtime strings and values containing additional text remain checked.
+
+Diagnostic classification also applies to all public readable instance non-indexer model properties in directly and transitively dependent projects, even without logging calls. `DRN0015` requires classification or explicit `Sensitive(false)` for matching names. `DRN0016` rejects invalid opt-outs and offers `Use Sensitive(true)` as an individual code fix. `DRN0017` reports matched scalar/untyped capture paths and external property names, and `DRN0018` identifies unsupported custom Microsoft classification families. `DRN0019` requires matching anonymous properties, including nested and inferred members, to move to an annotated named class or record. Named model properties own classification without built-in logging-prefix matches. `[IgnoreLog]`, reason strings and capture policies do not suppress declaration requirements. Personal/Sensitive-derived company attributes are supported. See [classification, code fixes, migration and runtime boundaries](../DRN.Framework.Utils/Logging/Diagnostics/README.md#compile-time-classification).
+
 `DRN.Framework.SharedKernel` includes built-in Roslyn analyzers (`DRN.Framework.SharedKernel.Analyzers`) delivering compile-time domain validation transitively to referencing projects and NuGet consumers:
 
 | Diagnostic ID | Severity | Title | Description |
@@ -582,6 +592,10 @@ See [JsonConventions.cs](https://github.com/duranserkan/DRN-Project/blob/master/
 ---
 
 ## Attributes
+
+### `[Sensitive]` and `[Personal]`
+
+Opt a class, struct or property into diagnostic redaction. `[Sensitive]` uses `DataClassifications.Sensitive`; `[Personal]` uses `DataClassifications.Personal`. Both derive from Microsoft's `DataClassificationAttribute` under the `DRN.Classification` taxonomy and may themselves be inherited by company attributes. Fields may carry classification for other consumers but are omitted by object capture. Derived Sensitive attributes must remain positive. DRN emits `[redacted]` without evaluating classified getters. `[IgnoreLog]` takes precedence during capture, but never satisfies classification analysis. Direct `[Sensitive(false)]` exempts one property from built-in name rules, with optional `Justification`; positive classification and configured protection still win. Binding, business serialization, and storage are unchanged. See [classification examples and diagnostic policy](../DRN.Framework.Utils/Logging/Diagnostics/README.md).
 
 ### `[IgnoreLog]`
 

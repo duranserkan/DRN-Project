@@ -138,8 +138,8 @@ public class HttpScopeMiddleware(RequestDelegate next)
         .Add("Request_Host", sanitizer.SanitizeText(httpContext.Request.Host.ToString()))
         .Add("Request_Path", queryStart < 0 ? safeUrl : safeUrl[..queryStart])
         .AddIfNotNullOrEmpty("Request_QueryString", queryStart < 0 ? string.Empty : safeUrl[(queryStart + 1)..])
-        // No grant: the IP remains runtime-redacted, without reading the address for diagnostics.
-        .AddWithPolicy("Request_IpAddress", DiagnosticSanitizer.Redacted, new DiagnosticCapturePolicy())
+        // Do not read the address for diagnostics.
+        .Add("Request_IpAddress", DiagnosticSanitizer.Redacted)
         .AddIfNotNullOrEmpty("Request_l5d-client-id",
             sanitizer.SanitizeText(httpContext.Request.Headers.TryGetValue("l5d-client-id", out var l5dId)
                 ? l5dId.ToString()

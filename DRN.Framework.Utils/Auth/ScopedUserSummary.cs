@@ -4,6 +4,7 @@ namespace DRN.Framework.Utils.Auth;
 
 public class ScopedUserSummary : IScopedUserSummary
 {
+    [Sensitive]
     public IReadOnlyDictionary<string, ClaimGroupSummary> ClaimsByType { get; init; } = new Dictionary<string, ClaimGroupSummary>();
     [Sensitive(false, Justification = "Authentication outcome flag.")]
     public bool Authenticated { get; init; }
@@ -15,6 +16,7 @@ public class ScopedUserSummary : IScopedUserSummary
 
 public interface IScopedUserSummary
 {
+    [Sensitive]
     public IReadOnlyDictionary<string, ClaimGroupSummary> ClaimsByType { get; }
     [Sensitive(false, Justification = "Authentication outcome flag.")]
     bool Authenticated { get; }

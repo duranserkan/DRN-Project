@@ -17,6 +17,37 @@ public class DiagnosticSanitizerTests
     private static DiagnosticSanitizer Policy(DiagnosticLogOptions? options = null) => new(options ?? new DiagnosticLogOptions());
 
     [Fact]
+    public void Keys_Should_Not_Consume_Or_Depend_On_Input_Budget()
+    {
+        var options = new DiagnosticLogOptions { MaxFieldBytes = 1024, MaxInputBytes = 1024, MaxProcessingMilliseconds = 100 };
+        var policy = Policy(options);
+        var key = new string('x', 256);
+        for (var index = 0; index < 5; index++)
+            policy.SanitizeKey(key).Should().Be(key);
+        var text = new string('v', 1024);
+        policy.SanitizeText(text).Should().Be(text);
+        policy.SanitizeText("overflow").Should().Be(DiagnosticSanitizer.Limited);
+        policy.SanitizeKey(key).Should().Be(key);
+
+        var captured = JsonSerializer.SerializeToElement(Policy(options).SanitizeValue("Data",
+            new Dictionary<string, object> { [key] = text }));
+        captured.GetProperty(key).GetString().Should().Be(text);
+    }
+
+    [Fact]
+    public void Invalid_Keys_Should_Keep_Generated_Fallbacks()
+    {
+        var policy = Policy(new DiagnosticLogOptions { MaxKeyBytes = 32, MaxProcessingMilliseconds = 100 });
+        foreach (var key in new[] { new string('x', 33), new string('é', 17), "bad\nname", "_diagnostic_reserved" })
+        {
+            policy.SanitizeKey(key).Should().StartWith("_diagnostic_field_");
+            var captured = JsonSerializer.SerializeToElement(policy.SanitizeValue("Data",
+                new Dictionary<string, object> { [key] = 1 }));
+            captured.EnumerateObject().Single().Name.Should().StartWith("_diagnostic_field_");
+        }
+    }
+
+    [Fact]
     public void Free_Text_Should_Preserve_Content_Across_Capture_Paths()
     {
         string[] cases =

@@ -79,7 +79,7 @@ public class ExceptionUtils(
             throw new InvalidOperationException("Developer compilation exception page models are only available in Development.");
 
         var model = new CompilationErrorModel(ExceptionPageOptions);
-        var sanitizer = Sanitizer(context);
+        var sanitizer = Sanitizer(context, forDevelopmentDisplay: true);
         var projection = new DiagnosticModelProjection(sanitizer);
         if (compilationException.CompilationFailures == null)
             return model;
@@ -90,6 +90,7 @@ public class ExceptionUtils(
             if (remainingFrames <= 0)
             {
                 model.ErrorDetails.Add(new ExceptionDetails(DiagnosticSanitizer.Limited, []));
+                model.CompiledContent.Add(null);
                 break;
             }
             if (compilationFailure == null)
@@ -131,7 +132,7 @@ public class ExceptionUtils(
     {
         var request = context.Request;
         var scopedLog = context.RequestServices.GetRequiredService<IScopedLog>();
-        var sanitizer = Sanitizer(context);
+        var sanitizer = Sanitizer(context, forDevelopmentDisplay: true);
         var projection = new DiagnosticModelProjection(sanitizer);
         var title = GetPageTitle(exception);
         var body = await RequestBufferingState.ReadBodyAsync(context, context.RequestAborted);
@@ -151,7 +152,8 @@ public class ExceptionUtils(
             RouteValues = SafeRoutes(context, sanitizer),
             Endpoint = projection.Endpoint(context.GetEndpoint()),
             ConfigurationDebugViewSummary = appSettings.GetDebugView().ToSummary(),
-            Logs = scopedLog is ScopedLog ? scopedLog.GetLogs() : sanitizer.SanitizeValue("", scopedLog.GetLogs()) as IReadOnlyDictionary<string, object>
+            Logs = scopedLog is ScopedLog native ? native.GetLogs(redact: !appSettings.IsDevelopmentEnvironment)
+                : sanitizer.SanitizeValue("", scopedLog.GetLogs()) as IReadOnlyDictionary<string, object>
                 ?? new Dictionary<string, object> { ["DiagnosticCapture"] = DiagnosticSanitizer.Limited },
             RequestMethod = projection.Text(request.Method),
             RequestPath = queryStart < 0 ? safeUrl : safeUrl[..queryStart],
@@ -163,8 +165,12 @@ public class ExceptionUtils(
         return model;
     }
 
-    private IDiagnosticSanitizer Sanitizer(HttpContext context) =>
-        (context.RequestServices.GetService<IScopedLog>() as ScopedLog)?.Sanitizer ?? DiagnosticSanitizer.FromSettings(appSettings);
+    private IDiagnosticSanitizer Sanitizer(HttpContext context, bool forDevelopmentDisplay = false)
+    {
+        var sanitizer = (context.RequestServices.GetService<IScopedLog>() as ScopedLog)?.Sanitizer ?? DiagnosticSanitizer.FromSettings(appSettings);
+        return forDevelopmentDisplay && appSettings.IsDevelopmentEnvironment && sanitizer is DiagnosticSanitizer
+            ? DiagnosticSanitizer.ForDevelopmentDisplay(appSettings, sanitizer.Options) : sanitizer;
+    }
 
     private static Dictionary<string, object?> SafeRoutes(HttpContext context, IDiagnosticSanitizer sanitizer) =>
         sanitizer.SanitizeValue(context.Request.Path + ".RouteValues", context.Request.RouteValues) as Dictionary<string, object?> ??

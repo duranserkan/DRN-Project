@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using DRN.Framework.SharedKernel.Attributes;
 
 namespace Sample.Domain.Users;
 
@@ -38,8 +39,8 @@ public class ContactDetail
         Phone = phone;
     }
 
-    public string Email { get; private set; } = null!;
-    public string? Phone { get; private set; }
+    [Personal] public string Email { get; private set; } = null!;
+    [Personal] public string? Phone { get; private set; }
 }
 
 [Owned]
@@ -59,6 +60,6 @@ public class Address
 
     public string Street { get; private set; } = null!;
     public string City { get; private set; } = null!;
-    public string Postcode { get; private set; } = null!;
+    [Personal] public string Postcode { get; private set; } = null!;
     public string Country { get; private set; } = null!;
 }

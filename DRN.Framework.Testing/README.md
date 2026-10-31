@@ -15,6 +15,8 @@
 
 > Practical, effective testing helpers with data attributes, test context, and container orchestration for unit and integration tests.
 
+SharedKernel classification analyzers also cover test models. Classify credential properties with `[Sensitive]`, personal data with `[Personal]`, and reviewed operational false positives with `[Sensitive(false)]`. Keep intentional runtime-fallback fixtures under narrow, explained diagnostic suppressions. Container credential getters are classified, and dependency-launch logs omit the container graph while retaining redacted connection entries under `Dependencies`.
+
 ## TL;DR
 
 - **Auto-Mocking** - `[DataInline]` / `[DataInlineUnit]` provide requested context objects and auto-mock interface parameters with NSubstitute

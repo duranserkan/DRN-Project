@@ -73,9 +73,10 @@ internal sealed class DiagnosticModelProjection(IDiagnosticSanitizer sanitizer)
         {
             if (_remainingHeaderValues <= 0) { result["_diagnostic_limit"] = [DiagnosticSanitizer.Limited]; break; }
             var key = sanitizer.SanitizeKey(pair.Key);
-            result[key] = allSensitive || sanitizer.IsSensitive(pair.Key) ? [DiagnosticSanitizer.Redacted] :
+            var sensitive = allSensitive && sanitizer is not DiagnosticSanitizer { RedactionEnabled: false } || sanitizer.IsSensitive(pair.Key);
+            result[key] = sensitive ? [DiagnosticSanitizer.Redacted] :
                 pair.Value.Take(Math.Min(sanitizer.Options.MaxCollectionEntries, _remainingHeaderValues)).Select(Text).ToArray();
-            if (!allSensitive && !sanitizer.IsSensitive(pair.Key) && result[key].Length < pair.Value.Length)
+            if (!sensitive && result[key].Length < pair.Value.Length)
                 result[key] = [.. result[key], DiagnosticSanitizer.Limited];
             _remainingHeaderValues -= Math.Max(1, result[key].Length);
         }

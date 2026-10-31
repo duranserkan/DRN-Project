@@ -54,9 +54,13 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
     private int _operations;
 
     public DiagnosticLogOptions Options { get; }
+    internal bool RedactionEnabled { get; }
 
-    public DiagnosticSanitizer(DiagnosticLogOptions options)
+    public DiagnosticSanitizer(DiagnosticLogOptions options) : this(options, true) { }
+
+    private DiagnosticSanitizer(DiagnosticLogOptions options, bool redact)
     {
+        RedactionEnabled = redact;
         Validator.ValidateObject(options, new ValidationContext(options), true);
         Options = options with
         {
@@ -70,6 +74,9 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
 
     public static DiagnosticSanitizer FromSettings(IAppSettings settings) =>
         new(settings.Get<DiagnosticLogOptions>("DiagnosticLogging") ?? new DiagnosticLogOptions());
+
+    internal static DiagnosticSanitizer ForDevelopmentDisplay(IAppSettings settings, DiagnosticLogOptions options) =>
+        new(options, redact: !settings.IsDevelopmentEnvironment);
 
     // Explicit ancestry inspection prevents a direct Sensitive(false) from hiding a positive base annotation.
     internal static bool IsClassified(MemberInfo member) =>
@@ -99,9 +106,9 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
         property.GetCustomAttributes<SensitiveAttribute>(false).Any(attribute =>
             attribute.GetType() == typeof(SensitiveAttribute) && !attribute.IsSensitive);
 
-    internal bool IsSensitive(string fieldPath, bool exempt, string? namePath = null) => namePath == null
+    internal bool IsSensitive(string fieldPath, bool exempt, string? namePath = null) => RedactionEnabled && (namePath == null
         ? _rules.MatchField(fieldPath, exempt).IsMatch
-        : _rules.MatchField(fieldPath, true).IsMatch || !exempt && _rules.MatchField(namePath).IsMatch;
+        : _rules.MatchField(fieldPath, true).IsMatch || !exempt && _rules.MatchField(namePath).IsMatch);
 
     // Named models own their property names. Anonymous objects and collections retain structural name matching.
     internal static bool IsModelType(Type type) => !type.IsPrimitive && !type.IsEnum &&
@@ -114,7 +121,7 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
     private static string? ChildNamePath(string? parent, string name) => parent == null ? null :
         parent.Length == 0 ? name : parent + "." + name;
 
-    public bool IsSensitive(string fieldPath) => _rules.MatchField(fieldPath).IsMatch;
+    public bool IsSensitive(string fieldPath) => RedactionEnabled && _rules.MatchField(fieldPath).IsMatch;
 
     public IReadOnlyDictionary<string, object> GetStatus()
     {
@@ -169,7 +176,8 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
     public string SanitizeUrl(string? value) => Guard(() => Accept(value ?? "") ? Url(value ?? "") : Limited, Invalid);
     public string SanitizeKey(string key) => Guard(() =>
     {
-        var safe = Accept(key, Options.MaxKeyBytes) && !key.Any(char.IsControl) ? key : Invalid;
+        var safe = key.Length <= Options.MaxKeyBytes && Encoding.UTF8.GetByteCount(key) <= Options.MaxKeyBytes &&
+            !key.Any(char.IsControl) ? key : Invalid;
         return safe == key && !safe.StartsWith("_diagnostic_", StringComparison.Ordinal)
             ? safe : $"_diagnostic_field_{++_keySequence}";
     }, $"_diagnostic_field_{Interlocked.Increment(ref _keySequence)}");
@@ -180,7 +188,7 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
         params DiagnosticKeyClassification[] classifications) => CaptureDictionary(path, values, classifications).Value;
 
     internal DiagnosticCaptureResult CaptureDictionary<TValue>(string path, IReadOnlyDictionary<string, TValue> values,
-        DiagnosticKeyClassification[] classifications) => Guard(() =>
+        DiagnosticKeyClassification[] classifications, bool deferRedaction = false) => Guard(() =>
     {
         ArgumentNullException.ThrowIfNull(values);
         ArgumentNullException.ThrowIfNull(classifications);
@@ -199,9 +207,10 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
                 rules[entry.Key] = entry.Kind;
         }
         if (values.IgnoredLog()) return new DiagnosticCaptureResult(ScopedLogConventions.IgnoredLogValue, []);
-        if (IsSensitive(path, false, "") || IsClassified(values.GetType())) return new DiagnosticCaptureResult(Redacted, []);
-        var context = new DiagnosticCaptureContext(null);
-        context.Decisions.Add(new(path, false, ""));
+        var sensitive = IsSensitive(path, false, "") || RedactionEnabled && IsClassified(values.GetType());
+        if (sensitive && !deferRedaction) return new DiagnosticCaptureResult(Redacted, []);
+        var context = new DiagnosticCaptureContext(null, deferRedaction);
+        if (!sensitive) context.Decisions.Add(new(path, false, ""));
         var output = new Dictionary<string, object?>(StringComparer.Ordinal);
         var ancestors = new HashSet<object>(ReferenceEqualityComparer.Instance) { values };
         foreach (var item in values)
@@ -210,25 +219,28 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
             var safe = UniqueKey(output, item.Key);
             var classified = rules.TryGetValue(item.Key, out var classification);
             if (item.Key.Length > Options.MaxKeyBytes) output[safe] = Limited;
-            else if (classified && classification != DiagnosticDataKind.NonSensitive ||
-                     item.Value != null && IsClassified(item.Value.GetType())) { ++_nodes; output[safe] = Redacted; }
-            else if (classified && !IsSimpleValue(item.Value)) { ++_nodes; output[safe] = Invalid; }
+            else if (!deferRedaction && RedactionEnabled && (classified && classification != DiagnosticDataKind.NonSensitive ||
+                     item.Value != null && IsClassified(item.Value.GetType()))) { ++_nodes; output[safe] = Redacted; }
+            else if (classified && classification == DiagnosticDataKind.NonSensitive && !IsSimpleValue(item.Value) &&
+                     !(deferRedaction && item.Value != null && IsClassified(item.Value.GetType()))) { ++_nodes; output[safe] = Invalid; }
             else output[safe] = Project(path + "." + item.Key, item.Value, 1, ancestors, context,
-                [path, item.Key], DiagnosticCaptureKind.DictionaryKey, classified, item.Key);
+                [path, item.Key], DiagnosticCaptureKind.DictionaryKey, classified, item.Key,
+                classified && classification != DiagnosticDataKind.NonSensitive);
         }
-        return new DiagnosticCaptureResult(output, context.Decisions.ToArray(), _urlRules);
+        return new DiagnosticCaptureResult(sensitive ? new DiagnosticCapturedValue(output, DiagnosticRedactionKind.Classified) : output,
+            context.Decisions.ToArray(), _urlRules);
     }, new DiagnosticCaptureResult(Invalid, []));
 
     /// <summary>Exempts one supported scalar from built-in name rules, with an application-authored reason.</summary>
     public object? SanitizeValue(string fieldPath, object? value, string exemptionReason) =>
         CaptureWithReason(fieldPath, value, exemptionReason).Value;
 
-    internal DiagnosticCaptureResult CaptureWithReason(string path, object? value, string exemptionReason) => Guard(() =>
+    internal DiagnosticCaptureResult CaptureWithReason(string path, object? value, string exemptionReason, bool deferRedaction = false) => Guard(() =>
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(exemptionReason);
         if (exemptionReason.Length > Options.MaxFieldBytes) throw new ArgumentException("Diagnostic reason exceeds capture limits.");
         if (!IsSimpleValue(value)) throw new ArgumentException("Reason-based exemptions require a supported scalar.", nameof(value));
-        return Capture(path, value, exempt: true);
+        return Capture(path, value, exempt: true, deferRedaction: deferRedaction);
     }, new DiagnosticCaptureResult(Invalid, []));
 
     internal static bool IsSimpleValue(object? value) => value is null or string or char or bool or
@@ -241,27 +253,30 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
 
     internal DiagnosticCaptureResult Capture(string path, object? value, DiagnosticCapturePolicy? policy = null,
         DiagnosticCaptureKind kind = DiagnosticCaptureKind.NamedEntry, string[]? segments = null, bool exempt = false,
-        string? namePath = null) => Guard(() =>
+        string? namePath = null, bool deferRedaction = false, bool classified = false) => Guard(() =>
     {
         policy?.Validate(Options);
-        var context = new DiagnosticCaptureContext(policy);
+        var context = new DiagnosticCaptureContext(policy, deferRedaction);
         var result = Project(path, value, 0, new HashSet<object>(ReferenceEqualityComparer.Instance),
-            context, segments ?? [path], kind, exempt, namePath);
+            context, segments ?? [path], kind, exempt, namePath, classified);
         return new DiagnosticCaptureResult(result, context.Decisions.ToArray(), _urlRules);
     }, new DiagnosticCaptureResult(Invalid, []));
 
     // Only native scoped storage supplies this detached result, never a caller-owned snapshot.
-    internal DiagnosticCaptureResult CopyCapture(DiagnosticCaptureResult capture) => Guard(() =>
+    internal DiagnosticCaptureResult CopyCapture(DiagnosticCaptureResult capture, bool deferRedaction = false) => Guard(() =>
     {
         if (_urlRules.Except(capture.UrlRules ?? [], StringComparer.Ordinal).Any() ||
             capture.Decisions.Any(decision => IsSensitive(decision.Path, decision.Exempt, decision.NamePath)))
-            return new DiagnosticCaptureResult(Redacted, []);
+            return new DiagnosticCaptureResult(deferRedaction
+                ? new DiagnosticCapturedValue(CopySafe(capture.Value, 0), DiagnosticRedactionKind.Classified) : Redacted, []);
         return new DiagnosticCaptureResult(CopySafe(capture.Value, 0), capture.Decisions, _urlRules);
     }, new DiagnosticCaptureResult(Invalid, []));
 
     private object? CopySafe(object? value, int depth)
     {
         if (!WorkAvailable() || ++_nodes > Options.MaxNodes || depth > Options.MaxDepth) return Limited;
+        if (value is DiagnosticCapturedValue captured)
+            return captured with { Value = CopySafe(captured.Value, depth) };
         if (value is string text) return Accept(text) ? text : Limited;
         if (value is ScopeEvent scopeEvent) return CaptureEvent(scopeEvent);
         if (value is IDictionary<string, object?> map)
@@ -283,6 +298,61 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
                 result.Add(CopySafe(item, depth + 1));
             }
             return result;
+        }
+        return value;
+    }
+
+    // A fresh reader has its own bounded budget. Reading never invokes the original getters.
+    internal IReadOnlyDictionary<string, object> MaterializeSnapshot(IReadOnlyDictionary<string, object> snapshot, bool redact) => Guard(() =>
+    {
+        var output = new Dictionary<string, object>();
+        foreach (var pair in snapshot)
+        {
+            if (output.Count >= Options.MaxNodes || !WorkAvailable()) { output["_diagnostic_limit"] = Limited; break; }
+            output[pair.Key] = ReadCaptured(pair.Value, 0, redact)!;
+        }
+        return (IReadOnlyDictionary<string, object>)output;
+    }, new Dictionary<string, object> { ["DiagnosticCapture"] = Invalid });
+
+    private object? ReadCaptured(object? value, int depth, bool redact)
+    {
+        if (!WorkAvailable() || ++_nodes > Options.MaxNodes || depth > Options.MaxDepth) return Limited;
+        if (value is DiagnosticCapturedValue captured)
+        {
+            if (redact && captured.Kind == DiagnosticRedactionKind.Classified) return Redacted;
+            if (redact && captured.Value is string text)
+            {
+                if (!Accept(text)) return Limited;
+                if (captured.SourceOptions is { } sourceOptions)
+                {
+                    var source = new DiagnosticSanitizer(sourceOptions);
+                    text = source.Guard(() => captured.Kind == DiagnosticRedactionKind.Url
+                        ? source.Url(text) : source.Pairs(text.TrimStart('?'), redacted: UrlRedacted), Invalid);
+                }
+                return captured.Kind == DiagnosticRedactionKind.Url ? Url(text) : Pairs(text.TrimStart('?'), redacted: UrlRedacted);
+            }
+            return ReadCaptured(captured.Value, depth, redact);
+        }
+        if (value is string scalar) return Accept(scalar) ? scalar : Limited;
+        if (value is IReadOnlyDictionary<string, object?> map)
+        {
+            var output = new Dictionary<string, object?>();
+            foreach (var pair in map)
+            {
+                if (output.Count > Options.MaxCollectionEntries || !WorkAvailable()) { output["_diagnostic_limit"] = Limited; break; }
+                output[pair.Key] = ReadCaptured(pair.Value, depth + 1, redact);
+            }
+            return output;
+        }
+        if (value is IList list)
+        {
+            var output = new List<object?>();
+            foreach (var item in list)
+            {
+                if (output.Count > Options.MaxCollectionEntries || !WorkAvailable()) { output.Add(Limited); break; }
+                output.Add(ReadCaptured(item, depth + 1, redact));
+            }
+            return output;
         }
         return value;
     }
@@ -317,13 +387,14 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
             var decoded = Decode(segments[index]);
             if (!WorkAvailable()) return Limited;
             segments[index] = Uri.EscapeDataString(redactNext ? UrlRedacted : decoded);
-            redactNext = _rules.MatchesUrlSegment(decoded);
+            redactNext = RedactionEnabled && _rules.MatchesUrlSegment(decoded);
         }
         var query = uri.Query.Length > 1 ? "?" + Pairs(uri.Query[1..], context, UrlRedacted) : "";
         var fragment = uri.Fragment.Length > 1
             ? uri.Fragment.Contains('=') ? "#" + Pairs(uri.Fragment[1..], context, UrlRedacted) : uri.Fragment
             : "";
-        var authority = relative ? "" : uri.GetComponents(UriComponents.SchemeAndServer, UriFormat.UriEscaped);
+        var authority = relative ? "" : uri.GetComponents(RedactionEnabled
+            ? UriComponents.SchemeAndServer : UriComponents.SchemeAndServer | UriComponents.UserInfo, UriFormat.UriEscaped);
         return authority + string.Join('/', segments) + query + fragment;
     }
 
@@ -362,28 +433,53 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
         return value.Contains('%') ? Invalid : value;
     }
 
-    private string StringValue(string path, string value, DiagnosticCaptureContext context)
+    private object StringValue(string path, string value, DiagnosticCaptureContext context)
     {
         if (!Accept(value)) return Limited;
         Span<char> buffer = stackalloc char[512];
         var name = DiagnosticNameRules.Normalize(path, buffer);
-        if (name.EndsWith("querystring", StringComparison.Ordinal)) return Pairs(value.TrimStart('?'), context, UrlRedacted);
-        if ((name.EndsWith("url", StringComparison.Ordinal) || name.EndsWith("uri", StringComparison.Ordinal)) && value.Length > 0) return Url(value, context);
+        if (name.EndsWith("querystring", StringComparison.Ordinal))
+        {
+            var sanitized = Pairs(value.TrimStart('?'), context, UrlRedacted);
+            if (context.DeferRedaction && sanitized.Contains("_diagnostic=" + Limited, StringComparison.Ordinal)) return Limited;
+            return context.DeferRedaction ? new DiagnosticCapturedValue(value, DiagnosticRedactionKind.QueryString, Options) : sanitized;
+        }
+        if ((name.EndsWith("url", StringComparison.Ordinal) || name.EndsWith("uri", StringComparison.Ordinal)) && value.Length > 0)
+            return CaptureUrl(value, context);
         return value;
     }
 
+    private object CaptureUrl(string value, DiagnosticCaptureContext context)
+    {
+        var sanitized = Url(value, context);
+        if (context.DeferRedaction && sanitized.Contains("_diagnostic=" + Limited, StringComparison.Ordinal)) return Limited;
+        return context.DeferRedaction && sanitized is not (Limited or Invalid)
+            ? new DiagnosticCapturedValue(value, DiagnosticRedactionKind.Url, Options) : sanitized;
+    }
+
     private object? Project(string path, object? value, int depth, HashSet<object> ancestors,
-        DiagnosticCaptureContext context, string[] segments, DiagnosticCaptureKind kind, bool exempt = false, string? namePath = null)
+        DiagnosticCaptureContext context, string[] segments, DiagnosticCaptureKind kind, bool exempt = false, string? namePath = null,
+        bool classified = false)
     {
         if (!WorkAvailable() || ++_nodes > Options.MaxNodes || depth > Options.MaxDepth) return Limited;
+        if (value is DiagnosticCapturedValue)
+            return context.DeferRedaction ? CopySafe(value, depth) : Redacted;
         if (value.IgnoredLog()) return ScopedLogConventions.IgnoredLogValue;
         if (kind == DiagnosticCaptureKind.NamedEntry && value != null && IsModelType(value.GetType())) namePath = "";
         exempt |= context.Exempts(kind, segments);
-        if (IsSensitive(path, exempt, namePath) || value != null && IsClassified(value.GetType())) return Redacted;
-        context.Decisions.Add(new(path, exempt, namePath));
+        var sensitive = IsSensitive(path, exempt, namePath) || RedactionEnabled && (classified || value != null && IsClassified(value.GetType()));
+        if (sensitive && !context.DeferRedaction) return Redacted;
+        if (!sensitive) context.Decisions.Add(new(path, exempt, namePath));
+        var result = ProjectValue(path, value, depth, ancestors, context, segments, kind, exempt, namePath);
+        return sensitive ? new DiagnosticCapturedValue(result, DiagnosticRedactionKind.Classified) : result;
+    }
+
+    private object? ProjectValue(string path, object? value, int depth, HashSet<object> ancestors,
+        DiagnosticCaptureContext context, string[] segments, DiagnosticCaptureKind kind, bool exempt, string? namePath)
+    {
         if (value == null) return null;
         if (value is string text) return StringValue(path, text, context);
-        if (value is Uri uri) return Accept(uri.OriginalString) ? Url(uri.OriginalString, context) : Limited;
+        if (value is Uri uri) return Accept(uri.OriginalString) ? CaptureUrl(uri.OriginalString, context) : Limited;
         if (value is JsonElement element)
         {
             // Bound serialization before GetString can allocate from an externally supplied JSON tree.
@@ -450,13 +546,19 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
                 var key = UniqueKey(projected, member.Name);
                 var memberNamePath = typedModel ? member.Name : ChildNamePath(namePath, member.Name);
                 if (member.Ignored) projected[key] = ScopedLogConventions.IgnoredLogValue;
-                else if (member.Sensitive || IsSensitive(path + "." + member.Name,
-                             member.Exempt || context.Exempts(DiagnosticCaptureKind.Property, [.. segments, member.Name]), memberNamePath)) projected[key] = Redacted;
+                else if (!context.DeferRedaction && (RedactionEnabled && member.Sensitive || IsSensitive(path + "." + member.Name,
+                             member.Exempt || context.Exempts(DiagnosticCaptureKind.Property, [.. segments, member.Name]), memberNamePath))) projected[key] = Redacted;
                 else
                 {
                     try { projected[key] = Project(path + "." + member.Name, member.Read(value), depth + 1, ancestors,
-                        context, [.. segments, member.Name], DiagnosticCaptureKind.Property, member.Exempt, memberNamePath); }
-                    catch (Exception) { projected[key] = Invalid; _status.Add("GetterFailed"); }
+                        context, [.. segments, member.Name], DiagnosticCaptureKind.Property, member.Exempt, memberNamePath, member.Sensitive); }
+                    catch (Exception)
+                    {
+                        projected[key] = context.DeferRedaction && (member.Sensitive || IsSensitive(path + "." + member.Name,
+                            member.Exempt || context.Exempts(DiagnosticCaptureKind.Property, [.. segments, member.Name]), memberNamePath))
+                            ? new DiagnosticCapturedValue(Invalid, DiagnosticRedactionKind.Classified) : Invalid;
+                        _status.Add("GetterFailed");
+                    }
                 }
             }
             return projected;
@@ -469,7 +571,8 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
 
     private string UniqueKey(Dictionary<string, object?> output, string key)
     {
-        var safe = Accept(key, Options.MaxKeyBytes) && !key.Any(char.IsControl) ? key : Invalid;
+        var safe = key.Length <= Options.MaxKeyBytes && Encoding.UTF8.GetByteCount(key) <= Options.MaxKeyBytes &&
+            !key.Any(char.IsControl) ? key : Invalid;
         return safe != key || safe.StartsWith("_diagnostic_", StringComparison.Ordinal) || output.ContainsKey(safe)
             ? $"_diagnostic_field_{++_keySequence}" : safe;
     }
@@ -479,8 +582,16 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
     {
         if (!WorkAvailable() || ++_nodes > Options.MaxNodes || depth > Options.MaxDepth) return Limited;
         exempt |= context.Exempts(kind, segments);
-        if (IsSensitive(path, exempt, namePath)) return Redacted;
-        context.Decisions.Add(new(path, exempt, namePath));
+        var sensitive = IsSensitive(path, exempt, namePath);
+        if (sensitive && !context.DeferRedaction) return Redacted;
+        if (!sensitive) context.Decisions.Add(new(path, exempt, namePath));
+        var result = ProjectJsonValue(path, element, depth, context, segments, namePath);
+        return sensitive ? new DiagnosticCapturedValue(result, DiagnosticRedactionKind.Classified) : result;
+    }
+
+    private object? ProjectJsonValue(string path, JsonElement element, int depth, DiagnosticCaptureContext context,
+        string[] segments, string? namePath)
+    {
         switch (element.ValueKind)
         {
             case JsonValueKind.Object:

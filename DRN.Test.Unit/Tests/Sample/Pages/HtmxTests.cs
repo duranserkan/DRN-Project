@@ -47,11 +47,9 @@ public class HtmxTests
 
         var partial = result.Should().BeOfType<PartialViewResult>().Which;
         partial.ViewName.Should().Be("_ResultMessage");
-        partial.ViewData!.Model.Should().BeEquivalentTo(new
-        {
-            Message = "Original message",
-            TokenValidation = "Success (Explicit Validation)"
-        });
+        var model = partial.ViewData!.Model.Should().BeOfType<HtmxResultMessage>().Which;
+        model.Message.Should().Be("Original message");
+        model.TokenValidation.Should().Be("Success (Explicit Validation)");
         ScopeContext.CurrentProblem.Should().BeNull();
     }
 }

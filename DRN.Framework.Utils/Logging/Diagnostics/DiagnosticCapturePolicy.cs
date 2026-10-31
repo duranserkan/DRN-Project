@@ -50,8 +50,14 @@ public sealed class DiagnosticCapturePolicy
 internal sealed record DiagnosticNameDecision(string Path, bool Exempt, string? NamePath = null);
 internal sealed record DiagnosticCaptureResult(object? Value, DiagnosticNameDecision[] Decisions, string[]? UrlRules = null);
 
-internal sealed class DiagnosticCaptureContext(DiagnosticCapturePolicy? policy)
+// Metadata wraps detached values, never caller-owned objects. GetLogs removes these wrappers.
+internal enum DiagnosticRedactionKind { Classified, Url, QueryString }
+internal sealed record DiagnosticCapturedValue(object? Value, DiagnosticRedactionKind Kind,
+    [property: System.Text.Json.Serialization.JsonIgnore] DiagnosticLogOptions? SourceOptions = null);
+
+internal sealed class DiagnosticCaptureContext(DiagnosticCapturePolicy? policy, bool deferRedaction = false)
 {
+    internal bool DeferRedaction { get; } = deferRedaction;
     internal List<DiagnosticNameDecision> Decisions { get; } = [];
     internal bool Exempts(DiagnosticCaptureKind kind, IReadOnlyList<string> segments) => policy?.Exempts(kind, segments) == true;
 }

@@ -1,4 +1,5 @@
 using DRN.Framework.Hosting.Endpoints;
+using DRN.Framework.SharedKernel.Attributes;
 
 namespace Sample.Hosted.Helpers.PageFor;
 
@@ -29,6 +30,8 @@ public class UserManagementPageFor : PageForBase
 {
     protected override string[] PathSegments { get; } = ["User", "Management"];
 
+    [Sensitive(false, Justification = "Page route, not authentication material.")]
     public string EnableAuthenticator { get; init; } = string.Empty;
+    [Sensitive(false, Justification = "Page route, not recovery codes.")]
     public string ShowRecoveryCodes { get; init; } = string.Empty;
 }

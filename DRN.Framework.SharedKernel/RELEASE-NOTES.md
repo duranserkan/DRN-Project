@@ -2,7 +2,15 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.10.1
 
-Version alignment release; no package-specific behavior changes.
+### Breaking Changes
+
+*   **Dictionary Capture Classification**: DRN0020 rejects captures with statically known matching dictionary keys, including nested initializers and direct local writes. Use AddDictionary or SanitizeDictionary for explicit key classifications. Dynamic data retains runtime redaction.
+
+*   **Model Classification Enforcement**: Transitive error-level diagnostics require matching public readable instance model properties to declare classification or `[Sensitive(false)]`, independently of logging use and `[IgnoreLog]`. DRN0019 requires matching anonymous properties, including nested and inferred members, to move to annotated named classes or records. Harmless anonymous objects remain allowed. Reason strings and capture policies do not bypass declaration checks. Named model capture checks property names without built-in logging-prefix matches. Scalar and untyped capture paths still require explicit decisions. Review existing models and anonymous configuration/schema projections when upgrading. Generated sources are analyzed without reporting DRN0015 through DRN0020 in generated code. Custom Microsoft classifications outside the DRN Personal/Sensitive inheritance families retain runtime protection but require a supported classification for compiler verification. Runtime guards remain active when diagnostics are suppressed.
+
+### New Features
+
+*   **Sensitive Data Classification**: Added inheritable `[Sensitive]` and `[Personal]` Microsoft classification attributes, including company-derived attributes, and direct property `[Sensitive(false)]` with optional justification for name-rule false positives. Positive classification wins over opt-outs. Classified getters are not invoked by diagnostic object capture; public fields are omitted. Separate editor code fixes offer Personal, Sensitive and deliberate false-positive selection. Invalid opt-outs offer an individual `Use Sensitive(true)` fix. Business serialization and binding are unchanged.
 
 ## Version 0.10.0
 

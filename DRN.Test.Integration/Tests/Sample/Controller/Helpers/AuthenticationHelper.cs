@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using DRN.Framework.Hosting.DrnProgram;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Auth.MFA;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Identity.Data;
@@ -121,4 +122,5 @@ public abstract class AuthenticationHelper
     }
 }
 
-public record AuthenticationEndpoints(string LoginUrl, string RegisterUrl, string? TwoFactorAuthUrl = null);
+public record AuthenticationEndpoints(string LoginUrl, string RegisterUrl,
+    [property: Sensitive(false, Justification = "Two-factor authentication endpoint URL, not credential material.")] string? TwoFactorAuthUrl = null);

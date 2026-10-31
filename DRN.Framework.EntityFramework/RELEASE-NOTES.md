@@ -4,7 +4,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 Dependencies upgraded to dotnet 10.0.14
 
-Version alignment release; no package-specific behavior changes.
+Repository cancellation tokens are explicitly classified as operational false positives and excluded from object logging with `[IgnoreLog]`. SharedKernel classification analyzers apply transitively to model properties in consumers.
 
 ## Version 0.10.0
 

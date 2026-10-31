@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Auth.MFA;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -73,7 +74,9 @@ public class LoginModel(SignInManager<SampleUser> signInManager, UserManager<Sam
         return RedirectToPage(Get.Page.User.LoginWith2Fa, new { Input.ReturnUrl, Input.RememberMe });
     }
 
-    public record UserLoginValidation(bool LockedOut, bool PasswordValid, bool TwoFactorEnabled);
+    public record UserLoginValidation(bool LockedOut,
+        [property: Sensitive(false, Justification = "Password verification outcome, not the password.")] bool PasswordValid,
+        bool TwoFactorEnabled);
 
     private async Task<UserLoginValidation> ValidateUserLoginAsync(SampleUser user)
     {
@@ -114,10 +117,12 @@ public class LoginInput
 
     [Required]
     [EmailAddress]
+    [Personal, PersonalData]
     public string Email { get; init; } = null!;
 
     [Required]
     [DataType(DataType.Password)]
+    [Sensitive]
     public string Password { get; init; } = null!;
 
     [Display(Name = "Remember me?")]

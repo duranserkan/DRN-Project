@@ -201,7 +201,7 @@ public sealed class DiagnosticClassificationTests
         var model = new ClassifiedOverrideModel();
         log.AddProperties<ExemptBaseModel>("Model", model);
         log.GetLogs()["Model.Keyboard"].Should().Be(DiagnosticSanitizer.Redacted);
-        model.ReadCount.Should().Be(0);
+        model.ReadCount.Should().Be(1);
         log.GetLogs().Should().NotContainKey("Model.ReadCount");
 
         log.AddProperties<ExemptBaseModel>("Unchanged", new InheritedExemptionModel());
@@ -216,24 +216,28 @@ public sealed class DiagnosticClassificationTests
     }
 
     [Fact]
-    public void Interface_Projection_Should_Respect_Implementation_Classification_Without_Reading_Getters()
+    public void Interface_Projection_Should_Preserve_Implementation_Classification_After_Capture()
     {
         using var settings = SettingsProvider.Development();
         var log = new ScopedLog(settings, Policy());
         var implicitModel = new ImplicitClassifiedModel();
         var explicitModel = new ExplicitClassifiedModel();
+        var inheritedModel = new InheritedClassifiedModel();
 
         log.AddProperties<IExemptProjection>("Implicit", implicitModel);
         log.AddProperties<IExemptProjection>("Explicit", explicitModel);
+        log.AddProperties<IExemptProjection>("Inherited", inheritedModel);
         log.AddProperties<IExemptProjection>("Safe", new ExemptImplementation());
 
         var data = log.GetLogs();
         data["Implicit.Keyboard"].Should().Be(DiagnosticSanitizer.Redacted);
         data["Explicit.Keyboard"].Should().Be(DiagnosticSanitizer.Redacted);
+        data["Inherited.Keyboard"].Should().Be(DiagnosticSanitizer.Redacted);
         data["Safe.Keyboard"].Should().Be("layout");
         data.Should().NotContainKey("Implicit.ReadCount").And.NotContainKey("Explicit.ReadCount");
-        implicitModel.ReadCount.Should().Be(0);
-        explicitModel.ReadCount.Should().Be(0);
+        implicitModel.ReadCount.Should().Be(1);
+        explicitModel.ReadCount.Should().Be(1);
+        inheritedModel.ReadCount.Should().Be(1);
     }
 
     private interface IExemptProjection
@@ -241,7 +245,7 @@ public sealed class DiagnosticClassificationTests
         [Sensitive(false)] string Keyboard { get; }
     }
 
-    private sealed class ImplicitClassifiedModel : IExemptProjection
+    private class ImplicitClassifiedModel : IExemptProjection
     {
         public int ReadCount { get; private set; }
         [Sensitive] public string Keyboard
@@ -249,6 +253,8 @@ public sealed class DiagnosticClassificationTests
             get { ReadCount++; return "private"; }
         }
     }
+
+    private sealed class InheritedClassifiedModel : ImplicitClassifiedModel;
 
     private sealed class ExplicitClassifiedModel : IExemptProjection
     {

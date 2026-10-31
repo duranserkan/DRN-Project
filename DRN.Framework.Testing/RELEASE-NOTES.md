@@ -6,6 +6,8 @@ Dependencies upgraded to dotnet 10.0.14
 
 * **Container Defaults**: Updated the default RabbitMQ image to digest-pinned `4.3.6-management-alpine`.
 
+* **Diagnostic Classification**: Test credentials and container connection strings carry explicit classifications. External-dependency launch diagnostics capture classified properties without reading credential getters and omit the container graph. Matching test-model properties receive the same SharedKernel analyzer errors as production models. Runtime-fallback fixtures must narrowly document diagnostic suppressions.
+
 ## Version 0.10.0
 
 ### Breaking Changes

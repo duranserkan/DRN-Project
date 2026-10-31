@@ -45,7 +45,7 @@ internal static class DrnStartupExceptionReporter
         catch (Exception e)
         {
             scopedLog.Add("StartupReportFailure.Type", e.GetType().FullName ?? e.GetType().Name);
-            scopedLog.Add("StartupReportFailure.Message", e.Message);
+            scopedLog.Add("StartupReportFailure.Category", "ReportGenerationFailed");
             scopedLog.Add("StartupReportFailure.Stack", e.StackTrace ?? string.Empty);
             logger.LogScoped(scopedLog, LogLevel.Debug);
         }

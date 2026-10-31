@@ -4,11 +4,24 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 Dependencies upgraded to dotnet 10.0.14
 
+### New Features
+
+*   **Dictionary Classification**: AddDictionary and SanitizeDictionary accept exact key classifications for Sensitive, Personal and NonSensitive data. NonSensitive requires a reason and supported scalar value. Positive/configured protection, capture budgets and native-copy checks remain authoritative. Nested dictionaries require separate classification. Foreign implementations fail closed.
+
+*   **Explicit Diagnostic Name Exceptions**: Named model properties own classification without built-in logging-prefix matches. Property `[Sensitive(false)]` handles reviewed property false positives. `Add(key, value, exemptionReason)` and `SanitizeValue(path, value, exemptionReason)` permit one application-reviewed scalar without constructing policies. Supported values include nullable scalars, DateOnly, TimeOnly and Uri. Uri always receives structural URL protection regardless of the entry name. Complex reason-bearing captures return an unavailable marker without traversal. `AddWithPolicy`, `AddPropertiesWithPolicy` and `SanitizeWithPolicy` retain exact complex/nested exceptions. Grants do not extend to descendants or override classification, configured full-path rules, limits or structural URL redaction. Native scoped copies preserve bound decisions only under destination protection. Re-entering public or foreign snapshots applies ordinary protection.
+
+*   **Property Discovery**: Added `GetPropertiesOfType<T>` to find properties with an exact declared type using caller-supplied binding flags.
+
+*   **Diagnostic Name Matching**: Secret field detection matches `secret`, including normalized separator variants. Names containing only `sec`, such as `ElapsedSeconds`, `Section`, and `ResponseCaptureLimited`, remain eligible for capture without exemptions. Explicit classifications and other configured or built-in patterns still apply.
+
+*   **Diagnostic Redaction**: Scoped logs apply `[Sensitive]`, `[Personal]`, derived classifications, and a shared substring catalog to bounded snapshots. Object logging captures public readable properties and omits fields. Name rules protect properties, dictionary keys, JSON properties, and named entries. Explicitly reviewed false positives use property annotations or exact capture policies. Classified and ignored getters are skipped. URL structural redaction remains independent and uses plain `redacted` for protected path segments, query values, and named fragment values. Bare fragments such as `#installation` are preserved without content inspection; ordinary diagnostic values retain `[redacted]`. Free text is preserved within limits without content scanning. Configure additional rules under `DiagnosticLogging`. Matching model properties require classification or explicit opt-out at compile time, even without logging calls.
+*   **Grouped Diagnostic Overflow**: `LogScoped` keeps fitting diagnostics in one record and emits bounded parent/child records for larger sanitized snapshots, preserving correlation and an expected-record manifest. Capture loss is explicit. `ToString()` now returns bounded sanitized JSON. Consumers must reconstruct `json-text` payload fragments when records are split.
+
 *   **Scoped Public Errors**: Added lazy `ScopeContext.Problem` for public error details and extensions, with throwing helpers for every `ExceptionFor` factory. Helpers preserve public defaults, keep diagnostic data private, and hide their frames from formatted stack traces. DRN Hosting uses these defaults while preserving existing response values and framework-controlled fields.
 
 *   **Rate Limit Defaults**: Increased post-auth burst capacity and refill from 100 to 250 tokens, and pre-auth capacity and refill from 1,000 to 2,500 tokens. Refill periods remain 60 seconds. Explicit configuration overrides remain supported.
 
-*   **Linkerd Diagnostics**: Flurl exception logs capture proxy error and connection response headers. Call `AddLinkerdProxyDiagnostics` to capture the same diagnostics for explicitly handled responses without consuming their body.
+*   **HTTP Diagnostics**: Flurl exception logs sanitize URLs, proxy headers, and bounded error-body capture. Call `AddLinkerdProxyDiagnostics` to capture proxy diagnostics for explicitly handled responses without consuming their body. Unsupported or oversized bodies produce safe markers.
 
 ## Version 0.10.0
 

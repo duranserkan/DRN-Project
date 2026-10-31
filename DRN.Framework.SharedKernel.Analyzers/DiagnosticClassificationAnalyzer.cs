@@ -12,7 +12,7 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
 {
     private const string AttributeNamespace = "DRN.Framework.SharedKernel.Attributes.";
     private const string Category = "DRN.Classification";
-    private const string Help = "https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md";
+    private const string Help = "https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/README.md";
 
     public static readonly DiagnosticDescriptor MissingClassification = new("DRN0015", "Classify property",
         "Add [Personal] or [Sensitive] to '{0}'. Use [Sensitive(false)] for a false positive.",
@@ -38,7 +38,7 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
     public override void Initialize(AnalysisContext context)
     {
         context.EnableConcurrentExecution();
-        context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.Analyze | GeneratedCodeAnalysisFlags.ReportDiagnostics);
+        context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.Analyze);
         context.RegisterCompilationStartAction(start =>
         {
             var sensitive = start.Compilation.GetTypeByMetadataName(AttributeNamespace + "SensitiveAttribute");
@@ -249,6 +249,8 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
         if (prefix == null || !prefix.ConstantValue.HasValue || prefix.ConstantValue.Value is not string path) return;
         var value = call.Arguments.FirstOrDefault(argument => argument.Parameter?.Ordinal == 1)?.Value;
         while (value is IConversionOperation conversion) value = conversion.Operand;
+        // The exact constant marker contains no captured data. Runtime values remain checked.
+        if (!flat && value?.ConstantValue is { HasValue: true, Value: "[redacted]" }) return;
         var type = flat ? method.TypeArguments.FirstOrDefault() : value?.Type;
         if (type == null || contract.Positive(type)) return;
         if (method.Name == "Add" && type.ToDisplayString() is "System.TimeSpan" or "System.TimeSpan?")

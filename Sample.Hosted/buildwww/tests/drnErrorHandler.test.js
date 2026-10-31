@@ -194,6 +194,8 @@ test('action and global errors share safe notification references with bounded, 
             const payload = JSON.parse(await body.text());
             assert.equal(payload.clientErrorId, record.clientErrorId);
             assert.ok(payload.message.length > 0);
+            assert.equal(typeof payload.diagnosticLimited, 'boolean');
+            if (character !== 'a') assert.equal(payload.diagnosticLimited, true);
             if (character !== 'a') assert.ok(payload.stack.length < error.stack.length);
 
             listeners.error({ message: error.message, filename: character.repeat(200), error });
@@ -204,4 +206,22 @@ test('action and global errors share safe notification references with bounded, 
             assert.equal(globalPayload.clientErrorId, notifications.at(-1).clientErrorId);
         }
     }
+
+    timestamp += 60001;
+    window.location.href = 'https://sample.test/action?token=url-probe';
+    globalThis.navigator.userAgent = 'test';
+    const sensitive = new Error('Save failed password=message-probe; RecoveryCodes=["first-probe","second-probe"]; retry');
+    sensitive.stack = 'Service.Save\n' + 's'.repeat(1980) + '\npassword=stack-probe';
+    const safeRecord = handler.reportActionError(sensitive, { operation: 'Save' });
+    const safeBody = reports.at(-1).body;
+    const safeJson = await safeBody.text();
+    const safePayload = JSON.parse(safeJson);
+    assert.ok(safeBody.size <= 3600);
+    assert.equal(safePayload.clientErrorId, safeRecord.clientErrorId);
+    assert.equal(safePayload.diagnosticRedacted, true);
+    assert.equal(safePayload.diagnosticLimited, true);
+    assert.equal(safeJson.includes('url-probe'), false);
+    assert.equal(safePayload.message, sensitive.message);
+    assert.ok(safePayload.message.endsWith('; retry'));
+    assert.ok(safePayload.stack.startsWith('Service.Save'));
 });

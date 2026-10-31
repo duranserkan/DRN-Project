@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Reflection;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.SharedKernel;
+using DRN.Framework.Utils.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Routing;
@@ -37,8 +37,7 @@ public abstract class ControllerForBase<TController>
     private static ApiEndpoint CreateEndpoint(string actionMethodName) => new(Controller, actionMethodName);
 
     private ApiEndpoint[] InitializeEndpoints() => GetType()
-        .GetProperties(BindingFlags.Instance | BindingFlags.Public)
-        .Where(p => p.PropertyType == typeof(ApiEndpoint))
+        .GetPropertiesOfType<ApiEndpoint>(BindingFlag.InstancePublic)
         .Select(p =>
         {
             //Endpoint name should match with Action name and property name

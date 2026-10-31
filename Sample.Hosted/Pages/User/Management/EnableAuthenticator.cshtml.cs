@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.Identity;
 using DRN.Framework.Utils.Auth;
@@ -16,11 +17,12 @@ namespace Sample.Hosted.Pages.User.Management;
 [Authorize(IdentityMfaPolicy.BrowserEnrollment)]
 public class EnableAuthenticator(SignInManager<SampleUser> signInManager, UserManager<SampleUser> userManager) : PageModel
 {
-    [BindProperty] public QrCodeVerifyModel QrCodeVerify { get; set; } = null!;
+    [Sensitive, BindProperty] public QrCodeVerifyModel QrCodeVerify { get; set; } = null!;
 
-    public string SharedKey { get; set; } = string.Empty;
-    public string AuthenticatorUri { get; set; } = string.Empty;
-    public string[] RecoveryCodes { get; set; } = [];
+    [Sensitive] public string SharedKey { get; set; } = string.Empty;
+    [Sensitive] public string AuthenticatorUri { get; set; } = string.Empty;
+    [Sensitive] public string[] RecoveryCodes { get; set; } = [];
+    [Sensitive(false, Justification = "Recovery code availability flag.")]
     public bool HasRecoveryCodes => RecoveryCodes.Length > 0;
 
     public async Task<IActionResult> OnGetAsync()
@@ -135,5 +137,6 @@ public class QrCodeVerifyModel
     [StringLength(7, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
     [DataType(DataType.Text)]
     [Display(Name = "Verification Code")]
+    [Sensitive]
     public string Code { get; init; } = string.Empty;
 }

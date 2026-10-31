@@ -879,6 +879,10 @@ Disable the publish item injection when an application owns this behavior itself
 
 Request logging and diagnostic buffering apply wherever `HttpScopeMiddleware` runs. Detailed exception pages and startup reports are Development features.
 
+Development exception pages opt out of redaction for their log viewer and request details, including headers, cookies, URLs, route values, and buffered bodies. The log viewer uses `ScopedLog.GetLogs(redact: false)` on the existing bounded capture. Emitted logs remain redacted. Capture limits, `[IgnoreLog]`, HTML encoding, access rules, and configuration debug-view protections remain active. Keep these pages and saved startup reports private.
+
+Failures while generating startup reports record the exception type, stack trace, and fixed `ReportGenerationFailed` category in scoped diagnostics. Their exception messages are omitted.
+
 ### Logging conventions
 
 `EventId` is provided by .NET's `Microsoft.Extensions.Logging`. It holds a numeric ID and an optional name. Use it with a public static `<Module>LogEvents` catalog. For example, `HostingLogEvents.MfaAuthorizationChallenge` carries ID `7401` and name `MfaAuthorizationChallenge`.
@@ -1044,7 +1048,11 @@ services.ConfigureApplicationCookie(options =>
 
 ### Request Body Buffering
 
+Diagnostic capture retains HTTP status, authentication outcome, and rate-limit outcome/action/rule metadata through `Add(..., exemptionReason: "...")`. IP addresses and partition identifiers remain protected in emitted logs. Named models use their own property names without built-in logging-prefix matches. Configured rules still check full paths. Model annotations and SharedKernel analyzers apply independently of logging reachability and `[IgnoreLog]`. Scoped logs retain classification metadata for redaction when read. Use direct `[Sensitive(false)]` for reviewed property false positives and exact capture policies only for nested exceptions. See the [diagnostic contract](../DRN.Framework.Utils/Logging/Diagnostics/README.md).
+
 Request diagnostics buffer POST, PUT, and PATCH bodies only when `Content-Length` is known and within the configured limit. Kestrel request-size limits still apply.
+
+Scoped HTTP diagnostics, startup reports, and developer-page copies use the [central diagnostic policy](../DRN.Framework.Utils/Logging/Diagnostics/README.md). Field names, explicit URL structure, and classification attributes control redaction. Exception text, loader messages, source context, and text bodies retain their contents within capture limits. Developer access rules are unchanged. Original exception/context objects remain available to filters and `Microsoft.AspNetCore.Diagnostics.UnhandledException` subscribers, which must apply their own export policy. Use `[Sensitive]` or `[Personal]` on sensitive or personal DTO members and schema rules for untyped input. Omit sensitive free text before capture. This does not add body capture or change public Problem Details messages.
 
 **Configuration** via `DrnAppFeatures` (in `appsettings.json`):
 

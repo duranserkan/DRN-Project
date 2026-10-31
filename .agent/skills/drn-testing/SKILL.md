@@ -10,6 +10,14 @@ tokens: ~1.7K
 
 > Canonical DTT (Duran's Testing Technique) guidance for choosing attributes, contexts, and test commands.
 
+Dictionary capture fixtures should normally use AddDictionary/SanitizeDictionary with explicit key classifications. Suppress DRN0020 only in explained runtime-fallback tests. Cover nested keys, mutation before capture, scalar-only NonSensitive exemptions, positive/configured precedence and native copy behavior.
+
+DRN0019 schema-exemption tests must use real EF migration API references. Cover column definitions and composite constraint selectors, while retaining diagnostics for migration data objects, nested defaults, logging and lookalike APIs. Do not exclude migration folders or generated files.
+
+DRN0017/DRN0020 skip instance calls directly chained from NSubstitute Received/DidNotReceive and their WithAnyArgs variants. Ordinary calls on substitutes and model/anonymous declaration diagnostics remain checked. Keep verification calls directly chained rather than relying on aliases or wrappers.
+
+SharedKernel classification errors also cover test models. Annotate fixture credentials and personal properties normally. Use direct `[Sensitive(false)]` only for deliberate operational false positives. Matching anonymous properties, including nested ones, require named annotated models under DRN0019. Keep intentional runtime-rejection fixtures under narrowly scoped, explained DRN0015 through DRN0019 suppressions. Do not exempt an entire test project. External-dependency launch logs must suppress credential getters and omit container graphs.
+
 Shared testing settings, container defaults, and docs-sync rules live in the [DRN Framework Maintenance Reference](../overview-drn-framework/SKILL.md#drn-framework-maintenance-reference).
 
 Resolve upstream links and local source through [Documentation And Source References](../overview-drn-framework/SKILL.md#documentation-and-source-references).

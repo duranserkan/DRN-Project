@@ -3,6 +3,7 @@
 #nullable enable
 
 using System.Text.Json.Serialization;
+using DRN.Framework.SharedKernel.Attributes;
 
 namespace DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
 
@@ -40,10 +41,14 @@ public class ExceptionDetails
     public Exception? Error { get; }
 
     public string ExceptionType { get; init; } = string.Empty;
+    [Sensitive]
     public string ExceptionMessage { get; init; } = string.Empty;
     public string? InnerExceptionType { get; init; }
+    [Sensitive]
     public string? InnerExceptionMessage { get; init; }
+    [Sensitive]
     public string FormattedException { get; init; } = string.Empty;
+    [Sensitive]
     public string[] LoaderExceptionMessages { get; init; } = [];
 
     /// <summary>

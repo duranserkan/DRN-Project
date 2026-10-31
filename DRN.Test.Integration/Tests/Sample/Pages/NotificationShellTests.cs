@@ -23,7 +23,7 @@ public class NotificationShellTests
         var application = context.ApplicationContext.CreateApplication<SampleProgram>();
         await context.ContainerContext.BindExternalDependenciesAsync();
 
-        foreach (var (authenticated, userId) in new (bool, string?)[]
+        foreach (var (authenticated, userId) in new[]
                  {
                      (false, null), (false, "account-a"),
                      (true, null), (true, ""), (true, " \t"),
@@ -54,13 +54,13 @@ public class NotificationShellTests
             var actionContext = new ActionContext(httpContext, new RouteData(), new ActionDescriptor());
             var view = engine.GetView(null, "/Pages/Shared/_NotificationShell.cshtml", isMainPage: false);
             view.Success.Should().BeTrue();
-            using var writer = new StringWriter();
-            var viewContext = new ViewContext(actionContext, view.View,
+            await using var writer = new StringWriter();
+            var viewContext = new ViewContext(actionContext, view.View!,
                 new ViewDataDictionary(new EmptyModelMetadataProvider(), new ModelStateDictionary()),
                 new TempDataDictionary(httpContext, services.GetRequiredService<ITempDataProvider>()),
                 writer, new HtmlHelperOptions());
 
-            await view.View.RenderAsync(viewContext);
+            await view.View!.RenderAsync(viewContext);
 
             writer.ToString().Should().Contain($"data-notification-owner=\"{expectedOwner}\"",
                     "authenticated={0}, userId='{1}', traceId='{2}' must preserve the account boundary",
