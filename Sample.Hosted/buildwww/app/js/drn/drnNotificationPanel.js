@@ -1,6 +1,5 @@
 const PANEL_ID = 'offCanvasSidebarActionCanvasNotifications';
 const PAGE_SIZE = 50;
-const GROUP_WINDOW = 60_000;
 const FILTER_LABELS = { all: 'All', error: 'Errors', warning: 'Warnings', info: 'Info' };
 const SEVERITIES = {
     error: { label: 'Error', icon: 'bi-exclamation-triangle-fill', color: 'text-danger' },
@@ -29,14 +28,14 @@ export function filterNotifications(entries, severity = 'all', search = '') {
 
 export function groupNotifications(entries) {
     const groups = [];
-    const latestGroups = new Map();
+    const groupsByKey = new Map();
     for (const entry of entries) {
         const key = JSON.stringify([entry.type, entry.problemType, entry.status, entry.operation,
             entry.target, entry.title, entry.message]);
-        let group = latestGroups.get(key);
-        if (!group || group.entries[0].createdAt - entry.createdAt > GROUP_WINDOW) {
+        let group = groupsByKey.get(key);
+        if (!group) {
             group = { id: entry.id, entries: [] };
-            latestGroups.set(key, group);
+            groupsByKey.set(key, group);
             groups.push(group);
         }
         group.entries.push(entry);
@@ -83,7 +82,8 @@ function renderOccurrence(entry) {
         const reference = element('div', 'small text-break user-select-text', `Request reference: ${entry.requestId}`);
         const copy = button('Copy reference', 'copy');
         copy.dataset.notificationReference = entry.requestId;
-        row.append(reference, copy);
+        row.append(reference, element('p', 'small text-body-secondary mb-2',
+            'Share this reference with support so they can find the request.'), copy);
     }
     row.append(button('Dismiss occurrence', 'dismiss', [entry.id]));
     return row;
@@ -149,22 +149,17 @@ function renderGroup(group, expanded) {
     return row;
 }
 
-function panelIsOpen() {
-    return panel?.matches('.show, .showing, .hiding') ?? false;
-}
-
 function updateTriggers(entries) {
-    const visible = entries.length > 0 || panelIsOpen();
-    const color = entries.some(item => item.type === 'error') ? 'bg-danger' :
-        entries.some(item => item.type === 'warning') ? 'bg-warning text-dark' : 'bg-primary';
+    const unseen = entries.filter(entry => !entry.seen);
     for (const trigger of document.querySelectorAll('[data-notification-trigger]')) {
-        show(trigger, visible);
         const control = trigger.querySelector('[data-notification-open]');
-        control?.setAttribute('aria-label', `Notifications, ${entries.length} retained`);
+        control?.setAttribute('aria-label', unseen.length ? `Notifications, ${unseen.length} unseen` : 'Notifications');
+        control?.classList.toggle('text-bg-warning', unseen.length > 0);
         const badge = trigger.querySelector('[data-notification-count]');
         if (!badge) continue;
-        badge.textContent = String(entries.length);
-        badge.className = `position-absolute top-0 start-100 translate-middle badge rounded-pill ${color}`;
+        badge.textContent = String(unseen.length);
+        badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill text-bg-danger';
+        show(badge, unseen.length > 0);
     }
 }
 
@@ -247,7 +242,7 @@ async function handleClick(event) {
     } else if (control.dataset.notificationAction === 'copy') {
         try {
             await navigator.clipboard.writeText(control.dataset.notificationReference);
-            announce('Request reference copied.');
+            announce('Request reference copied. Share it with support so they can find the request.');
         } catch {
             announce('Copy unavailable. Select and copy the request reference.');
         }
@@ -293,11 +288,13 @@ function install() {
             refresh();
         }
     });
+    document.addEventListener('shown.bs.offcanvas', event => {
+        if (event.target?.id !== PANEL_ID) return;
+        store().markSeen();
+    });
     document.addEventListener('hidden.bs.offcanvas', event => {
         if (event.target?.id !== PANEL_ID) return;
         refresh();
-        if (store().list().length === 0)
-            document.getElementById('drn-main-content')?.focus({ preventScroll: true });
     });
     document.addEventListener('focusout', event => {
         if (event.target instanceof Element && event.target.closest('#drn-notification-list'))

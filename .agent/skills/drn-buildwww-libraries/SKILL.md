@@ -126,7 +126,7 @@ buildwww/app/js/drn/
 
 ### Problem Details Consumer
 
-Use `DRN.Problem.fromResponse(response)` and `show(problem, context)` for Fetch errors. Context accepts `element`, `target`, `operation`, `persist`, and `focus`. HTMX errors are presented automatically in the originating form, a `data-problem-region`, or the page summary. Preserve input and clear only the matching operation's errors. Resolve the complete browser API, parsing limits, and examples from the profile-declared application guide and declarations.
+Use `DRN.Problem.fromResponse(response)` and `show(problem, context)` for Fetch errors. Context accepts `element`, `target`, `operation`, `persist`, and `focus`. HTMX validation errors appear in the originating form, a `data-problem-region`, or the page summary. Failures without validation errors use a brief toast and one history entry, with friendly text for generic HTTP titles. Preserve input and clear only the matching operation's errors. Resolve the complete browser API, parsing limits, and examples from the profile-declared application guide and declarations.
 
 Only `application/problem+json` is parsed, with the HTTP status taking precedence. Display public messages as text and retain a generic fallback for unusable responses. Do not retry mutations automatically or swap JSON as HTML. An HTML validation swap requires status 422, `text/html`, and `X-DRN-Validation: true`. Hosting's `HandleHtmxRequests` option controls error formatting without changing authentication behavior.
 
@@ -141,11 +141,22 @@ Choose immediate presentation and retention independently:
 - Routine acknowledgments, such as copying text: toast only with `record: false`.
 - Results worth revisiting, such as export completion or background failure: toast and history.
 - Updates that need no immediate attention: history only with `DRN.Notifications.publish`.
-- Server-reported validation and actionable request failures: contextual feedback through `DRN.Problem` and one history entry. Preserve its toast fallback when no inline region exists.
+- Server-reported validation: contextual feedback through `DRN.Problem` and one history entry, with a toast fallback when no inline region exists.
+- Request failures without validation errors: a brief toast and one history entry through `DRN.Problem`, without a page banner.
 
 Do not repeat inline feedback with an additional toast or record routine client-side field validation in history. Omit feedback when neither immediate attention nor later review is useful. `persist: false` controls storage only, not toast visibility or whether history is recorded. Keep the decision guide in the profile-declared application documentation aligned with these rules.
 
 Keep history bounded and isolated by application and account. Publish only safe public text. Account changes clear history and contextual errors. Stale pages pause until reloaded. Closing feedback and dismissing history are separate actions. Resolve retention limits, panel behavior, and API options from the profile-declared application guide and browser declarations.
+
+Keep the notification bell visible. Its badge counts unseen entries and hides at zero. Opening the panel marks existing history seen; later arrivals remain unseen until it is opened again. Persist seen state, preserve it through Undo, and keep deduplicated source identities seen. New publications always start unseen.
+
+Use Bootstrap `text-bg-warning` on action buttons needing attention and `text-bg-danger` for count badges. Render the normal button color initially and apply warning only after reading saved attendance, so acknowledged items do not flash yellow on navigation. On `shown.bs.offcanvas`, remove only the opened item's warning class, preserving its other classes and counts. Notifications additionally mark existing history seen and hide the zero unseen badge. Keep severity colors inside history. When displaying a request reference, briefly explain that users can share it with support to locate the request.
+
+Persist notification history and other actionbar attendance in local storage so new and existing tabs share the latest state. Scope attendance by application/account and validate the notification history owner. Refresh on storage events without replaying toasts. Serialize notification read/modify/write operations under an application-scoped Web Lock. Merge operation deltas against the latest saved history inside the lock, recheck ownership there, and never let a suspended account overwrite another account's history. Keep the public notification API synchronous while persistence queues asynchronously. Protect pending local changes from storage-event refreshes. Without Web Locks, use tab-local session storage. Storage or lock failures retain current-page feedback in memory. Keep `persist: false` notifications local to the page. Compare the acknowledged activity version, falling back to `data-actionbar-count` text. Capped or unchanged counts need an explicit `data-actionbar-attention-version` on the button to distinguish new activity. Blocked storage falls back to current-page memory.
+
+Authenticated notification owners require a stable account ID. Never substitute a request trace ID or the anonymous owner. An empty owner clears history and suspends notifications and HTMX requests until a fresh account context is supplied. Preserve anonymous history for unauthenticated users.
+
+Anchor toasts in the positioned `data-toast-host` content wrapper, outside its scrolling content, to avoid covering the header or actionbar. Use opaque Bootstrap `bg-body` surfaces and constrain the stack to the host's width and height. Pages without a host use bottom-center viewport placement.
 
 Toast `duration` controls presentation only. Timeout, manual close, visible-toast eviction, and HTMX cleanup must preserve retained history. Explicit history dismissal must not be undone by subsequent toast cleanup. Cover these boundaries with the browser fixture and real Bootstrap lifecycle.
 

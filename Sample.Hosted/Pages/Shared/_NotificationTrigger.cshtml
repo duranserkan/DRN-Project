@@ -1,8 +1,10 @@
-<div data-notification-trigger class="d-none" hidden>
-    <button type="button" class="btn btn-light nav-link position-relative p-2 border-top rounded-0"
+<div data-notification-trigger title="Notifications" data-bs-toggle="tooltip" data-bs-placement="left">
+    <button type="button" class="btn btn-light nav-link d-flex align-items-center py-2 border-top rounded-0"
             data-notification-open data-bs-toggle="offcanvas" data-bs-target="#offCanvasSidebarActionCanvasNotifications"
-            aria-controls="offCanvasSidebarActionCanvasNotifications" aria-label="Notifications" title="Notifications">
-        <i class="bi bi-bell-fill fs-5" aria-hidden="true"></i>
-        <span data-notification-count class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">0</span>
+            aria-controls="offCanvasSidebarActionCanvasNotifications" aria-label="Notifications">
+        <span class="position-relative">
+            <i class="bi bi-bell" style="font-size: 1.25em;" aria-hidden="true"></i>
+            <span data-notification-count style="font-size: 0.7rem;" class="position-absolute top-0 start-100 translate-middle badge rounded-pill text-bg-danger d-none" hidden aria-hidden="true">0</span>
+        </span>
     </button>
 </div>

@@ -76,7 +76,7 @@ Returning `Page()` with invalid ModelState remains HTML. Selecting JSON validati
 
 ## HTMX errors
 
-The sample enables [HTMX Problem Details](../DRN.Framework.Hosting/README.md#htmx-partial-requests). Problem Details and failures without a usable toast header preserve the current page and input, show an error summary in the originating form or a `data-problem-region`, and record one notification. Errors without a local region use the page summary. A successful request clears its matching error. Dismissing history does not clear form validation. Network failures and timeouts show recovery guidance without automatically retrying a mutation.
+The sample enables [HTMX Problem Details](../DRN.Framework.Hosting/README.md#htmx-partial-requests). Failures preserve the current page and input and record one notification. Validation errors show a summary in the originating form or a `data-problem-region`, falling back to the page summary. Other failures show a brief toast with public guidance instead of a page banner. Generic HTTP titles such as "Bad Request" become plain-language messages. Request references remain available in history. A successful request clears its matching validation error. Dismissing history does not clear form validation. Network failures and timeouts show recovery guidance without automatically retrying a mutation.
 
 Set `data-notification-operation="Save profile"` on a form or component for a history label. Set `data-notification-persist="false"` to keep its Problem Details and HTMX toast messages in memory only.
 
@@ -86,11 +86,17 @@ For an application-owned HTML validation fragment, return status `422`, `Content
 
 ## Notification history
 
-The Notifications action opens a searchable history panel with All, Errors, Warnings, and Info filters. Info includes success messages. Matching failures within 60 seconds are grouped with individual request references. Use Load more to see additional history. Dismiss entries, groups, filtered results, or all history. Clear all offers Undo for 10 seconds. Closing a toast or the panel leaves history intact. Notifications are also available on login and pending-MFA pages.
+The Notifications action opens a searchable history panel with All, Errors, Warnings, and Info filters. Info includes success messages. Matching failures are grouped across retained history regardless of time gaps, with individual timestamps and request references preserved. Different operations, targets, severities, statuses, problem types, or message content remain separate. Use Load more to see additional history. Dismiss entries, groups, filtered results, or all history. Clear all offers Undo for 10 seconds. Closing a toast or the panel leaves history intact. Notifications are also available on login and pending-MFA pages.
 
-The default `SidebarActionCollection` includes Notifications. Custom collections can omit or reorder it. Its badge counts retained notifications and updates in the browser. The action hides when history is empty and the panel is closed.
+The default `SidebarActionCollection` includes Notifications. Custom collections can omit or reorder it. The bell remains visible even when history is empty. Its badge counts unseen notifications and hides at zero. Opening the panel marks existing history as seen without dismissing it. Notifications arriving afterward remain unseen until the panel is opened again. Seen state survives reloads and Undo; repeated source identities do not become unseen again. Older cached records without seen state start unseen.
 
 Success alerts also appear once in history without an extra toast. Closing an inline alert leaves history intact.
+
+Actionbar items needing attention use Bootstrap `text-bg-warning` across the button. Opening an item's panel removes its warning highlight and restores the original button colors. Other action counts remain unchanged; opening Notifications also marks its history seen and clears the unseen badge. Count badges use Bootstrap `text-bg-danger`. Error severity remains visible inside history. Request references include a short instruction to share them with support so the request can be located.
+
+Actionbar attendance is saved in `localStorage` per application and account. New tabs, reloads, and HTMX navigation keep an unchanged count acknowledged. Buttons render in their normal color until saved attendance is read, preventing an incorrect warning flash on acknowledged items. Already-open tabs receive attendance updates through storage events. A changed count restores attention. For capped counts such as `9+`, set `data-actionbar-attention-version` on the button to a stable activity revision that changes when new activity arrives. Without a revision, equal counts cannot distinguish new activity. If storage is blocked, attendance lasts only for the current page.
+
+Toasts appear at the upper-right of the main content column, below the header and inside the sidebars. The `data-toast-host` wrapper anchors them outside the scrolling content. Bootstrap limits their width to the available space and opaque, theme-aware backgrounds keep text readable. Pages without a host use a bottom-center viewport fallback.
 
 Toast display time and history retention are independent. `duration` controls only the toast, defaults to 5 seconds, and is clamped to 1 through 30 seconds. Timeout, the close button, eviction from the three visible toast slots, and HTMX cleanup leave history intact. History dismissal does not close a visible toast. Use `record: false` for transient feedback and `persist: false` for history that lasts only in memory.
 
@@ -103,15 +109,16 @@ Use a toast when the user needs immediate feedback. Retain a notification when t
 | Copied text or a routine preference change | Toast only | `DRN.Toast.show({ ..., record: false })` |
 | Export completed or a background operation failed | Toast and history | `DRN.Toast.show({ ... })` |
 | Background update that does not need immediate attention | History only | `DRN.Notifications.publish({ ... })` |
-| Server-reported validation or an actionable request failure | Inline feedback and history | `DRN.Problem.show(problem, context)` or the automatic HTMX error flow |
+| Server-reported validation | Inline feedback and history | `DRN.Problem.show(problem, context)` or the automatic HTMX error flow |
+| Request failure without validation errors | Brief toast and history with an unseen badge | `DRN.Problem.show(problem, context)` or the automatic HTMX error flow |
 
-Prefer inline feedback when it shows where the user needs to act. Do not add a toast that repeats an inline result. The Problem flow records history once and uses a toast only when no inline region is available. Routine client-side field validation does not need a history entry.
+Prefer inline feedback for validation that shows where the user needs to act. Do not add a toast that repeats an inline result. The Problem flow records history once. Validation uses a toast only when no inline region is available; other request failures use a toast without adding a second history entry. Routine client-side field validation does not need a history entry.
 
-`persist: false` is a separate storage choice. It keeps a retained notification in memory rather than `sessionStorage`. It does not make the message toast-only and does not make sensitive content safe to display.
+`persist: false` is a separate storage choice. It keeps a retained notification in current-page memory rather than shared `localStorage`. It does not make the message toast-only and does not make sensitive content safe to display.
 
 ### Retention and privacy
 
-History is limited to 1,000 records, 1 MiB of serialized UTF-8 data, and 24 hours. Old entries are removed first. `sessionStorage` preserves history through current-tab reloads, with memory-only fallback when storage is unavailable. Account changes clear history, Undo state, and contextual errors. A page that detects an account change in another tab pauses HTMX requests and notifications until reloaded. History is temporary and unsuitable for auditing. Keep secrets, request bodies, query values, and private diagnostics out of messages.
+History is limited to 1,000 records, 1 MiB of serialized UTF-8 data, and 24 hours. Old entries are removed first. `localStorage` shares saved history, seen state, and dismissals across tabs of the same origin and application. Web Locks serialize shared writes, merging each operation into the latest saved history so concurrent publications and dismissals cannot overwrite each other. Local feedback updates synchronously; persistence finishes asynchronously and may be lost if the page closes before its queued write runs. Browsers without Web Locks use tab-local `sessionStorage`. Storage or lock failures keep current-page feedback in memory. Receiving another tab's update does not replay its toast. Tab-only caches are not migrated into shared storage. Account changes clear history, Undo state, and contextual errors. A page that detects an account change in another tab pauses HTMX requests and notifications until reloaded. History is temporary and unsuitable for auditing. Keep secrets, request bodies, query values, and private diagnostics out of messages.
 
 ### Publish notifications
 

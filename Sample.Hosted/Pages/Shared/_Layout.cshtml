@@ -24,7 +24,7 @@
         <partial name="_Sidebar"/>
     }
 
-    <div class="d-flex flex-column flex-grow-1 mt-1" style="overflow-y: hidden;">
+    <div data-toast-host class="position-relative d-flex flex-column flex-grow-1 mt-1" style="overflow-y: hidden; min-width: 0;">
         @if (ScopeContext.MFACompleted)
         {
             <partial name="_SubNavigation"/>

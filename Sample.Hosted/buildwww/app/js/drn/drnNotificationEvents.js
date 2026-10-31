@@ -39,6 +39,7 @@ export function installNotificationEvents(panel) {
     let loadingDetail = null;
     let activeMarker = null;
     let epoch = 0;
+    let observedActive = true;
     const requestEpochs = new WeakMap();
 
     function stale(detail) {
@@ -77,6 +78,7 @@ export function installNotificationEvents(panel) {
         const context = { app: marker.dataset.notificationApp, owner: marker.dataset.notificationOwner };
         activeMarker = marker;
         if (!DRN.Notifications.configure(context)) return;
+        observedActive = DRN.Notifications.isActive();
         // HTMX load triggers can start requests before the first DOMContentLoaded configuration.
         if (currentContext) epoch++;
         currentContext = context;
@@ -95,10 +97,7 @@ export function installNotificationEvents(panel) {
             channel = new BroadcastChannel(`drn.notifications:${currentContext.app}`);
             channel.onmessage = event => {
                 if (event.data?.type === 'account' && event.data.owner !== currentContext.owner) {
-                    epoch++;
                     DRN.Notifications.suspend();
-                    contextChanged();
-                    showAccountChange();
                 }
             };
         } catch { channel = null; }
@@ -118,6 +117,7 @@ export function installNotificationEvents(panel) {
 
     function refreshState() {
         configure();
+        syncHistory();
         if (currentContext) importStatusMessages(document, DRN.Notifications);
         ensureResources();
     }
@@ -135,6 +135,23 @@ export function installNotificationEvents(panel) {
     else start();
     document.addEventListener('htmx:load', refresh);
     window.addEventListener('pageshow', refresh);
+    function syncHistory() {
+        DRN.Notifications.sync();
+    }
+    DRN.Notifications.subscribe(() => {
+        const active = DRN.Notifications.isActive();
+        const becameInactive = observedActive && !active;
+        observedActive = active;
+        if (becameInactive && currentContext) {
+            epoch++;
+            contextChanged();
+            showAccountChange();
+        }
+    });
+    window.addEventListener('storage', event => {
+        if (currentContext && (event.key === null || event.key === `drn.notifications.v1:${currentContext.app}`))
+            syncHistory();
+    });
     window.addEventListener('pagehide', () => {
         channel?.close();
         channel = null;

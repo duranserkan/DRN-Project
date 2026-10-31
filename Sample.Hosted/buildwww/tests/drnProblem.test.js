@@ -73,6 +73,18 @@ test('a problem records once and its fallback toast opts out of recording', () =
         assert.equal(notification.requestId, 'reference');
         assert.equal(toast.record, false);
         assert.equal(toast.message, notification.title);
+        const badRequest = problem.parse('{"title":"Bad Request","requestId":"bad-request-1"}',
+            'application/problem+json', 400);
+        problem.show(badRequest);
+        assert.equal(notification.title, 'Please try again. If the problem continues, contact support and share the error details from Notifications.');
+        assert.equal(notification.status, 400);
+        assert.equal(notification.requestId, 'bad-request-1');
+        assert.equal(toast.message, notification.title);
+        assert.equal(toast.record, false);
+
+        badRequest.detail = 'Refresh the page and try again.';
+        problem.show(badRequest);
+        assert.equal(toast.message, badRequest.detail);
     } finally {
         if (originalWindow === undefined) delete globalThis.window;
         else globalThis.window = originalWindow;
