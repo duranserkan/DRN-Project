@@ -110,6 +110,8 @@ function queuedLocks() {
             return new Promise((resolve, reject) => requests.push({ name, callback, resolve, reject }));
         },
         async drain() {
+            // Let each store submit its coalesced work before draining the shared lock queue.
+            await Promise.resolve();
             while (requests.length) {
                 const request = requests.shift();
                 assert.equal(request.name, 'drn.notifications.v1:/app/');
@@ -120,6 +122,48 @@ function queuedLocks() {
         }
     };
 }
+
+test('synchronous publications, acknowledgment and undo share one ordered storage write', async () => {
+    const locks = queuedLocks();
+    const { store, storage, cache, advance } = fixture({ locks });
+    await locks.drain();
+    const writes = [];
+    storage.setItem = (key, value) => { writes.push(value); cache.set(key, value); };
+    const first = store.publish({ message: 'First occurrence' });
+    advance(1);
+    const second = store.publish({ message: 'Second occurrence', sourceId: 'second' });
+    store.markSeen();
+    store.restore(store.dismiss([second.id]));
+    assert.deepEqual(store.publish({ message: 'Duplicate occurrence', sourceId: 'second' }), { ...second, seen: true });
+    advance(1);
+    const local = store.publish({ message: 'Only this page', persist: false });
+    assert.equal(writes.length, 0);
+    await locks.drain();
+    const expected = [{ ...second, seen: true }, { ...first, seen: true }];
+    assert.equal(writes.length, 1);
+    assert.deepEqual(JSON.parse(writes[0]).entries, expected);
+    assert.deepEqual(store.list(), [local, ...expected]);
+
+    store.expire();
+    await locks.drain();
+    assert.equal(writes.length, 1);
+});
+
+test('later publications keep their place behind another tab in the lock queue', async () => {
+    const locks = queuedLocks();
+    const { store, settings } = fixture({ locks });
+    const other = createNotificationStore(settings);
+    other.configure({ app: '/app/', owner: 'account-a' });
+    await locks.drain();
+    store.publish({ message: 'First queued change' });
+    await Promise.resolve();
+    const firstSource = other.publish({ message: 'Other tab owns this source', sourceId: 'shared-source' });
+    await Promise.resolve();
+    store.publish({ message: 'Later duplicate', sourceId: 'shared-source' });
+    await locks.drain();
+    store.sync();
+    assert.deepEqual(store.list().find(entry => entry.sourceId === 'shared-source'), firstSource);
+});
 
 for (const maxEntries of [1000, 3]) {
     test(`same-timestamp publications preserve order through locked persistence, capacity: ${maxEntries}`, async () => {
@@ -431,6 +475,19 @@ test('count, byte and age ceilings apply before presentation grouping', () => {
     assert.ok(new TextEncoder().encode(saved).length <= 1500);
     assert.ok(bounded.store.list().length < 10);
     assert.equal(bounded.store.list()[0].id, 'id-10');
+});
+
+test('list reads expire entries at their individual age boundaries', () => {
+    const { store, advance } = fixture({ maxAge: 10 });
+    const first = store.publish({ message: 'First' });
+    advance(3);
+    const second = store.publish({ message: 'Second' });
+    advance(6);
+    assert.deepEqual(store.list(), [second, first]);
+    advance(1);
+    assert.deepEqual(store.list(), [second]);
+    advance(3);
+    assert.deepEqual(store.list(), []);
 });
 
 test('corrupt, oversized, duplicate, future and unsafe restored fields cannot enter history', () => {

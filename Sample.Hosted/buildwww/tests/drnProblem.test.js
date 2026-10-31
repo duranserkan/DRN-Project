@@ -105,3 +105,51 @@ test('XHR and Fetch share parsing and Fetch leaves the original body readable', 
     const html = new Response('<html>private</html>', { status: 500, headers: { 'Content-Type': 'text/html' } });
     assert.equal((await problem.fromResponse(html)).title, problem.parse('', '', 500).title);
 });
+
+test('Fetch stops reading oversized streams without waiting for the original consumer', { timeout: 5000 }, async () => {
+    const chunk = new TextEncoder().encode(' '.repeat(16384));
+    let pulls = 0;
+    const response = new Response(new ReadableStream({
+        pull(controller) {
+            controller.enqueue(chunk);
+            if (++pulls === 64) controller.close();
+        }
+    }), { status: 503, headers: { 'Content-Type': 'application/problem+json', 'Content-Length': '1' } });
+
+    const result = await problem.fromResponse(response);
+    assert.equal(result.title, problem.parse('', '', 503).title);
+    assert.equal(result.status, 503);
+    assert.ok(pulls < 64, 'the oversized body must not be fully read');
+    assert.equal(response.bodyUsed, false);
+    const reader = response.body.getReader();
+    assert.deepEqual((await reader.read()).value, chunk);
+    await reader.cancel();
+    reader.releaseLock();
+});
+
+test('Fetch preserves multibyte text split across chunks and accepts the character limit', async () => {
+    const empty = { title: 'ç😀', detail: '' };
+    const body = JSON.stringify({ ...empty, detail: '界'.repeat(65536 - JSON.stringify(empty).length) });
+    assert.equal(body.length, 65536);
+    const bytes = new TextEncoder().encode(body);
+    const split = bytes.indexOf(0xc3) + 1;
+    const response = new Response(new ReadableStream({
+        start(controller) {
+            controller.enqueue(bytes.subarray(0, split));
+            controller.enqueue(bytes.subarray(split));
+            controller.close();
+        }
+    }), { status: 400, headers: { 'Content-Type': 'application/problem+json' } });
+
+    const result = await problem.fromResponse(response);
+    assert.equal(result.title, 'ç😀');
+    assert.equal(result.detail, '界'.repeat(500));
+    assert.equal(await response.text(), body);
+});
+
+test('Fetch read failures return the generic problem', async () => {
+    const response = new Response(new ReadableStream({
+        start(controller) { controller.error(new Error('stream failed')); }
+    }), { status: 502, headers: { 'Content-Type': 'application/problem+json' } });
+    assert.deepEqual(await problem.fromResponse(response), problem.parse('', '', 502));
+});

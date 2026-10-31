@@ -136,6 +136,8 @@ HTMX HTTP failures and server toast headers must not generate client-error repor
 
 Only `application/problem+json` is parsed, with the HTTP status taking precedence. Display public messages as text and retain a generic fallback for unusable responses. Do not retry mutations automatically or swap JSON as HTML. An HTML validation swap requires status 422, `text/html`, and `X-DRN-Validation: true`. Hosting's `HandleHtmxRequests` option controls error formatting without changing authentication behavior.
 
+Fetch parsing must bound incremental clone reads before buffering the whole body. Preserve streaming UTF-8 decoding and the original response, and do not await clone cancellation while the original may remain unread. Resolve byte and character limits from the application guide.
+
 Validation keys match complete posted names, including casing, prefixes, and collection indices. An empty key is form-level feedback. Keep Razor response selection explicit and preserve existing API validation keys. See [Hosting error guidance](../drn-hosting/SKILL.md#error-responses) for server-side conventions.
 
 ### Notification History
@@ -155,6 +157,8 @@ Do not repeat inline feedback with an additional toast or record routine client-
 Keep history bounded and isolated by application and account. Publish only safe public text. Account changes clear history and contextual errors. Stale pages pause until reloaded. Closing feedback and dismissing history are separate actions. Resolve retention limits, panel behavior, and API options from the profile-declared application guide and browser declarations.
 
 Keep the notification bell visible. Its badge counts unseen entries and hides at zero. Opening the panel marks existing history seen; later arrivals remain unseen until it is opened again. Persist seen state, preserve it through Undo, and keep deduplicated source identities seen. New publications always start unseen.
+
+Update badges immediately while deferring closed-panel filtering and list rendering until opening. Forced account-context refreshes must still clear prior-account DOM and Undo state. Cache entry sizing only for immutable internal records and invalidate history pruning at the next expiry. Batch synchronous persistence deltas in their original order without merging across queued browser tasks or weakening the ownership check inside the lock.
 
 Use Bootstrap `text-bg-warning` on action buttons needing attention and `text-bg-danger` for count badges. Render the normal button color initially and apply warning only after reading saved attendance, so acknowledged items do not flash yellow on navigation. On `shown.bs.offcanvas`, remove only the opened item's warning class, preserving its other classes and counts. Notifications additionally mark existing history seen and hide the zero unseen badge. Keep severity colors inside history. When displaying a request reference, briefly explain that users can share it with support to locate the request.
 

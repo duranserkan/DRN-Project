@@ -1003,6 +1003,8 @@ The framework includes built-in Razor Pages for developer-time exception handlin
 -   **RuntimeExceptionPage**: Detailed breakdown of unhandled exceptions with request state and logs.
 -   **CompilationExceptionPage**: Visualizes Razor or code compilation errors with line-specific highlighting.
 
+Production responses and eligible API/HTMX Problem Details skip diagnostic model collection when no post-creation exception filter needs the model. Pre-creation filters still run before response selection. Registered post-creation filters retain the populated model and their existing order, unless a pre-filter sets `SkipPostCreationFilter`. Development HTML diagnostics and explicit `GetExceptionPageModel` calls still create the model.
+
 Configure application-owned error pages with Hosting's `DrnErrorPageOptions`:
 
 ```csharp

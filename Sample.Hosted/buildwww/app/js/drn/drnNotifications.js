@@ -50,7 +50,10 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
     let persisted = [];
     let generation = 0;
     let pending = 0;
+    let scheduledBatch = null;
+    let nextExpiry = Infinity;
     let storageFailed = false;
+    const entrySizes = new WeakMap();
     const listeners = new Set();
     const storageKey = () => `drn.notifications.v1:${context.app}`;
     const envelope = items => ({ version: 1, owner: context?.owner, entries: items });
@@ -64,7 +67,11 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
         return items.sort((a, b) => b.createdAt - a.createdAt).filter(entry => {
             if (entry.createdAt <= cutoff || ids.has(entry.id) ||
                 (entry.sourceId && sources.has(entry.sourceId)) || ids.size >= maxEntries || full) return false;
-            const size = encoder.encode(JSON.stringify(entry)).length + 1;
+            let size = entrySizes.get(entry);
+            if (size === undefined) {
+                size = encoder.encode(JSON.stringify(entry)).length + 1;
+                entrySizes.set(entry, size);
+            }
             if (bytes + size > maxBytes) { full = true; return false; }
             ids.add(entry.id);
             if (entry.sourceId) sources.add(entry.sourceId);
@@ -73,7 +80,10 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
         });
     }
 
-    function prune() { entries = sortAndLimitEntries(entries); }
+    function prune() {
+        entries = sortAndLimitEntries(entries);
+        nextExpiry = entries.length ? entries.at(-1).createdAt + maxAge : Infinity;
+    }
 
     function decode(raw) {
         if (!raw || encoder.encode(raw).length > maxBytes) return null;
@@ -88,6 +98,20 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
 
     function save(initialize = false) {
         if (!context || storageFailed || (suspended && !initialize)) return;
+        if (!locks) {
+            if (!context.owner) return;
+            try {
+                const cache = storage();
+                if (!cache) return;
+                const raw = JSON.stringify(envelope(entries.filter(entry => entry.persist)));
+                if (raw !== lastRaw) cache.setItem(storageKey(), raw);
+                lastRaw = raw;
+            } catch {
+                // Notifications must still work when storage is blocked or its quota is exhausted.
+                try { storage()?.removeItem(storageKey()); lastRaw = null; } catch { /* Storage can be entirely unavailable. */ }
+            }
+            return;
+        }
         const next = entries.filter(entry => entry.persist);
         const before = new Map(persisted.map(entry => [entry.id, entry]));
         const retained = new Set(next.map(entry => entry.id));
@@ -99,6 +123,14 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
         const seen = new Set(newlySeen.map(entry => entry.id));
         const seenSources = new Set(newlySeen.map(entry => entry.sourceId).filter(Boolean));
         persisted = next;
+        if (!initialize && !added.length && !removed.size && !seen.size) return;
+        const operation = { added, removed, removedSources, seen, seenSources };
+        if (scheduledBatch) {
+            scheduledBatch.operations.push(operation);
+            return;
+        }
+        const batch = { operations: [operation] };
+        scheduledBatch = batch;
         const key = storageKey();
         const owner = context.owner;
         const version = generation;
@@ -115,27 +147,33 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
                 entries = [];
                 return;
             }
-            const shared = saved?.owner === owner ? savedEntries(saved) : [];
-            const remaining = shared.filter(entry => !removed.has(entry.id) && !removedSources.has(entry.sourceId));
-            const ids = new Set(remaining.map(entry => entry.id));
-            const sources = new Set(remaining.map(entry => entry.sourceId).filter(Boolean));
-            // Match local unshift ordering when publications share a millisecond timestamp.
-            const merged = sortAndLimitEntries([
-                ...added.filter(entry => !ids.has(entry.id) && (!entry.sourceId || !sources.has(entry.sourceId))),
-                ...remaining.map(entry => seen.has(entry.id) || seenSources.has(entry.sourceId)
-                    ? { ...entry, seen: true } : entry)]);
+            let merged = saved?.owner === owner ? savedEntries(saved) : [];
+            // Keep each delta in order, including removal followed by Undo, while sharing one storage write.
+            for (const { added, removed, removedSources, seen, seenSources } of batch.operations) {
+                const remaining = merged.filter(entry => !removed.has(entry.id) && !removedSources.has(entry.sourceId));
+                const ids = new Set(remaining.map(entry => entry.id));
+                const sources = new Set(remaining.map(entry => entry.sourceId).filter(Boolean));
+                // Match local unshift ordering when publications share a millisecond timestamp.
+                merged = sortAndLimitEntries([
+                    ...added.filter(entry => !ids.has(entry.id) && (!entry.sourceId || !sources.has(entry.sourceId))),
+                    ...remaining.map(entry => seen.has(entry.id) || seenSources.has(entry.sourceId)
+                        ? { ...entry, seen: true } : entry)]);
+            }
             // Initialization only adopts the latest same-owner state. It never replays a stale snapshot.
             const raw = JSON.stringify({ version: 1, owner, entries: merged });
-            cache.setItem(key, raw);
+            if (raw !== currentRaw) cache.setItem(key, raw);
         };
-        if (locks) {
-            pending++;
-            const finish = () => {
-                if (version !== generation) return;
-                pending--;
-                if (!pending) readShared();
-                for (const listener of listeners) listener();
-            };
+        pending++;
+        const finish = () => {
+            if (version !== generation) return;
+            pending--;
+            if (!pending) readShared();
+            for (const listener of listeners) listener();
+        };
+        // Coalesce synchronous publications without extending a batch across browser tasks.
+        queueMicrotask(() => {
+            if (version !== generation) return;
+            scheduledBatch = null;
             try {
                 Promise.resolve(locks.request(key, commit)).catch(() => {
                     if (version === generation) storageFailed = true;
@@ -144,20 +182,7 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
                 storageFailed = true;
                 finish();
             }
-            return;
-        }
-        // Without a lock manager the default storage is tab-local, so synchronous writes are safe.
-        if (!owner) return;
-        try {
-            const cache = storage();
-            if (!cache) return;
-            const raw = JSON.stringify(envelope(entries.filter(entry => entry.persist)));
-            cache.setItem(storageKey(), raw);
-            lastRaw = raw;
-        } catch {
-            // Notifications must still work when storage is blocked or its quota is exhausted.
-            try { storage()?.removeItem(storageKey()); lastRaw = null; } catch { /* Storage can be entirely unavailable. */ }
-        }
+        });
     }
 
     // Pending operations own the local view until all their shared commits finish.
@@ -208,6 +233,7 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
         persisted = [];
         generation++;
         pending = 0;
+        scheduledBatch = null;
         lastRaw = null;
         try {
             // An unidentified authenticated user must not retain or restore any account's history.
@@ -235,7 +261,7 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
             type: types.has(value?.type) ? value.type : 'info' }, now());
         if (!entry) return null;
         if (entry.sourceId) {
-            prune();
+            if (now() >= nextExpiry) prune();
             const existing = entries.find(item => item.sourceId === entry.sourceId);
             if (existing) return { ...existing };
         }
@@ -263,12 +289,15 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
         markSeen() {
             readShared();
             if (suspended || !entries.some(entry => !entry.seen)) return;
-            entries = entries.map(entry => ({ ...entry, seen: true }));
+            entries = entries.map(entry => entry.seen ? entry : { ...entry, seen: true });
             pruneSaveAndNotify();
         },
         isActive() { return !suspended; },
         suspend() { suspended = true; entries = []; pruneSaveAndNotify(); },
-        list() { prune(); return entries.map(entry => ({ ...entry })); },
+        list() {
+            if (now() >= nextExpiry) prune();
+            return entries.map(entry => ({ ...entry }));
+        },
         subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
         clear() { readShared(); return dismiss(entries.map(entry => entry.id)); },
         forget() { readShared(); entries = []; pruneSaveAndNotify(); },

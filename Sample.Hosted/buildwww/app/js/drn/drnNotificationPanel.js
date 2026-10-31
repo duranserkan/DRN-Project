@@ -21,8 +21,9 @@ export function filterNotifications(entries, severity = 'all', search = '') {
     return entries.filter(entry => {
         const matchesSeverity = severity === 'all' || entry.type === severity ||
             (severity === 'info' && entry.type === 'success');
+        if (!matchesSeverity || !needle) return matchesSeverity;
         const searchable = [entry.title, entry.message, entry.operation, entry.requestId, entry.clientErrorId].join('\n').toLocaleLowerCase();
-        return matchesSeverity && (!needle || searchable.includes(needle));
+        return searchable.includes(needle);
     });
 }
 
@@ -169,6 +170,7 @@ function refresh(force = false) {
     const entries = store().list();
     updateTriggers(entries);
     if (!panel) return;
+    if (!force && !panel.matches('.show, .showing')) return;
 
     const search = panel.querySelector('#drn-notification-search');
     if (search.value !== query) search.value = query;
@@ -292,6 +294,9 @@ function install() {
     document.addEventListener('shown.bs.offcanvas', event => {
         if (event.target?.id !== PANEL_ID) return;
         store().markSeen();
+    });
+    document.addEventListener('show.bs.offcanvas', event => {
+        if (event.target?.id === PANEL_ID) refresh(true);
     });
     document.addEventListener('hidden.bs.offcanvas', event => {
         if (event.target?.id !== PANEL_ID) return;

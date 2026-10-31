@@ -22,7 +22,7 @@ public class SampleDrnExceptionFilterDependency : ISampleDrnExceptionFilterDepen
     }
 }
 
-[Scoped<IDrnExceptionFilter>(false)]
+// Register explicitly when demonstrating filters so ordinary errors do not collect unused diagnostics.
 public class SampleDrnExceptionFilter(ISampleDrnExceptionFilterDependency filterDependency) : IDrnExceptionFilter
 {
     public Task<DrnExceptionFilterResult> HandlePreExceptionModelCreationAsync(HttpContext httpContext, Exception exception)

@@ -81,6 +81,30 @@ test('toast bursts retain history without queuing excess presentation and recove
     await expect(page.locator('.toast-body')).toHaveText(['Failure 3', 'Failure 4', 'Later failure']);
 });
 
+test('closed notification panels defer list rendering while badges stay current', async ({ page }) => {
+    const list = page.locator('#drn-notification-list');
+    await page.evaluate(() => {
+        window.DRN.Notifications.publish({ message: 'First feedback' });
+        window.DRN.Notifications.publish({ message: 'Second feedback' });
+    });
+    await expect(page.getByRole('button', { name: 'Notifications, 2 unseen', exact: true })).toBeVisible();
+    await expect(list).toBeEmpty();
+    await page.getByRole('button', { name: 'Notifications, 2 unseen', exact: true }).click();
+    const panel = page.getByRole('dialog', { name: 'Notifications', exact: true });
+    await expect(list.locator('[data-notification-group]')).toHaveCount(2);
+    await expect(panel).toHaveClass(/\bshow\b/);
+    await expect(page.locator('[data-notification-count]')).toBeHidden();
+    await panel.getByRole('button', { name: 'Close notifications' }).click();
+    await expect(panel).toBeHidden();
+
+    await page.evaluate(() => window.DRN.Notifications.publish({ message: 'Third feedback' }));
+    await expect(page.getByRole('button', { name: 'Notifications, 1 unseen', exact: true })).toBeVisible();
+    await expect(list.locator('[data-notification-group]')).toHaveCount(2);
+    await page.getByRole('button', { name: 'Notifications, 1 unseen', exact: true }).click();
+    await expect(list.locator('[data-notification-group]')).toHaveCount(3);
+    await expect(list).toContainText('Third feedback');
+});
+
 for (const hosted of [true, false]) {
     test(`notification panel stays above overlapping toasts, content host: ${hosted}`, async ({ page }) => {
         await page.setViewportSize({ width: 480, height: 800 });

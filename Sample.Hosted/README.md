@@ -32,6 +32,8 @@ Signed-in users who complete MFA can access `/swagger`, `/Test/Htmx`, and `/Test
 
 Developer View is an explicit diagnostics preview. Ordinary Staging and Production errors remain redacted.
 
+`SampleDrnExceptionFilter` is an opt-in demonstration, registered explicitly by its integration test. It is not registered in the normal application, so its empty post-creation callback does not force diagnostic model collection for ordinary errors.
+
 The HTMX test page has separate **Trigger server exception** and **Trigger browser exception** buttons. The server test sends a CSRF-protected HTMX POST and throws an unhandled exception, producing a toast and a history entry with a request reference. The browser test throws an uncaught JavaScript error, producing a generic error toast and one history entry with a client error reference. Open notification history to inspect each result. See [Browser error reporting](#browser-error-reporting) for reporting limits.
 
 ## Error pages and API failures
@@ -98,6 +100,8 @@ HTMX HTTP failures and server-sent toast headers use the existing Problem Detail
 
 Fetch callers can use `DRN.Problem.fromResponse(response)` followed by `DRN.Problem.show(problem, context)`. Parsing leaves the original response body available. Context accepts `{ element, target, operation, persist, focus }`. Only `application/problem+json` is parsed, and the HTTP status takes precedence. Malformed, non-problem, or oversized responses use generic text. Limits are 65,536 response characters, 500 characters per display message, and 100 validation messages. Public messages render as text. See the [browser API declarations](buildwww/types/DrnProblem.d.ts) for all methods.
 
+The Fetch reader consumes a clone incrementally and stops when the character limit or a 262,144-byte guard is exceeded, without trusting `Content-Length`. Cancelling the clone does not wait for the caller to consume the original. XHR parsing applies the character limit to its already-buffered response text.
+
 For an application-owned HTML validation fragment, return status `422`, `Content-Type: text/html`, and `X-DRN-Validation: true`. Only that combination permits a validation error swap. Other HTML errors and Problem Details JSON leave the target intact.
 
 ## Browser error reporting
@@ -135,6 +139,8 @@ The Notifications action opens a searchable history panel with All, Errors, Warn
 
 The default `SidebarActionCollection` includes Notifications. Custom collections can omit or reorder it. The bell remains visible even when history is empty. Its badge counts unseen notifications and hides at zero. Opening the panel marks existing history as seen without dismissing it. Notifications arriving afterward remain unseen until the panel is opened again. Seen state survives reloads and Undo; repeated source identities do not become unseen again. Older cached records without seen state start unseen.
 
+The badge updates immediately while the closed panel defers filtering, grouping, and list rendering until it opens. History reads avoid repeated sorting and entry serialization until records change or expire.
+
 Success alerts also appear once in history without an extra toast. Closing an inline alert leaves history intact.
 
 Actionbar items needing attention use Bootstrap `text-bg-warning` across the button. Opening an item's panel removes its warning highlight and restores the original button colors. Other action counts remain unchanged; opening Notifications also marks its history seen and clears the unseen badge. Count badges use Bootstrap `text-bg-danger`. Error severity remains visible inside history. Request references include a short instruction to share them with support so the request can be located.
@@ -168,6 +174,8 @@ Prefer inline feedback for validation that shows where the user needs to act. Do
 ### Retention and privacy
 
 History is limited to 1,000 records, 1 MiB of serialized UTF-8 data, and 24 hours. Old entries are removed first. `localStorage` shares saved history, seen state, and dismissals across tabs of the same origin and application. Web Locks serialize shared writes, merging each operation into the latest saved history so concurrent publications and dismissals cannot overwrite each other. Local feedback updates synchronously; persistence finishes asynchronously and may be lost if the page closes before its queued write runs. Browsers without Web Locks use tab-local `sessionStorage`. Storage or lock failures keep current-page feedback in memory. Receiving another tab's update does not replay its toast. Tab-only caches are not migrated into shared storage. Account changes clear history, Undo state, and contextual errors. A page that detects an account change in another tab pauses HTMX requests and notifications until reloaded. History is temporary and unsuitable for auditing. Keep secrets, request bodies, query values, and private diagnostics out of messages.
+
+Synchronous bursts share one queued Web Lock operation and storage write. Their deltas still apply in order, including dismissal followed by Undo. Unchanged history does not trigger another storage write. Web Storage access remains synchronous inside the lock.
 
 Authenticated users require a stable account ID. If it is missing or whitespace, the shell emits an empty notification owner, clears history, and suspends notifications and HTMX requests until a fresh account context is supplied. Request trace IDs are never used as account identities. Unauthenticated users retain the anonymous owner.
 
