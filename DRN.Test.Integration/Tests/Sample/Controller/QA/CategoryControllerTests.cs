@@ -9,6 +9,7 @@ using DRN.Test.Integration.Tests.Sample.Controller.Helpers;
 using DRN.Test.Integration.Tests.Sample.Pages.Helpers;
 using Flurl;
 using Microsoft.AspNetCore.Hosting;
+using Sample.Application.Services;
 using Sample.Contract.QA.Categories;
 using Sample.Domain.QA.Categories;
 using Sample.Domain.QA.Tags;
@@ -123,14 +124,14 @@ public class CategoryControllerTests
 
     [Theory]
     [DataInline]
-    public async Task Category_Should_Propagate_Cancellation_To_Direct_Database_Operations(DrnTestContext context)
+    public async Task Category_Should_Propagate_Cancellation_To_Database_Operations(DrnTestContext context)
     {
         using var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
         using var scope = context.CreateScope();
         var database = scope.ServiceProvider.GetRequiredService<QAContext>();
         var pagination = scope.ServiceProvider.GetRequiredService<IPaginationUtils>();
-        var entityIds = scope.ServiceProvider.GetRequiredService<ISourceKnownEntityIdUtils>();
-        var controller = new CategoryController(database, pagination, entityIds);
+        var categories = scope.ServiceProvider.GetRequiredService<ICategoryService>();
+        var controller = new CategoryController(database, pagination, categories);
         var cancelled = new CancellationToken(true);
 
         Func<Task> list = () => controller.PaginateAsync(cancellationToken: cancelled);
