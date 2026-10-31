@@ -2,6 +2,8 @@
 
 > Local overlay for this repository. Keep `AGENTS.md` generic; keep DRN framework skills reusable.
 
+The local paths and source map below apply only to this checkout. When porting agent files, rebuild this profile from the destination repository. Files in `.agent/temp/` are local workflow history, not reusable guidance.
+
 ## Snapshot
 
 | Aspect | Detail |
@@ -13,7 +15,7 @@
 
 ## Layout
 
-Physical project folders are flat at the repository root. `DRN.slnx` supplies logical IDE groups.
+Physical project folders are flat at the repository root. `DRN.slnx` supplies logical IDE groups. The [Solution Structure guide](../docs/solution-structure.md) documents these groups and project roles for repository readers.
 
 | Area | Physical folders | Solution folder |
 |---|---|---|
@@ -25,7 +27,9 @@ Physical project folders are flat at the repository root. `DRN.slnx` supplies lo
 | Agent and CI | `.agent/`, `.github/workflows/`, `.github/actions/` | `/Items/` |
 | Docs | `README.md`, `ROADMAP.md`, `SECURITY.md`, `NOTICE.md`, `docs/` | `/Docs/` |
 
-Hosted projects: `Sample.Hosted/` for the reference app; `DRN.Nexus.Hosted/` for Nexus. Framework package docs live in each `DRN.Framework.*` folder as `README.md`, `RELEASE-NOTES.md`, and package metadata when present.
+The [Quick Start guide](../docs/quick-start.md) owns prerequisites, solution build and test commands, package installation, and application setup. The root README groups standalone guide links under Documentation at the end of About Project. Its table of contents links only to sections within the README.
+
+Hosted projects: `Sample.Hosted/` for the reference app; `DRN.Nexus.Hosted/` for Nexus. The [Sample application guide](../Sample.Hosted/README.md) owns local startup, developer-tool access, error behavior, notifications, and frontend builds and tests. Framework package docs live in each `DRN.Framework.*` folder as `README.md`, `RELEASE-NOTES.md`, and package metadata when present.
 
 ## Skill Routing
 
@@ -58,7 +62,7 @@ When no narrower module is requested, `/documentation` targets:
 - `DRN.Framework.Jobs`
 - `DRN.Framework.MassTransit`
 
-`/optimize docs` and `/optimize all` include the README and release-note documentation owned by these modules in addition to root documentation.
+`/optimize docs` and `/optimize all` include the README and release-note documentation owned by these modules in addition to root documentation, the [Quick Start guide](../docs/quick-start.md), the [Solution Structure guide](../docs/solution-structure.md), and the [Sample application guide](../Sample.Hosted/README.md).
 
 ## Commands
 
@@ -97,6 +101,10 @@ When test execution is explicitly allowed, run unit and analyzer tests before in
 - Containers: keep Docker SDK/runtime distro choices and `DOTNET_RUNTIME_VERSION` aligned with `RuntimeFrameworkVersion` metadata.
 - Workflow artifacts: `/clarify` owns `.agent/temp/CLARIFY-*`; `/answer` accepts canonical reviewed CLARIFY input and may resume an approved `clarified` artifact solely to create its collision-safe `.agent/temp/DEVELOP-*`; `/develop` owns the basename-matched `.agent/temp/WALKTHROUGH-*`. System plans must reference and link these pipeline documents.
 
+## Frontend Test Scope
+
+Sample frontend unit tests live in `Sample.Hosted/buildwww/tests/*.test.js`, with browser tests in `Sample.Hosted/buildwww/tests/browser/`. Commands and setup belong in the [Sample frontend test guide](../Sample.Hosted/README.md#frontend-tests). Execution requires explicit permission.
+
 ## DRN Framework Source Overlay
 
 Framework conventions and defaults live in framework-scoped DRN skills, especially `overview-drn-framework`. Before changing shared framework facts, check the source-owned files below.
@@ -129,9 +137,11 @@ Framework conventions and defaults live in framework-scoped DRN skills, especial
 
 ### Documentation Sync
 
-Browser API errors: the [Sample API documentation](../README.md#sample-api) owns the Category HTTP contract and `DRN.Problem` public behavior. Keep browser declarations and `drn-buildwww-libraries` aligned with that public surface.
+Browser contracts: the [Sample application guide](../Sample.Hosted/README.md) owns Swagger access, error response examples, HTMX presentation, and notification usage. Keep it aligned with the [Problem Details declarations](../Sample.Hosted/buildwww/types/DrnProblem.d.ts), [notification declarations](../Sample.Hosted/buildwww/types/DrnNotifications.d.ts), and `drn-buildwww-libraries`. Category routes and schemas are available in the Sample's Swagger UI.
 
 API failure responses: [DrnApiErrorResponse.cs](../DRN.Framework.Hosting/Middlewares/ApiErrors/DrnApiErrorResponse.cs) owns the shared Problem Details contract for all 4xx and 5xx statuses (400 through 599). Keep the Hosting README/release notes and `drn-hosting` aligned. `DrnApiErrorOptions.PathPrefixes` defaults empty; Sample and Nexus configure `/Api` for unmatched routes. Preserve API metadata classification, browser behavior, authentication/retry headers, production redaction, and requestId semantics. Swagger adds only a representative 400 response describing the full error range while preserving other declared statuses, validation schemas, and custom response types.
+
+HTMX error configuration belongs in the [Hosting README](../DRN.Framework.Hosting/README.md#htmx-partial-requests). Sample opts in through `DrnApiErrorOptions.HandleHtmxRequests`. Keep Hosting docs and `drn-hosting` aligned when this public contract changes.
 
 `[DisableDrnProblemDetails]` opts controllers or actions out of DRN error formatting and automatic Swagger error metadata. Preserve native ASP.NET Core responses and authentication behavior.
 
@@ -139,7 +149,7 @@ API failure responses: [DrnApiErrorResponse.cs](../DRN.Framework.Hosting/Middlew
 
 `ScopeProblem` mirrors every `ExceptionFor` factory with a throwing helper, leaves public defaults unchanged, and hides helper frames from formatted stack traces. Keep both usage forms in Utils and Hosting examples.
 
-Error-page configuration and contracts belong in the [Hosting README](../DRN.Framework.Hosting/README.md#custom-error-pages). Keep sample routes and behavior in the [root README](../README.md#build-run--test) and maintenance guidance in `drn-hosting`.
+Error-page configuration and contracts belong in the [Hosting README](../DRN.Framework.Hosting/README.md#custom-error-pages). Keep sample routes and behavior in the [Sample application guide](../Sample.Hosted/README.md#error-pages-and-api-failures) and maintenance guidance in `drn-hosting`.
 
 Application URLs: keep static route accessors request-independent and resolve URLs at the request boundary. Follow [Hosting application URL conventions](../DRN.Framework.Hosting/README.md#application-urls). Changes to those contracts belong in the Hosting README, `drn-hosting`, and affected frontend skills.
 
@@ -161,3 +171,39 @@ When source code changes a shared framework fact:
 Documentation agents must classify public impact first. Skip private/internal-only checks unless needed to prove public behavior or docs accuracy.
 
 Release notes are not required for internal-only refactors, tests, comments, agent-only docs, or dependency-only updates with no consumer-visible impact outside a coordinated release. Dependency/runtime/container changes require release notes when they are breaking, security-relevant, consumer-visible, or alter published package artifacts. Every coordinated DRN Framework release must add the release version to every profile-declared package `RELEASE-NOTES.md`, even when the package has no package-specific change. Use the established concise dependency-alignment wording when applicable, such as `Dependencies upgraded to dotnet 10.0.11`.
+
+### Package Release Notes Format
+
+DRN Framework packages in this repository use the following template. Use `## Version X.Y.Z` headings, not `## vX.Y.Z`. Omit empty sections. Preserve historical wording unless editing the current version block or repairing a malformed invariant prefix/footer.
+
+```markdown
+Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
+
+## Version X.Y.Z
+
+[Optional dedication or milestone message]
+
+### Breaking Changes
+
+*   **Area**: Detail description.
+
+### New Features
+
+*   **Feature Group**
+    *   **Feature Description**: Details.
+
+### Changed
+
+*   **Area**: Detail description.
+
+### Bug Fixes
+
+*   **Area**: Detail description.
+
+---
+
+Documented with the assistance of [DiSC OS](https://github.com/duranserkan/DRN-Project/blob/develop/.agent/rules/DiSCOS.md)
+
+---
+**Semper Progressivus: Always Progressive**
+```

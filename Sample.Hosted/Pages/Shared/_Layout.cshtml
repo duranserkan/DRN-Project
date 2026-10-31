@@ -35,9 +35,10 @@
 
         @if (!string.IsNullOrWhiteSpace(statusMessage))
         {
-            <aside class="alert alert-success alert-dismissible mb-0 mt-1 mx-3" aria-label="Status message">
+            <aside class="alert alert-success alert-dismissible mb-0 mt-1 mx-3" aria-label="Status message"
+                   data-notification-status="@Guid.NewGuid().ToString("N")">
                 <div role="alert">
-                    @TempData[Get.TempDataKeys.StatusMessage]
+                    <span data-notification-status-message>@statusMessage</span>
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             </aside>
@@ -45,7 +46,14 @@
 
         <!-- Main content -->
         <div class="d-flex pt-1 flex-grow-1 justify-content-center @(layoutOptions.CenterVertically ? "flex-column" : "") " style="overflow-y: auto;">
-            <main class="p-3 w-100 @(shouldExpandCard ? "d-flex flex-column flex-grow-1" : "") @(layoutOptions.CenterVertically ? "" : "h-100")">
+            <main id="drn-main-content" tabindex="-1" class="p-3 w-100 @(shouldExpandCard ? "d-flex flex-column flex-grow-1" : "") @(layoutOptions.CenterVertically ? "" : "h-100")">
+                @if (!ScopeContext.MFACompleted)
+                {
+                    <div class="d-flex justify-content-end">
+                        <partial name="_NotificationTrigger"/>
+                    </div>
+                }
+                <div id="drn-problem-summary" class="d-none" hidden tabindex="-1"></div>
                 <div class="row @(layoutOptions.CenterHorizontally ? "justify-content-center" : "") @(shouldExpandCard ? "flex-grow-1" : "")">
                     <div class="pb-2 @layoutOptions.CssColumnSize() @layoutOptions.CssTextAlignment()  @(shouldExpandCard ? "d-flex flex-column" : "")">
                         @if (layoutOptions.Type is MainContentType.Card or MainContentType.CardBody)
@@ -92,6 +100,7 @@
 </div>
 
 <partial name="_Footer"/>
+<partial name="_NotificationShell"/>
 
 @section Scripts {
     @await RenderSectionAsync("Scripts", required: false)

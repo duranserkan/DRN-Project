@@ -1,7 +1,7 @@
 ---
 name: drn-domain-design
 description: "Domain-Driven Design implementation patterns - Entity design with Source-Known IDs (SourceKnownEntity, AggregateRoot), repository contracts (ISourceKnownRepository), domain events, EF Core configuration, DTO mapping rules, and implementation templates. Essential for domain modeling and data access. Keywords: ddd, entity-design, aggregate-root, source-known-id, repository, domain-events, ef-core-configuration, dto-mapping, entity-type, identity"
-last-updated: 2026-06-12
+last-updated: 2026-10-29
 difficulty: advanced
 tokens: ~2.9K
 ---
@@ -9,6 +9,8 @@ tokens: ~2.9K
 # Domain Design Patterns
 
 > Entity design, repository implementation, and DDD patterns for DRN applications.
+
+`Example.*`, `ExampleDbContext`, and `ExampleEntityTypes` below are illustrative application names. Resolve actual project paths, namespaces, and types from the destination repository. `DefaultApp` demonstrates the framework's default partition. Preserve the application's declared `IAppId` or supported derived entity-type attribute when adapting examples.
 
 ## When to Apply
 - Creating domain entities & aggregate roots
@@ -26,7 +28,7 @@ All entities inherit from `SourceKnownEntity`. See [drn-sharedkernel](../drn-sha
 ### Creating an Entity
 
 ```csharp
-[EntityType((byte)1)]                    // Unique byte per entity
+[EntityType<DefaultApp>(1)]              // Unique byte within the application partition
 public class User : SourceKnownEntity    // or AggregateRoot
 {
     private User() { }                   // EF constructor
@@ -47,7 +49,7 @@ public class User : SourceKnownEntity    // or AggregateRoot
 ```
 
 ### Key Rules
-- `[EntityType(byte)]` is **required** — DrnContext validates at startup
+- `[EntityType<TApp>(byte)]` or a supported application-derived attribute is required. `TApp` implements `IAppId`.
 - Private parameterless constructor for EF Core materialization
 - Domain logic lives on the entity, not in services
 - Never expose setters publicly — use methods with domain validation
@@ -57,7 +59,7 @@ public class User : SourceKnownEntity    // or AggregateRoot
 For entities with rich document models, use `AggregateRoot<TModel>`:
 
 ```csharp
-[EntityType((byte)3)]
+[EntityType<DefaultApp>(3)]
 public class SystemSettings : AggregateRoot<SettingsModel> { }
 
 public class SettingsModel
@@ -136,7 +138,7 @@ Canonical contract in [drn-sharedkernel](../drn-sharedkernel/SKILL.md). Implemen
 public interface IUserRepository : ISourceKnownRepository<User> { }
 
 [Scoped<IUserRepository>]
-public class UserRepository : SourceKnownRepository<QAContext, User>, IUserRepository
+public class UserRepository : SourceKnownRepository<ExampleDbContext, User>, IUserRepository
 {
     protected override IQueryable<User> EntitiesWithAppliedSettings([CallerMemberName] string? caller = null) =>
         base.EntitiesWithAppliedSettings(caller)
@@ -181,7 +183,7 @@ var user = await userRepository.GetAsync(entityId);
 
 Enums that are **shared between DTOs and entities** (e.g., `TagType`) must be defined in the Contract project as the single source of truth — unless there is a **strong objection** (security exposure, validation coupling, or maintainability risk).
 
-Enums internal to the domain (e.g., `SampleEntityTypes` used only for `[EntityType]` attributes) remain in `*.Domain`.
+Enums internal to the domain (e.g., `ExampleEntityTypes` used only for entity-type attributes) remain in `*.Domain`.
 
 ---
 
@@ -198,10 +200,10 @@ Enums internal to the domain (e.g., `SampleEntityTypes` used only for `[EntityTy
 ### DTO Definition (in `*.Contract`)
 
 ```csharp
-// Sample.Contract/QA/Categories/CategoryDto.cs
+// Illustrative path: Example.Contract/Categories/CategoryDto.cs
 using DRN.Framework.SharedKernel.Domain;
 
-namespace Sample.Contract.QA.Categories;
+namespace Example.Contract.Categories;
 
 public class CategoryDto(SourceKnownEntity? entity = null) : Dto(entity)
 {
@@ -217,10 +219,10 @@ public class CategoryDto(SourceKnownEntity? entity = null) : Dto(entity)
 Map entity properties via `ToDto()` **instance method on the entity** using object initializers:
 
 ```csharp
-// Sample.Domain/QA/Categories/Category.cs
-using Sample.Contract.QA.Categories;
+// Illustrative path: Example.Domain/Categories/Category.cs
+using Example.Contract.Categories;
 
-[EntityType((byte)SampleEntityTypes.Category)]
+[EntityType<DefaultApp>((byte)ExampleEntityTypes.Category)]
 public class Category : AggregateRoot
 {
     // ... entity definition ...
@@ -239,10 +241,10 @@ public class Category : AggregateRoot
 Since Contract cannot reference Domain, DTO-to-Entity mapping uses **extension methods** defined in the Domain project:
 
 ```csharp
-// Sample.Domain/QA/Categories/CategoryMappingExtensions.cs
-using Sample.Contract.QA.Categories;
+// Illustrative path: Example.Domain/Categories/CategoryMappingExtensions.cs
+using Example.Contract.Categories;
 
-namespace Sample.Domain.QA.Categories;
+namespace Example.Domain.Categories;
 
 public static class CategoryMappingExtensions
 {
@@ -315,7 +317,7 @@ var result = await repository.PaginateAsync(request, filter);
 ## Implementation Template
 
 New entity checklist:
-1. Create entity class with `[EntityType((byte)N)]` or a byte-backed enum cast and private parameterless constructor
+1. Create an entity with `[EntityType<TApp>(byte)]` or a supported application-derived attribute and a private parameterless constructor. Select the application's existing `IAppId` and an entity byte unique within that partition.
 2. Create DTO in `*.Contract` project with `Dto` base class and `required` + `init` properties
 3. Add `ToDto()` instance method on entity with object initializer
 4. Add `IEntityTypeConfiguration<T>` in infrastructure layer

@@ -3,8 +3,8 @@
 
 @{
     var index = 0;
-    var actionCount = SidebarActionCollection.DefaultItems.Count;
     var sidebarActionCollection = ViewData[Get.ViewDataKeys.SidebarActionCollection] as SidebarActionCollection ?? new SidebarActionCollection();
+    var actionCount = sidebarActionCollection.Items.Count;
 }
 
 <aside class="d-flex p-1 bg-body-tertiary flex-column align-items-center">
@@ -13,6 +13,14 @@
             @foreach (var navItem in sidebarActionCollection.Items)
             {
                 var borderBottom = ++index == actionCount ? "border-bottom" : "";
+
+                if (navItem.TriggerPartialViewName is { } triggerPartialViewName)
+                {
+                    <li class="nav-item" id="@navItem.ActionItemId">
+                        <partial name="@triggerPartialViewName" model="navItem"/>
+                    </li>
+                    continue;
+                }
 
                 <li class="nav-item" id="@navItem.ActionItemId" data-js-actionbar-item>
                     <div title="@navItem.Title" data-bs-toggle="tooltip" data-bs-placement="left">
@@ -48,7 +56,7 @@
     </nav>
 </aside>
 
-@foreach (var navItem in SidebarActionCollection.DefaultItems)
+@foreach (var navItem in sidebarActionCollection.Items.Where(item => item.RenderCanvas))
 {
     <div class="offcanvas offcanvas-end" data-bs-scroll="true" tabindex="-1" id="@navItem.ActionItemCanvasId" aria-modal="true"
          aria-labelledby="@navItem.ActionItemCanvasLabelId">

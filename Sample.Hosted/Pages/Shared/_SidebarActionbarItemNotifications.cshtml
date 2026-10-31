@@ -1,18 +1,20 @@
-@model SidebarActionItem
-
-<div class="list-group list-group-flush border-bottom scrollarea">
-    <a href="#" class="list-group-item list-group-item-action active py-3 lh-sm">
-        <div class="d-flex w-100 align-items-center justify-content-between">
-            <strong class="mb-1">List group item heading</strong>
-            <small>Wed</small>
-        </div>
-        <div class="col-10 mb-1 small">Some placeholder content in a paragraph below the heading and date.</div>
-    </a>
-    <a href="#" class="list-group-item list-group-item-action py-3 lh-sm">
-        <div class="d-flex w-100 align-items-center justify-content-between">
-            <strong class="mb-1">List group item heading</strong>
-            <small class="text-body-secondary">Tues</small>
-        </div>
-        <div class="col-10 mb-1 small">Some placeholder content in a paragraph below the heading and date.</div>
-    </a>
+<label for="drn-notification-search" class="form-label">Search notifications</label>
+<input id="drn-notification-search" type="search" class="form-control mb-3" maxlength="200" autocomplete="off"
+       placeholder="Message or request reference" aria-controls="drn-notification-list"/>
+<div class="d-flex flex-wrap gap-1 mb-3" role="group" aria-label="Notification severity">
+    <button type="button" class="btn btn-sm btn-primary" data-notification-filter="all" aria-pressed="true">All (0)</button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-notification-filter="error" aria-pressed="false">Errors (0)</button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-notification-filter="warning" aria-pressed="false">Warnings (0)</button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-notification-filter="info" aria-pressed="false">Info (0)</button>
 </div>
+<div class="d-flex flex-wrap gap-2 mb-3">
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-notification-clear-filtered disabled>Clear filtered</button>
+    <button type="button" class="btn btn-sm btn-outline-danger" data-notification-clear-all disabled>Clear all</button>
+</div>
+<div data-notification-undo-region class="alert alert-secondary d-none" hidden>
+    <span>Notifications cleared.</span>
+    <button type="button" class="btn btn-sm btn-link" data-notification-undo>Undo</button>
+</div>
+<p id="drn-notification-result" class="text-body-secondary small" role="status">No notifications.</p>
+<ul id="drn-notification-list" class="list-unstyled mb-3" aria-label="Notification history"></ul>
+<button type="button" class="btn btn-outline-secondary w-100 d-none" data-notification-load-more hidden>Load more</button>

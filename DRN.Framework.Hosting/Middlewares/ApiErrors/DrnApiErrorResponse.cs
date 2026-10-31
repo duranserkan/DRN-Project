@@ -28,7 +28,12 @@ public sealed class DrnApiErrorResponse(IOptions<DrnApiErrorOptions> options)
 
     internal bool CanHandle(HttpContext context, int? status = null) =>
         (context.GetEndpoint() is not { } endpoint || !DrnApiEndpointMetadata.IsDisabled(endpoint.Metadata)) &&
-        IsApiRequest(context) && IsSupportedStatus(status ?? context.Response.StatusCode);
+        (IsApiRequest(context) || IsHtmxErrorRequest(context)) && IsSupportedStatus(status ?? context.Response.StatusCode);
+
+    // Error representation must not classify browser endpoints as APIs for authentication.
+    private bool IsHtmxErrorRequest(HttpContext context) =>
+        options.Value.HandleHtmxRequests && context.Request.Headers["HX-Request"] is { Count: 1 } header &&
+        string.Equals(header[0], "true", StringComparison.Ordinal);
 
     internal async ValueTask<bool> TryWriteAsync(HttpContext context)
     {

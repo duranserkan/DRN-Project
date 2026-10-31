@@ -52,7 +52,7 @@ public class EnableAuthenticator(SignInManager<SampleUser> signInManager, UserMa
 
         if (!is2FaTokenValid)
         {
-            ModelState.AddModelError("Input.Code", "Verification code is invalid.");
+            ModelState.AddModelError($"{nameof(QrCodeVerify)}.{nameof(QrCodeVerify.Code)}", "Verification code is invalid.");
             return await LoadSharedKeyAndQrCodeUriAsync(user);
         }
 

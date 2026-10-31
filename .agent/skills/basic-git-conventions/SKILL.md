@@ -1,7 +1,7 @@
 ---
 name: basic-git-conventions
 description: "Git workflow conventions - GitFlow-inspired branching (integration→release→tag), commit message format, PR workflow (draft→review→squash), branch naming (feature/fix/chore/docs), repository-declared release tagging, and release notes management. Keywords: git, branching, commit-messages, pull-request, pr-workflow, release, tagging, versioning, gitflow, conventional-commits"
-last-updated: 2026-10-03
+last-updated: 2026-10-29
 difficulty: basic
 tokens: ~1.5K
 ---
@@ -112,7 +112,7 @@ Draft PR → Self-Review → Ready for Review → Review → Squash Merge
 ### PR Checklist
 - [ ] Branch is up-to-date with target
 - [ ] All CI checks pass (build + test)
-- [ ] CodeRabbit review addressed
+- [ ] Required human and automated review feedback addressed
 - [ ] Self-reviewed changes diff
 - [ ] No unrelated changes included
 - [ ] Tests added for new functionality
@@ -131,19 +131,19 @@ feat(Networking): add cancellation token propagation to HttpClientFactory
 
 ## Release Tagging
 
+Resolve tag formats, the release commit, and the publishing remote from the repository profile or release automation before substituting the placeholders below. Tag creation and pushing require explicit authorization.
+
 ### Stable Releases
 ```bash
-# Example tag format: release/v{major}.{minor}.{patch}
-git tag release/v1.2.3
-git push origin release/v1.2.3
+git tag <release-tag> <release-commit>
+git push <publishing-remote> <release-tag>
 # Triggers: repository-defined release automation
 ```
 
 ### Preview Releases
 ```bash
-# Example tag format: release/v{major}.{minor}.{patch}-preview{NNN}
-git tag release/v1.3.0-preview001
-git push origin release/v1.3.0-preview001
+git tag <preview-tag> <release-commit>
+git push <publishing-remote> <preview-tag>
 # Triggers: repository-defined preview release automation
 ```
 
@@ -151,7 +151,7 @@ git push origin release/v1.3.0-preview001
 - **Major**: Breaking API changes
 - **Minor**: New features, backward compatible
 - **Patch**: Bug fixes, backward compatible
-- **Preview**: Pre-release testing; use three digits (`preview001`, `preview002`) for natural tag ordering
+- **Preview**: Pre-release testing. Use the repository's prerelease identifier and numbering convention.
 
 ---
 
@@ -162,8 +162,7 @@ Each published module or package maintains its own release notes when the reposi
 ```
 <module-or-package>/
 ├── RELEASE-NOTES.md   # Per-package changelog
-├── README.md          # Package documentation
-└── PACKAGE-DESCRIPTION # NuGet short description
+└── README.md          # Package documentation
 ```
 
 ### When To Update

@@ -71,6 +71,8 @@ LICENSE
 paper/
 
 # Generated build, test, and analysis output.
+**/playwright-report
+**/test-results
 **/artifacts
 **/BenchmarkDotNet.Artifacts
 **/*.binlog

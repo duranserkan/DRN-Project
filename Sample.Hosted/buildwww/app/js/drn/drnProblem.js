@@ -1,7 +1,9 @@
+import { mediaType } from './drnHttp.js';
+
 const FALLBACK_TITLE = 'The request could not be completed.';
 const MAX_BODY_LENGTH = 65536;
 const MAX_MESSAGE_LENGTH = 500;
-const MAX_ERRORS = 5;
+const MAX_ERRORS = 100;
 
 function isObject(value) {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -19,8 +21,7 @@ function identifier(value, maxLength) {
 /** Parse untrusted response text. The HTTP status takes precedence over the JSON status. */
 function parse(body, contentType, status) {
     const problem = { status, type: '', title: FALLBACK_TITLE, detail: '', requestId: '', errors: Object.create(null) };
-    const mediaType = typeof contentType === 'string' ? contentType.split(';')[0].trim().toLowerCase() : '';
-    if (mediaType !== 'application/problem+json' || typeof body !== 'string' || body.length > MAX_BODY_LENGTH)
+    if (mediaType(contentType) !== 'application/problem+json' || typeof body !== 'string' || body.length > MAX_BODY_LENGTH)
         return problem;
 
     let value;
@@ -67,7 +68,7 @@ function fromXhr(xhr) {
 async function fromResponse(response) {
     try {
         const contentType = response.headers.get('Content-Type');
-        if (contentType?.split(';')[0].trim().toLowerCase() !== 'application/problem+json')
+        if (mediaType(contentType) !== 'application/problem+json')
             return parse('', '', response.status);
         return parse(await response.clone().text(), contentType, response.status);
     } catch {
@@ -75,15 +76,126 @@ async function fromResponse(response) {
     }
 }
 
-/** Display through the existing text-escaping toast. Never render response HTML. */
-function show(problem) {
-    const messages = [problem.title];
-    if (problem.detail && problem.detail !== problem.title) messages.push(problem.detail);
-    for (const [field, errors] of Object.entries(problem.errors)) {
-        for (const error of errors) messages.push(field ? `${field}: ${error}` : error);
-    }
-    if (problem.requestId) messages.push(`Request reference: ${problem.requestId}`);
-    window.DRN.Toast.error(messages.join('\n'), 15000);
+const presentations = new WeakMap();
+let messageSequence = 0;
+
+function regionFor(context) {
+    const element = context.element instanceof Element ? context.element : null;
+    const target = context.target instanceof Element ? context.target : null;
+    return element?.closest('form, [data-problem-region]') || target?.closest('form, [data-problem-region]') ||
+        document.getElementById('drn-problem-summary');
 }
 
-export default { parse, fromXhr, fromResponse, show };
+/** Clear only errors owned by this presenter, leaving native validation and other forms intact. */
+function clear(context = {}) {
+    const region = regionFor(context);
+    const presentation = region && presentations.get(region);
+    if (context.operation && presentation?.operation !== context.operation) return;
+    if (context.target && presentation?.target && context.target !== presentation.target) return;
+    clearRegion(region);
+}
+
+function clearRegion(region) {
+    const previous = region && presentations.get(region);
+    if (!previous) return;
+    previous.summary.remove();
+    if (region.id === 'drn-problem-summary') {
+        region.hidden = true;
+        region.classList.add('d-none');
+    }
+    for (const { field, message, invalid } of previous.fields) {
+        const references = (field.getAttribute('aria-describedby') || '').split(/\s+/).filter(id => id && id !== message.id);
+        if (references.length) field.setAttribute('aria-describedby', references.join(' '));
+        else field.removeAttribute('aria-describedby');
+        if (invalid === null) field.removeAttribute('aria-invalid');
+        else field.setAttribute('aria-invalid', invalid);
+        message.remove();
+    }
+    presentations.delete(region);
+}
+
+function clearAll() {
+    for (const summary of document.querySelectorAll('[data-drn-problem-summary]'))
+        clearRegion(summary.parentElement);
+}
+
+function appendText(parent, tag, value, className = '') {
+    const element = document.createElement(tag);
+    element.className = className;
+    element.textContent = value;
+    parent.appendChild(element);
+    return element;
+}
+
+/** Display public text beside the failed operation and record a single compact history entry. */
+function show(problem, context = {}) {
+    if (window.DRN.Notifications.isActive?.() === false) return null;
+    const region = regionFor(context);
+    const record = window.DRN.Notifications.publish({
+        type: 'error', title: problem.title, message: problem.detail,
+        problemType: problem.type, status: problem.status, requestId: problem.requestId,
+        operation: context.operation || '',
+        target: region?.id || (region ? `region-${Array.from(document.querySelectorAll('form, [data-problem-region]')).indexOf(region)}` : ''),
+        persist: context.persist !== false
+    });
+    if (!region) {
+        window.DRN.Toast.show({ type: 'error', message: problem.title, record: false });
+        return record;
+    }
+
+    clearRegion(region);
+    const summary = document.createElement('section');
+    summary.className = 'alert alert-danger text-break';
+    summary.dataset.drnProblemSummary = '';
+    summary.tabIndex = -1;
+    summary.setAttribute('aria-label', 'Request error');
+    appendText(summary, 'h2', problem.title, 'h6');
+    if (problem.detail && problem.detail !== problem.title) appendText(summary, 'p', problem.detail);
+    const list = document.createElement('ul');
+    const fields = [];
+    const form = region instanceof HTMLFormElement ? region : null;
+    for (const [name, errors] of Object.entries(problem.errors)) {
+        // Match names directly. Server field names are never interpreted as CSS selectors.
+        const matches = form ? Array.from(form.elements).filter(field => field.name === name) : [];
+        const first = matches.find(field => field instanceof HTMLElement && field.type !== 'hidden' && !field.disabled);
+        const item = appendText(list, 'li', '');
+        const message = `${name ? `${name}: ` : ''}${errors.join(' ')}`;
+        if (first) {
+            const link = appendText(item, 'button', message, 'btn btn-link p-0 text-start text-danger');
+            link.type = 'button';
+            link.addEventListener('click', () => first.focus());
+            const error = document.createElement('div');
+            error.id = `drn-field-error-${++messageSequence}`;
+            error.className = 'text-danger small';
+            error.textContent = errors.join(' ');
+            first.insertAdjacentElement('afterend', error);
+            for (const field of matches) {
+                fields.push({ field, message: error, invalid: field.getAttribute('aria-invalid') });
+                field.setAttribute('aria-invalid', 'true');
+                const references = field.getAttribute('aria-describedby') || '';
+                field.setAttribute('aria-describedby', `${references} ${error.id}`.trim());
+            }
+        } else item.textContent = message;
+    }
+    if (list.childElementCount) summary.appendChild(list);
+    if (problem.requestId) {
+        const details = document.createElement('details');
+        appendText(details, 'summary', 'Details');
+        appendText(details, 'p', `Request reference: ${problem.requestId}`, 'small user-select-all mb-0');
+        summary.appendChild(details);
+    }
+    region.prepend(summary);
+    if (region.id === 'drn-problem-summary') {
+        region.hidden = false;
+        region.classList.remove('d-none');
+    }
+    presentations.set(region, { summary, fields, operation: context.operation, target: context.target });
+    if (context.focus) summary.focus();
+    else {
+        const live = document.getElementById('drn-notification-assertive');
+        if (live) live.textContent = `${problem.title} ${problem.detail}`.trim();
+    }
+    return record;
+}
+
+export default { parse, fromXhr, fromResponse, show, clear, clearAll };

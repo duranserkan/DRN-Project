@@ -1,5 +1,5 @@
 name: Frontend Build
-description: "Install and audit frontend dependencies, optionally building Vite assets."
+description: "Install and audit frontend dependencies, optionally testing and building Vite assets."
 inputs:
   repository-directory:
     description: "Repository checkout containing all npm policy files and projects."
@@ -10,9 +10,13 @@ inputs:
     required: false
     default: Sample.Hosted
   build-assets:
-    description: "Build Vite assets after dependency installation and audit. Set to false for analysis-only setup."
+    description: "Run unit tests and build Vite assets after dependency installation and audit. Set to false for analysis-only setup."
     required: false
     default: "true"
+  browser-tests:
+    description: "Run the focused Chromium suite when building assets."
+    required: false
+    default: "false"
 runs:
   using: "composite"
   steps:
@@ -43,6 +47,21 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: npm audit --audit-level=high --registry=https://registry.npmjs.org/
+    - name: Test frontend units
+      if: ${{ inputs.build-assets != 'false' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: npm test
+    - name: Install Chromium headless shell
+      if: ${{ inputs.build-assets != 'false' && inputs.browser-tests == 'true' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: npm exec --no -- playwright install --with-deps --only-shell chromium
+    - name: Test frontend browser behavior
+      if: ${{ inputs.build-assets != 'false' && inputs.browser-tests == 'true' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: npm run test:browser
     - name: Build Vite assets
       if: ${{ inputs.build-assets != 'false' }}
       shell: bash

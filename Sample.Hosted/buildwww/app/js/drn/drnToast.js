@@ -12,7 +12,7 @@ import drnUtils from './drnUtils';
  *
  * HTMX integration:
  *   Server sends HX-Trigger: showToast header with JSON payload.
- *   Listener registered in appPostload.js.
+ *   Listener registered by drnNotificationEvents.js.
  */
 
 const MAX_VISIBLE = 3;
@@ -39,7 +39,7 @@ function getContainer() {
     container = document.createElement('div');
     container.className = 'toast-container position-fixed top-0 end-0 p-3';
     container.style.zIndex = '1090'; //places toasts above Bootstrap modals (1055) but below popovers (1095).
-    container.setAttribute('aria-label', 'Notifications');
+    container.setAttribute('aria-label', 'Toast notifications');
     document.body.appendChild(container);
     return container;
 }
@@ -58,9 +58,7 @@ function createToastElement(type, message, duration) {
 
     const el = document.createElement('div');
     el.className = 'toast';
-    el.setAttribute('role', 'alert');
-    el.setAttribute('aria-live', 'assertive');
-    el.setAttribute('aria-atomic', 'true');
+    // The shared shell owns the pre-existing live region, avoiding duplicate announcements.
     el.dataset.bsDelay = String(duration);
 
     el.innerHTML = [
@@ -69,7 +67,7 @@ function createToastElement(type, message, duration) {
         '  <strong class="me-auto">' + title + '</strong>',
         '  <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>',
         '</div>',
-        '<div class="toast-body text-break user-select-text">' + drnUtils.escapeHtml(message) + '</div>'
+        '<div class="toast-body text-break user-select-text" style="white-space: pre-line">' + drnUtils.escapeHtml(message) + '</div>'
     ].join('\n');
 
     return el;
@@ -93,24 +91,32 @@ function enforceLimit() {
  * @param {number} [options.duration] - Auto-dismiss duration in ms (default 5000)
  */
 function show(options) {
-    if (!options?.message) return;
+    if (window.DRN.Notifications.isActive?.() === false) return;
+    if (typeof options?.message !== 'string' || !options.message.trim()) return;
 
-    const type = options.type || 'info';
-    const message = options.message;
-    const duration = options.duration || DEFAULT_DURATION;
+    const type = Object.hasOwn(ICON_MAP, options.type) ? options.type : 'info';
+    const message = options.message.trim().slice(0, 2000);
+    const duration = Number.isFinite(options.duration) ? Math.max(1000, Math.min(options.duration, 30000)) : DEFAULT_DURATION;
+    // The store owns notification-field validation and discards toast-only options.
+    if (options.record !== false) window.DRN.Notifications.publish({ ...options, type, message });
+
+    const live = document.getElementById(type === 'error' ? 'drn-notification-assertive' : 'drn-notification-polite');
+    if (live) live.textContent = message;
 
     enforceLimit();
 
     const toastEl = createToastElement(type, message, duration);
     getContainer().appendChild(toastEl);
 
-    const bsToast = new bootstrap.Toast(toastEl);
+    // Immediate transitions make disposal safe when HTMX replaces the containing body.
+    const bsToast = new bootstrap.Toast(toastEl, { animation: false });
     const entry = { el: toastEl, bsToast: bsToast };
     activeToasts.push(entry);
 
     toastEl.addEventListener('hidden.bs.toast', function () {
         const idx = activeToasts.indexOf(entry);
         if (idx > -1) activeToasts.splice(idx, 1);
+        bsToast.dispose();
         toastEl.remove();
     });
 
@@ -119,6 +125,15 @@ function show(options) {
 
 const drnToast = {
     show: show,
+    cleanup(root) {
+        for (const entry of [...activeToasts]) {
+            if (root === entry.el || root?.contains(entry.el)) {
+                entry.bsToast.dispose();
+                entry.el.remove();
+                activeToasts.splice(activeToasts.indexOf(entry), 1);
+            }
+        }
+    },
     success: function (message, duration) { show({ type: 'success', message: message, duration: duration }); },
     error: function (message, duration) { show({ type: 'error', message: message, duration: duration }); },
     warning: function (message, duration) { show({ type: 'warning', message: message, duration: duration }); },

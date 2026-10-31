@@ -12,5 +12,15 @@ export interface IDrnProblem {
     parse(body: unknown, contentType: unknown, status: number): DrnProblem;
     fromXhr(xhr: XMLHttpRequest): DrnProblem;
     fromResponse(response: Response): Promise<DrnProblem>;
-    show(problem: DrnProblem): void;
+    show(problem: DrnProblem, context?: DrnProblemContext): import('./DrnNotifications').DrnNotification | null;
+    clear(context?: DrnProblemContext): void;
+    clearAll(): void;
+}
+
+export interface DrnProblemContext {
+    element?: Element;
+    target?: Element;
+    operation?: string;
+    persist?: boolean;
+    focus?: boolean;
 }

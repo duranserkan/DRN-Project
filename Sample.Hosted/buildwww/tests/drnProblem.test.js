@@ -34,11 +34,11 @@ test('malformed bodies and incorrect field types have safe defaults', () => {
 
 test('display fields and validation output are bounded without altering identifiers', () => {
     const result = problem.parse(JSON.stringify({ title: 'x'.repeat(1000), requestId: 'r'.repeat(201),
-        type: 't'.repeat(2049), errors: { Name: Array(20).fill('e'.repeat(1000)) }
+        type: 't'.repeat(2049), errors: { Name: Array(120).fill('error') }
     }), 'application/problem+json', 400);
     assert.equal(result.title.length, 500);
-    assert.equal(result.errors.Name.length, 5);
-    assert.equal(result.errors.Name[0].length, 500);
+    assert.equal(result.errors.Name.length, 100);
+    assert.equal(result.errors.Name[0], 'error');
     assert.equal(result.requestId, '');
     assert.equal(result.type, '');
     const oversizedBody = JSON.stringify({ title: 'Oversized problem', detail: 'x'.repeat(65536) });
@@ -54,18 +54,32 @@ test('field keys cannot mutate prototypes and unknown types remain usable identi
     assert.equal(result.type, 'urn:other:unknown');
 });
 
-test('HTML-like public messages are passed as text to the escaping notification service', () => {
+test('a problem records once and its fallback toast opts out of recording', () => {
     const originalWindow = globalThis.window;
-    let notification;
-    globalThis.window = { DRN: { Toast: { error: (message) => { notification = message; } } } };
+    const originalDocument = globalThis.document;
+    const originalElement = globalThis.Element;
+    let notification, toast;
+    globalThis.Element = class {};
+    globalThis.document = { getElementById: () => null };
+    globalThis.window = { DRN: {
+        Notifications: { publish: value => { notification = value; return value; } },
+        Toast: { show: value => { toast = value; } }
+    } };
     try {
         const result = problem.parse('{"title":"<img src=x onerror=alert(1)>","requestId":"reference"}',
             'application/problem+json', 400);
         problem.show(result);
-        assert.equal(notification, '<img src=x onerror=alert(1)>\nRequest reference: reference');
+        assert.equal(notification.title, '<img src=x onerror=alert(1)>');
+        assert.equal(notification.requestId, 'reference');
+        assert.equal(toast.record, false);
+        assert.equal(toast.message, notification.title);
     } finally {
         if (originalWindow === undefined) delete globalThis.window;
         else globalThis.window = originalWindow;
+        if (originalDocument === undefined) delete globalThis.document;
+        else globalThis.document = originalDocument;
+        if (originalElement === undefined) delete globalThis.Element;
+        else globalThis.Element = originalElement;
     }
 });
 

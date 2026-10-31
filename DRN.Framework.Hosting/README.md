@@ -946,6 +946,20 @@ Apply `[DisableDrnProblemDetails]` from `DRN.Framework.Hosting.Middlewares.ApiEr
 
 Custom nonempty bodies are not rewritten. Empty-response handling respects declared content type and length, and disabled status-code pages. HEAD responses have no body. Responses that have started, aborted requests, and errors produced before the application pipeline are outside this contract.
 
+### HTMX Partial Requests
+
+Opt in to the same public Problem Details contract for failed HTMX requests, including Razor page handlers:
+
+```csharp
+services.Configure<DrnApiErrorOptions>(options => options.HandleHtmxRequests = true);
+```
+
+`HandleHtmxRequests` defaults to `false`. When enabled, requests with exactly one `HX-Request: true` header receive the [API failure contract](#api-failure-responses) for exceptions, eligible empty 4xx/5xx responses, and explicit Problem Details in every environment. This includes preserved status codes, request references, public validation errors, and redacted exception responses.
+
+Authentication, cookie redirects, endpoint opt-outs, and custom non-problem bodies retain their existing behavior. Normal navigation uses browser error pages and Development diagnostics. Opted-in HTMX exceptions return Problem Details instead of invoking `WriteProductionErrorResponseAsync` or displaying the Development exception page.
+
+Razor handlers choose validation representation explicitly. `Page()` with invalid ModelState retains HTML. To select JSON, return an `ObjectResult` containing `ValidationProblemDetails(ModelState)` with status 400 or 422. Use safe public messages, exact posted field names, and an empty key for form-level errors. The browser client must present Problem Details as data and explicitly support any HTML validation swaps. See the [Sample error handling conventions](../Sample.Hosted/README.md#error-handling-conventions) for examples.
+
 ### Custom Error Pages
 
 The framework includes built-in Razor Pages for developer-time exception handling:

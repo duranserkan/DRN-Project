@@ -13,6 +13,7 @@ import type {IDrnOnmount} from './DrnOnmount';
 import type {IDrnUtils} from './DrnUtils';
 import type {IDrnCookieManager} from './DrnCookieManager';
 import type {IDrnProblem} from './DrnProblem';
+import type {IDrnNotifications, IDrnToast} from './DrnNotifications';
 
 // The Main Global Augmentation
 declare global {
@@ -25,17 +26,16 @@ declare global {
     }
 
     // Define the shape of the global namespace object
-    // Toast, ErrorHandler, and Validation are assigned at runtime
-    // (appPreload.js and htmxValidation.js). Add dedicated .d.ts
-    // interfaces when their public API stabilizes.
+    // ErrorHandler and Validation still use runtime-owned interfaces.
     interface IDRN {
         App: IDrnApp;
         Onmount: IDrnOnmount;
         Utils: IDrnUtils;
         Cookie: IDrnCookieManager;
         React: IDrnReact;
-        Toast: any;
+        Toast: IDrnToast;
         Problem: IDrnProblem;
+        Notifications: IDrnNotifications;
         ErrorHandler: any;
         Validation: any;
     }

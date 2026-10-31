@@ -88,6 +88,7 @@ Failure blocks all later stages; set them `blocked`.
 - Workflow routes: verify `.agent/workflows/*.md` task routes match the `AGENTS.md` Workflows table and profile `Custom Workflow Routes`.
 - Token estimates: compare summed skill file sizes / 4 to `Estimated context:`. If delta >15%, flag `⚠️` only.
 - Cross-references: verify against the plan drift report.
+- Portability: resolve relative links from each referring file and verify reusable guidance does not require repository-local source/docs outside the copied agent bundle. Check local profile paths against the destination filesystem. Check external framework references against the applicable version and report unavailable remote verification explicitly. Illustrative paths are examples, not required local files.
 - References: resolve `AGENTS.md` project paths, profile custom load-set entries, and `overview-skill-index` skill directories.
 - Bootstrap freshness: for `all`, verify current-filesystem discovery was rebuilt, the baseline artifacts were persisted, and pre-execution staleness reproduced its Baseline Inputs Hash. Do not recompute the baseline against post-execution output files.
 
@@ -107,9 +108,11 @@ Verify non-project config references:
 
 For each project family, locate relevant skills by searching for `<FamilyPrefix>`.
 
+Verify real application identifiers against local source. Check labeled example identifiers for internal consistency and adaptation guidance, not literal existence. For dependencies consumed as packages, use installed package APIs/docs or matching upstream source. Framework source projects need not exist in the destination repository. Record unavailable evidence as a verification gap, not as proof that a dependency type is missing.
+
 1. Verify code identifiers:
    - Classes/interfaces exist.
-   - File paths exist.
+   - Repository-local file paths exist. Upstream paths resolve in the referenced source repository and version.
    - Namespaces and `using` directives exist.
    - Methods/properties exist.
    - Config keys match `appsettings*.json` or source.

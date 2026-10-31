@@ -54,131 +54,10 @@ TL;DR: You can
 
 ## Table of Contents
 
-- [Quick Start](#quick-start)
-- [Verify Published NuGet Packages](#verify-published-nuget-packages)
 - [About Project](#about-project)
-- [Solution Structure](#solution-structure)
 - [About Design and Architecture](#about-design-and-architecture)
 - [About Management](#about-management)
 - [Engineering Manifest](#durans-engineering-manifest)
-
-## Quick Start
-
-### Prerequisites
-
-- [.NET 10 SDK](https://dotnet.microsoft.com/download) 10.0.403 or a later compatible SDK selected by [global.json](global.json)
-- [Docker](https://www.docker.com/) with the daemon running (for the sample app and integration tests with Testcontainers)
-- Node.js >=24.22.1 and npm for rebuilding frontend assets (see [package.json](Sample.Hosted/package.json)). Built assets are checked in, so this is optional when simply running the sample. GitHub Actions pins Node.js 24.22.1 on Ubuntu 24.04 runners.
-
-> **Nice to have**: [JetBrains Rider](https://www.jetbrains.com/rider/) (recommended), [Visual Studio](https://visualstudio.microsoft.com/), or [VS Code](https://code.visualstudio.com/) with [C# Dev Kit](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csdevkit). All operations can also be performed from the terminal.
-
-### Build, Run & Test
-
-```bash
-dotnet build DRN.slnx                                  # Build the entire solution
-dotnet run --project Sample.Hosted -c Debug              # Run the sample with local dependencies (requires Docker)
-dotnet run --project DRN.Test.Unit                      # Run unit tests
-dotnet run --project DRN.Test.Analyzer                  # Run analyzer tests
-dotnet run --project DRN.Test.Integration               # Run integration tests (requires Docker)
-dotnet run --project DRN.Test.Performance -c Release     # Run all performance benchmarks (requires Release build)
-dotnet run --project DRN.Test.Performance -c Release -- --filter-method DRN.Test.Performance.Benchmark.Framework.Utils.SourceKnownIdUtilsPerformanceTests.Run_Benchmarks  # Run SKID/SKEID performance benchmark only
-dotnet run --project DRN.Test.Performance -c Release -- --filter-method DRN.Test.Performance.Benchmark.Framework.Utils.SourceKnownIdUtilsSaturationPerformanceTests.Run_Benchmarks  # Run SKID/SKEID saturation benchmark only
-```
-
-The sample runs at http://localhost:5998.
-
-In the sample, signed-in users who complete MFA can access `/swagger`, `/Test/Htmx`, and `/Test/DeveloperView` in Development. In Staging and Production, `SystemAdmin` grants both tools. Other users need a `SwaggerAccess` claim set to `true` for Swagger or a `TestPagesAccess` claim set to `true` for Test Pages. MFA is required in every environment. Navigation uses the same policies as the endpoints. Developer View is an explicit diagnostics preview. Ordinary Staging and Production errors remain redacted.
-
-The sample provides anonymous, non-cacheable `/BadRequest` (400), `/AccessDenied` (403), `/NotFound` (404), and `/SomethingWentWrong` (500) pages. Staging and Production HTML server errors preserve their 5xx status and show only a request reference. HTML bad-request and not-found responses preserve 400 and 404. API failures for all 4xx and 5xx statuses use [Problem Details JSON](DRN.Framework.Hosting/README.md#api-failure-responses) with a `requestId` in every environment. Sample and Nexus configure `/Api` to identify unmatched API routes without changing fallback authorization.
-
-These pages share a lightweight, responsive layout with keyboard focus indicators, a skip link, and status-specific recovery guidance. Each displays a request reference for support. Cookie-authentication redirects to `/AccessDenied` preserve the denied request's reference for the next visit; direct visits use the page request's reference. They use Bootstrap classes and the existing Vite-built Bootstrap stylesheet, with no JavaScript required. Browser authentication still redirects to login for 401 responses.
-
-For configuration and page requirements, see [Hosting custom error pages](DRN.Framework.Hosting/README.md#custom-error-pages).
-
-See the [Docker and Docker Compose guide](Docker/README.md) for local container setup, credentials, data migration, and published image verification.
-
-After changing frontend sources in `Sample.Hosted/buildwww/`, rebuild the assets from `Sample.Hosted/`:
-
-```bash
-npm ci --ignore-scripts
-npm audit signatures
-npm run build
-```
-
-> All test projects (unit, analyzer, integration, and performance) use [Microsoft Testing Platform (MTP) 2.x](https://learn.microsoft.com/en-us/dotnet/core/testing/microsoft-testing-platform-intro) with xUnit v3 and are built as standalone executables. Use `dotnet run --project` to execute them.
-
-> **Debugging tip:** If the application fails to start in `Development` mode, `DrnProgramBase` attempts to generate a `StartupExceptionReport.html` in the output directory with a detailed, browsable error report.
-
-### Installation
-
-For web applications (see [Sample.Hosted.csproj](Sample.Hosted/Sample.Hosted.csproj)):
-```bash
-dotnet add package DRN.Framework.Hosting
-```
-
-For test projects (see [DRN.Test.Integration.csproj](DRN.Test.Integration/DRN.Test.Integration.csproj), [DRN.Test.Unit.csproj](DRN.Test.Unit/DRN.Test.Unit.csproj)):
-```bash
-dotnet add package DRN.Framework.Testing
-```
-
-To create a new project from scratch:
-```bash
-dotnet new web -n MyApp && cd MyApp && dotnet add package DRN.Framework.Hosting
-cd .. && dotnet new xunit -n MyApp.Tests && cd MyApp.Tests && dotnet add package DRN.Framework.Testing
-```
-
-After scaffolding, follow the [Testing NuGet README](https://nuget.org/packages/DRN.Framework.Testing/#readme-body-tab) to configure the test runner, using the reference projects linked above.
-
-Use [appsettings.json](Sample.Hosted/appsettings.json) and [appsettings.Development.json](Sample.Hosted/appsettings.Development.json) as configuration references. Set `Environment`, `NexusAppSettings:AppId`, and `NexusAppSettings:AppInstanceId` explicitly. For local dependency launch, use `Environment: Development` and `DrnDevelopmentSettings:LaunchExternalDependencies: true` with the startup action below. See the [Hosting NuGet README](https://nuget.org/packages/DRN.Framework.Hosting/#readme-body-tab) for configuration details.
-
-For performance benchmarks, see [DRN.Test.Performance](DRN.Test.Performance) and its [benchmark reports](DRN.Test.Performance/Reports).
-
-### Create an Application
-
-Replace the generated `MyApp/Program.cs` with the following minimal example. See [SampleProgram.cs](Sample.Hosted/SampleProgram.cs) for a full implementation.
-
-```csharp
-using DRN.Framework.Hosting.DrnProgram;
-using DRN.Framework.Utils.DependencyInjection;
-using DRN.Framework.Utils.Logging;
-using DRN.Framework.Utils.Settings;
-
-public class Program : DrnProgramBase<Program>, IDrnProgram
-{
-    public static async Task Main(string[] args) => await RunAsync(args);
-
-    protected override Task AddServicesAsync(WebApplicationBuilder builder,
-        IAppSettings appSettings, IScopedLog scopedLog)
-    {
-        builder.Services.AddServicesWithAttributes();
-        return Task.CompletedTask;
-    }
-}
-```
-
-To launch local PostgreSQL during development, add a `DrnProgramActions` class that calls `builder.LaunchExternalDependenciesAsync` from `ApplicationBuilderCreatedAsync`, as shown in [SampleProgramActions.cs](Sample.Hosted/SampleProgramActions.cs). The class is discovered automatically. Wrap the file in `#if DEBUG` and reference `DRN.Framework.Testing` only in Debug builds, following [Sample.Hosted.csproj](Sample.Hosted/Sample.Hosted.csproj). Launching also requires the Development environment and `LaunchExternalDependencies` setting shown above.
-
-Read the [Hosting](https://nuget.org/packages/DRN.Framework.Hosting/#readme-body-tab) and [Testing](https://nuget.org/packages/DRN.Framework.Testing/#readme-body-tab) NuGet READMEs for configuration details and more examples.
-
-### Testing
-
-Read the [Testing NuGet README](https://nuget.org/packages/DRN.Framework.Testing/#readme-body-tab) for unit and integration testing guidance, and see [QAContextTests.cs](DRN.Test.Integration/Tests/Sample/Infra/QA/QAContextTests.cs) for a database integration example.
-
-### Developer Environment
-
-Add the following to your shell profile (e.g. `~/.zshrc`) to opt out of telemetry:
-
-```bash
-# Opt out of .NET CLI telemetry
-export DOTNET_CLI_TELEMETRY_OPTOUT=1
-
-# Opt out of .NET Testing Platform telemetry
-export TESTINGPLATFORM_TELEMETRY_OPTOUT=1
-```
-
-## Verify Published NuGet Packages
-
-For package downloads, signature verification, provenance, and SBOM attestations, see the [published NuGet package verification guide](docs/verify-published-nuget-packages.md).
 
 ## About Project
 
@@ -206,24 +85,11 @@ DRN Project is not another framework that will `bite the dust.` It is more than 
 This project is result of a productive and curious mindset that respects good solutions and best practices of others while enjoys from creating its own.
 It is not about coding. It is about process of creating and enhancing good things.
 
-### Solution Structure
-This solution consists of 6 parts that are being developed with Jetbrains Rider on macOS with arm-based M2 chip. However, I expect it to work on any modern machine since it is a cross-platform solution
-1. **Docker Folder:** Standalone dependency stacks and container configuration.
-2. **Docs:** It contains project documents. This docs will be supported with articles and a YouTube playlist.
-3. **Items:** It contains file that does not belong anywhere else such as .gitignore, .dockerignore and .github workflows
-4. **Src:** It contains 3 folders that define 3 different **DRN** domain.
-   * **Nexus:** Nexus is intended to connect all services and apis developed with **DRN.Framework**.
-     `The one microservice to rule them all.`
-      * It is a unified web app that contains nexus api and background services.
-      * It will have the following features as a start:
-        - [ ] **Configuration Management:** Nexus can provide configurations to connected microservices
-        - [ ] **Migration Management:** Nexus can manage microservice database migrations which includes schema management and sharding
-        - [ ] **Service Discovery:** Nexus discloses microservice network
-        - [ ] **Observability, Documentation and Monitoring Hub:** Nexus provides and visualizes workflow graph and information regarding them.
-   * **Framework:** DRN.Framework source codes belongs to generalized solutions that can be used within compatible .NET 10 projects as nuget packages.
-   * **Sample:** Nexus connectable sample app demonstrates **DRN.Framework** usage. It is used for testing, presentation and documentation purposes.
-5. **Test:** It contains all the unit, integration and performance tests.
-6. **docker-compose:** Local application stack for `Sample.Hosted` and its dependencies.
+### Documentation
+
+- [Quick Start](docs/quick-start.md)
+- [Solution Structure](docs/solution-structure.md)
+- [Verify Published NuGet Packages](docs/verify-published-nuget-packages.md)
 
 ## About Design and Architecture
 * [Chris Patterson's Great Article - Software Architect for Life](http://blog.phatboyg.com/2017/03/08/software-architect-for-life.html)

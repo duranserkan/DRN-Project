@@ -1,7 +1,7 @@
 ---
 name: drn-buildwww-libraries
 description: "DRN buildwww JavaScript architecture - DRN browser utilities, onmount lifecycle, RSJS mounting, htmx CSP nonce security, and Bootstrap customization. Keywords: drn, buildwww, javascript, rsjs, onmount, htmx, csp, nonce, bootstrap, cookie-management, component-mounting"
-last-updated: 2026-10-29
+last-updated: 2026-10-31
 difficulty: intermediate
 tokens: ~1.8K
 ---
@@ -110,7 +110,7 @@ Define behaviors directly in Razor Pages `<script>` tags. Use `idempotencyKey` t
 
 Global utilities are exposed under `window.DRN`.
 
-Use `DRN.App.url('~/Api/Sample/ClientError/Report')` for application-owned browser requests. Only `~/` paths receive the deployment prefix; external, fragment, relative, and already-resolved URLs stay unchanged. The layout must render `<meta name="drn-app-base" content="@Url.Content("~/")"/>` before the preload bundle so early error reporting can resolve URLs. Controller `/Api` route segments remain intact. Rebuild the owning frontend bundle after changing browser sources when execution is authorized.
+Pass the owning application's route to `DRN.App.url(applicationRoute)` for browser requests. Resolve `applicationRoute` from that application's endpoints or configuration. Only `~/` paths receive the deployment prefix. External, fragment, relative, and already-resolved URLs stay unchanged. The layout must render `<meta name="drn-app-base" content="@Url.Content("~/")"/>` before the preload bundle so early error reporting can resolve URLs. Preserve controller route segments. Rebuild the owning frontend bundle after changing browser sources when execution is authorized.
 
 ### Directory Structure
 
@@ -126,11 +126,28 @@ buildwww/app/js/drn/
 
 ### Problem Details Consumer
 
-`DRN.Problem` exposes `parse(body, contentType, status)`, `fromXhr(xhr)`, `fromResponse(response)`, and `show(problem)`. Fetch parsing preserves the original response body. HTMX response errors show text notifications in every environment with a selectable request reference when supplied. Fetch callers opt in explicitly.
+Use `DRN.Problem.fromResponse(response)` and `show(problem, context)` for Fetch errors. Context accepts `element`, `target`, `operation`, `persist`, and `focus`. HTMX errors are presented automatically in the originating form, a `data-problem-region`, or the page summary. Preserve input and clear only the matching operation's errors. Resolve the complete browser API, parsing limits, and examples from the profile-declared application guide and declarations.
 
-Only `application/problem+json` is parsed. The actual HTTP status wins. Unknown types remain identifiers, while malformed, non-problem, or oversized responses receive generic text. Display public fields as text. Form owners can render `problem.errors` with `textContent`; the helper does not update form fields or retry requests.
+Only `application/problem+json` is parsed, with the HTTP status taking precedence. Display public messages as text and retain a generic fallback for unusable responses. Do not retry mutations automatically or swap JSON as HTML. An HTML validation swap requires status 422, `text/html`, and `X-DRN-Validation: true`. Hosting's `HandleHtmxRequests` option controls error formatting without changing authentication behavior.
 
-Use stable application-owned problem types and retain an unknown-type fallback. Keep server redaction unchanged. Document the application's current public contract, usage, and limits in application-owned documentation.
+Validation keys match complete posted names, including casing, prefixes, and collection indices. An empty key is form-level feedback. Keep Razor response selection explicit and preserve existing API validation keys. See [Hosting error guidance](../drn-hosting/SKILL.md#error-responses) for server-side conventions.
+
+### Notification History
+
+Use `DRN.Notifications.publish` to retain a message without a toast. Use `DRN.Toast.show` for a toast and history entry, `record: false` for toast-only feedback, or `persist: false` for memory-only history. Forms and components can set `data-notification-operation` and `data-notification-persist`. Server handlers use `SendToast`. Direct client feedback uses `DRN.Toast.show`.
+
+Choose immediate presentation and retention independently:
+
+- Routine acknowledgments, such as copying text: toast only with `record: false`.
+- Results worth revisiting, such as export completion or background failure: toast and history.
+- Updates that need no immediate attention: history only with `DRN.Notifications.publish`.
+- Server-reported validation and actionable request failures: contextual feedback through `DRN.Problem` and one history entry. Preserve its toast fallback when no inline region exists.
+
+Do not repeat inline feedback with an additional toast or record routine client-side field validation in history. Omit feedback when neither immediate attention nor later review is useful. `persist: false` controls storage only, not toast visibility or whether history is recorded. Keep the decision guide in the profile-declared application documentation aligned with these rules.
+
+Keep history bounded and isolated by application and account. Publish only safe public text. Account changes clear history and contextual errors. Stale pages pause until reloaded. Closing feedback and dismissing history are separate actions. Resolve retention limits, panel behavior, and API options from the profile-declared application guide and browser declarations.
+
+Toast `duration` controls presentation only. Timeout, manual close, visible-toast eviction, and HTMX cleanup must preserve retained history. Explicit history dismissal must not be undone by subsequent toast cleanup. Cover these boundaries with the browser fixture and real Bootstrap lifecycle.
 
 ### Cookie Manager
 

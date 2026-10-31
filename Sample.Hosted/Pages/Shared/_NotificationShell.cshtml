@@ -1,0 +1,21 @@
+@{
+    var notificationIdentity = string.IsNullOrWhiteSpace(ScopeContext.UserId) ? Context.TraceIdentifier : ScopeContext.UserId;
+    var notificationOwner = ScopeContext.Authenticated
+        ? Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(notificationIdentity)))
+        : "anonymous";
+}
+<div data-notification-context data-notification-app="@Url.Content("~/")" data-notification-owner="@notificationOwner">
+    <div id="drn-notification-polite" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div id="drn-notification-assertive" class="visually-hidden" role="alert" aria-live="assertive" aria-atomic="true"></div>
+    <div id="offCanvasSidebarActionCanvasNotifications" class="offcanvas offcanvas-end" tabindex="-1"
+         data-bs-scroll="true" aria-labelledby="drn-notifications-title" hx-boost="false">
+        <div class="offcanvas-header">
+            <h2 id="drn-notifications-title" class="offcanvas-title h5">Notifications</h2>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close notifications"></button>
+        </div>
+        <div class="offcanvas-body">
+            <partial name="_SidebarActionbarItemNotifications"/>
+        </div>
+    </div>
+</div>

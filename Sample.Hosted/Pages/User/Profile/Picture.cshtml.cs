@@ -30,7 +30,7 @@ public class ProfilePictureModel(
             return Page();
         if (Input.ProfilePicture.Length > MaxFileSize)
         {
-            ModelState.AddModelError(nameof(Input.ProfilePicture), "The uploaded file is too large. Maximum allowed size is 100KB.");
+            ModelState.AddModelError($"{nameof(Input)}.{nameof(Input.ProfilePicture)}", "The uploaded file is too large. Maximum allowed size is 100KB.");
             return Page();
         }
 
@@ -43,9 +43,9 @@ public class ProfilePictureModel(
         {
             await service.CreateProfilePictureAsync(user, stream, MaxFileSize);
         }
-        catch (ValidationException exception)
+        catch (ValidationException)
         {
-            ModelState.AddModelError(nameof(Input.ProfilePicture), exception.Message);
+            ModelState.AddModelError($"{nameof(Input)}.{nameof(Input.ProfilePicture)}", "Please upload a valid JPEG image no larger than 100KB.");
             return Page();
         }
 

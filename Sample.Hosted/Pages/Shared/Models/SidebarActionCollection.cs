@@ -7,7 +7,7 @@ public class SidebarActionCollection
 {
     public static IReadOnlyList<SidebarActionItem> DefaultItems { get; } = new List<SidebarActionItem>
     {
-        new("#", "Notifications", "bi-bell-fill") { BadgeContent = "2", BadgeVisuallyHiddenContent = "unread notifications" },
+        new("#", "Notifications", "bi-bell-fill") { TriggerPartialViewName = "_NotificationTrigger", RenderCanvas = false },
         new("#", "Messages", "bi-envelope") { BadgeContent = "9+", BadgeVisuallyHiddenContent = "unread messages" },
         new("#", "Support", "bi-headset") { BadgeContent = "1", BadgeVisuallyHiddenContent = "unread support responses" },
         new("#", "Documentation", "bi-layout-text-sidebar-reverse"),
@@ -68,6 +68,8 @@ public class SidebarActionItem
     public string ActionItemCanvasLabelId { get; }
     public string ActionItemBadgeContentClass { get; }
     public string PartialViewName { get; }
+    public string? TriggerPartialViewName { get; init; }
+    public bool RenderCanvas { get; init; } = true;
 
     public string GetBadgeContent()
     {

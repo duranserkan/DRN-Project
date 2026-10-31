@@ -1,7 +1,7 @@
 ---
 name: basic-documentation
 description: "Documentation standards - README structure, ROADMAP patterns, skill documentation format (YAML frontmatter), markdown conventions, security documentation, API docs, and best practices. Guidelines for creating and maintaining all project documentation. Keywords: documentation, readme, roadmap, markdown, documentation-standards, yaml-frontmatter, technical-writing, api-documentation, changelog"
-last-updated: 2026-07-07
+last-updated: 2026-10-29
 difficulty: basic
 tokens: ~1K
 ---
@@ -120,7 +120,7 @@ Use XML documentation comments (`<summary>`, `<param>`, `<returns>`, `<exception
 
 - **Headers**: ATX style (`#`), one `#` per document
 - **Lists**: Hyphens (`-`) unordered, `1.` ordered
-- **Links**: Relative paths for internal files
+- **Links**: Relative paths for files shipped together. Portable agent files must not link outside their bundle to repository-local docs or source. Use current-profile discovery for local files and canonical upstream URLs for external framework references. Check the installed version before applying upstream guidance.
 - **Code**: Always specify language
 - **Diagrams**: Mermaid for architecture/sequence/flow — see [basic-documentation-diagrams](../basic-documentation-diagrams/SKILL.md) for WCAG-compliant styling
 - **Tables**: Use for structured data, align columns
@@ -141,6 +141,6 @@ Use XML documentation comments (`<summary>`, `<param>`, `<returns>`, `<exception
 - [ ] All public APIs documented?
 - [ ] Alt text for images? Semantic structure?
 - [ ] Diagrams meet WCAG AA? (see [diagrams skill](../basic-documentation-diagrams/SKILL.md))
-- [ ] Relative links valid?
+- [ ] Relative links valid, and portable agent references usable without this repository's source/docs?
 - [ ] TOC present if >100 lines?
 - [ ] Concrete examples for complex concepts?

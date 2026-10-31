@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Hosted;
 using Sample.Hosted.Helpers;
 
@@ -20,6 +21,49 @@ namespace DRN.Test.Integration.Tests.Sample.Pages;
 public class ErrorPageTests
 {
     private const string SensitiveMessage = "private-error-probe-password";
+
+    [Theory]
+    [DataInline("Development")]
+    [DataInline("Staging")]
+    [DataInline("Production")]
+    public async Task Razor_Validation_Should_Keep_The_Explicit_Result_Contract(DrnTestContext context, string environment)
+    {
+        context.AddToConfiguration("Environment", environment);
+        context.AddToConfiguration("AllowedHosts", "localhost");
+        var application = context.ApplicationContext.CreateApplication<SampleProgram>(builder =>
+            builder.ConfigureServices(services =>
+                services.Configure<MvcOptions>(options => options.Filters.Add(new ErrorProbeFilter()))));
+        await context.ContainerContext.BindExternalDependenciesAsync();
+        using var client = application.CreateClient(new()
+        {
+            AllowAutoRedirect = false,
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        foreach (var htmx in new[] { false, true })
+        {
+            using var pageRequest = new HttpRequestMessage(HttpMethod.Get, "/?errorProbe=invalid-model");
+            pageRequest.Headers.Accept.ParseAdd("application/problem+json");
+            if (htmx) pageRequest.Headers.Add("HX-Request", "true");
+            using var page = await client.SendAsync(pageRequest);
+            page.StatusCode.Should().Be(HttpStatusCode.OK);
+            page.Content.Headers.ContentType!.MediaType.Should().Be("text/html");
+            (await page.Content.ReadAsStringAsync()).Should().NotContain("\"errors\":");
+        }
+
+        client.DefaultRequestHeaders.Add("HX-Request", "true");
+        using var validation = await client.GetAsync("/?errorProbe=validation-problem");
+        using var problem = await ProblemDetailsAssertions.ReadProblemAsync(validation, 422);
+        problem.RootElement.GetProperty("errors").GetProperty("Input.Name")[0].GetString().Should().Be("Enter a name.");
+        problem.RootElement.GetProperty("errors").GetProperty(string.Empty)[0].GetString().Should().Be("Review the form.");
+        problem.RootElement.GetProperty("requestId").GetString().Should().Be("error-page-test-reference");
+
+        using var fragment = await client.GetAsync("/?errorProbe=validation-html");
+        fragment.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+        fragment.Content.Headers.ContentType!.MediaType.Should().Be("text/html");
+        fragment.Headers.GetValues("X-DRN-Validation").Should().Equal("true");
+        (await fragment.Content.ReadAsStringAsync()).Should().Be("<p>Review the form.</p>");
+    }
 
     [Theory]
     [DataInline("Staging", "")]
@@ -298,6 +342,26 @@ public class ErrorPageTests
                     StatusCode = StatusCodes.Status400BadRequest,
                     ContentType = "text/plain",
                     Content = "Check the submitted value."
+                };
+                return;
+            }
+            if (probe is "invalid-model" or "validation-problem")
+            {
+                context.ModelState.AddModelError("Input.Name", "Enter a name.");
+                context.ModelState.AddModelError(string.Empty, "Review the form.");
+                context.Result = probe == "invalid-model"
+                    ? new PageResult()
+                    : new ObjectResult(new ValidationProblemDetails(context.ModelState) { Status = 422 });
+                return;
+            }
+            if (probe == "validation-html")
+            {
+                context.HttpContext.Response.Headers["X-DRN-Validation"] = "true";
+                context.Result = new ContentResult
+                {
+                    StatusCode = StatusCodes.Status422UnprocessableEntity,
+                    ContentType = "text/html",
+                    Content = "<p>Review the form.</p>"
                 };
                 return;
             }
