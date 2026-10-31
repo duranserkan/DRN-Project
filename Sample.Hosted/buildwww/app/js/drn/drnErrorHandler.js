@@ -16,6 +16,30 @@ const MAX_ERRORS_PER_WINDOW = 5;
 const RATE_WINDOW_MS = 60000;
 const DEDUP_WINDOW_MS = 10000;
 const REPORT_ENDPOINT = '~/Api/Sample/ClientError/Report';
+// Must match ClientErrorController's RequestSizeLimit, including JSON overhead.
+const MAX_REPORT_BYTES = 3600;
+
+function serializeReport(payload) {
+    const encoder = new TextEncoder();
+    const report = { ...payload };
+    let json = JSON.stringify(report);
+    // Preserve the correlation ID and trim less useful diagnostics first.
+    for (const field of ['stack', 'userAgent', 'url', 'source', 'message']) {
+        if (encoder.encode(json).byteLength <= MAX_REPORT_BYTES) return json;
+        const characters = Array.from(report[field]);
+        let low = field === 'message' ? 1 : 0;
+        let high = characters.length;
+        while (low < high) {
+            const middle = Math.ceil((low + high) / 2);
+            report[field] = characters.slice(0, middle).join('');
+            if (encoder.encode(JSON.stringify(report)).byteLength <= MAX_REPORT_BYTES) low = middle;
+            else high = middle - 1;
+        }
+        report[field] = characters.slice(0, low).join('');
+        json = JSON.stringify(report);
+    }
+    return encoder.encode(json).byteLength <= MAX_REPORT_BYTES ? json : null;
+}
 
 let errorCount = 0;
 let windowStart = Date.now();
@@ -72,7 +96,10 @@ function sendReport(payload) {
 }
 
 function dispatchReport(payload) {
-    const json = JSON.stringify(payload);
+    const owner = document.querySelector('[data-notification-context]')?.dataset.notificationOwner;
+    if (!owner || owner === 'anonymous' || window.DRN?.Notifications?.isActive?.() === false) return;
+    const json = serializeReport(payload);
+    if (json === null) return;
     const endpoint = drnApp.url(REPORT_ENDPOINT);
 
     // Prefer sendBeacon for non-blocking fire-and-forget
@@ -95,21 +122,29 @@ function dispatchReport(payload) {
 
 /** Explicit action boundary. Global errors cannot reliably identify user intent. */
 function reportActionError(error, context = {}) {
-    if (typeof context.operation !== 'string' || !context.operation.trim() ||
-        window.DRN.Notifications.isActive() === false) return null;
+    try {
+        return reportActionErrorCore(error, context);
+    } catch {
+        // Feedback must not replace the original action failure.
+        return null;
+    }
+}
 
-    const clientErrorId = createClientErrorId();
+function reportActionErrorCore(error, context) {
+    const notifications = window.DRN?.Notifications;
+    if (typeof context.operation !== 'string' || !context.operation.trim() ||
+        notifications?.isActive?.() !== true) return null;
+
     const message = (error instanceof Error ? error.message : String(error || 'Action failed')) || 'Action failed';
     const payload = buildPayload(message, 'user-action', 0, 0, error instanceof Error ? error.stack : '');
-    payload.clientErrorId = clientErrorId;
     // Each action occurrence needs its own reference. Keep the shared rate limit.
-    if (tryReserveReportSlot(clientErrorId)) sendReport(payload);
+    if (tryReserveReportSlot(payload.clientErrorId)) sendReport(payload);
 
     const publicMessage = typeof context.message === 'string' && context.message.trim()
         ? context.message : 'The action could not be completed. Check the current state before trying again.';
-    const record = window.DRN.Notifications.publish({
+    const record = notifications.publish({
         type: 'error', title: 'Action could not be completed', message: publicMessage,
-        clientErrorId, operation: context.operation, persist: context.persist !== false
+        clientErrorId: payload.clientErrorId, operation: context.operation, persist: context.persist !== false
     });
     if (record) window.DRN.Toast.show({ type: 'error', message: publicMessage, record: false });
     return record;
@@ -126,6 +161,7 @@ function reportActionError(error, context = {}) {
  */
 function buildPayload(message, source, line, column, stack) {
     return {
+        clientErrorId: createClientErrorId(),
         message: String(message || '').substring(0, 500),
         source: String(source || '').substring(0, 200),
         line: line || 0,
@@ -152,17 +188,18 @@ function reportUnhandledError(event, isRejection) {
         if (!tryReserveReportSlot(key)) return;
 
         const payload = buildPayload(message, source, line, column, reason?.stack || '');
-        payload.clientErrorId = createClientErrorId();
         sendReport(payload);
 
         const notifications = window.DRN?.Notifications;
         if (notifications?.isActive() !== true) return;
-        notifications.publish({
+        const messageForUser = 'A page encountered a problem. If you were completing an action, check its result before trying again.';
+        const record = notifications.publish({
             type: 'error', title: 'An unexpected error occurred',
-            message: 'A page encountered a problem. If you were completing an action, check its result before trying again.',
+            message: messageForUser,
             clientErrorId: payload.clientErrorId,
             operation: 'Page error'
         });
+        if (record) window.DRN.Toast?.show({ type: 'error', message: messageForUser, record: false });
     } catch { /* A failing global handler must not generate another unhandled error. */ }
     finally { handlingUnhandledError = false; }
 }

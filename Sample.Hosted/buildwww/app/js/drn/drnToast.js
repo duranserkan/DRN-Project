@@ -17,6 +17,8 @@ import drnUtils from './drnUtils';
 
 const MAX_VISIBLE = 3;
 const DEFAULT_DURATION = 5000;
+const MAX_TOASTS_PER_WINDOW = 5;
+const TOAST_WINDOW_MS = 10000;
 
 const ICON_MAP = {
     success: 'bi-check-circle-fill text-success',
@@ -27,6 +29,7 @@ const ICON_MAP = {
 
 let container = null;
 let activeToasts = [];
+let presentedAt = [];
 
 /**
  * Anchors toasts inside the content area, clear of the header and sidebars.
@@ -103,6 +106,12 @@ function show(options) {
     const duration = Number.isFinite(options.duration) ? Math.max(1000, Math.min(options.duration, 30000)) : DEFAULT_DURATION;
     // The store owns notification-field validation and discards toast-only options.
     if (options.record !== false) window.DRN.Notifications.publish({ ...options, type, message });
+
+    // Retain history, but do not queue a burst for later playback.
+    const now = Date.now();
+    presentedAt = presentedAt.filter(time => now - time < TOAST_WINDOW_MS);
+    if (presentedAt.length >= MAX_TOASTS_PER_WINDOW) return;
+    presentedAt.push(now);
 
     const live = document.getElementById(type === 'error' ? 'drn-notification-assertive' : 'drn-notification-polite');
     if (live) live.textContent = message;

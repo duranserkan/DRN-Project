@@ -151,7 +151,7 @@ test('restoring a page recreates one timer and channel without replaying inline 
 });
 
 test('Problem Details suppresses toast headers and presents one failure across HTMX callbacks', t => {
-    const { emit, Problem, Toast } = fixture(t);
+    const { emit, Problem, Toast, ErrorHandler } = fixture(t);
     const detail = response(409, ' Application/Problem+Json; charset=utf-8 ');
     detail.xhr.responseText = JSON.stringify({ title: 'Category is in use' });
     emit('htmx:beforeOnLoad', detail);
@@ -164,6 +164,7 @@ test('Problem Details suppresses toast headers and presents one failure across H
     assert.equal(detail.isError, true);
     assert.equal(Problem.show.mock.callCount(), 1);
     assert.equal(Problem.show.mock.calls[0].arguments[0].title, 'Category is in use');
+    assert.equal(ErrorHandler.reportActionError.mock.callCount(), 0);
     assert.equal(Problem.clear.mock.callCount(), 0);
     assert.equal(Toast.show.mock.callCount(), 0);
 });
@@ -238,7 +239,7 @@ test('explicit background marking suppresses even a trusted action event', t => 
 
 for (const contentType of ['application/json', 'text/html; charset=utf-8', 'text/plain']) {
     test(`a non-problem ${contentType} error toast owns feedback once and preserves request privacy`, t => {
-        const { emit, Problem, Toast } = fixture(t);
+        const { emit, Problem, Toast, ErrorHandler } = fixture(t);
         const element = { closest: selector => selector === '[data-notification-persist]'
             ? { dataset: { notificationPersist: 'false' } }
             : selector === '[data-notification-operation]'
@@ -251,6 +252,7 @@ for (const contentType of ['application/json', 'text/html; charset=utf-8', 'text
         emit('showToast', { type: 'error', message: 'Duplicate message' });
 
         assert.equal(Toast.show.mock.callCount(), 1);
+        assert.equal(ErrorHandler.reportActionError.mock.callCount(), 0);
         assert.deepEqual(Toast.show.mock.calls[0].arguments[0], {
             type: 'error', message: 'Category is in use', duration: 9000,
             record: undefined, persist: false, operation: 'Remove category'

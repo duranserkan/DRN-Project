@@ -15,6 +15,9 @@ public class Htmx(IAntiforgery antiForgery) : PageModel
         // Intentionally empty: GET request initializes default page view.
     }
 
+    public IActionResult OnPostUnhandledException() =>
+        throw new InvalidOperationException("Intentional unhandled server exception from the HTMX test page.");
+
     // POST methods in Razor Pages automatically validate CSRF tokens
     public IActionResult OnPostAuto(string message)
     {

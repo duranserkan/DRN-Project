@@ -41,9 +41,45 @@ for (const kind of ['error', 'unhandledrejection']) {
         await panel.locator('summary').click();
         await expect(panel).toContainText(`Client error reference: ${report.clientErrorId}`);
         await expect(panel).not.toContainText('Private global diagnostic');
-        await expect(page.locator('.toast')).toHaveCount(0);
+        await expect(page.locator('.toast')).toHaveCount(1);
+        await expect(page.locator('.toast-body')).toHaveText(
+            'A page encountered a problem. If you were completing an action, check its result before trying again.');
+        expect(await page.evaluate(() => window.DRN.Notifications.list())).toHaveLength(1);
     });
 }
+
+test('uncaught error floods keep three visible toasts and five unique history entries', async ({ page }) => {
+    const reports = [];
+    await page.route('**/Api/Sample/ClientError/Report', route => {
+        reports.push(route.request().postDataJSON());
+        return route.fulfill({ status: 200, body: '' });
+    });
+    await page.evaluate(() => {
+        for (let index = 0; index < 20; index++) {
+            const event = new ErrorEvent('error', { message: `Private failure ${index}`, filename: 'test.js' });
+            window.dispatchEvent(event);
+            window.dispatchEvent(new ErrorEvent('error', { message: `Private failure ${index}`, filename: 'test.js' }));
+        }
+    });
+    await expect.poll(() => reports.length).toBe(5);
+    await expect(page.locator('.toast')).toHaveCount(3);
+    expect(await page.evaluate(() => window.DRN.Notifications.list())).toHaveLength(5);
+    await expect(page.locator('.toast-container')).not.toContainText('Private failure');
+});
+
+test('toast bursts retain history without queuing excess presentation and recover after cooldown', async ({ page }) => {
+    await page.clock.install();
+    await page.evaluate(() => {
+        for (let index = 0; index < 20; index++)
+            window.DRN.Toast.show({ type: 'error', message: `Failure ${index}`, duration: 30000 });
+    });
+    await expect(page.locator('.toast-body')).toHaveText(['Failure 2', 'Failure 3', 'Failure 4']);
+    expect(await page.evaluate(() => window.DRN.Notifications.list())).toHaveLength(20);
+    await page.clock.fastForward(10001);
+    await expect(page.locator('.toast-body')).toHaveText(['Failure 2', 'Failure 3', 'Failure 4']);
+    await page.evaluate(() => window.DRN.Toast.error('Later failure'));
+    await expect(page.locator('.toast-body')).toHaveText(['Failure 3', 'Failure 4', 'Later failure']);
+});
 
 for (const hosted of [true, false]) {
     test(`notification panel stays above overlapping toasts, content host: ${hosted}`, async ({ page }) => {
@@ -490,6 +526,11 @@ test('new and existing tabs share actionbar attendance and unseen notifications'
 });
 
 test('the bell stays visible and counts only unseen failures without a page banner', async ({ page }) => {
+    const clientReports = [];
+    await page.route('**/Api/Sample/ClientError/Report', route => {
+        clientReports.push(route.request());
+        return route.fulfill({ status: 200, body: '' });
+    });
     const badge = page.locator('[data-notification-count]');
     await expect(page.getByRole('button', { name: 'Notifications', exact: true })).toBeVisible();
     await expect(badge).toBeHidden();
@@ -509,6 +550,7 @@ test('the bell stays visible and counts only unseen failures without a page bann
     const entries = await page.evaluate(() => window.DRN.Notifications.list());
     expect(entries).toHaveLength(1);
     expect(entries[0]).toMatchObject({ seen: false, status: 400, requestId: 'request-one' });
+    expect(clientReports).toHaveLength(0);
 
     await page.getByRole('button', { name: 'Notifications, 1 unseen', exact: true }).click();
     const panel = page.getByRole('dialog', { name: 'Notifications', exact: true });
