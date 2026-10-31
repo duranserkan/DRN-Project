@@ -55,7 +55,16 @@ Choose the response in the handler:
 | Ordinary Razor form validation | Add ModelState errors and return `Page()` | Existing HTML fields and validation messages |
 | Full Razor navigation failure | Existing empty status or exception handling | Configured HTML error page or Development diagnostics |
 
-Preserve the failure's HTTP status. Use stable problem types such as `CategoryProblemTypes.NotFound`. Keep request-specific data out of type identifiers and private diagnostics out of public messages. See [Hosting API failure responses](../DRN.Framework.Hosting/README.md#api-failure-responses) for scoped defaults, request references, and endpoint opt-outs.
+Leave `Type` unset for routine errors. Hosting infers the standard type from the exception's status. Set a safe public title or detail only when useful:
+
+```csharp
+ScopeContext.Problem.Title = "Category not found";
+ScopeContext.Problem.NotFound($"Category: {id}");
+```
+
+This throws `NotFoundException` and returns HTTP 404 with the standard type and the public title above. The diagnostic message stays private. Use explicit stable types only for conditions clients must distinguish beyond HTTP status. See [Hosting mappings and overrides](../DRN.Framework.Hosting/README.md#api-failure-responses).
+
+Category lookup now uses the standard HTTP 404 problem type instead of `urn:sample:problem:category-not-found`. Clients matching that former Sample identifier should handle HTTP 404 for a missing category. The status, safe title, and request reference remain available.
 
 Field errors use the exact posted control name, including casing, property prefixes, and collection indices. Use `string.Empty` for form-level errors. Preserve existing API validation keys, including Identity error codes.
 

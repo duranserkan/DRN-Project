@@ -697,6 +697,8 @@ await response.Payload!.CopyToAsync(destination);
 
 `ScopeContext` provides ambient access to request-scoped data after a DRN Hosting request scope has been initialized. Use injected services during startup, in background work, and outside request scopes.
 
+Throwing helpers and `ExceptionFor` factories produce the same DRN exceptions. Hosting infers standard problem types from their status: NotFound -> 404, Conflict -> 409. Routine failures need no Type assignment. Set only safe public fields that add context; assigning Type does not change status. See [Hosting defaults and overrides](../DRN.Framework.Hosting/README.md#api-failure-responses).
+
 Use the lazy `ScopeContext.Problem` object for public error defaults: `Type`, `Title`, `Detail`, `Instance`, and `Extensions`. DRN Hosting fills null fields and missing extension keys from these values. Existing values take precedence, including framework-generated titles and types. Status, request ID, and validation errors stay framework controlled. Exception messages and logs are not copied. This mutable object is shared within the request; do not use it for separate errors from concurrent operations.
 
 ```csharp

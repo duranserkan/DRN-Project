@@ -922,7 +922,44 @@ Authentication, cookie redirects, and fallback authorization remain unchanged. R
 
 API Problem Details use SharedKernel `JsonConventions.DefaultOptions`, including camelCase properties, string enums, and precision-safe 64-bit integers. MVC `AddJsonOptions` and `ConfigureHttpJsonOptions` overrides do not apply to these responses.
 
-Set public error defaults before returning an error or throwing a DRN exception:
+Leave `Type` unset for routine failures. Both `throw ExceptionFor.NotFound(...)` and `ScopeContext.Problem.NotFound(...)` produce `NotFoundException.Status = 404`. Hosting sets that HTTP status and infers ASP.NET Core's standard problem type and title. Type precedence is existing response, scoped value, status default, then `about:blank`. Define a stable custom type only when clients need to distinguish a condition beyond HTTP status; changing it changes the public contract.
+
+| Failure | HTTP status | Default problem type |
+|---|---|---|
+| `ScopeContext.Problem.NotFound(...)` | 404 | `https://tools.ietf.org/html/rfc9110#section-15.5.5` |
+| `ScopeContext.Problem.Conflict(...)` | 409 | `https://tools.ietf.org/html/rfc9110#section-15.5.10` |
+| Unmapped exception | 500 | `https://tools.ietf.org/html/rfc9110#section-15.6.1` |
+
+Prefer an existing semantic base for custom exceptions. `ConflictException` subclasses inherit 409; direct `DrnException` subclasses use the supplied status or default to 500. See [inheritance examples](../DRN.Framework.SharedKernel/README.md#exceptions).
+
+`HttpScopeMiddleware` selects the status from the caught exception in this order:
+
+| Exception matched | HTTP status |
+|---|---|
+| `DrnException`, including subclasses | Its declared `Status` |
+| `FlurlHttpException`, including subclasses | Uses the upstream HTTP status mapping below |
+| `BadHttpRequestException`, including subclasses | Preserves its `StatusCode` exactly: 400 when constructed without an explicit status, otherwise the constructor-supplied status |
+| Any other exception | 500 |
+
+For incoming request errors, `new BadHttpRequestException("Invalid request")` yields 400; supplying 413 or 500 preserves that exact status. Server-level rejections outside DRN middleware need not use DRN formatting.
+
+For Flurl, "upstream" is the service called by the outbound request. `GetGatewayStatusCode()` maps `exception.StatusCode` as follows:
+
+| Upstream status on the exception | Application response status |
+|---|---|
+| Any status from 400 through 499 | The same status, including 401, 403, 404, 408, and 429 |
+| 503 Service Unavailable | 503 Service Unavailable |
+| 504 Gateway Timeout | 504 Gateway Timeout |
+| Any other status, including 500, 501, and 502 | 502 Bad Gateway |
+| No status (`null`), such as a connection failure or timeout without an HTTP response | 502 Bad Gateway |
+
+Thus a timeout without an upstream response maps to 502, not 504. Only the status is preserved, not upstream bodies or headers.
+
+Mapping uses the caught exception, not its name, message, `Category`, or inner exception. An ordinary wrapper around a DRN exception therefore defaults to 500. Setting `Type` alone does not change status. Exception messages remain private.
+
+These rules apply before the response starts, with cancellation handled separately. Invalid statuses, including `MaliciousRequestException`, abort. Problem formatting requires eligible API or opted-in HTMX requests and respects endpoint opt-outs; ordinary browser navigation uses HTML errors.
+
+Set only the public error defaults that need additional context before returning an error or throwing a DRN exception:
 
 ```csharp
 using DRN.Framework.SharedKernel;

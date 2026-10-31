@@ -33,7 +33,6 @@ public class CategoryController(QAContext context, IPaginationUtils pagination, 
         var category = await categories.GetOrDefaultAsync(id, cancellationToken);
         if (category == null)
         {
-            ScopeContext.Problem.Type = CategoryProblemTypes.NotFound;
             ScopeContext.Problem.Title = "Category not found";
             ScopeContext.Problem.NotFound($"Category: {id}");
         }

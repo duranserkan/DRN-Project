@@ -153,7 +153,7 @@ HTMX error configuration belongs in the [Hosting README](../DRN.Framework.Hostin
 
 `ScopeContext.Problem` owns lazy, ASP.NET-independent public error defaults. Hosting fills missing fields only and defaults instance to PathBase + Path without queries. Keep Utils/Hosting docs and skills aligned. Do not expose exception messages or logs implicitly, or let scoped extensions override standard fields or validation errors.
 
-`ScopeProblem` mirrors every `ExceptionFor` factory with a throwing helper, leaves public defaults unchanged, and hides helper frames from formatted stack traces. Keep both usage forms in Utils and Hosting examples.
+`ScopeProblem` mirrors every `ExceptionFor` factory with a throwing helper, leaves public defaults unchanged, and hides helper frames from formatted stack traces. Keep both usage forms in Utils and Hosting examples. Routine failures leave `Type` unset and use Hosting's status-based defaults. Do not require per-entity or per-exception catalogs. Explicit types are reserved for public conditions clients must distinguish beyond HTTP status, with stable identities independent of CLR names and routes.
 
 Error-page configuration and contracts belong in the [Hosting README](../DRN.Framework.Hosting/README.md#custom-error-pages). Keep sample routes and behavior in the [Sample application guide](../Sample.Hosted/README.md#error-pages-and-api-failures) and maintenance guidance in `drn-hosting`.
 

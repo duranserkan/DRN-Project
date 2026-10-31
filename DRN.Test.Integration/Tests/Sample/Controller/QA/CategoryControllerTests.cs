@@ -67,7 +67,9 @@ public class CategoryControllerTests
             missing.StatusCode.Should().Be(HttpStatusCode.NotFound);
             missing.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
             using var problem = JsonDocument.Parse(await missing.Content.ReadAsStringAsync());
-            problem.RootElement.GetProperty("type").GetString().Should().Be(CategoryProblemTypes.NotFound);
+            problem.RootElement.GetProperty("type").GetString().Should().Be(
+                Microsoft.AspNetCore.Http.TypedResults.Problem(statusCode: 404).ProblemDetails.Type);
+            problem.RootElement.GetProperty("title").GetString().Should().Be("Category not found");
             problem.RootElement.GetProperty("status").GetInt32().Should().Be(404);
             problem.RootElement.GetProperty("requestId").GetString().Should().NotBeNullOrWhiteSpace();
             problem.RootElement.TryGetProperty("stackTrace", out _).Should().BeFalse();

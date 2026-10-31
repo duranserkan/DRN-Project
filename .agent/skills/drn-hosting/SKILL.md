@@ -262,6 +262,8 @@ public class TagFor() : ControllerForBase<ExampleTagController>(ExampleApiFor.Co
 
 ### Error Responses
 
+Map the caught exception to status, then infer the standard problem type/title. DRN subclasses retain `Status` (default 500); Flurl preserves upstream 400-499/503/504 and maps everything else, including no response, to 502; BadHttpRequestException preserves `StatusCode` (default 400); other exceptions map to 500. Names and inner exceptions do not select status. Type precedence is response, scope, status default, then `about:blank`; a Type override does not change status. Preserve cancellation, started-response, abort, and API/HTMX eligibility rules. See [Hosting status mappings](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#api-failure-responses).
+
 API errors from 400 through 599 use Problem Details in every environment, serialized with SharedKernel `JsonConventions.DefaultOptions`. MVC and HTTP JSON overrides do not apply. Classify matched endpoints by API metadata and unmatched routes or routing-generated 405 responses by `DrnApiErrorOptions.PathPrefixes`. Preserve authentication decisions, headers, cookies, validation errors, and public extensions. Use `HttpContext.TraceIdentifier` for requestId and default instance to PathBase + Path without queries. Keep exceptions private and serialization fallbacks redacted.
 
 `DrnApiErrorOptions.HandleHtmxRequests` defaults to false. Enable it for HTMX Problem Details, including Razor handlers. Authentication, cookie redirects, endpoint opt-outs, and custom non-problem bodies retain their behavior. See [HTMX partial requests](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#htmx-partial-requests) for request selection and exception-hook behavior.
@@ -270,7 +272,7 @@ API errors from 400 through 599 use Problem Details in every environment, serial
 
 Keep Razor response selection explicit: `Page()` retains HTML, while an `ObjectResult` containing `ValidationProblemDetails(ModelState)` selects JSON with status 400 or 422. Use safe public messages, exact posted field names, and an empty key for form-level errors. Preserve existing API keys. See [browser error guidance](../drn-buildwww-libraries/SKILL.md#problem-details-consumer) for HTML validation swaps.
 
-Reuse stable status-based or application-owned problem types. Keep request-specific data out of type identifiers and private diagnostics out of public messages.
+Leave `Type` unset for routine failures and reuse Hosting's status-based defaults. Do not require per-entity or per-exception type catalogs. Define explicit stable types only for public conditions that clients must distinguish beyond HTTP status. Never derive identifiers from exception class names, routes, or request data. Preserve explicit overrides and keep private diagnostics out of public messages.
 
 Swagger adds only a representative 400 response describing all 4xx and 5xx errors. Preserve other declared statuses, validation schemas, custom response types, and browser/HEAD metadata. Honor inherited `[DisableDrnProblemDetails]` on controllers or actions: it disables DRN formatting and automatic Swagger error metadata while retaining native ASP.NET Core responses and authentication behavior.
 

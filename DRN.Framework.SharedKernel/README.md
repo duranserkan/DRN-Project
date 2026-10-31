@@ -532,6 +532,23 @@ using DRN.Framework.SharedKernel;
 throw ExceptionFor.NotFound("User not found", category: "Users");
 ```
 
+For custom exceptions, prefer an existing semantic base when it fits:
+
+```csharp
+using DRN.Framework.SharedKernel;
+
+public class OrderAlreadyShippedException(string message)
+    : ConflictException(message); // Inherits Status = 409.
+
+public class ServiceUnavailableException(string message)
+    : DrnException(message, null, null, 503); // Explicit status when no existing base fits.
+
+public class UnexpectedOrderException(string message)
+    : System.Exception(message); // Unmapped exception: Hosting defaults to 500.
+```
+
+Direct `DrnException` subclasses also default to 500 when status is omitted. For eligible API/HTMX responses, Hosting infers the standard problem type from status, not the class name, message, or `Category`. Custom types are optional and do not change status. See [Hosting mappings, overrides, and special cases](../DRN.Framework.Hosting/README.md#api-failure-responses).
+
 See [Exceptions.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Exceptions.cs) and [HttpScopeMiddleware.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Hosting/Middlewares/HttpScopeMiddleware.cs).
 
 ---

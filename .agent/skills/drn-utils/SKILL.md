@@ -223,7 +223,7 @@ Access ambient data only after DRN Hosting initializes the current request scope
 
 `ScopeContext.Problem` lazily stores public error defaults (`Type`, `Title`, `Detail`, `Instance`, `Extensions`) without ASP.NET dependencies. Hosting fills missing response fields only. Do not copy logs or exception messages into it. The mutable object belongs to one scope, resets with test initialization, and must not coordinate separate concurrent errors.
 
-`ScopeProblem` mirrors every `ExceptionFor` factory with the same arguments and throws immediately without changing public defaults. `[StackTraceHidden]` hides helper frames from formatted traces without relocating the throw instruction. Examples show the scoped shorthand and equivalent `throw ExceptionFor` call together.
+`ScopeProblem` mirrors every `ExceptionFor` factory with the same arguments and throws immediately without changing public defaults. Hosting infers the standard problem type from the exception's status; assigning Type does not change status. See [Hosting mapping rules](../drn-hosting/SKILL.md#error-responses). `[StackTraceHidden]` hides helper frames from formatted traces without relocating the throw instruction. Examples show the scoped shorthand and equivalent `throw ExceptionFor` call together.
 
 ```csharp
 ScopeContext.UserId;                      // Current user
