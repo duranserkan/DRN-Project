@@ -36,6 +36,12 @@
                 Messages <span class="badge text-bg-danger" data-actionbar-count data-message-count>9+</span>
             </button>
         </div>
+        <div data-js-actionbar-item>
+            <button type="button" class="btn btn-light nav-link" aria-label="Support"
+                    data-bs-toggle="offcanvas" data-bs-target="#support-panel">
+                Support <span class="badge text-bg-danger" data-actionbar-count>1</span>
+            </button>
+        </div>
     </main>
     <div id="drn-notification-polite" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
     <div id="drn-notification-assertive" class="visually-hidden" role="alert" aria-live="assertive" aria-atomic="true"></div>
@@ -54,6 +60,13 @@
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close messages"></button>
         </div>
         <div class="offcanvas-body">Unread messages</div>
+    </div>
+    <div id="support-panel" class="offcanvas offcanvas-end" tabindex="-1" aria-labelledby="support-title">
+        <div class="offcanvas-header">
+            <h2 id="support-title">Support</h2>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close support"></button>
+        </div>
+        <div class="offcanvas-body">Unread support responses</div>
     </div>
 </body>
 </html>

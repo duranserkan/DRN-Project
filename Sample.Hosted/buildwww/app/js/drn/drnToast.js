@@ -41,7 +41,8 @@ function getContainer() {
     container.className = host
         ? 'toast-container position-absolute top-0 end-0 p-3 overflow-auto mh-100'
         : 'toast-container position-fixed bottom-0 start-50 translate-middle-x p-3 overflow-auto mh-100';
-    container.style.zIndex = '1090'; //places toasts above Bootstrap modals (1055) but below popovers (1095).
+    // Keep content feedback below Bootstrap offcanvas backdrops (1040) and modal dialogs.
+    container.style.zIndex = '1030';
     container.setAttribute('aria-label', 'Toast notifications');
     (host || document.body).appendChild(container);
     return container;

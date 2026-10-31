@@ -154,9 +154,13 @@ Use Bootstrap `text-bg-warning` on action buttons needing attention and `text-bg
 
 Persist notification history and other actionbar attendance in local storage so new and existing tabs share the latest state. Scope attendance by application/account and validate the notification history owner. Refresh on storage events without replaying toasts. Serialize notification read/modify/write operations under an application-scoped Web Lock. Merge operation deltas against the latest saved history inside the lock, recheck ownership there, and never let a suspended account overwrite another account's history. Keep the public notification API synchronous while persistence queues asynchronously. Protect pending local changes from storage-event refreshes. Without Web Locks, use tab-local session storage. Storage or lock failures retain current-page feedback in memory. Keep `persist: false` notifications local to the page. Compare the acknowledged activity version, falling back to `data-actionbar-count` text. Capped or unchanged counts need an explicit `data-actionbar-attention-version` on the button to distinguish new activity. Blocked storage falls back to current-page memory.
 
+Persist actionbar attendance under independent panel keys within the application/account scope. Read legacy map entries as fallback, but never replace that shared map when acknowledging a panel. Preserve failed writes in current-page memory. Notification removal deltas must match nonempty source identities as well as IDs, because concurrent source deduplication can retain another tab's ID.
+
 Authenticated notification owners require a stable account ID. Never substitute a request trace ID or the anonymous owner. An empty owner clears history and suspends notifications and HTMX requests until a fresh account context is supplied. Preserve anonymous history for unauthenticated users.
 
 Anchor toasts in the positioned `data-toast-host` content wrapper, outside its scrolling content, to avoid covering the header or actionbar. Use opaque Bootstrap `bg-body` surfaces and constrain the stack to the host's width and height. Pages without a host use bottom-center viewport placement.
+
+Keep toast containers below Bootstrap offcanvas and modal backdrops so feedback cannot obscure panel controls. Apply the same stacking order to content-host and viewport placement.
 
 Toast `duration` controls presentation only. Timeout, manual close, visible-toast eviction, and HTMX cleanup must preserve retained history. Explicit history dismissal must not be undone by subsequent toast cleanup. Cover these boundaries with the browser fixture and real Bootstrap lifecycle.
 

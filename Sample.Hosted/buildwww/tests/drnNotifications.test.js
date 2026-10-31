@@ -67,6 +67,28 @@ function queuedLocks() {
     };
 }
 
+for (const maxEntries of [1000, 3]) {
+    test(`same-timestamp publications preserve order through locked persistence, capacity: ${maxEntries}`, async () => {
+        const locks = queuedLocks();
+        const { store, settings } = fixture({ locks, maxEntries });
+        await locks.drain();
+        // The fixture clock stays fixed so equal timestamps exercise stable-sort ordering.
+        const published = ['First', 'Second', 'Third', 'Fourth'].map(message => store.publish({ message }));
+        const expected = published.toReversed().slice(0, maxEntries);
+        assert.deepEqual(store.list(), expected);
+        await locks.drain();
+        assert.deepEqual(store.list(), expected);
+        store.sync();
+        assert.deepEqual(store.list(), expected);
+
+        const restored = createNotificationStore(settings);
+        restored.configure({ app: '/app/', owner: 'account-a' });
+        assert.deepEqual(restored.list(), expected);
+        await locks.drain();
+        assert.deepEqual(restored.list(), expected);
+    });
+}
+
 test('contending publications and initialization merge the latest locked snapshot', async () => {
     const locks = queuedLocks();
     const { store, settings } = fixture({ locks });
@@ -159,6 +181,31 @@ test('concurrent duplicate sources retain one occurrence and its acknowledgment'
     other.sync();
     assert.deepEqual(store.list(), [{ ...first, seen: true }]);
     assert.deepEqual(other.list(), [{ ...first, seen: true }]);
+});
+
+test('queued dismissal removes a duplicate source with another shared ID and supports undo', async () => {
+    const locks = queuedLocks();
+    const { store, settings } = fixture({ locks });
+    const other = createNotificationStore(settings);
+    other.configure({ app: '/app/', owner: 'account-a' });
+    await locks.drain();
+    const first = store.publish({ message: 'Imported status', sourceId: 'status-one' });
+    const duplicate = other.publish({ message: 'Imported status', sourceId: 'status-one' });
+    assert.notEqual(first.id, duplicate.id);
+    other.markSeen();
+    const removed = other.dismiss([duplicate.id]);
+    const unrelated = store.publish({ message: 'Keep this', sourceId: 'status-two' });
+    await locks.drain();
+    for (const tab of [store, other]) {
+        tab.sync();
+        assert.deepEqual(tab.list(), [unrelated]);
+    }
+
+    other.restore(removed);
+    await locks.drain();
+    store.sync();
+    assert.equal(store.list().filter(entry => entry.sourceId === 'status-one').length, 1);
+    assert.deepEqual(store.list().find(entry => entry.sourceId === 'status-one'), { ...duplicate, seen: true });
 });
 
 test('failed lock requests keep local feedback without writing shared storage', async () => {

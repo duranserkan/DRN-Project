@@ -5,6 +5,44 @@ test.beforeEach(async ({ page }) => {
     await expect(page.locator('html')).toHaveAttribute('data-fixture-ready', 'true');
 });
 
+for (const hosted of [true, false]) {
+    test(`notification panel stays above overlapping toasts, content host: ${hosted}`, async ({ page }) => {
+        await page.setViewportSize({ width: 480, height: 800 });
+        await page.evaluate(hosted => {
+            if (hosted) {
+                const main = document.getElementById('drn-main-content');
+                main.setAttribute('data-toast-host', '');
+                main.style.position = 'relative';
+            }
+            window.DRN.Toast.show({ type: 'error', message: 'Please try again.', duration: 30000 });
+            bootstrap.Offcanvas.getOrCreateInstance(
+                document.getElementById('offCanvasSidebarActionCanvasNotifications')).show();
+        }, hosted);
+        const panel = page.getByRole('dialog', { name: 'Notifications', exact: true });
+        await expect(panel).toBeVisible();
+        await expect(panel).toHaveClass(/\bshow\b/);
+        await expect.poll(() => page.evaluate(() => {
+            const panel = document.getElementById('offCanvasSidebarActionCanvasNotifications');
+            const toast = document.querySelector('.toast');
+            if (!toast) return false;
+            const panelRect = panel.getBoundingClientRect();
+            const toastRect = toast.getBoundingClientRect();
+            const left = Math.max(panelRect.left, toastRect.left);
+            const right = Math.min(panelRect.right, toastRect.right);
+            const top = Math.max(panelRect.top, toastRect.top);
+            const bottom = Math.min(panelRect.bottom, toastRect.bottom);
+            return right > left && bottom > top &&
+                panel.contains(document.elementFromPoint((left + right) / 2, (top + bottom) / 2));
+        })).toBe(true);
+        await panel.getByRole('searchbox', { name: 'Search notifications' }).fill('Please try again');
+        await expect(panel.locator('#drn-notification-list')).toContainText('Please try again.');
+        await panel.getByRole('button', { name: 'Close notifications' }).click();
+        await expect(panel).toBeHidden();
+        await expect(page.locator('.toast-body')).toHaveText('Please try again.');
+        expect(await page.evaluate(() => window.DRN.Notifications.list().length)).toBe(1);
+    });
+}
+
 test('competing tabs retain publications and dismissals queued behind a real Web Lock', async ({ page, context }) => {
     const other = await context.newPage();
     await other.goto('/');
@@ -317,6 +355,71 @@ test('opening an action panel clears only its highlight and preserves its count'
         document.dispatchEvent(new Event('htmx:load'));
     });
     await expect(messages).toHaveClass(/text-bg-warning/);
+});
+
+test('overlapping acknowledgments of different panels preserve both updates', async ({ page, context }) => {
+    const other = await context.newPage();
+    await other.goto('/');
+    await expect(other.locator('html')).toHaveAttribute('data-fixture-ready', 'true');
+
+    // Both handlers read the same snapshot, reproducing the lost-update interleaving deterministically.
+    for (const tab of [page, other]) {
+        await tab.evaluate(() => {
+            const getItem = Storage.prototype.getItem;
+            const setItem = Storage.prototype.setItem;
+            const snapshot = new Map(Object.keys(localStorage).map(key => [key, localStorage.getItem(key)]));
+            Storage.prototype.getItem = function (key) {
+                return this === localStorage && key.startsWith('drn.actionbar.')
+                    ? snapshot.get(key) ?? null : getItem.call(this, key);
+            };
+            Storage.prototype.setItem = function (key, value) {
+                if (this === localStorage && key.startsWith('drn.actionbar.')) {
+                    Storage.prototype.getItem = getItem;
+                    Storage.prototype.setItem = setItem;
+                }
+                return setItem.call(this, key, value);
+            };
+        });
+    }
+    await page.getByRole('button', { name: 'Messages', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Messages', exact: true })).not.toHaveClass(/text-bg-warning/);
+    await other.getByRole('button', { name: 'Support', exact: true }).click();
+    await expect(other.getByRole('button', { name: 'Support', exact: true })).not.toHaveClass(/text-bg-warning/);
+
+    for (const tab of [page, other]) {
+        await tab.evaluate(() => document.dispatchEvent(new Event('htmx:load')));
+        for (const name of ['Messages', 'Support'])
+            await expect(tab.getByRole('button', { name, exact: true })).not.toHaveClass(/text-bg-warning/);
+        await tab.reload();
+        await expect(tab.locator('html')).toHaveAttribute('data-fixture-ready', 'true');
+        for (const name of ['Messages', 'Support'])
+            await expect(tab.getByRole('button', { name, exact: true })).not.toHaveClass(/text-bg-warning/);
+    }
+    await other.close();
+});
+
+test('legacy attendance survives migration and failed writes remain acknowledged locally', async ({ page }) => {
+    await page.evaluate(() => localStorage.setItem('drn.actionbar.v2:["/","account-a"]',
+        JSON.stringify({ owner: 'account-a', entries: [['#messages-panel', '9+']] })));
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-fixture-ready', 'true');
+    await expect(page.getByRole('button', { name: 'Messages', exact: true })).not.toHaveClass(/text-bg-warning/);
+    await page.evaluate(() => {
+        const setItem = Storage.prototype.setItem;
+        Storage.prototype.setItem = function (key, value) {
+            if (this === localStorage && key.startsWith('drn.actionbar.'))
+                throw new DOMException('Quota exceeded', 'QuotaExceededError');
+            return setItem.call(this, key, value);
+        };
+    });
+    await page.getByRole('button', { name: 'Support', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Support', exact: true })).not.toHaveClass(/text-bg-warning/);
+    await page.evaluate(() => document.dispatchEvent(new Event('htmx:load')));
+    await expect(page.getByRole('button', { name: 'Support', exact: true })).not.toHaveClass(/text-bg-warning/);
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-fixture-ready', 'true');
+    await expect(page.getByRole('button', { name: 'Support', exact: true })).toHaveClass(/text-bg-warning/);
+    await expect(page.getByRole('button', { name: 'Messages', exact: true })).not.toHaveClass(/text-bg-warning/);
 });
 
 test('new and existing tabs share actionbar attendance and unseen notifications', async ({ page, context }) => {

@@ -91,7 +91,9 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
         const before = new Map(persisted.map(entry => [entry.id, entry]));
         const retained = new Set(next.map(entry => entry.id));
         const added = next.filter(entry => !before.has(entry.id));
-        const removed = new Set(persisted.filter(entry => !retained.has(entry.id)).map(entry => entry.id));
+        const removedEntries = persisted.filter(entry => !retained.has(entry.id));
+        const removed = new Set(removedEntries.map(entry => entry.id));
+        const removedSources = new Set(removedEntries.map(entry => entry.sourceId).filter(Boolean));
         const newlySeen = next.filter(entry => entry.seen && !before.get(entry.id)?.seen);
         const seen = new Set(newlySeen.map(entry => entry.id));
         const seenSources = new Set(newlySeen.map(entry => entry.sourceId).filter(Boolean));
@@ -113,11 +115,14 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
                 return;
             }
             const shared = saved?.owner === owner ? savedEntries(saved) : [];
-            const remaining = shared.filter(entry => !removed.has(entry.id));
+            const remaining = shared.filter(entry => !removed.has(entry.id) && !removedSources.has(entry.sourceId));
+            const ids = new Set(remaining.map(entry => entry.id));
             const sources = new Set(remaining.map(entry => entry.sourceId).filter(Boolean));
-            const merged = bounded([...remaining
-                .map(entry => seen.has(entry.id) || seenSources.has(entry.sourceId) ? { ...entry, seen: true } : entry),
-                ...added.filter(entry => !entry.sourceId || !sources.has(entry.sourceId))]);
+            // Match local unshift ordering when publications share a millisecond timestamp.
+            const merged = bounded([
+                ...added.filter(entry => !ids.has(entry.id) && (!entry.sourceId || !sources.has(entry.sourceId))),
+                ...remaining.map(entry => seen.has(entry.id) || seenSources.has(entry.sourceId)
+                    ? { ...entry, seen: true } : entry)]);
             // Initialization only adopts the latest same-owner state. It never replays a stale snapshot.
             const raw = JSON.stringify({ version: 1, owner, entries: merged });
             cache.setItem(key, raw);

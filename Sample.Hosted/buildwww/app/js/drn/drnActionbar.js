@@ -3,9 +3,10 @@ export function installActionbarEvents() {
     const selector = '[data-js-actionbar-item] [data-bs-toggle="offcanvas"]';
     let contextKey = '';
     let storageKey = '';
+    let legacyKey = '';
     let owner = '';
     let attended = new Map();
-    let lastRaw = null;
+    let unsaved = new Map();
 
     function configure() {
         const marker = document.querySelector('[data-notification-context]');
@@ -15,30 +16,37 @@ export function installActionbarEvents() {
         const nextKey = JSON.stringify([app, nextOwner]);
         if (nextKey !== contextKey) {
             contextKey = nextKey;
-            storageKey = `drn.actionbar.v2:${nextKey}`;
+            storageKey = `drn.actionbar.v3:${nextKey}:`;
+            legacyKey = `drn.actionbar.v2:${nextKey}`;
             owner = nextOwner;
             attended = new Map();
-            lastRaw = null;
+            unsaved = new Map();
         }
         try {
-            const raw = localStorage.getItem(storageKey);
-            if (raw === lastRaw) return true;
+            const raw = localStorage.getItem(legacyKey);
             const saved = raw && raw.length <= 65536 ? JSON.parse(raw) : null;
-            lastRaw = raw;
             attended = new Map();
             if (saved?.owner === owner && Array.isArray(saved.entries))
                 attended = new Map(saved.entries.slice(0, 100).filter(entry =>
                     Array.isArray(entry) && entry.length === 2 && entry.every(value => typeof value === 'string')));
         } catch { /* Blocked or invalid storage leaves attention state in memory. */ }
+        for (const control of document.querySelectorAll(selector)) {
+            const target = control.dataset.bsTarget;
+            try {
+                const raw = localStorage.getItem(storageKey + target);
+                if (raw !== null) attended.set(target, raw);
+            } catch { /* Keep the last known acknowledgment when storage is blocked. */ }
+            if (unsaved.has(target)) attended.set(target, unsaved.get(target));
+        }
         return true;
     }
 
-    function save() {
+    function save(target, current) {
         try {
-            const raw = JSON.stringify({ owner, entries: [...attended] });
-            localStorage.setItem(storageKey, raw);
-            lastRaw = raw;
-        } catch { /* Acknowledgment still works for the current page. */ }
+            // Separate keys make acknowledgments of different panels independent across tabs.
+            localStorage.setItem(storageKey + target, current);
+            unsaved.delete(target);
+        } catch { unsaved.set(target, current); }
     }
 
     function version(control) {
@@ -60,17 +68,18 @@ export function installActionbarEvents() {
         if (!panelId || !configure()) return;
         for (const control of document.querySelectorAll(selector)) {
             if (control.dataset.bsTarget !== `#${panelId}`) continue;
-            attended.set(control.dataset.bsTarget, version(control));
+            const current = version(control);
+            attended.set(control.dataset.bsTarget, current);
             if (attended.size > 100) attended.delete(attended.keys().next().value);
             control.classList.remove('text-bg-warning');
+            save(control.dataset.bsTarget, current);
         }
-        save();
     });
     document.addEventListener('htmx:load', refresh);
     document.addEventListener('drn:notification-context-changed', refresh);
     window.addEventListener('pageshow', refresh);
     window.addEventListener('storage', event => {
-        if (event.key === storageKey || event.key === null) refresh();
+        if (event.key === legacyKey || (storageKey && event.key?.startsWith(storageKey)) || event.key === null) refresh();
     });
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', refresh, { once: true });
     else refresh();

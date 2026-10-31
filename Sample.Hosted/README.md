@@ -96,7 +96,11 @@ Actionbar items needing attention use Bootstrap `text-bg-warning` across the but
 
 Actionbar attendance is saved in `localStorage` per application and account. New tabs, reloads, and HTMX navigation keep an unchanged count acknowledged. Buttons render in their normal color until saved attendance is read, preventing an incorrect warning flash on acknowledged items. Already-open tabs receive attendance updates through storage events. A changed count restores attention. For capped counts such as `9+`, set `data-actionbar-attention-version` on the button to a stable activity revision that changes when new activity arrives. Without a revision, equal counts cannot distinguish new activity. If storage is blocked, attendance lasts only for the current page.
 
+Acknowledgments of different action panels in overlapping tabs are retained independently. Existing saved attendance remains available after upgrading.
+
 Toasts appear at the upper-right of the main content column, below the header and inside the sidebars. The `data-toast-host` wrapper anchors them outside the scrolling content. Bootstrap limits their width to the available space and opaque, theme-aware backgrounds keep text readable. Pages without a host use a bottom-center viewport fallback.
+
+Toasts stay below offcanvas panels and modal backdrops, keeping Notifications and dialog controls unobstructed.
 
 Toast display time and history retention are independent. `duration` controls only the toast, defaults to 5 seconds, and is clamped to 1 through 30 seconds. Timeout, the close button, eviction from the three visible toast slots, and HTMX cleanup leave history intact. History dismissal does not close a visible toast. Use `record: false` for transient feedback and `persist: false` for history that lasts only in memory.
 
