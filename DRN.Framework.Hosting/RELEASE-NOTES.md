@@ -15,6 +15,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### New Features
 
+*   **HTMX Error Responses**: Enable `DrnApiErrorOptions.HandleHtmxRequests` to use the API Problem Details contract for failed HTMX requests, including Razor handlers. Disabled by default. Authentication, normal navigation, endpoint opt-outs, and custom non-problem bodies retain their existing behavior.
 *   **Scoped Problem Details**: API errors accept public defaults from `ScopeContext.Problem`, preserving existing response values. `instance` defaults to the request path including deployment prefixes and excluding query strings. Exception messages remain private.
 *   **API Error Opt-Out**: Apply `[DisableDrnProblemDetails]` to a controller or action to retain native or application-owned error responses and skip automatic Swagger error metadata. Authentication and authorization are unchanged.
 *   **API Error Metadata**: Swagger adds one representative 400 Problem Details response with required `requestId` and a description covering all 4xx and 5xx statuses. Other declared statuses, validation schemas, and custom response types are preserved.

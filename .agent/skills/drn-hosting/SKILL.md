@@ -1,7 +1,7 @@
 ---
 name: drn-hosting
 description: "DRN.Framework.Hosting - DrnProgramBase for web application bootstrapping, endpoint configuration, security middleware (CSP, nonce), authentication/authorization, TagHelpers for asset management, and Razor Pages integration. Essential for web application setup and hosting. Keywords: hosting, web-application, drnprogrambase, endpoints, middleware, security, csp, nonce, authentication, authorization, taghelpers, razor-pages, mfa, background-service"
-last-updated: 2026-10-28
+last-updated: 2026-10-31
 difficulty: advanced
 tokens: ~3K
 ---
@@ -9,6 +9,10 @@ tokens: ~3K
 # DRN.Framework.Hosting
 
 > Web application hosting with security-first design, endpoints, and middlewares.
+
+Resolve upstream links and local source through [Documentation And Source References](../overview-drn-framework/SKILL.md#documentation-and-source-references).
+
+`Example*` types, `AddExampleHostedServices`, and `Get.Page`/`Get.Endpoint` members below are illustrative application code. Substitute the destination repository's hosted program, registration methods, controllers, and route accessors.
 
 ## When to Apply
 - Creating new hosted applications
@@ -28,7 +32,7 @@ Keep this skill and package docs focused on setup, extension points, observable 
 All DRN web apps inherit from `DrnProgramBase<TProgram>`:
 
 ```csharp
-public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
+public class ExampleProgram : DrnProgramBase<ExampleProgram>, IDrnProgram
 {
     public static async Task Main(string[] args) => await RunAsync(args);
 
@@ -37,7 +41,7 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
         IAppSettings appSettings, 
         IScopedLog scopedLog)
     {
-        builder.Services.AddSampleHostedServices(appSettings);
+        builder.Services.AddExampleHostedServices(appSettings);
         return Task.CompletedTask;
     }
     
@@ -114,7 +118,7 @@ Temporary applications skip `ValidateEndpoints()` and endpoint-accessor populati
 Intercept startup without modifying main program class:
 
 ```csharp
-public class SampleProgramActions : DrnProgramActions
+public class ExampleProgramActions : DrnProgramActions
 {
     public override async Task ApplicationBuilderCreatedAsync<TProgram>(
         TProgram program, WebApplicationBuilder builder,
@@ -154,7 +158,7 @@ MFA is required by default, including endpoints with role or named policies. Use
 - Retain base renewal callbacks when using Identity cookies. Refresh does not count as fresh MFA.
 - Shared MFA authorization works without Identity. External providers require their own validated authentication handlers.
 
-See the README for [renewal](../../../DRN.Framework.Hosting/README.md#renewal-and-assurance), [revocation limits](../../../DRN.Framework.Hosting/README.md#identity-revocation-contract), and [audit events](../../../DRN.Framework.Hosting/README.md#audit-events).
+See the upstream Hosting README for [renewal](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#renewal-and-assurance), [revocation limits](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#identity-revocation-contract), and [audit events](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#audit-events).
 
 ```csharp
 // Opt-out options:
@@ -209,14 +213,14 @@ protected override void ConfigureSecurityHeaderPolicyBuilder(SecurityHeaderPolic
 
 ### Application URL Convention
 
-Keep static route accessors request-independent. Prefer MVC page/action routing or `Url.Endpoint(endpoint, values)` for initialized API accessors. Use `~/` for application-relative HTML and HTMX URLs, and `Url.Content` in C#. Reserve `Request.ApplicationUrl` for configured destinations such as MFA pages. Leave validated return URLs unchanged. See [Application URLs](../../../DRN.Framework.Hosting/README.md#application-urls) for contracts and examples.
+Keep static route accessors request-independent. Prefer MVC page/action routing or `Url.Endpoint(endpoint, values)` for initialized API accessors. Use `~/` for application-relative HTML and HTMX URLs, and `Url.Content` in C#. Reserve `Request.ApplicationUrl` for configured destinations such as MFA pages. Leave validated return URLs unchanged. See [Application URLs](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#application-urls) for contracts and examples.
 
 ### PageCollectionBase
 
 Use `ForPage` for page navigation and `ForUrl` for URL entries. Active page links match page identity. Active href links match the resolved local request path, ignoring queries and fragments.
 
 ```csharp
-public class SamplePageFor : PageCollectionBase<SamplePageFor>
+public class ExamplePageFor : PageCollectionBase<ExamplePageFor>
 {
     public RootPageFor Root { get; } = new();
     public UserPageFor User { get; } = new();
@@ -238,18 +242,18 @@ public class UserPageFor : PageForBase
 ### EndpointCollectionBase
 
 ```csharp
-public class SampleEndpointFor : EndpointCollectionBase<SampleProgram>
+public class ExampleEndpointFor : EndpointCollectionBase<ExampleProgram>
 {
-    public QaApiFor Qa { get; } = new();
+    public ExampleApiFor Api { get; } = new();
 }
 
-public class TagFor() : ControllerForBase<TagController>(QaApiFor.ControllerRouteTemplate)
+public class TagFor() : ControllerForBase<ExampleTagController>(ExampleApiFor.ControllerRouteTemplate)
 {
     public ApiEndpoint GetAsync { get; private set; } = null!;
     public ApiEndpoint PostAsync { get; private set; } = null!;
 }
 
-// Usage: Get.Endpoint.Qa.Tag.GetAsync.Path()
+// Usage: Get.Endpoint.Api.Tag.GetAsync.Path()
 ```
 
 ---
@@ -260,11 +264,17 @@ public class TagFor() : ControllerForBase<TagController>(QaApiFor.ControllerRout
 
 API errors from 400 through 599 use Problem Details in every environment, serialized with SharedKernel `JsonConventions.DefaultOptions`. MVC and HTTP JSON overrides do not apply. Classify matched endpoints by API metadata and unmatched routes or routing-generated 405 responses by `DrnApiErrorOptions.PathPrefixes`. Preserve authentication decisions, headers, cookies, validation errors, and public extensions. Use `HttpContext.TraceIdentifier` for requestId and default instance to PathBase + Path without queries. Keep exceptions private and serialization fallbacks redacted.
 
-`ScopeContext.Problem` supplies missing fields and extension keys without allocation on reads. Existing values win, including framework-generated titles and types. Scoped extensions cannot replace standard fields or validation errors. `CustomizeProblemDetails` runs once for MVC-generated and typed problems, but not generic exception or empty-error responses. See [Hosting API failure responses](../../../DRN.Framework.Hosting/README.md#api-failure-responses) for examples and migration.
+`DrnApiErrorOptions.HandleHtmxRequests` defaults to false. Enable it for HTMX Problem Details, including Razor handlers. Authentication, cookie redirects, endpoint opt-outs, and custom non-problem bodies retain their behavior. See [HTMX partial requests](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#htmx-partial-requests) for request selection and exception-hook behavior.
+
+`ScopeContext.Problem` supplies missing fields and extension keys without allocation on reads. Existing values win, including framework-generated titles and types. Scoped extensions cannot replace standard fields or validation errors. `CustomizeProblemDetails` runs once for MVC-generated and typed problems, but not generic exception or empty-error responses. See [Hosting API failure responses](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#api-failure-responses) for examples and migration.
+
+Keep Razor response selection explicit: `Page()` retains HTML, while an `ObjectResult` containing `ValidationProblemDetails(ModelState)` selects JSON with status 400 or 422. Use safe public messages, exact posted field names, and an empty key for form-level errors. Preserve existing API keys. See [browser error guidance](../drn-buildwww-libraries/SKILL.md#problem-details-consumer) for HTML validation swaps.
+
+Reuse stable status-based or application-owned problem types. Keep request-specific data out of type identifiers and private diagnostics out of public messages.
 
 Swagger adds only a representative 400 response describing all 4xx and 5xx errors. Preserve other declared statuses, validation schemas, custom response types, and browser/HEAD metadata. Honor inherited `[DisableDrnProblemDetails]` on controllers or actions: it disables DRN formatting and automatic Swagger error metadata while retaining native ASP.NET Core responses and authentication behavior.
 
-Use `DrnErrorPageOptions` for application-owned browser 400, 404, and 5xx error pages. Preserve status codes, the original request reference when rendering internally, redaction, existing response bodies, browser Development diagnostics, deployment prefixes, and fallback authorization for unmatched routes. Keep error pages anonymous, non-cacheable, and independent of application data. Supported API exceptions bypass the browser-oriented `WriteProductionErrorResponseAsync` override unless opted out. See [Hosting custom error pages](../../../DRN.Framework.Hosting/README.md#custom-error-pages) for configuration, models, and response customization.
+Use `DrnErrorPageOptions` for application-owned browser 400, 404, and 5xx error pages. Preserve status codes, the original request reference when rendering internally, redaction, existing response bodies, browser Development diagnostics, deployment prefixes, and fallback authorization for unmatched routes. Keep error pages anonymous, non-cacheable, and independent of application data. Supported API exceptions bypass the browser-oriented `WriteProductionErrorResponseAsync` override unless opted out. See [Hosting custom error pages](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#custom-error-pages) for configuration, models, and response customization.
 
 For access-denied redirects, use `AccessDeniedPageModel` and opt in with `PreserveAccessDeniedRequestId()` on the active cookie events instance after Identity registration and other callback assignments. Preserve the existing callback, nonredirect responses, and single-use TempData reference. Keep routes, markup and authorization policies application-owned. See the same README section for setup and `EventsType` guidance.
 
@@ -292,7 +302,7 @@ For access-denied redirects, use `AccessDeniedPageModel` and opt in with `Preser
 - Limiter partition factories must not capture `HttpContext` or scoped services; pass immutable values because limiters are reused per partition.
 - Post-auth uses DI-configured `RateLimiterOptions`, so named policies and rejection callbacks registered through `AddRateLimiter(options => ...)` remain available to `[EnableRateLimiting("policy-name")]`.
 - DRN emits metrics through the `DRN.Framework.Hosting.RateLimiting` meter; add this meter to OpenTelemetry exports when pre-auth metrics or DRN rule-level rejection metrics are needed. The action tag distinguishes `limit`, `allow`, `deny`, and `unknown`.
-- Derive traffic rates from existing counters without combining pre-auth and post-auth counts. Use actual rejected leases and their action for limiter diagnostics, not a one-second threshold derived from refill rates. Preserve burst capacity, phase/partition/instance boundaries, and explicit `deny` versus `limit` decisions. See [Telemetry](../../../DRN.Framework.Hosting/README.md#telemetry) for sampling limits and rejection log fields.
+- Derive traffic rates from existing counters without combining pre-auth and post-auth counts. Use actual rejected leases and their action for limiter diagnostics, not a one-second threshold derived from refill rates. Preserve burst capacity, phase/partition/instance boundaries, and explicit `deny` versus `limit` decisions. See [Telemetry](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#telemetry) for sampling limits and rejection log fields.
 - Rate-limit-specific rejected IP and partition fields default to deterministic keyed hashes with a `blake3-keyed:` prefix. This preserves correlation for those fields but does not anonymize the complete request log; standard request and user fields may still contain raw identifiers. Treat logs as sensitive, and use `DrnRateLimit.PartitionLogMode = PlainText` only for controlled development or dedicated encrypted audit sinks.
 - Built-in limiter state is process-local. `HybridCache` can cache policy data, but hard multi-replica quotas need edge enforcement or a Redis-backed custom `RateLimiter` returned through `RateLimitRuleResult.CustomPartition(...)`.
 

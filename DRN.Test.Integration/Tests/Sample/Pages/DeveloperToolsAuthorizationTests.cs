@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Claims;
 using DRN.Framework.Utils.Auth.MFA;
+using DRN.Test.Integration.Helpers;
 using DRN.Test.Integration.Tests.Sample.Pages.Helpers;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
@@ -154,6 +155,41 @@ public class DeveloperToolsAuthorizationTests
         }
         if (testPagesAllowed)
         {
+            foreach (var htmx in new[] { false, true })
+            {
+                string? problemType = null;
+                foreach (var manual in new[] { false, true })
+                {
+                    var path = pathBase + Get.Page.Test.Htmx + (manual
+                        ? "?handler=ExplicitValidation&query=private-query-probe"
+                        : "?handler=Auto");
+                    using var request = new HttpRequestMessage(manual ? HttpMethod.Get : HttpMethod.Post, path);
+                    request.Headers.Accept.ParseAdd("text/html");
+                    if (htmx) request.Headers.Add("HX-Request", "true");
+                    using var rejected = await client.SendAsync(request);
+                    rejected.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+                    rejected.Headers.Location.Should().BeNull();
+                    if (htmx)
+                    {
+                        using var problem = await ProblemDetailsAssertions.ReadProblemAsync(rejected, 400);
+                        var type = problem.RootElement.GetProperty("type").GetString();
+                        if (problemType != null) type.Should().Be(problemType);
+                        problemType = type;
+                        problem.RootElement.ToString().Should().NotContain("private-query-probe")
+                            .And.NotContain("AntiforgeryValidationException");
+                        if (manual)
+                            problem.RootElement.GetProperty("detail").GetString().Should()
+                                .Be("The request could not be verified. Refresh the page and try again.");
+                    }
+                    else
+                    {
+                        rejected.Content.Headers.ContentType!.MediaType.Should().Be("text/html");
+                        (await rejected.Content.ReadAsStringAsync()).Should().Contain("Bad request")
+                            .And.Contain("Request reference").And.NotContain("private-query-probe");
+                    }
+                }
+            }
+
             using var preview = await client.GetAsync(pathBase + Get.Page.Test.DeveloperView);
             (await preview.Content.ReadAsStringAsync()).Should().Contain("Developer diagnostics preview.")
                 .And.Contain("class=\"frame\"")

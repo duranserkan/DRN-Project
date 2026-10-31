@@ -119,6 +119,8 @@ Compare discovery against previous manifests.
 - Workflows: additions, removals, route renames, custom routes, stale `AGENTS.md` rows.
 - Projects: missing, new, or renamed names.
 - Stale references: old names, paths, or namespaces in sampled skill files.
+- Portability: inspect in-scope agent links and file-reading instructions for dependencies outside the copied bundle. Flag repository-local docs/source references in reusable skills or workflows even when they resolve here. Keep local source maps in the destination profile and use version-aware upstream references for external frameworks. Exclude local workflow history in `.agent/temp/`.
+- Preserve framework API names and serialized workflow format identifiers. Treat clearly labeled example names as illustrative, not as required destination paths or types.
 - Possibly irrelevant skills: flag `⚠️ Possibly irrelevant` when required folders/configs are absent; require approval before removal.
 - Code reference sampling: check at least one type, path, or config key per skill; flag stale items and do not auto-fix.
 - Cross-references and scope-widening: report wider impact and ask before widening.

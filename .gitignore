@@ -293,6 +293,8 @@ FakesAssemblies/
 *.GhostDoc.xml
 
 # Node.js dependencies, logs, and frontend output
+playwright-report/
+test-results/
 node_modules
 logs
 npm-debug.log*

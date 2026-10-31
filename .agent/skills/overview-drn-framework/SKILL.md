@@ -1,7 +1,7 @@
 ---
 name: overview-drn-framework
 description: "DRN.Framework architecture overview - Package hierarchy (SharedKernel → Utils → Testing/EntityFramework → Hosting), dependency relationships, core conventions, and framework philosophy. Start here for understanding the overall framework structure. Keywords: framework, architecture, overview, package-hierarchy, conventions, framework-philosophy, package-dependencies"
-last-updated: 2026-09-10
+last-updated: 2026-10-29
 difficulty: basic
 tokens: ~3.1K
 ---
@@ -15,6 +15,14 @@ tokens: ~3.1K
 - Deciding which package to use for a specific need
 - Learning core conventions shared across all packages
 - Extending or contributing to framework packages
+
+## Documentation And Source References
+
+DRN skills work in both framework source checkouts and package-consuming repositories. Upstream documentation and source links target the [DRN-Project development branch](https://github.com/duranserkan/DRN-Project/tree/develop). These links do not imply those files exist locally.
+
+In a consuming repository, resolve the installed version from package manifests or lockfiles. Prefer bundled package documentation or the matching upstream release tag/commit when checking version-specific behavior. Development-branch guidance may describe unreleased changes. If matching documentation is unavailable, report the verification gap instead of assuming compatibility.
+
+For framework implementation work, use the current repository profile's source map or discover the actual checkout paths. Keep those local paths in the profile. Application names and layouts in examples are illustrative and must be adapted to the destination repository.
 
 ---
 
@@ -156,7 +164,7 @@ Each assembly exposes a module for service registration:
 ```csharp
 public static class InfraModule
 {
-    public static IServiceCollection AddSampleInfraServices(this IServiceCollection sc)
+    public static IServiceCollection AddExampleInfraServices(this IServiceCollection sc)
     {
         sc.AddServicesWithAttributes();
         return sc;
@@ -306,7 +314,7 @@ Keep tick-bound calculations outside query expressions so providers receive scal
 
 ### Maintenance Reference: Release Notes Triggers
 
-Every `DRN.Framework.*` package includes the latest version section from `RELEASE-NOTES.md` plus the mandatory DiSC OS attribution and bold `Semper Progressivus: Always Progressive` signature in NuGet metadata through `PackageReleaseNotes`; the bundled Markdown retains the full history and signature. The shared `_PrepareCurrentPackageReleaseNotes` target in `Directory.Build.targets` stops at the next version heading or footer separator, always appends the canonical signature, and rejects missing sections or final metadata over 35,000 characters including the signature. Every release-note document and output must retain the signature shown in the template below. Keep the latest section limited to changes since the previous documented release. Update only the package(s) whose consumer-facing behavior or published package metadata other than version-only alignment changed.
+Apply these package-specific triggers only when the current repository owns and publishes the affected DRN package. Resolve release baselines, packaging targets, version-alignment rules, and required attribution from that repository's profile and package metadata. A consuming application follows its own release policy.
 
 | Package | Release-note trigger examples |
 |---------|-------------------------------|
@@ -320,56 +328,24 @@ Every `DRN.Framework.*` package includes the latest version section from `RELEAS
 
 Triggers include public API/contract changes, behavior/default changes, security or operational posture changes, observable bug fixes, data/migration behavior, package metadata changes other than version-only alignment, and dependency/runtime/container changes that are breaking, security-relevant, consumer-visible, or alter published artifacts.
 
-Non-triggers include internal-only refactors, tests, comments, private/internal implementation checks with no consumer-visible effect, agent-only docs, routine dependency-only updates with no consumer-visible effect, and shared-version release alignment for packages with no package-specific changes. During release preparation, if no package-specific change exists before release, one concise version-alignment disclaimer may be added so package metadata is not empty for the release. Outside release preparation, when no trigger applies, explicitly report release notes as not required and leave that package's `RELEASE-NOTES.md` unchanged; the invariant prefix already explains that versions may advance for consistency even when a package has no changes.
+Non-triggers include internal-only refactors, tests, comments, private/internal implementation checks with no consumer-visible effect, agent-only docs, and routine dependency-only updates with no consumer-visible effect. For coordinated releases, follow the current profile's version-alignment rule. Otherwise, record release notes as not required when no trigger applies.
 
 ### Maintenance Reference: Release Notes Format
 
-DRN Framework package release notes use this repository-owned template:
-
-```markdown
-Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
-
-## Version X.Y.Z
-
-[Optional dedication or milestone message]
-
-### Breaking Changes
-
-*   **Area**: Detail description.
-
-### New Features
-
-*   **Feature Group**
-    *   **Feature Description**: Details.
-
-### Changed
-
-*   **Area**: Detail description.
-
-### Bug Fixes
-
-*   **Area**: Detail description.
-
----
-
-Documented with the assistance of [DiSC OS](https://github.com/duranserkan/DRN-Project/blob/develop/.agent/rules/DiSCOS.md)
-
----
-**Semper Progressivus: Always Progressive**
-```
-
-Use `## Version X.Y.Z` headings, not `## vX.Y.Z`. Omit empty sections in actual package files. Preserve historical wording unless editing the current version block or repairing a malformed invariant prefix/footer.
+Use the current repository profile and the owning package's existing release notes for the template, heading style, prefix, footer, and package metadata limits. If neither defines a format, use [basic-documentation](../basic-documentation/SKILL.md#3-roadmap-vs-changelog-vs-release-notes) and [basic-git-conventions](../basic-git-conventions/SKILL.md#release-notes). Do not impose an upstream framework publisher's template on consuming applications.
 
 ### Maintenance Reference: Documentation Sync Checklist
 
-When source code changes one of the shared facts above:
+In a framework source checkout, when source code changes one of the shared facts above:
 
 1. Verify the framework source-owned file or package docs.
 2. Update package READMEs with self-contained important facts wherever package readers need the new behavior.
-3. Update the owning package release notes when a release-note trigger above applies; leave unchanged packages untouched during version-only alignment releases.
+3. Update the owning package release notes when a release-note trigger above applies. Follow the current repository profile for coordinated version-alignment releases.
 4. Update framework-scoped DRN skills that agents use for that package.
 5. Search changed terms, renamed keys, changed defaults, and removed examples across package docs, framework skills, `AGENTS.md`, and the repository profile.
 6. Run `git diff --check`.
+
+In a consuming repository, update application-owned docs and affected local skills when required by the application's changes. Use version-matched package documentation to verify framework contracts without requiring upstream source files locally.
 
 ---
 

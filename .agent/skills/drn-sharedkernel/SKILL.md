@@ -1,7 +1,7 @@
 ---
 name: drn-sharedkernel
 description: "DRN.Framework.SharedKernel - Foundational domain primitives, exception hierarchy, repository contracts and cancellation semantics, pagination, JSON conventions, app constants, and shared extensions. Keywords: entity, aggregate-root, domain-event, repository, repository-cancellation, cancellation, pagination, exception, json, domain-modeling, source-known-id, entity-type, appconstants, path-extensions"
-last-updated: 2026-09-12
+last-updated: 2026-10-29
 difficulty: intermediate
 tokens: ~2.5K
 ---
@@ -10,7 +10,10 @@ tokens: ~2.5K
 
 > Lightweight domain primitives, exceptions, and shared code. No external DRN dependencies — safe for Contract and Domain layers.
 
+Resolve upstream links and local source through [Documentation And Source References](../overview-drn-framework/SKILL.md#documentation-and-source-references).
+
 ## When to Apply
+
 - Defining domain entities and aggregates
 - Working with domain events
 - Using or extending DRN exceptions
@@ -73,7 +76,7 @@ public abstract class SourceKnownEntity(long id = 0)
 > - `DRN0012` (Warning): Concrete, effectively non-private entities must not have type parameters or generic containers. Abstract generic bases and closed concrete descendants are allowed.
 > - `DRN0013` (Error): Rejects known abstract entities in metadata calls, method groups, direct `typeof` lookups, and repository bindings (including derived types and aliases). Allows runtime-instance and application-only overloads, unresolved type parameters, unbound definitions, and dynamic Type values; no `new()` constraint is added.
 > - `DRN0014` (Error): Rejects GetEntityId/ToSecure/ToPlain on provably fresh entities, including local aliases and constructor this. Unknown constructors/effects/control flow and potentially null inputs remain runtime concerns. Use injected ID utilities before EF materialization or SavingChanges attaches operations; initialization and IsPendingInsert do not prove persistence.
-> - Usage checks also apply to tests; use non-constant inputs for runtime rejection fixtures. See [diagnostic scope and examples](../../../DRN.Framework.SharedKernel/README.md#compile-time-roslyn-analyzers) for constructor proof limits and supported exceptions.
+> - Usage checks also apply to tests; use non-constant inputs for runtime rejection fixtures. See [diagnostic scope and examples](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.SharedKernel/README.md#compile-time-roslyn-analyzers) for constructor proof limits and supported exceptions.
 > - Privacy includes private containing types: effectively private entities are excluded from required-attribute/collision analysis; local annotations on them report `DRN0003`.
 
 ### Application Partitions & Attributes
@@ -110,7 +113,7 @@ public abstract class EntityDeleted(SourceKnownEntity entity) : DomainEvent(enti
 
 `SourceKnownGenerationTime.Initialize(minimumUtc, defaultEpoch)` configures one process-wide pair. An explicit epoch requires a minimum in the same call. Inputs must be ISO 8601 UTC; the minimum rounds upward to 250ms relative to the epoch. Startup or first ID/epoch use freezes both values, even if generation validation fails; conflicting updates then fail. Historical conversion freezes the pair without enforcing the floor.
 
-Keep the origin identical across a dataset's services and restarts: IDs do not store it. Only epoch 0 and both halves are supported; extending support requires a persistence contract, not just different limits. The default minimum is source-maintained, never derived from build timestamps. See [configuration and limits](../../../DRN.Framework.SharedKernel/README.md#trusted-minimum-generation-time).
+Keep the origin identical across a dataset's services and restarts: IDs do not store it. Only epoch 0 and both halves are supported; extending support requires a persistence contract, not just different limits. The default minimum is source-maintained, never derived from build timestamps. See [configuration and limits](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.SharedKernel/README.md#trusted-minimum-generation-time).
 
 Balances DB performance (`long`) with external security (`Guid`) and type safety. `ISourceKnownEntityIdOperations` defines the core contract (`Generate`, nullable/nonnullable `Parse`, all `Validate` overloads, `ToSecure`, `ToPlain`) in SharedKernel; implemented by `SourceKnownEntityIdUtils` in Utils and injected into entities by EF interceptors.
 
@@ -156,7 +159,7 @@ var plainId = entity.ToPlain(entityId);  // or sourceKnownEntityIdUtils.ToPlain(
 ## Repository Contract
 
 ```csharp
-// Public contract excerpt. See SourceKnownRepository.cs for XML docs and full remarks.
+// Public contract excerpt. See the installed package's XML docs for full remarks.
 public interface ISourceKnownRepository<TEntity> where TEntity : AggregateRoot
 {
     RepositorySettings<TEntity> Settings { get; set; }
@@ -298,7 +301,7 @@ AppConstants.LocalIpAddress;
 using DRN.Framework.SharedKernel.Extensions;
 
 "OrderHistory".ToSnakeCase();    // order_history
-"sample hosted".ToPascalCase();  // SampleHosted
+"example hosted".ToPascalCase(); // ExampleHosted
 "/data/app".GetPathWithinDirectory("exports", "orders.json");
 ```
 

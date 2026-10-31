@@ -17,7 +17,7 @@ public static class PageModelExtensions
     public static IActionResult ReturnPageWithUserRegisterErrors(this PageModel model, IdentityResult result)
     {
         foreach (var error in result.Errors)
-            model.ModelState.AddModelError(error.Code, error.Description);
+            model.ModelState.AddModelError(string.Empty, error.Description);
 
         return model.Page();
     }

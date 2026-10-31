@@ -1,7 +1,7 @@
 ---
 name: drn-utils
 description: "DRN.Framework.Utils - Attribute-based dependency injection, settings, logging, scoped cancellation, ID generation, Base32/TOTP encoding and authentication utilities, entity date filtering, validators, and core utilities. Keywords: dependency-injection, configuration, appsettings, appdata, logging, cancellation, source-known-id, base32, totp, mfa, entity-date-filter, tick-boundary, validators, extensions, http-client"
-last-updated: 2026-10-28
+last-updated: 2026-10-29
 difficulty: intermediate
 tokens: ~2.7K
 ---
@@ -9,6 +9,8 @@ tokens: ~2.7K
 # DRN.Framework.Utils
 
 > Core utilities: attribute-based DI, configuration, logging, and extensions.
+
+Resolve upstream links and local source through [Documentation And Source References](../overview-drn-framework/SKILL.md#documentation-and-source-references).
 
 ## When to Apply
 - Setting up dependency injection with attributes
@@ -252,7 +254,7 @@ Entity ID `Parse` and all `Validate` overloads accept non-nullable `SourceKnownE
 
 Entity/repository GUID helpers forward the format to parsing, then check the parsed record's validity and identity. Record ValidateId(), Validate<TEntity>() and Validate(expected) have no format parameter and accept either parsed representation. Generated records also validate validity and identity. Records are publicly constructible and do not reauthenticate GUIDs; use them only as trusted internal values. Authenticate untrusted GUIDs through operations, which own keys and resolve configuration. Conversions reauthenticate the GUID using Auto.
 
-Secure-only defaults block direct plaintext MAC guessing. Keep Plain/Auto overrides under application control, and validate external GUIDs with the required format before conversion. Authorization and rate limiting remain necessary. See [the security rationale](../../../DRN.Framework.Utils/README.md#parse--validation).
+Secure-only defaults block direct plaintext MAC guessing. Keep Plain/Auto overrides under application control, and validate external GUIDs with the required format before conversion. Authorization and rate limiting remain necessary. See [the security rationale](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/README.md#parse--validation).
 
 > [!NOTE]
 > ID generation is automatically handled by `DrnContext` when SourceKnownEntities are saved.
@@ -307,7 +309,7 @@ When maintaining cancellation internals:
 - During reentrant disposal from a root callback, defer child and root cleanup until root cancellation completes.
 - A single linked source is suitable for fixed inputs. Dispose it only after all consumers finish.
 
-See the package [Scoped Cancellation](../../../DRN.Framework.Utils/README.md#scoped-cancellation) guide for the complete API and migration example.
+See the upstream [Scoped Cancellation](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/README.md#scoped-cancellation) guide for the complete API and migration example.
 
 ---
 
@@ -335,9 +337,9 @@ if (scope.Acquired) { /* critical section */ }
 
 ## Utilities Reference
 
-Use one `AuthenticationClaimConfig` for mapped consumers. Identity defaults have explicit aliases; custom mappings replace them. Subject agreement checks include only configured types and aliases, including case variants; unconfigured standard subject claims are ignored. Canonical types govern issuance/native metadata; aliases are additional DRN inputs and do not rewrite claims. Identity options and future handler integrations must supply matching native name/role claims and metadata while preserving issuer isolation and exact MFA evidence. See [the claim contract](../../../DRN.Framework.Utils/README.md#scope--ambient-context-scopecontext).
+Use one `AuthenticationClaimConfig` for mapped consumers. Identity defaults have explicit aliases; custom mappings replace them. Subject agreement checks include only configured types and aliases, including case variants; unconfigured standard subject claims are ignored. Canonical types govern issuance/native metadata; aliases are additional DRN inputs and do not rewrite claims. Identity options and future handler integrations must supply matching native name/role claims and metadata while preserving issuer isolation and exact MFA evidence. See [the claim contract](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/README.md#scope--ambient-context-scopecontext).
 
-`TotpUtils` defaults to six digits, 30-second steps, and ±1-step drift. Verification is stateless; callers must enforce atomic per-account replay protection and attempt limits. It does not issue MFA claims. See [TotpUtils.cs](../../../DRN.Framework.Utils/Auth/MFA/TotpUtils.cs) for parameter validation details.
+`TotpUtils` defaults to six digits, 30-second steps, and ±1-step drift. Verification is stateless; callers must enforce atomic per-account replay protection and attempt limits. It does not issue MFA claims. See upstream [TotpUtils.cs](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Auth/MFA/TotpUtils.cs) for parameter validation details.
 
 `MfaPrincipal.IsRecent` and `IsPhishingResistant` are opt-in checks requiring an explicit trusted issuer and completed/additional evidence on the same authenticated identity. All authenticated subjects/issuers must be unambiguous and agree. IsRecent accepts a caller-supplied current time, an inclusive nonnegative age limit and a timestamp type (default auth_time); reject malformed/conflicting/future evidence. auth_time is authentication recency, not necessarily verified-MFA recency. IsPhishingResistant requires an explicit assurance mapping distinct from completion; never infer it from generic MFA or a passkey label. No default Hosting policy change or claim issuance; provider mapping remains MFA-07.
 
@@ -393,7 +395,7 @@ worker.Start(); // Resume after stopping
 
 `RecurringAction` accepts synchronous `Action` callbacks only. Dedicated threads require a positive period; timer mode accepts zero. Dedicated restarts preserve the configured post-callback delay, including when restarting during an active callback. Synchronous disposal does not wait for active callbacks. `RecurringActionAsync` awaits callbacks; restarted execution and `DisposeAsync()` wait for prior callbacks to finish. Timeouts require token-aware callbacks and request cooperative cancellation; ignoring cancellation can block later iterations and async disposal. Tokenless `Func<Task>` constructors have no timeout parameter.
 
-Validate `RecurringActionAsync` periods and timeouts during construction, including `start: false`. Periods truncate to 1–4,294,967,294 milliseconds; timeouts must be positive and truncate to at most that upper limit. Preserve positive sub-millisecond timeouts. See [timer usage and errors](../../../DRN.Framework.Utils/README.md#non-overlapping-async-timer-recurringactionasync).
+Validate `RecurringActionAsync` periods and timeouts during construction, including `start: false`. Periods truncate to 1–4,294,967,294 milliseconds; timeouts must be positive and truncate to at most that upper limit. Preserve positive sub-millisecond timeouts. See [timer usage and errors](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/README.md#non-overlapping-async-timer-recurringactionasync).
 
 `TimeProvider` singleton registered to `TimeProvider.System` by default for testable time.
 
@@ -439,7 +441,7 @@ number.GetBitPositions();                       // Get set bit positions
 
 Use `[UnsafeAccessor]` (`System.Runtime.CompilerServices`) instead of runtime reflection (`Type.GetMethod`, `Type.GetProperty`, `Type.GetField`, `MethodInfo.Invoke`) whenever the target type is accessible at compile time. `[UnsafeAccessor]` provides zero-overhead, AOT-safe, direct compiled access to non-public methods, fields, constructors, and properties.
 
-Use the source-owned signatures as examples: [FlurlExtensions](../../../DRN.Framework.Utils/Extensions/FlurlExtensions.cs) for field access, [DrnApplicationExtensions](../../../DRN.Framework.Hosting/DrnProgram/DrnApplicationExtensions.cs) for method access, and [PageUtils](../../../DRN.Framework.Hosting/Endpoints/PageUtils.cs) for property-setter access.
+Use the upstream source-owned signatures as examples: [FlurlExtensions](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Extensions/FlurlExtensions.cs) for field access, [DrnApplicationExtensions](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/DrnProgram/DrnApplicationExtensions.cs) for method access, and [PageUtils](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/Endpoints/PageUtils.cs) for property-setter access.
 
 ### When to Use UnsafeAccessor vs Reflection
 

@@ -46,10 +46,10 @@ public class Htmx(IAntiforgery antiForgery) : PageModel
         {
             await antiForgery.ValidateRequestAsync(HttpContext);
         }
-        catch (AntiforgeryValidationException e)
+        catch (AntiforgeryValidationException)
         {
-            _ = e;
-            return BadRequest("Invalid CSRF token.");
+            ScopeContext.Problem.Detail = "The request could not be verified. Refresh the page and try again.";
+            return BadRequest();
         }
 
         var model = new

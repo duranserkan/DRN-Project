@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Notification regression fixture</title>
+    <script type="module" src="/fixture.js"></script>
+</head>
+<body>
+    <main id="drn-main-content" tabindex="-1" class="container py-3">
+        <div id="account-context">
+            <div data-notification-context data-notification-app="/" data-notification-owner="account-a"></div>
+        </div>
+        <div id="drn-problem-summary" class="d-none" hidden></div>
+        <label for="draft">Unsubmitted draft</label>
+        <input id="draft" value="Draft to preserve">
+        <button type="button" hx-get="/operations/pending" hx-target="#operation-result">Start delayed operation</button>
+        <button type="button" hx-get="/operations/account" hx-target="#account-context">Change account</button>
+        <div id="operation-result">Original result</div>
+
+        <form id="profile" aria-label="Profile" hx-post="/operations/profile" hx-target="#profile-result">
+            <label for="name">Display name</label>
+            <input id="name" name="Input.Name" aria-describedby="name-help native-validation" aria-invalid="false">
+            <p id="name-help">Choose a public display name.</p>
+            <span id="native-validation" data-valmsg-for="Input.Name">Existing validation hint</span>
+            <button type="submit">Save profile</button>
+        </form>
+        <div id="profile-result"></div>
+        <form id="preferences" aria-label="Preferences" hx-post="/operations/preferences" hx-target="#preferences-result">
+            <button type="submit">Save preferences</button>
+        </form>
+        <div id="preferences-result"></div>
+        <div id="notification-trigger"></div>
+    </main>
+    <div id="drn-notification-polite" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div id="drn-notification-assertive" class="visually-hidden" role="alert" aria-live="assertive" aria-atomic="true"></div>
+    <!-- The shell's server-owned account marker is supplied above. Controls come from the real partials. -->
+    <div id="offCanvasSidebarActionCanvasNotifications" class="offcanvas offcanvas-end" tabindex="-1"
+         data-bs-scroll="true" aria-labelledby="drn-notifications-title" hx-boost="false">
+        <div class="offcanvas-header">
+            <h2 id="drn-notifications-title" class="offcanvas-title h5">Notifications</h2>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close notifications"></button>
+        </div>
+        <div class="offcanvas-body" id="notification-content"></div>
+    </div>
+</body>
+</html>

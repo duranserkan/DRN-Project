@@ -98,7 +98,7 @@ public class DrnApiErrorResponseTests
         context.Response.Headers.RetryAfter = "7";
         context.Response.Headers.SetCookie = "probe=value; HttpOnly";
 
-        await CreateResponse().WriteAsync(context);
+        await DrnApiErrorResponse.WriteAsync(context);
 
         context.Response.StatusCode.Should().Be(status);
         context.Response.ContentType.Should().Be("application/problem+json");
@@ -124,7 +124,7 @@ public class DrnApiErrorResponseTests
         problem.Extensions["code"] = "validation_failed";
         problem.Extensions["requestId"] = "incorrect-reference";
 
-        await CreateResponse().WriteAsync(context, problem);
+        await DrnApiErrorResponse.WriteAsync(context, problem);
 
         using var json = JsonDocument.Parse(body.ToArray());
         json.RootElement.GetProperty("errors").GetProperty("Name")[0].GetString().Should().Be("Name is required.");
@@ -159,7 +159,7 @@ public class DrnApiErrorResponseTests
         await using var body = new MemoryStream();
         var context = new DefaultHttpContext { TraceIdentifier = "request-reference", Response = { Body = body } };
 
-        await CreateResponse().WriteAsync(context, problem);
+        await DrnApiErrorResponse.WriteAsync(context, problem);
 
         using var json = JsonDocument.Parse(body.ToArray());
         var root = json.RootElement;
@@ -194,7 +194,7 @@ public class DrnApiErrorResponseTests
             ScopeContext.Problem.Extensions["unsupported"] = typeof(DrnApiErrorResponseTests);
         }
 
-        await CreateResponse().WriteAsync(context, scoped ? null : problem);
+        await DrnApiErrorResponse.WriteAsync(context, scoped ? null : problem);
 
         using var json = JsonDocument.Parse(body.ToArray());
         json.RootElement.GetProperty("status").GetInt32().Should().Be(503);
@@ -226,7 +226,7 @@ public class DrnApiErrorResponseTests
             context.Features.Set(feature);
         }
 
-        await CreateResponse().WriteAsync(context);
+        await DrnApiErrorResponse.WriteAsync(context);
 
         body.Length.Should().Be(0);
         if (boundary == "head")

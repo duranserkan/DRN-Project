@@ -1,6 +1,6 @@
 namespace DRN.Framework.Hosting.Middlewares.ApiErrors;
 
-/// <summary>Identifies API requests for unmatched routes and routing-generated method rejections.</summary>
+/// <summary>Configures API route detection and optional HTMX error formatting.</summary>
 public sealed class DrnApiErrorOptions
 {
     /// <summary>
@@ -8,6 +8,13 @@ public sealed class DrnApiErrorOptions
     /// Matched endpoints use metadata instead. Prefix matching respects path segments.
     /// </summary>
     public string[] PathPrefixes { get; set; } = [];
+
+    /// <summary>
+    /// Formats errors for requests with exactly one HX-Request: true header using Problem Details.
+    /// Disabled by default. Does not change API classification or authentication behavior.
+    /// Explicit non-problem response bodies and DisableDrnProblemDetails remain respected.
+    /// </summary>
+    public bool HandleHtmxRequests { get; set; }
 
     internal static bool IsValidPrefix(string? prefix) =>
         !string.IsNullOrWhiteSpace(prefix) && prefix.StartsWith('/') && prefix.Length > 1 &&

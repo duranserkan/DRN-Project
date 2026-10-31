@@ -1,7 +1,7 @@
 ---
 name: drn-entityframework
 description: "DRN.Framework.EntityFramework - DrnContext, migrations, entity lifecycle tracking, Npgsql configuration, repositories, and repository cancellation groups. Keywords: drncontext, ef-core, migrations, database, postgresql, npgsql, repository-implementation, repository-cancellation, cancellation-scope, entity-tracking, dbcontext-configuration, prototype-mode, testcontainers"
-last-updated: 2026-09-12
+last-updated: 2026-10-29
 difficulty: advanced
 tokens: ~2.5K
 ---
@@ -9,6 +9,8 @@ tokens: ~2.5K
 # DRN.Framework.EntityFramework
 
 > Convention-based EF Core integration with automatic configuration and migrations.
+
+`Example*` types and namespaces below are illustrative. Resolve the actual context, program, project path, and connection-string key from the destination repository.
 
 ## When to Apply
 - Creating new DbContexts
@@ -22,10 +24,10 @@ tokens: ~2.5K
 ## DrnContext Pattern
 
 ```csharp
-public class QAContext : DrnContext<QAContext>
+public class ExampleDbContext : DrnContext<ExampleDbContext>
 {
-    public QAContext(DbContextOptions<QAContext> options) : base(options) { }
-    public QAContext() : base(null) { }  // Required for migrations
+    public ExampleDbContext(DbContextOptions<ExampleDbContext> options) : base(options) { }
+    public ExampleDbContext() : base(null) { }  // Required for migrations
 
     public DbSet<User> Users { get; set; }
     public DbSet<Question> Questions { get; set; }
@@ -35,12 +37,12 @@ public class QAContext : DrnContext<QAContext>
 | Feature | Description |
 |---------|-------------|
 | **Auto-registration** | Via `AddServicesWithAttributes()` |
-| **Convention naming** | Connection string: `ConnectionStrings:QAContext` |
+| **Convention naming** | Connection-string key uses the context type name, such as `ConnectionStrings:ExampleDbContext` |
 | **Config discovery** | Auto-applies `IEntityTypeConfiguration` from the context assembly when the configuration namespace matches the context namespace or one of its child namespaces |
 | **Entity tracking** | Auto-marks entities as Created/Modified/Deleted with timestamps |
 | **Design-time** | Implements `IDesignTimeDbContextFactory` |
 
-> Configurations are auto-discovered from the context assembly when the configuration namespace matches the context namespace or one of its child namespaces. Child namespaces such as `Sample.Infra.QA.Configurations` are valid for a `Sample.Infra.QA` context.
+> Configurations are auto-discovered from the context assembly when the configuration namespace matches the context namespace or one of its child namespaces. For example, `Example.Infra.Configurations` is a valid child of `Example.Infra`.
 
 ### Augmented Entity Behavior
 
@@ -64,23 +66,25 @@ DrnContext augments entities during `OnModelCreating` and runtime:
 ### Production/Staging
 Explicit connection strings required via `appSettings.GetRequiredConnectionString(contextName)`:
 ```json
-{ "ConnectionStrings": { "QAContext": "Host=prod-db;Port=5432;Database=qa;..." } }
+{ "ConnectionStrings": { "ExampleDbContext": "Host=prod-db;Port=5432;Database=app;..." } }
 ```
 
 ### Local Dev with Testcontainers (`LaunchExternalDependencies`)
 
 When `DrnDevelopmentSettings:LaunchExternalDependencies = true`, the framework auto-starts PostgreSQL via Testcontainers.
 
-**Setup** (Debug-only reference to `DRN.Framework.Testing`):
+**Setup**: Add a Debug-only reference to `DRN.Framework.Testing`. For package consumers using central package management:
 ```xml
 <ItemGroup Condition="'$(Configuration)' == 'Debug'">
-    <ProjectReference Include="..\DRN.Framework.Testing\DRN.Framework.Testing.csproj" />
+    <PackageReference Include="DRN.Framework.Testing" />
 </ItemGroup>
 ```
 
+Use the version selected by the destination repository. Without central package management, set that version on `PackageReference`. In a framework source checkout, use `ProjectReference` only after discovering the actual project path.
+
 ```csharp
 #if DEBUG
-public class SampleProgramActions : DrnProgramActions
+public class ExampleProgramActions : DrnProgramActions
 {
     public override async Task ApplicationBuilderCreatedAsync<TProgram>(
         TProgram program, WebApplicationBuilder builder,
@@ -126,9 +130,11 @@ DI-configured contexts compose attribute `SeedAsync` with EF `UseSeeding`/`UseAs
 
 Reapplying context options preserves custom callbacks and replaces DRN seed wrappers using the latest supplied provider; it does not duplicate attribute seeding. Reconfiguration without a provider restores only custom callbacks.
 
+Resolve the context name and infrastructure project from the current repository before substituting these placeholders. Execute only when authorized:
+
 ```bash
-dotnet ef migrations add MigrationName --context QAContext --project Sample.Infra
-dotnet ef database update --context QAContext
+dotnet ef migrations add MigrationName --context <context-name> --project <infrastructure-project>
+dotnet ef database update --context <context-name> --project <infrastructure-project>
 ```
 
 > [!TIP]
@@ -158,7 +164,7 @@ Auto-recreates the local development database on pending model changes. **All co
 Configurations are auto-discovered from the context's assembly namespace:
 
 ```csharp
-// In Sample.Infra (same namespace as QAContext)
+// In the context's namespace or one of its child namespaces.
 public class UserConfiguration : IEntityTypeConfiguration<User>
 {
     public void Configure(EntityTypeBuilder<User> builder)
@@ -278,7 +284,7 @@ public async Task Test(DrnTestContext context)
 {
     context.ServiceCollection.AddInfraServices();
     await context.ContainerContext.Postgres.ApplyMigrationsAsync();
-    var qaContext = context.GetRequiredService<QAContext>(); // Ready to test
+    var dbContext = context.GetRequiredService<ExampleDbContext>(); // Ready to test
 }
 ```
 

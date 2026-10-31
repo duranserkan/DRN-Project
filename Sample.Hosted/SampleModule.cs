@@ -32,7 +32,11 @@ public static class SampleModule
         // Identity replaces cookie events, so apply application customizations after its registration.
         services.ConfigureCookieAuthenticationOptions(settings);
         services.AddDrnIdentityMfaPolicies();
-        services.Configure<DrnApiErrorOptions>(options => options.PathPrefixes = ["/Api"]);
+        services.Configure<DrnApiErrorOptions>(options =>
+        {
+            options.PathPrefixes = ["/Api"];
+            options.HandleHtmxRequests = true;
+        });
         services.Configure<DrnErrorPageOptions>(options =>
         {
             options.ServerErrorPage = Get.Page.Root.SomethingWentWrong;

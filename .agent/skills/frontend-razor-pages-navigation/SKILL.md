@@ -67,6 +67,10 @@ public class SidebarNavigationItem(string href, string title, string icon, int o
 }
 ```
 
+### SidebarActionCollection
+
+Actionbar triggers and panels use the selected collection's `Items`. An item can set `TriggerPartialViewName` to reuse a custom trigger and `RenderCanvas = false` when its panel is owned by the layout. Both defaults preserve standard action rendering. Browser-owned badge and visibility state stays in JavaScript rather than `BadgeContentGenerator`, which runs during server rendering.
+
 ### SidebarSettingsCollection
 
 Defines the fixed bottom settings menu in the sidebar, typically used for user profile, settings, or logout actions.

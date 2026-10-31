@@ -52,9 +52,9 @@ Normalize natural language only when unambiguous; otherwise stop.
 Examples:
 
 ```text
-/sync pair: Sample.Hosted & DRN.Nexus.Hosted; direction: Sample.Hosted -> DRN.Nexus.Hosted; only: Pages & Helpers
-/sync pair: DRN-Project & DRN-Project-Argo-CD-Gitops; only: agent
-/sync pair: DRN-Project & DRN-Project-Argo-CD-Gitops; only: root-wide & agent
+/sync pair: AppA.Hosted & AppB.Hosted; direction: AppA.Hosted -> AppB.Hosted; only: Pages & Helpers
+/sync pair: app-repository & infrastructure-repository; only: agent
+/sync pair: app-repository & infrastructure-repository; only: root-wide & agent
 ```
 
 Generate a UUID v4 Run ID. Persist control state in `.agent/temp/SYNC-<run-id>.md` after topology validation. Resume runs exclusively from an explicit run-artifact path.

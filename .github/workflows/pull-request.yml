@@ -39,11 +39,12 @@ jobs:
           path: src
           persist-credentials: false
 
-      - name: Build frontend
+      - name: Test and build frontend
         uses: ./.github/actions/frontend-build
         with:
           repository-directory: src
           working-directory: src/Sample.Hosted
+          browser-tests: "true"
 
   backend:
     permissions:

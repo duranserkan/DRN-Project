@@ -21,6 +21,7 @@ Resolve conflicts with TRIZ first. If a tradeoff remains, apply this order:
 
 - Keep `AGENTS.md`, generic skills, and generic workflows reusable across repositories.
 - Put project names, exact commands, modules, release rules, source maps, and framework overrides in `.agent/repository-profile.md`.
+- Keep relative documentation links within the portable agent bundle. Resolve repository-local docs and source through the current profile or discovery. Framework skills may link to canonical upstream docs, with version guidance, without requiring a framework source checkout.
 - Discover solution files, test projects, frontend roots, docs folders, and CI workflows before hardcoding paths.
 - Generic skills (`basic-*`, `test-*`, unscoped `frontend-*`) must not require one repository's types, package names, or paths.
 - Trigger framework-specific skills, such as `drn-*`, only when the profile or user request calls for them.

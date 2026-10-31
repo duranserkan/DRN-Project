@@ -28,6 +28,7 @@ public class CategoryFor()
     : ControllerForBase<CategoryController>(QaApiFor.ControllerRouteTemplate)
 {
     //By convention, Endpoint name should match Action name and property should have setter;
+    public ApiEndpoint PaginateAsync { get; private set; } = null!;
     public ApiEndpoint GetAsync { get; private set; } = null!;
     public ApiEndpoint PostAsync { get; private set; } = null!;
 }

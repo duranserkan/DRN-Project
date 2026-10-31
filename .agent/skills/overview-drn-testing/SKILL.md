@@ -1,7 +1,7 @@
 ---
 name: overview-drn-testing
 description: "DTT (Duran's Testing Technique) philosophy - choosing unit, integration, API, or performance tests and routing to canonical DRN.Framework.Testing guidance. Keywords: testing-philosophy, dtt, test-strategy, unit-testing, integration-testing, performance-testing"
-last-updated: 2026-06-12
+last-updated: 2026-10-29
 difficulty: basic
 tokens: ~0.7K
 ---
@@ -33,12 +33,14 @@ tokens: ~0.7K
 
 ## Project Shape
 
-```text
-DRN.Test.Unit/         # isolated logic and service validation
-DRN.Test.Analyzer/     # Roslyn analyzer regression tests
-DRN.Test.Integration/  # Testcontainers, repositories, API/E2E
-DRN.Test.Performance/  # BenchmarkDotNet and K6
-```
+Resolve project names and paths from the current repository profile or filesystem. These are test roles, not required folder names:
+
+| Role | Coverage |
+|---|---|
+| Unit | Isolated logic and service validation |
+| Analyzer, when present | Roslyn analyzer regression tests |
+| Integration | Testcontainers, repositories, API/E2E |
+| Performance, when present | BenchmarkDotNet and K6 |
 
 Context names:
 

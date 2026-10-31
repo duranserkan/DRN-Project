@@ -1,7 +1,7 @@
 ---
 name: drn-testing
 description: "DRN.Framework.Testing - canonical DTT attribute/context matrix with DrnTestContext, DrnTestContextUnit, ContainerContext, ApplicationContext, DataInline/DataMember/DataSelf, MTP command guidance, AwesomeAssertions, AutoFixture, NSubstitute, Testcontainers, and xUnit v3. Keywords: testing, dtt, drntest-context, applicationcontext, testcontainers, mtp, xunit, data-attributes, unit-testing, integration-testing"
-last-updated: 2026-10-25
+last-updated: 2026-10-29
 difficulty: intermediate
 tokens: ~1.7K
 ---
@@ -11,6 +11,8 @@ tokens: ~1.7K
 > Canonical DTT (Duran's Testing Technique) guidance for choosing attributes, contexts, and test commands.
 
 Shared testing settings, container defaults, and docs-sync rules live in the [DRN Framework Maintenance Reference](../overview-drn-framework/SKILL.md#drn-framework-maintenance-reference).
+
+Resolve upstream links and local source through [Documentation And Source References](../overview-drn-framework/SKILL.md#documentation-and-source-references).
 
 ## When to Apply
 
@@ -35,7 +37,7 @@ Rules:
 
 - Request `DrnTestContext` / `DrnTestContextUnit` only when the test uses context services, configuration, data providers, containers, service validation, or app bootstrapping.
 - Use `DataInlineUnit` for pure logic and isolated services. Use `DataInline` when real dependencies make the signal more honest.
-- Never use `DrnTestContext` in `DRN.Test.Unit`; use `DrnTestContextUnit` there and place full `DrnTestContext` coverage in `DRN.Test.Integration`.
+- Never use `DrnTestContext` in unit-test projects. Use `DrnTestContextUnit` there and place full `DrnTestContext` coverage in integration-test projects discovered from the current repository.
 - The context must be the first parameter when requested; attribute data follows; AutoFixture/NSubstitute fill missing parameters.
 - Interface/abstract parameters auto-mocked by NSubstitute can replace matching `ServiceCollection` registrations. Use those substitutes for dependencies, not for concrete convenience methods whose implementation is the behavior under test.
 - Assertions use `AwesomeAssertions`.
@@ -45,7 +47,9 @@ Rules:
 
 ## Minimal Patterns
 
-Use fresh support processes for Source-Known startup acceptance/rejection, static first use, and historical freezing. Startup-only probes must inspect `SourceKnownGenerationTime.Policy` without freezing it themselves. Use isolated unit state for configuration, rounding, range, drift, retry, and concurrency cases; never reset production statics or change the machine clock. Verify that generation, decoding, and date filters share the configured epoch. See [SourceKnownStartupProcessTests](../../../DRN.Test.Unit/Tests/Framework/Hosting/SourceKnownStartupProcessTests.cs) and [SourceKnownGenerationTimeTests](../../../DRN.Test.Unit/Tests/Framework/Utils/Ids/SourceKnownGenerationTimeTests.cs).
+Use fresh support processes for Source-Known startup acceptance/rejection, static first use, and historical freezing. Startup-only probes must inspect `SourceKnownGenerationTime.Policy` without freezing it themselves. Use isolated unit state for configuration, rounding, range, drift, retry, and concurrency cases; never reset production statics or change the machine clock. Verify that generation, decoding, and date filters share the configured epoch. See upstream [SourceKnownStartupProcessTests](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Test.Unit/Tests/Framework/Hosting/SourceKnownStartupProcessTests.cs) and [SourceKnownGenerationTimeTests](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Test.Unit/Tests/Framework/Utils/Ids/SourceKnownGenerationTimeTests.cs).
+
+Application types, service-registration methods, and endpoint accessors below are illustrative. Substitute the consuming repository's equivalents.
 
 ```csharp
 [Fact]
@@ -88,7 +92,7 @@ public sealed class CategoryRows : DataSelfUnitAttribute
 [DataInline]
 public async Task Repository_Should_Persist_Entity(DrnTestContext context)
 {
-    context.ServiceCollection.AddSampleInfraServices();
+    context.ServiceCollection.AddExampleInfraServices();
     await context.ContainerContext.Postgres.ApplyMigrationsAsync();
 
     var repository = context.GetRequiredService<ICategoryRepository>();
@@ -103,9 +107,9 @@ public async Task Repository_Should_Persist_Entity(DrnTestContext context)
 [DataInline]
 public async Task Endpoint_Should_Return_Data(DrnTestContext context)
 {
-    var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
+    var client = await context.ApplicationContext.CreateClientAsync<ExampleProgram>();
     var result = await client.GetFromJsonAsync<WeatherForecast[]>(
-        Get.Endpoint.Sample.WeatherForecast.Get.RoutePattern);
+        Get.Endpoint.Api.WeatherForecast.Get.RoutePattern);
 
     result.Should().NotBeEmpty();
 }
@@ -139,7 +143,7 @@ Apply this at decision boundaries such as authorization, tenant isolation, soft-
 
 ## WebApplicationFactory Entry Points
 
-`WebApplicationFactory<TProgram>` should point at a real hosted program type from the application or a non-test support assembly. Keep reusable disposable integration-test host programs in an SDK Web support project with `IsTestProject=false`, such as `DRN.Test.Utils`; keep `DRN.Test.Integration` focused on assertions. Do not define custom hosted `Program` entry points inside the MTP test executable. `DrnWebApplicationFactory<TProgram>` automatically resolves and binds secondary `IDrnProgram` entry points in multi-program support assemblies, allowing any program in the assembly to be hosted in-memory via `ApplicationContext.CreateClientAsync<TProgram>()`.
+`WebApplicationFactory<TProgram>` should point at a real hosted program type from the application or a non-test support assembly. Keep reusable disposable integration-test host programs in an SDK Web support project with `IsTestProject=false`. Discover its path from the repository profile or project references, and keep the integration-test project focused on assertions. Do not define custom hosted `Program` entry points inside the MTP test executable. `DrnWebApplicationFactory<TProgram>` automatically resolves and binds secondary `IDrnProgram` entry points in multi-program support assemblies, allowing any program in the assembly to be hosted in-memory via `ApplicationContext.CreateClientAsync<TProgram>()`.
 
 ## UnsafeAccessors in Test Utilities
 
