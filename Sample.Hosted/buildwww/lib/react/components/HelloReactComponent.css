@@ -14,7 +14,7 @@
 
 /* ── Hero Section ── */
 .drn-react-root .hello-react-hero {
-    @apply text-center pb-8;
+    @apply text-center pb-6;
 }
 
 .drn-react-root .hello-react-badge {
@@ -71,7 +71,7 @@
 /* ── Feature Cards Grid ── */
 .drn-react-root .hello-react-grid {
     @apply grid gap-5 pb-6;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: minmax(0, 1fr);
 }
 
 .drn-react-root .hello-react-card {
@@ -114,6 +114,37 @@
     @apply text-sm;
     color: #94a3b8;
     margin: 0.75rem 0 0 0;
+}
+
+@media (min-width: 576px) {
+    .drn-react-root .hello-react-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 992px) {
+    .drn-react-root .hello-react-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+/* Reduce spacing only when the desktop viewport is short. */
+@media (min-width: 768px) and (max-height: 800px) {
+    .drn-react-root .hello-react-hero {
+        @apply pb-4;
+    }
+
+    .drn-react-root .hello-react-title {
+        @apply mt-3 mb-2;
+    }
+
+    .drn-react-root .hello-react-grid {
+        @apply gap-4 pb-4;
+    }
+
+    .drn-react-root .hello-react-card {
+        @apply p-4;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
