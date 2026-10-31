@@ -4,6 +4,7 @@
  *
  * Captures unhandled errors and promise rejections, then reports them
  * to the server via navigator.sendBeacon (non-blocking) or fetch fallback.
+ * Adds safe notification history entries with the same client error reference.
  *
  * Rate-limited: max 5 errors per 60 seconds.
  * Deduplication: same message+source within 10 seconds suppressed.
@@ -19,6 +20,12 @@ const REPORT_ENDPOINT = '~/Api/Sample/ClientError/Report';
 let errorCount = 0;
 let windowStart = Date.now();
 const recentErrors = new Map();
+let handlingUnhandledError = false;
+
+function createClientErrorId() {
+    const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16));
+    return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+}
 
 /**
  * Reserves a report slot if rate limiting and deduplication allow it.
@@ -91,8 +98,7 @@ function reportActionError(error, context = {}) {
     if (typeof context.operation !== 'string' || !context.operation.trim() ||
         window.DRN.Notifications.isActive() === false) return null;
 
-    const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16));
-    const clientErrorId = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    const clientErrorId = createClientErrorId();
     const message = (error instanceof Error ? error.message : String(error || 'Action failed')) || 'Action failed';
     const payload = buildPayload(message, 'user-action', 0, 0, error instanceof Error ? error.stack : '');
     payload.clientErrorId = clientErrorId;
@@ -131,34 +137,40 @@ function buildPayload(message, source, line, column, stack) {
     };
 }
 
-/**
- * Installs global error handlers.
- * Uses addEventListener so multiple handlers can coexist without silent overwrites.
- */
+function reportUnhandledError(event, isRejection) {
+    if (handlingUnhandledError) return;
+    handlingUnhandledError = true;
+    try {
+        const reason = isRejection ? event.reason : event.error;
+        const message = isRejection
+            ? reason instanceof Error ? reason.message : String(reason || 'Unhandled Promise Rejection')
+            : event.message || '';
+        const source = isRejection ? 'unhandledrejection' : event.filename || '';
+        const line = isRejection ? 0 : event.lineno || 0;
+        const column = isRejection ? 0 : event.colno || 0;
+        const key = isRejection ? 'promise|' + message : message + '|' + source + '|' + line;
+        if (!tryReserveReportSlot(key)) return;
+
+        const payload = buildPayload(message, source, line, column, reason?.stack || '');
+        payload.clientErrorId = createClientErrorId();
+        sendReport(payload);
+
+        const notifications = window.DRN?.Notifications;
+        if (notifications?.isActive() !== true) return;
+        notifications.publish({
+            type: 'error', title: 'An unexpected error occurred',
+            message: 'A page encountered a problem. If you were completing an action, check its result before trying again.',
+            clientErrorId: payload.clientErrorId,
+            operation: 'Page error'
+        });
+    } catch { /* A failing global handler must not generate another unhandled error. */ }
+    finally { handlingUnhandledError = false; }
+}
+
+/** Installs global handlers without suppressing the browser's default error reporting. */
 function install() {
-    window.addEventListener('error', function (event) {
-        const message = event.message || '';
-        const source = event.filename || '';
-        const line = event.lineno || 0;
-        const column = event.colno || 0;
-        const stack = event.error?.stack || '';
-        const key = message + '|' + source + '|' + line;
-
-        if (tryReserveReportSlot(key)) {
-            sendReport(buildPayload(message, source, line, column, stack));
-        }
-    });
-
-    window.addEventListener('unhandledrejection', function (event) {
-        const reason = event.reason;
-        const message = reason instanceof Error ? reason.message : String(reason || 'Unhandled Promise Rejection');
-        const stack = reason instanceof Error ? reason.stack : '';
-        const key = 'promise|' + message;
-
-        if (tryReserveReportSlot(key)) {
-            sendReport(buildPayload(message, 'unhandledrejection', 0, 0, stack));
-        }
-    });
+    window.addEventListener('error', event => reportUnhandledError(event, false));
+    window.addEventListener('unhandledrejection', event => reportUnhandledError(event, true));
 }
 
 const drnErrorHandler = {

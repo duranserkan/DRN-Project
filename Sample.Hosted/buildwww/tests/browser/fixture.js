@@ -16,6 +16,7 @@ import panelMarkup from '../../../Pages/Shared/_SidebarActionbarItemNotification
 document.getElementById('notification-trigger').innerHTML = triggerMarkup;
 document.getElementById('notification-content').innerHTML = panelMarkup;
 window.DRN = { Notifications, Problem, Toast, ErrorHandler };
+ErrorHandler.install();
 installActionbarEvents();
 installNotificationEvents(panel);
 

@@ -22,6 +22,29 @@ test('a browser action failure shares its copyable reference with the backend re
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(entry.clientErrorId);
 });
 
+for (const kind of ['error', 'unhandledrejection']) {
+    test(`${kind} appears in notification history with a shared client reference`, async ({ page }) => {
+        await page.route('**/Api/Sample/ClientError/Report', route => route.fulfill({ status: 200, body: '' }));
+        const reportRequest = page.waitForRequest('**/Api/Sample/ClientError/Report');
+        await page.evaluate(kind => {
+            if (kind === 'error') {
+                setTimeout(() => { throw new Error('Private global diagnostic'); }, 0);
+            } else {
+                void Promise.reject(new Error('Private global diagnostic'));
+            }
+        }, kind);
+        const report = (await reportRequest).postDataJSON();
+        expect(report.clientErrorId).toMatch(/^[a-f0-9]{32}$/);
+        await page.getByRole('button', { name: 'Notifications, 1 unseen', exact: true }).click();
+        const panel = page.getByRole('dialog', { name: 'Notifications', exact: true });
+        await expect(panel).toContainText('An unexpected error occurred');
+        await panel.locator('summary').click();
+        await expect(panel).toContainText(`Client error reference: ${report.clientErrorId}`);
+        await expect(panel).not.toContainText('Private global diagnostic');
+        await expect(page.locator('.toast')).toHaveCount(0);
+    });
+}
+
 for (const hosted of [true, false]) {
     test(`notification panel stays above overlapping toasts, content host: ${hosted}`, async ({ page }) => {
         await page.setViewportSize({ width: 480, height: 800 });
@@ -520,6 +543,8 @@ test('keyboard pagination keeps focus on the first new occurrence, including the
     });
     await page.getByRole('button', { name: 'Notifications, 101 unseen', exact: true }).click();
     const panel = page.getByRole('dialog', { name: 'Notifications', exact: true });
+    // Bootstrap activates its focus trap when the opening transition completes.
+    await expect(panel).toHaveClass(/\bshow\b/);
     await panel.getByRole('searchbox', { name: 'Search notifications' }).click();
     const summary = panel.locator('summary').filter({ hasText: '101 occurrences and references' });
     await summary.focus();

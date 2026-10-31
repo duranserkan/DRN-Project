@@ -18,6 +18,49 @@ function fixture(options = {}) {
     return { store, cache, settings, storage, advance: duration => { timestamp += duration; } };
 }
 
+for (const useLocks of [false, true]) {
+    test(`initial configuration retains startup feedback alongside saved history, locks: ${useLocks}`, async () => {
+        const locks = useLocks ? queuedLocks() : null;
+        const { store, settings, advance } = fixture({ locks });
+        const saved = store.publish({ message: 'Saved history' });
+        await locks?.drain();
+        advance(1);
+        const starting = createNotificationStore(settings);
+        const early = starting.publish({ type: 'error', message: 'Startup failed', clientErrorId: 'a'.repeat(32) });
+        const local = starting.publish({ message: 'Local startup feedback', persist: false });
+        starting.configure({ app: '/app/', owner: 'account-a' });
+        assert.deepEqual(new Set(starting.list().map(entry => entry.id)), new Set([saved.id, early.id, local.id]));
+        await locks?.drain();
+        assert.deepEqual(starting.list().find(entry => entry.id === early.id), early);
+        assert.deepEqual(starting.list().find(entry => entry.id === local.id), local);
+        const reloaded = createNotificationStore(settings);
+        reloaded.configure({ app: '/app/', owner: 'account-a' });
+        await locks?.drain();
+        assert.deepEqual(reloaded.list(), [early, saved]);
+
+        starting.configure({ app: '/app/', owner: 'account-b' });
+        await locks?.drain();
+        assert.deepEqual(starting.list(), []);
+    });
+
+    for (const invalidate of ['missing owner', 'suspended']) {
+        test(`startup feedback is discarded for ${invalidate}, locks: ${useLocks}`, async () => {
+            const locks = useLocks ? queuedLocks() : null;
+            const { settings } = fixture({ locks });
+            await locks?.drain();
+            const starting = createNotificationStore(settings);
+            starting.publish({ message: 'Do not retain', clientErrorId: 'b'.repeat(32) });
+            if (invalidate === 'suspended') starting.suspend();
+            starting.configure({ app: '/app/', owner: invalidate === 'missing owner' ? '' : 'account-a' });
+            await locks?.drain();
+            assert.deepEqual(starting.list(), []);
+            starting.configure({ app: '/app/', owner: 'account-b' });
+            await locks?.drain();
+            assert.deepEqual(starting.list(), []);
+        });
+    }
+}
+
 test('client error references survive storage and are searchable without using requestId', () => {
     const { store, settings } = fixture();
     const clientErrorId = 'a'.repeat(32);

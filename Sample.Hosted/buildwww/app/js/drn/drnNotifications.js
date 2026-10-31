@@ -197,6 +197,8 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
         if (!app) return false;
         if (context?.app === app && context.owner === owner && !suspended) return false;
         const previous = context;
+        // Bind early page feedback only to the first valid account context.
+        const startupEntries = !previous && !suspended && owner ? entries : [];
         if (previous && !locks) {
             try { storage()?.removeItem(storageKey()); } catch { /* Memory remains authoritative. */ }
         }
@@ -221,6 +223,7 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
             }
         } catch { /* Invalid or unavailable history is replaced with an empty cache. */ }
         persisted = entries.filter(entry => entry.persist);
+        entries = [...startupEntries, ...entries];
         pruneSaveAndNotify(true);
         return true;
     }
