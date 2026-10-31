@@ -9,7 +9,7 @@
  * Deduplication: same message+source within 10 seconds suppressed.
  */
 
-import drnApp from './drnApp';
+import drnApp from './drnApp.js';
 
 const MAX_ERRORS_PER_WINDOW = 5;
 const RATE_WINDOW_MS = 60000;
@@ -21,11 +21,11 @@ let windowStart = Date.now();
 const recentErrors = new Map();
 
 /**
- * Checks if the error should be reported (rate limit + dedup).
+ * Reserves a report slot if rate limiting and deduplication allow it.
  * @param {string} key - Deduplication key
  * @returns {boolean}
  */
-function shouldReport(key) {
+function tryReserveReportSlot(key) {
     const now = Date.now();
 
     // Reset rate window
@@ -59,6 +59,12 @@ function shouldReport(key) {
  * @param {Object} payload
  */
 function sendReport(payload) {
+    try {
+        dispatchReport(payload);
+    } catch { /* Reporting must not interrupt the failed action's feedback. */ }
+}
+
+function dispatchReport(payload) {
     const json = JSON.stringify(payload);
     const endpoint = drnApp.url(REPORT_ENDPOINT);
 
@@ -78,6 +84,29 @@ function sendReport(payload) {
         body: json,
         keepalive: true
     }).catch(function () { /* silently ignore reporting failures */ });
+}
+
+/** Explicit action boundary. Global errors cannot reliably identify user intent. */
+function reportActionError(error, context = {}) {
+    if (typeof context.operation !== 'string' || !context.operation.trim() ||
+        window.DRN.Notifications.isActive() === false) return null;
+
+    const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16));
+    const clientErrorId = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    const message = (error instanceof Error ? error.message : String(error || 'Action failed')) || 'Action failed';
+    const payload = buildPayload(message, 'user-action', 0, 0, error instanceof Error ? error.stack : '');
+    payload.clientErrorId = clientErrorId;
+    // Each action occurrence needs its own reference. Keep the shared rate limit.
+    if (tryReserveReportSlot(clientErrorId)) sendReport(payload);
+
+    const publicMessage = typeof context.message === 'string' && context.message.trim()
+        ? context.message : 'The action could not be completed. Check the current state before trying again.';
+    const record = window.DRN.Notifications.publish({
+        type: 'error', title: 'Action could not be completed', message: publicMessage,
+        clientErrorId, operation: context.operation, persist: context.persist !== false
+    });
+    if (record) window.DRN.Toast.show({ type: 'error', message: publicMessage, record: false });
+    return record;
 }
 
 /**
@@ -115,7 +144,7 @@ function install() {
         const stack = event.error?.stack || '';
         const key = message + '|' + source + '|' + line;
 
-        if (shouldReport(key)) {
+        if (tryReserveReportSlot(key)) {
             sendReport(buildPayload(message, source, line, column, stack));
         }
     });
@@ -126,14 +155,15 @@ function install() {
         const stack = reason instanceof Error ? reason.stack : '';
         const key = 'promise|' + message;
 
-        if (shouldReport(key)) {
+        if (tryReserveReportSlot(key)) {
             sendReport(buildPayload(message, 'unhandledrejection', 0, 0, stack));
         }
     });
 }
 
 const drnErrorHandler = {
-    install: install
+    install: install,
+    reportActionError
 };
 
 export default drnErrorHandler;

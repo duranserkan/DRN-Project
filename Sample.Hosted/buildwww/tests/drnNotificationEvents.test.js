@@ -14,6 +14,7 @@ function statusElement(id, message, persist = true) {
 
 function response(status = 200, contentType = 'text/html', headers = {}) {
     return {
+        requestConfig: { triggeringEvent: { isTrusted: true } },
         xhr: { status, responseText: '', getResponseHeader: name =>
             name === 'Content-Type' ? contentType : headers[name] ?? null },
         shouldSwap: status < 400,
@@ -45,6 +46,7 @@ function fixture(t, { start = true, statuses = [] } = {}) {
         newId: () => `event-${++sequence}` });
     const DRN = {
         Notifications: store,
+        ErrorHandler: { reportActionError: t.mock.fn() },
         Problem: { ...problem, show: t.mock.fn(), clear: t.mock.fn(), clearAll: t.mock.fn() },
         Toast: { show: t.mock.fn(), cleanup: t.mock.fn() }
     };
@@ -187,12 +189,13 @@ for (const [event, title] of [
     ['htmx:timeout', 'The request timed out']
 ]) {
     test(`${event} gives recovery guidance once`, t => {
-        const { emit, Problem } = fixture(t);
+        const { emit, Problem, ErrorHandler } = fixture(t);
         const detail = response(0, '');
         emit(event, detail);
         emit('htmx:responseError', detail);
-        assert.equal(Problem.show.mock.callCount(), 1);
-        assert.equal(Problem.show.mock.calls[0].arguments[0].title, title);
+        assert.equal(Problem.show.mock.callCount(), 0);
+        assert.equal(ErrorHandler.reportActionError.mock.callCount(), 1);
+        assert.equal(ErrorHandler.reportActionError.mock.calls[0].arguments[0].message, title);
     });
 }
 
@@ -202,6 +205,37 @@ test('intentional request aborts do not show failures', t => {
     assert.equal(Problem.show.mock.callCount(), 0);
 });
 
+test('background request failures stay silent and explicit action opt-in gets a client reference', t => {
+    const { emit, Problem, ErrorHandler, Toast } = fixture(t);
+    for (const event of ['htmx:responseError', 'htmx:sendError', 'htmx:timeout']) {
+        emit(event, { ...response(500), requestConfig: {} });
+    }
+    emit('htmx:beforeOnLoad', { ...response(500), requestConfig: {} });
+    emit('showToast', { type: 'error', message: 'Background failure' });
+    assert.equal(Problem.show.mock.callCount(), 0);
+    assert.equal(ErrorHandler.reportActionError.mock.callCount(), 0);
+    assert.equal(Toast.show.mock.callCount(), 0);
+
+    emit('htmx:sendError', { ...response(0), requestConfig: {
+        elt: { closest: selector => selector === '[data-notification-user-action]'
+            ? { dataset: { notificationUserAction: 'true' } } : null }
+    } });
+    assert.equal(ErrorHandler.reportActionError.mock.callCount(), 1);
+});
+
+test('explicit background marking suppresses even a trusted action event', t => {
+    const { emit, Problem, ErrorHandler } = fixture(t);
+    const requestConfig = {
+        triggeringEvent: { isTrusted: true },
+        elt: { closest: selector => selector === '[data-notification-user-action]'
+            ? { dataset: { notificationUserAction: 'false' } } : null }
+    };
+    emit('htmx:responseError', { ...response(500), requestConfig });
+    emit('htmx:timeout', { ...response(0), requestConfig });
+    assert.equal(Problem.show.mock.callCount(), 0);
+    assert.equal(ErrorHandler.reportActionError.mock.callCount(), 0);
+});
+
 for (const contentType of ['application/json', 'text/html; charset=utf-8', 'text/plain']) {
     test(`a non-problem ${contentType} error toast owns feedback once and preserves request privacy`, t => {
         const { emit, Problem, Toast } = fixture(t);
@@ -209,7 +243,7 @@ for (const contentType of ['application/json', 'text/html; charset=utf-8', 'text
             ? { dataset: { notificationPersist: 'false' } }
             : selector === '[data-notification-operation]'
                 ? { dataset: { notificationOperation: 'Remove category' } } : null };
-        const detail = { ...response(409, contentType), requestConfig: { elt: element } };
+        const detail = { ...response(409, contentType), requestConfig: { elt: element, triggeringEvent: { isTrusted: true } } };
         emit('htmx:beforeOnLoad', detail);
         emit('showToast', { type: 'error', message: 'Category is in use', persist: true, duration: 9000 });
         emit('htmx:beforeSwap', detail);
@@ -249,7 +283,7 @@ test('toast events outside their response processing are ignored', async t => {
 test('request context retains the operation path without sensitive query parameters', t => {
     const { emit, Problem } = fixture(t);
     emit('htmx:responseError', { ...response(500), requestConfig: {
-        verb: 'post', path: '/app/profile?token=private'
+        verb: 'post', path: '/app/profile?token=private', triggeringEvent: { isTrusted: true }
     } });
     assert.equal(Problem.show.mock.calls[0].arguments[1].operation, 'POST /app/profile');
 });

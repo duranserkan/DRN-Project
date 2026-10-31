@@ -5,6 +5,23 @@ test.beforeEach(async ({ page }) => {
     await expect(page.locator('html')).toHaveAttribute('data-fixture-ready', 'true');
 });
 
+test('a browser action failure shares its copyable reference with the backend report', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.route('**/Api/Sample/ClientError/Report', route => route.fulfill({ status: 200, body: '' }));
+    const reportRequest = page.waitForRequest('**/Api/Sample/ClientError/Report');
+    const entry = await page.evaluate(() => window.DRN.ErrorHandler.reportActionError(
+        new Error('Private implementation detail'), { operation: 'Save profile', message: 'Could not save your profile.' }));
+    const report = (await reportRequest).postDataJSON();
+    expect(report.clientErrorId).toBe(entry.clientErrorId);
+    await page.getByRole('button', { name: 'Notifications, 1 unseen', exact: true }).click();
+    const panel = page.getByRole('dialog', { name: 'Notifications', exact: true });
+    await panel.locator('summary').click();
+    await expect(panel).toContainText(`Client error reference: ${entry.clientErrorId}`);
+    await expect(panel).not.toContainText('Private implementation detail');
+    await panel.getByRole('button', { name: 'Copy reference', exact: true }).click();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(entry.clientErrorId);
+});
+
 for (const hosted of [true, false]) {
     test(`notification panel stays above overlapping toasts, content host: ${hosted}`, async ({ page }) => {
         await page.setViewportSize({ width: 480, height: 800 });
@@ -477,7 +494,7 @@ test('the bell stays visible and counts only unseen failures without a page bann
     await expect(panel).toContainText('Please try again. If the problem continues, contact support and share the error details from Notifications.');
     await expect(page.getByRole('button', { name: 'Notifications', exact: true })).not.toHaveClass(/text-bg-warning/);
     await panel.locator('summary').click();
-    await expect(panel).toContainText('Share this reference with support so they can find the request.');
+    await expect(panel).toContainText('Share this reference with support so they can investigate the error.');
     expect(await page.evaluate(() => window.DRN.Notifications.list())).toEqual([{ ...entries[0], seen: true }]);
     await panel.getByRole('button', { name: 'Close notifications' }).click();
     await expect(panel).toBeHidden();

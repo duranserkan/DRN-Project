@@ -21,7 +21,7 @@ export function filterNotifications(entries, severity = 'all', search = '') {
     return entries.filter(entry => {
         const matchesSeverity = severity === 'all' || entry.type === severity ||
             (severity === 'info' && entry.type === 'success');
-        const searchable = [entry.title, entry.message, entry.operation, entry.requestId].join('\n').toLocaleLowerCase();
+        const searchable = [entry.title, entry.message, entry.operation, entry.requestId, entry.clientErrorId].join('\n').toLocaleLowerCase();
         return matchesSeverity && (!needle || searchable.includes(needle));
     });
 }
@@ -47,21 +47,21 @@ function store() {
     return window.DRN.Notifications;
 }
 
-function show(element, visible) {
+function setVisibility(element, visible) {
     if (!element) return;
     element.hidden = !visible;
     element.classList.toggle('d-none', !visible);
 }
 
-function element(tag, className = '', text = '') {
+function createElement(tag, className = '', text = '') {
     const node = document.createElement(tag);
     node.className = className;
     node.textContent = text;
     return node;
 }
 
-function button(text, action, ids) {
-    const node = element('button', 'btn btn-sm btn-outline-secondary', text);
+function createActionButton(text, action, ids) {
+    const node = createElement('button', 'btn btn-sm btn-outline-secondary', text);
     node.type = 'button';
     node.dataset.notificationAction = action;
     if (ids) node.dataset.notificationIds = JSON.stringify(ids);
@@ -70,37 +70,38 @@ function button(text, action, ids) {
 
 function renderTime(createdAt) {
     const date = new Date(createdAt);
-    const time = element('time', 'small text-body-secondary', date.toLocaleString());
+    const time = createElement('time', 'small text-body-secondary', date.toLocaleString());
     time.dateTime = date.toISOString();
     return time;
 }
 
 function renderOccurrence(entry) {
-    const row = element('li', 'border-top py-2');
+    const row = createElement('li', 'border-top py-2');
     row.append(renderTime(entry.createdAt));
-    if (entry.requestId) {
-        const reference = element('div', 'small text-break user-select-text', `Request reference: ${entry.requestId}`);
-        const copy = button('Copy reference', 'copy');
-        copy.dataset.notificationReference = entry.requestId;
-        row.append(reference, element('p', 'small text-body-secondary mb-2',
-            'Share this reference with support so they can find the request.'), copy);
+    for (const [label, id] of [['Request reference', entry.requestId], ['Client error reference', entry.clientErrorId]]) {
+        if (!id) continue;
+        const reference = createElement('div', 'small text-break user-select-text', `${label}: ${id}`);
+        const copy = createActionButton('Copy reference', 'copy');
+        copy.dataset.notificationReference = id;
+        row.append(reference, createElement('p', 'small text-body-secondary mb-2',
+            'Share this reference with support so they can investigate the error.'), copy);
     }
-    row.append(button('Dismiss occurrence', 'dismiss', [entry.id]));
+    row.append(createActionButton('Dismiss occurrence', 'dismiss', [entry.id]));
     return row;
 }
 
 function renderOccurrences(group, expanded) {
-    const details = element('details');
+    const details = createElement('details');
     details.dataset.notificationDetails = group.id;
     details.open = expanded.has(group.id);
-    details.append(element('summary', 'small', group.entries.length > 1
-        ? `${group.entries.length} occurrences and references` : 'Details and request reference'));
-    const occurrences = element('ul', 'list-unstyled mb-0');
+    details.append(createElement('summary', 'small', group.entries.length > 1
+        ? `${group.entries.length} occurrences and references` : 'Details and error reference'));
+    const occurrences = createElement('ul', 'list-unstyled mb-0');
     // Build occurrence rows only when requested. Repeated failures may fill the entire history.
     const populate = () => {
         if (!details.open || occurrences.childElementCount) return;
         let shown = 0;
-        const more = button('Load more occurrences', 'occurrences');
+        const more = createActionButton('Load more occurrences', 'occurrences');
         occurrences.append(more);
         const appendPage = () => {
             const moveFocus = document.activeElement === more;
@@ -129,21 +130,21 @@ function renderOccurrences(group, expanded) {
 function renderGroup(group, expanded) {
     const entry = group.entries[0];
     const severity = SEVERITIES[entry.type] || SEVERITIES.info;
-    const row = element('li', 'border rounded p-3 mb-2');
+    const row = createElement('li', 'border rounded p-3 mb-2');
     row.dataset.notificationGroup = group.id;
-    const heading = element('div', 'd-flex align-items-start gap-2');
-    const icon = element('i', `bi ${severity.icon} ${severity.color}`);
+    const heading = createElement('div', 'd-flex align-items-start gap-2');
+    const icon = createElement('i', `bi ${severity.icon} ${severity.color}`);
     icon.setAttribute('aria-hidden', 'true');
-    heading.append(icon, element('h3', 'h6 mb-1 text-break', entry.title || severity.label));
-    row.append(heading, element('span', `small ${severity.color}`, severity.label));
+    heading.append(icon, createElement('h3', 'h6 mb-1 text-break', entry.title || severity.label));
+    row.append(heading, createElement('span', `small ${severity.color}`, severity.label));
     if (entry.message) {
-        const message = element('p', 'small text-break user-select-text my-2', entry.message);
+        const message = createElement('p', 'small text-break user-select-text my-2', entry.message);
         message.style.whiteSpace = 'pre-line';
         row.append(message);
     }
-    if (entry.operation) row.append(element('p', 'small text-body-secondary mb-2', entry.operation));
-    const summary = element('div', 'd-flex flex-wrap align-items-center gap-2 mb-2');
-    summary.append(renderTime(entry.createdAt), button(group.entries.length > 1 ? 'Dismiss group' : 'Dismiss',
+    if (entry.operation) row.append(createElement('p', 'small text-body-secondary mb-2', entry.operation));
+    const summary = createElement('div', 'd-flex flex-wrap align-items-center gap-2 mb-2');
+    summary.append(renderTime(entry.createdAt), createActionButton(group.entries.length > 1 ? 'Dismiss group' : 'Dismiss',
         'dismiss', group.entries.map(item => item.id)));
     row.append(summary, renderOccurrences(group, expanded));
     return row;
@@ -159,7 +160,7 @@ function updateTriggers(entries) {
         if (!badge) continue;
         badge.textContent = String(unseen.length);
         badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill text-bg-danger';
-        show(badge, unseen.length > 0);
+        setVisibility(badge, unseen.length > 0);
     }
 }
 
@@ -190,8 +191,8 @@ function refresh(force = false) {
     panel.querySelector('[data-notification-clear-filtered]').disabled = filtered.length === 0;
     const loadMore = panel.querySelector('[data-notification-load-more]');
     if (groups.length <= limit && document.activeElement === loadMore) search.focus({ preventScroll: true });
-    show(loadMore, groups.length > limit);
-    show(panel.querySelector('[data-notification-undo-region]'), undoEntries.length > 0);
+    setVisibility(loadMore, groups.length > limit);
+    setVisibility(panel.querySelector('[data-notification-undo-region]'), undoEntries.length > 0);
     // Incoming background messages must not replace the control being used by the keyboard user.
     if (focusedInList && !force) return;
     const fragment = document.createDocumentFragment();
@@ -242,9 +243,9 @@ async function handleClick(event) {
     } else if (control.dataset.notificationAction === 'copy') {
         try {
             await navigator.clipboard.writeText(control.dataset.notificationReference);
-            announce('Request reference copied. Share it with support so they can find the request.');
+            announce('Error reference copied. Share it with support so they can investigate the error.');
         } catch {
-            announce('Copy unavailable. Select and copy the request reference.');
+            announce('Copy unavailable. Select and copy the error reference.');
         }
         return;
     } else {

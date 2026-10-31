@@ -18,6 +18,17 @@ function fixture(options = {}) {
     return { store, cache, settings, storage, advance: duration => { timestamp += duration; } };
 }
 
+test('client error references survive storage and are searchable without using requestId', () => {
+    const { store, settings } = fixture();
+    const clientErrorId = 'a'.repeat(32);
+    const entry = store.publish({ type: 'error', message: 'Save failed', clientErrorId });
+    const restored = createNotificationStore(settings);
+    restored.configure({ app: '/app/', owner: 'account-a' });
+    assert.deepEqual(restored.list(), [entry]);
+    assert.equal(entry.requestId, '');
+    assert.deepEqual(filterNotifications(restored.list(), 'error', clientErrorId), [entry]);
+});
+
 test('default IDs preserve publishing, persistence and individual dismissal without randomUUID', () => {
     const originalCrypto = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
     let sequence = 0;

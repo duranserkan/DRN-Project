@@ -13,6 +13,7 @@ import type {IDrnOnmount} from './DrnOnmount';
 import type {IDrnUtils} from './DrnUtils';
 import type {IDrnCookieManager} from './DrnCookieManager';
 import type {IDrnProblem} from './DrnProblem';
+import type {IDrnErrorHandler} from './DrnErrorHandler';
 import type {IDrnNotifications, IDrnToast} from './DrnNotifications';
 
 // The Main Global Augmentation
@@ -26,7 +27,7 @@ declare global {
     }
 
     // Define the shape of the global namespace object
-    // ErrorHandler and Validation still use runtime-owned interfaces.
+    // Validation still uses a runtime-owned interface.
     interface IDRN {
         App: IDrnApp;
         Onmount: IDrnOnmount;
@@ -36,7 +37,7 @@ declare global {
         Toast: IDrnToast;
         Problem: IDrnProblem;
         Notifications: IDrnNotifications;
-        ErrorHandler: any;
+        ErrorHandler: IDrnErrorHandler;
         Validation: any;
     }
 }

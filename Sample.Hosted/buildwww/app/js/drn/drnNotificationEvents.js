@@ -1,5 +1,12 @@
 import { mediaType } from './drnHttp.js';
 
+function affectsUserAction(detail) {
+    const element = detail?.requestConfig?.elt || detail?.elt;
+    const explicit = element?.closest?.('[data-notification-user-action]')?.dataset.notificationUserAction;
+    if (explicit !== undefined) return explicit === 'true';
+    return detail?.requestConfig?.triggeringEvent?.isTrusted === true;
+}
+
 function requestContext(detail) {
     const element = detail?.requestConfig?.elt || detail?.elt;
     let operation = 'Request';
@@ -107,11 +114,12 @@ export function installNotificationEvents(panel) {
         const xhr = detail?.xhr;
         if (!xhr || handled.has(xhr) || stale(detail)) return;
         handled.add(xhr);
-        const problem = DRN.Problem.fromXhr(xhr);
+        if (!affectsUserAction(detail)) return;
         if (title) {
-            problem.title = title;
-            problem.detail = message;
+            DRN.ErrorHandler.reportActionError(new Error(title), { ...requestContext(detail), message });
+            return;
         }
+        const problem = DRN.Problem.fromXhr(xhr);
         DRN.Problem.show(problem, requestContext(detail));
     }
 
@@ -217,6 +225,7 @@ export function installNotificationEvents(panel) {
         if (loadingResponse?.status >= 400) {
             if (handled.has(loadingResponse)) return;
             handled.add(loadingResponse);
+            if (!affectsUserAction(loadingDetail)) return;
         }
         const context = requestContext(loadingDetail);
         DRN.Toast.show({ type: detail.type, message: detail.message, duration: detail.duration,

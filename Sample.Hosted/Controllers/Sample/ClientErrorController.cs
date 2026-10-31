@@ -31,6 +31,10 @@ public class ClientErrorController(IScopedLog scopedLog) : ControllerBase
 /// </summary>
 public record ClientErrorPayload
 {
+    [StringLength(32)]
+    [RegularExpression("^[a-f0-9]{32}$")]
+    public string? ClientErrorId { get; init; }
+
     [StringLength(500)]
     public string Message { get; init; } = string.Empty;
 

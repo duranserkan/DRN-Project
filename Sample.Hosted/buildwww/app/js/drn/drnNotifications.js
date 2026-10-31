@@ -11,28 +11,29 @@ function createNotificationId() {
     return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-function text(value, length) {
-    return typeof value === 'string' ? value.trim().slice(0, length) : '';
+function trimAndTruncate(value, maxLength) {
+    return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
 }
 
-function exact(value, length) {
-    return typeof value === 'string' && value.length <= length ? value : '';
+function stringWithinMaxLength(value, maxLength) {
+    return typeof value === 'string' && value.length <= maxLength ? value : '';
 }
 
 function normalize(value, now) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-    const id = exact(value.id, 100);
-    const message = text(value.message, 2000);
-    const title = text(value.title, 500);
+    const id = stringWithinMaxLength(value.id, 100);
+    const message = trimAndTruncate(value.message, 2000);
+    const title = trimAndTruncate(value.title, 500);
     if (!id || (!message && !title) || !types.has(value.type) ||
         !Number.isSafeInteger(value.createdAt) || value.createdAt > now || value.createdAt < 0) return null;
     return {
         id, type: value.type, title, message,
-        problemType: exact(value.problemType, 2048),
+        problemType: stringWithinMaxLength(value.problemType, 2048),
         status: Number.isInteger(value.status) && value.status >= 0 && value.status <= 599 ? value.status : 0,
-        requestId: exact(value.requestId, 200),
-        sourceId: exact(value.sourceId, 200),
-        operation: text(value.operation, 200), target: text(value.target, 200),
+        requestId: stringWithinMaxLength(value.requestId, 200),
+        clientErrorId: stringWithinMaxLength(value.clientErrorId, 32),
+        sourceId: stringWithinMaxLength(value.sourceId, 200),
+        operation: trimAndTruncate(value.operation, 200), target: trimAndTruncate(value.target, 200),
         createdAt: value.createdAt, persist: value.persist !== false, seen: value.seen === true
     };
 }
@@ -54,7 +55,7 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
     const storageKey = () => `drn.notifications.v1:${context.app}`;
     const envelope = items => ({ version: 1, owner: context?.owner, entries: items });
 
-    function bounded(items) {
+    function sortAndLimitEntries(items) {
         const cutoff = now() - maxAge;
         const ids = new Set();
         const sources = new Set();
@@ -72,7 +73,7 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
         });
     }
 
-    function prune() { entries = bounded(entries); }
+    function prune() { entries = sortAndLimitEntries(entries); }
 
     function decode(raw) {
         if (!raw || encoder.encode(raw).length > maxBytes) return null;
@@ -119,7 +120,7 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
             const ids = new Set(remaining.map(entry => entry.id));
             const sources = new Set(remaining.map(entry => entry.sourceId).filter(Boolean));
             // Match local unshift ordering when publications share a millisecond timestamp.
-            const merged = bounded([
+            const merged = sortAndLimitEntries([
                 ...added.filter(entry => !ids.has(entry.id) && (!entry.sourceId || !sources.has(entry.sourceId))),
                 ...remaining.map(entry => seen.has(entry.id) || seenSources.has(entry.sourceId)
                     ? { ...entry, seen: true } : entry)]);
@@ -184,15 +185,15 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
         } catch { /* Keep current-page history when storage is unavailable or invalid. */ }
     }
 
-    function changed(initialize = false) {
+    function pruneSaveAndNotify(initialize = false) {
         prune();
         save(initialize);
         for (const listener of listeners) listener();
     }
 
     function configure(value) {
-        const app = exact(value?.app, 300);
-        const owner = exact(value?.owner, 200);
+        const app = stringWithinMaxLength(value?.app, 300);
+        const owner = stringWithinMaxLength(value?.owner, 200);
         if (!app) return false;
         if (context?.app === app && context.owner === owner && !suspended) return false;
         const previous = context;
@@ -220,7 +221,7 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
             }
         } catch { /* Invalid or unavailable history is replaced with an empty cache. */ }
         persisted = entries.filter(entry => entry.persist);
-        changed(true);
+        pruneSaveAndNotify(true);
         return true;
     }
 
@@ -236,7 +237,7 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
             if (existing) return { ...existing };
         }
         entries.unshift(entry);
-        changed();
+        pruneSaveAndNotify();
         return { ...entry };
     }
 
@@ -246,7 +247,7 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
         const selected = new Set(ids);
         const removed = entries.filter(entry => selected.has(entry.id));
         entries = entries.filter(entry => !selected.has(entry.id));
-        changed();
+        pruneSaveAndNotify();
         return removed.map(entry => ({ ...entry }));
     }
 
@@ -260,21 +261,21 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
             readShared();
             if (suspended || !entries.some(entry => !entry.seen)) return;
             entries = entries.map(entry => ({ ...entry, seen: true }));
-            changed();
+            pruneSaveAndNotify();
         },
         isActive() { return !suspended; },
-        suspend() { suspended = true; entries = []; changed(); },
+        suspend() { suspended = true; entries = []; pruneSaveAndNotify(); },
         list() { prune(); return entries.map(entry => ({ ...entry })); },
         subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
         clear() { readShared(); return dismiss(entries.map(entry => entry.id)); },
-        forget() { readShared(); entries = []; changed(); },
+        forget() { readShared(); entries = []; pruneSaveAndNotify(); },
         restore(items) {
             readShared();
             if (suspended) return;
             entries.push(...items.slice(0, maxEntries).map(item => normalize(item, now())).filter(Boolean));
-            changed();
+            pruneSaveAndNotify();
         },
-        expire() { readShared(); changed(); }
+        expire() { readShared(); pruneSaveAndNotify(); }
     };
 }
 

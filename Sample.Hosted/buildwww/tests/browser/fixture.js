@@ -6,6 +6,7 @@ import '../../lib/htmx/htmx.js';
 import Notifications from '../../app/js/drn/drnNotifications.js';
 import Problem from '../../app/js/drn/drnProblem.js';
 import Toast from '../../app/js/drn/drnToast.js';
+import ErrorHandler from '../../app/js/drn/drnErrorHandler.js';
 import panel from '../../app/js/drn/drnNotificationPanel.js';
 import { installNotificationEvents } from '../../app/js/drn/drnNotificationEvents.js';
 import { installActionbarEvents } from '../../app/js/drn/drnActionbar.js';
@@ -14,7 +15,7 @@ import panelMarkup from '../../../Pages/Shared/_SidebarActionbarItemNotification
 
 document.getElementById('notification-trigger').innerHTML = triggerMarkup;
 document.getElementById('notification-content').innerHTML = panelMarkup;
-window.DRN = { Notifications, Problem, Toast };
+window.DRN = { Notifications, Problem, Toast, ErrorHandler };
 installActionbarEvents();
 installNotificationEvents(panel);
 

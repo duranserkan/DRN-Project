@@ -80,6 +80,25 @@ The sample enables [HTMX Problem Details](../DRN.Framework.Hosting/README.md#htm
 
 Set `data-notification-operation="Save profile"` on a form or component for a history label. Set `data-notification-persist="false"` to keep its Problem Details and HTMX toast messages in memory only.
 
+HTMX failure notifications are limited to requests triggered by trusted user events. Polling and load-triggered failures stay out of notification history. For a programmatically started request that belongs to a user action, set `data-notification-user-action="true"` on its element or containing component. Set it to `false` to suppress failure feedback even for trusted events. Connection failures and timeouts use a client error reference. Backend Problem Details retain their `requestId`. Both references can be searched and copied from notification details.
+
+For caught browser errors that prevent a user action, call the explicit action reporter:
+
+```javascript
+try {
+    await saveProfile();
+} catch (error) {
+    DRN.ErrorHandler.reportActionError(error, {
+        operation: 'Save profile',
+        message: 'Could not save your profile. Check the current state before trying again.'
+    });
+}
+```
+
+The reporter creates one notification and a brief toast. Its `clientErrorId` is also sent to the client-error reporting endpoint and retained in the backend scoped log. This is a correlation reference, not a distributed trace ID. Provide only safe public text in `message` and `operation`; exception messages and stacks are never copied into the notification. `persist: false` keeps the notification in memory. Use `DRN.Problem.show` for backend Problem Details rather than reporting the same failure again as a browser error.
+
+Unhandled global errors and promise rejections remain telemetry-only because they do not identify a user action. Console calls are not forwarded. Reports remain best effort, with a shared limit of five reports per minute. Separate action failures keep separate references; global errors also use ten-second duplicate suppression. A reference may have no backend report when throttled or offline. Reporting failures do not prevent local action feedback.
+
 Fetch callers can use `DRN.Problem.fromResponse(response)` followed by `DRN.Problem.show(problem, context)`. Parsing leaves the original response body available. Context accepts `{ element, target, operation, persist, focus }`. Only `application/problem+json` is parsed, and the HTTP status takes precedence. Malformed, non-problem, or oversized responses use generic text. Limits are 65,536 response characters, 500 characters per display message, and 100 validation messages. Public messages render as text. See the [browser API declarations](buildwww/types/DrnProblem.d.ts) for all methods.
 
 For an application-owned HTML validation fragment, return status `422`, `Content-Type: text/html`, and `X-DRN-Validation: true`. Only that combination permits a validation error swap. Other HTML errors and Problem Details JSON leave the target intact.

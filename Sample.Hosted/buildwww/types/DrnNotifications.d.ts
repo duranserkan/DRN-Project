@@ -7,6 +7,8 @@ export interface NotificationInput {
     problemType?: string;
     status?: number;
     requestId?: string;
+    /** Browser action failure reference, shared with its backend error report. */
+    clientErrorId?: string;
     /** Optional occurrence identity, up to 200 characters. Reuses a retained record when repeated. */
     sourceId?: string;
     operation?: string;
