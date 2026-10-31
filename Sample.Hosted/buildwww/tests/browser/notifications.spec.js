@@ -166,14 +166,21 @@ test('toasts retain notification metadata and deduplicate history by source iden
     await expect(page.getByRole('button', { name: 'Notifications, 1 unseen', exact: true })).toBeVisible();
 });
 
-for (const removal of ['timeout', 'close button', 'HTMX cleanup']) {
+for (const removal of ['timeout', 'close button', 'HTMX cleanup', 'overflow']) {
     test(`toast ${removal} preserves history and its persisted copy`, async ({ page }) => {
         const entries = await page.evaluate(removal => {
-            window.DRN.Toast.show({ message: 'Export completed', duration: removal === 'timeout' ? 1000 : 30_000 });
+            const messages = removal === 'overflow' ? ['First', 'Second', 'Third', 'Fourth'] : ['Export completed'];
+            for (const message of messages)
+                window.DRN.Toast.show({ message, duration: removal === 'timeout' ? 1000 : 30_000 });
             return window.DRN.Notifications.list();
         }, removal);
-        expect(entries).toHaveLength(1);
-        await expect(page.locator('.toast')).toBeVisible();
+        expect(entries).toHaveLength(removal === 'overflow' ? 4 : 1);
+        if (removal === 'overflow') {
+            expect(entries.map(entry => entry.message).sort()).toEqual(['First', 'Fourth', 'Second', 'Third']);
+            await expect(page.locator('.toast-body')).toHaveText(['Second', 'Third', 'Fourth']);
+        } else {
+            await expect(page.locator('.toast')).toBeVisible();
+        }
 
         if (removal === 'close button') {
             await page.locator('.toast').getByRole('button', { name: 'Close', exact: true }).click();
@@ -183,32 +190,17 @@ for (const removal of ['timeout', 'close button', 'HTMX cleanup']) {
             })));
         }
 
-        await expect(page.locator('.toast')).toHaveCount(0);
+        await expect(page.locator('.toast')).toHaveCount(removal === 'overflow' ? 3 : 0);
         expect(await page.evaluate(() => window.DRN.Notifications.list())).toEqual(entries);
-        await expect(page.getByRole('button', { name: 'Notifications, 1 unseen', exact: true })).toBeVisible();
+        const triggerName = `Notifications, ${entries.length} unseen`;
+        await expect(page.getByRole('button', { name: triggerName, exact: true })).toBeVisible();
 
         await page.reload();
-        await expect(page.getByRole('button', { name: 'Notifications, 1 unseen', exact: true })).toBeVisible();
+        await expect(page.getByRole('button', { name: triggerName, exact: true })).toBeVisible();
         expect(await page.evaluate(() => window.DRN.Notifications.list())).toEqual(entries);
         await expect(page.locator('.toast')).toHaveCount(0);
     });
 }
-
-test('visible toast overflow preserves every history entry', async ({ page }) => {
-    const entries = await page.evaluate(() => {
-        for (const message of ['First', 'Second', 'Third', 'Fourth'])
-            window.DRN.Toast.show({ message, duration: 30_000 });
-        return window.DRN.Notifications.list();
-    });
-
-    expect(entries).toHaveLength(4);
-    expect(entries.map(entry => entry.message).sort()).toEqual(['First', 'Fourth', 'Second', 'Third']);
-    await expect(page.locator('.toast-body')).toHaveText(['Second', 'Third', 'Fourth']);
-    await expect(page.getByRole('button', { name: 'Notifications, 4 unseen', exact: true })).toBeVisible();
-    await page.reload();
-    await expect(page.getByRole('button', { name: 'Notifications, 4 unseen', exact: true })).toBeVisible();
-    expect(await page.evaluate(() => window.DRN.Notifications.list())).toEqual(entries);
-});
 
 test('toast-only feedback and history-only notifications remain independent', async ({ page }) => {
     const entry = await page.evaluate(() => window.DRN.Notifications.publish({ message: 'Report ready' }));

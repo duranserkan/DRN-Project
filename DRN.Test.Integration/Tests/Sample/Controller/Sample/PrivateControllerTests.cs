@@ -11,46 +11,21 @@ public class PrivateControllerTests
 {
     [Theory]
     [DataInline]
-    public async Task Authorized_Action_Should_Return_AuthenticatedUser(DrnTestContext context)
+    public async Task Private_Actions_Should_Preserve_User_Identity_And_Request_Scope(DrnTestContext context)
     {
-        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
-        var user = await AuthenticationHelper<SampleProgram>.AuthenticateClientAsync(client);
+        using var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
+        var anonymous = await client.GetFromJsonAsync<ScopedUserSummary>(Get.Endpoint.Sample.Private.Anonymous.RoutePattern);
+        anonymous.Should().NotBeNull();
+        anonymous.Authenticated.Should().BeFalse();
+
+        await AuthenticationHelper<SampleProgram>.AuthenticateClientAsync(client);
 
         var userSummary = await client.GetFromJsonAsync<ScopedUserSummary>(Get.Endpoint.Sample.Private.Authorized.RoutePattern);
         userSummary.Should().NotBeNull();
         userSummary.Authenticated.Should().BeTrue();
-    }
-
-    [Theory]
-    [DataInline]
-    public async Task Anonymous_Action_Should_Return_AnonymousUser(DrnTestContext context)
-    {
-        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
-
-        var userSummary = await client.GetFromJsonAsync<ScopedUserSummary>(Get.Endpoint.Sample.Private.Anonymous.RoutePattern);
-        userSummary.Should().NotBeNull();
-        userSummary.Authenticated.Should().BeFalse();
-    }
-
-    [Theory]
-    [DataInline]
-    public async Task Validate_Scope_Action_Should_Request_ScopeContext(DrnTestContext context)
-    {
-        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
-        await AuthenticationHelper<SampleProgram>.AuthenticateClientAsync(client);
-
-        var scopeContext = await client.GetAsync(Get.Endpoint.Sample.Private.Context.RoutePattern);
+        using var scopeContext = await client.GetAsync(Get.Endpoint.Sample.Private.Context.RoutePattern);
         scopeContext.StatusCode.Should().Be(HttpStatusCode.OK);
-    }
-
-    [Theory]
-    [DataInline]
-    public async Task Validate_Scope_Action_Should_Validate_Scope(DrnTestContext context)
-    {
-        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
-        await AuthenticationHelper<SampleProgram>.AuthenticateClientAsync(client);
-
-        var validation = await client.GetAsync(Get.Endpoint.Sample.Private.ValidateScope.RoutePattern);
+        using var validation = await client.GetAsync(Get.Endpoint.Sample.Private.ValidateScope.RoutePattern);
         validation.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 }

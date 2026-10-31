@@ -293,29 +293,16 @@ test('default IDs retain native randomUUID when it is available', () => {
     }
 });
 
-test('history survives reload, excludes memory-only entries and isolates application/account boundaries', () => {
+test('reload and undo preserve seen history, exclude memory-only entries and isolate account/application boundaries', () => {
     const { store, settings, cache } = fixture();
-    const publicEntry = store.publish({ type: 'error', title: 'Save failed', requestId: 'public-reference' });
-    store.publish({ type: 'warning', message: 'Memory-only detail', persist: false });
-    assert.equal(store.list().length, 2);
-    assert.ok(![...cache.values()][0].includes('Memory-only detail'));
-    const restored = createNotificationStore(settings);
-    restored.configure({ app: '/app/', owner: 'account-a' });
-    assert.deepEqual(restored.list(), [publicEntry]);
-    restored.configure({ app: '/app/', owner: 'account-b' });
-    assert.deepEqual(restored.list(), []);
-    restored.publish({ type: 'info', message: 'Account B' });
-    restored.configure({ app: '/other/', owner: 'account-b' });
-    assert.deepEqual(restored.list(), []);
-});
-
-test('seen history survives reload and undo while new occurrences remain unseen', () => {
-    const { store, settings } = fixture();
     const first = store.publish({ message: 'Ready', sourceId: 'operation-one' });
     assert.equal(first.seen, false);
     store.markSeen();
     assert.deepEqual(store.list(), [{ ...first, seen: true }]);
     assert.equal(store.publish({ message: 'Ready', sourceId: 'operation-one' }).seen, true);
+    store.publish({ type: 'warning', message: 'Memory-only detail', persist: false });
+    assert.equal(store.list().length, 2);
+    assert.ok(![...cache.values()][0].includes('Memory-only detail'));
 
     const restored = createNotificationStore(settings);
     restored.configure({ app: '/app/', owner: 'account-a' });
@@ -329,6 +316,9 @@ test('seen history survives reload and undo while new occurrences remain unseen'
 
     restored.configure({ app: '/app/', owner: 'account-b' });
     restored.markSeen();
+    assert.deepEqual(restored.list(), []);
+    restored.publish({ type: 'info', message: 'Account B' });
+    restored.configure({ app: '/other/', owner: 'account-b' });
     assert.deepEqual(restored.list(), []);
     restored.suspend();
     restored.markSeen();
@@ -452,18 +442,36 @@ test('search combines with severity and grouping preserves occurrences across ti
     assert.deepEqual(regrouped[0].entries.map(entry => entry.requestId), ['ref-three', 'ref-two', 'ref-one']);
 });
 
-test('account invalidation blocks publishing and undo until a fresh owner is configured', () => {
-    const { store } = fixture();
-    const previous = store.publish({ type: 'error', message: 'Account A' });
-    store.suspend();
-    assert.equal(store.isActive(), false);
-    assert.equal(store.publish({ type: 'info', message: 'Outstanding response' }), null);
-    store.restore([previous]);
-    assert.deepEqual(store.list(), []);
-    store.configure({ app: '/app/', owner: 'account-b' });
-    assert.equal(store.isActive(), true);
-    assert.deepEqual(store.list(), []);
-});
+for (const [useLocks, invalidation] of [
+    [false, 'empty owner'], [true, 'empty owner'],
+    [false, 'suspend'], [true, 'suspend']
+]) {
+    test(`${invalidation} blocks publishing and undo until identified, locks: ${useLocks}`, async () => {
+        const locks = useLocks ? queuedLocks() : null;
+        const { store, cache } = fixture({ locks });
+        const previous = store.publish({ message: 'Previous account feedback' });
+        if (locks) await locks.drain();
+        assert.equal(cache.size, 1);
+
+        if (invalidation === 'empty owner') store.configure({ app: '/app/', owner: '' });
+        else store.suspend();
+        assert.equal(store.isActive(), false);
+        assert.deepEqual(store.list(), []);
+        assert.equal(store.publish({ message: 'Unidentified feedback' }), null);
+        store.restore([previous]);
+        store.markSeen();
+        if (locks) await locks.drain();
+        store.sync();
+        assert.deepEqual(store.list(), []);
+        assert.equal(cache.size, invalidation === 'empty owner' ? 0 : 1);
+
+        store.configure({ app: '/app/', owner: 'account-b' });
+        assert.equal(store.isActive(), true);
+        const current = store.publish({ message: 'Identified feedback' });
+        if (locks) await locks.drain();
+        assert.deepEqual(store.list(), [current]);
+    });
+}
 
 test('the byte ceiling evicts a continuous oldest suffix instead of retaining smaller old records', () => {
     const { store, advance } = fixture({ maxBytes: 1100 });

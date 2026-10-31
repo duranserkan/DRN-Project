@@ -1,9 +1,13 @@
 @{
-    var notificationIdentity = string.IsNullOrWhiteSpace(ScopeContext.UserId) ? Context.TraceIdentifier : ScopeContext.UserId;
-    var notificationOwner = ScopeContext.Authenticated
-        ? Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
-            System.Text.Encoding.UTF8.GetBytes(notificationIdentity)))
-        : "anonymous";
+    var notificationIdentity = ScopeContext.UserId;
+    var notificationOwner = "anonymous";
+    if (ScopeContext.Authenticated)
+    {
+        notificationOwner = string.IsNullOrWhiteSpace(notificationIdentity)
+            ? string.Empty
+            : Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes(notificationIdentity)));
+    }
 }
 <div data-notification-context data-notification-app="@Url.Content("~/")" data-notification-owner="@notificationOwner">
     <div id="drn-notification-polite" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>

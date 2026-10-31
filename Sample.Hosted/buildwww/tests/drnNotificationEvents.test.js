@@ -103,42 +103,35 @@ test('an account change rejects old responses before headers and still accepts n
     assert.equal(Problem.clear.mock.callCount(), 1);
 });
 
-test('cross-tab account changes suspend requests, untracked responses and status imports', t => {
-    const { emit, channels, store, statuses, Problem } = fixture(t);
-    store.publish({ message: 'Account A feedback' });
-    const detail = response(500, 'application/problem+json');
-    channels.values().next().value.onmessage({ data: { type: 'account', owner: 'account-b' } });
-    statuses.push(statusElement('a'.repeat(32), 'Stale status'));
-    emit('htmx:load');
+for (const invalidation of ['cross-tab account change', 'store suspension']) {
+    test(`${invalidation} blocks tracked/untracked responses, requests and status imports across refreshes`, t => {
+        const { emit, window, channels, store, statuses, Problem, Toast } = fixture(t);
+        store.publish({ message: 'Account A feedback' });
+        const pending = response(500, 'application/problem+json');
+        emit('htmx:beforeRequest', pending);
+        if (invalidation === 'cross-tab account change')
+            channels.values().next().value.onmessage({ data: { type: 'account', owner: 'account-b' } });
+        else store.suspend();
+        statuses.push(statusElement('a'.repeat(32), 'Stale status'));
+        emit('htmx:load');
+        window.dispatchEvent(new Event('pageshow'));
 
-    assert.equal(store.isActive(), false);
-    assert.deepEqual(store.list(), []);
-    assert.equal(statuses[0].dataset.notificationRecorded, undefined);
-    assert.equal(emit('htmx:beforeRequest', response()).defaultPrevented, true);
-    assert.equal(emit('htmx:beforeOnLoad', detail).defaultPrevented, true);
-    emit('htmx:responseError', detail);
-    assert.equal(Problem.show.mock.callCount(), 0);
-    assert.equal(Problem.clearAll.mock.callCount(), 2);
-});
-
-test('store suspension also pauses the event bridge across lifecycle refreshes', t => {
-    const { emit, window, store, Problem, Toast } = fixture(t);
-    const pending = response(500, 'application/problem+json');
-    emit('htmx:beforeRequest', pending);
-    store.suspend();
-    emit('htmx:load');
-    window.dispatchEvent(new Event('pageshow'));
-
-    assert.equal(store.isActive(), false);
-    assert.equal(emit('htmx:beforeRequest', response()).defaultPrevented, true);
-    assert.equal(emit('htmx:beforeOnLoad', pending).defaultPrevented, true);
-    emit('showToast', { message: 'Suspended feedback' });
-    emit('htmx:responseError', pending);
-    emit('htmx:afterRequest', response());
-    assert.equal(Problem.show.mock.callCount(), 0);
-    assert.equal(Problem.clear.mock.callCount(), 0);
-    assert.equal(Toast.show.mock.callCount(), 0);
-});
+        assert.equal(store.isActive(), false);
+        assert.deepEqual(store.list(), []);
+        assert.equal(statuses[0].dataset.notificationRecorded, undefined);
+        assert.equal(emit('htmx:beforeRequest', response()).defaultPrevented, true);
+        for (const detail of [pending, response(500, 'application/problem+json')]) {
+            assert.equal(emit('htmx:beforeOnLoad', detail).defaultPrevented, true);
+            emit('showToast', { message: 'Suspended feedback' });
+            emit('htmx:responseError', detail);
+        }
+        emit('htmx:afterRequest', response());
+        assert.equal(Problem.show.mock.callCount(), 0);
+        assert.equal(Problem.clear.mock.callCount(), 0);
+        assert.equal(Toast.show.mock.callCount(), 0);
+        assert.equal(Problem.clearAll.mock.callCount(), 2);
+    });
+}
 
 test('restoring a page recreates one timer and channel without replaying inline status', t => {
     const { emit, window, channels, timers, store } = fixture(t, {

@@ -12,18 +12,30 @@ public class WeatherForecastControllerTests
 {
     [Theory]
     [DataInline]
-    public async Task WeatherForecastController_Should_Return_Forecasts(DrnTestContext context)
+    public async Task WeatherForecastController_Should_Return_Forecasts_And_Map_Upstream_Failures(DrnTestContext context)
     {
-        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
+        using var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
         var weatherEndpoint = Get.Endpoint.Sample.WeatherForecast.Get.RoutePattern;
         var sampleForecasts = await client.GetFromJsonAsync<WeatherForecast[]>(weatherEndpoint);
         var appSettings = context.GetRequiredService<IAppSettings>();
 
-        context.FlurlHttpTest.ForCallsTo($"*{appSettings.NexusAppSettings.NexusAddress}/{NexusEndpoints.WeatherForecast}").RespondWithJson(sampleForecasts);
+        var urlPattern = $"*{appSettings.NexusAppSettings.NexusAddress}/{NexusEndpoints.WeatherForecast}";
+        context.FlurlHttpTest.ForCallsTo(urlPattern).RespondWithJson(sampleForecasts);
 
         var nexusWeatherEndpoint = Get.Endpoint.Sample.WeatherForecast.GetNexusWeatherForecasts.RoutePattern;
         var nexusForecasts = await client.GetFromJsonAsync<WeatherForecast[]>(nexusWeatherEndpoint);
         nexusForecasts.Should().BeEquivalentTo(sampleForecasts);
+
+        foreach (var (upstreamStatus, expectedStatus) in new[]
+                 {
+                     (428, HttpStatusCode.PreconditionRequired), (500, HttpStatusCode.BadGateway),
+                     (503, HttpStatusCode.ServiceUnavailable), (504, HttpStatusCode.GatewayTimeout)
+                 })
+        {
+            context.FlurlHttpTest.ClearFilteredSetups().ForCallsTo(urlPattern).RespondWith("", upstreamStatus);
+            using var response = await client.GetAsync(nexusWeatherEndpoint);
+            response.StatusCode.Should().Be(expectedStatus, "upstream HTTP {0} must use the expected mapping", upstreamStatus);
+        }
     }
 
     [Theory]
@@ -43,31 +55,5 @@ public class WeatherForecastControllerTests
 
         nexusForecasts.Should().NotBeNull();
         nexusForecasts.Length.Should().BePositive();
-    }
-
-    [Theory]
-    [DataInline]
-    public async Task WeatherForecastController_Should_Return_FlurlHttpExceptionStatusCodes(DrnTestContext context)
-    {
-        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
-        var appSettings = context.GetRequiredService<IAppSettings>();
-        var urlPattern = $"*{appSettings.NexusAppSettings.NexusAddress}/{NexusEndpoints.WeatherForecast}";
-        var nexusWeatherEndpoint = Get.Endpoint.Sample.WeatherForecast.GetNexusWeatherForecasts.RoutePattern;
-
-        context.FlurlHttpTest.ForCallsTo(urlPattern).RespondWith("", 428);
-        var response = await client.GetAsync(nexusWeatherEndpoint);
-        response.StatusCode.Should().Be(HttpStatusCode.PreconditionRequired);
-
-        context.FlurlHttpTest.ClearFilteredSetups().ForCallsTo(urlPattern).RespondWith("", 500);
-        response = await client.GetAsync(nexusWeatherEndpoint);
-        response.StatusCode.Should().Be(HttpStatusCode.BadGateway);
-
-        context.FlurlHttpTest.ClearFilteredSetups().ForCallsTo(urlPattern).RespondWith("", 503);
-        response = await client.GetAsync(nexusWeatherEndpoint);
-        response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
-
-        context.FlurlHttpTest.ClearFilteredSetups().ForCallsTo(urlPattern).RespondWith("", 504);
-        response = await client.GetAsync(nexusWeatherEndpoint);
-        response.StatusCode.Should().Be(HttpStatusCode.GatewayTimeout);
     }
 }
