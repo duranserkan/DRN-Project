@@ -33,7 +33,7 @@
   "devDependencies": {
     "@playwright/test": "1.64.1",
     "globals": "17.13.0",
-    "sass-embedded": "1.106.1",
+    "sass-embedded": "1.107.1",
     "typescript": "7.0.2",
     "vite": "8.3.5",
     "@tailwindcss/vite": "4.3.3",
