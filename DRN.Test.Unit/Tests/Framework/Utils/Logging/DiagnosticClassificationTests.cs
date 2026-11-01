@@ -3,6 +3,7 @@ using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Logging.Diagnostics;
 using Microsoft.Extensions.Logging;
+using static DRN.Test.Unit.Tests.Framework.Utils.Logging.DiagnosticTestSupport;
 
 // These fixtures deliberately exercise unclassified runtime fallback and invalid annotation behavior.
 #pragma warning disable DRN0015, DRN0016, DRN0017, DRN0018, DRN0019, DRN0020
@@ -11,6 +12,100 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Logging;
 
 public sealed class DiagnosticClassificationTests
 {
+    [Fact]
+    public void Array_Property_Captures_Should_Preserve_Public_Properties()
+    {
+        using var settings = SettingsProvider.Development();
+        var log = new ScopedLog(settings, Policy());
+        var items = new[] { 1, 2 };
+
+        log.AddProperties("Items", items);
+        log.AddProperties<Array>("Declared", items);
+
+        var snapshot = log.GetLogs();
+        snapshot["Items.Length"].Should().Be(2);
+        snapshot["Items.Rank"].Should().Be(1);
+        snapshot["Declared.Length"].Should().Be(2);
+        snapshot["Declared.Rank"].Should().Be(1);
+        snapshot.Should().NotContainKey("Items");
+        snapshot.Should().NotContainKey("Declared");
+    }
+
+    [Fact]
+    public void Interface_Annotations_Should_Protect_Concrete_Nested_And_Declared_Captures()
+    {
+        var model = new InterfaceDerivedModel();
+        var direct = JsonSerializer.SerializeToElement(Policy().SanitizeValue("Model", model));
+        direct.GetProperty("Value").GetString().Should().Be(DiagnosticSanitizer.Redacted);
+        direct.GetProperty("Hidden").GetString().Should().Be(ScopedLogConventions.IgnoredLogValue);
+        direct.GetProperty("Keyboard").GetString().Should().Be(DiagnosticSanitizer.Redacted);
+        direct.GetProperty("Ordinary").GetString().Should().Be("visible");
+        model.ReadCount.Should().Be(0);
+
+        using var settings = SettingsProvider.Development();
+        var log = new ScopedLog(settings, Policy());
+        log.AddProperties<IClassifiedValue>("Contract", model);
+        log.AddProperties("Concrete", model);
+        log.Add("Nested", new InterfaceContainer { Item = model });
+        log.AddToList("Items", model);
+        log.Add("Generic", new InterfaceGenericModel<int>());
+        log.AddProperties<IClassifiedValue>("Explicit", new ExplicitInterfaceModel());
+        model.ReadCount.Should().Be(4);
+
+        var safe = JsonSerializer.Serialize(log.GetLogs());
+        safe.Should().NotContain("interface-private-probe").And.Contain("visible");
+        log.GetLogs()["Contract.Value"].Should().Be(DiagnosticSanitizer.Redacted);
+        log.GetLogs()["Concrete.Value"].Should().Be(DiagnosticSanitizer.Redacted);
+        log.GetLogs()["Explicit.Value"].Should().Be(DiagnosticSanitizer.Redacted);
+        JsonSerializer.Serialize(log.GetLogs(false)).Should().Contain("interface-private-probe");
+        model.ReadCount.Should().Be(4);
+
+        // An unrelated explicit implementation must not classify a same-named public member.
+        var separate = JsonSerializer.SerializeToElement(Policy().SanitizeValue("Model", new ExplicitInterfaceModel()));
+        separate.GetProperty("Value").GetString().Should().Be("visible");
+    }
+
+    private interface IClassifiedValue
+    {
+        [Personal] string Value { get; }
+    }
+
+    private interface IClassifiedProjection : IClassifiedValue
+    {
+        [IgnoreLog] string Hidden { get; }
+        [Sensitive(false)] string Keyboard { get; }
+    }
+
+    private class InterfaceModel : IClassifiedProjection
+    {
+        [IgnoreLog] public int ReadCount { get; protected set; }
+        public virtual string Value { get { ReadCount++; return "interface-private-probe"; } }
+        public string Hidden => throw new InvalidOperationException("Interface-ignored getter must not execute.");
+        public string Keyboard => "layout";
+        public string Ordinary => "visible";
+    }
+
+    private sealed class InterfaceDerivedModel : InterfaceModel
+    {
+        [Sensitive(false)] public override string Value => base.Value;
+    }
+
+    private sealed class InterfaceContainer
+    {
+        public IClassifiedValue Item { get; init; } = null!;
+    }
+
+    private sealed class InterfaceGenericModel<T> : IClassifiedValue
+    {
+        public string Value => "interface-private-probe";
+    }
+
+    private sealed class ExplicitInterfaceModel : IClassifiedValue
+    {
+        string IClassifiedValue.Value => "interface-private-probe";
+        public string Value => "visible";
+    }
+
     [Fact]
     public void Catalog_Normalization_Should_Match_Analyzer_Vectors()
     {
@@ -35,12 +130,6 @@ public sealed class DiagnosticClassificationTests
     {
         public ClassifiedValue? Value => throw new InvalidOperationException("Must not execute");
     }
-
-    private static DiagnosticSanitizer Policy(params string[] fields) => new(new DiagnosticLogOptions
-    {
-        MaxProcessingMilliseconds = 100,
-        SensitiveFields = fields
-    });
 
     [Fact]
     public void Property_Exemptions_Should_Preserve_Values_Without_Overriding_Classifications()

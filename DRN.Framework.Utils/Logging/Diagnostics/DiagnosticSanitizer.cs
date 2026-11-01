@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Buffers;
-using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Reflection;
@@ -9,9 +8,7 @@ using System.Text;
 using System.Text.Json;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
-using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Settings;
-using Microsoft.Extensions.Compliance.Classification;
 using Microsoft.Extensions.Logging;
 
 namespace DRN.Framework.Utils.Logging.Diagnostics;
@@ -36,12 +33,6 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
     private const string UrlRedacted = "redacted";
     public const string Limited = "[diagnostic capture limited]";
     internal const string Invalid = "[diagnostic field unavailable]";
-    private sealed record Member(PropertyInfo Property, bool Ignored, bool Sensitive, bool Exempt)
-    {
-        public string Name => Property.Name;
-        public object? Read(object value) => Property.GetValue(value);
-    }
-    private static readonly ConcurrentDictionary<Type, Member[]> Members = new();
     private readonly Lock _gate = new();
     private readonly DiagnosticNameRules _rules;
     private readonly string[] _urlRules;
@@ -64,12 +55,15 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
         Validator.ValidateObject(options, new ValidationContext(options), true);
         Options = options with
         {
+            LoadedRules = options.GetRules(),
+            LoadedRuleFile = options.RuleFile,
+            LoadedRuleAssemblyName = options.RuleAssemblyName,
             SensitiveFields = options.SensitiveFields.ToArray(),
             SensitiveFieldPaths = options.SensitiveFieldPaths.ToArray(),
             SensitivePathSegments = options.SensitivePathSegments.ToArray()
         };
         _rules = new DiagnosticNameRules(Options);
-        _urlRules = Options.SensitivePathSegments.ToArray();
+        _urlRules = [.. Options.SensitivePathSegments, .. Options.LoadedRules!.UrlSegments];
     }
 
     public static DiagnosticSanitizer FromSettings(IAppSettings settings) =>
@@ -78,33 +72,8 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
     internal static DiagnosticSanitizer ForDevelopmentDisplay(IAppSettings settings, DiagnosticLogOptions options) =>
         new(options, redact: !settings.IsDevelopmentEnvironment);
 
-    // Explicit ancestry inspection prevents a direct Sensitive(false) from hiding a positive base annotation.
-    internal static bool IsClassified(MemberInfo member) =>
-        HasClassification(member) || (member switch
-        {
-            PropertyInfo property => HasClassification(Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType),
-            _ => false
-        });
-
     // TODO: Evaluate diagnostic redaction support for ASP.NET Core Identity's [PersonalData] and [ProtectedPersonalData], including inherited attributes and getter suppression.
-    private static bool HasClassification(MemberInfo member, bool inherited = false)
-    {
-        if (member.GetCustomAttributes<DataClassificationAttribute>(false).Any(attribute =>
-                (!inherited || attribute.GetType().GetCustomAttribute<AttributeUsageAttribute>(true)?.Inherited != false) &&
-                (attribute.Classification != DataClassification.None ||
-                 member is not PropertyInfo && attribute is SensitiveAttribute { IsSensitive: false }))) return true;
-        if (member is Type type) return type.BaseType != null && HasClassification(type.BaseType, true);
-        if (member is not PropertyInfo property || property.GetMethod is not { IsVirtual: true } getter) return false;
-        var definition = getter.GetBaseDefinition();
-        for (var parent = property.DeclaringType?.BaseType; parent != null; parent = parent.BaseType)
-            foreach (var candidate in parent.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly))
-                if (candidate.GetMethod?.GetBaseDefinition() == definition && HasClassification(candidate, true)) return true;
-        return false;
-    }
-
-    internal static bool IsNameExempt(PropertyInfo property) =>
-        property.GetCustomAttributes<SensitiveAttribute>(false).Any(attribute =>
-            attribute.GetType() == typeof(SensitiveAttribute) && !attribute.IsSensitive);
+    internal static bool IsClassified(MemberInfo member) => DiagnosticTypeMetadata.IsClassified(member);
 
     internal bool IsSensitive(string fieldPath, bool exempt, string? namePath = null) => RedactionEnabled && (namePath == null
         ? _rules.MatchField(fieldPath, exempt).IsMatch
@@ -174,13 +143,9 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
 
     public string SanitizeText(string? value) => Guard(() => Accept(value ?? "") ? value ?? "" : Limited, Invalid);
     public string SanitizeUrl(string? value) => Guard(() => Accept(value ?? "") ? Url(value ?? "") : Limited, Invalid);
-    public string SanitizeKey(string key) => Guard(() =>
-    {
-        var safe = key.Length <= Options.MaxKeyBytes && Encoding.UTF8.GetByteCount(key) <= Options.MaxKeyBytes &&
-            !key.Any(char.IsControl) ? key : Invalid;
-        return safe == key && !safe.StartsWith("_diagnostic_", StringComparison.Ordinal)
-            ? safe : $"_diagnostic_field_{++_keySequence}";
-    }, $"_diagnostic_field_{Interlocked.Increment(ref _keySequence)}");
+    public string SanitizeKey(string key) => Guard(
+        () => IsValidKey(key) ? key : $"_diagnostic_field_{++_keySequence}",
+        $"_diagnostic_field_{Interlocked.Increment(ref _keySequence)}");
     public object? SanitizeValue(string fieldPath, object? value) => Capture(fieldPath, value).Value;
 
     /// <summary>Captures dictionary entries with exact, application-authored key classifications.</summary>
@@ -504,9 +469,7 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
                 {
                     if (output.Count >= Options.MaxCollectionEntries || !WorkAvailable()) { output["_diagnostic_limit"] = Limited; break; }
                     if (item.Key is not string key) { output[$"_diagnostic_field_{++_keySequence}"] = "[unsupported diagnostic key]"; continue; }
-                    var safe = UniqueKey(output, key);
-                    output[safe] = key.Length > Options.MaxKeyBytes ? Limited : Project(path + "." + key, item.Value, depth + 1, ancestors,
-                        context, [.. segments, key], DiagnosticCaptureKind.DictionaryKey, namePath: ChildNamePath(namePath, key));
+                    AddDictionaryEntry(output, key, item.Value);
                 }
                 return output;
             }
@@ -516,9 +479,7 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
                 foreach (var item in readOnly)
                 {
                     if (output.Count >= Options.MaxCollectionEntries || !WorkAvailable()) { output["_diagnostic_limit"] = Limited; break; }
-                    var safe = UniqueKey(output, item.Key);
-                    output[safe] = item.Key.Length > Options.MaxKeyBytes ? Limited : Project(path + "." + item.Key, item.Value, depth + 1, ancestors,
-                        context, [.. segments, item.Key], DiagnosticCaptureKind.DictionaryKey, namePath: ChildNamePath(namePath, item.Key));
+                    AddDictionaryEntry(output, item.Key, item.Value);
                 }
                 return output;
             }
@@ -533,37 +494,63 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
                 return output;
             }
             if (value is IEnumerable) return "[unsupported lazy diagnostic collection]";
-            var typedModel = IsModelType(value.GetType());
-            var projected = new Dictionary<string, object?>(StringComparer.Ordinal);
-            var members = Members.GetOrAdd(value.GetType(), static type =>
-                type.GetProperties(BindingFlag.InstancePublic)
-                    .Where(property => property.GetMethod?.IsPublic == true && property.GetIndexParameters().Length == 0)
-                    .Select(property => new Member(property, property.IgnoredLog(), IsClassified(property), IsNameExempt(property)))
-                    .ToArray());
-            foreach (var member in members)
-            {
-                if (projected.Count >= Options.MaxCollectionEntries || !WorkAvailable()) { projected["_diagnostic_limit"] = Limited; break; }
-                var key = UniqueKey(projected, member.Name);
-                var memberNamePath = typedModel ? member.Name : ChildNamePath(namePath, member.Name);
-                if (member.Ignored) projected[key] = ScopedLogConventions.IgnoredLogValue;
-                else if (!context.DeferRedaction && (RedactionEnabled && member.Sensitive || IsSensitive(path + "." + member.Name,
-                             member.Exempt || context.Exempts(DiagnosticCaptureKind.Property, [.. segments, member.Name]), memberNamePath))) projected[key] = Redacted;
-                else
-                {
-                    try { projected[key] = Project(path + "." + member.Name, member.Read(value), depth + 1, ancestors,
-                        context, [.. segments, member.Name], DiagnosticCaptureKind.Property, member.Exempt, memberNamePath, member.Sensitive); }
-                    catch (Exception)
-                    {
-                        projected[key] = context.DeferRedaction && (member.Sensitive || IsSensitive(path + "." + member.Name,
-                            member.Exempt || context.Exempts(DiagnosticCaptureKind.Property, [.. segments, member.Name]), memberNamePath))
-                            ? new DiagnosticCapturedValue(Invalid, DiagnosticRedactionKind.Classified) : Invalid;
-                        _status.Add("GetterFailed");
-                    }
-                }
-            }
-            return projected;
+            return ProjectModel(path, value, depth, ancestors, context, segments, namePath);
         }
         finally { ancestors.Remove(value); }
+
+        void AddDictionaryEntry(Dictionary<string, object?> output, string key, object? item)
+        {
+            var safe = UniqueKey(output, key);
+            output[safe] = key.Length > Options.MaxKeyBytes ? Limited : Project(path + "." + key, item, depth + 1, ancestors,
+                context, [.. segments, key], DiagnosticCaptureKind.DictionaryKey, namePath: ChildNamePath(namePath, key));
+        }
+    }
+
+    private Dictionary<string, object?> ProjectModel(string path, object value, int depth, HashSet<object> ancestors,
+        DiagnosticCaptureContext context, string[] segments, string? namePath)
+    {
+        var typedModel = IsModelType(value.GetType());
+        var projected = new Dictionary<string, object?>(StringComparer.Ordinal);
+        foreach (var member in DiagnosticTypeMetadata.For(value.GetType()).Members)
+        {
+            if (projected.Count >= Options.MaxCollectionEntries || !WorkAvailable()) { projected["_diagnostic_limit"] = Limited; break; }
+            var key = UniqueKey(projected, member.Name);
+            var memberNamePath = typedModel ? member.Name : ChildNamePath(namePath, member.Name);
+            if (member.Ignored)
+            {
+                projected[key] = ScopedLogConventions.IgnoredLogValue;
+                continue;
+            }
+
+            if (!context.DeferRedaction && RedactionEnabled && member.Sensitive)
+            {
+                projected[key] = Redacted;
+                continue;
+            }
+
+            var memberPath = path + "." + member.Name;
+            string[] memberSegments = [.. segments, member.Name];
+            bool MatchesMemberName() => IsSensitive(memberPath,
+                member.Exempt || context.Exempts(DiagnosticCaptureKind.Property, memberSegments), memberNamePath);
+            if (!context.DeferRedaction && MatchesMemberName())
+            {
+                projected[key] = Redacted;
+                continue;
+            }
+
+            try
+            {
+                projected[key] = Project(memberPath, member.Read(value), depth + 1, ancestors,
+                    context, memberSegments, DiagnosticCaptureKind.Property, member.Exempt, memberNamePath, member.Sensitive);
+            }
+            catch (Exception)
+            {
+                projected[key] = context.DeferRedaction && (member.Sensitive || MatchesMemberName())
+                    ? new DiagnosticCapturedValue(Invalid, DiagnosticRedactionKind.Classified) : Invalid;
+                _status.Add("GetterFailed");
+            }
+        }
+        return projected;
     }
 
     private ScopeEvent CaptureEvent(ScopeEvent value) => new(new EventId(value.Id.Id, SanitizeText(value.Id.Name ?? "")),
@@ -571,11 +558,12 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
 
     private string UniqueKey(Dictionary<string, object?> output, string key)
     {
-        var safe = key.Length <= Options.MaxKeyBytes && Encoding.UTF8.GetByteCount(key) <= Options.MaxKeyBytes &&
-            !key.Any(char.IsControl) ? key : Invalid;
-        return safe != key || safe.StartsWith("_diagnostic_", StringComparison.Ordinal) || output.ContainsKey(safe)
-            ? $"_diagnostic_field_{++_keySequence}" : safe;
+        return !IsValidKey(key) || output.ContainsKey(key) ? $"_diagnostic_field_{++_keySequence}" : key;
     }
+
+    private bool IsValidKey(string key) => key.Length <= Options.MaxKeyBytes &&
+        Encoding.UTF8.GetByteCount(key) <= Options.MaxKeyBytes && !key.Any(char.IsControl) &&
+        !key.StartsWith("_diagnostic_", StringComparison.Ordinal);
 
     private object? ProjectJson(string path, JsonElement element, int depth, DiagnosticCaptureContext context,
         string[] segments, DiagnosticCaptureKind kind, bool exempt = false, string? namePath = null)

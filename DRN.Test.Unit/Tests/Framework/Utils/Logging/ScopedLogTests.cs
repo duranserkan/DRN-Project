@@ -20,12 +20,7 @@ public class ScopedLogTests
     public void Metric_Identifiers_Should_Exempt_Built_In_Rules_But_Respect_Configured_Rules(string rule)
     {
         using var settings = SettingsProvider.Development();
-        var log = new ScopedLog(settings, new DiagnosticSanitizer(new DiagnosticLogOptions
-        {
-            SensitiveFields = rule == "field" ? ["ClientWork"] : [],
-            SensitiveFieldPaths = rule == "path" ? ["Stats_ClientWork"] : [],
-            MaxProcessingMilliseconds = 100
-        }));
+        var log = new ScopedLog(settings, new DiagnosticSanitizer(MetricOptions(rule)));
         var allowed = rule == "none";
         log.Increase("ClientWork").Should().Be(allowed ? 1 : 0);
         log.IncreaseTimeSpentOn("ClientWork", TimeSpan.FromSeconds(2))
@@ -60,7 +55,7 @@ public class ScopedLogTests
     public void Metric_Copies_Should_Preserve_Exemptions_And_Respect_Destination_Rules(string rule)
     {
         using var settings = SettingsProvider.Development();
-        var options = new DiagnosticLogOptions { MaxProcessingMilliseconds = 100 };
+        var options = MetricOptions("none");
         var source = new ScopedLog(settings, new DiagnosticSanitizer(options));
         source.Increase("ClientWork", 4);
         source.Increase("ClientWork", 0);
@@ -71,11 +66,7 @@ public class ScopedLogTests
         first.Increase("ClientWork").Should().Be(5);
         first.IncreaseTimeSpentOn("ClientWork", TimeSpan.FromSeconds(1)).Should().Be(TimeSpan.FromSeconds(3));
 
-        var destination = new ScopedLog(settings, new DiagnosticSanitizer(options with
-        {
-            SensitiveFields = rule == "field" ? ["ClientWork"] : [],
-            SensitiveFieldPaths = rule == "path" ? ["Stats_ClientWork"] : []
-        }));
+        var destination = new ScopedLog(settings, new DiagnosticSanitizer(MetricOptions(rule)));
         destination.CopyFrom(first);
         var snapshot = destination.GetLogs();
         var counterKey = ScopedLogConventions.TimeSpentOnCounter("ClientWork");
@@ -103,6 +94,13 @@ public class ScopedLogTests
         destination.CopyFrom(first);
         destination.GetLogs()["Stats_ClientWork"].Should().Be(DiagnosticSanitizer.Redacted);
     }
+
+    private static DiagnosticLogOptions MetricOptions(string rule) => new()
+    {
+        SensitiveFields = rule == "field" ? ["ClientWork"] : [],
+        SensitiveFieldPaths = rule == "path" ? ["Stats_ClientWork"] : [],
+        MaxProcessingMilliseconds = 100
+    };
 
     [Theory]
     [DataInlineUnit("en-US")]

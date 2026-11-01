@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
+using Microsoft.CodeAnalysis.Text;
 
 namespace DRN.Framework.SharedKernel.Analyzers;
 
@@ -13,6 +14,9 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
     private const string AttributeNamespace = "DRN.Framework.SharedKernel.Attributes.";
     private const string Category = "DRN.Classification";
     private const string Help = "https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/README.md";
+    private const int MaxDictionaryWork = 16384;
+    private const int MaxDictionaryDepth = 32;
+    private const int MaxModelDepth = 16;
 
     public static readonly DiagnosticDescriptor MissingClassification = new("DRN0015", "Classify property",
         "Add [Personal] or [Sensitive] to '{0}'. Use [Sensitive(false)] for a false positive.",
@@ -32,8 +36,12 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
         "Classify dictionary key '{0}' with AddDictionary or SanitizeDictionary",
         Category, DiagnosticSeverity.Error, true, helpLinkUri: Help);
 
+    public static readonly DiagnosticDescriptor InvalidRuleFile = new("DRN0021", "Invalid diagnostic redaction rules",
+        "{0}", Category, DiagnosticSeverity.Error, true, helpLinkUri: Help,
+        customTags: [WellKnownDiagnosticTags.CompilationEnd]);
+
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
-        [MissingClassification, InvalidExemption, PathClassification, UnknownClassification, AnonymousClassification, DictionaryClassification];
+        [MissingClassification, InvalidExemption, PathClassification, UnknownClassification, AnonymousClassification, DictionaryClassification, InvalidRuleFile];
 
     public override void Initialize(AnalysisContext context)
     {
@@ -41,31 +49,70 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.Analyze);
         context.RegisterCompilationStartAction(start =>
         {
+            var rules = LoadRules(start.Compilation, start.Options, start.CancellationToken, out var ruleError);
+            if (ruleError != null)
+                start.RegisterCompilationEndAction(end => end.ReportDiagnostic(ruleError));
             var sensitive = start.Compilation.GetTypeByMetadataName(AttributeNamespace + "SensitiveAttribute");
             var personal = start.Compilation.GetTypeByMetadataName(AttributeNamespace + "PersonalAttribute");
             if (sensitive == null || personal == null) return;
             var contract = new ClassificationContract(sensitive, personal);
-            start.RegisterSymbolAction(symbol => AnalyzeProperty(symbol, contract), SymbolKind.Property);
-            start.RegisterOperationAction(AnalyzeAnonymousObject, OperationKind.AnonymousObjectCreation);
+            start.RegisterSymbolAction(symbol => AnalyzeProperty(symbol, contract, rules), SymbolKind.Property);
+            start.RegisterOperationAction(operation => AnalyzeAnonymousObject(operation, rules), OperationKind.AnonymousObjectCreation);
             start.RegisterSyntaxNodeAction(node => AnalyzeAttribute(node, contract), Microsoft.CodeAnalysis.CSharp.SyntaxKind.Attribute);
             start.RegisterOperationAction(operation => AnalyzeConstructor(operation, contract), OperationKind.Invocation);
-            start.RegisterOperationAction(operation => AnalyzeCapture(operation, contract), OperationKind.Invocation);
-            start.RegisterOperationAction(AnalyzeDictionaryCapture, OperationKind.Invocation);
+            start.RegisterOperationAction(operation => AnalyzeCapture(operation, contract, rules), OperationKind.Invocation);
+            start.RegisterOperationAction(operation => AnalyzeDictionaryCapture(operation, rules), OperationKind.Invocation);
         });
     }
 
-    private static void AnalyzeProperty(SymbolAnalysisContext context, ClassificationContract contract)
+    private static DiagnosticRedactionRules LoadRules(Compilation compilation, AnalyzerOptions options,
+        CancellationToken cancellationToken, out Diagnostic? error)
+    {
+        error = null;
+        var files = options.AdditionalFiles.Where(file =>
+            Path.GetFileName(file.Path).Equals("data-classification-rules.json", StringComparison.OrdinalIgnoreCase) ||
+            Path.GetFileName(file.Path).Equals("diagnostic-rules.json", StringComparison.OrdinalIgnoreCase)).ToArray();
+        var errorLocation = Location.None;
+        try
+        {
+            var inherited = DiagnosticRedactionRules.FromGraph<IAssemblySymbol>(compilation.Assembly,
+                assembly => assembly.Name,
+                assembly => assembly.Modules.SelectMany(module => module.ReferencedAssemblySymbols),
+                assembly => SymbolEqualityComparer.Default.Equals(assembly, compilation.Assembly) && files.Length > 0 ? [] :
+                    assembly.GetAttributes().Where(attribute =>
+                        attribute.AttributeClass?.ToDisplayString() == DiagnosticRedactionRules.MetadataName &&
+                        attribute.ConstructorArguments.Length == 1)
+                    .Select(attribute => attribute.ConstructorArguments[0].Value as string), SymbolEqualityComparer.Default, cancellationToken);
+            if (files.Length == 0) return inherited;
+            errorLocation = Location.Create(files[0].Path, new TextSpan(0, 0), new LinePositionSpan(new(0, 0), new(0, 0)));
+            if (files.Length > 1)
+                throw new FormatException("Include exactly one diagnostic redaction rule file per project.");
+            var text = files[0].GetText(cancellationToken);
+            if (text == null) throw new FormatException("The diagnostic redaction rule file could not be read.");
+            if (text.Length > DiagnosticRedactionRules.MaxCharacters)
+                throw new FormatException("A diagnostic redaction rule file must contain at most 65536 characters.");
+            return inherited.Merge(DiagnosticRedactionRules.Parse(text.ToString()));
+        }
+        catch (Exception exception) when (exception is FormatException or IOException or UnauthorizedAccessException)
+        {
+            var message = exception is FormatException ? exception.Message : "The diagnostic redaction rule file could not be read.";
+            error = Diagnostic.Create(InvalidRuleFile, errorLocation, message);
+            return DiagnosticRedactionRules.Empty;
+        }
+    }
+
+    private static void AnalyzeProperty(SymbolAnalysisContext context, ClassificationContract contract, DiagnosticRedactionRules rules)
     {
         var property = (IPropertySymbol)context.Symbol;
         if (property.ContainingType.IsAnonymousType) return;
-        if (!Eligible(property) || !DiagnosticRuleCatalog.MatchesField(property.Name) || contract.Accepted(property)) return;
+        if (!Eligible(property) || !rules.MatchesField(property.Name) || contract.Accepted(property)) return;
         var location = property.Locations.FirstOrDefault(item => item.IsInSource);
         if (location == null) return;
         context.ReportDiagnostic(Diagnostic.Create(contract.HasUnknown(property) ? UnknownClassification : MissingClassification,
             location, property.Name));
     }
 
-    private static void AnalyzeAnonymousObject(OperationAnalysisContext context)
+    private static void AnalyzeAnonymousObject(OperationAnalysisContext context, DiagnosticRedactionRules rules)
     {
         var creation = (IAnonymousObjectCreationOperation)context.Operation;
         if (IsMigrationSchemaExpression(creation)) return;
@@ -73,7 +120,7 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
         foreach (var initializer in creation.Initializers)
         {
             if (initializer is not ISimpleAssignmentOperation { Target: IPropertyReferenceOperation target } ||
-                !DiagnosticRuleCatalog.MatchesField(target.Property.Name)) continue;
+                !rules.MatchesField(target.Property.Name)) continue;
             context.ReportDiagnostic(Diagnostic.Create(AnonymousClassification, target.Syntax.GetLocation(), target.Property.Name));
         }
     }
@@ -118,36 +165,57 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
             item.OriginalDefinition.ToDisplayString() is "System.Collections.Generic.IDictionary<TKey, TValue>" or
                 "System.Collections.Generic.IReadOnlyDictionary<TKey, TValue>");
 
-    private static void AnalyzeDictionaryCapture(OperationAnalysisContext context)
+    private static bool IsScopedLog(string owner) =>
+        owner is "DRN.Framework.Utils.Logging.IScopedLog" or "DRN.Framework.Utils.Logging.ScopedLog";
+
+    private static bool IsSanitizer(string owner) =>
+        owner is "DRN.Framework.Utils.Logging.Diagnostics.IDiagnosticSanitizer" or "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticSanitizer";
+
+    private static void AnalyzeDictionaryCapture(OperationAnalysisContext context, DiagnosticRedactionRules rules)
     {
         var call = (IInvocationOperation)context.Operation;
         if (IsSubstituteVerification(call)) return;
         var method = call.TargetMethod;
         var owner = method.ContainingType.ToDisplayString();
-        if (owner is not ("DRN.Framework.Utils.Logging.IScopedLog" or "DRN.Framework.Utils.Logging.ScopedLog" or
-            "DRN.Framework.Utils.Logging.Diagnostics.IDiagnosticSanitizer" or "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticSanitizer" or
-            "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticCaptureExtensions")) return;
+        if (!IsScopedLog(owner) && !IsSanitizer(owner) &&
+            owner != "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticCaptureExtensions") return;
         if (method.Name is not ("Add" or "AddToList" or "AddProperties" or "AddWithPolicy" or "AddPropertiesWithPolicy" or
             "SanitizeValue" or "SanitizeWithPolicy" or "AddDictionary" or "SanitizeDictionary")) return;
         var offset = method.IsExtensionMethod && method.ReducedFrom == null ? 1 : 0;
         var value = call.Arguments.FirstOrDefault(argument => argument.Parameter?.Ordinal == 1 + offset)?.Value;
         if (value == null) return;
         var dictionaryApi = method.Name is "AddDictionary" or "SanitizeDictionary";
+        var prefix = call.Arguments.FirstOrDefault(argument => argument.Parameter?.Ordinal == offset)?.Value;
+        var rootPath = prefix?.ConstantValue is { HasValue: true, Value: string path } ? path : null;
         var visited = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
         var reported = new HashSet<string>(StringComparer.Ordinal);
-        Inspect(value, dictionaryApi, 0);
+        // Shared locals need path-sensitive revisits, so bound total work as well as depth.
+        var remainingWork = MaxDictionaryWork;
+        Inspect(value, dictionaryApi, 0, rootPath);
 
-        void Report(IOperation? key, bool allowed)
+        bool TryVisit()
         {
-            if (!allowed && key?.ConstantValue is { HasValue: true, Value: string name } &&
-                DiagnosticRuleCatalog.MatchesField(name) && reported.Add(name))
-                context.ReportDiagnostic(Diagnostic.Create(DictionaryClassification, call.Syntax.GetLocation(), name));
+            context.CancellationToken.ThrowIfCancellationRequested();
+            if (remainingWork == 0) return false;
+            remainingWork--;
+            return true;
         }
 
-        void Inspect(IOperation operation, bool allowKeys, int depth)
+        string? Report(IOperation? key, bool allowed, string? parentPath)
         {
-            if (depth > 32) return;
-            if (operation is IConversionOperation conversion) { Inspect(conversion.Operand, allowKeys, depth + 1); return; }
+            if (key?.ConstantValue is not { HasValue: true, Value: string name }) return null;
+            var fullPath = parentPath == null ? null : parentPath + "." + name;
+            var matchesPath = fullPath != null && rules.MatchesPath(fullPath);
+            var reportedName = matchesPath ? fullPath! : name;
+            if (!allowed && (rules.MatchesField(name) || matchesPath) && reported.Add(reportedName))
+                context.ReportDiagnostic(Diagnostic.Create(DictionaryClassification, call.Syntax.GetLocation(), reportedName));
+            return fullPath;
+        }
+
+        void Inspect(IOperation operation, bool allowKeys, int depth, string? capturePath)
+        {
+            if (!TryVisit() || depth > MaxDictionaryDepth) return;
+            if (operation is IConversionOperation conversion) { Inspect(conversion.Operand, allowKeys, depth + 1, capturePath); return; }
             var type = operation.Type;
             if (type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable)
                 type = nullable.TypeArguments[0];
@@ -159,32 +227,9 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
                 type?.TypeKind == TypeKind.Enum) return;
             if (operation is ILocalReferenceOperation local && visited.Add(local.Local))
             {
-                // Reuse the analyzed operation tree for declarations and direct writes before capture.
-                var root = call.Parent;
-                while (root?.Parent != null) root = root.Parent;
-                if (root != null)
-                    foreach (var prior in root.Descendants())
-                    {
-                        if (prior is IVariableDeclaratorOperation { Initializer: { } initializer } declaration &&
-                            SymbolEqualityComparer.Default.Equals(declaration.Symbol, local.Local))
-                            Inspect(initializer.Value, allowKeys, depth + 1);
-                        if (prior.Syntax.SpanStart >= call.Syntax.SpanStart) continue;
-                        if (prior is ISimpleAssignmentOperation { Target: ILocalReferenceOperation assignedLocal } localAssignment &&
-                            SymbolEqualityComparer.Default.Equals(assignedLocal.Local, local.Local))
-                            Inspect(localAssignment.Value, allowKeys, depth + 1);
-                        if (prior is IInvocationOperation { TargetMethod.Name: "Add", Instance: ILocalReferenceOperation receiver } add &&
-                            SymbolEqualityComparer.Default.Equals(receiver.Local, local.Local) && IsDictionary(receiver.Type))
-                        {
-                            Report(add.Arguments.FirstOrDefault()?.Value, allowKeys);
-                            foreach (var argument in add.Arguments.Skip(1)) Inspect(argument.Value, false, depth + 1);
-                        }
-                        if (prior is ISimpleAssignmentOperation { Target: IPropertyReferenceOperation { Property.IsIndexer: true, Instance: ILocalReferenceOperation receiver2 } index } assignment &&
-                            SymbolEqualityComparer.Default.Equals(receiver2.Local, local.Local) && IsDictionary(receiver2.Type))
-                        {
-                            Report(index.Arguments.FirstOrDefault()?.Value, allowKeys);
-                            Inspect(assignment.Value, false, depth + 1);
-                        }
-                    }
+                InspectLocalWrites(local.Local, allowKeys, depth, capturePath);
+                // The same local can be captured under several paths. Only suppress active recursion.
+                visited.Remove(local.Local);
                 return;
             }
             if (operation is IObjectCreationOperation creation && IsDictionary(creation.Type))
@@ -192,21 +237,60 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
                 if (creation.Initializer != null)
                     foreach (var entry in creation.Initializer.Initializers)
                     {
-                        if (entry is IInvocationOperation add)
-                        {
-                            Report(add.Arguments.FirstOrDefault()?.Value, allowKeys);
-                            foreach (var argument in add.Arguments.Skip(1)) Inspect(argument.Value, false, depth + 1);
-                        }
-                        else if (entry is ISimpleAssignmentOperation { Target: IPropertyReferenceOperation index } assignment)
-                        {
-                            Report(index.Arguments.FirstOrDefault()?.Value, allowKeys);
-                            Inspect(assignment.Value, false, depth + 1);
-                        }
+                        if (!TryVisit()) return;
+                        InspectEntry(entry, allowKeys, depth, capturePath);
                     }
-                foreach (var argument in creation.Arguments) Inspect(argument.Value, false, depth + 1);
+                foreach (var argument in creation.Arguments)
+                {
+                    if (remainingWork == 0) return;
+                    Inspect(argument.Value, false, depth + 1, capturePath);
+                }
                 return;
             }
-            foreach (var child in operation.ChildOperations) Inspect(child, false, depth + 1);
+            foreach (var child in operation.ChildOperations)
+            {
+                if (remainingWork == 0) return;
+                Inspect(child, false, depth + 1, null);
+            }
+        }
+
+        void InspectLocalWrites(ILocalSymbol local, bool allowKeys, int depth, string? capturePath)
+        {
+            // Reuse the analyzed operation tree for declarations and direct writes before capture.
+            var root = call.Parent;
+            while (root?.Parent != null) root = root.Parent;
+            if (root == null) return;
+            foreach (var prior in root.Descendants())
+            {
+                if (!TryVisit()) break;
+                if (prior is IVariableDeclaratorOperation { Initializer: { } initializer } declaration &&
+                    SymbolEqualityComparer.Default.Equals(declaration.Symbol, local))
+                    Inspect(initializer.Value, allowKeys, depth + 1, capturePath);
+                if (prior.Syntax.SpanStart >= call.Syntax.SpanStart) continue;
+                if (prior is ISimpleAssignmentOperation { Target: ILocalReferenceOperation assignedLocal } localAssignment &&
+                    SymbolEqualityComparer.Default.Equals(assignedLocal.Local, local))
+                    Inspect(localAssignment.Value, allowKeys, depth + 1, capturePath);
+                if (prior is IInvocationOperation { TargetMethod.Name: "Add", Instance: ILocalReferenceOperation receiver } &&
+                    SymbolEqualityComparer.Default.Equals(receiver.Local, local) && IsDictionary(receiver.Type))
+                    InspectEntry(prior, allowKeys, depth, capturePath);
+                if (prior is ISimpleAssignmentOperation { Target: IPropertyReferenceOperation { Property.IsIndexer: true, Instance: ILocalReferenceOperation receiver2 } } &&
+                    SymbolEqualityComparer.Default.Equals(receiver2.Local, local) && IsDictionary(receiver2.Type))
+                    InspectEntry(prior, allowKeys, depth, capturePath);
+            }
+        }
+
+        void InspectEntry(IOperation entry, bool allowKeys, int depth, string? capturePath)
+        {
+            if (entry is IInvocationOperation add)
+            {
+                var childPath = Report(add.Arguments.FirstOrDefault()?.Value, allowKeys, capturePath);
+                foreach (var argument in add.Arguments.Skip(1)) Inspect(argument.Value, false, depth + 1, childPath);
+            }
+            else if (entry is ISimpleAssignmentOperation { Target: IPropertyReferenceOperation index } assignment)
+            {
+                var childPath = Report(index.Arguments.FirstOrDefault()?.Value, allowKeys, capturePath);
+                Inspect(assignment.Value, false, depth + 1, childPath);
+            }
         }
     }
 
@@ -234,15 +318,15 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
             context.ReportDiagnostic(Diagnostic.Create(InvalidExemption, invocation.Syntax.GetLocation(), "Derived Sensitive attributes must pass true"));
     }
 
-    private static void AnalyzeCapture(OperationAnalysisContext context, ClassificationContract contract)
+    private static void AnalyzeCapture(OperationAnalysisContext context, ClassificationContract contract, DiagnosticRedactionRules rules)
     {
         var call = (IInvocationOperation)context.Operation;
         if (IsSubstituteVerification(call)) return;
         var method = call.TargetMethod;
         var owner = method.ContainingType.ToDisplayString();
-        var flat = method.Name == "AddProperties" && owner is "DRN.Framework.Utils.Logging.IScopedLog" or "DRN.Framework.Utils.Logging.ScopedLog";
-        var valueCapture = method.Name is "Add" or "AddToList" && owner is "DRN.Framework.Utils.Logging.IScopedLog" or "DRN.Framework.Utils.Logging.ScopedLog" ||
-                           method.Name == "SanitizeValue" && owner is "DRN.Framework.Utils.Logging.Diagnostics.IDiagnosticSanitizer" or "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticSanitizer";
+        var flat = method.Name == "AddProperties" && IsScopedLog(owner);
+        var valueCapture = method.Name is "Add" or "AddToList" && IsScopedLog(owner) ||
+                           method.Name == "SanitizeValue" && IsSanitizer(owner);
         // Reason and policy overloads own runtime validation. Declarations are still checked independently.
         if ((!flat && !valueCapture) || call.Arguments.Length != 2 && !flat || call.Arguments.Length < 2) return;
         var prefix = call.Arguments.FirstOrDefault(argument => argument.Parameter?.Ordinal == 0)?.Value;
@@ -255,7 +339,7 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
         if (type == null || contract.Positive(type)) return;
         if (method.Name == "Add" && type.ToDisplayString() is "System.TimeSpan" or "System.TimeSpan?")
             path += "_Seconds";
-        if (!IsModelType(type) && DiagnosticRuleCatalog.MatchesField(path))
+        if (rules.MatchesPath(path) || !IsModelType(type) && rules.MatchesField(path))
         {
             // Untyped roots still require an explicit capture decision.
             context.ReportDiagnostic(Diagnostic.Create(PathClassification, call.Syntax.GetLocation(), path, type.Name));
@@ -267,7 +351,7 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
         {
             if (current is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable)
                 current = nullable.TypeArguments[0];
-            if (depth > 16 || current.SpecialType != SpecialType.None || current.TypeKind is TypeKind.Enum or TypeKind.TypeParameter ||
+            if (depth > MaxModelDepth || current.SpecialType != SpecialType.None || current.TypeKind is TypeKind.Enum or TypeKind.TypeParameter ||
                 current.ToDisplayString() is "System.TimeSpan" or "System.DateTimeOffset" or "System.DateOnly" or "System.TimeOnly" or
                     "System.Uri" or "System.Guid" or "DRN.Framework.Utils.Logging.ScopeEvent" ||
                 contract.Positive(current) || !ancestors.Add(current)) return;
@@ -297,10 +381,12 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
                             propertyNamePath += "_Seconds";
                         }
                         // Source own-name diagnostics are emitted once at declaration, independent of logging calls.
-                        if (DiagnosticRuleCatalog.MatchesField(propertyNamePath) && !contract.Exempt(property) &&
-                            (!DiagnosticRuleCatalog.MatchesField(property.Name) || !property.Locations.Any(location => location.IsInSource)))
+                        if (rules.MatchesPath(full))
                             context.ReportDiagnostic(Diagnostic.Create(PathClassification, call.Syntax.GetLocation(), full, property.Name));
-                        else if (!DiagnosticRuleCatalog.MatchesField(propertyNamePath) || contract.Exempt(property))
+                        else if (rules.MatchesField(propertyNamePath) && !contract.Exempt(property) &&
+                            (!rules.MatchesField(property.Name) || !property.Locations.Any(location => location.IsInSource)))
+                            context.ReportDiagnostic(Diagnostic.Create(PathClassification, call.Syntax.GetLocation(), full, property.Name));
+                        else if (!rules.MatchesField(propertyNamePath) || contract.Exempt(property))
                             Visit(property.Type, full, propertyNamePath, ancestors, depth + 1);
                     }
             }

@@ -69,6 +69,9 @@
     <ItemGroup>
         <Folder Include="Tests\Framework\Testing\"/>
         <EmbeddedResource Include="Tests\Framework\Utils\Logging\diagnostic-golden-cases.json" LogicalName="DiagnosticGoldenCases.json" />
+        <None Update="Tests/Framework/Utils/Logging/ProjectRules/data-classification-rules.json"
+              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+              TargetPath="DiagnosticRules/data-classification-rules.json" />
     </ItemGroup>
 
 </Project>

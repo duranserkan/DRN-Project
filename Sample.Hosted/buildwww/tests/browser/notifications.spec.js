@@ -15,11 +15,36 @@ test('a browser action failure shares its copyable reference with the backend re
     expect(report.clientErrorId).toBe(entry.clientErrorId);
     await page.getByRole('button', { name: 'Notifications, 1 unseen', exact: true }).click();
     const panel = page.getByRole('dialog', { name: 'Notifications', exact: true });
-    await panel.locator('summary').click();
+    await expect(panel.locator('pre')).toHaveCount(0);
+    const details = panel.getByRole('button', { name: 'Show details', exact: true });
+    await expect(details).toHaveAttribute('aria-expanded', 'false');
+    await details.click();
+    await expect(panel.getByRole('button', { name: 'Hide details', exact: true })).toHaveAttribute('aria-expanded', 'true');
     await expect(panel).toContainText(`Client error reference: ${entry.clientErrorId}`);
-    await expect(panel).not.toContainText('Private implementation detail');
+    await expect(panel).toContainText('Message: Private implementation detail');
+    await expect(panel).toContainText('Stack:');
+    await expect(page.locator('.toast-body')).toHaveText('Could not save your profile.');
     await panel.getByRole('button', { name: 'Copy reference', exact: true }).click();
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(entry.clientErrorId);
+    await panel.getByRole('button', { name: 'Hide details', exact: true }).click();
+    await expect(panel.locator('pre')).toBeHidden();
+});
+
+test('client error details render markup literally after history reload', async ({ page }) => {
+    const detail = '<img src=x onerror="window.notificationMarkupExecuted=true">';
+    await page.evaluate(detail => window.DRN.Notifications.publish({
+        type: 'error', message: 'Browser failure', clientErrorId: 'a'.repeat(32), clientErrorDetails: detail
+    }), detail);
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('drn.notifications.v1:/')))
+        .toContain('clientErrorDetails');
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-fixture-ready', 'true');
+    await page.getByRole('button', { name: 'Notifications, 1 unseen', exact: true }).click();
+    const panel = page.getByRole('dialog', { name: 'Notifications', exact: true });
+    await panel.getByRole('button', { name: 'Show details', exact: true }).click();
+    await expect(panel.locator('pre')).toHaveText(detail);
+    await expect(panel.locator('pre img')).toHaveCount(0);
+    expect(await page.evaluate(() => window.notificationMarkupExecuted)).toBeUndefined();
 });
 
 for (const kind of ['error', 'unhandledrejection']) {
@@ -38,9 +63,10 @@ for (const kind of ['error', 'unhandledrejection']) {
         await page.getByRole('button', { name: 'Notifications, 1 unseen', exact: true }).click();
         const panel = page.getByRole('dialog', { name: 'Notifications', exact: true });
         await expect(panel).toContainText('An unexpected error occurred');
-        await panel.locator('summary').click();
+        await panel.getByRole('button', { name: 'Show details', exact: true }).click();
         await expect(panel).toContainText(`Client error reference: ${report.clientErrorId}`);
-        await expect(panel).not.toContainText('Private global diagnostic');
+        await expect(panel).toContainText('Message: Private global diagnostic');
+        await expect(panel).toContainText('Stack:');
         await expect(page.locator('.toast')).toHaveCount(1);
         await expect(page.locator('.toast-body')).toHaveText(
             'A page encountered a problem. If you were completing an action, check its result before trying again.');
@@ -582,7 +608,7 @@ test('the bell stays visible and counts only unseen failures without a page bann
     await expect(badge).toBeHidden();
     await expect(panel).toContainText('Please try again. If the problem continues, contact support and share the error details from Notifications.');
     await expect(page.getByRole('button', { name: 'Notifications', exact: true })).not.toHaveClass(/text-bg-warning/);
-    await panel.locator('summary').click();
+    await panel.getByRole('button', { name: 'Show details', exact: true }).click();
     await expect(panel).toContainText('Share this reference with support so they can investigate the error.');
     expect(await page.evaluate(() => window.DRN.Notifications.list())).toEqual([{ ...entries[0], seen: true }]);
     await panel.getByRole('button', { name: 'Close notifications' }).click();
@@ -612,12 +638,12 @@ test('keyboard pagination keeps focus on the first new occurrence, including the
     // Bootstrap activates its focus trap when the opening transition completes.
     await expect(panel).toHaveClass(/\bshow\b/);
     await panel.getByRole('searchbox', { name: 'Search notifications' }).click();
-    const summary = panel.locator('summary').filter({ hasText: '101 occurrences and references' });
+    const summary = panel.getByRole('button', { name: 'Show details', exact: true });
     await summary.focus();
     await summary.press('Enter');
-    const rows = panel.locator('details[open] > ul > li');
+    const rows = panel.locator('[data-notification-details][data-expanded="true"] > ul > li');
     await expect(rows).toHaveCount(50);
-    await expect(summary).toBeFocused();
+    await expect(panel.getByRole('button', { name: 'Hide details', exact: true })).toBeFocused();
 
     const more = panel.getByRole('button', { name: 'Load more occurrences', exact: true });
     await more.focus();

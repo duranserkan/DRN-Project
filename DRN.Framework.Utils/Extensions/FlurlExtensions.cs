@@ -21,7 +21,7 @@ public static class FlurlExtensions
 
     public static Task PrepareScopeLogForFlurlExceptionAsync(this FlurlHttpException ex, IScopedLog scopedLog, DrnAppFeatures appFeatures)
         => PrepareScopeLogForFlurlExceptionAsync(ex, scopedLog, appFeatures,
-            (scopedLog as ScopedLog)?.Sanitizer ?? new DiagnosticSanitizer(new DiagnosticLogOptions()), CancellationToken.None);
+            GetDiagnosticSanitizer(scopedLog), CancellationToken.None);
 
     public static async Task PrepareScopeLogForFlurlExceptionAsync(this FlurlHttpException ex, IScopedLog scopedLog,
         DrnAppFeatures appFeatures, IDiagnosticSanitizer sanitizer, CancellationToken cancellationToken)
@@ -41,44 +41,62 @@ public static class FlurlExtensions
         if (call.Duration != null)
             scopedLog.Add("FlurlExCall_Duration", call.Duration);
 
-        if (call.Response != null)
+        if (call.Response == null) return;
+
+        call.Response.AddLinkerdProxyDiagnostics(scopedLog);
+        await CaptureResponseAsync(call.Response.ResponseMessage.Content, request.RequestUri, scopedLog, sanitizer, cancellationToken);
+    }
+
+    private static async Task CaptureResponseAsync(HttpContent content, Uri? requestUri, IScopedLog scopedLog,
+        IDiagnosticSanitizer sanitizer, CancellationToken cancellationToken)
+    {
+        try
         {
-            call.Response.AddLinkerdProxyDiagnostics(scopedLog);
-            var content = call.Response.ResponseMessage.Content;
+            var stream = await content.ReadAsStreamAsync(cancellationToken);
+            var position = stream.CanSeek ? stream.Position : (long?)null;
+            var buffer = new byte[sanitizer.Options.MaxFieldBytes + 1];
             try
             {
-                var stream = await content.ReadAsStreamAsync(cancellationToken);
-                var position = stream.CanSeek ? stream.Position : (long?)null;
-                var buffer = new byte[sanitizer.Options.MaxFieldBytes + 1];
-                try
+                var count = 0;
+                while (count < buffer.Length)
                 {
-                    var count = 0;
-                    while (count < buffer.Length)
-                    {
-                        var read = await stream.ReadAsync(buffer.AsMemory(count), cancellationToken);
-                        if (read == 0) break;
-                        count += read;
-                    }
-                    var charset = content.Headers.ContentType?.CharSet?.Trim('"');
-                    var supportedEncoding = string.IsNullOrEmpty(charset) || charset.Equals("utf-8", StringComparison.OrdinalIgnoreCase);
-                    scopedLog.Add("FlurlEx_Response", count > sanitizer.Options.MaxFieldBytes ? DiagnosticSanitizer.Limited :
-                        supportedEncoding ? sanitizer.SanitizeBody(new UTF8Encoding(false, true).GetString(buffer, 0, count),
-                            content.Headers.ContentType?.MediaType, request.RequestUri?.AbsolutePath ?? string.Empty) : "[unsupported diagnostic encoding]");
-                    if (count > sanitizer.Options.MaxFieldBytes)
-                        scopedLog.Add("FlurlEx_ResponseCaptureLimited", true);
+                    var read = await stream.ReadAsync(buffer.AsMemory(count), cancellationToken);
+                    if (read == 0) break;
+                    count += read;
                 }
-                finally
+
+                if (count > sanitizer.Options.MaxFieldBytes)
                 {
-                    Array.Clear(buffer);
-                    if (position.HasValue) stream.Position = position.Value;
+                    scopedLog.Add("FlurlEx_Response", DiagnosticSanitizer.Limited);
+                    scopedLog.Add("FlurlEx_ResponseCaptureLimited", true);
+                    return;
                 }
+
+                var charset = content.Headers.ContentType?.CharSet?.Trim('"');
+                if (!string.IsNullOrEmpty(charset) && !charset.Equals("utf-8", StringComparison.OrdinalIgnoreCase))
+                {
+                    scopedLog.Add("FlurlEx_Response", "[unsupported diagnostic encoding]");
+                    return;
+                }
+
+                var body = new UTF8Encoding(false, true).GetString(buffer, 0, count);
+                scopedLog.Add("FlurlEx_Response", sanitizer.SanitizeBody(body,
+                    content.Headers.ContentType?.MediaType, requestUri?.AbsolutePath ?? string.Empty));
             }
-            catch (Exception)
+            finally
             {
-                scopedLog.Add("FlurlEx_Response", "[diagnostic response read unavailable]");
+                Array.Clear(buffer);
+                if (position.HasValue) stream.Position = position.Value;
             }
         }
+        catch (Exception)
+        {
+            scopedLog.Add("FlurlEx_Response", "[diagnostic response read unavailable]");
+        }
     }
+
+    private static IDiagnosticSanitizer GetDiagnosticSanitizer(IScopedLog scopedLog) =>
+        (scopedLog as ScopedLog)?.Sanitizer ?? new DiagnosticSanitizer(new DiagnosticLogOptions());
 
     /// <summary>
     /// Records Linkerd proxy response headers without reading or disposing the response.
@@ -86,18 +104,24 @@ public static class FlurlExtensions
     /// </summary>
     public static void AddLinkerdProxyDiagnostics(this IFlurlResponse response, IScopedLog scopedLog)
     {
-        var sanitizer = (scopedLog as ScopedLog)?.Sanitizer ?? new DiagnosticSanitizer(new DiagnosticLogOptions());
+        var sanitizer = GetDiagnosticSanitizer(scopedLog);
         var headers = response.ResponseMessage.Headers;
-        if (headers.TryGetValues("l5d-proxy-error", out var errors))
-            scopedLog.AddIfNotNullOrEmpty("Response_l5d-proxy-error", SafeHeader(errors));
-        if (headers.TryGetValues("l5d-proxy-connection", out var connections))
-            scopedLog.AddIfNotNullOrEmpty("Response_l5d-proxy-connection", SafeHeader(connections));
+        CaptureHeader("l5d-proxy-error");
+        CaptureHeader("l5d-proxy-connection");
+
+        void CaptureHeader(string name)
+        {
+            if (headers.TryGetValues(name, out var values))
+                scopedLog.AddIfNotNullOrEmpty("Response_" + name, SafeHeader(values));
+        }
 
         string SafeHeader(IEnumerable<string> values)
         {
             var result = new StringBuilder();
-            foreach (var value in values.Take(sanitizer.Options.MaxCollectionEntries))
+            var count = 0;
+            foreach (var value in values)
             {
+                if (count++ >= sanitizer.Options.MaxCollectionEntries) return DiagnosticSanitizer.Limited;
                 var safe = sanitizer.SanitizeText(value);
                 if (result.Length + safe.Length > sanitizer.Options.MaxFieldBytes) return DiagnosticSanitizer.Limited;
                 if (result.Length > 0) result.Append(", ");

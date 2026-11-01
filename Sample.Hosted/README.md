@@ -44,6 +44,8 @@ Each error page displays recovery guidance and a request reference for support. 
 
 For configuration and page requirements, see [Hosting custom error pages](../DRN.Framework.Hosting/README.md#custom-error-pages).
 
+The anonymous `/User/Lockout` page uses the same error layout, with the configured lockout duration and links back to sign in or home. The duration is the full configured period, not an account-specific countdown.
+
 ## Error handling conventions
 
 Choose the response in the handler:
@@ -123,7 +125,7 @@ try {
 }
 ```
 
-The reporter creates one notification and a brief toast. Its `clientErrorId` is shared with any backend report and retained in the backend scoped log. This is a correlation reference, not a distributed trace ID. Provide only safe public text in `message` and `operation`; exception messages and stacks are never copied into the notification. `persist: false` keeps the notification in memory. Use `DRN.Problem.show` for backend Problem Details rather than reporting the same failure again as a browser error.
+The reporter creates one notification and a brief toast. Its `clientErrorId` is shared with any backend report and retained in the backend scoped log. This is a correlation reference, not a distributed trace ID. Provide only safe public text in `message` and `operation`. Select Show details to reveal client-side diagnostic messages, sources, line and column, page URLs, and stacks as selectable text. Select Hide details to collapse them again. These searchable `clientErrorDetails` retain the original browser values except for page URLs, which use diagnostic URL redaction before display or persistence. Details are limited to 4,000 characters. They follow the notification's account isolation, persistence, and retention limits. Reports sent to the server continue to use diagnostic capture with redaction. Toasts keep the public message. `persist: false` keeps the notification in memory. Use `DRN.Problem.show` for backend Problem Details rather than reporting the same failure again as a browser error. Backend exception details are not included.
 
 The server captures the typed `ClientErrorPayload` using property names and annotations, without a root-prefix exemption. Correlation metadata and unmatched text fields are retained within capture budgets. Sensitive properties remain redacted, URL fields retain structural protection, and configured server rules still check complete paths such as `ClientError.Message`. Browser data remains untyped and carries no server exemption authority.
 
@@ -131,7 +133,7 @@ Action reporting returns `null` when notification services are unavailable or fe
 
 `DRN.Diagnostics` imports the server's shared rule catalog. Use `DRN.Diagnostics.configure({ sensitiveFieldPaths: ['Checkout.Value'] })` to extend browser field rules. Configure matching server rules under `DiagnosticLogging`; browser configuration cannot weaken them. For typed server data, use `[Sensitive]` or `[Personal]`. Free-text contents, including exception messages and stacks sent in browser reports, are preserved within capture limits. Only explicit URL structure and field names drive browser redaction. There is no credential detection or known-value registration; remove former `registerSensitiveValue` calls and classify sensitive fields or omit sensitive text before capture. See the [diagnostic policy and linked-record contract](../DRN.Framework.Utils/Logging/Diagnostics/README.md). Source changes require the normal frontend bundle build before deployment.
 
-Unhandled global errors and promise rejections show a generic error toast and one notification history entry when notifications are available and active. The toast uses `record: false` to avoid duplicate history. They use a `clientErrorId` shared with any backend report. Exception messages, stacks, and source URLs stay out of the notification and toast. The browser's default error reporting is preserved. Console calls are not forwarded.
+Unhandled global errors and promise rejections show a generic error toast and one notification history entry when notifications are available and active. The toast uses `record: false` to avoid duplicate history. They use a `clientErrorId` shared with any backend report. Browser diagnostic details appear inside the expanded notification occurrence, while the toast and notification summary stay generic. The browser's default error reporting is preserved. Console calls are not forwarded.
 
 Startup feedback captured before notification initialization is retained when the first valid account context is configured. It keeps its original timestamp and client error reference and merges with saved history. An invalid initial owner or prior suspension discards this feedback. Later account changes never carry it into another account.
 

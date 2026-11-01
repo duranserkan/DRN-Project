@@ -68,8 +68,9 @@ test('action and global errors share safe notification references with bounded, 
         const report = JSON.parse(await reports[index].body.text());
         assert.match(notifications[index].clientErrorId, /^[a-f0-9]{32}$/);
         assert.equal(report.clientErrorId, notifications[index].clientErrorId);
-        assert.equal(JSON.stringify(notifications[index]).includes('Background'), false);
-        assert.equal(JSON.stringify(notifications[index]).includes('background.js'), false);
+        assert.equal(notifications[index].message.includes('Background'), false);
+        assert.ok(notifications[index].clientErrorDetails.includes(report.message));
+        assert.ok(notifications[index].clientErrorDetails.includes(report.source));
     }
     listeners.error({ message: 'Background failure', filename: 'background.js' });
     listeners.unhandledrejection({ reason: new Error('Background rejection') });
@@ -84,7 +85,9 @@ test('action and global errors share safe notification references with bounded, 
     assert.equal(report.clientErrorId, entry.clientErrorId);
     assert.equal(report.message, 'Private diagnostic');
     assert.equal(reports[2].url, '/app/Api/Sample/ClientError/Report');
-    assert.equal(JSON.stringify(entry).includes('Private diagnostic'), false);
+    assert.equal(entry.message.includes('Private diagnostic'), false);
+    assert.ok(entry.clientErrorDetails.includes('Message: Private diagnostic'));
+    assert.ok(entry.clientErrorDetails.includes('Stack:'));
     assert.equal(entry.persist, false);
     assert.equal(toasts[0].record, false);
 
@@ -208,7 +211,7 @@ test('action and global errors share safe notification references with bounded, 
     }
 
     timestamp += 60001;
-    window.location.href = 'https://sample.test/action?token=url-probe';
+    window.location.href = 'https://sample.test/action?token=url-probe#access_token=fragment-probe';
     globalThis.navigator.userAgent = 'test';
     const sensitive = new Error('Save failed password=message-probe; RecoveryCodes=["first-probe","second-probe"]; retry');
     sensitive.stack = 'Service.Save\n' + 's'.repeat(1980) + '\npassword=stack-probe';
@@ -221,7 +224,44 @@ test('action and global errors share safe notification references with bounded, 
     assert.equal(safePayload.diagnosticRedacted, true);
     assert.equal(safePayload.diagnosticLimited, true);
     assert.equal(safeJson.includes('url-probe'), false);
+    assert.equal(safeJson.includes('fragment-probe'), false);
+    assert.ok(safeRecord.clientErrorDetails.includes(`Page: ${safePayload.url}`));
+    assert.equal(safeRecord.clientErrorDetails.includes('url-probe'), false);
+    assert.equal(safeRecord.clientErrorDetails.includes('fragment-probe'), false);
+    assert.equal(safeRecord.clientErrorDetails.includes('Some diagnostic values were redacted.'), false);
+    assert.ok(safeRecord.clientErrorDetails.includes('Diagnostic details were truncated.'));
     assert.equal(safePayload.message, sensitive.message);
     assert.ok(safePayload.message.endsWith('; retry'));
     assert.ok(safePayload.stack.startsWith('Service.Save'));
+    listeners.error({ message: sensitive.message, filename: 'app.js', error: sensitive });
+    assert.ok(notifications.at(-1).clientErrorDetails.includes(`Page: ${safePayload.url}`));
+    assert.equal(notifications.at(-1).clientErrorDetails.includes('url-probe'), false);
+    assert.equal(notifications.at(-1).clientErrorDetails.includes('fragment-probe'), false);
+    assert.equal((await reports.at(-1).body.text()).includes('url-probe'), false);
+
+    // Verify the default persisted history and its reload, not only publication inputs.
+    const cache = new Map();
+    const storage = {
+        getItem: key => cache.get(key) ?? null,
+        setItem: (key, value) => cache.set(key, value),
+        removeItem: key => cache.delete(key)
+    };
+    const settings = { locks: null, storage: () => storage };
+    const store = createNotificationStore(settings);
+    store.configure({ app: '/app/', owner: 'account-a' });
+    window.DRN.Notifications = store;
+    timestamp += 60001;
+    handler.reportActionError(new Error('Persisted action failure'), { operation: 'Save' });
+    listeners.error({ message: 'Persisted global failure', filename: 'app.js' });
+    listeners.unhandledrejection({ reason: new Error('Persisted rejection') });
+    assert.equal(store.list().length, 3);
+    const saved = cache.get('drn.notifications.v1:/app/');
+    assert.equal(JSON.parse(saved).entries.length, 3);
+    assert.equal(saved.includes('url-probe'), false);
+    assert.equal(saved.includes('fragment-probe'), false);
+    const reloaded = createNotificationStore(settings);
+    reloaded.configure({ app: '/app/', owner: 'account-a' });
+    assert.deepEqual(reloaded.list(), store.list());
+    assert.ok(reloaded.list().every(record => record.clientErrorDetails.includes('Page: https://sample.test/action')));
+    window.DRN.Notifications = notificationApi;
 });

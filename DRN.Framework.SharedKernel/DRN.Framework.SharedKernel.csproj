@@ -21,7 +21,7 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.Compliance.Abstractions" Version="10.11.0" />
-        <EmbeddedResource Include="../DRN.Framework.Utils/Logging/Diagnostics/diagnostic-rules.json" LogicalName="DRN.DiagnosticRules.json" />
+        <EmbeddedResource Include="../DRN.Framework.Utils/Logging/Diagnostics/data-classification-rules.json" LogicalName="DRN.DiagnosticRules.json" />
     </ItemGroup>
 
     <ItemGroup>

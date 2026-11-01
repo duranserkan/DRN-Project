@@ -35,7 +35,7 @@ public class ExceptionUtils(
     IOptions<DeveloperExceptionPageOptions>? options = null)
     : IExceptionUtils
 {
-    private static readonly ExtensionsExceptionJsonContext SerializationContext = new(JsonConventions.DefaultOptions);
+    private static readonly ExtensionsExceptionJsonContext SerializationContext = new(new JsonSerializerOptions(JsonConventions.DefaultOptions));
 
     public DeveloperExceptionPageOptions ExceptionPageOptions { get; } = options?.Value ?? new DeveloperExceptionPageOptions();
 
@@ -62,8 +62,7 @@ public class ExceptionUtils(
         problemDetails.Extensions["exception"] = JsonSerializer.SerializeToElement(new ExceptionExtensionData
         (
             details: projection.Format(exception),
-            headers: new HeaderDictionary(projection.Strings(context.Request.Headers.Select(pair =>
-                    new KeyValuePair<string, string?[]>(pair.Key, pair.Value.Take(sanitizer.Options.MaxCollectionEntries).ToArray())))
+            headers: new HeaderDictionary(projection.Headers(context.Request.Headers)
                 .ToDictionary(pair => pair.Key, pair => new Microsoft.Extensions.Primitives.StringValues(pair.Value))),
             path: sanitizer.SanitizeUrl(context.Request.Path.ToString()),
             endpoint: projection.Text(context.GetEndpoint()?.DisplayName),
@@ -148,7 +147,7 @@ public class ExceptionUtils(
             Query = new QueryStringModel { QueryString = safeQuery, Queries = QueryHelpers.ParseQuery(safeQuery).ToDictionary(pair => pair.Key, pair => pair.Value.ToArray()) },
             Cookies = projection.Strings(request.Cookies.Select(pair => new KeyValuePair<string, string?[]>(pair.Key, [pair.Value])), true)
                 .ToDictionary(pair => pair.Key, pair => pair.Value.FirstOrDefault()),
-            Headers = projection.Strings(request.Headers.Select(pair => new KeyValuePair<string, string?[]>(pair.Key, pair.Value.Take(sanitizer.Options.MaxCollectionEntries).ToArray()))),
+            Headers = projection.Headers(request.Headers),
             RouteValues = SafeRoutes(context, sanitizer),
             Endpoint = projection.Endpoint(context.GetEndpoint()),
             ConfigurationDebugViewSummary = appSettings.GetDebugView().ToSummary(),

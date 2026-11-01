@@ -93,6 +93,7 @@ Per PBI:
 2. Implement the smallest complete unit.
 3. Apply Clean Code and repository conventions.
 4. Add/update required tests.
+   For new classification rules or rule files, follow the profile's classification maintenance route. Include compiler registration, runtime loading, deployment items, and matching/nonmatching tests when those consumers exist.
 5. Run build/tests only when the Command Execution Authorization Gate permits; unit before integration.
 6. On failure, fix and reverify; stop after two failed attempts.
 

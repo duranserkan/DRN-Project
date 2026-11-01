@@ -64,12 +64,21 @@ for (const useLocks of [false, true]) {
 test('client error references survive storage and are searchable without using requestId', () => {
     const { store, settings } = fixture();
     const clientErrorId = 'a'.repeat(32);
-    const entry = store.publish({ type: 'error', message: 'Save failed', clientErrorId });
+    const clientErrorDetails = 'Message: Browser failure\nStack:\nsaveProfile';
+    const entry = store.publish({ type: 'error', message: 'Save failed', clientErrorId, clientErrorDetails });
     const restored = createNotificationStore(settings);
     restored.configure({ app: '/app/', owner: 'account-a' });
     assert.deepEqual(restored.list(), [entry]);
     assert.equal(entry.requestId, '');
     assert.deepEqual(filterNotifications(restored.list(), 'error', clientErrorId), [entry]);
+    assert.equal(entry.clientErrorDetails, clientErrorDetails);
+    assert.deepEqual(filterNotifications(restored.list(), 'error', 'saveProfile'), [entry]);
+    const backend = store.publish({ message: 'Backend failure', requestId: 'request-a', clientErrorDetails });
+    assert.equal(backend.clientErrorDetails, '');
+    const bounded = store.publish({ message: 'Long failure', clientErrorId, clientErrorDetails: 'x'.repeat(5000) });
+    assert.equal(bounded.clientErrorDetails.length, 4000);
+    store.configure({ app: '/app/', owner: 'account-b' });
+    assert.deepEqual(store.list(), []);
 });
 
 test('default IDs preserve publishing, persistence and individual dismissal without randomUUID', () => {

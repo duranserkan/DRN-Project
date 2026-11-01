@@ -15,6 +15,7 @@ let query = '';
 let limit = PAGE_SIZE;
 let undoEntries = [];
 let undoTimer;
+let detailsSequence = 0;
 
 export function filterNotifications(entries, severity = 'all', search = '') {
     const needle = search.trim().toLocaleLowerCase();
@@ -22,7 +23,8 @@ export function filterNotifications(entries, severity = 'all', search = '') {
         const matchesSeverity = severity === 'all' || entry.type === severity ||
             (severity === 'info' && entry.type === 'success');
         if (!matchesSeverity || !needle) return matchesSeverity;
-        const searchable = [entry.title, entry.message, entry.operation, entry.requestId, entry.clientErrorId].join('\n').toLocaleLowerCase();
+        const searchable = [entry.title, entry.message, entry.operation, entry.requestId, entry.clientErrorId,
+            entry.clientErrorDetails].join('\n').toLocaleLowerCase();
         return searchable.includes(needle);
     });
 }
@@ -79,6 +81,12 @@ function renderTime(createdAt) {
 function renderOccurrence(entry) {
     const row = createElement('li', 'border-top py-2');
     row.append(renderTime(entry.createdAt));
+    if (entry.clientErrorId && entry.clientErrorDetails) {
+        row.append(createElement('h4', 'h6 mt-2', 'Client-side error details'));
+        const diagnostic = createElement('pre', 'small text-break user-select-text', entry.clientErrorDetails);
+        diagnostic.style.whiteSpace = 'pre-wrap';
+        row.append(diagnostic);
+    }
     for (const [label, id] of [['Request reference', entry.requestId], ['Client error reference', entry.clientErrorId]]) {
         if (!id) continue;
         const reference = createElement('div', 'small text-break user-select-text', `${label}: ${id}`);
@@ -92,15 +100,25 @@ function renderOccurrence(entry) {
 }
 
 function renderOccurrences(group, expanded) {
-    const details = createElement('details');
+    const details = createElement('div');
     details.dataset.notificationDetails = group.id;
-    details.open = expanded.has(group.id);
-    details.append(createElement('summary', 'small', group.entries.length > 1
-        ? `${group.entries.length} occurrences and references` : 'Details and error reference'));
+    const toggle = createActionButton('Show details', 'details');
     const occurrences = createElement('ul', 'list-unstyled mb-0');
+    occurrences.id = `drn-notification-occurrences-${++detailsSequence}`;
+    toggle.setAttribute('aria-controls', occurrences.id);
+    const setExpanded = open => {
+        details.dataset.expanded = String(open);
+        toggle.setAttribute('aria-expanded', String(open));
+        toggle.textContent = open ? 'Hide details' : 'Show details';
+        setVisibility(occurrences, open);
+    };
+    setExpanded(expanded.has(group.id));
+    details.append(toggle);
+    if (group.entries.length > 1)
+        details.append(createElement('span', 'small ms-2', `${group.entries.length} occurrences`));
     // Build occurrence rows only when requested. Repeated failures may fill the entire history.
     const populate = () => {
-        if (!details.open || occurrences.childElementCount) return;
+        if (occurrences.hidden || occurrences.childElementCount) return;
         let shown = 0;
         const more = createActionButton('Load more occurrences', 'occurrences');
         occurrences.append(more);
@@ -122,7 +140,10 @@ function renderOccurrences(group, expanded) {
         more.addEventListener('click', appendPage);
         appendPage();
     };
-    details.addEventListener('toggle', populate);
+    toggle.addEventListener('click', () => {
+        setExpanded(occurrences.hidden);
+        populate();
+    });
     details.append(occurrences);
     populate();
     return details;
@@ -184,7 +205,8 @@ function refresh(force = false) {
     const filtered = filterNotifications(entries, filter, query);
     const groups = groupNotifications(filtered);
     const list = panel.querySelector('#drn-notification-list');
-    const expanded = new Set(Array.from(list.querySelectorAll('details[open]'), node => node.dataset.notificationDetails));
+    const expanded = new Set(Array.from(list.querySelectorAll('[data-notification-details][data-expanded="true"]'),
+        node => node.dataset.notificationDetails));
     const focusedInList = list.contains(document.activeElement);
     const result = panel.querySelector('#drn-notification-result');
     result.textContent = entries.length === 0 ? 'No notifications.' : filtered.length === 0

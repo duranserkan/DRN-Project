@@ -2,6 +2,7 @@ using System.Text.Json;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Logging.Diagnostics;
+using static DRN.Test.Unit.Tests.Framework.Utils.Logging.DiagnosticTestSupport;
 
 // Deliberately capture nested unclassified dictionaries to verify runtime fallback.
 #pragma warning disable DRN0020
@@ -10,12 +11,6 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Logging;
 
 public sealed class DiagnosticDictionaryTests
 {
-    private static DiagnosticSanitizer Policy(params string[] fields) => new(new DiagnosticLogOptions
-    {
-        MaxProcessingMilliseconds = 100,
-        SensitiveFields = fields
-    });
-
     [Fact]
     public void Classifications_Should_Protect_Values_And_Exempt_Only_Exact_Scalar_Keys()
     {

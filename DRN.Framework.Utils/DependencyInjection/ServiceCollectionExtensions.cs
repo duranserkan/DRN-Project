@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using DRN.Framework.Utils.Logging.Diagnostics;
 using DRN.Framework.Utils.Settings;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -37,6 +38,7 @@ public static class ServiceCollectionExtensions
         var metadata = AssemblyScanMetadataCache.GetValue(assembly, static scannedAssembly =>
         {
             var types = scannedAssembly.GetTypes();
+            DiagnosticTypeMetadata.Register(scannedAssembly, types);
             var lifetimeTypes = types
                 .Where(type => LifetimeAttribute.HasLifetime(type) && !ServiceRegistrationAttribute.HasServiceCollectionModule(type))
                 .ToArray();

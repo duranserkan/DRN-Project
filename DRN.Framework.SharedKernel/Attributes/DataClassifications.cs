@@ -11,7 +11,7 @@ public static class DataClassifications
     public static DataClassificationSet Set { get; } = new(Sensitive, Personal);
 }
 
-/// <summary>Replaces a diagnostic value without reading its getter. Does not affect business serialization.</summary>
+/// <summary>Classifies a diagnostic value for redaction. Scoped capture reads it once; direct sanitization skips its getter. Does not affect business serialization.</summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Property | AttributeTargets.Field)]
 public class SensitiveAttribute : DataClassificationAttribute
 {

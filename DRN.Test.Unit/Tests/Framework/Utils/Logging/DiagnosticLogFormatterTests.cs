@@ -6,6 +6,19 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Logging;
 public class DiagnosticLogFormatterTests
 {
     [Fact]
+    public void Escaped_Fragments_Should_Stay_Within_Byte_Limits_And_Reconstruct_Exactly()
+    {
+        var text = string.Concat(Enumerable.Repeat("\"\\\n\t<>& Türkçe 😀界", 400));
+        var records = DiagnosticLogFormatter.Create(new Dictionary<string, object> { ["Detail"] = text },
+            new DiagnosticLogOptions { MaxRecordBytes = 4096, MaxRecords = 16 });
+        records.Count.Should().BeGreaterThan(1);
+        foreach (var record in records)
+            JsonSerializer.SerializeToUtf8Bytes(record).Length.Should().BeLessThanOrEqualTo(4096);
+        using var payload = Reconstruct(records.Skip(1));
+        payload.RootElement.GetProperty("Detail").GetString().Should().Be(text);
+    }
+
+    [Fact]
     public void Structural_Redaction_Should_Precede_Fragmentation_While_Text_Is_Preserved()
     {
         var policy = new DiagnosticSanitizer(new DiagnosticLogOptions());
@@ -18,7 +31,7 @@ public class DiagnosticLogFormatterTests
             new DiagnosticLogOptions { MaxRecordBytes = 4096 });
         records.Count.Should().BeGreaterThan(1);
         JsonSerializer.Serialize(records).Should().NotContain("field-secret-probe");
-        using var reconstructed = JsonDocument.Parse(string.Concat(records.Skip(1).Select(part => (string)part["PayloadFragment"])));
+        using var reconstructed = Reconstruct(records.Skip(1));
         reconstructed.RootElement.GetProperty("Message").GetString().Should().Be(safe);
         reconstructed.RootElement.GetProperty("Message").GetString().Should().Contain("split-secret-probe");
         reconstructed.RootElement.GetProperty("Password").GetString().Should().Be(DiagnosticSanitizer.Redacted);
@@ -57,7 +70,7 @@ public class DiagnosticLogFormatterTests
         }
         var parts = records.Skip(1).OrderBy(record => (int)record["PayloadFragmentIndex"]).ToArray();
         parts.Should().OnlyContain(part => (int)part["PayloadFragmentCount"] == parts.Length);
-        using var reconstructed = JsonDocument.Parse(string.Concat(parts.Select(part => (string)part["PayloadFragment"])));
+        using var reconstructed = Reconstruct(parts);
         reconstructed.RootElement.GetProperty("Detail").GetString().Should().Be(detail);
         var delivered = records.Skip(1).Select(record => (string)record["LogRecordId"]);
         ((string[])records[1]["RelatedLogRecordIds"]).Except(delivered).Should().Equal((string)records[0]["LogRecordId"]);
@@ -74,4 +87,7 @@ public class DiagnosticLogFormatterTests
         records[0]["CorrelationId"].Should().Be("scope");
         JsonSerializer.SerializeToUtf8Bytes(records[0]).Length.Should().BeLessThanOrEqualTo(options.MaxRecordBytes);
     }
+
+    private static JsonDocument Reconstruct(IEnumerable<Dictionary<string, object>> fragments) =>
+        JsonDocument.Parse(string.Concat(fragments.Select(fragment => (string)fragment["PayloadFragment"])));
 }

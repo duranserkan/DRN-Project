@@ -21,7 +21,9 @@ public class PostgresContainerSettings
     public string? Database { get; init; } = DbContextConventions.DefaultDatabase;
     public bool HasDatabase => !string.IsNullOrWhiteSpace(Database);
 
+    [Personal]
     public string? Username { get; init; } = DbContextConventions.DefaultUsername;
+    [Sensitive(false, Justification = "Username configuration presence flag.")]
     public bool HasUsername => !string.IsNullOrWhiteSpace(Username);
 
     [Sensitive]

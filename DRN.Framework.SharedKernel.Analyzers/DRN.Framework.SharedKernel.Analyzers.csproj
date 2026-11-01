@@ -23,7 +23,8 @@
       <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
       <InternalsVisibleTo Include="DRN.Test.Analyzer" />
       <Compile Include="../DRN.Framework.SharedKernel/Diagnostics/DiagnosticRuleCatalog.cs" Link="Diagnostics/DiagnosticRuleCatalog.cs" />
-      <EmbeddedResource Include="../DRN.Framework.Utils/Logging/Diagnostics/diagnostic-rules.json" LogicalName="DRN.DiagnosticRules.json" />
+      <Compile Include="../DRN.Framework.SharedKernel/Diagnostics/DiagnosticRedactionRules.cs" Link="Diagnostics/DiagnosticRedactionRules.cs" />
+      <EmbeddedResource Include="../DRN.Framework.Utils/Logging/Diagnostics/data-classification-rules.json" LogicalName="DRN.DiagnosticRules.json" />
     </ItemGroup>
 
 </Project>

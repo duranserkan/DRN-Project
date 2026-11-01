@@ -29,9 +29,15 @@ public class DiagnosticSanitizerTests
         policy.SanitizeText("overflow").Should().Be(DiagnosticSanitizer.Limited);
         policy.SanitizeKey(key).Should().Be(key);
 
+        // Include the prefix and separator in the independent field-path limit.
+        var captureKey = key[..(options.MaxKeyBytes - "Data.".Length)];
         var captured = JsonSerializer.SerializeToElement(Policy(options).SanitizeValue("Data",
+            new Dictionary<string, object> { [captureKey] = text }));
+        captured.GetProperty(captureKey).GetString().Should().Be(text);
+
+        var oversizedPath = JsonSerializer.SerializeToElement(Policy(options).SanitizeValue("Data",
             new Dictionary<string, object> { [key] = text }));
-        captured.GetProperty(key).GetString().Should().Be(text);
+        oversizedPath.GetProperty(key).GetString().Should().Be(DiagnosticSanitizer.Redacted);
     }
 
     [Fact]
@@ -159,16 +165,22 @@ public class DiagnosticSanitizerTests
     }
 
     [Fact]
-    public void Compliance_Attributes_Should_Skip_Getters_While_Unclassified_Data_Remains_Useful()
+    public void Compliance_Attributes_Should_Redact_Captured_Values_Without_Recapturing_Getters()
     {
         var input = new ComplianceData();
-        var log = new ScopedLog(SettingsProvider.Development(), Policy());
+        var sanitized = (IReadOnlyDictionary<string, object>)Policy().SanitizeValue("Direct", input)!;
+        input.GetterReads.Should().Be(0);
+        using var settings = SettingsProvider.Development();
+        var log = new ScopedLog(settings, Policy());
         log.Add("Nested", input);
+        input.GetterReads.Should().Be(3);
         log.AddProperties("Flat", input);
+        input.GetterReads.Should().Be(6);
         var snapshot = log.GetLogs();
         var nested = (IReadOnlyDictionary<string, object>)snapshot["Nested"];
         foreach (var name in new[] { "Contact", "Custom", "Typed" })
         {
+            sanitized[name].Should().Be(DiagnosticSanitizer.Redacted);
             nested[name].Should().Be(DiagnosticSanitizer.Redacted);
             snapshot[$"Flat.{name}"].Should().Be(DiagnosticSanitizer.Redacted);
         }
@@ -178,7 +190,16 @@ public class DiagnosticSanitizerTests
         snapshot["Flat.Outcome"].Should().Be("Processed");
         nested["Hint"].Should().Be("Retry available");
         snapshot["Flat.Hint"].Should().Be("Retry available");
-        input.GetterReads.Should().Be(0);
+        var raw = log.GetLogs(redact: false);
+        var rawNested = (IReadOnlyDictionary<string, object>)raw["Nested"];
+        rawNested["Contact"].Should().Be("contact-probe");
+        rawNested["Custom"].Should().Be("custom-probe");
+        raw["Flat.Contact"].Should().Be("contact-probe");
+        raw["Flat.Custom"].Should().Be("custom-probe");
+        rawNested["Ignored"].Should().Be(ScopedLogConventions.IgnoredLogValue);
+        raw["Flat.Ignored"].Should().Be(ScopedLogConventions.IgnoredLogValue);
+        log.ToString().Should().NotContain("contact-probe").And.NotContain("custom-probe");
+        input.GetterReads.Should().Be(6);
     }
 
     private sealed class ConfidentialAttribute() : DataClassificationAttribute(new DataClassification("Test", "Confidential"));
@@ -233,8 +254,17 @@ public class DiagnosticSanitizerTests
         data["Failure"].Should().Be("[diagnostic field unavailable]");
         var log = new ScopedLog(SettingsProvider.Development(), Policy());
         log.AddProperties("Input", new Classified());
+        log.Add("Nested", new Classified());
         log.GetLogs()["Input.Code"].Should().Be(DiagnosticSanitizer.Redacted);
         log.GetLogs()["Input.Ignored"].Should().Be(ScopedLogConventions.IgnoredLogValue);
+        var nested = (IReadOnlyDictionary<string, object?>)log.GetLogs()["Nested"];
+        nested["Code"].Should().Be(DiagnosticSanitizer.Redacted);
+        nested["HasRecoveryCodes"].Should().Be(DiagnosticSanitizer.Redacted);
+        nested["Ignored"].Should().Be(ScopedLogConventions.IgnoredLogValue);
+        nested["Failure"].Should().Be(DiagnosticSanitizer.Invalid);
+        var raw = (IReadOnlyDictionary<string, object?>)log.GetLogs(false)["Nested"];
+        raw["Code"].Should().Be(DiagnosticSanitizer.Invalid);
+        raw["HasRecoveryCodes"].Should().Be(DiagnosticSanitizer.Invalid);
     }
 
     [Fact]
@@ -315,12 +345,20 @@ public class DiagnosticSanitizerTests
     }
 
     [Fact]
-    public void Overridden_Classified_Getters_Should_Remain_Unread_Across_Capture_Paths()
+    public void Overridden_Classified_Getters_Should_Retain_Classification_After_Capture()
     {
         var input = new ClassifiedOverride();
-        var log = new ScopedLog(SettingsProvider.Development(), Policy());
+        var sanitized = (IReadOnlyDictionary<string, object>)Policy().SanitizeValue("Direct", input)!;
+        sanitized["Code"].Should().Be(DiagnosticSanitizer.Redacted);
+        sanitized["Contact"].Should().Be(DiagnosticSanitizer.Redacted);
+        sanitized["Ignored"].Should().Be(ScopedLogConventions.IgnoredLogValue);
+        input.GetterReads.Should().Be(0);
+        using var settings = SettingsProvider.Development();
+        var log = new ScopedLog(settings, Policy());
         log.Add("Nested", input);
+        input.GetterReads.Should().Be(2);
         log.AddProperties("Flat", input);
+        input.GetterReads.Should().Be(4);
 
         var snapshot = log.GetLogs();
         var nested = (IReadOnlyDictionary<string, object>)snapshot["Nested"];
@@ -330,7 +368,16 @@ public class DiagnosticSanitizerTests
         snapshot["Flat.Code"].Should().Be(DiagnosticSanitizer.Redacted);
         snapshot["Flat.Contact"].Should().Be(DiagnosticSanitizer.Redacted);
         snapshot["Flat.Ignored"].Should().Be(ScopedLogConventions.IgnoredLogValue);
-        input.GetterReads.Should().Be(0);
+        var raw = log.GetLogs(redact: false);
+        var rawNested = (IReadOnlyDictionary<string, object>)raw["Nested"];
+        rawNested["Code"].Should().Be("override-probe");
+        rawNested["Contact"].Should().Be("override-probe");
+        raw["Flat.Code"].Should().Be("override-probe");
+        raw["Flat.Contact"].Should().Be("override-probe");
+        rawNested["Ignored"].Should().Be(ScopedLogConventions.IgnoredLogValue);
+        raw["Flat.Ignored"].Should().Be(ScopedLogConventions.IgnoredLogValue);
+        log.ToString().Should().NotContain("override-probe");
+        input.GetterReads.Should().Be(4);
     }
 
     private class ClassifiedBase

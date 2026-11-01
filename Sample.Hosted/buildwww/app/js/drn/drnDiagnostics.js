@@ -1,9 +1,21 @@
-import rules from '../../../../../DRN.Framework.Utils/Logging/Diagnostics/diagnostic-rules.json' with { type: 'json' };
+import rules from '../../../../../DRN.Framework.Utils/Logging/Diagnostics/data-classification-rules.json' with { type: 'json' };
 
 export const REDACTED = '[redacted]';
 const URL_REDACTED = 'redacted';
 export const LIMITED = '[diagnostic capture limited]';
 const INVALID = '[diagnostic field unavailable]';
+const GETTER_UNAVAILABLE = '[diagnostic getter unavailable]';
+const MAX_RULE_COUNT = 256;
+const MAX_RULE_LENGTH = 256;
+const MAX_KEY_BYTES = 256;
+const MAX_PATH_LENGTH = 256;
+const MAX_FIELD_BYTES = 65536;
+const MAX_CAPTURE_BYTES = 262144;
+const MAX_COLLECTION_ENTRIES = 256;
+const MAX_WORK = 1000000;
+const MAX_NODES = 1024;
+const MAX_DEPTH = 8;
+const MAX_DECODE_ROUNDS = 3;
 const encoder = new TextEncoder();
 const normalize = value => value.replace(/[^a-z0-9]/gi, '').toLowerCase();
 const builtins = new Set([...rules.secretFields, ...rules.personalFields]);
@@ -23,8 +35,8 @@ export function createDiagnosticSanitizer() {
     function configure(options = {}) {
         const additions = [options.sensitiveFields || [], options.sensitiveFieldPaths || [], options.sensitivePathSegments || []];
         if (additions.some(items => !Array.isArray(items)) ||
-            additions.reduce((sum, items) => sum + items.length, fields.size + paths.size + segments.size) > 256 ||
-            additions.some(items => items.some(value => typeof value !== 'string' || !value || value.length > 256))) {
+            additions.reduce((sum, items) => sum + items.length, fields.size + paths.size + segments.size) > MAX_RULE_COUNT ||
+            additions.some(items => items.some(value => typeof value !== 'string' || !value || value.length > MAX_RULE_LENGTH))) {
             configurationFailed = true;
             return false;
         }
@@ -33,39 +45,40 @@ export function createDiagnosticSanitizer() {
     }
 
     function isSensitive(path) {
-        if (path.length > 256) return true;
+        if (path.length > MAX_PATH_LENGTH) return true;
         const whole = normalize(path);
         return containsRule(whole, paths) || containsRule(whole, fields) || containsRule(whole, builtins);
     }
 
     function createCapture() {
         let bytes = 0;
-        let work = 1000000;
+        let work = MAX_WORK;
         let ordinal = 0;
         let nodes = 0;
         const status = { redacted: false, limited: configurationFailed };
         const redact = (marker = REDACTED) => { status.redacted = true; return marker; };
         const limited = () => { status.limited = true; return LIMITED; };
+        const replacementKey = () => '_diagnostic_field_' + ++ordinal;
         function tick(cost = 1) { work -= cost; if (work < 0) throw new Error('Diagnostic work limit'); }
-        function accept(value, max = 65536) {
+        function accept(value, max = MAX_FIELD_BYTES) {
             if (typeof value !== 'string' || value.length > max || configurationFailed) return false;
             const size = encoder.encode(value).byteLength;
             bytes += size;
-            return size <= max && bytes <= 262144;
+            return size <= max && bytes <= MAX_CAPTURE_BYTES;
         }
         function guard(action) {
             try { return action(); }
             catch { status.limited = true; return INVALID; }
         }
         function safeKey(key) {
-            if (!accept(key, 256) || /[\u0000-\u001f\u007f]/.test(key) || key.startsWith('_diagnostic_'))
-                return '_diagnostic_field_' + ++ordinal;
+            if (!accept(key, MAX_KEY_BYTES) || /[\u0000-\u001f\u007f]/.test(key) || key.startsWith('_diagnostic_'))
+                return replacementKey();
             return key;
         }
         function pairs(value) {
-            return value.split('&', 257).map((part, index) => {
+            return value.split('&', MAX_COLLECTION_ENTRIES + 1).map((part, index) => {
                 tick();
-                if (index === 256) return '_diagnostic=' + encodeURIComponent(limited());
+                if (index === MAX_COLLECTION_ENTRIES) return '_diagnostic=' + encodeURIComponent(limited());
                 const separator = part.indexOf('=');
                 const key = decode((separator < 0 ? part : part.slice(0, separator)).replaceAll('+', ' '));
                 const raw = decode((separator < 0 ? '' : part.slice(separator + 1)).replaceAll('+', ' '));
@@ -74,7 +87,7 @@ export function createDiagnosticSanitizer() {
             }).join('&');
         }
         function decode(value) {
-            for (let round = 0; round < 3 && value.includes('%'); round++) value = decodeURIComponent(value);
+            for (let round = 0; round < MAX_DECODE_ROUNDS && value.includes('%'); round++) value = decodeURIComponent(value);
             return value.includes('%') ? INVALID : value;
         }
         function urlCore(value) {
@@ -108,7 +121,7 @@ export function createDiagnosticSanitizer() {
         function value(path, input, depth = 0, ancestors = new Set()) {
             return guard(() => {
                 tick();
-                if (++nodes > 1024 || depth > 8) return limited();
+                if (++nodes > MAX_NODES || depth > MAX_DEPTH) return limited();
                 if (isSensitive(path)) return redact();
                 if (input === null || typeof input === 'boolean') return input;
                 if (typeof input === 'number') return Number.isFinite(input) ? input : INVALID;
@@ -119,11 +132,11 @@ export function createDiagnosticSanitizer() {
                 try {
                     if (Array.isArray(input)) {
                         const output = [];
-                        const length = Math.min(input.length, 256);
+                        const length = Math.min(input.length, MAX_COLLECTION_ENTRIES);
                         for (let index = 0; index < length; index++) {
                             const descriptor = Object.getOwnPropertyDescriptor(input, index);
                             output.push(!descriptor ? null : 'value' in descriptor
-                                ? value(path, descriptor.value, depth + 1, ancestors) : '[diagnostic getter unavailable]');
+                                ? value(path, descriptor.value, depth + 1, ancestors) : GETTER_UNAVAILABLE);
                         }
                         if (input.length > length) output.push(limited());
                         return output;
@@ -132,15 +145,15 @@ export function createDiagnosticSanitizer() {
                     let count = 0;
                     for (const key in input) {
                         if (!Object.hasOwn(input, key)) continue;
-                        if (count++ >= 256) {
+                        if (count++ >= MAX_COLLECTION_ENTRIES) {
                             output._diagnostic_limit = limited();
                             break;
                         }
-                        if (key.length > 256) { output['_diagnostic_field_' + ++ordinal] = limited(); continue; }
+                        if (key.length > MAX_KEY_BYTES) { output[replacementKey()] = limited(); continue; }
                         const descriptor = Object.getOwnPropertyDescriptor(input, key);
                         const field = path + '.' + key;
                         output[safeKey(key)] = isSensitive(field) ? redact() : descriptor && 'value' in descriptor
-                            ? value(field, descriptor.value, depth + 1, ancestors) : '[diagnostic getter unavailable]';
+                            ? value(field, descriptor.value, depth + 1, ancestors) : GETTER_UNAVAILABLE;
                     }
                     return output;
                 } finally { ancestors.delete(input); }

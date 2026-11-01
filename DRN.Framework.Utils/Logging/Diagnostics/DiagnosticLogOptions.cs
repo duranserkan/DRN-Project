@@ -1,5 +1,8 @@
 using System.ComponentModel.DataAnnotations;
+using System.Runtime.CompilerServices;
+using System.Text;
 using DRN.Framework.SharedKernel.Attributes;
+using DRN.Framework.SharedKernel.Diagnostics;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 
 namespace DRN.Framework.Utils.Logging.Diagnostics;
@@ -7,6 +10,35 @@ namespace DRN.Framework.Utils.Logging.Diagnostics;
 [Config("DiagnosticLogging")]
 public sealed record DiagnosticLogOptions : IValidatableObject
 {
+    private static readonly ConditionalWeakTable<DiagnosticLogOptions, Lazy<DiagnosticRedactionRules>> RuleFiles = new();
+
+    /// <summary>Optional project rule file. Relative paths resolve from AppContext.BaseDirectory. Loaded once per options instance.</summary>
+    public string? RuleFile { get; init; }
+    /// <summary>Optional application assembly name for loading its catalog and those of referenced SharedKernel consumers.</summary>
+    public string? RuleAssemblyName { get; init; }
+    internal DiagnosticRedactionRules? LoadedRules { get; init; }
+    internal string? LoadedRuleFile { get; init; }
+    internal string? LoadedRuleAssemblyName { get; init; }
+
+    internal DiagnosticRedactionRules GetRules() => LoadedRules != null && RuleFile == LoadedRuleFile &&
+        RuleAssemblyName == LoadedRuleAssemblyName ? LoadedRules :
+        RuleFile == null && RuleAssemblyName == null ? DiagnosticRedactionRules.Empty :
+        RuleFiles.GetValue(this, static options => new Lazy<DiagnosticRedactionRules>(() =>
+            EmbeddedClassificationRules.Load(options.RuleAssemblyName).Merge(options.RuleFile == null
+                ? DiagnosticRedactionRules.Empty : ReadRules(options.RuleFile)))).Value;
+
+    private static DiagnosticRedactionRules ReadRules(string path)
+    {
+        var fullPath = Path.GetFullPath(path, AppContext.BaseDirectory);
+        using var reader = new StreamReader(fullPath, new UTF8Encoding(false, true), detectEncodingFromByteOrderMarks: false);
+        // Allow a UTF-8 BOM and one extra character to detect overflow without reading the entire file.
+        var buffer = new char[DiagnosticRedactionRules.MaxCharacters + 2];
+        var count = reader.ReadBlock(buffer, 0, buffer.Length);
+        var text = new string(buffer, 0, count);
+        if (text.StartsWith('\uFEFF')) text = text[1..];
+        return DiagnosticRedactionRules.Parse(text);
+    }
+
     [Range(1024, 262144)] public int MaxFieldBytes { get; init; } = 65536;
     [Range(1024, 1048576)] public int MaxInputBytes { get; init; } = 262144;
     [Range(4096, 1048576)] public int MaxScopeBytes { get; init; } = 131072;
@@ -23,6 +55,10 @@ public sealed record DiagnosticLogOptions : IValidatableObject
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
+        if (RuleFile != null && string.IsNullOrWhiteSpace(RuleFile))
+            yield return new ValidationResult("A configured diagnostic redaction rule file path cannot be empty.");
+        if (RuleAssemblyName != null && string.IsNullOrWhiteSpace(RuleAssemblyName))
+            yield return new ValidationResult("A configured classification root assembly name cannot be empty.");
         if (SensitiveFields == null || SensitiveFieldPaths == null || SensitivePathSegments == null)
         {
             yield return new ValidationResult("Diagnostic rule collections cannot be null.");

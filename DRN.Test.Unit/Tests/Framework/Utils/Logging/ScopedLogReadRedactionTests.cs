@@ -4,6 +4,7 @@ using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Logging.Diagnostics;
 using Microsoft.Extensions.Logging;
+using static DRN.Test.Unit.Tests.Framework.Utils.Logging.DiagnosticTestSupport;
 
 // These fixtures intentionally exercise runtime protection for sensitive capture names.
 #pragma warning disable DRN0017, DRN0020
@@ -12,6 +13,28 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Logging;
 
 public class ScopedLogReadRedactionTests
 {
+    [Fact]
+    public void Materialized_Lists_And_Native_Copies_Should_Remain_Detached()
+    {
+        using var settings = SettingsProvider.Development();
+        var source = new ScopedLog(settings, Policy());
+        source.AddToList("Items", new CountedModel());
+        var copy = new ScopedLog(settings, Policy());
+        copy.CopyFrom(source);
+
+        var raw = (IList<object?>)source.GetLogs(false)["Items"];
+        ((IDictionary<string, object?>)raw[0]!)["Value"] = "caller-mutation";
+        raw.Add("caller-item");
+        source.AddToList("Items", "source-item");
+
+        JsonSerializer.Serialize(source.GetLogs(false)).Should().Contain("classified-probe").And.Contain("source-item")
+            .And.NotContain("caller-mutation").And.NotContain("caller-item");
+        JsonSerializer.Serialize(copy.GetLogs(false)).Should().Contain("classified-probe").And.NotContain("source-item")
+            .And.NotContain("caller-mutation").And.NotContain("caller-item");
+        source.ToString().Should().NotContain("classified-probe");
+        copy.ToString().Should().NotContain("classified-probe");
+    }
+
     [Fact]
     public void Reads_Should_Preserve_Classification_Without_Recapturing_Values_Or_Leaking_To_Logs()
     {
@@ -59,7 +82,7 @@ public class ScopedLogReadRedactionTests
     [DataInlineUnit("Production")]
     public void Unredacted_Reads_Should_Be_Rejected_Outside_Development(string environment)
     {
-        using var settings = SettingsProvider.Development(new { Environment = environment });
+        using var settings = DiagnosticTestSupport.Settings(environment);
         var log = new ScopedLog(settings, Policy());
         log.Add("Password", "private-probe");
         log.GetLogs()["Password"].Should().Be(DiagnosticSanitizer.Redacted);
@@ -105,14 +128,12 @@ public class ScopedLogReadRedactionTests
         }
     }
 
-    private static DiagnosticSanitizer Policy() => new(new DiagnosticLogOptions { MaxProcessingMilliseconds = 100 });
-
     [Theory]
     [DataInlineUnit("Development")]
     [DataInlineUnit("Production")]
     public void Copies_To_Custom_Sanitizers_Should_Expose_Only_Redacted_Source_Values(string environment)
     {
-        using var settings = SettingsProvider.Development(new { Environment = environment });
+        using var settings = DiagnosticTestSupport.Settings(environment);
         var source = new ScopedLog(settings, Policy());
         source.Add("Model", new CountedModel());
         source.AddToList("Items", new CountedModel());

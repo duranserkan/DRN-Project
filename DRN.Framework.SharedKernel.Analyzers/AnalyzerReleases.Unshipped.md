@@ -25,3 +25,4 @@
 | DRN0018 | DRN.Classification | Error | Custom Microsoft classification outside supported DRN families cannot be verified |
 | DRN0019 | DRN.Classification | Error | Matching anonymous properties require a named class or record with explicit classification or false-positive exemption |
 | DRN0020 | DRN.Classification | Error | Matching dictionary captures require AddDictionary or SanitizeDictionary with key classifications |
+| DRN0021 | DRN.Classification | Error | Project or inherited classification catalog is unreadable, invalid, oversized, or ambiguous |

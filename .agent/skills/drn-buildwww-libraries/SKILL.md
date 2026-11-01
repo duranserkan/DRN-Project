@@ -12,6 +12,9 @@ tokens: ~1.8K
 > DRN-scoped: use only when the repository profile or filesystem declares DRN `buildwww` and the DRN browser API surface.
 
 ## When to Apply
+
+The browser imports the built-in `data-classification-rules.json` at bundle time. Update that import when the source catalog moves. Server `DiagnosticLogging:RuleFile` does not configure browser rules; apply project-specific client rules explicitly through the existing diagnostic configuration API and retain shared browser/server golden cases.
+
 - Using repository JavaScript utilities
 - Implementing RSJS for htmx (Reasonable System for JavaScript Structure)
 - Working with htmx and CSP nonces
@@ -138,7 +141,7 @@ Protected URL path segments, query values, and named fragment values use the pla
 
 Bound browser diagnostic arrays by position, retaining at most 256 entries plus a truncation marker. Sparse holes become null. Inspect own descriptors without invoking getters or inherited properties. Cover sparse indices and dense boundary lengths in regression tests.
 
-HTMX HTTP failures and server toast headers must not generate client-error reports; transport failures remain client errors. HTMX failure feedback requires a trusted triggering event or explicit `data-notification-user-action="true"`; false suppresses feedback. Keep private diagnostics out of notifications.
+HTMX HTTP failures and server toast headers must not generate client-error reports; transport failures remain client errors. HTMX failure feedback requires a trusted triggering event or explicit `data-notification-user-action="true"`; false suppresses feedback. Keep backend diagnostics out of notifications. Browser errors supply bounded `clientErrorDetails` for occurrences with a `clientErrorId`. Preserve original browser values except for page URLs, which must use diagnostic URL redaction before display or persistence. Render these as text only after the Show details button is activated. Preserve account isolation and public toast and summary messages. Generate server reports separately through diagnostic capture with redaction.
 
 Only `application/problem+json` is parsed, with the HTTP status taking precedence. Display public messages as text and retain a generic fallback for unusable responses. Do not retry mutations automatically or swap JSON as HTML. An HTML validation swap requires status 422, `text/html`, and `X-DRN-Validation: true`. Hosting's `HandleHtmxRequests` option controls error formatting without changing authentication behavior.
 
@@ -160,7 +163,7 @@ Choose immediate presentation and retention independently:
 
 Do not repeat inline feedback with an additional toast or record routine client-side field validation in history. Omit feedback when neither immediate attention nor later review is useful. `persist: false` controls storage only, not toast visibility or whether history is recorded. Keep the decision guide in the profile-declared application documentation aligned with these rules.
 
-Keep history bounded and isolated by application and account. Publish only safe public text. Account changes clear history and contextual errors. Stale pages pause until reloaded. Closing feedback and dismissing history are separate actions. Resolve retention limits, panel behavior, and API options from the profile-declared application guide and browser declarations.
+Keep history bounded and isolated by application and account. Publish safe public summaries, with browser diagnostics confined to expanded client error details. Account changes clear history and contextual errors. Stale pages pause until reloaded. Closing feedback and dismissing history are separate actions. Resolve retention limits, panel behavior, and API options from the profile-declared application guide and browser declarations.
 
 Keep the notification bell visible. Its badge counts unseen entries and hides at zero. Opening the panel marks existing history seen; later arrivals remain unseen until it is opened again. Persist seen state, preserve it through Undo, and keep deduplicated source identities seen. New publications always start unseen.
 

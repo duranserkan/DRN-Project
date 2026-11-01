@@ -1,0 +1,6 @@
+{
+  "secretFields": ["challengeResponse"],
+  "personalFields": ["membershipNumber"],
+  "sensitiveFieldPaths": ["payload.privateValue"],
+  "secretPathSegments": ["handoff"]
+}

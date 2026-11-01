@@ -578,6 +578,8 @@ The default image/tag pair is resolved with `DefaultDigest`. Per-instance custom
 
 RabbitMQ defaults used when a test explicitly calls `RabbitMQContext.StartAsync()`:
 
+PostgreSQL and RabbitMQ container usernames, and generated test usernames, carry personal-data classification for diagnostics. Container `HasUsername` flags remain visible as configuration-presence metadata.
+
 | Property | Default |
 |----------|---------|
 | `DefaultImage` | `"rabbitmq"` |

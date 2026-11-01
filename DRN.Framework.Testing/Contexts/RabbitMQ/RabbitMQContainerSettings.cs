@@ -16,7 +16,9 @@ public class RabbitMQContainerSettings
     public string? Version { get; init; } = DefaultVersion;
     public string? Digest { get; init; }
 
+    [Personal]
     public string? Username { get; init; }
+    [Sensitive(false, Justification = "Username configuration presence flag.")]
     public bool HasUsername => !string.IsNullOrWhiteSpace(Username);
 
     [Sensitive]

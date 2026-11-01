@@ -320,9 +320,9 @@ DRN0017/DRN0020 skip instance calls directly chained from resolved NSubstitute R
 | Attribute | Purpose |
 |-----------|---------|
 | `[IgnoreLog]` | Exclude properties from scoped logging |
-| `[Sensitive]`, `[Personal]` | Extensible Microsoft classification families that redact without invoking getters. Derived attributes satisfy analysis. Direct property `[Sensitive(false)]` exempts built-in name rules only, never positive classification or explicit URL protection. |
+| `[Sensitive]`, `[Personal]` | Extensible Microsoft classification families. Scoped logs read classified getters once and redact output; direct sanitizer calls skip them. Runtime mapped interface classifications also protect concrete and nested capture. Derived attributes satisfy analysis. Direct property `[Sensitive(false)]` exempts built-in name rules only, never positive classification or explicit URL protection. |
 | `DRN0015` through `DRN0019` | Default build errors for missing property classification, invalid false annotations, matched scalar/untyped paths or external property names, unverifiable custom Microsoft classification, and matching anonymous properties. Anonymous matches require annotated named models, including nested and inferred members. Named models use property names without built-in logging-prefix matches. Apply across SharedKernel consumers, including test models and ignored properties. Generated sources are analyzed without reporting diagnostics. Personal/Sensitive fixes support selected Fix All. False-positive fixes and DRN0016 `Use Sensitive(true)` require individual selection. Generated declarations receive no source edits. No automatic anonymous-to-record fix. |
-| `DRN0020` | Matching constant dictionary keys at capture require AddDictionary/SanitizeDictionary. Checks initializers and direct local writes, including nested dictionaries. Dynamic/aliased data retains runtime protection. No automatic code fix. |
+| `DRN0020` | Matching constant dictionary keys at capture require AddDictionary/SanitizeDictionary. Checks initializers and direct local writes, including nested dictionaries. Bound depth and total work per capture, including prior-write scans, and check cancellation. Preserve path-sensitive revisits within that budget. Unexamined and dynamic/aliased data retains runtime protection. No automatic code fix. |
 | `[SecureKey]` | Validate string meets secure key requirements |
 | `[EntityType<TApp>(byte)]` | Unique entity type ID bound to application partition `TApp : IAppId` |
 | `[TestEntityType(byte)]` | Convenience entity type attribute bound directly to `TestApp` (`AppId = 127`) |
@@ -331,6 +331,8 @@ DRN0017/DRN0020 skip instance calls directly chained from resolved NSubstitute R
 ---
 
 ## Related Skills
+
+Project classification catalogs: register one own `data-classification-rules.json` through EmbeddedResource or AdditionalFiles. The legacy name `diagnostic-rules.json` remains accepted. Build targets forward embedded files to analysis and generate DataClassificationRulesAttribute metadata retained in reference assemblies. Inherit additive catalogs from referenced SharedKernel consumers, including transitive references; ignore unrelated assemblies. Do not load dependency code in analyzers. DRN0021 reports invalid, unreadable, oversized, or ambiguous catalogs. Use the shared parser and immutable per-compilation rules, never mutable global rule state or filesystem scanning. Align Utils runtime RuleAssemblyName or RuleFile configuration with the compiler inputs. Test reference-assembly inheritance, isolation, exclusions, invalid metadata, custom-name fixes, and positive/nonmatching vectors. Use the profile's classification maintenance workflow for new files and entries.
 
 - [drn-domain-design.md](../drn-domain-design/SKILL.md) - Domain & Repository patterns
 - [drn-entityframework.md](../drn-entityframework/SKILL.md) - DrnContext usage

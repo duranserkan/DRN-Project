@@ -131,9 +131,15 @@ The analyzer checks declarations independently of logging and supplements them w
 
 This upgrade can break builds containing matching unclassified properties. Review each finding, select the correct classification, or explicitly declare a false positive. Do not mass-apply Sensitive or disable all test analysis. Standard per-diagnostic suppression is available for deliberate runtime regression fixtures and staged migration, but does not disable runtime protection. Excluding transitive analyzer assets also prevents compiler enforcement.
 
-Analyzer and runtime embed the same source-owned rule catalog and share normalization/matching code. Runtime caches a bounded number of repeated path decisions per sanitizer policy. It still performs reflection for uncached metadata, attribute inspection, object projection and serialization. No source generator is used, and no measured performance improvement is claimed.
+Analyzer and runtime embed the same source-owned rule catalog and share normalization/matching code. Runtime caches a bounded number of repeated path decisions per sanitizer policy. Type classifications, including negative results, and readable member metadata are cached separately. Existing `AddServicesWithAttributes` discovery registers closed types in a frozen lookup per assembly. Attribute inspection and member plans are lazy. Closed generics and other types discovered later use the same metadata rules through a cached fallback. Registration does not invoke model getters or classification attribute constructors.
 
-The shared [rule catalog](diagnostic-rules.json) matches substrings after removing separators and normalizing ASCII case. Built-in rules check typed property names and untyped structural paths. Configured rules always check full paths. Patterns such as `secret`, `token`, `client`, `cred`, `conn`, `code`, and `key` protect matching names unless an applicable explicit exception permits that node. Secret matching uses `secret`, so `Seconds`, `Section`, and `ResponseCaptureLimited` do not match merely because they contain `sec`. Unmatched text fields retain their contents within capture limits. URL segment rules use the same matching to redact the following segment and cannot be waived by name exceptions.
+Runtime member plans include positive classifications and `[IgnoreLog]` from mapped interface properties. These protections also apply to concrete and nested capture, including inherited implementations. A positive interface classification defeats an implementation's `[Sensitive(false)]`. Interface exemptions do not waive concrete property name rules. An unrelated explicit interface implementation does not classify a same-named public property. Compiler declaration requirements remain unchanged.
+
+Native snapshot reads materialize one detached value tree while storage is stable. Native copies retain their separate detached capture path. JSON byte accounting reuses a writer with a pooled discard buffer that is cleared on return. Fragment sizing measures spans and creates only the accepted fragment string. Capture still uses reflection getters and may box values. Paths, detached collections, and final output still allocate. No source generator is used, and neither allocation-free capture nor a measured speedup is claimed.
+
+The shared [rule catalog](data-classification-rules.json) matches substrings after removing separators and normalizing ASCII case. Built-in rules check typed property names and untyped structural paths. Configured rules always check full paths. Patterns such as `secret`, `token`, `client`, `cred`, `conn`, `code`, and `key` protect matching names unless an applicable explicit exception permits that node. Secret matching uses `secret`, so `Seconds`, `Section`, and `ResponseCaptureLimited` do not match merely because they contain `sec`. Unmatched text fields retain their contents within capture limits. URL segment rules use the same matching to redact the following segment and cannot be waived by name exceptions.
+
+The catalog also protects `cvv`, `cvc`, and `pincode` as secret fields, and `username`, `firstname`, `lastname`, `dateofbirth`, `birthdate`, and `iban` as personal fields. Separator and case variants match too. Broad patterns such as `name`, `address`, `pin`, `pan`, and `otp` are not included: they would match ordinary names such as `FileName`, `ServiceAddress`, `ShippingMethod`, `Panel`, and `RootPath`. Classify secret-bearing OTP properties explicitly with `[Sensitive]`.
 
 For untyped JSON or forms, extend `DiagnosticLogging` with `SensitiveFields`, `SensitiveFieldPaths`, or `SensitivePathSegments`. Custom rules also use normalized substring matching; rules that normalize to empty are ignored. Additional rules cannot remove built-in protection. Bootstrap `ScopedLog(IAppSettings)` uses the same configuration as DI. Direct duration-field additions and copied snapshots remain eligible for capture unless another rule matches their path; dedicated metric methods check the operation name before generating their metric keys.
 
@@ -149,6 +155,72 @@ public sealed class Operation(IScopedLog log)
 ```
 
 Content-based redaction is not performed. Free text, exception messages, stack text, text bodies, and unmatched string values are retained within capture limits, including assignments, credentials, email addresses, private-key blocks, and embedded URLs. Classify sensitive fields or omit sensitive text before capture. `IDiagnosticSanitizer.TryRegisterSensitiveValue` and the `MaxSensitiveValues`, `MaxSensitiveValueBytes`, and `MaxSensitiveBytes` options are no longer available; migrate callers and custom sanitizer implementations to field rules or classification attributes.
+
+## Project classification rules
+
+Applications can extend the built-in catalog with one `data-classification-rules.json`. The current consumers enforce diagnostic classification and redaction, not storage or ordinary API serialization. Files only add protection. Omitted groups and empty arrays leave built-in rules intact.
+
+```json
+{
+  "secretFields": ["challengeResponse"],
+  "personalFields": ["membershipNumber"],
+  "sensitiveFieldPaths": ["payload.privateValue"],
+  "secretPathSegments": ["handoff"]
+}
+```
+
+Register the project's own file as an embedded resource:
+
+```xml
+<ItemGroup>
+  <EmbeddedResource Include="data-classification-rules.json" />
+</ItemGroup>
+```
+
+SharedKernel build targets forward recognized embedded catalogs to the analyzer and generate a `DataClassificationRulesAttribute` carrying the same text. This metadata survives reference-assembly generation, so analyzers inherit catalogs from referenced projects that consume SharedKernel, including transitive consumers. The generated attribute also establishes the SharedKernel reference for catalog-only projects. Catalogs from unrelated assemblies are ignored. Dependencies must be rebuilt with these targets to publish their catalogs. Analyzers read symbols and never load or execute dependency assemblies.
+
+To load those same embedded/inherited catalogs at runtime, name the application assembly:
+
+```json
+{
+  "DiagnosticLogging": {
+    "RuleAssemblyName": "My.Application"
+  }
+}
+```
+
+Runtime follows that assembly's reference graph and includes catalogs from SharedKernel consumers using the same parser and merge logic. It reads attribute metadata without invoking attribute constructors. Missing dependencies or invalid inherited catalogs fail loading. The graph is cached per root assembly. No loose catalog file needs to be deployed for this mode. Assemblies introduced outside that reference graph, such as separately loaded plugins, are not implicitly included.
+
+Alternatively, register a loose file as an AdditionalFiles item. It is also published in generated assembly metadata for downstream analysis. If runtime uses RuleFile, copy the same file to build and publish output:
+
+```xml
+<ItemGroup>
+  <AdditionalFiles Include="data-classification-rules.json" />
+  <None Update="data-classification-rules.json"
+        CopyToOutputDirectory="PreserveNewest"
+        CopyToPublishDirectory="PreserveNewest" />
+</ItemGroup>
+```
+
+For a shared file outside the project directory, use `AdditionalFiles Include="../shared/data-classification-rules.json"` and a `None Include` item with `Link="data-classification-rules.json"` and the same copy metadata, or an EmbeddedResource item pointing to the shared file. Keep one own catalog per project. Registering the same physical file as both AdditionalFiles and EmbeddedResource is deduplicated by the build targets. Distinct files are rejected. Referenced projects publish their own catalogs through generated metadata; do not repeat their file items in consuming projects. Avoid duplicate runtime output files when centralizing registration.
+
+Configure runtime loading from that deployed file:
+
+```json
+{
+  "DiagnosticLogging": {
+    "RuleFile": "data-classification-rules.json"
+  }
+}
+```
+
+Direct callers can set RuleFile or RuleAssemblyName on DiagnosticLogOptions. Both can be configured and merge additively. Relative file paths resolve from `AppContext.BaseDirectory`, not the working directory. Leaving both null preserves built-in-only behavior. Missing, unreadable, or invalid configured sources fail sanitizer creation. Runtime inheritance skips transitive assembly references that cannot be found, so undeployed optional dependencies do not prevent discovery. Catalogs in unavailable assemblies are not inherited. Other assembly load failures and invalid catalogs still fail creation. Each options instance loads once; snapshots and native copies retain loaded protection without rereading the file. Use fresh configured options to load changed loose-file contents. Embedded catalogs require rebuilding their owning assemblies. This is not live reload.
+
+The analyzer reads Roslyn AdditionalFiles and eligible assembly metadata once per compilation. Build items also accept the legacy filename `diagnostic-rules.json`. Including distinct own files, including both names, reports DRN0021. Runtime reads explicitly configured sources and does not search directories. Invalid files or inherited metadata report DRN0021 while built-in analysis remains active. Rule files are JSON objects with the four case-sensitive group names above. Groups must be string arrays. Unknown or duplicate groups, nulls, names without ASCII letters/digits, names over 512 characters, more than 256 rules per file, and files over 65,536 characters are rejected. Inheritance is bounded to 1,024 assemblies, 64 catalogs, and 4,096 distinct rules. Use UTF-8 for shared files. Catalogs contain rule names, never secret values.
+
+Project secret/personal fields extend catalog name matching and permit the existing reviewed name exemptions. Project `sensitiveFieldPaths` protect full capture paths and cannot be waived by name exemptions. URL segment rules protect the following segment and remain non-exemptible. Positive classification still wins. Existing runtime `SensitiveFields`, `SensitiveFieldPaths`, and `SensitivePathSegments` settings remain additive and are not read by the analyzer. The compiler checks statically known names and capture paths; dynamic paths still depend on runtime enforcement.
+
+The browser imports the built-in catalog at bundle time. Server RuleFile settings do not automatically reach the browser. Configure browser rules separately when client-side capture requires the same project-specific protection.
 
 ## Supported capture and limits
 

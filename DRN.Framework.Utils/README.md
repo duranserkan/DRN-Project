@@ -568,6 +568,10 @@ Use module-owned catalogs such as `OrderLogEvents` with stable IDs and names. ID
 
 ### Operation data
 
+Add project-specific names through `data-classification-rules.json`. Register an EmbeddedResource item and set `DiagnosticLogging:RuleAssemblyName` to the application assembly to share its own and referenced SharedKernel-consumer catalogs with runtime diagnostics. Build targets expose catalogs to analyzers and preserve them in reference-assembly metadata. Alternatively, register AdditionalFiles, copy the file to build/publish output, and set `DiagnosticLogging:RuleFile` to its deployed path, relative to AppContext.BaseDirectory. Loading is additive and invalid configured sources fail sanitizer creation. Runtime inheritance skips missing transitive assemblies, including their unavailable catalogs. Missing configured roots, other assembly load failures, and invalid catalogs still fail creation. See [project classification rules](Logging/Diagnostics/README.md#project-classification-rules) for schema, registration, bounds, and lifecycle.
+
+The shared name catalog protects CVV/CVC/PIN-code fields, usernames, first/last names, dates of birth, and IBAN fields. Matching ignores ASCII case and separators. See the [diagnostic rule boundaries](Logging/Diagnostics/README.md#compile-time-classification) before adding broader patterns.
+
 `AddProperties` and nested object projection capture public instance getters once and skip indexers and `[IgnoreLog]` members. Public fields are omitted. Captured values retain classification metadata for default redaction in `GetLogs()`, `LogScoped()`, and `ToString()`. In Development, `ScopedLog.GetLogs(redact: false)` returns an unredacted view of the same bounded capture; other environments reject this flag. Name-based redaction also applies to dictionary keys, JSON properties, and explicitly named log entries. Getter failures produce safe markers. Direct sanitizer calls still redact immediately and skip classified getters. Add classification to nonstandard secret-bearing properties before logging them.
 
 ```csharp
@@ -1004,6 +1008,8 @@ The default limit is 10 MiB. `Validate` and `ValidateAsync` return bytes only th
 JSON and form-body redaction applies configured field paths using the supplied source path and decoded field names. URL query keys remain independent of the URL path.
 
 `AddDrnUtils` registers the diagnostic redactor for Sensitive, Personal, and the combined classification set. Each returns `[redacted]` through `IRedactorProvider`.
+
+Positive classifications and `[IgnoreLog]` on mapped interface properties also protect concrete and nested diagnostic captures. Runtime type decisions are cached, and existing service discovery registers known closed types in frozen lookups with a cached fallback for later types. Snapshots remain detached and bounded. These optimizations do not make capture or export allocation-free.
 
 URL redaction uses plain `redacted` in protected path segments, query values, and named fragment values. Bare fragments such as `#installation` are preserved. Ordinary diagnostic values and whole-field redaction use `[redacted]`. See the [diagnostic policy](Logging/Diagnostics/README.md).
 

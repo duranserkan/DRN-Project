@@ -179,10 +179,9 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         {
             try
             {
-                if (scopedLog.HasException)
-                    logger.LogScoped(scopedLog, Microsoft.Extensions.Logging.LogLevel.Error);
-                else
-                    logger.LogScoped(scopedLog, Microsoft.Extensions.Logging.LogLevel.Warning);
+                logger.LogScoped(scopedLog, scopedLog.HasException
+                    ? Microsoft.Extensions.Logging.LogLevel.Error
+                    : Microsoft.Extensions.Logging.LogLevel.Warning);
             }
             finally
             {

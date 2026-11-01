@@ -146,10 +146,28 @@ function reportActionErrorCore(error, context) {
         ? context.message : 'The action could not be completed. Check the current state before trying again.';
     const record = notifications.publish({
         type: 'error', title: 'Action could not be completed', message: publicMessage,
-        clientErrorId: payload.clientErrorId, operation: context.operation, persist: context.persist !== false
+        clientErrorId: payload.clientErrorId,
+        clientErrorDetails: notificationDetails(message, 'user-action', 0, 0, error instanceof Error ? error.stack : '', payload.url),
+        operation: context.operation, persist: context.persist !== false
     });
     if (record) window.DRN.Toast.show({ type: 'error', message: publicMessage, record: false });
     return record;
+}
+
+function notificationDetails(message, source, line, column, stack, safePageUrl) {
+    let clipped = false;
+    function field(value, maximum) {
+        const text = typeof value === 'string' ? value : '';
+        if (text.length <= maximum) return text;
+        clipped = true;
+        const end = /[\uD800-\uDBFF]/.test(text[maximum - 1]) ? maximum - 1 : maximum;
+        return text.slice(0, end);
+    }
+    const fields = [`Message: ${field(message, 500)}`, `Source: ${field(source, 200)}`,
+        `Line: ${line}, column: ${column}`, `Page: ${field(safePageUrl, 500)}`,
+        stack ? `Stack:\n${field(stack, 2000)}` : ''];
+    if (clipped) fields.push('Diagnostic details were truncated.');
+    return fields.filter(Boolean).join('\n');
 }
 
 /**
@@ -210,6 +228,7 @@ function reportUnhandledError(event, isRejection) {
             type: 'error', title: 'An unexpected error occurred',
             message: messageForUser,
             clientErrorId: payload.clientErrorId,
+            clientErrorDetails: notificationDetails(message, source, line, column, reason?.stack || '', payload.url),
             operation: 'Page error'
         });
         if (record) window.DRN.Toast?.show({ type: 'error', message: messageForUser, record: false });

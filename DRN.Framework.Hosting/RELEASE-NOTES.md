@@ -31,6 +31,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Bug Fixes
 
+*   **Exception Details Serialization**: Prevent exception handling from failing during initialization after shared JSON options have already been used for serialization.
+
 *   **Started Response Exceptions**: `HttpScopeMiddleware` now logs and rethrows the original exception when `context.Response.HasStarted`, instead of failing while assigning the response status code.
 *   **Page Rendering**: `IPageUtils.RenderPageAsync` now supports standard `_ViewStart` files, layouts, and endpoint-generated links even for unmatched requests. Rendering also awaits scoped-service cleanup on success or failure.
 *   **Developer JSON Viewer**: Updated bundled JSONEditor to 10.4.3, including upstream editor fixes and corrected dark-theme search highlighting. Request-nonce support is preserved.

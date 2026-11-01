@@ -21,7 +21,7 @@ public class User : AggregateRoot
 
     public string Name { get; private set; } = null!;
     public string Surname { get; private set; } = null!;
-    public string UserName { get; private set; } = null!;
+    [Personal] public string UserName { get; private set; } = null!;
     public ContactDetail Contact { get; private set; } = null!;
     public Address Address { get; private set; } = null!;
 }

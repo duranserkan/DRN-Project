@@ -98,7 +98,7 @@ public static class CredentialsProvider
     }
 }
 
-public record TestUserCredentials(string Username, [property: Sensitive] string Password)
+public record TestUserCredentials([property: Personal] string Username, [property: Sensitive] string Password)
 {
     [Personal]
     public string EmailAddress => $"{Username}@example.com";

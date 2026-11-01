@@ -165,6 +165,12 @@ Explicitly configure `NexusAppSettings:AppId` (0 through 127) and `NexusAppSetti
 
 ## Scoped Logging (IScopedLog)
 
+Project-owned `data-classification-rules.json` extends diagnostic name rules through the shared parser. Register it as EmbeddedResource or AdditionalFiles. SharedKernel targets publish reference-assembly catalog metadata for downstream analyzers. Set `DiagnosticLogging:RuleAssemblyName` to load the application's own and referenced SharedKernel-consumer catalogs at runtime. For loose files, set RuleFile to the deployed path and add build/publish copy items. Relative file paths resolve from AppContext.BaseDirectory. Do not scan working directories. Leaving both options null preserves built-in-only behavior.
+
+Invalid configured sources fail sanitizer creation. Runtime graph discovery skips FileNotFoundException only when resolving transitive references; missing configured roots, other load failures, and invalid catalogs still fail. Unavailable assemblies contribute no catalogs. Loaded rules are stable per options instance and snapshots; fresh options reload loose files, while embedded changes require rebuilding their assemblies. Secret/personal groups permit reviewed name exemptions; sensitiveFieldPaths and secretPathSegments remain non-exemptible. Existing runtime configured rules retain their precedence. Browser rules need explicit configuration. Follow the profile's classification maintenance workflow when adding a file or item. Cover inherited catalog scope, invalid sources, positive and false-positive fixtures, and release-note impact.
+
+The shared catalog protects `cvv`, `cvc`, `pincode`, `username`, `firstname`, `lastname`, `dateofbirth`, `birthdate`, and `iban`. Do not add broad `otp` substring matching: it also matches `RootPath`. Use explicit classification for OTP properties. Preserve matching and nonmatching vectors across analyzer and browser/server fixtures.
+
 Use plain `redacted` for protected URL path segments, query values, and named fragment values. Preserve bare fragments without content inspection. Keep `[redacted]` for ordinary diagnostic values, whole-field redaction, and form-body values. Preserve server/browser parity through shared fixtures.
 
 JSON and form-body field matching includes the supplied source path and decoded field names. Keep URL query and fragment keys independent of the URL path. Cover configured source-path rules with equivalent JSON and form fixtures.
@@ -190,6 +196,10 @@ DRN0019 requires anonymous properties whose names match the shared catalog to mo
 Secret field matching uses `secret`, not `sec`. Seconds, sections, and response-capture flags need no exemption solely for containing `sec`. Keep analyzer, runtime, and browser cases aligned with the shared catalog.
 
 Object logging captures readable public instance properties only, including nested object projection. Omit public fields entirely, even when annotated. Keep name-based redaction for properties, dictionary keys, JSON properties, and explicitly named log entries. Preserve classified getter suppression.
+
+DiagnosticTypeMetadata owns cached type classification and readable member plans. Existing service assembly discovery registers closed types in frozen lookups. Attribute and member construction stays lazy; unknown runtime types use the same cached fallback rules. Merge positive classifications and IgnoreLog from mapped interface properties for concrete and nested capture. Interface exemptions cannot waive concrete name rules, and unrelated explicit implementations must not classify same-named public properties. Keep source getter reflection and boxing claims separate from metadata lookup performance.
+
+Native GetLogs materializes captured values under the storage lock without a preceding deep clone. It never invokes source model getters. CopyFrom retains its detached capture clone. DiagnosticJsonSize reuses thread-local writers with separate reentrant rentals and clears pooled discard buffers before return. Measure JSON escaping with the writer rather than estimating UTF-8 text length. Fragment search measures spans and allocates only accepted strings. Preserve byte bounds, snapshot isolation, and exact fragment reconstruction. No measured speedup or allocation-free capture claim is warranted without execution evidence.
 
 Server and browser text capture preserves contents within budgets. Do not inspect text for assignments, credentials, emails, private-key blocks, embedded URLs, or known literals. Redaction uses field names, explicit URL structure, and classification attributes only.
 

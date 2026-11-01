@@ -16,50 +16,23 @@ namespace DRN.Framework.Utils.Logging;
 [Scoped<IScopedLog>]
 public class ScopedLog : IScopedLog
 {
-    private readonly record struct LogProperty(PropertyInfo Property, bool Ignored, bool Sensitive, bool Exempt);
     private static class PropertyCache<TValue> where TValue : class
     {
         private static readonly PropertyInfo[] Properties = typeof(TValue)
             .GetProperties(BindingFlag.InstancePublic)
             .Where(property => property.GetMethod is { IsPublic: true } && property.GetIndexParameters().Length == 0)
             .ToArray();
-        private static readonly ConcurrentDictionary<Type, LogProperty[]> RuntimeProperties = new();
+        private static readonly ConcurrentDictionary<Type, DiagnosticTypeMetadata.Member[]> RuntimeProperties = new();
 
-        internal static LogProperty[] For(Type runtimeType) => RuntimeProperties.GetOrAdd(runtimeType, static type =>
-            Properties.Select(property =>
-            {
-                var implementation = ResolveOverride(property, type);
-                var declaration = property.DeclaringType!.IsInterface ? property : implementation;
-                return new LogProperty(property, declaration.IgnoredLog() || implementation.IgnoredLog(),
-                    DiagnosticSanitizer.IsClassified(declaration) || DiagnosticSanitizer.IsClassified(implementation),
-                    DiagnosticSanitizer.IsNameExempt(implementation));
-            }).ToArray());
-
-        private static PropertyInfo ResolveOverride(PropertyInfo property, Type runtimeType)
-        {
-            if (property.DeclaringType is { IsInterface: true } contract)
-            {
-                var map = runtimeType.GetInterfaceMap(contract);
-                var index = Array.IndexOf(map.InterfaceMethods, property.GetMethod);
-                var target = map.TargetMethods[index];
-                // Explicit implementations are non-public. Keep the interface property as the capture identity.
-                var implementation = target.DeclaringType!
-                    .GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)
-                    .Single(candidate => candidate.GetMethod?.MethodHandle == target.MethodHandle);
-                return implementation.DeclaringType!.IsInterface ? implementation : ResolveOverride(implementation, runtimeType);
-            }
-            if (property.GetMethod is not { IsVirtual: true } getter) return property;
-            var definition = getter.GetBaseDefinition();
-            // Keep the declared projection, but inspect the getter that reflection will actually invoke.
-            for (var type = runtimeType; type != null && type != property.DeclaringType; type = type.BaseType)
-                foreach (var candidate in type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly))
-                    if (candidate.GetMethod?.GetBaseDefinition() == definition) return candidate;
-            return property;
-        }
+        internal static DiagnosticTypeMetadata.Member[] For(Type runtimeType) => RuntimeProperties.GetOrAdd(runtimeType, static type =>
+            Properties.Select(property => DiagnosticTypeMetadata.ForProperty(property, type)).ToArray());
     }
 
     // Duration, correlation, trace, and four primary-event fields.
     private const int SnapshotMetadataFieldCount = 7;
+    // Leave room for scope metadata and limit markers added when snapshots are materialized.
+    private const int SnapshotReserveBytes = 2048;
+    private const int MetricValueReserveBytes = 40;
     private static readonly string ScopeDurationKey = ScopedLogConventions.TimeSpanKey(ScopedLogConventions.KeyOfScopeDuration);
     private static readonly object TrueValue = true;
     private static readonly object AppInstanceIdValue = AppConstants.AppInstanceId;
@@ -91,10 +64,6 @@ public class ScopedLog : IScopedLog
 
                 return clone;
             }
-            case List<object> list:
-                return list.Select(item => item == null ? null! : CloneLogValue(item)).ToList();
-            case IList<object> objectList:
-                return objectList.Select(item => item == null ? null! : CloneLogValue(item)).ToList();
             case IEnumerable<object> objectEnumerable:
                 return objectEnumerable.Select(item => item == null ? null! : CloneLogValue(item)).ToList();
             default:
@@ -131,15 +100,16 @@ public class ScopedLog : IScopedLog
         ArgumentNullException.ThrowIfNull(scopeEvent);
         scopeEvent = Sanitizer.SanitizeValue("Event", scopeEvent) as ScopeEvent
                      ?? new ScopeEvent(new Microsoft.Extensions.Logging.EventId(scopeEvent.Id.Id), Reason: DiagnosticSanitizer.Limited);
-        var size = JsonSerializer.SerializeToUtf8Bytes(scopeEvent).Length;
+        using var sizing = DiagnosticJsonSize.Rent();
+        var size = sizing.Measure(scopeEvent);
         lock (_sync)
         {
             if (_event == null)
             {
-                if (size + _storedBytes > Sanitizer.Options.MaxScopeBytes - 2048)
+                if (size + _storedBytes > Sanitizer.Options.MaxScopeBytes - SnapshotReserveBytes)
                 {
                     scopeEvent = new ScopeEvent(new Microsoft.Extensions.Logging.EventId(scopeEvent.Id.Id, DiagnosticSanitizer.Limited), Reason: DiagnosticSanitizer.Limited);
-                    size = JsonSerializer.SerializeToUtf8Bytes(scopeEvent).Length;
+                    size = sizing.Measure(scopeEvent);
                     _captureLimited = true;
                 }
                 _storedBytes += size;
@@ -180,14 +150,8 @@ public class ScopedLog : IScopedLog
         }
     }
 
-    private SortedList<string, object> SnapshotLogData()
-    {
-        lock (_sync)
-            return SnapshotLogDataLocked();
-    }
-
     // Caller holds _sync. Sorted insertion appends without shifting existing entries.
-    private SortedList<string, object> SnapshotLogDataLocked(int additionalCapacity = 0)
+    private SortedList<string, object> SnapshotLogDataLocked(int additionalCapacity = 0, bool cloneValues = true)
     {
         var snapshot = new SortedList<string, object>(checked(LogData.Count + additionalCapacity), StringComparer.Ordinal);
         var keys = LogData.Keys.ToArray();
@@ -203,7 +167,7 @@ public class ScopedLog : IScopedLog
             {
                 CounterValue counter => counter.Value,
                 DurationValue duration => duration.Value,
-                _ => CloneLogValue(value)
+                _ => cloneValues ? CloneLogValue(value) : value
             });
         }
 
@@ -218,10 +182,11 @@ public class ScopedLog : IScopedLog
         if (!redact && !_isDevelopment)
             throw new InvalidOperationException("Unredacted diagnostic snapshots are only available in Development.");
         var status = Sanitizer.GetStatus();
-        SortedList<string, object> snapshot;
+        var reader = Sanitizer is DiagnosticSanitizer ? new DiagnosticSanitizer(Sanitizer.Options) : null;
+        IReadOnlyDictionary<string, object> output;
         lock (_sync)
         {
-            snapshot = SnapshotLogDataLocked(SnapshotMetadataFieldCount);
+            var snapshot = SnapshotLogDataLocked(SnapshotMetadataFieldCount, cloneValues: reader == null);
             snapshot[ScopeDurationKey] = (DateTimeProvider.UtcNow - _createdAt).TotalSeconds;
             snapshot[ScopedLogConventions.KeyOfCorrelationId] = CorrelationId;
             if (TraceId != null)
@@ -239,10 +204,10 @@ public class ScopedLog : IScopedLog
                 snapshot[ScopedLogConventions.KeyOfEventOutcome] = scopeEvent.Outcome ?? string.Empty;
                 snapshot[ScopedLogConventions.KeyOfEventReason] = scopeEvent.Reason ?? string.Empty;
             }
+            // Native materialization creates the detached tree while private lists are stable.
+            // It only reads captured values and never invokes the original model getters.
+            output = reader?.MaterializeSnapshot(snapshot, redact) ?? snapshot;
         }
-        var output = Sanitizer is DiagnosticSanitizer
-            ? new DiagnosticSanitizer(Sanitizer.Options).MaterializeSnapshot(snapshot, redact)
-            : snapshot;
         return DiagnosticLogFormatter.BoundSnapshot(output, Sanitizer.Options.MaxScopeBytes);
     }
 
@@ -347,12 +312,13 @@ public class ScopedLog : IScopedLog
 
     private void Store(string key, object value, DiagnosticCaptureResult? capture = null)
     {
-        var size = JsonSerializer.SerializeToUtf8Bytes(key).Length + JsonSerializer.SerializeToUtf8Bytes(value).Length + 2;
+        using var sizing = DiagnosticJsonSize.Rent();
+        var size = sizing.MeasureEntry(key, value);
         lock (_sync)
         {
             var previousSize = _entryBytes.GetValueOrDefault(key);
             if ((!LogData.ContainsKey(key) && LogData.Count >= Sanitizer.Options.MaxNodes) ||
-                _storedBytes - previousSize + size > Sanitizer.Options.MaxScopeBytes - 2048)
+                _storedBytes - previousSize + size > Sanitizer.Options.MaxScopeBytes - SnapshotReserveBytes)
             {
                 _captureLimited = true;
                 if (LogData.Remove(key))
@@ -535,13 +501,14 @@ public class ScopedLog : IScopedLog
         var capture = Sanitizer is DiagnosticSanitizer native ? native.Capture(key, value, deferRedaction: true) : null;
         value = (capture != null ? capture.Value : Sanitizer.SanitizeValue(key, value)) ?? string.Empty;
         key = Sanitizer.SanitizeKey(key);
-        var itemSize = JsonSerializer.SerializeToUtf8Bytes(value).Length + 1;
+        using var sizing = DiagnosticJsonSize.Rent();
+        var itemSize = sizing.Measure(value) + 1;
 
         lock (_sync)
         {
             if (LogData.TryGetValue(key, out var obj) && obj is List<object> list)
             {
-                if (list.Count >= Sanitizer.Options.MaxCollectionEntries || _storedBytes + itemSize > Sanitizer.Options.MaxScopeBytes - 2048)
+                if (list.Count >= Sanitizer.Options.MaxCollectionEntries || _storedBytes + itemSize > Sanitizer.Options.MaxScopeBytes - SnapshotReserveBytes)
                 { _captureLimited = true; return; }
                 list.Add(value);
                 // Only URL rules applied to every item can authorize a native copy of the list.
@@ -584,8 +551,9 @@ public class ScopedLog : IScopedLog
     private bool ReserveMetric(string key)
     {
         if (LogData.ContainsKey(key)) return true;
-        var size = JsonSerializer.SerializeToUtf8Bytes(key).Length + 40;
-        if (LogData.Count >= Sanitizer.Options.MaxNodes || _storedBytes + size > Sanitizer.Options.MaxScopeBytes - 2048)
+        using var sizing = DiagnosticJsonSize.Rent();
+        var size = sizing.Measure(key) + MetricValueReserveBytes;
+        if (LogData.Count >= Sanitizer.Options.MaxNodes || _storedBytes + size > Sanitizer.Options.MaxScopeBytes - SnapshotReserveBytes)
         { _captureLimited = true; return false; }
         _storedBytes += size;
         _entryBytes[key] = size;

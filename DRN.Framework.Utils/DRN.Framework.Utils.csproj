@@ -31,7 +31,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <EmbeddedResource Include="Logging/Diagnostics/diagnostic-rules.json" LogicalName="DRN.DiagnosticRules.json" />
+        <EmbeddedResource Include="Logging/Diagnostics/data-classification-rules.json" LogicalName="DRN.DiagnosticRules.json" />
     </ItemGroup>
 
     <Target Name="PrepareDescription" BeforeTargets="GenerateNuspec">

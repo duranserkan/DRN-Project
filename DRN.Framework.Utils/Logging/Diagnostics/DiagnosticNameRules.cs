@@ -14,6 +14,7 @@ internal sealed class DiagnosticNameRules
     private readonly string[] _additional;
     private readonly string[] _additionalPaths;
     private readonly string[] _urlSegments;
+    private readonly DiagnosticRedactionRules _projectRules;
     private readonly int _maxKeyBytes;
     private readonly int _capacity;
     private readonly Dictionary<string, (DiagnosticRuleType BuiltIn, DiagnosticRuleType Additional)> _cache = new(StringComparer.Ordinal);
@@ -21,11 +22,12 @@ internal sealed class DiagnosticNameRules
 
     public DiagnosticNameRules(DiagnosticLogOptions options)
     {
+        _projectRules = options.GetRules();
         _maxKeyBytes = options.MaxKeyBytes;
         _capacity = options.MaxNodes;
         _additional = NormalizeRules(options.SensitiveFields);
-        _additionalPaths = NormalizeRules(options.SensitiveFieldPaths);
-        _urlSegments = NormalizeRules(options.SensitivePathSegments);
+        _additionalPaths = NormalizeRules(options.SensitiveFieldPaths.Concat(_projectRules.FieldPaths));
+        _urlSegments = NormalizeRules(options.SensitivePathSegments.Concat(_projectRules.UrlSegments));
     }
 
     public DiagnosticRuleResult MatchField(string value, bool exempt = false)
@@ -38,8 +40,10 @@ internal sealed class DiagnosticNameRules
             {
                 Span<char> buffer = stackalloc char[512];
                 var name = Normalize(value, buffer);
-                var builtIn = DiagnosticRuleCatalog.Matches(name, DiagnosticRuleCatalog.SecretFields) ? DiagnosticRuleType.Secret :
-                    DiagnosticRuleCatalog.Matches(name, DiagnosticRuleCatalog.PersonalFields) ? DiagnosticRuleType.Personal :
+                var builtIn = DiagnosticRuleCatalog.Matches(name, DiagnosticRuleCatalog.SecretFields) ||
+                              DiagnosticRuleCatalog.Matches(name, _projectRules.SecretFields) ? DiagnosticRuleType.Secret :
+                    DiagnosticRuleCatalog.Matches(name, DiagnosticRuleCatalog.PersonalFields) ||
+                    DiagnosticRuleCatalog.Matches(name, _projectRules.PersonalFields) ? DiagnosticRuleType.Personal :
                     DiagnosticRuleCatalog.Matches(name, DiagnosticRuleCatalog.FieldPaths) ? DiagnosticRuleType.FieldPath : DiagnosticRuleType.None;
                 var additional = DiagnosticRuleCatalog.Matches(name, _additional) ? DiagnosticRuleType.Secret :
                     DiagnosticRuleCatalog.Matches(name, _additionalPaths) ? DiagnosticRuleType.FieldPath : DiagnosticRuleType.None;

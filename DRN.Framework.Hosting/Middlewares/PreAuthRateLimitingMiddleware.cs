@@ -28,8 +28,6 @@ public class PreAuthRateLimitingMiddleware(
     DrnAppFeatures features,
     IAppSecuritySettings securitySettings)
 {
-    private static readonly DiagnosticCapturePolicy RejectionCapture = new();
-
     public async Task InvokeAsync(HttpContext context, IScopedLog scopedLog)
     {
         if (RateLimitEndpointMetadata.IsRateLimitingDisabled(context))
@@ -73,12 +71,8 @@ public class PreAuthRateLimitingMiddleware(
         var partitionKey = rejectedMatch?.Result.PartitionKey ?? ipAddress;
         telemetry.RecordRequest(context, RateLimitRulePhase.PreAuth, "rejected", rejectedMatch);
         telemetry.RecordRejection(context, RateLimitRulePhase.PreAuth, rejectedMatch);
-        scopedLog.Add("PreAuthRateLimitRejected", true, exemptionReason: "Rate limit outcome flag.");
-        scopedLog.Add("PreAuthRateLimitRejectedAction", RateLimitTelemetry.GetActionTag(rejectedMatch), exemptionReason: "Rate limit action category.");
-        // IP and partition identifiers receive no grant, even when plaintext mode is configured.
-        scopedLog.AddWithPolicy("PreAuthRateLimitRejectedIp", RateLimitPartitionRedactor.Format(ipAddress, features.RateLimit, securitySettings), RejectionCapture);
-        scopedLog.Add("PreAuthRateLimitRejectedRule", rejectedMatch?.Rule.GetType().FullName ?? string.Empty, exemptionReason: "Rate limit rule type name.");
-        scopedLog.AddWithPolicy("PreAuthRateLimitRejectedPartition", RateLimitPartitionRedactor.Format(partitionKey, features.RateLimit, securitySettings), RejectionCapture);
+        RateLimitDiagnostics.WriteRejection(scopedLog, RateLimitRulePhase.PreAuth, rejectedMatch,
+            partitionKey, features.RateLimit, securitySettings, ipAddress);
 
         context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
         if (lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))

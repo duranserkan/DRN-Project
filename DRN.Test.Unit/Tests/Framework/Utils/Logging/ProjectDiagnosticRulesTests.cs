@@ -1,0 +1,229 @@
+using ValidationException = System.ComponentModel.DataAnnotations.ValidationException;
+using System.Reflection;
+using DRN.Framework.SharedKernel.Attributes;
+using DRN.Framework.SharedKernel.Diagnostics;
+using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Logging.Diagnostics;
+using DRN.Test.Shared;
+using static DRN.Test.Unit.Tests.Framework.Utils.Logging.DiagnosticTestSupport;
+
+namespace DRN.Test.Unit.Tests.Framework.Utils.Logging;
+
+public class ProjectDiagnosticRulesTests
+{
+    [Fact]
+    public void Missing_Transitive_Assemblies_Should_Not_Discard_Available_Catalogs()
+    {
+        var available = typeof(ProjectDiagnosticRulesTests).Assembly;
+        var references = new[] { new AssemblyName("Missing.Optional.Dependency"), available.GetName() };
+        var loaded = EmbeddedClassificationRules.LoadReferences(references, reference =>
+            reference.Name == available.GetName().Name ? available : throw new FileNotFoundException()).ToArray();
+        loaded.Should().ContainSingle().Which.Should().BeSameAs(available);
+        var rules = EmbeddedClassificationRules.Load(loaded[0]);
+        rules.MatchesField("FixtureMemberReference").Should().BeTrue();
+        rules.MatchesField("Fixture3BReference").Should().BeTrue();
+
+        Action missingRoot = () => EmbeddedClassificationRules.Load("Missing.Classification.Root." + Guid.NewGuid().ToString("N"));
+        missingRoot.Should().Throw<FileNotFoundException>();
+    }
+
+    [Fact]
+    public void Invalid_Transitive_Assemblies_Should_Still_Fail_Discovery()
+    {
+        var references = new[] { new AssemblyName("Invalid.Dependency") };
+        Action failedLoad = () => EmbeddedClassificationRules.LoadReferences(references,
+            _ => throw new FileLoadException()).ToArray();
+        failedLoad.Should().Throw<FileLoadException>();
+        Action invalidImage = () => EmbeddedClassificationRules.LoadReferences(references,
+            _ => throw new BadImageFormatException()).ToArray();
+        invalidImage.Should().Throw<BadImageFormatException>();
+    }
+
+    [Fact]
+    public void Inheritance_Should_Handle_Cycles_And_Ignore_Unrelated_Invalid_Catalogs()
+    {
+        var kernel = new CatalogAssembly("DRN.Framework.SharedKernel");
+        var root = new CatalogAssembly("App", "{\"secretFields\":[\"graphOwn\"]}");
+        var dependency = new CatalogAssembly("Dependency", "{\"personalFields\":[\"graphMember\"]}");
+        root.References.AddRange([dependency, new CatalogAssembly("Unrelated", "{")]);
+        dependency.References.AddRange([root, kernel]);
+        var rules = DiagnosticRedactionRules.FromGraph<CatalogAssembly>(root, item => item.Name, item => item.References,
+            item => item.Catalog == null ? [] : [item.Catalog], EqualityComparer<CatalogAssembly>.Default);
+        rules.MatchesField("GraphOwn").Should().BeTrue();
+        rules.MatchesField("GraphMember").Should().BeTrue();
+        rules.MatchesField("Password").Should().BeTrue();
+        rules.MatchesField("Other").Should().BeFalse();
+    }
+
+    [Fact]
+    public void Inherited_Rule_Merges_Should_Be_Deduplicated_And_Bounded()
+    {
+        var rules = DiagnosticRedactionRules.Empty;
+        for (var group = 0; group < 16; group++)
+        {
+            var json = "{\"personalFields\":[" + string.Join(",", Enumerable.Range(0, 256)
+                .Select(index => "\"field" + group + "item" + index + "\"")) + "]}";
+            var addition = DiagnosticRedactionRules.Parse(json);
+            rules = rules.Merge(addition).Merge(addition);
+        }
+        rules.PersonalFields.Should().HaveCount(4096);
+        Action overflow = () => rules.Merge(DiagnosticRedactionRules.Parse("{\"personalFields\":[\"overflow\"]}"));
+        overflow.Should().Throw<FormatException>();
+    }
+
+    private sealed class CatalogAssembly(string name, string? catalog = null)
+    {
+        internal string Name { get; } = name;
+        internal string? Catalog { get; } = catalog;
+        internal List<CatalogAssembly> References { get; } = [];
+    }
+
+    [Fact]
+    public void Runtime_Should_Inherit_Embedded_Catalogs_From_Referenced_Drn_Projects()
+    {
+        var sanitizer = new DiagnosticSanitizer(new DiagnosticLogOptions
+        {
+            RuleAssemblyName = typeof(ProjectDiagnosticRulesTests).Assembly.GetName().Name,
+            MaxProcessingMilliseconds = 100
+        });
+        // These names come only from the referenced test-support project's embedded catalog.
+        foreach (var field in new[] { "FixtureMemberReference", "Fixture3BReference" })
+            sanitizer.SanitizeValue(field, "probe").Should().Be(DiagnosticSanitizer.Redacted);
+        sanitizer.SanitizeValue("UnrelatedReference", "probe").Should().Be("probe");
+    }
+
+    private static DiagnosticLogOptions Options() => new()
+    {
+        RuleFile = "DiagnosticRules/data-classification-rules.json", MaxProcessingMilliseconds = 100
+    };
+
+    [Fact]
+    public void Project_File_Should_Add_Normalized_Rules_And_Preserve_Builtins()
+    {
+        var sanitizer = new DiagnosticSanitizer(Options());
+        foreach (var name in new[] { "Challenge_Response", "MEMBERSHIP_NUMBER", "Payload.PrivateValue", "Password" })
+            sanitizer.SanitizeValue(name, "probe").Should().Be(DiagnosticSanitizer.Redacted);
+        sanitizer.SanitizeValue("FileName", "report.txt").Should().Be("report.txt");
+        sanitizer.SanitizeUrl("/handoff/private?membership_number=member&attempt=2")
+            .Should().Be("/handoff/redacted?membership_number=redacted&attempt=2");
+        sanitizer.SanitizeUrl("/token/private").Should().Be("/token/redacted");
+        sanitizer.SanitizeBody("{\"membershipNumber\":\"member\"}", "application/json")
+            .Should().NotContain("\"member\"").And.Contain(DiagnosticSanitizer.Redacted);
+        sanitizer.SanitizeBody("membershipNumber=member", "application/x-www-form-urlencoded")
+            .Should().Be("membershipNumber=%5Bredacted%5D");
+    }
+
+    [Fact]
+    public void Settings_Loading_Should_Use_The_Same_Project_File()
+    {
+        using var settings = SettingsProvider.Development(new { DiagnosticLogging = Options() });
+        var sanitizer = DiagnosticSanitizer.FromSettings(settings);
+        sanitizer.SanitizeValue("MembershipNumber", "member").Should().Be(DiagnosticSanitizer.Redacted);
+        var log = new ScopedLog(settings);
+        log.Add("MembershipNumber", "member");
+        log.GetLogs()["MembershipNumber"].Should().Be(DiagnosticSanitizer.Redacted);
+    }
+
+    [Fact]
+    public void Project_Rules_Should_Preserve_Reviewed_Exemptions_And_Configured_Precedence()
+    {
+        var sanitizer = new DiagnosticSanitizer(Options());
+        var value = (IReadOnlyDictionary<string, object>)sanitizer.SanitizeValue("Model", new ReviewedModel())!;
+        value["MembershipNumber"].Should().Be("public-reference");
+        var configured = new DiagnosticSanitizer(Options() with { SensitiveFields = ["membershipnumber"] });
+        var protectedValue = (IReadOnlyDictionary<string, object>)configured.SanitizeValue("Model", new ReviewedModel())!;
+        protectedValue["MembershipNumber"].Should().Be(DiagnosticSanitizer.Redacted);
+    }
+
+    private sealed class ReviewedModel
+    {
+        [Sensitive(false, Justification = "Public reference in this fixture.")]
+        public string MembershipNumber => "public-reference";
+    }
+
+    [Fact]
+    public void Project_Field_Paths_Should_Protect_Typed_Models_Despite_Name_Exemptions()
+    {
+        var sanitizer = new DiagnosticSanitizer(Options());
+        var value = (IReadOnlyDictionary<string, object>)sanitizer.SanitizeValue("Payload", new PathModel())!;
+        value["PrivateValue"].Should().Be(DiagnosticSanitizer.Redacted);
+        var other = (IReadOnlyDictionary<string, object>)sanitizer.SanitizeValue("Other", new PathModel())!;
+        other["PrivateValue"].Should().Be("probe");
+    }
+
+    private sealed class PathModel
+    {
+        [Sensitive(false, Justification = "Exercise full-path protection independently of name exemptions.")]
+        public string PrivateValue => "probe";
+    }
+
+    [Fact]
+    public void Rule_Snapshots_Should_Be_Stable_Per_Options_And_Survive_File_Removal()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(path, "{\"personalFields\":[\"membershipNumber\"]}");
+            var options = Options() with { RuleFile = path };
+            using var settings = SettingsProvider.Development();
+            var log = new ScopedLog(settings, new DiagnosticSanitizer(options));
+            log.Add("MembershipNumber", "member");
+            File.WriteAllText(path, "{}");
+            new DiagnosticSanitizer(options).SanitizeValue("MembershipNumber", "member").Should().Be(DiagnosticSanitizer.Redacted);
+            new DiagnosticSanitizer(options with { }).SanitizeValue("MembershipNumber", "member").Should().Be("member");
+            File.Delete(path);
+            log.GetLogs()["MembershipNumber"].Should().Be(DiagnosticSanitizer.Redacted);
+            var copy = new ScopedLog(settings, Policy());
+            copy.CopyFrom(log);
+            copy.GetLogs()["MembershipNumber"].Should().Be(DiagnosticSanitizer.Redacted);
+            Action missing = () => new DiagnosticSanitizer(options with { });
+            missing.Should().Throw<FileNotFoundException>();
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void Changing_A_Snapshot_RuleFile_Should_Load_The_New_File()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(path, "{\"personalFields\":[\"alternateReference\"]}");
+            var original = new DiagnosticSanitizer(Options());
+            var changed = new DiagnosticSanitizer(original.Options with { RuleFile = path });
+            changed.SanitizeValue("AlternateReference", "probe").Should().Be(DiagnosticSanitizer.Redacted);
+            changed.SanitizeValue("MembershipNumber", "member").Should().Be("member");
+            original.SanitizeValue("MembershipNumber", "member").Should().Be(DiagnosticSanitizer.Redacted);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void Copies_Should_Keep_Project_Url_Rules_When_The_Destination_Has_None()
+    {
+        using var settings = SettingsProvider.Development();
+        var source = new ScopedLog(settings, new DiagnosticSanitizer(Options()));
+        source.Add("TargetUrl", "/handoff/private?membershipNumber=member");
+        var destination = new ScopedLog(settings, Policy());
+        destination.CopyFrom(source);
+        destination.GetLogs()["TargetUrl"].Should().Be("/handoff/redacted?membershipNumber=redacted");
+    }
+
+    [Fact]
+    public void Invalid_Project_Files_Should_Fail_Instead_Of_Disabling_Protection()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            foreach (var json in InvalidDiagnosticRuleCases.Create())
+            {
+                File.WriteAllText(path, json);
+                Action create = () => new DiagnosticSanitizer(Options() with { RuleFile = path });
+                create.Should().Throw<FormatException>();
+            }
+            Action blank = () => new DiagnosticSanitizer(Options() with { RuleFile = " " });
+            blank.Should().Throw<ValidationException>();
+        }
+        finally { File.Delete(path); }
+    }
+}

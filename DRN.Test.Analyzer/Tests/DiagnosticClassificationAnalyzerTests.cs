@@ -4,6 +4,39 @@ namespace DRN.Test.Analyzer.Tests;
 
 public sealed class DiagnosticClassificationAnalyzerTests
 {
+    [Theory]
+    [InlineData("DRN.Framework.Utils.Logging", "IScopedLog", "Add", 2)]
+    [InlineData("DRN.Framework.Utils.Logging", "ScopedLog", "Add", 2)]
+    [InlineData("DRN.Framework.Utils.Logging.Diagnostics", "IDiagnosticSanitizer", "SanitizeValue", 2)]
+    [InlineData("DRN.Framework.Utils.Logging.Diagnostics", "DiagnosticSanitizer", "SanitizeValue", 2)]
+    [InlineData("Other.Logging", "ScopedLog", "Add", 0)]
+    [InlineData("Other.Logging", "DiagnosticSanitizer", "SanitizeValue", 0)]
+    public async Task Capture_Owners_Should_Check_Scalars_And_Dictionaries_Without_Matching_Lookalikes(
+        string ownerNamespace, string owner, string method, int expectedCount)
+    {
+        var diagnostics = await Analyze(Compilation($$"""
+            namespace {{ownerNamespace}}
+            {
+                public class {{owner}} { public void {{method}}(string key, object value) { } }
+            }
+            public class Caller
+            {
+                public void Run({{ownerNamespace}}.{{owner}} capture)
+                {
+                    capture.{{method}}("Password", "private");
+                    capture.{{method}}("Payload", new System.Collections.Generic.Dictionary<string, object>
+                    {
+                        ["Password"] = "private"
+                    });
+                }
+            }
+            """));
+        diagnostics.Should().HaveCount(expectedCount);
+        if (expectedCount == 0) return;
+        diagnostics.Should().ContainSingle(item => item.Id == "DRN0017");
+        diagnostics.Should().ContainSingle(item => item.Id == "DRN0020");
+    }
+
     [Fact]
     public async Task Redacted_Constants_Should_Not_Require_Capture_Exemptions()
     {
@@ -87,7 +120,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
             {
                 public static void CreateTable<T>(Func<ColumnsBuilder, T> columns) => throw new NotSupportedException();
             }
-            """, "Migrations/InitialMigration.g.cs"));
+            """, "Migrations/InitialMigration.cs"));
         diagnostics.Count(item => item.Id == "DRN0019").Should().Be(5);
         diagnostics.Should().ContainSingle(item => item.Id == "DRN0017");
         diagnostics.Should().HaveCount(6);
@@ -455,7 +488,8 @@ public sealed class DiagnosticClassificationAnalyzerTests
                  {
                      "Response_StatusCode", "Secret", "S_e_C_r_E_t", "CancellationToken", "Keyboard",
                      "E_m_a_i_l", "ClientErrorId", "PreAuthReplenishmentSeconds", "PostAuthReplenishmentSeconds",
-                     "ControllerClassName", "DiagnosticRedacted"
+                     "ControllerClassName", "DiagnosticRedacted", "C_V_V", "Cvc", "Pin_Code",
+                     "User_Name", "FirstName", "Last_Name", "DateOfBirth", "Birth_Date", "IBAN"
                  })
         {
             var source = "public class Model { public string " + name + " { get; set; } = \"\"; }";
@@ -467,7 +501,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
                      "Sec", "ElapsedSeconds", "Section", "FlurlEx_ResponseCaptureLimited",
                      "DriftSeconds", "ReplenishmentSeconds", "MaxProcessingMilliseconds", "Secure",
                      "UseSecureSourceKnownIds", "SecondEntities", "DisposeCount", "SecureId",
-                     "NullableSecureId"
+                     "NullableSecureId", "FileName", "ServiceAddress", "ShippingMethod", "Panel", "RootPath"
                  })
             (await Analyze(Compilation("public class Model { public int " + name + " { get; set; } }"))).Should().BeEmpty();
     }
@@ -516,10 +550,11 @@ public sealed class DiagnosticClassificationAnalyzerTests
         "DiagnosticModelConsumer", [CSharpSyntaxTree.ParseText(source, path: path)], References,
         new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
-    internal static async Task<ImmutableArray<Diagnostic>> Analyze(CSharpCompilation compilation)
+    internal static async Task<ImmutableArray<Diagnostic>> Analyze(CSharpCompilation compilation, params AdditionalText[] files)
     {
         compilation.GetDiagnostics().Where(item => item.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
-        return await compilation.WithAnalyzers([new DiagnosticClassificationAnalyzer()]).GetAnalyzerDiagnosticsAsync();
+        return await compilation.WithAnalyzers([new DiagnosticClassificationAnalyzer()], new AnalyzerOptions([.. files]))
+            .GetAnalyzerDiagnosticsAsync();
     }
 
     [Fact]

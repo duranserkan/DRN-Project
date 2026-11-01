@@ -32,6 +32,8 @@ function normalize(value, now) {
         status: Number.isInteger(value.status) && value.status >= 0 && value.status <= 599 ? value.status : 0,
         requestId: stringWithinMaxLength(value.requestId, 200),
         clientErrorId: stringWithinMaxLength(value.clientErrorId, 32),
+        clientErrorDetails: stringWithinMaxLength(value.clientErrorId, 32)
+            ? trimAndTruncate(value.clientErrorDetails, 4000) : '',
         sourceId: stringWithinMaxLength(value.sourceId, 200),
         operation: trimAndTruncate(value.operation, 200), target: trimAndTruncate(value.target, 200),
         createdAt: value.createdAt, persist: value.persist !== false, seen: value.seen === true

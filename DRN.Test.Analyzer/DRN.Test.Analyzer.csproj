@@ -25,4 +25,11 @@
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.9.0" />
     </ItemGroup>
 
+    <ItemGroup>
+        <Compile Include="../DRN.Test.Unit/Tests/Framework/Utils/Logging/ProjectRules/InvalidDiagnosticRuleCases.cs"
+                 Link="Tests/InvalidDiagnosticRuleCases.cs" />
+        <EmbeddedResource Include="../DRN.Test.Unit/Tests/Framework/Utils/Logging/ProjectRules/data-classification-rules.json"
+                          LogicalName="ProjectDiagnosticRules.json" />
+    </ItemGroup>
+
 </Project>

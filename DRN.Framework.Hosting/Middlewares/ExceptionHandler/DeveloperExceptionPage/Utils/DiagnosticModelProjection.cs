@@ -18,9 +18,11 @@ internal sealed class DiagnosticModelProjection(IDiagnosticSanitizer sanitizer)
 
     public ExceptionDetails Exception(ExceptionDetails source)
     {
-        var frames = source.StackFrames.Take(_remainingFrames).Select(Frame).ToArray();
+        var candidates = source.StackFrames.Take(_remainingFrames + 1).ToArray();
+        var truncated = candidates.Length > _remainingFrames;
+        var frames = candidates.Take(_remainingFrames).Select(Frame).ToArray();
         _remainingFrames -= frames.Length;
-        if (_remainingFrames == 0)
+        if (truncated)
             frames = [.. frames, new StackFrameSourceCodeInfo { ErrorDetails = DiagnosticSanitizer.Limited }];
         return source.Error is not { } error
             ? new ExceptionDetails(Text(source.ExceptionMessage), frames)
@@ -65,6 +67,10 @@ internal sealed class DiagnosticModelProjection(IDiagnosticSanitizer sanitizer)
         }
         return Text(string.Join('\n', captured)).Split('\n');
     }
+
+    public Dictionary<string, string?[]> Headers(IHeaderDictionary headers) =>
+        Strings(headers.Select(pair => new KeyValuePair<string, string?[]>(pair.Key,
+            pair.Value.Take(sanitizer.Options.MaxCollectionEntries).ToArray())));
 
     public Dictionary<string, string?[]> Strings(IEnumerable<KeyValuePair<string, string?[]>> source, bool allSensitive = false)
     {
