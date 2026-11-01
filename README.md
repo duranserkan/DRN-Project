@@ -5,6 +5,13 @@
 [![SOC2 Checklist](https://img.shields.io/badge/Doc-SOC2_Checklist-orange)](docs/SOC2-CHECKLIST.md)
 [![Privacy Checklist](https://img.shields.io/badge/Doc-Privacy_Checklist-blue)](docs/PRIVACY-CHECKLIST.md)
 <br>
+[![Semantic Versioning](https://img.shields.io/badge/semver-2.0.0-3D9FE0.svg)](https://semver.org/)
+[![license](https://img.shields.io/github/license/duranserkan/DRN-Project?color=blue)](https://github.com/duranserkan/DRN-Project/blob/master/LICENSE)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12348/badge)](https://www.bestpractices.dev/projects/12348)
+[![wiki](https://img.shields.io/badge/Doc-Wiki-brightgreen)](https://github.com/duranserkan/DRN-Project/wiki)
+[![wiki](https://img.shields.io/badge/Doc-Roadmap-yellowgreen)](https://github.com/duranserkan/DRN-Project/blob/master/ROADMAP.md)
+[![wiki](https://img.shields.io/badge/Doc-Security-gold)](https://github.com/duranserkan/DRN-Project/blob/master/SECURITY.md)
+<br>
 [![master](https://github.com/duranserkan/DRN-Project/actions/workflows/master.yml/badge.svg?branch=master)](https://github.com/duranserkan/DRN-Project/actions/workflows/master.yml)
 [![develop](https://github.com/duranserkan/DRN-Project/actions/workflows/develop.yml/badge.svg?branch=develop)](https://github.com/duranserkan/DRN-Project/actions/workflows/develop.yml)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
@@ -18,13 +25,6 @@
 [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=bugs)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=coverage)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
-<br>
-[![Semantic Versioning](https://img.shields.io/badge/semver-2.0.0-3D9FE0.svg)](https://semver.org/)
-[![license](https://img.shields.io/github/license/duranserkan/DRN-Project?color=blue)](https://github.com/duranserkan/DRN-Project/blob/master/LICENSE)
-[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12348/badge)](https://www.bestpractices.dev/projects/12348)
-[![wiki](https://img.shields.io/badge/Doc-Wiki-brightgreen)](https://github.com/duranserkan/DRN-Project/wiki)
-[![wiki](https://img.shields.io/badge/Doc-Roadmap-yellowgreen)](https://github.com/duranserkan/DRN-Project/blob/master/ROADMAP.md)
-[![wiki](https://img.shields.io/badge/Doc-Security-gold)](https://github.com/duranserkan/DRN-Project/blob/master/SECURITY.md)
 <br>
 [![arXiv](https://img.shields.io/badge/arXiv-2604.00151-b31b1b.svg)](https://doi.org/10.48550/arXiv.2604.00151)
 [![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.Testing?logo=Nuget&label=DRN.Framework.Testing)](https://nuget.org/packages/DRN.Framework.Testing/#readme-body-tab)
