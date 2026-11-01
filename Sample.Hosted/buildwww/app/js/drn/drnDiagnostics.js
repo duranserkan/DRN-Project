@@ -18,7 +18,7 @@ const MAX_DEPTH = 8;
 const MAX_DECODE_ROUNDS = 3;
 const encoder = new TextEncoder();
 const normalize = value => value.replace(/[^a-z0-9]/gi, '').toLowerCase();
-const builtins = new Set([...rules.secretFields, ...rules.personalFields]);
+const builtins = new Set([...rules.secretFields, ...rules.personalFields].map(normalize));
 
 function containsRule(value, rules) {
     for (const rule of rules) if (rule.length > 0 && value.includes(rule)) return true;
@@ -28,8 +28,8 @@ function containsRule(value, rules) {
 /** Page-local structural redaction and bounded capture. Free-text contents are preserved. */
 export function createDiagnosticSanitizer() {
     const fields = new Set();
-    const paths = new Set(rules.sensitiveFieldPaths);
-    const segments = new Set(rules.secretPathSegments);
+    const paths = new Set(rules.sensitiveFieldPaths.map(normalize));
+    const segments = new Set(rules.secretPathSegments.map(normalize));
     let configurationFailed = false;
 
     function configure(options = {}) {
@@ -87,7 +87,15 @@ export function createDiagnosticSanitizer() {
             }).join('&');
         }
         function decode(value) {
-            for (let round = 0; round < MAX_DECODE_ROUNDS && value.includes('%'); round++) value = decodeURIComponent(value);
+            for (let round = 0; round < MAX_DECODE_ROUNDS && value.includes('%'); round++) {
+                try {
+                    value = decodeURIComponent(value);
+                } catch (error) {
+                    // Literal percents are safe only when no encoded bytes remain to hide a sensitive name.
+                    if (error instanceof URIError && round > 0 && !/%[0-9a-f]{2}/i.test(value)) return value;
+                    throw error;
+                }
+            }
             return value.includes('%') ? INVALID : value;
         }
         function urlCore(value) {

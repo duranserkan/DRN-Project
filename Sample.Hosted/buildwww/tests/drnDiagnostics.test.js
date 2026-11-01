@@ -42,6 +42,30 @@ test('text content is preserved while explicit URL structure is redacted', () =>
     assert.equal(createDiagnosticSanitizer().createCapture().text('opaque/probe'), 'opaque/probe');
 });
 
+test('URL decoding preserves decoded literal percents while bounding nested encoding', () => {
+    const capture = createDiagnosticSanitizer().createCapture();
+    assert.equal(capture.url('/100%25?value=50%25#progress=75%25'), '/100%25?value=50%25#progress=75%25');
+    assert.equal(capture.url('/?value=100%2525'), '/?value=100%25');
+    assert.equal(capture.url('/?value=%GGsecret-probe'), '[diagnostic field unavailable]');
+    assert.equal(capture.url('/?value=%252541'), '/?value=A');
+    assert.equal(capture.url('/?value=%25252541'), '/?value=%5Bdiagnostic%20field%20unavailable%5D');
+    assert.equal(capture.url('/?%2570assword=secret-probe'), '/?password=redacted');
+});
+
+test('mixed URL escapes cannot hide sensitive keys or path segments', () => {
+    for (const url of [
+        '/?%2570assword%25=secret-probe',
+        '/#%2570assword%25=secret-probe',
+        '/%2574oken%25/secret-probe',
+        '/?%252570assword%2525=secret-probe',
+        '/?%2570assword%25FF=secret-probe'
+    ]) {
+        const capture = createDiagnosticSanitizer().createCapture();
+        assert.equal(capture.url(url), '[diagnostic field unavailable]', url);
+        assert.equal(capture.status.limited, true, url);
+    }
+});
+
 test('structured data skips getters, bounds cycles and redacts matching substrings', () => {
     const capture = createDiagnosticSanitizer().createCapture();
     const input = { HasRecoveryCodes: true, EmailConfirmed: false, id: 42 };

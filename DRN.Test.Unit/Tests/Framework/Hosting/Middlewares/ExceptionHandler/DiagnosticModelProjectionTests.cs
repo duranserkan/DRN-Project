@@ -20,6 +20,25 @@ namespace DRN.Test.Unit.Tests.Framework.Hosting.Middlewares.ExceptionHandler;
 public class DiagnosticModelProjectionTests
 {
     [Theory]
+    [DataInlineUnit(1, false)]
+    [DataInlineUnit(2, false)]
+    [DataInlineUnit(3, true)]
+    [DataInlineUnit(4, true)]
+    public void Header_Value_Limits_Should_Report_Only_Omitted_Values(int count, bool limited)
+    {
+        var projection = new DiagnosticModelProjection(new DiagnosticSanitizer(new DiagnosticLogOptions
+        {
+            MaxCollectionEntries = 2, MaxProcessingMilliseconds = 100
+        }));
+        var values = Enumerable.Range(1, count).Select(value => value.ToString()).ToArray();
+        var headers = new HeaderDictionary { ["Accept"] = new Microsoft.Extensions.Primitives.StringValues(values) };
+
+        var captured = projection.Headers(headers)["Accept"];
+
+        captured.Should().Equal(limited ? [.. values.Take(2), DiagnosticSanitizer.Limited] : values);
+    }
+
+    [Theory]
     [DataInlineUnit(0, 0, 0, false, 0, false)]
     [DataInlineUnit(1, 0, 1, false, 0, false)]
     [DataInlineUnit(2, 0, 2, false, 0, false)]

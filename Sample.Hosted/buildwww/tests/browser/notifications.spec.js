@@ -60,12 +60,13 @@ for (const kind of ['error', 'unhandledrejection']) {
         }, kind);
         const report = (await reportRequest).postDataJSON();
         expect(report.clientErrorId).toMatch(/^[a-f0-9]{32}$/);
+        expect(report.message).toContain('Private global diagnostic');
         await page.getByRole('button', { name: 'Notifications, 1 unseen', exact: true }).click();
         const panel = page.getByRole('dialog', { name: 'Notifications', exact: true });
         await expect(panel).toContainText('An unexpected error occurred');
         await panel.getByRole('button', { name: 'Show details', exact: true }).click();
         await expect(panel).toContainText(`Client error reference: ${report.clientErrorId}`);
-        await expect(panel).toContainText('Message: Private global diagnostic');
+        await expect(panel.locator('pre')).toContainText(`Message: ${report.message}`);
         await expect(panel).toContainText('Stack:');
         await expect(page.locator('.toast')).toHaveCount(1);
         await expect(page.locator('.toast-body')).toHaveText(

@@ -70,7 +70,7 @@ internal sealed class DiagnosticModelProjection(IDiagnosticSanitizer sanitizer)
 
     public Dictionary<string, string?[]> Headers(IHeaderDictionary headers) =>
         Strings(headers.Select(pair => new KeyValuePair<string, string?[]>(pair.Key,
-            pair.Value.Take(sanitizer.Options.MaxCollectionEntries).ToArray())));
+            pair.Value.Take(sanitizer.Options.MaxCollectionEntries + 1).ToArray())));
 
     public Dictionary<string, string?[]> Strings(IEnumerable<KeyValuePair<string, string?[]>> source, bool allSensitive = false)
     {

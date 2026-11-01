@@ -18,8 +18,6 @@ public class ClientErrorController(IScopedLog scopedLog, IDiagnosticSanitizer sa
         new DiagnosticNameException(DiagnosticCaptureKind.Property, "Random diagnostic correlation identifier.",
             "ClientError", nameof(ClientErrorPayload.ClientErrorId)));
 
-    public ClientErrorController(IScopedLog scopedLog) : this(scopedLog, new DiagnosticSanitizer(new DiagnosticLogOptions())) { }
-
     [HttpPost("Report")]
     [RequestSizeLimit(3600)]
     public IActionResult Report([FromBody] ClientErrorPayload? payload)

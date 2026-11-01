@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text.Json;
 using DRN.Framework.SharedKernel.Attributes;
@@ -16,6 +17,7 @@ namespace DRN.Framework.Utils.Logging;
 [Scoped<IScopedLog>]
 public class ScopedLog : IScopedLog
 {
+    [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
     private static class PropertyCache<TValue> where TValue : class
     {
         private static readonly PropertyInfo[] Properties = typeof(TValue)
