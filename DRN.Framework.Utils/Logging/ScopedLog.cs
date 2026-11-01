@@ -24,6 +24,8 @@ public class ScopedLog : IScopedLog
             .GetProperties(BindingFlag.InstancePublic)
             .Where(property => property.GetMethod is { IsPublic: true } && property.GetIndexParameters().Length == 0)
             .ToArray();
+        [SuppressMessage("Major Code Smell", "S2743:Static fields should not be used in generic types",
+            Justification = "Each TValue requires its own runtime metadata cache because entries are projected from that declared type's properties.")]
         private static readonly ConcurrentDictionary<Type, DiagnosticTypeMetadata.Member[]> RuntimeProperties = new();
 
         internal static DiagnosticTypeMetadata.Member[] For(Type runtimeType) => RuntimeProperties.GetOrAdd(runtimeType, static type =>
@@ -291,7 +293,7 @@ public class ScopedLog : IScopedLog
     /// <summary>Captures a named entry using explicit, exact application-authored name exceptions.</summary>
     public IScopedLog AddWithPolicy(string key, object value, DiagnosticCapturePolicy policy) => AddCore(key, value, policy);
 
-    private IScopedLog AddCore(string key, object? value, DiagnosticCapturePolicy? policy, string? exemptionReason = null)
+    private ScopedLog AddCore(string key, object? value, DiagnosticCapturePolicy? policy, string? exemptionReason = null)
     {
         if (value is TimeSpan time && key.Length <= Sanitizer.Options.MaxKeyBytes)
         {
@@ -355,7 +357,7 @@ public class ScopedLog : IScopedLog
         catch (Exception) { _captureLimited = true; return this; }
     }
 
-    private IScopedLog CopyFromCore(IScopedLog source)
+    private ScopedLog CopyFromCore(IScopedLog source)
     {
         Dictionary<string, DiagnosticCaptureResult>? captures = null;
         IReadOnlyDictionary<string, object> sourceLogs;
@@ -405,7 +407,7 @@ public class ScopedLog : IScopedLog
     public IScopedLog AddPropertiesWithPolicy<TValue>(string prefix, TValue classObject, DiagnosticCapturePolicy policy,
         params string[] ignoredPropertyNames) where TValue : class => AddPropertiesGuarded(prefix, classObject, policy, ignoredPropertyNames);
 
-    private IScopedLog AddPropertiesGuarded<TValue>(string prefix, TValue classObject, DiagnosticCapturePolicy? policy,
+    private ScopedLog AddPropertiesGuarded<TValue>(string prefix, TValue classObject, DiagnosticCapturePolicy? policy,
         string[] ignoredPropertyNames) where TValue : class
     {
         try { return AddPropertiesCore(prefix, classObject, policy, ignoredPropertyNames); }
@@ -417,7 +419,7 @@ public class ScopedLog : IScopedLog
         }
     }
 
-    private IScopedLog AddPropertiesCore<TValue>(string prefix, TValue classObject, DiagnosticCapturePolicy? policy,
+    private ScopedLog AddPropertiesCore<TValue>(string prefix, TValue classObject, DiagnosticCapturePolicy? policy,
         string[] ignoredPropertyNames) where TValue : class
     {
         policy?.Validate(Sanitizer.Options);

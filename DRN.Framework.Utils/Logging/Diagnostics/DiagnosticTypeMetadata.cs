@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using DRN.Framework.SharedKernel.Attributes;
@@ -74,6 +75,8 @@ internal static class DiagnosticTypeMetadata
         return new Member(property, ignored, classified, exempt);
     }
 
+    [SuppressMessage("Major Code Smell", "S3011:Reflection should not be used to increase accessibility of classes, methods, or fields",
+        Justification = "Non-public properties are inspected only to locate the exact interface-mapped getter and its classification metadata. This method does not invoke getters.")]
     private static PropertyInfo ResolveOverride(PropertyInfo property, Type runtimeType)
     {
         if (property.DeclaringType is { IsInterface: true } contract && !runtimeType.IsInterface)
@@ -95,6 +98,8 @@ internal static class DiagnosticTypeMetadata
     }
 
     // Inspect ancestry explicitly so Sensitive(false) cannot hide a positive base annotation.
+    [SuppressMessage("Major Code Smell", "S3011:Reflection should not be used to increase accessibility of classes, methods, or fields",
+        Justification = "Non-public base properties are inspected only for classification metadata on the same virtual getter chain. This preserves inherited redaction without reading property values.")]
     private static bool HasClassification(MemberInfo member, bool inherited = false)
     {
         if (member.GetCustomAttributes<DataClassificationAttribute>(false).Any(attribute =>

@@ -6,6 +6,8 @@ namespace DRN.Framework.Utils.Scope;
 
 /// <summary>Public error defaults for the current scope. Do not store private diagnostic data here.</summary>
 [StackTraceHidden]
+[SuppressMessage("Performance", "CA1822:Mark members as static",
+    Justification = "Throwing helpers intentionally support the instance-based ScopeContext.Problem API without changing public error defaults.")]
 public sealed class ScopeProblem
 {
     public string? Type { get; set; }
