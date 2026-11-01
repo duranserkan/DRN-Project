@@ -1,4 +1,8 @@
 <Project>
+  <PropertyGroup>
+    <_DrnRuleTargetsFile>$(MSBuildThisFileFullPath)</_DrnRuleTargetsFile>
+  </PropertyGroup>
+
   <!-- Publish catalogs as assembly metadata so reference assemblies retain them for downstream analyzers. -->
   <Target Name="_PrepareDrnDataClassificationRules" BeforeTargets="CoreCompile" Condition="'$(MSBuildProjectExtension)' == '.csproj'">
     <ItemGroup>
@@ -25,12 +29,18 @@
         <_Parameter1>$([MSBuild]::Escape($([System.IO.File]::ReadAllText('$(_DrnRuleFilePath)'))))</_Parameter1>
       </_DrnRuleAttribute>
     </ItemGroup>
-    <WriteCodeFragment Condition="'@(_DrnRulePath)' != ''" Language="C#" AssemblyAttributes="@(_DrnRuleAttribute)" OutputFile="$(_DrnRuleSourceFile)" />
     <ItemGroup Condition="'@(_DrnRulePath)' != ''">
       <Compile Remove="$(_DrnRuleSourceFile)" />
       <Compile Include="$(_DrnRuleSourceFile)" />
       <FileWrites Include="$(_DrnRuleSourceFile)" />
     </ItemGroup>
+  </Target>
+
+  <Target Name="_GenerateDrnDataClassificationRules" AfterTargets="_PrepareDrnDataClassificationRules"
+          Condition="'@(_DrnRulePath)' != ''"
+          Inputs="@(_DrnRulePath);$(_DrnRuleTargetsFile);$(MSBuildProjectFullPath);$(MSBuildAllProjects)"
+          Outputs="$(_DrnRuleSourceFile)">
+    <WriteCodeFragment Language="C#" AssemblyAttributes="@(_DrnRuleAttribute)" OutputFile="$(_DrnRuleSourceFile)" />
   </Target>
 
   <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.csproj'
