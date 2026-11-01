@@ -12,33 +12,15 @@ namespace DRN.Framework.SharedKernel.Analyzers;
 public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
 {
     private const string AttributeNamespace = "DRN.Framework.SharedKernel.Attributes.";
-    private const string Category = "DRN.Classification";
-    private const string Help = "https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/README.md";
-    private const int MaxDictionaryWork = 16384;
-    private const int MaxDictionaryDepth = 32;
-    private const int MaxModelDepth = 16;
 
-    public static readonly DiagnosticDescriptor MissingClassification = new("DRN0015", "Classify property",
-        "Add [Personal] or [Sensitive] to '{0}'. Use [Sensitive(false)] for a false positive.",
-        Category, DiagnosticSeverity.Error, true, helpLinkUri: Help);
-    public static readonly DiagnosticDescriptor InvalidExemption = new("DRN0016", "Invalid name exemption",
-        "{0}", Category, DiagnosticSeverity.Error, true, helpLinkUri: Help);
-    public static readonly DiagnosticDescriptor PathClassification = new("DRN0017", "Classify or exempt capture",
-        "Path '{0}' blocks '{1}'. Use [Personal] or [Sensitive] on model properties. For false positives, use AddWithPolicy, AddPropertiesWithPolicy, or SanitizeWithPolicy.",
-        Category, DiagnosticSeverity.Error, true, helpLinkUri: Help);
-    public static readonly DiagnosticDescriptor UnknownClassification = new("DRN0018", "Unsupported classification",
-        "Use [Personal], [Sensitive], or a derived attribute on '{0}'",
-        Category, DiagnosticSeverity.Error, true, helpLinkUri: Help);
-    public static readonly DiagnosticDescriptor AnonymousClassification = new("DRN0019", "Use a named model",
-        "Anonymous property '{0}' needs a named class or record. Add [Personal] or [Sensitive], or [Sensitive(false)] for a false positive.",
-        Category, DiagnosticSeverity.Error, true, helpLinkUri: Help);
-    public static readonly DiagnosticDescriptor DictionaryClassification = new("DRN0020", "Classify dictionary key",
-        "Classify dictionary key '{0}' with AddDictionary or SanitizeDictionary",
-        Category, DiagnosticSeverity.Error, true, helpLinkUri: Help);
-
-    public static readonly DiagnosticDescriptor InvalidRuleFile = new("DRN0021", "Invalid diagnostic redaction rules",
-        "{0}", Category, DiagnosticSeverity.Error, true, helpLinkUri: Help,
-        customTags: [WellKnownDiagnosticTags.CompilationEnd]);
+    // Preserve the public descriptor fields while sharing their definitions with capture analyses.
+    public static readonly DiagnosticDescriptor MissingClassification = ClassificationDiagnosticDescriptors.MissingClassification;
+    public static readonly DiagnosticDescriptor InvalidExemption = ClassificationDiagnosticDescriptors.InvalidExemption;
+    public static readonly DiagnosticDescriptor PathClassification = ClassificationDiagnosticDescriptors.PathClassification;
+    public static readonly DiagnosticDescriptor UnknownClassification = ClassificationDiagnosticDescriptors.UnknownClassification;
+    public static readonly DiagnosticDescriptor AnonymousClassification = ClassificationDiagnosticDescriptors.AnonymousClassification;
+    public static readonly DiagnosticDescriptor DictionaryClassification = ClassificationDiagnosticDescriptors.DictionaryClassification;
+    public static readonly DiagnosticDescriptor InvalidRuleFile = ClassificationDiagnosticDescriptors.InvalidRuleFile;
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         [MissingClassification, InvalidExemption, PathClassification, UnknownClassification, AnonymousClassification, DictionaryClassification, InvalidRuleFile];
@@ -105,7 +87,7 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
     {
         var property = (IPropertySymbol)context.Symbol;
         if (property.ContainingType.IsAnonymousType) return;
-        if (!Eligible(property) || !rules.MatchesField(property.Name) || contract.Accepted(property)) return;
+        if (!ClassificationContract.Eligible(property) || !rules.MatchesField(property.Name) || contract.Accepted(property)) return;
         var location = property.Locations.FirstOrDefault(item => item.IsInSource);
         if (location == null) return;
         context.ReportDiagnostic(Diagnostic.Create(ClassificationContract.HasUnknown(property) ? UnknownClassification : MissingClassification,
@@ -125,9 +107,6 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    private static bool Eligible(IPropertySymbol property) => !property.IsStatic && !property.IsIndexer &&
-        property.DeclaredAccessibility == Accessibility.Public && property.GetMethod?.DeclaredAccessibility == Accessibility.Public;
-
     private static bool IsMigrationSchemaExpression(IAnonymousObjectCreationOperation creation)
     {
         IOperation result = creation;
@@ -146,12 +125,14 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
             call.TargetMethod.Name is "PrimaryKey" or "UniqueConstraint" or "ForeignKey" && argument.Parameter?.Name == "columns";
         if (!columns && !selector) return false;
         // Only column-operation metadata is exempt. Nested default values and other data are analyzed separately.
-        return creation.Initializers.All(initializer =>
-        {
-            if (initializer is not ISimpleAssignmentOperation assignment || !IsColumnOperationBuilder(assignment.Value.Type)) return false;
-            return columns || assignment.Value is IPropertyReferenceOperation { Instance: IParameterReferenceOperation parameter } &&
-                SymbolEqualityComparer.Default.Equals(parameter.Parameter, lambda.Symbol.Parameters[0]);
-        });
+        return creation.Initializers.All(initializer => IsMigrationColumnInitializer(initializer, columns, lambda.Symbol.Parameters[0]));
+    }
+
+    private static bool IsMigrationColumnInitializer(IOperation initializer, bool columns, IParameterSymbol lambdaParameter)
+    {
+        if (initializer is not ISimpleAssignmentOperation assignment || !IsColumnOperationBuilder(assignment.Value.Type)) return false;
+        return columns || assignment.Value is IPropertyReferenceOperation { Instance: IParameterReferenceOperation parameter } &&
+            SymbolEqualityComparer.Default.Equals(parameter.Parameter, lambdaParameter);
     }
 
     private static bool IsColumnOperationBuilder(ITypeSymbol? type) =>
@@ -160,16 +141,14 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
         named.ContainingNamespace.ToDisplayString() == "Microsoft.EntityFrameworkCore.Migrations.Operations.Builders" &&
         named.TypeArguments[0].ToDisplayString() == "Microsoft.EntityFrameworkCore.Migrations.Operations.AddColumnOperation";
 
-    private static bool IsDictionary(ITypeSymbol? type) => type is INamedTypeSymbol named &&
-        new[] { named }.Concat(named.AllInterfaces).Any(item => item.ToDisplayString() == "System.Collections.IDictionary" ||
-            item.OriginalDefinition.ToDisplayString() is "System.Collections.Generic.IDictionary<TKey, TValue>" or
-                "System.Collections.Generic.IReadOnlyDictionary<TKey, TValue>");
-
     private static bool IsScopedLog(string owner) =>
         owner is "DRN.Framework.Utils.Logging.IScopedLog" or "DRN.Framework.Utils.Logging.ScopedLog";
 
     private static bool IsSanitizer(string owner) =>
         owner is "DRN.Framework.Utils.Logging.Diagnostics.IDiagnosticSanitizer" or "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticSanitizer";
+
+    private static IOperation? GetArgumentValue(IInvocationOperation call, int ordinal) =>
+        call.Arguments.FirstOrDefault(argument => argument.Parameter?.Ordinal == ordinal)?.Value;
 
     private static void AnalyzeDictionaryCapture(OperationAnalysisContext context, DiagnosticRedactionRules rules)
     {
@@ -182,116 +161,12 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
         if (method.Name is not ("Add" or "AddToList" or "AddProperties" or "AddWithPolicy" or "AddPropertiesWithPolicy" or
             "SanitizeValue" or "SanitizeWithPolicy" or "AddDictionary" or "SanitizeDictionary")) return;
         var offset = method.IsExtensionMethod && method.ReducedFrom == null ? 1 : 0;
-        var value = call.Arguments.FirstOrDefault(argument => argument.Parameter?.Ordinal == 1 + offset)?.Value;
+        var value = GetArgumentValue(call, 1 + offset);
         if (value == null) return;
         var dictionaryApi = method.Name is "AddDictionary" or "SanitizeDictionary";
-        var prefix = call.Arguments.FirstOrDefault(argument => argument.Parameter?.Ordinal == offset)?.Value;
+        var prefix = GetArgumentValue(call, offset);
         var rootPath = prefix?.ConstantValue is { HasValue: true, Value: string path } ? path : null;
-        var visited = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
-        var reported = new HashSet<string>(StringComparer.Ordinal);
-        // Shared locals need path-sensitive revisits, so bound total work as well as depth.
-        var remainingWork = MaxDictionaryWork;
-        Inspect(value, dictionaryApi, 0, rootPath);
-
-        bool TryVisit()
-        {
-            context.CancellationToken.ThrowIfCancellationRequested();
-            if (remainingWork == 0) return false;
-            remainingWork--;
-            return true;
-        }
-
-        string? Report(IOperation? key, bool allowed, string? parentPath)
-        {
-            if (key?.ConstantValue is not { HasValue: true, Value: string name }) return null;
-            var fullPath = parentPath == null ? null : parentPath + "." + name;
-            var matchesPath = fullPath != null && rules.MatchesPath(fullPath);
-            var reportedName = matchesPath ? fullPath! : name;
-            if (!allowed && (rules.MatchesField(name) || matchesPath) && reported.Add(reportedName))
-                context.ReportDiagnostic(Diagnostic.Create(DictionaryClassification, call.Syntax.GetLocation(), reportedName));
-            return fullPath;
-        }
-
-        void Inspect(IOperation operation, bool allowKeys, int depth, string? capturePath)
-        {
-            if (!TryVisit() || depth > MaxDictionaryDepth) return;
-            if (operation is IConversionOperation conversion) { Inspect(conversion.Operand, allowKeys, depth + 1, capturePath); return; }
-            var type = operation.Type;
-            if (type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable)
-                type = nullable.TypeArguments[0];
-            // Scalar projections do not capture their dictionary receiver or arguments.
-            if (type?.SpecialType is SpecialType.System_Boolean or SpecialType.System_Char or SpecialType.System_String or
-                SpecialType.System_Byte or SpecialType.System_SByte or SpecialType.System_Int16 or SpecialType.System_UInt16 or
-                SpecialType.System_Int32 or SpecialType.System_UInt32 or SpecialType.System_Int64 or SpecialType.System_UInt64 or
-                SpecialType.System_Single or SpecialType.System_Double or SpecialType.System_Decimal or SpecialType.System_DateTime ||
-                type?.TypeKind == TypeKind.Enum) return;
-            if (operation is ILocalReferenceOperation local && visited.Add(local.Local))
-            {
-                InspectLocalWrites(local.Local, allowKeys, depth, capturePath);
-                // The same local can be captured under several paths. Only suppress active recursion.
-                visited.Remove(local.Local);
-                return;
-            }
-            if (operation is IObjectCreationOperation creation && IsDictionary(creation.Type))
-            {
-                if (creation.Initializer != null)
-                    foreach (var entry in creation.Initializer.Initializers)
-                    {
-                        if (!TryVisit()) return;
-                        InspectEntry(entry, allowKeys, depth, capturePath);
-                    }
-                foreach (var argument in creation.Arguments)
-                {
-                    if (remainingWork == 0) return;
-                    Inspect(argument.Value, false, depth + 1, capturePath);
-                }
-                return;
-            }
-            foreach (var child in operation.ChildOperations)
-            {
-                if (remainingWork == 0) return;
-                Inspect(child, false, depth + 1, null);
-            }
-        }
-
-        void InspectLocalWrites(ILocalSymbol local, bool allowKeys, int depth, string? capturePath)
-        {
-            // Reuse the analyzed operation tree for declarations and direct writes before capture.
-            var root = call.Parent;
-            while (root?.Parent != null) root = root.Parent;
-            if (root == null) return;
-            foreach (var prior in root.Descendants())
-            {
-                if (!TryVisit()) break;
-                if (prior is IVariableDeclaratorOperation { Initializer: { } initializer } declaration &&
-                    SymbolEqualityComparer.Default.Equals(declaration.Symbol, local))
-                    Inspect(initializer.Value, allowKeys, depth + 1, capturePath);
-                if (prior.Syntax.SpanStart >= call.Syntax.SpanStart) continue;
-                if (prior is ISimpleAssignmentOperation { Target: ILocalReferenceOperation assignedLocal } localAssignment &&
-                    SymbolEqualityComparer.Default.Equals(assignedLocal.Local, local))
-                    Inspect(localAssignment.Value, allowKeys, depth + 1, capturePath);
-                if (prior is IInvocationOperation { TargetMethod.Name: "Add", Instance: ILocalReferenceOperation receiver } &&
-                    SymbolEqualityComparer.Default.Equals(receiver.Local, local) && IsDictionary(receiver.Type))
-                    InspectEntry(prior, allowKeys, depth, capturePath);
-                if (prior is ISimpleAssignmentOperation { Target: IPropertyReferenceOperation { Property.IsIndexer: true, Instance: ILocalReferenceOperation receiver2 } } &&
-                    SymbolEqualityComparer.Default.Equals(receiver2.Local, local) && IsDictionary(receiver2.Type))
-                    InspectEntry(prior, allowKeys, depth, capturePath);
-            }
-        }
-
-        void InspectEntry(IOperation entry, bool allowKeys, int depth, string? capturePath)
-        {
-            if (entry is IInvocationOperation add)
-            {
-                var childPath = Report(add.Arguments.FirstOrDefault()?.Value, allowKeys, capturePath);
-                foreach (var argument in add.Arguments.Skip(1)) Inspect(argument.Value, false, depth + 1, childPath);
-            }
-            else if (entry is ISimpleAssignmentOperation { Target: IPropertyReferenceOperation index } assignment)
-            {
-                var childPath = Report(index.Arguments.FirstOrDefault()?.Value, allowKeys, capturePath);
-                Inspect(assignment.Value, false, depth + 1, childPath);
-            }
-        }
+        new DictionaryCaptureAnalysis(context, rules, call).Analyze(value, dictionaryApi, rootPath);
     }
 
     private static void AnalyzeAttribute(SyntaxNodeAnalysisContext context, ClassificationContract contract)
@@ -322,76 +197,32 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
     {
         var call = (IInvocationOperation)context.Operation;
         if (IsSubstituteVerification(call)) return;
+        if (!IsModelCapture(call, out var flat)) return;
+        var prefix = GetArgumentValue(call, 0);
+        if (prefix == null || !prefix.ConstantValue.HasValue || prefix.ConstantValue.Value is not string path) return;
+        var type = GetCaptureType(call, flat);
+        if (type == null) return;
+        new ModelCaptureAnalysis(context, contract, rules, call, flat).Analyze(type, path);
+    }
+
+    private static bool IsModelCapture(IInvocationOperation call, out bool flat)
+    {
         var method = call.TargetMethod;
         var owner = method.ContainingType.ToDisplayString();
-        var flat = method.Name == "AddProperties" && IsScopedLog(owner);
+        flat = method.Name == "AddProperties" && IsScopedLog(owner);
         var valueCapture = method.Name is "Add" or "AddToList" && IsScopedLog(owner) ||
                            method.Name == "SanitizeValue" && IsSanitizer(owner);
         // Reason and policy overloads own runtime validation. Declarations are still checked independently.
-        if ((!flat && !valueCapture) || call.Arguments.Length != 2 && !flat || call.Arguments.Length < 2) return;
-        var prefix = call.Arguments.FirstOrDefault(argument => argument.Parameter?.Ordinal == 0)?.Value;
-        if (prefix == null || !prefix.ConstantValue.HasValue || prefix.ConstantValue.Value is not string path) return;
-        var value = call.Arguments.FirstOrDefault(argument => argument.Parameter?.Ordinal == 1)?.Value;
+        return flat ? call.Arguments.Length >= 2 : valueCapture && call.Arguments.Length == 2;
+    }
+
+    private static ITypeSymbol? GetCaptureType(IInvocationOperation call, bool flat)
+    {
+        var value = GetArgumentValue(call, 1);
         while (value is IConversionOperation conversion) value = conversion.Operand;
         // The exact constant marker contains no captured data. Runtime values remain checked.
-        if (!flat && value?.ConstantValue is { HasValue: true, Value: "[redacted]" }) return;
-        var type = flat ? method.TypeArguments.FirstOrDefault() : value?.Type;
-        if (type == null || contract.Positive(type)) return;
-        if (method.Name == "Add" && type.ToDisplayString() is "System.TimeSpan" or "System.TimeSpan?")
-            path += "_Seconds";
-        if (rules.MatchesPath(path) || !IsModelType(type) && rules.MatchesField(path))
-        {
-            // Untyped roots still require an explicit capture decision.
-            context.ReportDiagnostic(Diagnostic.Create(PathClassification, call.Syntax.GetLocation(), path, type.Name));
-            return;
-        }
-        Visit(type, path, IsModelType(type) ? "" : path, new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default), 0);
-
-        void Visit(ITypeSymbol current, string currentPath, string namePath, HashSet<ITypeSymbol> ancestors, int depth)
-        {
-            if (current is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable)
-                current = nullable.TypeArguments[0];
-            if (depth > MaxModelDepth || current.SpecialType != SpecialType.None || current.TypeKind is TypeKind.Enum or TypeKind.TypeParameter ||
-                current.ToDisplayString() is "System.TimeSpan" or "System.DateTimeOffset" or "System.DateOnly" or "System.TimeOnly" or
-                    "System.Uri" or "System.Guid" or "DRN.Framework.Utils.Logging.ScopeEvent" ||
-                contract.Positive(current) || !ancestors.Add(current)) return;
-            try
-            {
-                if (current is IArrayTypeSymbol array) { Visit(array.ElementType, currentPath, namePath, ancestors, depth + 1); return; }
-                if (current is not INamedTypeSymbol named) return;
-                if (IsUri(named)) return;
-                if (named.AllInterfaces.Any(item => item.ToDisplayString() == "System.Collections.IDictionary" ||
-                        item.OriginalDefinition.ToDisplayString() == "System.Collections.Generic.IReadOnlyDictionary<TKey, TValue>")) return;
-                if (named.ToDisplayString() == "System.Text.Json.JsonElement") return;
-                var list = named.AllInterfaces.FirstOrDefault(item => item.OriginalDefinition.ToDisplayString() == "System.Collections.Generic.IList<T>");
-                if (list != null) { Visit(list.TypeArguments[0], currentPath, namePath, ancestors, depth + 1); return; }
-                if (named.AllInterfaces.Any(item => item.ToDisplayString() == "System.Collections.IEnumerable")) return;
-                var names = new HashSet<string>(StringComparer.Ordinal);
-                for (var level = named; level != null; level = level.BaseType)
-                    foreach (var property in level.GetMembers().OfType<IPropertySymbol>().Where(Eligible))
-                    {
-                        if (!names.Add(property.Name) || contract.Positive(property) || contract.Positive(property.Type) ||
-                            contract.Positive(property.ContainingType)) continue;
-                        var full = currentPath + "." + property.Name;
-                        var propertyNamePath = IsModelType(current) ? property.Name : namePath + "." + property.Name;
-                        // Flat property capture converts TimeSpan to seconds and checks the resulting key again.
-                        if (flat && depth == 0 && property.Type.ToDisplayString() is "System.TimeSpan" or "System.TimeSpan?")
-                        {
-                            full += "_Seconds";
-                            propertyNamePath += "_Seconds";
-                        }
-                        // Source own-name diagnostics are emitted once at declaration, independent of logging calls.
-                        if (rules.MatchesPath(full))
-                            context.ReportDiagnostic(Diagnostic.Create(PathClassification, call.Syntax.GetLocation(), full, property.Name));
-                        else if (rules.MatchesField(propertyNamePath) && !contract.Exempt(property) &&
-                            (!rules.MatchesField(property.Name) || !property.Locations.Any(location => location.IsInSource)))
-                            context.ReportDiagnostic(Diagnostic.Create(PathClassification, call.Syntax.GetLocation(), full, property.Name));
-                        else if (!rules.MatchesField(propertyNamePath) || contract.Exempt(property))
-                            Visit(property.Type, full, propertyNamePath, ancestors, depth + 1);
-                    }
-            }
-            finally { ancestors.Remove(current); }
-        }
+        if (!flat && value?.ConstantValue is { HasValue: true, Value: "[redacted]" }) return null;
+        return flat ? call.TargetMethod.TypeArguments.FirstOrDefault() : value?.Type;
     }
 
     private static bool IsSubstituteVerification(IInvocationOperation call)
@@ -406,66 +237,4 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
             method.Name is "Received" or "DidNotReceive" or "ReceivedWithAnyArgs" or "DidNotReceiveWithAnyArgs";
     }
 
-    private static bool IsModelType(ITypeSymbol type)
-    {
-        if (type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable)
-            type = nullable.TypeArguments[0];
-        return type is INamedTypeSymbol { IsAnonymousType: false } named && type.SpecialType == SpecialType.None &&
-            type.TypeKind != TypeKind.Enum &&
-            type.ToDisplayString() is not ("System.TimeSpan" or "System.DateTimeOffset" or "System.DateOnly" or "System.TimeOnly" or "System.Guid" or
-                "System.Text.Json.JsonElement" or "DRN.Framework.Utils.Logging.ScopeEvent") &&
-            !IsUri(named) &&
-            type.ToDisplayString() != "System.Collections.IEnumerable" &&
-            !named.AllInterfaces.Any(item => item.ToDisplayString() == "System.Collections.IEnumerable");
-    }
-
-    private static bool IsUri(INamedTypeSymbol type)
-    {
-        for (var current = type; current != null; current = current.BaseType)
-            if (current.ToDisplayString() == "System.Uri") return true;
-        return false;
-    }
-
-    internal sealed class ClassificationContract(INamedTypeSymbol sensitive, INamedTypeSymbol personal)
-    {
-        internal INamedTypeSymbol Sensitive { get; } = sensitive;
-        internal bool Accepted(IPropertySymbol property) => Positive(property) || Positive(property.ContainingType) ||
-            Positive(property.Type) || Exempt(property);
-
-        internal bool Exempt(IPropertySymbol property) => property.GetAttributes().Any(attribute =>
-                SymbolEqualityComparer.Default.Equals(attribute.AttributeClass, Sensitive) && IsFalse(attribute));
-
-        internal bool Positive(ISymbol symbol)
-        {
-            if (symbol is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable)
-                symbol = nullable.TypeArguments[0];
-            for (ISymbol? current = symbol; current != null; current = current switch
-                 { IPropertySymbol property => property.OverriddenProperty, INamedTypeSymbol type => type.BaseType, _ => null })
-                foreach (var attribute in current.GetAttributes())
-                    if ((SymbolEqualityComparer.Default.Equals(current, symbol) || Inherited(attribute)) &&
-                        (Derives(attribute.AttributeClass, personal) || Derives(attribute.AttributeClass, Sensitive) &&
-                        (!SymbolEqualityComparer.Default.Equals(attribute.AttributeClass, Sensitive) || !IsFalse(attribute)))) return true;
-            return false;
-        }
-
-        internal static bool HasUnknown(IPropertySymbol property) => property.GetAttributes().Concat(property.Type.GetAttributes())
-            .Any(attribute => Ancestors(attribute.AttributeClass).Any(type =>
-                type.ToDisplayString() == "Microsoft.Extensions.Compliance.Classification.DataClassificationAttribute"));
-
-        internal static bool IsFalse(AttributeData attribute) => attribute.ConstructorArguments is [{ Value: false }];
-        private static bool Inherited(AttributeData attribute)
-        {
-            foreach (var type in Ancestors(attribute.AttributeClass))
-                foreach (var usage in type.GetAttributes())
-                    if (usage.AttributeClass?.ToDisplayString() == "System.AttributeUsageAttribute")
-                        return !usage.NamedArguments.Any(pair => pair.Key == "Inherited" && pair.Value.Value is false);
-            return true;
-        }
-        internal static bool Derives(INamedTypeSymbol? type, INamedTypeSymbol parent) =>
-            Ancestors(type).Any(candidate => SymbolEqualityComparer.Default.Equals(candidate, parent));
-        private static IEnumerable<INamedTypeSymbol> Ancestors(INamedTypeSymbol? type)
-        {
-            for (; type != null; type = type.BaseType) yield return type;
-        }
-    }
 }

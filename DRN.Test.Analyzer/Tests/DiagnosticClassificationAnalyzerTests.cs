@@ -4,6 +4,134 @@ namespace DRN.Test.Analyzer.Tests;
 
 public sealed class DiagnosticClassificationAnalyzerTests
 {
+    [Fact]
+    public void Public_Descriptors_Should_Preserve_Shared_Instances_And_Supported_Diagnostics()
+    {
+        var descriptors = new[]
+        {
+            (DiagnosticClassificationAnalyzer.MissingClassification, ClassificationDiagnosticDescriptors.MissingClassification, "DRN0015"),
+            (DiagnosticClassificationAnalyzer.InvalidExemption, ClassificationDiagnosticDescriptors.InvalidExemption, "DRN0016"),
+            (DiagnosticClassificationAnalyzer.PathClassification, ClassificationDiagnosticDescriptors.PathClassification, "DRN0017"),
+            (DiagnosticClassificationAnalyzer.UnknownClassification, ClassificationDiagnosticDescriptors.UnknownClassification, "DRN0018"),
+            (DiagnosticClassificationAnalyzer.AnonymousClassification, ClassificationDiagnosticDescriptors.AnonymousClassification, "DRN0019"),
+            (DiagnosticClassificationAnalyzer.DictionaryClassification, ClassificationDiagnosticDescriptors.DictionaryClassification, "DRN0020"),
+            (DiagnosticClassificationAnalyzer.InvalidRuleFile, ClassificationDiagnosticDescriptors.InvalidRuleFile, "DRN0021")
+        };
+
+        foreach (var (publicDescriptor, sharedDescriptor, id) in descriptors)
+        {
+            publicDescriptor.Should().BeSameAs(sharedDescriptor);
+            publicDescriptor.Id.Should().Be(id);
+        }
+        new DiagnosticClassificationAnalyzer().SupportedDiagnostics.Should().Equal(descriptors.Select(pair => pair.Item1));
+    }
+
+    [Fact]
+    public async Task Classified_Roots_Should_Bypass_Matching_Paths_While_Scalars_Remain_Checked()
+    {
+        var diagnostics = await Analyze(Compilation("""
+            using DRN.Framework.SharedKernel.Attributes;
+            namespace DRN.Framework.Utils.Logging
+            {
+                public interface IScopedLog
+                {
+                    void Add(string key, object value);
+                    void AddProperties<T>(string prefix, T value) where T : class;
+                }
+            }
+            [Sensitive] public struct Credential { }
+            [Personal] public class Contact { }
+            public class Caller
+            {
+                public void Run(DRN.Framework.Utils.Logging.IScopedLog log, Credential? credential, Contact contact)
+                {
+                    log.Add("Payload", credential);
+                    log.Add("Payload", contact);
+                    log.AddProperties("Payload", contact);
+                    log.Add("Payload", 42);
+                }
+            }
+            """), new ProjectDiagnosticRulesTests.RuleFile("data-classification-rules.json",
+            """{"sensitiveFieldPaths":["Payload"]}"""));
+
+        var diagnostic = diagnostics.Should().ContainSingle().Which;
+        diagnostic.Id.Should().Be("DRN0017");
+        diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan)
+            .Should().Be("log.Add(\"Payload\", 42)");
+    }
+
+    [Fact]
+    public async Task TimeSpan_Captures_Should_Check_Seconds_Paths_Only_For_Converted_Values()
+    {
+        var diagnostics = await Analyze(Compilation("""
+            namespace DRN.Framework.Utils.Logging
+            {
+                public interface IScopedLog
+                {
+                    void Add(string key, object value);
+                    void AddToList(string key, object value);
+                    void AddProperties<T>(string prefix, T value) where T : class;
+                }
+            }
+            public class Model { public System.TimeSpan Duration => System.TimeSpan.Zero; }
+            public class Caller
+            {
+                public void Run(DRN.Framework.Utils.Logging.IScopedLog log, System.TimeSpan? duration)
+                {
+                    log.Add("Duration", System.TimeSpan.Zero);
+                    log.Add("Duration", duration);
+                    log.AddToList("Duration", System.TimeSpan.Zero);
+                    log.AddProperties("Metrics", new Model());
+                    log.Add("Metrics", new Model());
+                }
+            }
+            """), new ProjectDiagnosticRulesTests.RuleFile("data-classification-rules.json",
+            """{"sensitiveFieldPaths":["Duration_Seconds"]}"""));
+
+        diagnostics.Should().HaveCount(3).And.OnlyContain(item => item.Id == "DRN0017");
+        diagnostics.Select(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan))
+            .Should().BeEquivalentTo("log.Add(\"Duration\", System.TimeSpan.Zero)",
+                "log.Add(\"Duration\", duration)", "log.AddProperties(\"Metrics\", new Model())");
+        diagnostics.Should().OnlyContain(item => item.GetMessage().Contains("Duration_Seconds", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Declaration_And_Capture_Should_Exclude_Ineligible_Properties()
+    {
+        var diagnostics = await Analyze(Compilation("""
+            namespace DRN.Framework.Utils.Logging
+            {
+                public interface IScopedLog { void Add(string key, object value); }
+            }
+            public class Model
+            {
+                public static string Password => "private";
+                private string Secret => "private";
+                public string Token { private get; set; } = "private";
+                public string this[int index] => "private";
+                public string Email => "private";
+                public int Count => 1;
+            }
+            public class Caller
+            {
+                public void Run(DRN.Framework.Utils.Logging.IScopedLog log, Model model) => log.Add("Records", model);
+            }
+            """), new ProjectDiagnosticRulesTests.RuleFile("data-classification-rules.json",
+            """
+            {
+                "secretFields":["Item"],
+                "sensitiveFieldPaths":["Records.Password","Records.Secret","Records.Token","Records.Item","Records.Count"]
+            }
+            """));
+
+        diagnostics.Should().HaveCount(2);
+        var declaration = diagnostics.Should().ContainSingle(item => item.Id == "DRN0015").Which;
+        declaration.GetMessage().Should().Contain("'Email'");
+        var capture = diagnostics.Should().ContainSingle(item => item.Id == "DRN0017").Which;
+        capture.GetMessage().Should().Contain("'Records.Count'");
+        capture.Location.SourceTree!.GetText().ToString(capture.Location.SourceSpan).Should().Be("log.Add(\"Records\", model)");
+    }
+
     [Theory]
     [InlineData("DRN.Framework.Utils.Logging", "IScopedLog", "Add", 2)]
     [InlineData("DRN.Framework.Utils.Logging", "ScopedLog", "Add", 2)]
