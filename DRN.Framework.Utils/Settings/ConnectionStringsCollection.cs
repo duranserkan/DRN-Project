@@ -1,5 +1,8 @@
+using DRN.Framework.SharedKernel.Attributes;
+
 namespace DRN.Framework.Utils.Settings;
 
+[Sensitive]
 public class ConnectionStringsCollection
 {
     public ConnectionStringsCollection() { }

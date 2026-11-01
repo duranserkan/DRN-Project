@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Hosting.Identity;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
@@ -197,6 +198,7 @@ public class DrnSignInManagerTests
         private readonly UserManager<IdentityUser> _users;
         public IdentityUser User { get; } = new() { Id = "user", UserName = "User" };
         public ClaimsIdentity FactoryIdentity { get; set; }
+        [IgnoreLog, Sensitive(false, Justification = "Mock authentication service, not credentials.")]
         public IAuthenticationService Authentication { get; } = Substitute.For<IAuthenticationService>();
         public DefaultHttpContext Http { get; }
         public DrnSignInManager<IdentityUser> Manager { get; }

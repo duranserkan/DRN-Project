@@ -4,6 +4,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Changed
 
+*   **Development Exception Pages**: Display unredacted scoped logs and request details while retaining capture limits, buffering rules, and `[IgnoreLog]` exclusions. Emitted logs and non-Development projections remain redacted.
+
+*   **Diagnostic Redaction**: HTTP and startup logging, developer exception/compilation views, and Development exception detail copies use the shared diagnostic policy. Startup report generation failures retain the exception type, stack trace, and a fixed failure category, omitting exception messages. Single-entry reason strings retain HTTP status, authentication outcome, and rate-limit outcome/action/rule metadata. Named model properties own classification without built-in logging-prefix matches; configured rules still check full paths. IP addresses and rate-limit partition values remain protected. Model classifications include request cookies and partition identifiers. Free text is bounded without content scanning. Original filter and DiagnosticSource objects retain their compatibility contract; subscribers own their export policy. SharedKernel classification errors apply to consumer models independently of logging calls and `[IgnoreLog]`.
+
 *   **Exception Diagnostics**: Production responses and eligible API/HTMX errors avoid collecting an unused diagnostic model when no post-creation filter requires it. Existing filter callbacks, Development HTML diagnostics, and explicit model requests retain their behavior.
 *   **Rate Limit Defaults**: Post-auth buckets now allow 250 tokens per user and pre-auth buckets allow 2,500 tokens per IP, with matching refills every 60 seconds. Explicit configuration overrides remain supported.
 *   **Rate Limit Diagnostics**: Rejection logs include the rule action, distinguishing limiter rejections from explicit deny rules and unattributed rejections, consistent with rate-limit metrics.
@@ -26,6 +30,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **Application URLs**: Added `HttpRequest.ApplicationUrl` for application-owned route paths and `ApplicationUrlTagHelper` for `~/` HTML and HTMX URLs. Deployment prefixes are preserved without changing controller route prefixes or already-resolved URLs.
 
 ### Bug Fixes
+
+*   **Exception Details Serialization**: Prevent exception handling from failing during initialization after shared JSON options have already been used for serialization.
 
 *   **Started Response Exceptions**: `HttpScopeMiddleware` now logs and rethrows the original exception when `context.Response.HasStarted`, instead of failing while assigning the response status code.
 *   **Page Rendering**: `IPageUtils.RenderPageAsync` now supports standard `_ViewStart` files, layouts, and endpoint-generated links even for unmatched requests. Rendering also awaits scoped-service cleanup on success or failure.

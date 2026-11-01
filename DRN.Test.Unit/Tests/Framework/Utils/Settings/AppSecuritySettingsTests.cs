@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using DRN.Framework.SharedKernel.Attributes;
 using System.Security.Cryptography;
 using System.Text;
 using Blake3;
@@ -129,9 +130,9 @@ public class AppSecuritySettingsTests
 
     private sealed class CustomSecuritySettings : IAppSecuritySettings
     {
-        public string AppKey => "12345678";
-        public string AppHashKey => "AppHashKeyMaterial32BytesLength12";
-        public string AppEncryptionKey => "AppEncryptionKey32BytesLength123";
+        [Sensitive(false)] public string AppKey => "12345678";
+        [Sensitive] public string AppHashKey => "AppHashKeyMaterial32BytesLength12";
+        [Sensitive] public string AppEncryptionKey => "AppEncryptionKey32BytesLength123";
         public long AppSeed => 123456789L;
     }
 }

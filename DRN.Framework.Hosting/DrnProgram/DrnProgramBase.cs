@@ -51,6 +51,9 @@ namespace DRN.Framework.Hosting.DrnProgram;
 // consider an optional AddDrnOpenTelemetry(...) extension/companion package that adds DRN meters,
 // ASP.NET Core/runtime meters, safe histogram views, and no high-cardinality partition/user/IP tags.
 
+//todo: evaluate Microsoft data redaction and classification, audit reports, HTTP logging redaction,
+// and EF Core native diagnostics/auditing. See docs/privacy-and-compliance.md for tasks and references.
+
 public abstract class DrnProgram
 {
     static DrnProgram() => UtilsConventionBuilder.BuildConvention();
@@ -152,7 +155,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.LaunchExternalDependencies)}", appSettings.DevelopmentSettings.LaunchExternalDependencies);
             scopedLog.AddToActions("Running Application");
             disposeApplication = !appSettings.DevelopmentSettings.TemporaryApplication;
-            logger.LogWarning("{@Logs}", scopedLog.GetLogs());
+            logger.LogScoped(scopedLog, Microsoft.Extensions.Logging.LogLevel.Warning);
 
             if (appSettings.DevelopmentSettings.TemporaryApplication)
                 return;
@@ -176,10 +179,9 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         {
             try
             {
-                if (scopedLog.HasException)
-                    logger.LogError("{@Logs}", scopedLog.GetLogs());
-                else
-                    logger.LogWarning("{@Logs}", scopedLog.GetLogs());
+                logger.LogScoped(scopedLog, scopedLog.HasException
+                    ? Microsoft.Extensions.Logging.LogLevel.Error
+                    : Microsoft.Extensions.Logging.LogLevel.Warning);
             }
             finally
             {

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using DRN.Framework.SharedKernel.Attributes;
 using Microsoft.AspNetCore.Identity;
 using Sample.Domain.Users;
 
@@ -11,6 +12,7 @@ public interface IUserProfileRepository
 
 public class UserProfileModel
 {
+    [Personal, PersonalData]
     public string PhoneNumber { get; init; } = string.Empty;
 
     public bool SlimUI { get; init; }

@@ -45,10 +45,8 @@ internal static class DrnRateLimitConfigurator
             var rejectedMatch = context.HttpContext.GetRejectedRateLimitRuleMatch();
             var partitionKey = rejectedMatch?.Result.PartitionKey ?? RateLimitPartitionKeys.GetPostAuthPartitionKey(context.HttpContext);
             telemetry.RecordRejection(context.HttpContext, RateLimitRulePhase.PostAuth, rejectedMatch);
-            scopedLog.Add("PostAuthRateLimitRejected", true);
-            scopedLog.Add("PostAuthRateLimitRejectedAction", RateLimitTelemetry.GetActionTag(rejectedMatch));
-            scopedLog.Add("PostAuthRateLimitRejectedRule", rejectedMatch?.Rule.GetType().FullName ?? string.Empty);
-            scopedLog.Add("PostAuthRateLimitRejectedPartition", RateLimitPartitionRedactor.Format(partitionKey, features.RateLimit, securitySettings));
+            RateLimitDiagnostics.WriteRejection(scopedLog, RateLimitRulePhase.PostAuth, rejectedMatch,
+                partitionKey, features.RateLimit, securitySettings);
 
             var matchedRule = rejectedMatch?.Rule;
             if (matchedRule != null)

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Hosting.Identity;
 using DRN.Framework.Utils.Auth.MFA;
 using Microsoft.AspNetCore.Identity;
@@ -96,6 +97,7 @@ public class Login2FaModel
     [StringLength(7, ErrorMessage = "The {0} must be at least {2} and at most {1} characters long.", MinimumLength = 6)]
     [DataType(DataType.Text)]
     [Display(Name = "Authenticator code")]
+    [Sensitive]
     public string TwoFactorCode { get; init; } = string.Empty;
 
     [Display(Name = "Remember me?")]

@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Cancellation;
 
 namespace DRN.Framework.SharedKernel.Domain.Repository;
@@ -11,6 +12,7 @@ public class RepositorySettings<TEntity>
 {
     public bool IgnoreAutoIncludes { get; set; }
     public bool AsNoTracking { get; set; }
+    [Sensitive(false, Justification = "Cancellation scope selector.")]
     public CancellationScopeKey? ScopeKey { get; set; }
     
     private readonly Dictionary<string, Expression<Func<TEntity, bool>>> _filters = [];

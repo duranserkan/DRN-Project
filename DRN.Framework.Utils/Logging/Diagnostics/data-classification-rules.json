@@ -1,0 +1,6 @@
+{
+  "secretFields": ["pass", "pwd", "secret", "token", "client", "cred", "conn", "code", "key", "auth", "cookie", "session", "cvv", "cvc", "pincode"],
+  "personalFields": ["email", "phone", "ipadd", "ssn", "username", "firstname", "lastname", "dateofbirth", "birthdate", "iban"],
+  "sensitiveFieldPaths": [],
+  "secretPathSegments": ["token", "resetpassword", "confirmemail", "enableauthenticator", "loginwith2fa"]
+}

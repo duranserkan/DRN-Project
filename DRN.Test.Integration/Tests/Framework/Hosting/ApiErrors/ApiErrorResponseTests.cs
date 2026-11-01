@@ -250,10 +250,13 @@ public class ApiErrorResponseTests
     {
         context.AddToConfiguration("Environment", environment);
         context.AddToConfiguration("AllowedHosts", "localhost");
-        context.AddToConfiguration(new { DrnAppFeatures = new { DrnRateLimit = new
+        context.AddToConfiguration(new { DrnAppFeatures = new { DrnRateLimit = new Dictionary<string, object>
         {
-            Disabled = false, PreAuthTokenLimit = 1000, PreAuthTokensPerPeriod = 1000,
-            PostAuthTokenLimit = 1000, PostAuthTokensPerPeriod = 1000
+            [nameof(DrnRateLimitOptions.Disabled)] = false,
+            [nameof(DrnRateLimitOptions.PreAuthTokenLimit)] = 1000,
+            [nameof(DrnRateLimitOptions.PreAuthTokensPerPeriod)] = 1000,
+            [nameof(DrnRateLimitOptions.PostAuthTokenLimit)] = 1000,
+            [nameof(DrnRateLimitOptions.PostAuthTokensPerPeriod)] = 1000
         } } });
     }
 }

@@ -44,6 +44,8 @@ Each error page displays recovery guidance and a request reference for support. 
 
 For configuration and page requirements, see [Hosting custom error pages](../DRN.Framework.Hosting/README.md#custom-error-pages).
 
+The anonymous `/User/Lockout` page uses the same error layout, with the configured lockout duration and links back to sign in or home. The duration is the full configured period, not an account-specific countdown.
+
 ## Error handling conventions
 
 Choose the response in the handler:
@@ -106,6 +108,12 @@ For an application-owned HTML validation fragment, return status `422`, `Content
 
 ## Browser error reporting
 
+Expanded error details show the message, source, line and column, and page URL before the stack. Labels are bold. Values remain plain text, with stack indentation and line breaks preserved. The reporter reads the original stack once for both notification details and the server report. Display omits the first error heading only when it duplicates the message. The original stack remains unchanged for server reporting, subject to existing capture limits. If no browser frame lines are recognized, the stack section shows `Stack frames unavailable` while preserving other supplied stack text and source location. The reporter never generates a replacement stack. Existing saved details retain their original text order.
+
+Browser and server URL sanitization use `redacted` for protected path segments, query values, and named fragment values. Bare fragments such as `#installation` are preserved. Ordinary diagnostic fields retain `[redacted]`.
+
+Browser diagnostic arrays retain at most the first 256 positions and append a limit marker when truncated. Sparse holes become null and getters are not invoked.
+
 For caught browser errors that prevent a user action, call the explicit action reporter:
 
 ```javascript
@@ -119,11 +127,15 @@ try {
 }
 ```
 
-The reporter creates one notification and a brief toast. Its `clientErrorId` is shared with any backend report and retained in the backend scoped log. This is a correlation reference, not a distributed trace ID. Provide only safe public text in `message` and `operation`; exception messages and stacks are never copied into the notification. `persist: false` keeps the notification in memory. Use `DRN.Problem.show` for backend Problem Details rather than reporting the same failure again as a browser error.
+The reporter creates one notification and a brief toast. Its `clientErrorId` is shared with any backend report and retained in the backend scoped log. This is a correlation reference, not a distributed trace ID. Provide only safe public text in `message` and `operation`. Select Show details to reveal client-side diagnostic messages, sources, line and column, page URLs, and stacks as selectable text. Select Hide details to collapse them again. These searchable `clientErrorDetails` retain the original browser values except for page URLs, which use diagnostic URL redaction before display or persistence. Details are limited to 4,000 characters. They follow the notification's account isolation, persistence, and retention limits. Reports sent to the server continue to use diagnostic capture with redaction. Toasts keep the public message. `persist: false` keeps the notification in memory. Use `DRN.Problem.show` for backend Problem Details rather than reporting the same failure again as a browser error. Backend exception details are not included.
 
-Action reporting returns `null` when notification services are unavailable or feedback fails, so a reporting error does not replace the original failure. Serialized reports are capped at 3,600 UTF-8 bytes, including JSON escaping and the client error reference. Diagnostics are truncated as needed before either transport sends them.
+The server captures the typed `ClientErrorPayload` using property names and annotations, without a root-prefix exemption. Correlation metadata and unmatched text fields are retained within capture budgets. Sensitive properties remain redacted, URL fields retain structural protection, and configured server rules still check complete paths such as `ClientError.Message`. Browser data remains untyped and carries no server exemption authority.
 
-Unhandled global errors and promise rejections show a generic error toast and one notification history entry when notifications are available and active. The toast uses `record: false` to avoid duplicate history. They use a `clientErrorId` shared with any backend report. Exception messages, stacks, and source URLs stay out of the notification and toast. The browser's default error reporting is preserved. Console calls are not forwarded.
+Action reporting returns `null` when notification services are unavailable or feedback fails, so a reporting error does not replace the original failure. Serialized reports are capped at 3,600 UTF-8 bytes, including JSON escaping, loss flags, and the client error reference. Diagnostics are sanitized before clipping. `diagnosticRedacted` and `diagnosticLimited` describe browser capture; the server independently enforces its policy.
+
+`DRN.Diagnostics` imports the server's shared rule catalog. Use `DRN.Diagnostics.configure({ sensitiveFieldPaths: ['Checkout.Value'] })` to extend browser field rules. Configure matching server rules under `DiagnosticLogging`; browser configuration cannot weaken them. For typed server data, use `[Sensitive]` or `[Personal]`. Free-text contents, including exception messages and stacks sent in browser reports, are preserved within capture limits. Only explicit URL structure and field names drive browser redaction. There is no credential detection or known-value registration; remove former `registerSensitiveValue` calls and classify sensitive fields or omit sensitive text before capture. See the [diagnostic policy and linked-record contract](../DRN.Framework.Utils/Logging/Diagnostics/README.md). Source changes require the normal frontend bundle build before deployment.
+
+Unhandled global errors and promise rejections show a generic error toast and one notification history entry when notifications are available and active. The toast uses `record: false` to avoid duplicate history. They use a `clientErrorId` shared with any backend report. Browser diagnostic details appear inside the expanded notification occurrence, while the toast and notification summary stay generic. The browser's default error reporting is preserved. Console calls are not forwarded.
 
 Startup feedback captured before notification initialization is retained when the first valid account context is configured. It keeps its original timestamp and client error reference and merges with saved history. An invalid initial owner or prior suspension discards this feedback. Later account changes never carry it into another account.
 
@@ -134,6 +146,8 @@ The browser sends diagnostics only when the rendered notification context identi
 The endpoint independently requires authentication. `ClientErrorRateLimitRule` composes with [DRN's rate limiting](../DRN.Framework.Hosting/README.md#rate-limiting) to apply a per-user sliding-window limit of five requests per minute per application instance, with no queue and HTTP 429 on rejection. Keep framework rate limiting enabled for this server limit to apply.
 
 ## Notification history
+
+Severity filters use primary for All, danger for Errors, warning for Warnings, and info for Info. Filters with entries have a colored outline. The selected filter has a matching fill, even when empty. Empty, unselected filters stay neutral. Counts and `aria-pressed` preserve availability and selection information independently of color.
 
 The Notifications action opens a searchable history panel with All, Errors, Warnings, and Info filters. Info includes success messages. Matching failures are grouped across retained history regardless of time gaps, with individual timestamps and request references preserved. Different operations, targets, severities, statuses, problem types, or message content remain separate. Use Load more to see additional history. Dismiss entries, groups, filtered results, or all history. Clear all offers Undo for 10 seconds. Closing a toast or the panel leaves history intact. Notifications are also available on login and pending-MFA pages.
 
@@ -212,8 +226,7 @@ After installing and auditing dependencies as above, run frontend checks from `S
 
 ```bash
 npm test
-npm exec --no -- playwright install --only-shell chromium
 npm run test:browser
 ```
 
-The browser checks cover notification and form-error behavior without a running .NET app or database. On Linux, add `--with-deps` to the Playwright install command if system libraries are missing.
+The browser checks cover notification and form-error behavior without a running .NET app or database. `npm run test:browser` ensures Chromium headless shell is installed before running tests, reusing the cached installation when available. It does not depend on npm lifecycle hooks. On Linux, run `npm exec --no --ignore-scripts -- playwright install-deps chromium` if system libraries are missing. CI installs these system dependencies separately and uses the same browser test command.

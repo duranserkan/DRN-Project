@@ -9,6 +9,8 @@ export interface NotificationInput {
     requestId?: string;
     /** Browser action failure reference, shared with its backend error report. */
     clientErrorId?: string;
+    /** Browser diagnostics shown as text after Show details, up to 4000 characters. Error capture sanitizes page URLs. Requires clientErrorId. */
+    clientErrorDetails?: string;
     /** Optional occurrence identity, up to 200 characters. Reuses a retained record when repeated. */
     sourceId?: string;
     operation?: string;

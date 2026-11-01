@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Auth.MFA;
 
 namespace DRN.Framework.Utils.Auth;
@@ -12,6 +13,7 @@ public sealed record AuthenticationClaimConfig
         = new(ClaimTypes.NameIdentifier, AuthClaimTypes.Subject);
     public ClaimMapping Name { get; init => field = value ?? throw new ArgumentNullException(nameof(Name)); }
         = new(ClaimTypes.Name, AuthClaimTypes.Name);
+    [Sensitive(false, Justification = "Claim type mapping, not a user's email value.")]
     public ClaimMapping Email { get; init => field = value ?? throw new ArgumentNullException(nameof(Email)); }
         = new(ClaimTypes.Email, AuthClaimTypes.Email);
     public ClaimMapping Roles { get; init => field = value ?? throw new ArgumentNullException(nameof(Roles)); }

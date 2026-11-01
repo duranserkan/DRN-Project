@@ -1,4 +1,5 @@
 using DRN.Framework.Hosting.Endpoints;
+using DRN.Framework.SharedKernel.Attributes;
 using Sample.Hosted.Controllers.Sample;
 
 namespace Sample.Hosted.Helpers.EndpointFor;
@@ -17,6 +18,7 @@ public class PrivateFor()
     : ControllerForBase<PrivateController>(SampleApiFor.ControllerRouteTemplate)
 {
     //By convention, Endpoint name should match Action name and property should have setter;
+    [Sensitive(false, Justification = "Endpoint descriptor.")]
     public ApiEndpoint Authorized { get; private set; } = null!;
     public ApiEndpoint Anonymous { get; private set; } = null!;
     public ApiEndpoint Context { get; private set; } = null!;
@@ -36,6 +38,7 @@ public class ExceptionControllerFor()
 {
     //By convention, Endpoint name should match Action name and property should have setter;
     public ApiEndpoint ValidationException { get; private set; } = null!;
+    [Sensitive(false, Justification = "Endpoint descriptor.")]
     public ApiEndpoint UnauthorizedException { get; private set; } = null!;
     public ApiEndpoint ForbiddenException { get; private set; } = null!;
     public ApiEndpoint NotFoundException { get; private set; } = null!;

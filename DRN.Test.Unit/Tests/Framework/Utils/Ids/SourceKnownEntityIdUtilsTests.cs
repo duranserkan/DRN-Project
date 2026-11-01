@@ -250,11 +250,11 @@ public class SourceKnownEntityIdUtilsTests
     {
         using var settings = SettingsProvider.Development<SampleApp5>(new
         {
-            NexusAppSettings = new
+            NexusAppSettings = new Dictionary<string, object>
             {
-                UseSecureSourceKnownIds = configuredSecure,
-                UseSourceKnownIdKeyFallback = true,
-                Keys = new[] { new NexusKey(new string('A', 32)), new NexusKey(new string('B', 32)) { Default = true } }
+                [nameof(NexusAppSettings.UseSecureSourceKnownIds)] = configuredSecure,
+                [nameof(NexusAppSettings.UseSourceKnownIdKeyFallback)] = true,
+                [nameof(NexusAppSettings.Keys)] = new[] { new NexusKey(new string('A', 32)), new NexusKey(new string('B', 32)) { Default = true } }
             }
         });
         using var reader = new SourceKnownEntityIdUtils(settings, new SourceKnownIdUtils(settings));
@@ -262,10 +262,7 @@ public class SourceKnownEntityIdUtilsTests
         var numericId = long.MinValue | (5L << 24);
         foreach (var key in new[] { 'A', 'B' })
         {
-            using var writerSettings = SettingsProvider.Development<SampleApp5>(new
-            {
-                NexusAppSettings = new { Keys = new[] { new NexusKey(new string(key, 32)) { Default = true } } }
-            });
+            using var writerSettings = SingleKeySettings(new string(key, 32));
             using var writer = new SourceKnownEntityIdUtils(writerSettings, new SourceKnownIdUtils(writerSettings));
             var plain = writer.GeneratePlain(numericId, expected);
             var secure = writer.GenerateSecure(numericId, expected);
@@ -302,10 +299,7 @@ public class SourceKnownEntityIdUtilsTests
             }
             else
             {
-                using var removedSettings = SettingsProvider.Development<SampleApp5>(new
-                {
-                    NexusAppSettings = new { Keys = new[] { new NexusKey(new string('B', 32)) { Default = true } } }
-                });
+                using var removedSettings = SingleKeySettings(new string('B', 32));
                 using var removed = new SourceKnownEntityIdUtils(removedSettings, new SourceKnownIdUtils(removedSettings));
                 removed.Parse(plain.EntityId, SourceKnownEntityIdFormat.Plain).Valid.Should().BeFalse();
                 removed.Parse(secure.EntityId, SourceKnownEntityIdFormat.Secure).Valid.Should().BeFalse();
@@ -318,10 +312,7 @@ public class SourceKnownEntityIdUtilsTests
     [Fact]
     public void Plain_Should_Never_Decrypt_And_Auto_Should_Decrypt_After_Plain_Mac_Failure()
     {
-        using var settings = SettingsProvider.Development<SampleApp5>(new
-        {
-            NexusAppSettings = new { Keys = new[] { new NexusKey(new string('A', 32)) { Default = true } } }
-        });
+        using var settings = SingleKeySettings(new string('A', 32));
         using var ids = new SourceKnownEntityIdUtils(settings, new SourceKnownIdUtils(settings));
         var plain = ids.GeneratePlain(long.MinValue, new EntityTypeId(1, 0));
         var markedCiphertext = plain.EntityId.ToByteArray(bigEndian: true);
@@ -361,10 +352,10 @@ public class SourceKnownEntityIdUtilsTests
     {
         using var settings = SettingsProvider.Development<SampleApp5>(new
         {
-            NexusAppSettings = new
+            NexusAppSettings = new Dictionary<string, object>
             {
-                UseSourceKnownIdKeyFallback = enabled,
-                Keys = new[] { new NexusKey(new string('B', 32)) { Default = true }, new NexusKey(new string('A', 32)) }
+                [nameof(NexusAppSettings.UseSourceKnownIdKeyFallback)] = enabled,
+                [nameof(NexusAppSettings.Keys)] = new[] { new NexusKey(new string('B', 32)) { Default = true }, new NexusKey(new string('A', 32)) }
             }
         });
         using var reader = new SourceKnownEntityIdUtils(settings, new SourceKnownIdUtils(settings));
@@ -375,10 +366,7 @@ public class SourceKnownEntityIdUtilsTests
         reader.Parse(generated.EntityId, SourceKnownEntityIdFormat.Auto).Should().Be(generated);
         foreach (var key in new[] { 'A', 'B' })
         {
-            using var writerSettings = SettingsProvider.Development<SampleApp5>(new
-            {
-                NexusAppSettings = new { Keys = new[] { new NexusKey(new string(key, 32)) { Default = true } } }
-            });
+            using var writerSettings = SingleKeySettings(new string(key, 32));
             using var writer = new SourceKnownEntityIdUtils(writerSettings, new SourceKnownIdUtils(writerSettings));
             var plain = writer.GeneratePlain(numericId, identity);
             var secure = writer.GenerateSecure(numericId, identity);
@@ -405,10 +393,10 @@ public class SourceKnownEntityIdUtilsTests
     {
         using var settings = SettingsProvider.Development<SampleApp5>(new
         {
-            NexusAppSettings = new
+            NexusAppSettings = new Dictionary<string, object>
             {
-                UseSourceKnownIdKeyFallback = true,
-                Keys = new[]
+                [nameof(NexusAppSettings.UseSourceKnownIdKeyFallback)] = true,
+                [nameof(NexusAppSettings.Keys)] = new[]
                 {
                     new NexusKey(new string('A', 32)) { Default = true },
                     new NexusKey(new string('B', 32)),
@@ -418,10 +406,7 @@ public class SourceKnownEntityIdUtilsTests
         });
         using var reader = new SourceKnownEntityIdUtils(settings, new SourceKnownIdUtils(settings));
         var key = settings.NexusAppSettings.Keys[authenticateWithFallback ? 1 : 0];
-        using var writerSettings = SettingsProvider.Development<SampleApp5>(new
-        {
-            NexusAppSettings = new { Keys = new[] { new NexusKey(key.KeyMaterial) { Default = true } } }
-        });
+        using var writerSettings = SingleKeySettings(key.KeyMaterial);
         using var writer = new SourceKnownEntityIdUtils(writerSettings, new SourceKnownIdUtils(writerSettings));
         var bytes = writer.GeneratePlain(long.MinValue | (5L << 24), new EntityTypeId(200, 5))
             .EntityId.ToByteArray(bigEndian: true);
@@ -480,10 +465,7 @@ public class SourceKnownEntityIdUtilsTests
     [DataInlineUnit((byte)0xC0)]
     public void Secure_And_Auto_Should_Reject_Authenticated_Variants_Without_Collision_Proof(byte variant)
     {
-        using var settings = SettingsProvider.Development<SampleApp5>(new
-        {
-            NexusAppSettings = new { Keys = new[] { new NexusKey(new string('A', 32)) { Default = true } } }
-        });
+        using var settings = SingleKeySettings(new string('A', 32));
         using var ids = new SourceKnownEntityIdUtils(settings, new SourceKnownIdUtils(settings));
         var key = settings.NexusAppSettings.GetDefaultKey();
         using var aes = Aes.Create();
@@ -1191,6 +1173,14 @@ public class SourceKnownEntityIdUtilsTests
         var actGenerateMismatch = () => entityIdUtils.Generate<XEntity>(longIdApp6);
         actGenerateMismatch.Should().Throw<ValidationException>();
     }
+
+    private static AppSettings SingleKeySettings(string material) => SettingsProvider.Development<SampleApp5>(new
+    {
+        NexusAppSettings = new Dictionary<string, object>
+        {
+            [nameof(NexusAppSettings.Keys)] = new[] { new NexusKey(material) { Default = true } }
+        }
+    });
 
     private static void AssertValidEntityId(SourceKnownEntityId entityId, long expectedId,
         NexusAppSettings nexusSettings, byte expectedEntityType, bool expectedSecure)

@@ -15,6 +15,8 @@
 
 > Practical, effective testing helpers with data attributes, test context, and container orchestration for unit and integration tests.
 
+SharedKernel classification analyzers also cover test models. Classify credential properties with `[Sensitive]`, personal data with `[Personal]`, and reviewed operational false positives with `[Sensitive(false)]`. Keep intentional runtime-fallback fixtures under narrow, explained diagnostic suppressions. Container credential getters are classified, and dependency-launch logs omit the container graph while retaining redacted connection entries under `Dependencies`.
+
 ## TL;DR
 
 - **Auto-Mocking** - `[DataInline]` / `[DataInlineUnit]` provide requested context objects and auto-mock interface parameters with NSubstitute
@@ -560,6 +562,8 @@ Usually set by `appsettings.Development.json`, environment variables, or config 
 | `DrnDevelopmentSettings:TemporaryApplication` | `false` | DrnDevelopmentSettings.TemporaryApplication | Marks a temporary application; not a general test marker |
 
 #### Container Defaults
+
+PostgreSQL and RabbitMQ container usernames, and generated test usernames, carry personal-data classification for diagnostics. Container `HasUsername` flags remain visible as configuration-presence metadata.
 
 PostgreSQL defaults used by `ContainerContext.Postgres` and `LaunchExternalDependencies`:
 

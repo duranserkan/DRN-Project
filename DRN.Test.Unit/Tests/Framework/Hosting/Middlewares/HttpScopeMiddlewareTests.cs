@@ -11,6 +11,26 @@ namespace DRN.Test.Unit.Tests.Framework.Hosting.Middlewares;
 public class HttpScopeMiddlewareTests
 {
     [Theory]
+    [DataInlineUnit]
+    public async Task Request_Diagnostics_Should_Redact_Without_Mutating_The_Request(DrnTestContextUnit services)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/User/ConfirmEmail";
+        context.Request.QueryString = new QueryString("?code=query-probe&id=42");
+        context.Connection.RemoteIpAddress = System.Net.IPAddress.Parse("192.0.2.1");
+        var settings = services.GetRequiredService<IAppSettings>();
+        var log = new ScopedLog(settings);
+        var middleware = new HttpScopeMiddleware(_ => Task.CompletedTask);
+
+        await middleware.InvokeAsync(context, log, Substitute.For<IScopedUser>(), services,
+            Substitute.For<ILogger<HttpScopeMiddleware>>(), settings, Substitute.For<IDrnExceptionHandler>());
+
+        log.ToString().Should().NotContain("query-probe").And.NotContain("192.0.2.1");
+        log.GetLogs()["Request_QueryString"].ToString().Should().Contain("id=42");
+        context.Request.QueryString.Value.Should().Contain("query-probe");
+    }
+
+    [Theory]
     [DataInlineUnit(false, false, 302, 303)]
     [DataInlineUnit(true, false, 302, 303)]
     [DataInlineUnit(false, true, 302, 303)]
@@ -86,6 +106,7 @@ public class HttpScopeMiddlewareTests
         await middleware.InvokeAsync(http, log, Substitute.For<IScopedUser>(), services, logger,
             settings, Substitute.For<IDrnExceptionHandler>());
 
+        http.Response.StatusCode.Should().Be(400);
         log.GetLogs()["Response_StatusCode"].Should().Be(400);
         logger.ReceivedCalls().Count(call => call.GetMethodInfo().Name == "Log").Should().Be(1);
         await response.CompleteAsync();

@@ -1,7 +1,7 @@
 ---
 name: drn-hosting
 description: "DRN.Framework.Hosting - DrnProgramBase for web application bootstrapping, endpoint configuration, security middleware (CSP, nonce), authentication/authorization, TagHelpers for asset management, and Razor Pages integration. Essential for web application setup and hosting. Keywords: hosting, web-application, drnprogrambase, endpoints, middleware, security, csp, nonce, authentication, authorization, taghelpers, razor-pages, mfa, background-service"
-last-updated: 2026-10-31
+last-updated: 2026-11-01
 difficulty: advanced
 tokens: ~3K
 ---
@@ -279,6 +279,10 @@ Swagger adds only a representative 400 response describing all 4xx and 5xx error
 Use `DrnErrorPageOptions` for application-owned browser 400, 404, and 5xx error pages. Preserve status codes, the original request reference when rendering internally, redaction, existing response bodies, browser Development diagnostics, deployment prefixes, and fallback authorization for unmatched routes. Keep error pages anonymous, non-cacheable, and independent of application data. Supported API exceptions bypass the browser-oriented `WriteProductionErrorResponseAsync` override unless opted out. See [Hosting custom error pages](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#custom-error-pages) for configuration, models, and response customization.
 
 Response-only production/API paths skip diagnostic model creation only when no post-creation filter consumes it. Run pre-filters before deciding eligibility, preserve populated post-filter callbacks and ordering, and keep explicit `GetExceptionPageModel` requests and Development HTML diagnostics unchanged.
+
+Sanitize displayed diagnostic copies through Utils `IDiagnosticSanitizer`, including request values, loader messages, stack/source text, startup reporting, and bounded HTTP error bodies. Render safe exception projections instead of raw `Exception` members. Keep raw objects only for filter and DiagnosticSource compatibility callbacks. Use `[Sensitive]`, `[Personal]`, or derived attributes for typed members. `[IgnoreLog]` does not satisfy classification analysis. Named models use property names without built-in logging-prefix matches; configured rules retain full-path checks. Use direct `[Sensitive(false)]` for reviewed property false positives and `Add(..., exemptionReason: "...")` for single named entries. Keep `DiagnosticCapturePolicy` for nested exceptions. HTTP status, authentication outcome, and rate-limit outcome/action/rule metadata have narrow grants. IP/partition identifiers remain protected. Typed ClientError fields retain bounded unmatched text and structural URL protection. Never infer that SanitizeText certifies its contents. Preserve buffering, access control, and public response contracts. Follow the profile's source-owned diagnostic guide.
+
+Startup report generation failures retain the exception type, stack trace, and fixed `ReportGenerationFailed` category in scoped diagnostics. Do not capture their exception messages.
 
 For access-denied redirects, use `AccessDeniedPageModel` and opt in with `PreserveAccessDeniedRequestId()` on the active cookie events instance after Identity registration and other callback assignments. Preserve the existing callback, nonredirect responses, and single-use TempData reference. Keep routes, markup and authorization policies application-owned. See the same README section for setup and `EventsType` guidance.
 

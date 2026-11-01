@@ -14,6 +14,8 @@
 
 > Convention-based Entity Framework Core integration with automatic configuration, migrations, and Source-Known entity lifecycle support.
 
+SharedKernel classification analyzers apply transitively to public readable model properties. Repository cancellation tokens use `[Sensitive(false)]` to identify an operational false positive and `[IgnoreLog]` to avoid capturing the control object. These annotations do not affect repository operations or EF persistence.
+
 ## Features
 
 - `DrnContext<TContext>` provides attribute-based registration, model conventions, and design-time migration support.

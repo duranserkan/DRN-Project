@@ -5,6 +5,7 @@
 //https://ricostacruz.com/rsjs/index.html#keep-the-global-namespace-clean
 
 import drnErrorHandler from './drn/drnErrorHandler';
+import drnDiagnostics from './drn/drnDiagnostics';
 import drnApp from './drn/drnApp';
 import drnOnmount from './drn/drnOnmount';
 import drnUtils from './drn/drnUtils';
@@ -23,6 +24,7 @@ if (typeof window !== 'undefined') {
     window.DRN.Problem = drnProblem;
     window.DRN.Notifications = drnNotifications;
     window.DRN.ErrorHandler = drnErrorHandler;
+    window.DRN.Diagnostics = drnDiagnostics;
     window.DRN.React = window.DRN.React || {}; //react will be mounted lazily in reactBundle.tsx
 
     // Install global error handler as early as possible

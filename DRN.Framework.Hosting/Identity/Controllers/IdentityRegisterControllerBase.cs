@@ -2,6 +2,7 @@
 
 using System.Text;
 using DRN.Framework.Hosting.Endpoints;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Hosting.Identity.Services;
 using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Authorization;
@@ -31,6 +32,7 @@ public abstract class IdentityRegisterControllerBase<TUser> : ControllerBase
         _confirmationService = sp.GetRequiredService<IIdentityConfirmationService>();
     }
 
+    [Sensitive(false, Justification = "Email confirmation endpoint descriptor.")]
     public abstract ApiEndpoint EmailEndpoint { get; }
 
     [HttpPost(nameof(Register))]

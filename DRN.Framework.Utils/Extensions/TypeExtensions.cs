@@ -4,6 +4,10 @@ namespace DRN.Framework.Utils.Extensions;
 
 public static class TypeExtensions
 {
+    /// <summary>Finds properties whose declared type exactly matches <typeparamref name="T"/>.</summary>
+    public static IEnumerable<PropertyInfo> GetPropertiesOfType<T>(this Type type, BindingFlags bindingFlags)
+        => type.GetProperties(bindingFlags).Where(property => property.PropertyType == typeof(T));
+
     /// <summary>
     /// Finds all types that are subclasses of the specified type in the specified assembly.
     /// </summary>

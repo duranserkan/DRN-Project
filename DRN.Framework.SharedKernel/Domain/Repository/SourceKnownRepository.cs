@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Cancellation;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 
@@ -33,6 +34,7 @@ public interface ISourceKnownRepository<TEntity>
     ///     operationToken);
     /// </code>
     /// </remarks>
+    [IgnoreLog, Sensitive(false, Justification = "Cancellation control token; capture the operation outcome instead.")]
     CancellationToken CancellationToken { get; }
 
     /// <summary>Requests cancellation of this repository scope when <paramref name="token"/> is canceled.</summary>

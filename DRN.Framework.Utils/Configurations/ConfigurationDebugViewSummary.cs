@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Settings.Conventions;
 
@@ -35,6 +36,7 @@ public class ConfigurationDebugViewSummary
     public string? ConfigMountedDirectory { get; init; }
     public bool RawValuesIncluded { get; init; }
     public string[] ConfigMountedDirectoryJsonFiles { get; init; } = default!;
+    [Sensitive(false, Justification = "Mounted configuration filenames, not file contents.")]
     public string[] ConfigMountedDirectoryKeyPerFiles { get; init; } = default!;
     public IReadOnlyDictionary<string, string[]> SettingsByProvider { get; init; } = default!;
 

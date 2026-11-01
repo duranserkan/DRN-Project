@@ -1,4 +1,5 @@
 using DRN.Framework.SharedKernel.Domain;
+using DRN.Framework.SharedKernel.Attributes;
 using Microsoft.EntityFrameworkCore;
 
 namespace DRN.MultiApp.Testing;
@@ -38,5 +39,6 @@ public class CoLocatedFirstContext(DbContextOptions<CoLocatedFirstContext> optio
 
 public class CoLocatedSecondContext(DbContextOptions<CoLocatedSecondContext> options) : DbContext(options)
 {
+    [IgnoreLog]
     public DbSet<CoLocatedSecondEntity> SecondEntities => Set<CoLocatedSecondEntity>();
 }

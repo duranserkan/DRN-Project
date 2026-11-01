@@ -23,7 +23,7 @@ public class JsonSerializerConfigurationTests
     [Fact]
     public void ObjectToJsonConfigurationSource_Should_Support_Multiple_Build_Calls()
     {
-        var source = new ObjectToJsonConfigurationSource(new { TestKey = "TestValue" });
+        var source = new ObjectToJsonConfigurationSource(new Dictionary<string, string> { ["TestKey"] = "TestValue" });
         var builder = new ConfigurationBuilder().Add(source);
 
         var config1 = builder.Build();

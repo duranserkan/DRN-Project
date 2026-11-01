@@ -197,7 +197,7 @@ public class ErrorPageTests
         var registerRoute = Get.Endpoint.User.Identity.RegisterController.Register.RoutePattern;
         registerRoute.Should().NotBeNullOrWhiteSpace();
         var registerPath = pathBase + "/" + registerRoute.TrimStart('/');
-        var invalidRegistration = new { Email = "invalid-email", Password = "Unused-password-123!" };
+        var invalidRegistration = new RegisterRequest { Email = "invalid-email", Password = "Unused-password-123!" };
         using var jsonRequest = new HttpRequestMessage(HttpMethod.Post, registerPath);
         jsonRequest.Content = JsonContent.Create(invalidRegistration);
         jsonRequest.Headers.Accept.ParseAdd("application/json");

@@ -1,7 +1,7 @@
 ---
 name: drn-utils
 description: "DRN.Framework.Utils - Attribute-based dependency injection, settings, logging, scoped cancellation, ID generation, Base32/TOTP encoding and authentication utilities, entity date filtering, validators, and core utilities. Keywords: dependency-injection, configuration, appsettings, appdata, logging, cancellation, source-known-id, base32, totp, mfa, entity-date-filter, tick-boundary, validators, extensions, http-client"
-last-updated: 2026-10-29
+last-updated: 2026-11-01
 difficulty: intermediate
 tokens: ~2.7K
 ---
@@ -165,7 +165,47 @@ Explicitly configure `NexusAppSettings:AppId` (0 through 127) and `NexusAppSetti
 
 ## Scoped Logging (IScopedLog)
 
-Request-scoped structured logging. Aggregates data, metrics, and checkpoints, flushing as a single entry.
+Project-owned `data-classification-rules.json` extends diagnostic name rules through the shared parser. Register it as EmbeddedResource or AdditionalFiles. SharedKernel targets publish reference-assembly catalog metadata for downstream analyzers. Set `DiagnosticLogging:RuleAssemblyName` to load the application's own and referenced SharedKernel-consumer catalogs at runtime. For loose files, set RuleFile to the deployed path and add build/publish copy items. Relative file paths resolve from AppContext.BaseDirectory. Do not scan working directories. Leaving both options null preserves built-in-only behavior.
+
+Invalid configured sources fail sanitizer creation. Runtime graph discovery skips FileNotFoundException only when resolving transitive references; missing configured roots, other load failures, and invalid catalogs still fail. Unavailable assemblies contribute no catalogs. Loaded rules are stable per options instance and snapshots; fresh options reload loose files, while embedded changes require rebuilding their assemblies. Secret/personal groups permit reviewed name exemptions; sensitiveFieldPaths and secretPathSegments remain non-exemptible. Existing runtime configured rules retain their precedence. Browser rules need explicit configuration. Follow the profile's classification maintenance workflow when adding a file or item. Cover inherited catalog scope, invalid sources, positive and false-positive fixtures, and release-note impact.
+
+The shared catalog protects `cvv`, `cvc`, `pincode`, `username`, `firstname`, `lastname`, `dateofbirth`, `birthdate`, and `iban`. Do not add broad `otp` substring matching: it also matches `RootPath`. Use explicit classification for OTP properties. Preserve matching and nonmatching vectors across analyzer and browser/server fixtures.
+
+Use plain `redacted` for protected URL path segments, query values, and named fragment values. Preserve bare fragments without content inspection. Keep `[redacted]` for ordinary diagnostic values, whole-field redaction, and form-body values. Preserve server/browser parity through shared fixtures.
+
+JSON and form-body field matching includes the supplied source path and decoded field names. Keep URL query and fragment keys independent of the URL path. Cover configured source-path rules with equivalent JSON and form fixtures.
+
+Request-scoped structured logging. Aggregates data, metrics, and checkpoints, flushing one fitting entry or bounded linked overflow records.
+
+Dedicated metric methods exempt operation identifiers from built-in name rules with the native sanitizer. Configured rules still apply to the prefix plus operation name. Custom sanitizers retain their existing sensitivity checks. Use code-owned metric identifiers, never request values.
+
+Native copies preserve metric provenance and accumulated values. Check destination rules against the original operation path and stored field name. Ordinary writes replace metric provenance. Copies to custom sanitizers must use redacted source snapshots, never internal capture wrappers.
+
+AddDrnUtils registers DiagnosticRedactor separately for DataClassifications.Sensitive, DataClassifications.Personal and their combined Set. Registering the combined set alone does not cover individual classifications. Verify all three provider lookups.
+
+DRN0019 exempts direct EF migration schema expressions containing column-operation metadata in column definitions or constraint selectors. Ordinary migration data and logging remain checked. Do not suppress diagnostics by migration path or generated-file marker.
+
+DRN0017/DRN0020 distinguish direct NSubstitute Received/DidNotReceive verification chains, including WithAnyArgs variants, from captures. Ordinary substitute calls and independent declaration diagnostics remain checked. Verification aliases and wrappers are not inferred.
+
+Diagnostic rules use normalized substring matching. Server named models use property names without logging-prefix matches. Anonymous data, dictionary/JSON nodes, and browser data retain structural matching. Configured server rules always use full paths. Keep shared catalog fixtures aligned.
+
+Use AddDictionary/SanitizeDictionary for classified dictionary capture. DiagnosticKeyClassification applies Sensitive/Personal redaction or reason-bearing scalar-only NonSensitive exemptions to exact keys at one level. These APIs check own keys without built-in prefix matches, while configured full-path rules remain authoritative. DRN0020 redirects statically known matching dictionary captures, including nested ones and direct local writes. Aliases and interprocedural flow are not fully tracked. Foreign implementations fail closed. Preserve positive-classification precedence, native-copy provenance and budgets.
+
+DRN0019 requires anonymous properties whose names match the shared catalog to move to named classes or records with classification or direct `[Sensitive(false)]`. This includes nested objects, inferred members and generated code, independently of capture calls. Harmless anonymous properties remain allowed. Reason strings and capture policies cannot bypass declaration analysis.
+
+Secret field matching uses `secret`, not `sec`. Seconds, sections, and response-capture flags need no exemption solely for containing `sec`. Keep analyzer, runtime, and browser cases aligned with the shared catalog.
+
+Object logging captures readable public instance properties only, including nested object projection. Omit public fields entirely, even when annotated. Keep name-based redaction for properties, dictionary keys, JSON properties, and explicitly named log entries. Preserve classified getter suppression.
+
+DiagnosticTypeMetadata owns cached type classification and readable member plans. Existing service assembly discovery registers closed types in frozen lookups. Attribute and member construction stays lazy; unknown runtime types use the same cached fallback rules. Merge positive classifications and IgnoreLog from mapped interface properties for concrete and nested capture. Interface exemptions cannot waive concrete name rules, and unrelated explicit implementations must not classify same-named public properties. Keep source getter reflection and boxing claims separate from metadata lookup performance.
+
+Native GetLogs materializes captured values under the storage lock without a preceding deep clone. It never invokes source model getters. CopyFrom retains its detached capture clone. DiagnosticJsonSize reuses thread-local writers with separate reentrant rentals and clears pooled discard buffers before return. Measure JSON escaping with the writer rather than estimating UTF-8 text length. Fragment search measures spans and allocates only accepted strings. Preserve byte bounds, snapshot isolation, and exact fragment reconstruction. No measured speedup or allocation-free capture claim is warranted without execution evidence.
+
+Server and browser text capture preserves contents within budgets. Do not inspect text for assignments, credentials, emails, private-key blocks, embedded URLs, or known literals. Redaction uses field names, explicit URL structure, and classification attributes only.
+
+DRN0015 through DRN0020 analyze generated sources without reporting diagnostics in generated code. Runtime classification remains active.
+
+Use `[Sensitive]`, `[Personal]`, or derived attributes for type/member classification and `IDiagnosticSanitizer` for text, URL, body, and structured adapters. Other Microsoft non-None classifications retain runtime protection but do not satisfy DRN0015/DRN0018. All public readable instance non-indexer properties are analyzed, including ignored and generated properties, in projects receiving SharedKernel analyzers. `[IgnoreLog]` suppresses capture, never classification analysis. Direct property `[Sensitive(false)]` exempts that node from built-in name rules only. Positive classification and configured rules win. Inherited false annotations do not grant exemptions. Named models need no prefix exemptions. Prefer `Add(key, value, exemptionReason)` or `SanitizeValue(path, value, exemptionReason)` only for supported scalars, including nullable values, DateOnly, TimeOnly and Uri. Uri always uses structural URL sanitization. Complex reason-bearing captures fail closed. The reason must be application-authored and nonblank. Keep `DiagnosticCapturePolicy` for complex/nested exceptions. Never grant a subtree exemption. Preserve getter suppression, detached snapshots, native copy provenance including property-name decisions, and capture budgets. Public snapshots carry no exemption authority. `DiagnosticRuleCatalog` shares the canonical JSON and normalization with analyzers; `DiagnosticNameRules` caches bounded decisions per runtime policy. Reflection and serialization remain. Do not claim measured speedups without benchmarks. Use `LogScoped` and discover the source-owned diagnostic guide through the profile.
 
 `ScopeEvent` uses `Id` (.NET `EventId`), `Outcome`, and `Reason`. `IScopedLog.WithEvent` sets the first event as primary and retains later events under `AdditionalEvents`. Scope-level properties retain the `Event` prefix for ID/name/outcome/reason. `LogScoped` forwards the primary event ID with existing severity rules. Every `ScopedLog` generates a stable `CorrelationId` and captures a nullable W3C `TraceId` at construction. Never fabricate a trace ID without an activity. HTTP TraceIdentifier remains separate. Native OpenTelemetry trace/span/flags use the activity at emission; scoped snapshots do not populate those native fields. Copying retains destination correlation and primary event ownership. Keep consumer/module catalogs separate; do not subclass event types.
 

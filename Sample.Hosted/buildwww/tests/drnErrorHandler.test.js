@@ -68,8 +68,9 @@ test('action and global errors share safe notification references with bounded, 
         const report = JSON.parse(await reports[index].body.text());
         assert.match(notifications[index].clientErrorId, /^[a-f0-9]{32}$/);
         assert.equal(report.clientErrorId, notifications[index].clientErrorId);
-        assert.equal(JSON.stringify(notifications[index]).includes('Background'), false);
-        assert.equal(JSON.stringify(notifications[index]).includes('background.js'), false);
+        assert.equal(notifications[index].message.includes('Background'), false);
+        assert.ok(notifications[index].clientErrorDetails.includes(report.message));
+        assert.ok(notifications[index].clientErrorDetails.includes(report.source));
     }
     listeners.error({ message: 'Background failure', filename: 'background.js' });
     listeners.unhandledrejection({ reason: new Error('Background rejection') });
@@ -84,7 +85,9 @@ test('action and global errors share safe notification references with bounded, 
     assert.equal(report.clientErrorId, entry.clientErrorId);
     assert.equal(report.message, 'Private diagnostic');
     assert.equal(reports[2].url, '/app/Api/Sample/ClientError/Report');
-    assert.equal(JSON.stringify(entry).includes('Private diagnostic'), false);
+    assert.equal(entry.message.includes('Private diagnostic'), false);
+    assert.ok(entry.clientErrorDetails.includes('Message: Private diagnostic'));
+    assert.ok(entry.clientErrorDetails.includes('Stack:'));
     assert.equal(entry.persist, false);
     assert.equal(toasts[0].record, false);
 
@@ -194,6 +197,8 @@ test('action and global errors share safe notification references with bounded, 
             const payload = JSON.parse(await body.text());
             assert.equal(payload.clientErrorId, record.clientErrorId);
             assert.ok(payload.message.length > 0);
+            assert.equal(typeof payload.diagnosticLimited, 'boolean');
+            if (character !== 'a') assert.equal(payload.diagnosticLimited, true);
             if (character !== 'a') assert.ok(payload.stack.length < error.stack.length);
 
             listeners.error({ message: error.message, filename: character.repeat(200), error });
@@ -202,6 +207,105 @@ test('action and global errors share safe notification references with bounded, 
             assert.ok(globalBody.size <= 3600);
             const globalPayload = JSON.parse(await globalBody.text());
             assert.equal(globalPayload.clientErrorId, notifications.at(-1).clientErrorId);
+        }
+    }
+
+    timestamp += 60001;
+    window.location.href = 'https://sample.test/action?token=url-probe#access_token=fragment-probe';
+    globalThis.navigator.userAgent = 'test';
+    const sensitive = new Error('Save failed password=message-probe; RecoveryCodes=["first-probe","second-probe"]; retry');
+    sensitive.stack = 'Service.Save\n' + 's'.repeat(1980) + '\npassword=stack-probe';
+    const safeRecord = handler.reportActionError(sensitive, { operation: 'Save' });
+    const safeBody = reports.at(-1).body;
+    const safeJson = await safeBody.text();
+    const safePayload = JSON.parse(safeJson);
+    assert.ok(safeBody.size <= 3600);
+    assert.equal(safePayload.clientErrorId, safeRecord.clientErrorId);
+    assert.equal(safePayload.diagnosticRedacted, true);
+    assert.equal(safePayload.diagnosticLimited, true);
+    assert.equal(safeJson.includes('url-probe'), false);
+    assert.equal(safeJson.includes('fragment-probe'), false);
+    assert.ok(safeRecord.clientErrorDetails.includes(`Page: ${safePayload.url}`));
+    assert.equal(safeRecord.clientErrorDetails.includes('url-probe'), false);
+    assert.equal(safeRecord.clientErrorDetails.includes('fragment-probe'), false);
+    assert.equal(safeRecord.clientErrorDetails.includes('Some diagnostic values were redacted.'), false);
+    assert.ok(safeRecord.clientErrorDetails.includes('Diagnostic details were truncated.'));
+    assert.equal(safePayload.message, sensitive.message);
+    assert.ok(safePayload.message.endsWith('; retry'));
+    assert.ok(safePayload.stack.startsWith('Service.Save'));
+    listeners.error({ message: sensitive.message, filename: 'app.js', error: sensitive });
+    assert.ok(notifications.at(-1).clientErrorDetails.includes(`Page: ${safePayload.url}`));
+    assert.equal(notifications.at(-1).clientErrorDetails.includes('url-probe'), false);
+    assert.equal(notifications.at(-1).clientErrorDetails.includes('fragment-probe'), false);
+    assert.equal((await reports.at(-1).body.text()).includes('url-probe'), false);
+
+    // Verify the default persisted history and its reload, not only publication inputs.
+    const cache = new Map();
+    const storage = {
+        getItem: key => cache.get(key) ?? null,
+        setItem: (key, value) => cache.set(key, value),
+        removeItem: key => cache.delete(key)
+    };
+    const settings = { locks: null, storage: () => storage };
+    const store = createNotificationStore(settings);
+    store.configure({ app: '/app/', owner: 'account-a' });
+    window.DRN.Notifications = store;
+    timestamp += 60001;
+    handler.reportActionError(new Error('Persisted action failure'), { operation: 'Save' });
+    listeners.error({ message: 'Persisted global failure', filename: 'app.js' });
+    listeners.unhandledrejection({ reason: new Error('Persisted rejection') });
+    assert.equal(store.list().length, 3);
+    const saved = cache.get('drn.notifications.v1:/app/');
+    assert.equal(JSON.parse(saved).entries.length, 3);
+    assert.equal(saved.includes('url-probe'), false);
+    assert.equal(saved.includes('fragment-probe'), false);
+    const reloaded = createNotificationStore(settings);
+    reloaded.configure({ app: '/app/', owner: 'account-a' });
+    assert.deepEqual(reloaded.list(), store.list());
+    assert.ok(reloaded.list().every(record => record.clientErrorDetails.includes('Page: https://sample.test/action')));
+    window.DRN.Notifications = notificationApi;
+    for (const mode of ['action', 'error', 'unhandledrejection']) {
+        for (const [stack, hasFrames, displayedStack = stack] of [
+            ['', false],
+            ['Error: Stack capture probe', false, ''],
+            ['Error: Stack capture probe\n    at HTMLButtonElement.onClick (<anonymous>:5:23)', true,
+                '    at HTMLButtonElement.onClick (<anonymous>:5:23)'],
+            ['TypeError: Stack capture probe\r\n    at save (app.js:5:23)', true,
+                mode === 'error' ? 'TypeError: Stack capture probe\r\n    at save (app.js:5:23)' : '    at save (app.js:5:23)'],
+            ['Error: Different diagnostic\n    at save (app.js:5:23)', true],
+            ['onClick@https://sample.test/app.js:5:23', true],
+            ['@https://sample.test/app.js:5:23', true]
+        ]) {
+            timestamp += 60001;
+            const error = new Error('Stack capture probe');
+            let reads = 0;
+            Object.defineProperty(error, 'stack', { get() {
+                if (++reads > 1) throw new Error('Stack must be captured once');
+                return stack;
+            } });
+            const before = reports.length;
+            const notificationsBefore = notifications.length;
+            if (mode === 'action') handler.reportActionError(error, { operation: 'Save' });
+            else if (mode === 'error') listeners.error({
+                message: 'Uncaught Error: Stack capture probe', filename: 'app.js', lineno: 5, colno: 17, error
+            });
+            else listeners.unhandledrejection({ reason: error });
+
+            assert.equal(reads, 1, mode);
+            assert.equal(reports.length, before + 1, mode);
+            assert.equal(notifications.length, notificationsBefore + 1, mode);
+            const payload = JSON.parse(await reports.at(-1).body.text());
+            const details = notifications.at(-1).clientErrorDetails;
+            assert.equal(payload.stack, stack, mode);
+            if (displayedStack) {
+                assert.ok(details.endsWith(`Stack:\n${displayedStack}`), mode);
+            } else assert.ok(details.endsWith('Stack:\nStack frames unavailable'), mode);
+            assert.ok(details.indexOf('Page:') < details.indexOf('Stack:\n'), mode);
+            assert.equal(details.includes('Stack frames unavailable'), !hasFrames, mode);
+            if (mode === 'error') {
+                assert.ok(details.includes('Source: app.js'));
+                assert.ok(details.includes('Line: 5, column: 17'));
+            }
         }
     }
 });

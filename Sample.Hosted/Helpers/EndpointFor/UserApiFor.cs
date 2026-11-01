@@ -1,4 +1,5 @@
 using DRN.Framework.Hosting.Endpoints;
+using DRN.Framework.SharedKernel.Attributes;
 using Sample.Hosted.Controllers.User;
 using Sample.Hosted.Controllers.User.Profile;
 
@@ -19,6 +20,7 @@ public class UserIdentityFor
     //By convention, Endpoint name should match Action name and property should have setter;
     public UserIdentityRegisterFor RegisterController { get; } = new();
     public UserIdentityLoginFor LoginController { get; } = new();
+    [Sensitive(false, Justification = "Endpoint descriptor.")]
     public SampleIdentityPasswordFor PasswordController { get; } = new();
     public SampleIdentityManagementFor ManagementController { get; } = new();
 }
@@ -36,7 +38,9 @@ public class UserIdentityRegisterFor() : ControllerForBase<SampleIdentityRegiste
     public ApiEndpoint Register { get; private set; } = null!;
 
     //By convention, Endpoint name should match Action name and property should have setter;
+    [Sensitive(false, Justification = "Endpoint descriptor.")]
     public ApiEndpoint ConfirmEmail { get; private set; } = null!;
+    [Sensitive(false, Justification = "Endpoint descriptor.")]
     public ApiEndpoint ResendConfirmationEmail { get; private set; } = null!;
 }
 
@@ -56,6 +60,7 @@ public class SampleIdentityPasswordFor() : ControllerForBase<SampleIdentityPassw
 public class SampleIdentityManagementFor() : ControllerForBase<SampleIdentityManagementController>(UserApiFor.ControllerRouteTemplate)
 {
     //By convention, Endpoint name should match Action name and property should have setter;
+    [Sensitive(false, Justification = "Endpoint descriptor.")]
     public ApiEndpoint TwoFactorAuth { get; private set; } = null!;
     public ApiEndpoint GetInfo { get; private set; } = null!;
     public ApiEndpoint PostInfo { get; private set; } = null!;

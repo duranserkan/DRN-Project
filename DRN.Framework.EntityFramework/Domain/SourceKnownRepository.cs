@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Domain;
@@ -63,6 +64,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
         return entities;
     }
 
+    [IgnoreLog, Sensitive(false, Justification = "Cancellation control token; capture the operation outcome instead.")]
     public CancellationToken CancellationToken => RepositoryCancellationScope?.Token ?? Utils.Cancellation.Root.Token;
 
     public void CancelWhen(CancellationToken token) => (RepositoryCancellationScope ?? Utils.Cancellation.Root).Merge(token);

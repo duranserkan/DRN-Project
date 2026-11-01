@@ -4,6 +4,7 @@ using DRN.Framework.SharedKernel;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Logging.Diagnostics;
 using DRN.Framework.Utils.Scope;
 using DRN.Framework.Utils.Settings;
 using Flurl.Http;
@@ -23,13 +24,15 @@ public class HttpScopeMiddleware(RequestDelegate next)
     {
         var responseHandled = false;
         var responseLogged = 0;
+        var sanitizer = (scopedLog as ScopedLog)?.Sanitizer ?? DiagnosticSanitizer.FromSettings(appSettings);
 
         void LogResponse()
         {
             if (Interlocked.Exchange(ref responseLogged, 1) != 0)
                 return;
 
-            scopedLog.Add("Response_StatusCode", context.Response.StatusCode);
+            scopedLog.Add("Response_StatusCode", context.Response.StatusCode,
+                exemptionReason: "HTTP response status, not a secret code.");
             scopedLog.Add("Response_ContentLength", context.Response.ContentLength ?? 0);
             logger.LogScoped(scopedLog);
         }
@@ -43,7 +46,7 @@ public class HttpScopeMiddleware(RequestDelegate next)
             });
             RequestBufferingState.TryEnableBuffering(context, appSettings.Features);
             ResponseControls(context);
-            PrepareScopeLog(context, scopedLog);
+            PrepareScopeLog(context, scopedLog, sanitizer);
             ScopeContext.Initialize(context.TraceIdentifier, scopedLog, scopedUser, appSettings, serviceProvider);
             if (ExceptionPageAccessor.IsExceptionPage(context.Request.Path.Value))
             {
@@ -64,7 +67,7 @@ public class HttpScopeMiddleware(RequestDelegate next)
             }
             context.Response.StatusCode = GetHttpStatusCode(e);
             if (e is FlurlHttpException f)
-                await f.PrepareScopeLogForFlurlExceptionAsync(scopedLog, appSettings.Features);
+                await f.PrepareScopeLogForFlurlExceptionAsync(scopedLog, appSettings.Features, sanitizer, context.RequestAborted);
 
             scopedLog.AddException(e);
 
@@ -120,19 +123,26 @@ public class HttpScopeMiddleware(RequestDelegate next)
         };
     }
 
-    private static void PrepareScopeLog(HttpContext httpContext, IScopedLog scopedLog) => scopedLog
+    private static void PrepareScopeLog(HttpContext httpContext, IScopedLog scopedLog, IDiagnosticSanitizer sanitizer)
+    {
+        var request = httpContext.Request;
+        var safeUrl = sanitizer.SanitizeUrl(request.PathBase.Add(request.Path).Value + request.QueryString.Value);
+        var queryStart = safeUrl.IndexOf('?');
+        scopedLog
         .WithLoggerName(nameof(HttpScopeMiddleware))
         .WithTraceIdentifier(httpContext.TraceIdentifier)
         .Add("Request_ContentLength", httpContext.Request.ContentLength ?? 0)
         .Add("HttpProtocol", httpContext.Request.Protocol.Split('/')[^1])
         .Add("HttpMethod", httpContext.Request.Method)
         .Add("HttpScheme", httpContext.Request.Scheme)
-        .Add("Request_Host", httpContext.Request.Host.ToString())
-        .Add("Request_Path", httpContext.Request.Path.ToString())
-        .AddIfNotNullOrEmpty("Request_QueryString", httpContext.Request.QueryString.ToString())
-        .AddIfNotNullOrEmpty("Request_IpAddress", httpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty)
+        .Add("Request_Host", sanitizer.SanitizeText(httpContext.Request.Host.ToString()))
+        .Add("Request_Path", queryStart < 0 ? safeUrl : safeUrl[..queryStart])
+        .AddIfNotNullOrEmpty("Request_QueryString", queryStart < 0 ? string.Empty : safeUrl[(queryStart + 1)..])
+        // Do not read the address for diagnostics.
+        .Add("Request_IpAddress", DiagnosticSanitizer.Redacted)
         .AddIfNotNullOrEmpty("Request_l5d-client-id",
-            httpContext.Request.Headers.TryGetValue("l5d-client-id", out var l5dId)
+            sanitizer.SanitizeText(httpContext.Request.Headers.TryGetValue("l5d-client-id", out var l5dId)
                 ? l5dId.ToString()
-                : string.Empty);
+                : string.Empty));
+    }
 }

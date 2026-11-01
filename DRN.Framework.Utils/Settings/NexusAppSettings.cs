@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Data.Encryption;
 using DRN.Framework.Utils.Data.Encodings;
@@ -45,10 +46,12 @@ public sealed class NexusAppSettings : IDisposable
     /// Enables verification with non-default keys during routine rotation. Defaults to false, accepting only the default key.
     /// Compromised keys must be removed from Keys; retaining them for verification permits forged IDs.
     /// </summary>
+    [Sensitive(false, Justification = "Key rotation configuration flag.")]
     public bool UseSourceKnownIdKeyFallback { get; init; }
 
     public NexusMacType MacType { get; init; } = NexusMacType.Blake3;
 
+    [Sensitive]
     public IReadOnlyList<NexusKey> Keys
     {
         get => _keys;
@@ -160,6 +163,7 @@ public sealed class NexusKey : IDisposable
     }
 
 
+    [Sensitive]
     public string KeyMaterial { get; }
     public ByteEncoding Format { get; }
     public bool Default { get; init; }

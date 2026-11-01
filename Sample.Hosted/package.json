@@ -8,7 +8,7 @@
   },
   "scripts": {
     "test": "node --test buildwww/tests/*.test.js",
-    "test:browser": "playwright test",
+    "test:browser": "playwright install --only-shell chromium && playwright test",
     "test:browser:serve": "vite --config buildwww/tests/browser/vite.config.js",
     "type-check": "tsc --noEmit",
     "build": "tsc --noEmit && npm run build:app && npm run build:appPostload && npm run build:htmx && npm run build:bootstrap && npm run build:react",

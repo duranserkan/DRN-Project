@@ -1,4 +1,5 @@
 using DRN.Framework.EntityFramework.Context;
+using DRN.Framework.SharedKernel.Attributes;
 
 namespace DRN.Framework.Testing.Contexts.Postgres;
 
@@ -20,10 +21,14 @@ public class PostgresContainerSettings
     public string? Database { get; init; } = DbContextConventions.DefaultDatabase;
     public bool HasDatabase => !string.IsNullOrWhiteSpace(Database);
 
+    [Personal]
     public string? Username { get; init; } = DbContextConventions.DefaultUsername;
+    [Sensitive(false, Justification = "Username configuration presence flag.")]
     public bool HasUsername => !string.IsNullOrWhiteSpace(Username);
 
+    [Sensitive]
     public string? Password { get; init; } = DefaultPassword;
+    [Sensitive(false, Justification = "Password configuration presence flag.")]
     public bool HasPassword => !string.IsNullOrWhiteSpace(Password);
 
     public int HostPort { get; init; }

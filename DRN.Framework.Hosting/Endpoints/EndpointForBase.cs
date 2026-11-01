@@ -2,9 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Reflection;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.SharedKernel;
+using DRN.Framework.Utils.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Routing;
@@ -36,8 +37,7 @@ public abstract class ControllerForBase<TController>
     private static ApiEndpoint CreateEndpoint(string actionMethodName) => new(Controller, actionMethodName);
 
     private ApiEndpoint[] InitializeEndpoints() => GetType()
-        .GetProperties(BindingFlags.Instance | BindingFlags.Public)
-        .Where(p => p.PropertyType == typeof(ApiEndpoint))
+        .GetPropertiesOfType<ApiEndpoint>(BindingFlag.InstancePublic)
         .Select(p =>
         {
             //Endpoint name should match with Action name and property name
@@ -60,12 +60,14 @@ public class ApiEndpoint
 
     public string ActionMethodName { get; }
     public string ControllerName { get; }
+    [Sensitive(false, Justification = "Controller type name.")]
     public string ControllerClassName { get; }
     public string EndpointName { get; }
     public string? RoutePattern { get; private set; }
     public string[]? RoutePatterns { get; private set; }
     public RouteEndpoint[] RouteEndpoints { get; private set; } = null!;
     public ControllerActionDescriptor[] ActionDescriptor { get; private set; } = null!;
+    [Sensitive(false, Justification = "Endpoint lookup identifier.")]
     public string EndpointKey { get; private set; } = null!;
 
 

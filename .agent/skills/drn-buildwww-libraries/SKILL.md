@@ -12,6 +12,9 @@ tokens: ~1.8K
 > DRN-scoped: use only when the repository profile or filesystem declares DRN `buildwww` and the DRN browser API surface.
 
 ## When to Apply
+
+The browser imports the built-in `data-classification-rules.json` at bundle time. Update that import when the source catalog moves. Server `DiagnosticLogging:RuleFile` does not configure browser rules; apply project-specific client rules explicitly through the existing diagnostic configuration API and retain shared browser/server golden cases.
+
 - Using repository JavaScript utilities
 - Implementing RSJS for htmx (Reasonable System for JavaScript Structure)
 - Working with htmx and CSP nonces
@@ -132,7 +135,13 @@ Use `DRN.ErrorHandler.reportActionError(error, { operation, message, persist })`
 
 Global failures publish one generic history entry and a toast with `record: false` when notifications are active. Apply shared rate limiting and duplicate suppression before publishing them. Bound toast presentation without queuing excess feedback or deleting history. Send diagnostics only for a rendered authenticated owner with a non-suspended store. Enforce authentication and per-user quotas at the endpoint through the hosting framework's rule extension point. Bound serialized UTF-8 payloads and contain reporting failures. Resolve exact limits from the profile-declared application guide.
 
-HTMX HTTP failures and server toast headers must not generate client-error reports; transport failures remain client errors. HTMX failure feedback requires a trusted triggering event or explicit `data-notification-user-action="true"`; false suppresses feedback. Keep private diagnostics out of notifications.
+Apply structural redaction before clipping with the shared diagnostic catalog using normalized substring matching on field paths and URL segments. Browser data remains untyped. Server named models use property names without built-in logging-prefix matches, while configured server rules still check complete paths such as `ClientError.Message`. Preserve free-text contents within capture budgets without credential detection or known-value registration. Expose explicit application field rules without inspecting forms or storage. Enforce server redaction independently and keep sensitive DTO annotations aligned with untyped schema rules. Add browser/server golden cases for new sensitive flows. Fixture servers may allow only the catalog directory outside the application root. Rebuild generated bundles only with execution authorization.
+
+Protected URL path segments, query values, and named fragment values use the plain `redacted` marker on browser and server. Bare fragments are preserved without content inspection and do not set the browser redaction flag. Ordinary diagnostic values and whole-field redaction retain `[redacted]`. Keep shared fixtures aligned when changing markers.
+
+Bound browser diagnostic arrays by position, retaining at most 256 entries plus a truncation marker. Sparse holes become null. Inspect own descriptors without invoking getters or inherited properties. Cover sparse indices and dense boundary lengths in regression tests.
+
+HTMX HTTP failures and server toast headers must not generate client-error reports; transport failures remain client errors. HTMX failure feedback requires a trusted triggering event or explicit `data-notification-user-action="true"`; false suppresses feedback. Keep backend diagnostics out of notifications. Browser errors supply bounded `clientErrorDetails` for occurrences with a `clientErrorId`. Preserve original browser values except for page URLs, which must use diagnostic URL redaction before display or persistence. Render these as text only after the Show details button is activated. Preserve account isolation and public toast and summary messages. Generate server reports separately through diagnostic capture with redaction.
 
 Only `application/problem+json` is parsed, with the HTTP status taking precedence. Display public messages as text and retain a generic fallback for unusable responses. Do not retry mutations automatically or swap JSON as HTML. An HTML validation swap requires status 422, `text/html`, and `X-DRN-Validation: true`. Hosting's `HandleHtmxRequests` option controls error formatting without changing authentication behavior.
 
@@ -141,6 +150,10 @@ Fetch parsing must bound incremental clone reads before buffering the whole body
 Validation keys match complete posted names, including casing, prefixes, and collection indices. An empty key is form-level feedback. Keep Razor response selection explicit and preserve existing API validation keys. See [Hosting error guidance](../drn-hosting/SKILL.md#error-responses) for server-side conventions.
 
 ### Notification History
+
+Severity filters use primary, danger, warning, and info for All, Errors, Warnings, and Info respectively. Use a colored outline when populated, matching fill when selected, and neutral outline when empty and unselected. Preserve counts, keyboard focus, and `aria-pressed`. Remove obsolete variant classes when selection or counts change.
+
+Capture each browser error's original stack once for both server reporting and notification details. Display message, source location, and page URL before the stack. Render labels with bold elements and values as plain text, preserving stack indentation and line breaks. Do not interpret stack contents as labels or HTML. Existing saved details retain their original text order. Omit a leading error heading from display only when it duplicates the message. Preserve the original stack for server reporting within existing capture limits. Preserve other supplied text and source location when no browser frame lines are recognized, and show `Stack frames unavailable`. Never synthesize a replacement stack from the reporting handler.
 
 Use `DRN.Notifications.publish` to retain a message without a toast. Use `DRN.Toast.show` for a toast and history entry, `record: false` for toast-only feedback, or `persist: false` for memory-only history. Forms and components can set `data-notification-operation` and `data-notification-persist`. Server handlers use `SendToast`. Direct client feedback uses `DRN.Toast.show`.
 
@@ -154,7 +167,7 @@ Choose immediate presentation and retention independently:
 
 Do not repeat inline feedback with an additional toast or record routine client-side field validation in history. Omit feedback when neither immediate attention nor later review is useful. `persist: false` controls storage only, not toast visibility or whether history is recorded. Keep the decision guide in the profile-declared application documentation aligned with these rules.
 
-Keep history bounded and isolated by application and account. Publish only safe public text. Account changes clear history and contextual errors. Stale pages pause until reloaded. Closing feedback and dismissing history are separate actions. Resolve retention limits, panel behavior, and API options from the profile-declared application guide and browser declarations.
+Keep history bounded and isolated by application and account. Publish safe public summaries, with browser diagnostics confined to expanded client error details. Account changes clear history and contextual errors. Stale pages pause until reloaded. Closing feedback and dismissing history are separate actions. Resolve retention limits, panel behavior, and API options from the profile-declared application guide and browser declarations.
 
 Keep the notification bell visible. Its badge counts unseen entries and hides at zero. Opening the panel marks existing history seen; later arrivals remain unseen until it is opened again. Persist seen state, preserve it through Undo, and keep deduplicated source identities seen. New publications always start unseen.
 

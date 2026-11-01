@@ -1,4 +1,5 @@
 using DRN.Framework.SharedKernel.Enums;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Settings;
 using DRN.Framework.Utils.Settings.Conventions;
 using Microsoft.Extensions.Configuration;
@@ -99,6 +100,7 @@ public class DebugViewEntry(string path, string key, string? value, IConfigurati
 {
     private DebugViewEntry? Parent { get; } = parent;
     public string Path { get; } = path;
+    [Sensitive(false, Justification = "Configuration entry name, not its value.")]
     public string Key { get; } = key;
     public string? Value { get; } = value;
     public IConfigurationProvider? Provider { get; } = provider;

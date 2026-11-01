@@ -517,12 +517,16 @@ When Development has no default Nexus key, `AppSettings` derives deterministic 3
 
 ## Logging (`IScopedLog`)
 
-`IScopedLog` aggregates structured operational data, metrics, checkpoints, and exceptions for a logical scope. In DRN Hosting request scopes, Hosting enriches and emits that aggregate as a single log entry.
+Dictionary diagnostics use `AddDictionary` or `SanitizeDictionary` with exact `DiagnosticKeyClassification` entries. Sensitive and Personal redact whole values. NonSensitive requires a reason and a supported scalar. Matching statically known dictionary captures produce DRN0020 guidance. See the [dictionary classification contract](Logging/Diagnostics/README.md#dictionary-classifications).
+
+`IScopedLog` aggregates structured operational data, metrics, checkpoints, and exceptions for a logical scope. Hosting emits one grouped record when it fits and bounded linked records for larger sanitized diagnostics. See [diagnostic redaction and grouping](Logging/Diagnostics/README.md) for classification, limits, and reconstruction.
+
+SharedKernel's classification analyzer checks model properties independently of capture and `[IgnoreLog]`. Use `[Personal]`, `[Sensitive]` or a derived company attribute for positive classification. Named models use their own property names without built-in logging-prefix matches. Direct `[Sensitive(false)]` preserves a property false positive without overriding positive classification, configured full-path rules or URL protection. For one supported scalar exception, use `Add(key, value, exemptionReason)` or `SanitizeValue(path, value, exemptionReason)` with an application-authored reason. Supported scalars include nullable values, DateOnly, TimeOnly and Uri. Uri always receives URL sanitization regardless of the entry name. Complex reason-bearing values return an unavailable marker without traversal. Keep `DiagnosticCapturePolicy` for complex/nested exceptions. Neither form grants whole subtrees. Native copies retain bound decisions under destination protection; public snapshots do not carry authorization. See the [migration and capture boundaries](Logging/Diagnostics/README.md#boundaries-and-migration).
 
 ### Core Features
 
 *   **Contextual**: Every `ScopedLog` has a stable `CorrelationId` and captures an active W3C `TraceId` when available. Hosting adds request and user context.
-*   **Aggregation**: Groups all actions, metrics, and exceptions into a single structured log entry.
+*   **Aggregation**: Groups actions, metrics, and exceptions, with correlated overflow when needed.
 *   **Performance Tracking**: Built-in measurement for code block durations and execution counts.
 *   **Exception Recording**: `AddException` records exception details without changing control flow; callers remain responsible for recovery, rethrowing, and excluding sensitive data.
 
@@ -550,7 +554,9 @@ log.WithEvent(new ScopeEvent(OrderLogEvents.OrderProcessed, "success", "complete
 
 `CopyFrom` keeps destination correlation, trace, and primary event ownership. Source events are retained as additional events when a primary already exists.
 
-`GetLogs` detaches action and additional-event lists under the writer lock. Later additions do not change earlier snapshots. `CopyFrom` uses the same list snapshot. Objects stored inside lists remain caller-owned; this is not a deep clone.
+Native copies preserve metric exemptions and accumulated values while enforcing destination rules. Custom sanitizers receive redacted source snapshots instead of internal capture values.
+
+`GetLogs` returns detached sanitized snapshots. Later caller mutations or additions do not change earlier snapshots. `CopyFrom` preserves destination ownership and sanitizes new inputs, including foreign implementations. Redaction uses field names, explicit URL structure, and classification attributes. Free-text contents are preserved within capture limits; classify sensitive fields or omit sensitive text before logging.
 
 ### OpenTelemetry correlation
 
@@ -562,7 +568,11 @@ Use module-owned catalogs such as `OrderLogEvents` with stable IDs and names. ID
 
 ### Operation data
 
-`AddProperties` reads public instance getters and skips indexers. Ignored properties are marked without invoking their getters. Other getter exceptions still propagate.
+Add project-specific names through `data-classification-rules.json`. Register an EmbeddedResource item and set `DiagnosticLogging:RuleAssemblyName` to the application assembly to share its own and referenced SharedKernel-consumer catalogs with runtime diagnostics. Build targets expose catalogs to analyzers and preserve them in reference-assembly metadata. Alternatively, register AdditionalFiles, copy the file to build/publish output, and set `DiagnosticLogging:RuleFile` to its deployed path, relative to AppContext.BaseDirectory. Loading is additive and invalid configured sources fail sanitizer creation. Runtime inheritance skips missing transitive assemblies, including their unavailable catalogs. Missing configured roots, other assembly load failures, and invalid catalogs still fail creation. See [project classification rules](Logging/Diagnostics/README.md#project-classification-rules) for schema, registration, bounds, and lifecycle.
+
+The shared name catalog protects CVV/CVC/PIN-code fields, usernames, first/last names, dates of birth, and IBAN fields. Matching ignores ASCII case and separators. See the [diagnostic rule boundaries](Logging/Diagnostics/README.md#compile-time-classification) before adding broader patterns.
+
+`AddProperties` and nested object projection capture public instance getters once and skip indexers and `[IgnoreLog]` members. Public fields are omitted. Captured values retain classification metadata for default redaction in `GetLogs()`, `LogScoped()`, and `ToString()`. In Development, `ScopedLog.GetLogs(redact: false)` returns an unredacted view of the same bounded capture; other environments reject this flag. Name-based redaction also applies to dictionary keys, JSON properties, and explicitly named log entries. Getter failures produce safe markers. Direct sanitizer calls still redact immediately and skip classified getters. Add classification to nonstandard secret-bearing properties before logging them.
 
 ```csharp
 public class OrderService(IScopedLog logger)
@@ -570,14 +580,14 @@ public class OrderService(IScopedLog logger)
     public void ProcessOrder(int orderId)
     {
         // 1. Measure execution time and count
-        using var _ = logger.Measure("ProcessOrder"); 
+        using var _ = logger.Measure("ProcessOrder");
         
         // 2. Add structured data (Key-Value)
-        logger.Add("OrderId", orderId); 
+        logger.Add("OrderId", orderId);
         logger.AddIfNotNullOrEmpty("Referrer", "PartnerA");
 
         // 3. Track execution checkpoints
-        logger.AddToActions("Validating order"); 
+        logger.AddToActions("Validating order");
         
         try 
         {
@@ -995,6 +1005,14 @@ The default limit is 10 MiB. `Validate` and `ValidateAsync` return bytes only th
 
 ## Diagnostics
 
+JSON and form-body redaction applies configured field paths using the supplied source path and decoded field names. URL query keys remain independent of the URL path.
+
+`AddDrnUtils` registers the diagnostic redactor for Sensitive, Personal, and the combined classification set. Each returns `[redacted]` through `IRedactorProvider`.
+
+Positive classifications and `[IgnoreLog]` on mapped interface properties also protect concrete and nested diagnostic captures. Runtime type decisions are cached, and existing service discovery registers known closed types in frozen lookups with a cached fallback for later types. Snapshots remain detached and bounded. These optimizations do not make capture or export allocation-free.
+
+URL redaction uses plain `redacted` in protected path segments, query values, and named fragment values. Bare fragments such as `#installation` are preserved. Ordinary diagnostic values and whole-field redaction use `[redacted]`. See the [diagnostic policy](Logging/Diagnostics/README.md).
+
 ### Development Status
 
 `DevelopmentStatus` collects database model and migration information during context startup. `HasPendingChanges` reports pending model changes; inspect each model's `Flags.HasPendingMigrations` for unapplied migrations. It is not a continuous database monitor. See [DevelopmentStatus.cs](Models/DevelopmentStatus.cs).
@@ -1307,6 +1325,8 @@ Extensions cover .NET types, DI descriptors, HTTP diagnostics, and dynamic metho
 
 ### Reflection & `MethodUtils`
 
+`Type.GetPropertiesOfType<T>(bindingFlags)` returns properties whose declared type exactly matches `T`, using the supplied reflection flags. Assignable derived types are not included.
+
 `MethodUtils` caches generic and non-generic method discovery and execution. Prefer `[UnsafeAccessor]` when the target type is known and accessible at compile time; use reflection for dynamically discovered types.
 *   **Invoke**: `instance.InvokeMethod("Name", args)` and `type.InvokeStaticMethod("Name", args)`.
 *   **Generics**: `instance.InvokeMethod("Name", typeArgs, args)` and `type.InvokeStaticMethod("Name", typeArgs, args)`.
@@ -1338,7 +1358,7 @@ Casing and safe path helpers live in `DRN.Framework.SharedKernel.Extensions`.
 
 ### Flurl & HTTP Diagnostics
 
-*   **Logging**: `PrepareScopeLogForFlurlExceptionAsync()` adds Flurl failure diagnostics to `IScopedLog`, and DRN Hosting applies it to unhandled Flurl exceptions. Captured request and response data is not automatically redacted; catch sensitive failures before they reach Hosting, or use the `Try*` converters and log only sanitized fields.
+*   **Logging**: `PrepareScopeLogForFlurlExceptionAsync()` adds centrally sanitized Flurl failure diagnostics to `IScopedLog`. Error bodies are read with a strict byte bound. Unsupported or incomplete bodies produce markers. DRN Hosting applies it to unhandled Flurl exceptions. Declare nonstandard sensitive fields through the [diagnostic policy](Logging/Diagnostics/README.md). Text bodies retain their contents within capture limits.
 *   **Status Codes**: `GetGatewayStatusCode()` preserves `4xx`, `503`, and `504` statuses and maps other statuses to `502`.
 *   **Linkerd Diagnostics**: Flurl exception logging captures `l5d-proxy-error` and `l5d-proxy-connection` response headers before reading the body. For explicitly handled responses, call `response.AddLinkerdProxyDiagnostics(scopedLog)` before conversion or disposal. The helper records present, nonempty values under `Response_l5d-proxy-error` and `Response_l5d-proxy-connection`, without reading or disposing the response. Header values are untrusted diagnostics, may reveal internal topology, and must not be used for authorization or returned to clients. Absence of a header does not prove a failure originated in the application. Incoming `l5d-client-id` logging remains informational. Automatic capture applies to the existing Flurl exception path, not every response or `Try*` result.
 *   **Testing**: `ClearFilteredSetups()` utility for complex test scenarios.

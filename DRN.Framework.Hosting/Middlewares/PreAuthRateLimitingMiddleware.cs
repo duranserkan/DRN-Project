@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Threading.RateLimiting;
 using DRN.Framework.Hosting.RateLimiting;
 using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Logging.Diagnostics;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Http;
 
@@ -37,7 +38,8 @@ public class PreAuthRateLimitingMiddleware(
 
         // Observability: warn on null IP (detects ForwardedHeaders misconfiguration)
         if (context.Connection.RemoteIpAddress == null)
-            scopedLog.Add("PreAuthRateLimitNullIpWarning", "RemoteIpAddress is null, check ForwardedHeaders configuration");
+            scopedLog.Add("PreAuthRateLimitNullIpWarning", "RemoteIpAddress is null, check ForwardedHeaders configuration",
+                exemptionReason: "Fixed missing-address configuration warning.");
 
         // The default chained limiter clears first; this guard is belt-and-suspenders
         // in case the limiter is replaced by an override that skips DRN rule selection.
@@ -69,11 +71,8 @@ public class PreAuthRateLimitingMiddleware(
         var partitionKey = rejectedMatch?.Result.PartitionKey ?? ipAddress;
         telemetry.RecordRequest(context, RateLimitRulePhase.PreAuth, "rejected", rejectedMatch);
         telemetry.RecordRejection(context, RateLimitRulePhase.PreAuth, rejectedMatch);
-        scopedLog.Add("PreAuthRateLimitRejected", true);
-        scopedLog.Add("PreAuthRateLimitRejectedAction", RateLimitTelemetry.GetActionTag(rejectedMatch));
-        scopedLog.Add("PreAuthRateLimitRejectedIp", RateLimitPartitionRedactor.Format(ipAddress, features.RateLimit, securitySettings));
-        scopedLog.Add("PreAuthRateLimitRejectedRule", rejectedMatch?.Rule.GetType().FullName ?? string.Empty);
-        scopedLog.Add("PreAuthRateLimitRejectedPartition", RateLimitPartitionRedactor.Format(partitionKey, features.RateLimit, securitySettings));
+        RateLimitDiagnostics.WriteRejection(scopedLog, RateLimitRulePhase.PreAuth, rejectedMatch,
+            partitionKey, features.RateLimit, securitySettings, ipAddress);
 
         context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
         if (lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))

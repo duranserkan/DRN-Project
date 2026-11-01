@@ -10,6 +10,18 @@ tokens: ~1.7K
 
 > Canonical DTT (Duran's Testing Technique) guidance for choosing attributes, contexts, and test commands.
 
+For project classification catalogs, share a JSON fixture between analyzer and runtime tests. Verify AdditionalFiles and EmbeddedResource registration, generated reference-assembly metadata, inherited SharedKernel-consumer catalogs, unrelated-assembly exclusion, runtime RuleAssemblyName/RuleFile loading, and copy/publish boundaries. Cover custom fields/paths, unchanged built-ins, malformed/oversized/unreadable sources, duplicate registration, compilation isolation, snapshot/copy protection, and code fixes. Include MSBuild escaping vectors for generated metadata. Cover ordinary nonmatching names whenever adding patterns. Use fresh raw options to test loose-file reload and existing snapshots to test stable protection. Do not execute tests without the existing execution gate.
+
+Dictionary capture fixtures should normally use AddDictionary/SanitizeDictionary with explicit key classifications. Suppress DRN0020 only in explained runtime-fallback tests. Cover nested keys, mutation before capture, scalar-only NonSensitive exemptions, positive/configured precedence and native copy behavior.
+
+Diagnostic metadata regressions must cover interface-only positive classifications across declared, concrete, nested, generic and explicit-implementation captures. Keep unrelated same-named public properties visible. Verify lazy registration and warm positive/negative decisions without sharing mutable counters between parallel tests. Snapshot and byte-sizing changes require detached native-copy coverage, escaped Unicode fragment reconstruction, repeated writer reuse, serialization failure recovery and reentrant sizing. Warm lookup allocation tests do not prove allocation-free capture or export.
+
+DRN0019 schema-exemption tests must use real EF migration API references. Cover column definitions and composite constraint selectors, while retaining diagnostics for migration data objects, nested defaults, logging and lookalike APIs. Do not exclude migration folders or generated files.
+
+DRN0017/DRN0020 skip instance calls directly chained from NSubstitute Received/DidNotReceive and their WithAnyArgs variants. Ordinary calls on substitutes and model/anonymous declaration diagnostics remain checked. Keep verification calls directly chained rather than relying on aliases or wrappers.
+
+SharedKernel classification errors also cover test models. Annotate fixture credentials and personal properties normally. Use direct `[Sensitive(false)]` only for deliberate operational false positives. Matching anonymous properties, including nested ones, require named annotated models under DRN0019. Keep intentional runtime-rejection fixtures under narrowly scoped, explained DRN0015 through DRN0019 suppressions. Do not exempt an entire test project. External-dependency launch logs must suppress credential getters and omit container graphs.
+
 Shared testing settings, container defaults, and docs-sync rules live in the [DRN Framework Maintenance Reference](../overview-drn-framework/SKILL.md#drn-framework-maintenance-reference).
 
 Resolve upstream links and local source through [Documentation And Source References](../overview-drn-framework/SKILL.md#documentation-and-source-references).

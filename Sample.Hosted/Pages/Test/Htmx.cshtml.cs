@@ -1,3 +1,4 @@
+using DRN.Framework.SharedKernel.Attributes;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Domain.Identity;
@@ -19,28 +20,11 @@ public class Htmx(IAntiforgery antiForgery) : PageModel
         throw new InvalidOperationException("Intentional unhandled server exception from the HTMX test page.");
 
     // POST methods in Razor Pages automatically validate CSRF tokens
-    public IActionResult OnPostAuto(string message)
-    {
-        var model = new
-        {
-            Message = message,
-            TokenValidation = "Success (Automatic Razor Pages Validation)",
-            Timestamp = DateTime.Now.ToString(TimestampFormat)
-        };
-        return Partial(ResultMessageView, model);
-    }
+    public IActionResult OnPostAuto(string message) =>
+        ResultMessage(message, "Success (Automatic Razor Pages Validation)");
 
     // GET requests don't validate CSRF by default
-    public IActionResult OnGetNoCsrfGet()
-    {
-        var model = new
-        {
-            Message = string.Empty,
-            TokenValidation = "Not Required (GET Request)",
-            Timestamp = DateTime.Now.ToString(TimestampFormat)
-        };
-        return Partial(ResultMessageView, model);
-    }
+    public IActionResult OnGetNoCsrfGet() => ResultMessage(string.Empty, "Not Required (GET Request)");
 
     // Manually validate the token
     public async Task<IActionResult> OnGetExplicitValidationAsync(string query)
@@ -55,48 +39,32 @@ public class Htmx(IAntiforgery antiForgery) : PageModel
             return BadRequest();
         }
 
-        var model = new
-        {
-            Message = query,
-            TokenValidation = "Success (Explicit Validation)",
-            Timestamp = DateTime.Now.ToString(TimestampFormat)
-        };
-        return Partial(ResultMessageView, model);
+        return ResultMessage(query, "Success (Explicit Validation)");
     }
 
     // PUT method with automatic CSRF validation
-    public IActionResult OnPut(string message)
-    {
-        var model = new
-        {
-            Message = message,
-            TokenValidation = "Success (PUT with Automatic Validation)",
-            Timestamp = DateTime.Now.ToString(TimestampFormat)
-        };
-        return Partial(ResultMessageView, model);
-    }
+    public IActionResult OnPut(string message) => ResultMessage(message, "Success (PUT with Automatic Validation)");
 
     // PATCH method with automatic CSRF validation
-    public IActionResult OnPatch(string message)
-    {
-        var model = new
-        {
-            Message = message,
-            TokenValidation = "Success (PATCH with Automatic Validation)",
-            Timestamp = DateTime.Now.ToString(TimestampFormat)
-        };
-        return Partial(ResultMessageView, model);
-    }
+    public IActionResult OnPatch(string message) => ResultMessage(message, "Success (PATCH with Automatic Validation)");
 
     // DELETE method with automatic CSRF validation
-    public IActionResult OnDelete(string message)
+    public IActionResult OnDelete(string message) => ResultMessage(message, "Success (DELETE with Automatic Validation)");
+
+    private IActionResult ResultMessage(string message, string validation) => Partial(ResultMessageView, new HtmxResultMessage
     {
-        var model = new
-        {
-            Message = message,
-            TokenValidation = "Success (DELETE with Automatic Validation)",
-            Timestamp = DateTime.Now.ToString(TimestampFormat)
-        };
-        return Partial(ResultMessageView, model);
-    }
+        Message = message,
+        TokenValidation = validation,
+        Timestamp = DateTime.Now.ToString(TimestampFormat)
+    });
+}
+
+public sealed class HtmxResultMessage
+{
+    public string Message { get; init; } = string.Empty;
+
+    [Sensitive(false, Justification = "Antiforgery validation outcome, not token material.")]
+    public string TokenValidation { get; init; } = string.Empty;
+
+    public string Timestamp { get; init; } = string.Empty;
 }

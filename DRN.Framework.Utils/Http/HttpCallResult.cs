@@ -1,5 +1,6 @@
 using System.Runtime.ExceptionServices;
 using System.Text.Json.Serialization;
+using DRN.Framework.SharedKernel.Attributes;
 
 namespace DRN.Framework.Utils.Http;
 
@@ -81,6 +82,7 @@ public sealed class HttpCallResult<TResult> : IDisposable
     public TResult? Payload => _response is null ? default : _response.Payload;
     public HttpFailure? Failure { get; }
     public bool ResponseReceived => _httpStatus.HasValue;
+    [Sensitive(false, Justification = "HTTP outcome flag.")]
     public bool IsSuccessStatusCode => StatusClass == HttpStatusClass.Success;
     public bool IsSuccess => IsSuccessStatusCode && Failure is null;
 

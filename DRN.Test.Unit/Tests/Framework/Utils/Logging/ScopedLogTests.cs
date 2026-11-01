@@ -1,8 +1,11 @@
 using System.Diagnostics;
+// These fixtures deliberately retain unclassified/ignored members to verify runtime getter suppression.
+#pragma warning disable DRN0015, DRN0017
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Logging.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -10,6 +13,95 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Logging;
 
 public class ScopedLogTests
 {
+    [Theory]
+    [DataInlineUnit("none")]
+    [DataInlineUnit("field")]
+    [DataInlineUnit("path")]
+    public void Metric_Identifiers_Should_Exempt_Built_In_Rules_But_Respect_Configured_Rules(string rule)
+    {
+        using var settings = SettingsProvider.Development();
+        var log = new ScopedLog(settings, new DiagnosticSanitizer(MetricOptions(rule)));
+        var allowed = rule == "none";
+        log.Increase("ClientWork").Should().Be(allowed ? 1 : 0);
+        log.IncreaseTimeSpentOn("ClientWork", TimeSpan.FromSeconds(2))
+            .Should().Be(allowed ? TimeSpan.FromSeconds(2) : TimeSpan.Zero);
+        using (log.Measure("ClientWork")) { }
+        var snapshot = log.GetLogs();
+        snapshot.ContainsKey("Stats_ClientWork").Should().Be(allowed);
+        snapshot.ContainsKey(ScopedLogConventions.TimeSpentOnKey("ClientWork")).Should().Be(allowed);
+        if (allowed)
+            snapshot[ScopedLogConventions.TimeSpentOnCounter("ClientWork")].Should().Be(2L);
+    }
+
+    [Fact]
+    public void Metrics_Should_Keep_Foreign_Sanitizer_Sensitivity_Checks()
+    {
+        using var settings = SettingsProvider.Development();
+        var sanitizer = Substitute.For<IDiagnosticSanitizer>();
+        sanitizer.Options.Returns(new DiagnosticLogOptions());
+        sanitizer.SanitizeKey(Arg.Any<string>()).Returns(call => call.Arg<string>());
+        sanitizer.IsSensitive("Stats_ClientWork").Returns(true);
+        var log = new ScopedLog(settings, sanitizer);
+        log.Increase("ClientWork").Should().Be(0);
+        log.IncreaseTimeSpentOn("ClientWork", TimeSpan.FromSeconds(2)).Should().Be(TimeSpan.Zero);
+        using (log.Measure("ClientWork")) { }
+        sanitizer.Received(2).IsSensitive("Stats_ClientWork");
+    }
+
+    [Theory]
+    [DataInlineUnit("none")]
+    [DataInlineUnit("field")]
+    [DataInlineUnit("path")]
+    public void Metric_Copies_Should_Preserve_Exemptions_And_Respect_Destination_Rules(string rule)
+    {
+        using var settings = SettingsProvider.Development();
+        var options = MetricOptions("none");
+        var source = new ScopedLog(settings, new DiagnosticSanitizer(options));
+        source.Increase("ClientWork", 4);
+        source.Increase("ClientWork", 0);
+        source.IncreaseTimeSpentOn("ClientWork", TimeSpan.FromSeconds(2));
+        source.IncreaseTimeSpentOn("ClientWork", TimeSpan.Zero);
+        var first = new ScopedLog(settings, new DiagnosticSanitizer(options));
+        first.CopyFrom(source);
+        first.Increase("ClientWork").Should().Be(5);
+        first.IncreaseTimeSpentOn("ClientWork", TimeSpan.FromSeconds(1)).Should().Be(TimeSpan.FromSeconds(3));
+
+        var destination = new ScopedLog(settings, new DiagnosticSanitizer(MetricOptions(rule)));
+        destination.CopyFrom(first);
+        var snapshot = destination.GetLogs();
+        var counterKey = ScopedLogConventions.TimeSpentOnCounter("ClientWork");
+        var durationKey = ScopedLogConventions.TimeSpentOnKey("ClientWork");
+        if (rule == "none")
+        {
+            snapshot["Stats_ClientWork"].Should().Be(5L);
+            snapshot[counterKey].Should().Be(3L);
+            snapshot[durationKey].Should().Be(3d);
+            destination.Increase("ClientWork").Should().Be(6);
+            destination.IncreaseTimeSpentOn("ClientWork", TimeSpan.FromSeconds(1)).Should().Be(TimeSpan.FromSeconds(4));
+        }
+        else
+        {
+            snapshot["Stats_ClientWork"].Should().Be(DiagnosticSanitizer.Redacted);
+            snapshot[counterKey].Should().Be(DiagnosticSanitizer.Redacted);
+            snapshot[durationKey].Should().Be(DiagnosticSanitizer.Redacted);
+            destination.Increase("ClientWork").Should().Be(0);
+            destination.IncreaseTimeSpentOn("ClientWork", TimeSpan.FromSeconds(1)).Should().Be(TimeSpan.Zero);
+        }
+        source.GetLogs()["Stats_ClientWork"].Should().Be(4L);
+        source.GetLogs()[durationKey].Should().Be(2d);
+
+        first.Add("Stats_ClientWork", "replacement-probe");
+        destination.CopyFrom(first);
+        destination.GetLogs()["Stats_ClientWork"].Should().Be(DiagnosticSanitizer.Redacted);
+    }
+
+    private static DiagnosticLogOptions MetricOptions(string rule) => new()
+    {
+        SensitiveFields = rule == "field" ? ["ClientWork"] : [],
+        SensitiveFieldPaths = rule == "path" ? ["Stats_ClientWork"] : [],
+        MaxProcessingMilliseconds = 100
+    };
+
     [Theory]
     [DataInlineUnit("en-US")]
     [DataInlineUnit("tr-TR")]
@@ -20,22 +112,22 @@ public class ScopedLogTests
         {
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(cultureName);
             var source = CreateLog();
-            source.Add("Key.\u00e9", "composed");
-            source.Add("Key.z", "lowercase");
-            source.Add("Key.e\u0301", "decomposed");
-            source.Add("Key.Z", "uppercase");
+            source.Add("Field.\u00e9", "composed");
+            source.Add("Field.z", "lowercase");
+            source.Add("Field.e\u0301", "decomposed");
+            source.Add("Field.Z", "uppercase");
 
             var destination = CreateLog();
             destination.CopyFrom(source);
 
             foreach (var snapshot in new[] { source.GetLogs(), destination.GetLogs() })
             {
-                snapshot.Keys.Where(key => key.StartsWith("Key.", StringComparison.Ordinal))
-                    .Should().Equal("Key.Z", "Key.e\u0301", "Key.z", "Key.\u00e9");
-                snapshot["Key.\u00e9"].Should().Be("composed");
-                snapshot["Key.e\u0301"].Should().Be("decomposed");
-                snapshot["Key.Z"].Should().Be("uppercase");
-                snapshot["Key.z"].Should().Be("lowercase");
+                snapshot.Keys.Where(key => key.StartsWith("Field.", StringComparison.Ordinal))
+                    .Should().Equal("Field.Z", "Field.e\u0301", "Field.z", "Field.\u00e9");
+                snapshot["Field.\u00e9"].Should().Be("composed");
+                snapshot["Field.e\u0301"].Should().Be("decomposed");
+                snapshot["Field.Z"].Should().Be("uppercase");
+                snapshot["Field.z"].Should().Be("lowercase");
             }
         }
         finally
@@ -68,7 +160,7 @@ public class ScopedLogTests
     {
         var log = CreateLog();
 
-        log.AddProperties("Map", new Dictionary<string, string> { ["key"] = "value" });
+        log.AddProperties("Map", new Dictionary<string, string> { ["entry"] = "value" });
 
         var snapshot = log.GetLogs();
         snapshot["Map.Count"].Should().Be(1);
@@ -267,6 +359,7 @@ public class ScopedLogTests
         snapshot["Stats_TimeSpentOn_Work_Counter"].Should().Be(1L);
         snapshot["Stats_TimeSpentOn_Work_Seconds"].Should().Be(2d);
         destination.Increase("Items").Should().Be(5);
+        destination.GetLogs()["Stats_TimeSpentOn_Work_Seconds"].Should().Be(2d);
         destination.IncreaseTimeSpentOn("Work", TimeSpan.FromSeconds(1)).Should().Be(TimeSpan.FromSeconds(3));
         source.GetLogs()["Stats_Items"].Should().Be(7L);
         source.GetLogs()["Stats_TimeSpentOn_Work_Seconds"].Should().Be(6d);
@@ -287,6 +380,7 @@ public class ScopedLogTests
         log.Increase("c", 3, "ab").Should().Be(5);
 
         log.Add("Custom_TimeSpentOn_Work_Seconds", 10d);
+        log.GetLogs()["Custom_TimeSpentOn_Work_Seconds"].Should().Be(10d);
         log.IncreaseTimeSpentOn("Work", TimeSpan.FromSeconds(2), "Custom_").Should().Be(TimeSpan.FromSeconds(12));
         log.Add("Custom_TimeSpentOn_Work_Seconds", "reset");
         log.IncreaseTimeSpentOn("Work", TimeSpan.FromSeconds(3), "Custom_").Should().Be(TimeSpan.FromSeconds(3));
@@ -349,13 +443,13 @@ public class ScopedLogTests
     {
         var log = CreateLog();
         log.AddProperties("First", new AttributedLogData(), nameof(AttributedLogData.Visible));
-        log.AddProperties("Second", new AttributedLogData());
+        log.AddProperties("Other", new AttributedLogData());
 
         var snapshot = log.GetLogs();
         snapshot["First.Visible"].Should().Be(ScopedLogConventions.IgnoredLogValue);
-        snapshot["Second.Visible"].Should().Be("visible");
+        snapshot["Other.Visible"].Should().Be("visible");
         snapshot["First.Secret"].Should().Be(ScopedLogConventions.IgnoredLogValue);
-        snapshot["Second.Secret"].Should().Be(ScopedLogConventions.IgnoredLogValue);
+        snapshot["Other.Secret"].Should().Be(ScopedLogConventions.IgnoredLogValue);
     }
 
     private sealed class AttributedLogData

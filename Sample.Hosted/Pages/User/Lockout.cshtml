@@ -1,12 +1,21 @@
 @page
 @model Sample.Hosted.Pages.User.LockoutModel
 @{
-    var options = Get.LayoutOptions.Centered("Account Locked Out");
-    ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = options;
-    
-    var lockOutMinutes = IdentitySettings.LockoutOptions.DefaultLockoutTimeSpan.Minutes;
+    Layout = "_ErrorLayout";
+    ViewData[Get.ViewDataKeys.Title] = "Account temporarily locked";
+    ViewData[Get.ViewDataKeys.ErrorStatus] = "Account locked";
+
+    var lockOutMinutes = Math.Ceiling(IdentitySettings.LockoutOptions.DefaultLockoutTimeSpan.TotalMinutes);
 }
 
-<p>Your account has been temporarily locked due to multiple invalid attempts.</p>
-<p>Please try again @lockOutMinutes minutes later.</p>
-<p>If you believe this is a mistake, contact support for assistance.</p>
+<h1 id="error-title" class="h2 mb-0">Let’s give your account a moment.</h1>
+<p class="my-4 text-body-secondary">Your account has been temporarily locked after multiple unsuccessful sign-in attempts.</p>
+<div class="p-3 border-start border-3 border-primary rounded-end bg-body-tertiary">
+    <h2 class="h6 mb-2">Try signing in again shortly.</h2>
+    <p class="mb-0 text-body-secondary">The lockout period is @lockOutMinutes minutes. Wait for it to end before trying again.</p>
+    <p class="mt-2 mb-0 text-body-secondary">If you need help accessing your account, contact support.</p>
+</div>
+<nav class="mt-4 d-grid d-sm-flex gap-2" aria-label="Recovery actions">
+    <a class="btn btn-primary d-inline-flex align-items-center justify-content-center gap-3 px-3 py-2" asp-page="@Get.Page.User.Login">Return to sign in <span aria-hidden="true">→</span></a>
+    <a class="btn btn-outline-secondary px-3 py-2" asp-page="@Get.Page.Root.HomeAnonymous">Return home</a>
+</nav>

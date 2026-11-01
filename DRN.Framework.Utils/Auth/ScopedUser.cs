@@ -1,6 +1,7 @@
 using System.Collections.Frozen;
 using System.Security.Claims;
 using System.Text.Json.Serialization;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Extensions;
 
@@ -42,6 +43,7 @@ public class ScopedUser(AuthenticationClaimConfig? claimConfig) : IScopedUser
     [JsonIgnore]
     public ClaimsPrincipal? ExemptionPrincipal => Exemption?.Principal;
 
+    [Sensitive(false, Justification = "Authentication outcome flag.")]
     public bool Authenticated { get; private set; }
 
     public string? Id => IdClaim?.GetValue();
@@ -54,9 +56,11 @@ public class ScopedUser(AuthenticationClaimConfig? claimConfig) : IScopedUser
     [JsonIgnore]
     public ClaimGroup? NameClaim { get; private set; }
 
+    [Personal]
     public string? Email => EmailClaim?.Claim.Value;
 
     [JsonIgnore]
+    [Personal]
     public ClaimGroup? EmailClaim { get; private set; }
 
     //https://datatracker.ietf.org/doc/html/rfc8176#section-2
@@ -64,7 +68,9 @@ public class ScopedUser(AuthenticationClaimConfig? claimConfig) : IScopedUser
     public string? Amr => AmrClaim?.GetValue();
     public ClaimGroup? AmrClaim { get; private set; }
 
+    [Personal]
     public string? AuthenticationMethod => AuthenticationMethodClaim?.GetValue();
+    [Personal]
     public ClaimGroup? AuthenticationMethodClaim { get; private set; }
     public ClaimGroup? RoleClaim { get; private set; }
 

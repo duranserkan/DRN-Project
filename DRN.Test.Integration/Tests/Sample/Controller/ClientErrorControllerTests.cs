@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using DRN.Test.Integration.Tests.Sample.Controller.Helpers;
 using Sample.Hosted;
+using Sample.Hosted.Controllers.Sample;
 using Sample.Hosted.Helpers;
 
 namespace DRN.Test.Integration.Tests.Sample.Controller;
@@ -15,7 +16,7 @@ public class ClientErrorControllerTests
         context.AddToConfiguration("DrnAppFeatures:DrnRateLimit:Disabled", "false");
         using var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
         const string path = "/Api/Sample/ClientError/Report";
-        var payload = new { message = "Browser test error", clientErrorId = new string('a', 32) };
+        var payload = new ClientErrorPayload { Message = "Browser test error", ClientErrorId = new string('a', 32) };
         using var anonymous = await client.PostAsJsonAsync(path, payload);
         anonymous.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 
@@ -34,7 +35,11 @@ public class ClientErrorControllerTests
 
         client.DefaultRequestHeaders.Authorization = null;
         await AuthenticationHelper.AuthenticateClientAsync(client, CredentialsProvider.GenerateCredentials(), endpoints);
-        using var otherUser = await client.PostAsJsonAsync(path, payload);
+        using var otherUser = await client.PostAsJsonAsync(path, new ClientErrorPayload
+        {
+            Message = "password=direct-client-probe", ClientErrorId = new string('b', 32),
+            Url = "https://example.test/?token=direct-url-probe", DiagnosticRedacted = false, DiagnosticLimited = true
+        });
         otherUser.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 }

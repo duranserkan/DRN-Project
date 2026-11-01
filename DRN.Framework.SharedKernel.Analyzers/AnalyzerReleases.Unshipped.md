@@ -19,3 +19,10 @@
 | DRN0012 | DRN.Domain | Warning  | Concrete generic entities share identity across constructed types |
 | DRN0013 | DRN.Domain | Error    | Concrete entity type required for Source-Known repository bindings and metadata APIs |
 | DRN0014 | DRN.Domain | Error    | Entity ID operations are not initialized on a provably fresh receiver |
+| DRN0015 | DRN.Classification | Error | Matching model property requires classification or explicit name exemption |
+| DRN0016 | DRN.Classification | Error | Invalid Sensitive(false) target or derived false construction |
+| DRN0017 | DRN.Classification | Error | Diagnostic path or prefix requires an explicit capture decision |
+| DRN0018 | DRN.Classification | Error | Custom Microsoft classification outside supported DRN families cannot be verified |
+| DRN0019 | DRN.Classification | Error | Matching anonymous properties require a named class or record with explicit classification or false-positive exemption |
+| DRN0020 | DRN.Classification | Error | Matching dictionary captures require AddDictionary or SanitizeDictionary with key classifications |
+| DRN0021 | DRN.Classification | Error | Project or inherited classification catalog is unreadable, invalid, oversized, or ambiguous |

@@ -37,7 +37,7 @@ public static class ObjectExtensions
             return;
 
         var propertiesOfCurrentInstance = new HashSet<PropertyInfo>();
-        foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        foreach (var property in type.GetProperties(BindingFlag.InstancePublic))
         {
             var propertyValue = property.GetValue(instance);
 

@@ -1,3 +1,5 @@
+using DRN.Framework.SharedKernel.Attributes;
+
 namespace DRN.Framework.Utils.Cancellation;
 
 /// <summary>Represents one stable, terminal cancellation scope.</summary>
@@ -8,6 +10,7 @@ namespace DRN.Framework.Utils.Cancellation;
 public interface ICancellationScope
 {
     /// <summary>Gets the stable token for this scope.</summary>
+    [Sensitive(false, Justification = "Cancellation control token, not an authentication credential.")]
     CancellationToken Token { get; }
 
     /// <summary>Gets whether cancellation has been requested for this scope.</summary>
@@ -43,6 +46,7 @@ internal sealed class CancellationScope : ICancellationScope
         _token = _source.Token;
     }
 
+    [Sensitive(false, Justification = "Cancellation control token, not an authentication credential.")]
     public CancellationToken Token => _token;
 
     public bool IsCancellationRequested => _token.IsCancellationRequested;

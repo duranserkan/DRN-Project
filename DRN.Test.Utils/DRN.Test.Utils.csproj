@@ -15,4 +15,8 @@
         <ProjectReference Include="..\DRN.Framework.Utils\DRN.Framework.Utils.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+        <EmbeddedResource Include="Classification/data-classification-rules.json" />
+    </ItemGroup>
+
 </Project>

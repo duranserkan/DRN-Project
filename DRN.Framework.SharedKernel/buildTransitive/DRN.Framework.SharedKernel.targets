@@ -1,12 +1,60 @@
 <Project>
+  <PropertyGroup>
+    <_DrnRuleTargetsFile>$(MSBuildThisFileFullPath)</_DrnRuleTargetsFile>
+  </PropertyGroup>
+
+  <!-- Publish catalogs as assembly metadata so reference assemblies retain them for downstream analyzers. -->
+  <Target Name="_PrepareDrnDataClassificationRules" BeforeTargets="CoreCompile" Condition="'$(MSBuildProjectExtension)' == '.csproj'">
+    <ItemGroup>
+      <_DrnRuleSource Include="@(AdditionalFiles)"
+                      Condition="'%(Filename)%(Extension)' == 'data-classification-rules.json' or '%(Filename)%(Extension)' == 'diagnostic-rules.json'" />
+      <_DrnRuleSource Include="@(EmbeddedResource)"
+                      Condition="('%(Filename)%(Extension)' == 'data-classification-rules.json' or '%(Filename)%(Extension)' == 'diagnostic-rules.json') and '%(LogicalName)' != 'DRN.DiagnosticRules.json'" />
+    </ItemGroup>
+    <RemoveDuplicates Inputs="@(_DrnRuleSource->'%(FullPath)')">
+      <Output TaskParameter="Filtered" ItemName="_DrnRulePath" />
+    </RemoveDuplicates>
+    <Error Condition="@(_DrnRulePath->Count()) &gt; 1" Text="DRN0021: Register exactly one data classification catalog per project." />
+    <Error Condition="'@(_DrnRulePath)' != '' and !Exists('@(_DrnRulePath)')" Text="DRN0021: The data classification catalog is missing." />
+    <PropertyGroup Condition="'@(_DrnRulePath)' != ''">
+      <_DrnRuleFilePath>@(_DrnRulePath)</_DrnRuleFilePath>
+      <_DrnRuleJson>$([System.IO.File]::ReadAllText('$(_DrnRuleFilePath)'))</_DrnRuleJson>
+      <_DrnRuleSourceFile>$(IntermediateOutputPath)DrnDataClassificationRules.g.cs</_DrnRuleSourceFile>
+    </PropertyGroup>
+    <Error Condition="'@(_DrnRulePath)' != '' and $(_DrnRuleJson.Length) &gt; 65536" Text="DRN0021: A data classification catalog must contain at most 65536 characters." />
+    <ItemGroup Condition="'@(_DrnRulePath)' != ''">
+      <AdditionalFiles Remove="@(_DrnRuleSource)" />
+      <AdditionalFiles Include="@(_DrnRulePath)" />
+      <_DrnRuleAttribute Include="DRN.Framework.SharedKernel.Attributes.DataClassificationRulesAttribute">
+        <_Parameter1>$([MSBuild]::Escape($([System.IO.File]::ReadAllText('$(_DrnRuleFilePath)'))))</_Parameter1>
+      </_DrnRuleAttribute>
+    </ItemGroup>
+    <ItemGroup Condition="'@(_DrnRulePath)' != ''">
+      <Compile Remove="$(_DrnRuleSourceFile)" />
+      <Compile Include="$(_DrnRuleSourceFile)" />
+      <FileWrites Include="$(_DrnRuleSourceFile)" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="_GenerateDrnDataClassificationRules" AfterTargets="_PrepareDrnDataClassificationRules"
+          Condition="'@(_DrnRulePath)' != ''"
+          Inputs="@(_DrnRulePath);$(_DrnRuleTargetsFile);$(MSBuildProjectFullPath);$(MSBuildAllProjects)"
+          Outputs="$(_DrnRuleSourceFile)">
+    <WriteCodeFragment Language="C#" AssemblyAttributes="@(_DrnRuleAttribute)" OutputFile="$(_DrnRuleSourceFile)" />
+  </Target>
+
   <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.csproj'
                         and '$(MSBuildProjectName)' != 'DRN.Framework.SharedKernel.Analyzers'
+                        and '$(MSBuildProjectName)' != 'DRN.Framework.SharedKernel.CodeFixes'
                         and '$(MSBuildProjectName)' != 'DRN.Framework.SharedKernel'
                         and '$(MSBuildProjectName)' != 'DRN.Test.Analyzer'
                         and Exists('$(MSBuildThisFileDirectory)../../DRN.Framework.SharedKernel.Analyzers/DRN.Framework.SharedKernel.Analyzers.csproj')">
     <ProjectReference Include="$(MSBuildThisFileDirectory)../../DRN.Framework.SharedKernel.Analyzers/DRN.Framework.SharedKernel.Analyzers.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false"
+                      UndefineProperties="RuntimeIdentifier;TargetArchitecture;PlatformTarget;SelfContained;PublishReadyToRun" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)../../DRN.Framework.SharedKernel.CodeFixes/DRN.Framework.SharedKernel.CodeFixes.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false"
                       UndefineProperties="RuntimeIdentifier;TargetArchitecture;PlatformTarget;SelfContained;PublishReadyToRun" />
   </ItemGroup>
 </Project>

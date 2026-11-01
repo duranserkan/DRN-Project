@@ -1,4 +1,5 @@
 using DRN.Framework.Hosting.DrnProgram;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
@@ -45,4 +46,10 @@ public sealed class ForwardedHeadersTestProgram : DrnProgramBase<ForwardedHeader
 }
 
 public sealed record ForwardedHeadersResource(
-    string Content, string Scheme, bool IsHttps, string Host, string PathBase, string Path, string? RemoteIpAddress);
+    string Content,
+    string Scheme,
+    bool IsHttps,
+    string Host,
+    string PathBase,
+    string Path,
+    [property: Sensitive] string? RemoteIpAddress);

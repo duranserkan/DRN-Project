@@ -14,6 +14,7 @@ import type {IDrnUtils} from './DrnUtils';
 import type {IDrnCookieManager} from './DrnCookieManager';
 import type {IDrnProblem} from './DrnProblem';
 import type {IDrnErrorHandler} from './DrnErrorHandler';
+import type {IDrnDiagnostics} from './DrnDiagnostics';
 import type {IDrnNotifications, IDrnToast} from './DrnNotifications';
 
 // The Main Global Augmentation
@@ -38,6 +39,7 @@ declare global {
         Problem: IDrnProblem;
         Notifications: IDrnNotifications;
         ErrorHandler: IDrnErrorHandler;
+        Diagnostics: IDrnDiagnostics;
         Validation: any;
     }
 }

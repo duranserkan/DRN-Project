@@ -2,6 +2,8 @@
 
 #nullable enable
 
+using DRN.Framework.SharedKernel.Attributes;
+
 namespace DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
 
 /// <summary>
@@ -32,16 +34,19 @@ public  class StackFrameSourceCodeInfo
     /// <summary>
     /// Lines of code before the actual error line(s).
     /// </summary>
+    [Sensitive(false, Justification = "Source context explicitly retained for failure diagnosis.")]
     public IEnumerable<string> PreContextCode { get; set; } = Enumerable.Empty<string>();
 
     /// <summary>
     /// Line(s) of code responsible for the error.
     /// </summary>
+    [Sensitive(false, Justification = "Source context explicitly retained for failure diagnosis.")]
     public IEnumerable<string> ContextCode { get; set; } = Enumerable.Empty<string>();
 
     /// <summary>
     /// Lines of code after the actual error line(s).
     /// </summary>
+    [Sensitive(false, Justification = "Source context explicitly retained for failure diagnosis.")]
     public IEnumerable<string> PostContextCode { get; set; } = Enumerable.Empty<string>();
 
     /// <summary>

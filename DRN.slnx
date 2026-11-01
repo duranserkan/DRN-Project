@@ -135,6 +135,7 @@
     <Project Path="DRN.Framework.MassTransit\DRN.Framework.MassTransit.csproj" />
     <Project Path="DRN.Framework.SharedKernel\DRN.Framework.SharedKernel.csproj" />
     <Project Path="DRN.Framework.SharedKernel.Analyzers\DRN.Framework.SharedKernel.Analyzers.csproj" />
+    <Project Path="DRN.Framework.SharedKernel.CodeFixes\DRN.Framework.SharedKernel.CodeFixes.csproj" />
     <Project Path="DRN.Framework.Testing\DRN.Framework.Testing.csproj" />
     <Project Path="DRN.Framework.Utils\DRN.Framework.Utils.csproj" />
   </Folder>

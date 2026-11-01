@@ -1,11 +1,11 @@
 # Roadmap
 - [X] DRN.Framework (0.6.0 released)
-- [X] Management best practices 
+- [X] Management best practices
 - [X] Engineering manifest
 - [X] Reference documents for design, architecture and microservices
 - [ ] DRN.Nexus  (will be released with 1.0.0)
-
-## DRN.Framework
+- [ ] Evaluate [privacy and compliance options](docs/privacy-and-compliance.md) for diagnostics and future DbContext support.
+- [ ] Evaluate [SOC2](SOC2-CHECKLIST.md) for security compliance.
 
 ### DRN.Framework.Testing
 - [X] DrnTestContext
@@ -44,7 +44,7 @@
 - [X] Domain Entities and definitions
 - [X] Generalized Convention Exceptions
 - [X] AppConstants
-  - Application specific TempPath 
+  - Application specific TempPath
   - ApplicationId
   - Local IP address
 - [X] Source Known Ids
@@ -52,16 +52,17 @@
 ### DRN.Framework.EntityFramework
 - [X] DDD style entities, aggregates
 - [X] DrnContext inherited from DbContext and its DbContext conventions for rapid domain design and development
-- [ ] Postgresql based remote dictionary with retentions
+- [ ] Domain events with transactional outbox
+- [ ] PostgreSQL based remote dictionary with retentions
 - [ ] Migration manager that supports sharding and schema based multi tenancy
 
 ### DRN.Framework.Masstransit
 - [ ] Convention & Settings based consumer, batch consumer, request consumer registrations
 - [ ] Scoped log support
 - [ ] Second level retry
-- [ ] Timeouts with consumer context cancellation tokens 
+- [ ] Timeouts with consumer context cancellation tokens
 - [ ] Exception type based error queues
-- [ ] Observable and Traceable Messages 
+- [ ] Observable and Traceable Messages
 - [ ] Consumer Topology
 
 ### DRN.Framework.Jobs

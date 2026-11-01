@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using DRN.Framework.SharedKernel.Attributes;
 
 namespace Sample.Domain.Users;
 
@@ -18,9 +19,9 @@ public class User : AggregateRoot
         Address = address;
     }
 
-    public string Name { get; private set; } = null!;
-    public string Surname { get; private set; } = null!;
-    public string UserName { get; private set; } = null!;
+    [Personal] public string Name { get; private set; } = null!;
+    [Personal] public string Surname { get; private set; } = null!;
+    [Personal] public string UserName { get; private set; } = null!;
     public ContactDetail Contact { get; private set; } = null!;
     public Address Address { get; private set; } = null!;
 }
@@ -38,8 +39,8 @@ public class ContactDetail
         Phone = phone;
     }
 
-    public string Email { get; private set; } = null!;
-    public string? Phone { get; private set; }
+    [Personal] public string Email { get; private set; } = null!;
+    [Personal] public string? Phone { get; private set; }
 }
 
 [Owned]
@@ -57,8 +58,8 @@ public class Address
         Country = country;
     }
 
-    public string Street { get; private set; } = null!;
-    public string City { get; private set; } = null!;
-    public string Postcode { get; private set; } = null!;
-    public string Country { get; private set; } = null!;
+    [Personal] public string Street { get; private set; } = null!;
+    [Personal] public string City { get; private set; } = null!;
+    [Personal] public string Postcode { get; private set; } = null!;
+    [Personal] public string Country { get; private set; } = null!;
 }

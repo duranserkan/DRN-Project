@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.AspNetCore.Identity;
 using Sample.Domain.Identity;
@@ -49,6 +50,7 @@ public class UserProfileEditModel
     [Phone]
     [Display(Name = "Phone Number")]
     [Required]
+    [Personal]
     public string PhoneNumber { get; init; } = string.Empty;
 
     [Display(Name = "Slim UI")] public bool SlimUI { get; set; }

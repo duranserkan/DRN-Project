@@ -11,6 +11,7 @@
  */
 
 import drnApp from './drnApp.js';
+import drnDiagnostics from './drnDiagnostics.js';
 
 const MAX_ERRORS_PER_WINDOW = 5;
 const RATE_WINDOW_MS = 60000;
@@ -26,6 +27,7 @@ function serializeReport(payload) {
     // Preserve the correlation ID and trim less useful diagnostics first.
     for (const field of ['stack', 'userAgent', 'url', 'source', 'message']) {
         if (encoder.encode(json).byteLength <= MAX_REPORT_BYTES) return json;
+        report.diagnosticLimited = true;
         const characters = Array.from(report[field]);
         let low = field === 'message' ? 1 : 0;
         let high = characters.length;
@@ -136,7 +138,8 @@ function reportActionErrorCore(error, context) {
         notifications?.isActive?.() !== true) return null;
 
     const message = (error instanceof Error ? error.message : String(error || 'Action failed')) || 'Action failed';
-    const payload = buildPayload(message, 'user-action', 0, 0, error instanceof Error ? error.stack : '');
+    const stack = error instanceof Error ? error.stack : '';
+    const payload = buildPayload(message, 'user-action', 0, 0, stack);
     // Each action occurrence needs its own reference. Keep the shared rate limit.
     if (tryReserveReportSlot(payload.clientErrorId)) sendReport(payload);
 
@@ -144,10 +147,37 @@ function reportActionErrorCore(error, context) {
         ? context.message : 'The action could not be completed. Check the current state before trying again.';
     const record = notifications.publish({
         type: 'error', title: 'Action could not be completed', message: publicMessage,
-        clientErrorId: payload.clientErrorId, operation: context.operation, persist: context.persist !== false
+        clientErrorId: payload.clientErrorId,
+        clientErrorDetails: notificationDetails(message, 'user-action', 0, 0, stack, payload.url),
+        operation: context.operation, persist: context.persist !== false
     });
     if (record) window.DRN.Toast.show({ type: 'error', message: publicMessage, record: false });
     return record;
+}
+
+function notificationDetails(message, source, line, column, stack, safePageUrl) {
+    let clipped = false;
+    function field(value, maximum) {
+        const text = typeof value === 'string' ? value : '';
+        if (text.length <= maximum) return text;
+        clipped = true;
+        const end = /[\uD800-\uDBFF]/.test(text[maximum - 1]) ? maximum - 1 : maximum;
+        return text.slice(0, end);
+    }
+    let stackText = field(stack, 2000);
+    const firstLine = stackText.split('\n', 1)[0];
+    const heading = firstLine.trimEnd();
+    const errorHeading = heading.match(/^[\w.$]+:[ \t]*(.*)$/);
+    const displayedMessage = typeof message === 'string' ? message.replace(/^Uncaught(?: \(in promise\))?\s+/, '') : '';
+    if (errorHeading && (heading === displayedMessage || errorHeading[1] === displayedMessage))
+        stackText = stackText.slice(firstLine.length + 1);
+    // Recognize browser frame lines without replacing or reconstructing the original stack.
+    const hasFrames = /(?:^|\n)\s*(?:at\s+\S|[^\n]*@[^\n]+:\d+)/.test(stackText);
+    const fields = [`Message: ${field(message, 500)}`,
+        `Source: ${field(source, 200)}`, `Line: ${line}, column: ${column}`, `Page: ${field(safePageUrl, 500)}`];
+    if (clipped) fields.push('Diagnostic details were truncated.');
+    fields.push(`Stack:\n${[stackText, hasFrames ? '' : 'Stack frames unavailable'].filter(Boolean).join('\n')}`);
+    return fields.filter(Boolean).join('\n');
 }
 
 /**
@@ -160,17 +190,29 @@ function reportActionErrorCore(error, context) {
  * @returns {Object}
  */
 function buildPayload(message, source, line, column, stack) {
-    return {
+    const capture = drnDiagnostics.createCapture();
+    let clipped = false;
+    function field(value, maximum, isUrl = false) {
+        const safe = isUrl ? capture.url(value || '') : capture.text(typeof value === 'string' ? value : '');
+        if (safe.length <= maximum) return safe;
+        clipped = true;
+        const end = /[\uD800-\uDBFF]/.test(safe[maximum - 1]) ? maximum - 1 : maximum;
+        return safe.slice(0, end);
+    }
+    const payload = {
         clientErrorId: createClientErrorId(),
-        message: String(message || '').substring(0, 500),
-        source: String(source || '').substring(0, 200),
+        message: field(message, 500),
+        source: field(source, 200),
         line: line || 0,
         column: column || 0,
-        stack: String(stack || '').substring(0, 2000),
-        url: window.location.href.substring(0, 500),
-        userAgent: navigator.userAgent.substring(0, 300),
+        stack: field(stack, 2000),
+        url: field(window.location.href, 500, true),
+        userAgent: field(navigator.userAgent, 300),
         timestamp: new Date().toISOString()
     };
+    payload.diagnosticRedacted = capture.status.redacted;
+    payload.diagnosticLimited = clipped || capture.status.limited;
+    return payload;
 }
 
 function reportUnhandledError(event, isRejection) {
@@ -184,10 +226,10 @@ function reportUnhandledError(event, isRejection) {
         const source = isRejection ? 'unhandledrejection' : event.filename || '';
         const line = isRejection ? 0 : event.lineno || 0;
         const column = isRejection ? 0 : event.colno || 0;
-        const key = isRejection ? 'promise|' + message : message + '|' + source + '|' + line;
+        const stack = reason?.stack || '';
+        const payload = buildPayload(message, source, line, column, stack);
+        const key = (isRejection ? 'promise|' : '') + payload.message + '|' + payload.source + '|' + line;
         if (!tryReserveReportSlot(key)) return;
-
-        const payload = buildPayload(message, source, line, column, reason?.stack || '');
         sendReport(payload);
 
         const notifications = window.DRN?.Notifications;
@@ -197,6 +239,7 @@ function reportUnhandledError(event, isRejection) {
             type: 'error', title: 'An unexpected error occurred',
             message: messageForUser,
             clientErrorId: payload.clientErrorId,
+            clientErrorDetails: notificationDetails(message, source, line, column, stack, payload.url),
             operation: 'Page error'
         });
         if (record) window.DRN.Toast?.show({ type: 'error', message: messageForUser, record: false });

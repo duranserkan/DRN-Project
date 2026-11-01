@@ -1,4 +1,5 @@
 using Castle.DynamicProxy;
+using DRN.Framework.Utils.Extensions;
 using NSubstitute.Core;
 using NSubstitute.Proxies.CastleDynamicProxy;
 
@@ -12,13 +13,13 @@ public static class NSubstituteObjectExtensions
     {
         var pairs = obj.Where(o => o.IsSubstitute()).Select(o =>
         {
-            var interceptors = o.GetType().GetField("__interceptors", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(o) as IInterceptor[];
+            var interceptors = o.GetType().GetField("__interceptors", BindingFlag.InstanceNonPublic)?.GetValue(o) as IInterceptor[];
             if (interceptors == null) return null;
 
             var proxyIdInterceptor = interceptors.SingleOrDefault(i => i is ProxyIdInterceptor) as ProxyIdInterceptor;
             if (proxyIdInterceptor == null) return null;
 
-            var proxyIdInterceptorFields = proxyIdInterceptor.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic);
+            var proxyIdInterceptorFields = proxyIdInterceptor.GetType().GetFields(BindingFlag.InstanceNonPublic);
             var interceptedRuntimeType = Array.Find(proxyIdInterceptorFields, fieldInfo =>
                 fieldInfo.Name.Contains("primaryProxyType", StringComparison.OrdinalIgnoreCase))?.GetValue(proxyIdInterceptor) as Type;
 

@@ -40,6 +40,7 @@ Use framework attributes and contexts only when the profile or testing skills de
 ## 5. Plan
 
 - Extend existing test classes when possible.
+- For classification-rule changes, use the profile's maintenance route and shared fixtures. Cover custom matches, preserved built-ins, false positives, invalid files, consumer isolation, and loading/deployment boundaries.
 - Parameterize identical bodies with the local test framework data attributes.
 - Prefer in-process DB integration over full API/E2E unless the web stack is under test.
 - Keep tests separate when consolidation hides distinct behavior or failure modes.

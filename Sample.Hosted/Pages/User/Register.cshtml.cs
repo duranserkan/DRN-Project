@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using DRN.Framework.SharedKernel.Attributes;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Domain.Users;
@@ -54,15 +55,18 @@ public class RegisterInput
     private const string PasswordErrorMessage = "The {0} must be at least {2} and at max {1} characters long.";
     private const string PasswordConfirmationErrorMessage = "The password and confirmation password do not match.";
 
+    [Personal, PersonalData]
     [Required] [EmailAddress] public string Email { get; init; } = string.Empty;
 
     [Required]
     [DataType(DataType.Password)]
     [StringLength(100, ErrorMessage = PasswordErrorMessage, MinimumLength = IdentitySettings.MinPasswordLength)]
+    [Sensitive]
     public string Password { get; set; } = string.Empty;
 
     [DataType(DataType.Password)]
     [Display(Name = "Confirm password")]
     [Compare(nameof(Password), ErrorMessage = PasswordConfirmationErrorMessage)]
+    [Sensitive]
     public string ConfirmPassword { get; set; } = string.Empty;
 }

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Auth;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Auth;
@@ -179,17 +180,17 @@ public class ScopedUserTests
     {
         public ClaimsPrincipal? Principal => user.Principal;
         public ClaimsIdentity? PrimaryIdentity => user.PrimaryIdentity;
-        public bool Authenticated => user.Authenticated;
+        [Sensitive(false)] public bool Authenticated => user.Authenticated;
         public string? Id => user.Id;
         public ClaimGroup? IdClaim => user.IdClaim;
         public string? Name => user.Name;
         public ClaimGroup? NameClaim => user.NameClaim;
-        public string? Email => user.Email;
-        public ClaimGroup? EmailClaim => user.EmailClaim;
+        [Personal] public string? Email => user.Email;
+        [Personal] public ClaimGroup? EmailClaim => user.EmailClaim;
         public string? Amr => user.Amr;
         public ClaimGroup? AmrClaim => user.AmrClaim;
-        public string? AuthenticationMethod => user.AuthenticationMethod;
-        public ClaimGroup? AuthenticationMethodClaim => user.AuthenticationMethodClaim;
+        [Personal] public string? AuthenticationMethod => user.AuthenticationMethod;
+        [Personal] public ClaimGroup? AuthenticationMethodClaim => user.AuthenticationMethodClaim;
         public ClaimGroup? RoleClaim => user.RoleClaim;
         public ExemptionProof? Exemption => user.Exemption;
         public string? ExemptionScheme => user.ExemptionScheme;

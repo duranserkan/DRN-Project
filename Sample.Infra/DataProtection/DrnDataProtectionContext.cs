@@ -1,4 +1,5 @@
 using DRN.Framework.SharedKernel.Extensions;
+using DRN.Framework.SharedKernel.Attributes;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 
 namespace Sample.Infra.DataProtection;
@@ -22,5 +23,6 @@ public class DrnDataProtectionContext : DrnContext<DrnDataProtectionContext>, ID
         modelBuilder.HasDefaultSchema($"__{GetType().Name}".ToSnakeCase());
     }
 
+    [Sensitive, IgnoreLog]
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; }
 }

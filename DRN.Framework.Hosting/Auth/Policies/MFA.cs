@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Security.Claims;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
@@ -30,12 +31,14 @@ public class RequireMfaHandler(AuthenticationClaimConfig? claimConfig = null, Mf
 /// <summary>Eligible schemes; only schemes selected by the endpoint policy can supply exemption evidence.</summary>
 public class MfaExemptionConfig
 {
+    [Sensitive(false, Justification = "Configured authentication scheme names.")]
     public IReadOnlyList<string> ExemptAuthSchemes { get; init; } = [];
 }
 
 [Singleton<MfaExemptionOptions>]
 public class MfaExemptionOptions
 {
+    [Sensitive(false, Justification = "Configured authentication scheme names.")]
     public FrozenSet<string> ExemptAuthSchemes { get; private set; } = FrozenSet<string>.Empty;
     internal void MapFromConfig(MfaExemptionConfig config) => ExemptAuthSchemes = config.ExemptAuthSchemes.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 }
