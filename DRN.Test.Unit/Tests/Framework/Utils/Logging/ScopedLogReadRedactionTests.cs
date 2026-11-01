@@ -44,6 +44,153 @@ public class ScopedLogReadRedactionTests
         Policy("second").MaterializeSnapshot(snapshot, false)[path].Should().Be(text);
     }
 
+    [Theory]
+    [DataInlineUnit("TargetUrl", "/?first=one&second=two&third=three&fourth=four", "/?")]
+    [DataInlineUnit("Request_QueryString", "first=one&second=two&third=three&fourth=four", "")]
+    public void Deferred_Reads_Should_Keep_Interleaved_Source_Policies_Separate(string path, string text, string prefix)
+    {
+        var first = Policy("first").Capture(path, text, deferRedaction: true);
+        var second = Policy("second").Capture(path, text, deferRedaction: true);
+        var third = Policy("third").Capture(path, text, deferRedaction: true);
+        var snapshot = new Dictionary<string, object>
+        {
+            ["First"] = first.Value!, ["Third"] = third.Value!, ["Second"] = second.Value!,
+            ["FirstAgain"] = first.Value!, ["ThirdAgain"] = third.Value!
+        };
+        var destination = Policy("fourth");
+
+        for (var read = 0; read < 2; read++)
+        {
+            var output = destination.MaterializeSnapshot(snapshot, true);
+            output["First"].Should().Be(prefix + "first=redacted&second=two&third=three&fourth=redacted");
+            output["Third"].Should().Be(prefix + "first=one&second=two&third=redacted&fourth=redacted");
+            output["Second"].Should().Be(prefix + "first=one&second=redacted&third=three&fourth=redacted");
+            output["FirstAgain"].Should().Be(output["First"]);
+            output["ThirdAgain"].Should().Be(output["Third"]);
+        }
+        destination.MaterializeSnapshot(snapshot, false).Values.Should().AllBeEquivalentTo(text);
+    }
+
+    [Fact]
+    public void Source_Worker_Should_Reset_Only_Its_Per_Value_State()
+    {
+        var source = new DiagnosticSanitizer(new DiagnosticLogOptions
+        {
+            MaxNodes = 16, MaxFieldBytes = 1024, MaxInputBytes = 1024, MaxProcessingMilliseconds = 100,
+            SensitiveFields = ["first"]
+        });
+        source.SanitizeText(new string('x', 1024)).Should().HaveLength(1024);
+        source.SanitizeText("x").Should().Be(DiagnosticSanitizer.Limited);
+        for (var read = 0; read < 2; read++)
+        {
+            source.RedactCapturedTextWithFreshBudget(DiagnosticRedactionKind.Url, "/?first=one&second=two")
+                .Should().Be("/?first=redacted&second=two");
+            source.GetStatus().Should().BeEmpty();
+            for (var index = 0; index < 16; index++) source.SanitizeValue("Count", index).Should().Be(index);
+            source.SanitizeValue("Count", 42).Should().Be(DiagnosticSanitizer.Limited);
+        }
+        source.RedactCapturedTextWithFreshBudget(DiagnosticRedactionKind.Url, "/?value=%25GG")
+            .Should().Be(DiagnosticSanitizer.Invalid);
+        source.RedactCapturedTextWithFreshBudget(DiagnosticRedactionKind.QueryString, "first=one&second=two")
+            .Should().Be("first=redacted&second=two");
+        source.GetStatus().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Reused_Source_Workers_Should_Preserve_Limits_And_Key_Sequences()
+    {
+        var options = new DiagnosticLogOptions
+        {
+            MaxKeyBytes = 32, MaxCollectionEntries = 1, MaxProcessingMilliseconds = 100
+        };
+        var captured = new DiagnosticCapturedValue(new string('x', 33) + "=one&second=two",
+            DiagnosticRedactionKind.QueryString, options);
+        var source = new DiagnosticSanitizer(options);
+        var first = source.RedactCapturedTextWithFreshBudget(captured.Kind, (string)captured.Value!);
+        source.RedactCapturedTextWithFreshBudget(captured.Kind, (string)captured.Value!).Should().Be(first);
+        var output = Policy().MaterializeSnapshot(new Dictionary<string, object>
+        {
+            ["First"] = captured, ["Second"] = captured
+        }, true);
+
+        // Destination keys remain unique across values even though each source sequence resets.
+        output["First"].Should().NotBe(output["Second"]);
+        foreach (var value in output.Values)
+        {
+            var text = (string)value;
+            text.Should().StartWith("_diagnostic_field_").And.Contain("=redacted&")
+                .And.NotContain("=one").And.NotContain("second=two");
+            Uri.UnescapeDataString(text).Should().Contain(DiagnosticSanitizer.Limited);
+        }
+    }
+
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public void Deferred_Reads_Should_Keep_Destination_Budgets_Cumulative(bool nodeLimit)
+    {
+        var text = "first=" + new string('x', 600);
+        var capture = Policy("first").Capture("Request_QueryString", text, deferRedaction: true);
+        var destination = new DiagnosticSanitizer(new DiagnosticLogOptions
+        {
+            MaxNodes = 16, MaxFieldBytes = 1024, MaxInputBytes = 1024, MaxProcessingMilliseconds = 100
+        });
+        if (nodeLimit)
+            for (var index = 0; index < 14; index++) destination.SanitizeValue("Count", index).Should().Be(index);
+
+        var output = destination.MaterializeSnapshot(new Dictionary<string, object>
+        {
+            ["First"] = capture.Value!, ["Second"] = capture.Value!
+        }, true);
+
+        output["First"].Should().Be("first=redacted");
+        output["Second"].Should().Be(DiagnosticSanitizer.Limited);
+        destination.GetStatus().Should().ContainKey("DiagnosticCaptureWarnings");
+    }
+
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public void Source_Workers_Should_Not_Survive_A_Materialization(bool fail)
+    {
+        var options = new DiagnosticLogOptions { SensitiveFields = ["first"], MaxProcessingMilliseconds = 100 };
+        var captured = new DiagnosticCapturedValue("first=one&second=two", DiagnosticRedactionKind.QueryString, options);
+        var snapshot = new Dictionary<string, object> { ["Value"] = captured };
+        var destination = Policy();
+
+        if (fail)
+        {
+            snapshot["Invalid"] = new DiagnosticCapturedValue("value=one", DiagnosticRedactionKind.QueryString,
+                options with { MaxNodes = 0 });
+            destination.MaterializeSnapshot(snapshot, true)["DiagnosticCapture"].Should().Be(DiagnosticSanitizer.Invalid);
+            snapshot.Remove("Invalid");
+        }
+        else destination.MaterializeSnapshot(snapshot, true)["Value"].Should().Be("first=redacted&second=two");
+        options.SensitiveFields[0] = "second";
+        destination.MaterializeSnapshot(snapshot, true)["Value"].Should().Be("first=one&second=redacted");
+    }
+
+    [Fact]
+    public void Failed_Snapshots_Should_Remain_Independent_And_Allow_Later_Reads()
+    {
+        var destination = Policy();
+        var snapshot = new Dictionary<string, object>
+        {
+            ["Value"] = new DiagnosticCapturedValue("value=one", DiagnosticRedactionKind.QueryString,
+                new DiagnosticLogOptions { MaxNodes = 0 })
+        };
+
+        var first = destination.MaterializeSnapshot(snapshot, true);
+        ((IDictionary<string, object>)first)["DiagnosticCapture"] = "caller-edited";
+        var second = destination.MaterializeSnapshot(snapshot, true);
+
+        second.Should().NotBeSameAs(first);
+        second["DiagnosticCapture"].Should().Be(DiagnosticSanitizer.Invalid);
+        snapshot["Value"] = "visible";
+        destination.MaterializeSnapshot(snapshot, true)["Value"].Should().Be("visible");
+        destination.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(new[] { "SanitizationFailed" });
+    }
+
     [Fact]
     public void Native_Copies_Should_Share_The_Destination_Capture_Budget()
     {

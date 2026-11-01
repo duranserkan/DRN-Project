@@ -103,16 +103,19 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
                 new Dictionary<string, object> { ["DiagnosticCaptureWarnings"] = _status.Order(StringComparer.Ordinal).ToArray() };
     }
 
-    internal T Guard<T>(Func<T> action, T fallback)
+    internal T Guard<T>(Func<T> action, T fallback) =>
+        Guard((action, fallback), static (_, state) => state.action(), static state => state.fallback);
+
+    private T Guard<TState, T>(TState state, Func<DiagnosticSanitizer, TState, T> action, Func<TState, T> fallback)
     {
         lock (_gate)
         {
             if (_operations++ == 0) _started = Stopwatch.GetTimestamp();
-            try { return action(); }
+            try { return action(this, state); }
             catch (Exception)
             {
                 _status.Add("SanitizationFailed");
-                return fallback;
+                return fallback(state);
             }
             finally
             {
@@ -280,10 +283,23 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
 
     // ScopedLog supplies a fresh sanitizer for each snapshot. Reading never invokes the original getters.
     internal IReadOnlyDictionary<string, object> MaterializeSnapshot(IReadOnlyDictionary<string, object> snapshot, bool redact) =>
-        Guard(() => _reader.Materialize(snapshot, redact), new Dictionary<string, object> { ["DiagnosticCapture"] = Invalid });
+        Guard((snapshot, redact), static (owner, state) => owner._reader.Materialize(state.snapshot, state.redact),
+            static _ => (IReadOnlyDictionary<string, object>)new Dictionary<string, object> { ["DiagnosticCapture"] = Invalid });
 
     internal string RedactCapturedText(DiagnosticRedactionKind kind, string text) =>
         kind == DiagnosticRedactionKind.Url ? Url(text) : Pairs(text.TrimStart('?'), redacted: UrlRedacted);
+
+    // Only snapshot-private source workers use this. Destination and capture budgets never reset.
+    internal string RedactCapturedTextWithFreshBudget(DiagnosticRedactionKind kind, string text) =>
+        Guard((kind, text), static (source, state) =>
+        {
+            source._inputBytes = 0;
+            source._nodes = 0;
+            source._spentMilliseconds = 0;
+            source._keySequence = 0;
+            source._status.Clear();
+            return source.RedactCapturedText(state.kind, state.text);
+        }, static _ => Invalid);
 
     public string SanitizeBody(string? value, string? contentType, string sourcePath = "") => Guard(() =>
     {

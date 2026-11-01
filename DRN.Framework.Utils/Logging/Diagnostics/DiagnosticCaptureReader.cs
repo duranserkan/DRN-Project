@@ -6,6 +6,11 @@ namespace DRN.Framework.Utils.Logging.Diagnostics;
 // Reads detached captures only. The owner supplies the guard, budget, and destination policy.
 internal sealed class DiagnosticCaptureReader(DiagnosticSanitizer owner)
 {
+    private DiagnosticLogOptions? _firstSourceOptions;
+    private DiagnosticSanitizer? _firstSource;
+    // Additional source policies only. Visited nodes bound its size; Materialize bounds its lifetime.
+    private Dictionary<DiagnosticLogOptions, DiagnosticSanitizer>? _sources;
+
     internal object? Copy(object? value, int depth)
     {
         if (!owner.VisitNode(depth)) return Limited;
@@ -42,13 +47,22 @@ internal sealed class DiagnosticCaptureReader(DiagnosticSanitizer owner)
 
     internal IReadOnlyDictionary<string, object> Materialize(IReadOnlyDictionary<string, object> snapshot, bool redact)
     {
-        var output = new Dictionary<string, object>();
-        foreach (var pair in snapshot)
+        try
         {
-            if (output.Count >= owner.Options.MaxNodes || !owner.WorkAvailable()) { output["_diagnostic_limit"] = Limited; break; }
-            output[pair.Key] = Read(pair.Value, 0, redact)!;
+            var output = new Dictionary<string, object>();
+            foreach (var pair in snapshot)
+            {
+                if (output.Count >= owner.Options.MaxNodes || !owner.WorkAvailable()) { output["_diagnostic_limit"] = Limited; break; }
+                output[pair.Key] = Read(pair.Value, 0, redact)!;
+            }
+            return output;
         }
-        return output;
+        finally
+        {
+            _firstSourceOptions = null;
+            _firstSource = null;
+            _sources = null;
+        }
     }
 
     private object? Read(object? value, int depth, bool redact)
@@ -68,13 +82,25 @@ internal sealed class DiagnosticCaptureReader(DiagnosticSanitizer owner)
         {
             if (!owner.Accept(text)) return Limited;
             if (captured.SourceOptions is { } sourceOptions)
-            {
-                var source = new DiagnosticSanitizer(sourceOptions);
-                text = source.Guard(() => source.RedactCapturedText(captured.Kind, text), Invalid);
-            }
+                text = SourceWorker(sourceOptions).RedactCapturedTextWithFreshBudget(captured.Kind, text);
             return owner.RedactCapturedText(captured.Kind, text);
         }
         return Read(captured.Value, depth, redact);
+    }
+
+    private DiagnosticSanitizer SourceWorker(DiagnosticLogOptions options)
+    {
+        if (_firstSource == null)
+        {
+            _firstSource = new DiagnosticSanitizer(options);
+            _firstSourceOptions = options;
+            return _firstSource;
+        }
+        if (ReferenceEquals(options, _firstSourceOptions)) return _firstSource;
+        _sources ??= new(ReferenceEqualityComparer.Instance);
+        if (!_sources.TryGetValue(options, out var source))
+            _sources.Add(options, source = new DiagnosticSanitizer(options));
+        return source;
     }
 
     private Dictionary<string, object?> ReadMap(IReadOnlyDictionary<string, object?> map, int depth, bool redact)
