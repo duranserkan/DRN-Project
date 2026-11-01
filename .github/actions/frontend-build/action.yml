@@ -52,11 +52,11 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: npm test
-    - name: Install Chromium headless shell
+    - name: Install Chromium system dependencies
       if: ${{ inputs.build-assets != 'false' && inputs.browser-tests == 'true' }}
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      run: npm exec --no --ignore-scripts -- playwright install --with-deps --only-shell chromium
+      run: npm exec --no --ignore-scripts -- playwright install-deps chromium
     - name: Test frontend browser behavior
       if: ${{ inputs.build-assets != 'false' && inputs.browser-tests == 'true' }}
       shell: bash

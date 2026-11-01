@@ -222,8 +222,7 @@ After installing and auditing dependencies as above, run frontend checks from `S
 
 ```bash
 npm test
-npm exec --no -- playwright install --only-shell chromium
 npm run test:browser
 ```
 
-The browser checks cover notification and form-error behavior without a running .NET app or database. On Linux, add `--with-deps` to the Playwright install command if system libraries are missing.
+The browser checks cover notification and form-error behavior without a running .NET app or database. `npm run test:browser` ensures Chromium headless shell is installed before running tests, reusing the cached installation when available. It does not depend on npm lifecycle hooks. On Linux, run `npm exec --no --ignore-scripts -- playwright install-deps chromium` if system libraries are missing. CI installs these system dependencies separately and uses the same browser test command.
