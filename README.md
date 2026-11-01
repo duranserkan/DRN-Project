@@ -2,13 +2,15 @@
 
 [![DRN-Project-Argo-CD-GitOps](https://img.shields.io/badge/DRN--Project--Argo--CD--GitOps-EF7B4D?style=for-the-badge&logo=argo&logoColor=white)](https://github.com/duranserkan/DRN-Project-Argo-CD-Gitops)
 [![DRN-Project-Pulumi-Ops](https://img.shields.io/badge/DRN--Project--Pulumi--Ops-F7BF2A?style=for-the-badge&logo=pulumi&logoColor=black)](https://github.com/duranserkan/DRN-Project-Pulumi-Ops)
-
+[![SOC2 Checklist](https://img.shields.io/badge/Doc-SOC2_Checklist-orange)](docs/SOC2-CHECKLIST.md)
+[![Privacy Checklist](https://img.shields.io/badge/Doc-Privacy_Checklist-blue)](docs/PRIVACY-CHECKLIST.md)
+<br>
 [![master](https://github.com/duranserkan/DRN-Project/actions/workflows/master.yml/badge.svg?branch=master)](https://github.com/duranserkan/DRN-Project/actions/workflows/master.yml)
 [![develop](https://github.com/duranserkan/DRN-Project/actions/workflows/develop.yml/badge.svg?branch=develop)](https://github.com/duranserkan/DRN-Project/actions/workflows/develop.yml)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 [![Docker Hub](https://img.shields.io/badge/images-blue?logo=docker&label=dockerhub)](https://hub.docker.com/u/duranserkan)
 [![Nuget](https://img.shields.io/badge/packages-004880?logo=nuget&label=nuget)](https://www.nuget.org/profiles/duranserkan)
-
+<br>
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
@@ -16,16 +18,14 @@
 [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=bugs)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=duranserkan_DRN-Project&metric=coverage)](https://sonarcloud.io/summary/new_code?id=duranserkan_DRN-Project)
-
+<br>
 [![Semantic Versioning](https://img.shields.io/badge/semver-2.0.0-3D9FE0.svg)](https://semver.org/)
 [![license](https://img.shields.io/github/license/duranserkan/DRN-Project?color=blue)](https://github.com/duranserkan/DRN-Project/blob/master/LICENSE)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12348/badge)](https://www.bestpractices.dev/projects/12348)
 [![wiki](https://img.shields.io/badge/Doc-Wiki-brightgreen)](https://github.com/duranserkan/DRN-Project/wiki)
 [![wiki](https://img.shields.io/badge/Doc-Roadmap-yellowgreen)](https://github.com/duranserkan/DRN-Project/blob/master/ROADMAP.md)
 [![wiki](https://img.shields.io/badge/Doc-Security-gold)](https://github.com/duranserkan/DRN-Project/blob/master/SECURITY.md)
-[![wiki](https://img.shields.io/badge/Doc-SOC2_Checklist-orange)](https://github.com/duranserkan/DRN-Project/blob/master/SOC2-CHECKLIST.md)
-
-
+<br>
 [![arXiv](https://img.shields.io/badge/arXiv-2604.00151-b31b1b.svg)](https://doi.org/10.48550/arXiv.2604.00151)
 [![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.Testing?logo=Nuget&label=DRN.Framework.Testing)](https://nuget.org/packages/DRN.Framework.Testing/#readme-body-tab)
 [![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.SharedKernel?logo=Nuget&label=DRN.Framework.SharedKernel)](https://nuget.org/packages/DRN.Framework.SharedKernel/#readme-body-tab)
@@ -34,8 +34,7 @@
 [![Nuget](https://img.shields.io/nuget/dt/DRN.Framework.Hosting?logo=Nuget&label=DRN.Framework.Hosting)](https://nuget.org/packages/DRN.Framework.Hosting/#readme-body-tab)
 [![Activity](https://img.shields.io/github/commit-activity/m/duranserkan/DRN-Project)](https://github.com/duranserkan/DRN-Project/graphs/commit-activity)
 [![GitHub Stars](https://img.shields.io/github/stars/duranserkan/DRN-Project?label=github%20stars)](https://github.com/duranserkan/DRN-Project/stargazers/)
-
-
+<br>
 [![General badge](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white.svg)](https://www.linkedin.com/in/duranserkan/)
 [![General badge](https://img.shields.io/badge/Medium-12100E?style=for-the-badge&logo=medium&logoColor=white)](https://duranserkan.medium.com)
 

@@ -36,7 +36,8 @@
     <File Path="ROADMAP.md" />
     <File Path="SECURITY.md" />
     <File Path="NOTICE.md" />
-    <File Path="SOC2-CHECKLIST.md" />
+    <File Path="docs/SOC2-CHECKLIST.md" />
+    <File Path="docs/PRIVACY-CHECKLIST.md" />
   </Folder>
   <Folder Name="/Items/">
     <File Path=".gitignore" />

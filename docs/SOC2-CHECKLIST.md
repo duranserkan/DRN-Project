@@ -261,7 +261,7 @@ This mapping establishes coverage, not readiness. Each referenced DRN action sti
 
 - [ ] **CC2-01 | CRITICAL | Create the SOC 2 system description.** Address DC1 through DC9: services; principal commitments and system requirements; infrastructure, software, people, procedures, and data; qualifying incidents; applicable criteria and related controls; complementary user entity controls; subservice organizations and their treatment; criteria judged not relevant and the reasons; and significant Type II changes. Keep the description consistent with deployed production state.
 - [ ] **CC2-02 | HIGH | Maintain system and data-flow diagrams.** Show public ingress, service-to-service traffic, identities, secrets, databases, logs, backups, administrative paths, third parties, and trust boundaries. Review after every material architecture change.
-- [ ] **CC2-03 | HIGH | Define customer security communications.** Publish accurate security commitments, support routes, maintenance communication, incident notification, vulnerability reporting, and availability terms. The current [`SECURITY.md`](SECURITY.md) is an initial contact note and is not a complete vulnerability disclosure policy.
+- [ ] **CC2-03 | HIGH | Define customer security communications.** Publish accurate security commitments, support routes, maintenance communication, incident notification, vulnerability reporting, and availability terms. The current [`SECURITY.md`](../SECURITY.md) is an initial contact note and is not a complete vulnerability disclosure policy.
 - [ ] **CC2-04 | MEDIUM | Define internal escalation.** Document how developers and operators report vulnerabilities, control failures, data handling errors, suspicious activity, and policy exceptions. Test routing and acknowledgement.
 - [ ] **CC2-05 | MEDIUM | Control document versions.** Assign owners, approvers, effective dates, review dates, and change history to policies and runbooks. Prevent unapproved edits to final evidence.
 
@@ -411,7 +411,7 @@ Apply these rules:
 
 - [ ] **SMALL-01 | CRITICAL | Assign controls and keep policy concise.** In the fictional three-person model, Lina owns the program, Nora owns security review, and Alan owns service operation. A two-person company assigns the same responsibilities by role and uses external review where independence or technical competence is missing. Keep one approved security policy, one risk register, one vendor register, one incident plan, and this control checklist in a private, versioned repository.
 - [/] **SMALL-02 | CRITICAL | Enforce the two-person change rule.** CODEOWNERS and gatekeeper workflows exist. Enable GitHub rulesets that require a pull request, one non-author approval, code-owner review for security-sensitive paths, successful gatekeeper and code-scanning results, and no administrator bypass except documented break-glass.
-- [x] **SMALL-03 | MEDIUM | Use CodeRabbit as an advisory reviewer.** [`.coderabbit.yaml`](.coderabbit.yaml) already enables assertive automatic review with DRN-specific security and architecture instructions. Keep human approval mandatory. Review [CodeRabbit retention and privacy terms](https://www.coderabbit.ai/privacy-policy), disable unnecessary caching, and do not send secrets. Add equivalent GitOps instructions to flag mutable images, missing security contexts, wildcard Argo permissions, plaintext secrets, development settings, absent probes, and unsafe certificate changes.
+- [x] **SMALL-03 | MEDIUM | Use CodeRabbit as an advisory reviewer.** [`.coderabbit.yaml`](../.coderabbit.yaml) already enables assertive automatic review with DRN-specific security and architecture instructions. Keep human approval mandatory. Review [CodeRabbit retention and privacy terms](https://www.coderabbit.ai/privacy-policy), disable unnecessary caching, and do not send secrets. Add equivalent GitOps instructions to flag mutable images, missing security contexts, wildcard Argo permissions, plaintext secrets, development settings, absent probes, and unsafe certificate changes.
 - [/] **SMALL-04 | HIGH | Keep one automated software-supply-chain gate.** Retain the existing CodeQL, SonarCloud, dependency review, NuGet checks, attestations, and [Trivy](https://trivy.dev/docs/latest/target/filesystem/) scans. Expand Dependabot to every supported dependency ecosystem or replace it with self-hosted [Renovate](https://docs.renovatebot.com/). Do not run both bots for the same dependency source. Require an owner and remediation deadline for every high or critical result.
 - [ ] **SMALL-05 | CRITICAL | Enforce the production Kubernetes baseline.** Add [Kyverno Pod Security and best-practice policies](https://kyverno.io/docs/guides/security/) to block privileged application Pods, missing security contexts, mutable image tags, unapproved registries, unnecessary service-account token automount, and unsigned or unattested release images after CI signing is implemented. Start in audit mode, document necessary controller exceptions, fix existing violations, then move required policies to fail closed.
 - [/] **SMALL-06 | CRITICAL | Use one secrets strategy.** Keep cert-manager for certificates. For application secrets, either complete [Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets) with controller-key backup and rotation, or use [External Secrets](https://external-secrets.io/latest/) with a managed cloud secret store. A two-to-three-person team should not self-host Vault or OpenBao unless customer requirements justify the operational burden. Rotate privileged secrets and test recovery before production.
@@ -518,18 +518,18 @@ Tool choice does not create SOC 2 compliance. The control objective, ownership, 
 
 ### DRN application repository
 
-- [`ROADMAP.md`](ROADMAP.md), project and Nexus maturity.
-- [`SECURITY.md`](SECURITY.md), current vulnerability contact and stated immaturity.
-- [`Sample.Hosted/SampleProgram.cs`](Sample.Hosted/SampleProgram.cs), Sample MFA redirection and bearer exemption.
-- [`DRN.Nexus.Hosted/Program.cs`](DRN.Nexus.Hosted/Program.cs), Nexus bearer exemption and incomplete MFA redirection.
-- [`DRN.Framework.Hosting/DrnProgram/DrnProgramBase.cs`](DRN.Framework.Hosting/DrnProgram/DrnProgramBase.cs), security headers, CSP, cookie policy, host filtering, MFA fallback, rate limiting, and pipeline defaults.
-- [`Sample.Hosted/SampleModule.cs`](Sample.Hosted/SampleModule.cs), Identity and encrypted, database-persisted Data Protection keys.
-- [`Sample.Infra/DataProtection/SampleXmlEncryptor.cs`](Sample.Infra/DataProtection/SampleXmlEncryptor.cs), AES-GCM Data Protection key encryption.
-- [`Sample.Hosted/appsettings.Staging.json`](Sample.Hosted/appsettings.Staging.json), staging examples requiring production replacement.
-- [`.coderabbit.yaml`](.coderabbit.yaml), automated advisory review and path-specific DRN security and architecture instructions.
-- [`.github/workflows/pull-request.yml`](.github/workflows/pull-request.yml), secretless PR trust boundary, CodeQL, dependency review, and gatekeeper.
-- [`.github/workflows/release.yml`](.github/workflows/release.yml), release verification, scans, attestations, and digest promotion.
-- [`.github/CODEOWNERS`](.github/CODEOWNERS), CI and dependency control-plane ownership.
+- [`ROADMAP.md`](../ROADMAP.md), project and Nexus maturity.
+- [`SECURITY.md`](../SECURITY.md), current vulnerability contact and stated immaturity.
+- [`Sample.Hosted/SampleProgram.cs`](../Sample.Hosted/SampleProgram.cs), Sample MFA redirection and bearer exemption.
+- [`DRN.Nexus.Hosted/Program.cs`](../DRN.Nexus.Hosted/Program.cs), Nexus bearer exemption and incomplete MFA redirection.
+- [`DRN.Framework.Hosting/DrnProgram/DrnProgramBase.cs`](../DRN.Framework.Hosting/DrnProgram/DrnProgramBase.cs), security headers, CSP, cookie policy, host filtering, MFA fallback, rate limiting, and pipeline defaults.
+- [`Sample.Hosted/SampleModule.cs`](../Sample.Hosted/SampleModule.cs), Identity and encrypted, database-persisted Data Protection keys.
+- [`Sample.Infra/DataProtection/SampleXmlEncryptor.cs`](../Sample.Infra/DataProtection/SampleXmlEncryptor.cs), AES-GCM Data Protection key encryption.
+- [`Sample.Hosted/appsettings.Staging.json`](../Sample.Hosted/appsettings.Staging.json), staging examples requiring production replacement.
+- [`.coderabbit.yaml`](../.coderabbit.yaml), automated advisory review and path-specific DRN security and architecture instructions.
+- [`.github/workflows/pull-request.yml`](../.github/workflows/pull-request.yml), secretless PR trust boundary, CodeQL, dependency review, and gatekeeper.
+- [`.github/workflows/release.yml`](../.github/workflows/release.yml), release verification, scans, attestations, and digest promotion.
+- [`.github/CODEOWNERS`](../.github/CODEOWNERS), CI and dependency control-plane ownership.
 
 ### DRN GitOps repository
 

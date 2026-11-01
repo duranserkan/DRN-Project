@@ -4,8 +4,8 @@
 - [X] Engineering manifest
 - [X] Reference documents for design, architecture and microservices
 - [ ] DRN.Nexus  (will be released with 1.0.0)
-- [ ] Evaluate [privacy and compliance options](docs/privacy-and-compliance.md) for diagnostics and future DbContext support.
-- [ ] Evaluate [SOC2](SOC2-CHECKLIST.md) for security compliance.
+- [ ] Complete the [Privacy Checklist](docs/PRIVACY-CHECKLIST.md) evaluations for diagnostics and future DbContext support.
+- [ ] Address the [SOC2 Checklist](docs/SOC2-CHECKLIST.md) gaps for SOC 2 preparedness.
 
 ### DRN.Framework.Testing
 - [X] DrnTestContext

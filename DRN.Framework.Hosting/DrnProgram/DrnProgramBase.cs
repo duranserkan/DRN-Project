@@ -52,7 +52,7 @@ namespace DRN.Framework.Hosting.DrnProgram;
 // ASP.NET Core/runtime meters, safe histogram views, and no high-cardinality partition/user/IP tags.
 
 //todo: evaluate Microsoft data redaction and classification, audit reports, HTTP logging redaction,
-// and EF Core native diagnostics/auditing. See docs/privacy-and-compliance.md for tasks and references.
+// and EF Core native diagnostics/auditing. See docs/PRIVACY-CHECKLIST.md for tasks and references.
 
 public abstract class DrnProgram
 {
