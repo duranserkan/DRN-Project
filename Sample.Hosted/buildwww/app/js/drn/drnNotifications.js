@@ -173,20 +173,16 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
             for (const listener of listeners) listener();
         };
         // Coalesce synchronous publications without extending a batch across browser tasks.
-        queueMicrotask(() => {
+        queueMicrotask(async () => {
             if (version !== generation) return;
             scheduledBatch = null;
-            let request;
             try {
-                request = locks.request(key, commit);
+                await locks.request(key, commit);
             } catch {
-                storageFailed = true;
-                finish();
-                return;
-            }
-            Promise.resolve(request).catch(() => {
                 if (version === generation) storageFailed = true;
-            }).finally(finish);
+            } finally {
+                finish();
+            }
         });
     }
 
