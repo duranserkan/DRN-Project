@@ -325,6 +325,16 @@ test('failed lock requests keep local feedback without writing shared storage', 
     assert.deepEqual(store.list(), [entry]);
 });
 
+test('synchronously throwing lock requests keep local feedback without writing shared storage', async () => {
+    const locks = { request() { throw new Error('Locks unavailable'); } };
+    const { store, cache } = fixture({ locks });
+    const entry = store.publish({ message: 'Local feedback' });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(cache.size, 0);
+    store.sync();
+    assert.deepEqual(store.list(), [entry]);
+});
+
 test('suspension cancels queued initialization and publications', async () => {
     const locks = queuedLocks();
     const { store, cache } = fixture({ locks });

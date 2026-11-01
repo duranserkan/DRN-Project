@@ -274,7 +274,13 @@ test('action and global errors share safe notification references with bounded, 
                 mode === 'error' ? 'TypeError: Stack capture probe\r\n    at save (app.js:5:23)' : '    at save (app.js:5:23)'],
             ['Error: Different diagnostic\n    at save (app.js:5:23)', true],
             ['onClick@https://sample.test/app.js:5:23', true],
-            ['@https://sample.test/app.js:5:23', true]
+            ['@https://sample.test/app.js:5:23', true],
+            ['onClick@https://user@sample.test/app.js:5:23', true],
+            ['@a:5', true],
+            ['@:5', false, '@:5\nStack frames unavailable'],
+            ['@'.repeat(1500), false, '@'.repeat(1500) + '\nStack frames unavailable'],
+            ['Error:\t  Stack capture probe\n    at save (app.js:5:23)', true,
+                mode === 'error' ? 'Error:\t  Stack capture probe\n    at save (app.js:5:23)' : '    at save (app.js:5:23)']
         ]) {
             timestamp += 60001;
             const error = new Error('Stack capture probe');

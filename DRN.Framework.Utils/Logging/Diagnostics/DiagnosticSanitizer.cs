@@ -183,12 +183,13 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
             if (output.Count >= Options.MaxCollectionEntries || !WorkAvailable()) { output["_diagnostic_limit"] = Limited; break; }
             var safe = UniqueKey(output, item.Key);
             var classified = rules.TryGetValue(item.Key, out var classification);
+            object? value = item.Value;
             if (item.Key.Length > Options.MaxKeyBytes) output[safe] = Limited;
             else if (!deferRedaction && RedactionEnabled && (classified && classification != DiagnosticDataKind.NonSensitive ||
-                     item.Value != null && IsClassified(item.Value.GetType()))) { ++_nodes; output[safe] = Redacted; }
-            else if (classified && classification == DiagnosticDataKind.NonSensitive && !IsSimpleValue(item.Value) &&
-                     !(deferRedaction && item.Value != null && IsClassified(item.Value.GetType()))) { ++_nodes; output[safe] = Invalid; }
-            else output[safe] = Project(path + "." + item.Key, item.Value, 1, ancestors, context,
+                     value != null && IsClassified(value.GetType()))) { ++_nodes; output[safe] = Redacted; }
+            else if (classified && classification == DiagnosticDataKind.NonSensitive && !IsSimpleValue(value) &&
+                     !(deferRedaction && value != null && IsClassified(value.GetType()))) { ++_nodes; output[safe] = Invalid; }
+            else output[safe] = Project(path + "." + item.Key, value, 1, ancestors, context,
                 [path, item.Key], DiagnosticCaptureKind.DictionaryKey, classified, item.Key,
                 classified && classification != DiagnosticDataKind.NonSensitive);
         }

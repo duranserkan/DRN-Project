@@ -71,8 +71,8 @@ internal static class DiagnosticLogFormatter
             child["PayloadFragmentCount"] = options.MaxRecords - 1;
             child["PayloadEncoding"] = "json-text";
             if (bounded.ContainsKey("DiagnosticCaptureLimited")) child["DiagnosticCaptureLimited"] = true;
-            child["PayloadFragment"] = string.Empty;
-            var overhead = sizing.Measure(child) - 2; // Exclude the empty JSON string's quotes.
+            // Include the fragment key, colon and comma; its value is measured separately.
+            var overhead = sizing.Measure(child) + sizing.MeasureString("PayloadFragment") + 2;
             var length = FindFragmentLength(payload, position, overhead, options.MaxRecordBytes, sizing);
             if (length == 0) break;
             child["PayloadFragment"] = payload.Substring(position, length);

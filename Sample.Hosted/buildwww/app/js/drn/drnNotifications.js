@@ -176,14 +176,17 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
         queueMicrotask(() => {
             if (version !== generation) return;
             scheduledBatch = null;
+            let request;
             try {
-                Promise.resolve(locks.request(key, commit)).catch(() => {
-                    if (version === generation) storageFailed = true;
-                }).finally(finish);
+                request = locks.request(key, commit);
             } catch {
                 storageFailed = true;
                 finish();
+                return;
             }
+            Promise.resolve(request).catch(() => {
+                if (version === generation) storageFailed = true;
+            }).finally(finish);
         });
     }
 

@@ -167,12 +167,17 @@ function notificationDetails(message, source, line, column, stack, safePageUrl) 
     let stackText = field(stack, 2000);
     const firstLine = stackText.split('\n', 1)[0];
     const heading = firstLine.trimEnd();
-    const errorHeading = heading.match(/^[\w.$]+:[ \t]*(.*)$/);
+    const errorHeading = heading.match(/^[\w.$]+:(.*)$/);
     const displayedMessage = typeof message === 'string' ? message.replace(/^Uncaught(?: \(in promise\))?\s+/, '') : '';
-    if (errorHeading && (heading === displayedMessage || errorHeading[1] === displayedMessage))
+    if (errorHeading && (heading === displayedMessage || errorHeading[1].replace(/^[ \t]+/, '') === displayedMessage))
         stackText = stackText.slice(firstLine.length + 1);
     // Recognize browser frame lines without replacing or reconstructing the original stack.
-    const hasFrames = /(?:^|\n)\s*(?:at\s+\S|[^\n]*@[^\n]+:\d+)/.test(stackText);
+    const hasFrames = stackText.split('\n').some(frame => {
+        if (/^at\s+\S/.test(frame.trimStart())) return true;
+        const separator = frame.indexOf('@');
+        // Firefox/Safari frames need a nonempty location between '@' and ':line'.
+        return separator >= 0 && /:\d/.test(frame.slice(separator + 2));
+    });
     const fields = [`Message: ${field(message, 500)}`,
         `Source: ${field(source, 200)}`, `Line: ${line}, column: ${column}`, `Page: ${field(safePageUrl, 500)}`];
     if (clipped) fields.push('Diagnostic details were truncated.');

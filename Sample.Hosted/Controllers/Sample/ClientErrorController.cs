@@ -74,6 +74,6 @@ public record ClientErrorPayload
     public string Timestamp { get; init; } = string.Empty;
 
     [Sensitive(false, Justification = "Diagnostic redaction status flag.")]
-    public bool DiagnosticRedacted { get; init; }
-    public bool DiagnosticLimited { get; init; }
+    public bool? DiagnosticRedacted { get; init; }
+    public bool? DiagnosticLimited { get; init; }
 }
