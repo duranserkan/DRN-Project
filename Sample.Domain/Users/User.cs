@@ -61,5 +61,5 @@ public class Address
     [Personal] public string Street { get; private set; } = null!;
     [Personal] public string City { get; private set; } = null!;
     [Personal] public string Postcode { get; private set; } = null!;
-    public string Country { get; private set; } = null!;
+    [Personal] public string Country { get; private set; } = null!;
 }

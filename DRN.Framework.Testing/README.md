@@ -563,6 +563,8 @@ Usually set by `appsettings.Development.json`, environment variables, or config 
 
 #### Container Defaults
 
+PostgreSQL and RabbitMQ container usernames, and generated test usernames, carry personal-data classification for diagnostics. Container `HasUsername` flags remain visible as configuration-presence metadata.
+
 PostgreSQL defaults used by `ContainerContext.Postgres` and `LaunchExternalDependencies`:
 
 | Property | Default |
@@ -577,8 +579,6 @@ PostgreSQL defaults used by `ContainerContext.Postgres` and `LaunchExternalDepen
 The default image/tag pair is resolved with `DefaultDigest`. Per-instance custom image tags remain tag-based unless `Digest` is supplied. When replacing the static image/version defaults, set a matching `DefaultDigest` to pin that new pair.
 
 RabbitMQ defaults used when a test explicitly calls `RabbitMQContext.StartAsync()`:
-
-PostgreSQL and RabbitMQ container usernames, and generated test usernames, carry personal-data classification for diagnostics. Container `HasUsername` flags remain visible as configuration-presence metadata.
 
 | Property | Default |
 |----------|---------|

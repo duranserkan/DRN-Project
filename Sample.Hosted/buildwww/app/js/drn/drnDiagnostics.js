@@ -96,7 +96,8 @@ export function createDiagnosticSanitizer() {
                     throw error;
                 }
             }
-            return value.includes('%') ? INVALID : value;
+            if (/%[0-9a-f]{2}/i.test(value)) throw new URIError('Diagnostic URL decoding limit');
+            return value;
         }
         function urlCore(value) {
             tick(value.length);

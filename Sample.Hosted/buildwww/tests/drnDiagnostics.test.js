@@ -46,10 +46,26 @@ test('URL decoding preserves decoded literal percents while bounding nested enco
     const capture = createDiagnosticSanitizer().createCapture();
     assert.equal(capture.url('/100%25?value=50%25#progress=75%25'), '/100%25?value=50%25#progress=75%25');
     assert.equal(capture.url('/?value=100%2525'), '/?value=100%25');
+    assert.equal(capture.url('/?value=100%252525'), '/?value=100%25');
     assert.equal(capture.url('/?value=%GGsecret-probe'), '[diagnostic field unavailable]');
     assert.equal(capture.url('/?value=%252541'), '/?value=A');
-    assert.equal(capture.url('/?value=%25252541'), '/?value=%5Bdiagnostic%20field%20unavailable%5D');
+    assert.equal(capture.url('/?value=%25252541'), '[diagnostic field unavailable]');
     assert.equal(capture.url('/?%2570assword=secret-probe'), '/?password=redacted');
+});
+
+test('over-encoded sensitive names reject the URL without retaining associated values', () => {
+    for (const url of [
+        '/?%25252570assword=secret-probe',
+        '/#%25252570assword=secret-probe',
+        '/%25252574oken/secret-probe'
+    ]) {
+        const capture = createDiagnosticSanitizer().createCapture();
+        assert.equal(capture.url(url), '[diagnostic field unavailable]', url);
+        assert.equal(capture.status.limited, true, url);
+    }
+    const capture = createDiagnosticSanitizer().createCapture();
+    assert.equal(capture.url('/?%252570assword=secret-probe'), '/?password=redacted');
+    assert.equal(capture.status.limited, false);
 });
 
 test('mixed URL escapes cannot hide sensitive keys or path segments', () => {
