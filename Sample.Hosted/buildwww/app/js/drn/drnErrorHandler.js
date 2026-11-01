@@ -138,7 +138,8 @@ function reportActionErrorCore(error, context) {
         notifications?.isActive?.() !== true) return null;
 
     const message = (error instanceof Error ? error.message : String(error || 'Action failed')) || 'Action failed';
-    const payload = buildPayload(message, 'user-action', 0, 0, error instanceof Error ? error.stack : '');
+    const stack = error instanceof Error ? error.stack : '';
+    const payload = buildPayload(message, 'user-action', 0, 0, stack);
     // Each action occurrence needs its own reference. Keep the shared rate limit.
     if (tryReserveReportSlot(payload.clientErrorId)) sendReport(payload);
 
@@ -147,7 +148,7 @@ function reportActionErrorCore(error, context) {
     const record = notifications.publish({
         type: 'error', title: 'Action could not be completed', message: publicMessage,
         clientErrorId: payload.clientErrorId,
-        clientErrorDetails: notificationDetails(message, 'user-action', 0, 0, error instanceof Error ? error.stack : '', payload.url),
+        clientErrorDetails: notificationDetails(message, 'user-action', 0, 0, stack, payload.url),
         operation: context.operation, persist: context.persist !== false
     });
     if (record) window.DRN.Toast.show({ type: 'error', message: publicMessage, record: false });
@@ -163,10 +164,19 @@ function notificationDetails(message, source, line, column, stack, safePageUrl) 
         const end = /[\uD800-\uDBFF]/.test(text[maximum - 1]) ? maximum - 1 : maximum;
         return text.slice(0, end);
     }
-    const fields = [`Message: ${field(message, 500)}`, `Source: ${field(source, 200)}`,
-        `Line: ${line}, column: ${column}`, `Page: ${field(safePageUrl, 500)}`,
-        stack ? `Stack:\n${field(stack, 2000)}` : ''];
+    let stackText = field(stack, 2000);
+    const firstLine = stackText.split('\n', 1)[0];
+    const heading = firstLine.trimEnd();
+    const errorHeading = heading.match(/^[\w.$]+:[ \t]*(.*)$/);
+    const displayedMessage = typeof message === 'string' ? message.replace(/^Uncaught(?: \(in promise\))?\s+/, '') : '';
+    if (errorHeading && (heading === displayedMessage || errorHeading[1] === displayedMessage))
+        stackText = stackText.slice(firstLine.length + 1);
+    // Recognize browser frame lines without replacing or reconstructing the original stack.
+    const hasFrames = /(?:^|\n)\s*(?:at\s+\S|[^\n]*@[^\n]+:\d+)/.test(stackText);
+    const fields = [`Message: ${field(message, 500)}`,
+        `Source: ${field(source, 200)}`, `Line: ${line}, column: ${column}`, `Page: ${field(safePageUrl, 500)}`];
     if (clipped) fields.push('Diagnostic details were truncated.');
+    fields.push(`Stack:\n${[stackText, hasFrames ? '' : 'Stack frames unavailable'].filter(Boolean).join('\n')}`);
     return fields.filter(Boolean).join('\n');
 }
 
@@ -216,7 +226,8 @@ function reportUnhandledError(event, isRejection) {
         const source = isRejection ? 'unhandledrejection' : event.filename || '';
         const line = isRejection ? 0 : event.lineno || 0;
         const column = isRejection ? 0 : event.colno || 0;
-        const payload = buildPayload(message, source, line, column, reason?.stack || '');
+        const stack = reason?.stack || '';
+        const payload = buildPayload(message, source, line, column, stack);
         const key = (isRejection ? 'promise|' : '') + payload.message + '|' + payload.source + '|' + line;
         if (!tryReserveReportSlot(key)) return;
         sendReport(payload);
@@ -228,7 +239,7 @@ function reportUnhandledError(event, isRejection) {
             type: 'error', title: 'An unexpected error occurred',
             message: messageForUser,
             clientErrorId: payload.clientErrorId,
-            clientErrorDetails: notificationDetails(message, source, line, column, reason?.stack || '', payload.url),
+            clientErrorDetails: notificationDetails(message, source, line, column, stack, payload.url),
             operation: 'Page error'
         });
         if (record) window.DRN.Toast?.show({ type: 'error', message: messageForUser, record: false });

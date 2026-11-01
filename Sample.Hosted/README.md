@@ -108,6 +108,8 @@ For an application-owned HTML validation fragment, return status `422`, `Content
 
 ## Browser error reporting
 
+Expanded error details show the message, source, line and column, and page URL before the stack. Labels are bold. Values remain plain text, with stack indentation and line breaks preserved. The reporter reads the original stack once for both notification details and the server report. Display omits the first error heading only when it duplicates the message. The original stack remains unchanged for server reporting, subject to existing capture limits. If no browser frame lines are recognized, the stack section shows `Stack frames unavailable` while preserving other supplied stack text and source location. The reporter never generates a replacement stack. Existing saved details retain their original text order.
+
 Browser and server URL sanitization use `redacted` for protected path segments, query values, and named fragment values. Bare fragments such as `#installation` are preserved. Ordinary diagnostic fields retain `[redacted]`.
 
 Browser diagnostic arrays retain at most the first 256 positions and append a limit marker when truncated. Sparse holes become null and getters are not invoked.
@@ -144,6 +146,8 @@ The browser sends diagnostics only when the rendered notification context identi
 The endpoint independently requires authentication. `ClientErrorRateLimitRule` composes with [DRN's rate limiting](../DRN.Framework.Hosting/README.md#rate-limiting) to apply a per-user sliding-window limit of five requests per minute per application instance, with no queue and HTTP 429 on rejection. Keep framework rate limiting enabled for this server limit to apply.
 
 ## Notification history
+
+Severity filters use primary for All, danger for Errors, warning for Warnings, and info for Info. Filters with entries have a colored outline. The selected filter has a matching fill, even when empty. Empty, unselected filters stay neutral. Counts and `aria-pressed` preserve availability and selection information independently of color.
 
 The Notifications action opens a searchable history panel with All, Errors, Warnings, and Info filters. Info includes success messages. Matching failures are grouped across retained history regardless of time gaps, with individual timestamps and request references preserved. Different operations, targets, severities, statuses, problem types, or message content remain separate. Use Load more to see additional history. Dismiss entries, groups, filtered results, or all history. Clear all offers Undo for 10 seconds. Closing a toast or the panel leaves history intact. Notifications are also available on login and pending-MFA pages.
 

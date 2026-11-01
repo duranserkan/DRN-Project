@@ -151,6 +151,10 @@ Framework conventions and defaults live in framework-scoped DRN skills, especial
 
 ### Documentation Sync
 
+Notification severity filters use primary, danger, warning, and info for All, Errors, Warnings, and Info. Populated filters use colored outlines, selected filters use matching fills, and empty unselected filters remain neutral. Preserve counts and `aria-pressed` alongside color.
+
+Browser error reporters capture the original stack once for server reports and notification details. Display message, source location, and page URL before the stack. Render labels in bold and values as plain text, preserving stack line breaks. Existing saved details retain their original text order. Omit a leading error heading from display only when it duplicates the message. Preserve the original stack for server reporting within existing capture limits. When no browser frame lines are recognized, preserve other supplied text and source location and show `Stack frames unavailable`. Keep the Sample guide and `drn-buildwww-libraries` aligned.
+
 Browser contracts: the [Sample application guide](../Sample.Hosted/README.md) owns Swagger access, error response examples, HTMX presentation, and notification usage. Keep it aligned with the [Problem Details declarations](../Sample.Hosted/buildwww/types/DrnProblem.d.ts), [notification declarations](../Sample.Hosted/buildwww/types/DrnNotifications.d.ts), and `drn-buildwww-libraries`. Category routes and schemas are available in the Sample's Swagger UI.
 
 Sample notification history requires a stable account ID for authenticated owners. Missing IDs emit an empty owner, clear history, and suspend notifications and HTMX requests. The anonymous owner is reserved for unauthenticated users.

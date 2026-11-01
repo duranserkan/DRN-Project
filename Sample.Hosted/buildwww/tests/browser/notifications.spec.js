@@ -23,6 +23,7 @@ test('a browser action failure shares its copyable reference with the backend re
     await expect(panel).toContainText(`Client error reference: ${entry.clientErrorId}`);
     await expect(panel).toContainText('Message: Private implementation detail');
     await expect(panel).toContainText('Stack:');
+    await expect(panel.locator('pre strong')).toHaveText(['Message:', 'Source:', 'Line:', 'column:', 'Page:', 'Stack:']);
     await expect(page.locator('.toast-body')).toHaveText('Could not save your profile.');
     await panel.getByRole('button', { name: 'Copy reference', exact: true }).click();
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(entry.clientErrorId);
@@ -31,7 +32,9 @@ test('a browser action failure shares its copyable reference with the backend re
 });
 
 test('client error details render markup literally after history reload', async ({ page }) => {
-    const detail = '<img src=x onerror="window.notificationMarkupExecuted=true">';
+    const detail = 'Message: <img src=x onerror="window.notificationMarkupExecuted=true">\n' +
+        'Source: <b>app.js</b>\nLine: 5, column: 17\nPage: https://sample.test/\n' +
+        'Stack:\n    at onClick (<anonymous>:5:23)\nMessage: <script>not a label</script>';
     await page.evaluate(detail => window.DRN.Notifications.publish({
         type: 'error', message: 'Browser failure', clientErrorId: 'a'.repeat(32), clientErrorDetails: detail
     }), detail);
@@ -43,7 +46,10 @@ test('client error details render markup literally after history reload', async 
     const panel = page.getByRole('dialog', { name: 'Notifications', exact: true });
     await panel.getByRole('button', { name: 'Show details', exact: true }).click();
     await expect(panel.locator('pre')).toHaveText(detail);
-    await expect(panel.locator('pre img')).toHaveCount(0);
+    await expect(panel.locator('pre strong')).toHaveText(['Message:', 'Source:', 'Line:', 'column:', 'Page:', 'Stack:']);
+    expect(await panel.locator('pre').textContent()).toBe(detail);
+    await expect(panel.locator('pre')).toHaveCSS('white-space', 'pre-wrap');
+    await expect(panel.locator('pre img, pre script, pre b')).toHaveCount(0);
     expect(await page.evaluate(() => window.notificationMarkupExecuted)).toBeUndefined();
 });
 

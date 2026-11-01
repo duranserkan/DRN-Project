@@ -264,4 +264,48 @@ test('action and global errors share safe notification references with bounded, 
     assert.deepEqual(reloaded.list(), store.list());
     assert.ok(reloaded.list().every(record => record.clientErrorDetails.includes('Page: https://sample.test/action')));
     window.DRN.Notifications = notificationApi;
+    for (const mode of ['action', 'error', 'unhandledrejection']) {
+        for (const [stack, hasFrames, displayedStack = stack] of [
+            ['', false],
+            ['Error: Stack capture probe', false, ''],
+            ['Error: Stack capture probe\n    at HTMLButtonElement.onClick (<anonymous>:5:23)', true,
+                '    at HTMLButtonElement.onClick (<anonymous>:5:23)'],
+            ['TypeError: Stack capture probe\r\n    at save (app.js:5:23)', true,
+                mode === 'error' ? 'TypeError: Stack capture probe\r\n    at save (app.js:5:23)' : '    at save (app.js:5:23)'],
+            ['Error: Different diagnostic\n    at save (app.js:5:23)', true],
+            ['onClick@https://sample.test/app.js:5:23', true],
+            ['@https://sample.test/app.js:5:23', true]
+        ]) {
+            timestamp += 60001;
+            const error = new Error('Stack capture probe');
+            let reads = 0;
+            Object.defineProperty(error, 'stack', { get() {
+                if (++reads > 1) throw new Error('Stack must be captured once');
+                return stack;
+            } });
+            const before = reports.length;
+            const notificationsBefore = notifications.length;
+            if (mode === 'action') handler.reportActionError(error, { operation: 'Save' });
+            else if (mode === 'error') listeners.error({
+                message: 'Uncaught Error: Stack capture probe', filename: 'app.js', lineno: 5, colno: 17, error
+            });
+            else listeners.unhandledrejection({ reason: error });
+
+            assert.equal(reads, 1, mode);
+            assert.equal(reports.length, before + 1, mode);
+            assert.equal(notifications.length, notificationsBefore + 1, mode);
+            const payload = JSON.parse(await reports.at(-1).body.text());
+            const details = notifications.at(-1).clientErrorDetails;
+            assert.equal(payload.stack, stack, mode);
+            if (displayedStack) {
+                assert.ok(details.endsWith(`Stack:\n${displayedStack}`), mode);
+            } else assert.ok(details.endsWith('Stack:\nStack frames unavailable'), mode);
+            assert.ok(details.indexOf('Page:') < details.indexOf('Stack:\n'), mode);
+            assert.equal(details.includes('Stack frames unavailable'), !hasFrames, mode);
+            if (mode === 'error') {
+                assert.ok(details.includes('Source: app.js'));
+                assert.ok(details.includes('Line: 5, column: 17'));
+            }
+        }
+    }
 });

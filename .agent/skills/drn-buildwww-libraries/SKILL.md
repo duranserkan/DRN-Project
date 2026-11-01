@@ -151,6 +151,10 @@ Validation keys match complete posted names, including casing, prefixes, and col
 
 ### Notification History
 
+Severity filters use primary, danger, warning, and info for All, Errors, Warnings, and Info respectively. Use a colored outline when populated, matching fill when selected, and neutral outline when empty and unselected. Preserve counts, keyboard focus, and `aria-pressed`. Remove obsolete variant classes when selection or counts change.
+
+Capture each browser error's original stack once for both server reporting and notification details. Display message, source location, and page URL before the stack. Render labels with bold elements and values as plain text, preserving stack indentation and line breaks. Do not interpret stack contents as labels or HTML. Existing saved details retain their original text order. Omit a leading error heading from display only when it duplicates the message. Preserve the original stack for server reporting within existing capture limits. Preserve other supplied text and source location when no browser frame lines are recognized, and show `Stack frames unavailable`. Never synthesize a replacement stack from the reporting handler.
+
 Use `DRN.Notifications.publish` to retain a message without a toast. Use `DRN.Toast.show` for a toast and history entry, `record: false` for toast-only feedback, or `persist: false` for memory-only history. Forms and components can set `data-notification-operation` and `data-notification-persist`. Server handlers use `SendToast`. Direct client feedback uses `DRN.Toast.show`.
 
 Choose immediate presentation and retention independently:

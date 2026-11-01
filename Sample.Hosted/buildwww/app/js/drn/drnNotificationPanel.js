@@ -1,6 +1,7 @@
 const PANEL_ID = 'offCanvasSidebarActionCanvasNotifications';
 const PAGE_SIZE = 50;
 const FILTER_LABELS = { all: 'All', error: 'Errors', warning: 'Warnings', info: 'Info' };
+const FILTER_COLORS = { all: 'primary', error: 'danger', warning: 'warning', info: 'info' };
 const SEVERITIES = {
     error: { label: 'Error', icon: 'bi-exclamation-triangle-fill', color: 'text-danger' },
     warning: { label: 'Warning', icon: 'bi-exclamation-circle-fill', color: 'text-warning' },
@@ -83,8 +84,20 @@ function renderOccurrence(entry) {
     row.append(renderTime(entry.createdAt));
     if (entry.clientErrorId && entry.clientErrorDetails) {
         row.append(createElement('h4', 'h6 mt-2', 'Client-side error details'));
-        const diagnostic = createElement('pre', 'small text-break user-select-text', entry.clientErrorDetails);
+        const diagnostic = createElement('pre', 'small text-break user-select-text');
         diagnostic.style.whiteSpace = 'pre-wrap';
+        let inStack = false;
+        for (const [index, line] of entry.clientErrorDetails.split('\n').entries()) {
+            if (index) diagnostic.append('\n');
+            const label = !inStack && line.match(/^(Message|Source|Line|Page|Stack):/);
+            if (!label) { diagnostic.append(line); continue; }
+            diagnostic.append(createElement('strong', '', label[0]));
+            const value = line.slice(label[0].length);
+            const location = label[1] === 'Line' && value.match(/^( -?\d+, )(column:)( -?\d+)$/);
+            if (location) diagnostic.append(location[1], createElement('strong', '', location[2]), location[3]);
+            else diagnostic.append(value);
+            inStack = label[1] === 'Stack';
+        }
         row.append(diagnostic);
     }
     for (const [label, id] of [['Request reference', entry.requestId], ['Client error reference', entry.clientErrorId]]) {
@@ -197,10 +210,15 @@ function refresh(force = false) {
     if (search.value !== query) search.value = query;
     for (const control of panel.querySelectorAll('[data-notification-filter]')) {
         const severity = control.dataset.notificationFilter;
-        control.textContent = `${FILTER_LABELS[severity]} (${filterNotifications(entries, severity).length})`;
-        control.setAttribute('aria-pressed', String(severity === filter));
-        control.classList.toggle('btn-primary', severity === filter);
-        control.classList.toggle('btn-outline-secondary', severity !== filter);
+        const count = filterNotifications(entries, severity).length;
+        const selected = severity === filter;
+        control.textContent = `${FILTER_LABELS[severity]} (${count})`;
+        control.setAttribute('aria-pressed', String(selected));
+        for (const color of Object.values(FILTER_COLORS))
+            control.classList.remove(`btn-${color}`, `btn-outline-${color}`);
+        control.classList.remove('btn-outline-secondary');
+        control.classList.add(selected ? `btn-${FILTER_COLORS[severity]}`
+            : count > 0 ? `btn-outline-${FILTER_COLORS[severity]}` : 'btn-outline-secondary');
     }
     const filtered = filterNotifications(entries, filter, query);
     const groups = groupNotifications(filtered);
