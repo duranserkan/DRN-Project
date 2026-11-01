@@ -11,6 +11,41 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Logging;
 
 public sealed class DiagnosticDictionaryTests
 {
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public void Null_Classifications_Should_Fail_Closed(bool nullArray)
+    {
+        var sanitizer = Policy();
+        var values = new Dictionary<string, object?> { ["Value"] = "must-not-escape" };
+        DiagnosticKeyClassification[] classifications = nullArray ? null! : [null!];
+
+        sanitizer.SanitizeDictionary("Fields", values, classifications).Should().Be(DiagnosticSanitizer.Invalid);
+        sanitizer.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(new[] { "SanitizationFailed" });
+    }
+
+    [Fact]
+    public void Deferred_Classified_Complex_Values_Should_Remain_Protected_Despite_Key_Exemptions()
+    {
+        using var settings = SettingsProvider.Development();
+        var source = new ScopedLog(settings, Policy());
+        var values = new Dictionary<string, object?> { ["Value"] = new ClassifiedPayload() };
+        source.AddDictionary("Fields", values,
+            new DiagnosticKeyClassification("Value", DiagnosticDataKind.NonSensitive, "Reviewed key name."));
+
+        var copy = new ScopedLog(settings, Policy());
+        copy.CopyFrom(source);
+        foreach (var log in new[] { source, copy })
+        {
+            var raw = JsonSerializer.SerializeToElement(log.GetLogs(false)["Fields"]);
+            raw.GetProperty("Value").GetProperty("Content").GetString().Should().Be("classified-complex-probe");
+            var redacted = JsonSerializer.SerializeToElement(log.GetLogs()["Fields"]);
+            redacted.GetProperty("Value").GetString().Should().Be(DiagnosticSanitizer.Redacted);
+        }
+    }
+
+    [Sensitive] private sealed class ClassifiedPayload { public string Content => "classified-complex-probe"; }
+
     [Fact]
     public void Classifications_Should_Protect_Values_And_Exempt_Only_Exact_Scalar_Keys()
     {

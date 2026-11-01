@@ -79,6 +79,87 @@ public class ProjectDiagnosticRulesTests
     }
 
     [Fact]
+    public void Graph_Should_Accept_1024_Assemblies_And_Reject_The_Next()
+    {
+        var root = new CatalogAssembly("DRN.Framework.SharedKernel");
+        root.References.AddRange(Enumerable.Range(0, 1023).Select(index => new CatalogAssembly("Dependency" + index)));
+        DiagnosticRedactionRules Read() => DiagnosticRedactionRules.FromGraph<CatalogAssembly>(root,
+            item => item.Name, item => item.References, _ => [], EqualityComparer<CatalogAssembly>.Default);
+
+        Read().SecretFields.Should().BeEmpty();
+        root.References.Add(new CatalogAssembly("Overflow"));
+        Action overflow = () => Read();
+        overflow.Should().Throw<FormatException>()
+            .WithMessage("Classification inheritance supports at most 1024 assemblies.");
+    }
+
+    [Fact]
+    public void Graph_Should_Bound_References_Before_Deduplicating_Assemblies()
+    {
+        var root = new CatalogAssembly("App");
+        var kernel = new CatalogAssembly("DRN.Framework.SharedKernel");
+        root.References.AddRange(Enumerable.Repeat(kernel, 1024));
+        DiagnosticRedactionRules Read() => DiagnosticRedactionRules.FromGraph<CatalogAssembly>(root,
+            item => item.Name, item => item.References, _ => [], EqualityComparer<CatalogAssembly>.Default);
+
+        Read().SecretFields.Should().BeEmpty();
+        root.References.Add(kernel);
+        Action overflow = () => Read();
+        overflow.Should().Throw<FormatException>()
+            .WithMessage("Classification inheritance supports at most 1024 assembly references.");
+    }
+
+    [Fact]
+    public void Graph_Should_Count_Catalogs_Even_When_Their_Rules_Are_Identical()
+    {
+        var root = new CatalogAssembly("DRN.Framework.SharedKernel");
+        for (var index = 0; index < 65; index++)
+        {
+            var consumer = new CatalogAssembly("Consumer" + index, """{"secretFields":["catalogProbe"]}""");
+            consumer.References.Add(root);
+            root.References.Add(consumer);
+        }
+        var extra = root.References[^1];
+        root.References.RemoveAt(64);
+        DiagnosticRedactionRules Read() => DiagnosticRedactionRules.FromGraph<CatalogAssembly>(root,
+            item => item.Name, item => item.References,
+            item => item.Catalog == null ? [] : [item.Catalog], EqualityComparer<CatalogAssembly>.Default);
+
+        Read().SecretFields.Should().Equal("catalogprobe");
+        root.References.Add(extra);
+        Action overflow = () => Read();
+        overflow.Should().Throw<FormatException>()
+            .WithMessage("Classification inheritance supports at most 64 catalogs.");
+    }
+
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public void Graph_Should_Observe_Cancellation_Before_And_During_Discovery(bool duringDiscovery)
+    {
+        using var cancellation = new CancellationTokenSource();
+        if (!duringDiscovery) cancellation.Cancel();
+        var referenceCalls = 0;
+        var catalogCalls = 0;
+        Action read = () => DiagnosticRedactionRules.FromGraph(0, _ => "DRN.Framework.SharedKernel",
+            _ =>
+            {
+                referenceCalls++;
+                cancellation.Cancel();
+                return new[] { 1 };
+            },
+            _ =>
+            {
+                catalogCalls++;
+                return Array.Empty<string?>();
+            }, EqualityComparer<int>.Default, cancellation.Token);
+
+        read.Should().Throw<OperationCanceledException>().Which.CancellationToken.Should().Be(cancellation.Token);
+        referenceCalls.Should().Be(duringDiscovery ? 1 : 0);
+        catalogCalls.Should().Be(0);
+    }
+
+    [Fact]
     public void Runtime_Should_Inherit_Embedded_Catalogs_From_Referenced_Drn_Projects()
     {
         var sanitizer = new DiagnosticSanitizer(new DiagnosticLogOptions

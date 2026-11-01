@@ -52,27 +52,34 @@ internal static class DiagnosticTypeMetadata
         var declaration = property.DeclaringType!.IsInterface ? property : implementation;
         var ignored = declaration.IgnoredLog() || implementation.IgnoredLog();
         var classified = IsClassified(declaration) || IsClassified(implementation);
-        var getter = implementation.GetMethod!;
-        if (!runtimeType.IsInterface)
-            foreach (var contract in runtimeType.GetInterfaces())
-            {
-                // Arrays expose generic interfaces, but reflection cannot map their implementations.
-                if (runtimeType.IsArray && contract.IsGenericType) continue;
-                var map = runtimeType.GetInterfaceMap(contract);
-                foreach (var candidate in contract.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
-                {
-                    if (candidate.GetMethod is not { } contractGetter) continue;
-                    var index = Array.IndexOf(map.InterfaceMethods, contractGetter);
-                    if (index < 0 || map.TargetMethods[index].GetBaseDefinition() != getter.GetBaseDefinition()) continue;
-                    ignored |= candidate.IgnoredLog();
-                    classified |= IsClassified(candidate);
-                }
-            }
+        foreach (var candidate in InterfaceProperties(implementation.GetMethod!, runtimeType))
+        {
+            ignored |= candidate.IgnoredLog();
+            classified |= IsClassified(candidate);
+        }
 
         // An interface exemption cannot waive a concrete declaration's name rules.
         var exempt = implementation.GetCustomAttributes<SensitiveAttribute>(false).Any(attribute =>
             attribute.GetType() == typeof(SensitiveAttribute) && !attribute.IsSensitive);
         return new Member(property, ignored, classified, exempt);
+    }
+
+    private static IEnumerable<PropertyInfo> InterfaceProperties(MethodInfo getter, Type runtimeType)
+    {
+        if (runtimeType.IsInterface) yield break;
+        foreach (var contract in runtimeType.GetInterfaces())
+        {
+            // Arrays expose generic interfaces, but reflection cannot map their implementations.
+            if (runtimeType.IsArray && contract.IsGenericType) continue;
+            var map = runtimeType.GetInterfaceMap(contract);
+            foreach (var candidate in contract.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+            {
+                if (candidate.GetMethod is not { } contractGetter) continue;
+                var index = Array.IndexOf(map.InterfaceMethods, contractGetter);
+                if (index < 0 || map.TargetMethods[index].GetBaseDefinition() != getter.GetBaseDefinition()) continue;
+                yield return candidate;
+            }
+        }
     }
 
     [SuppressMessage("Major Code Smell", "S3011:Reflection should not be used to increase accessibility of classes, methods, or fields",
@@ -102,10 +109,7 @@ internal static class DiagnosticTypeMetadata
         Justification = "Non-public base properties are inspected only for classification metadata on the same virtual getter chain. This preserves inherited redaction without reading property values.")]
     private static bool HasClassification(MemberInfo member, bool inherited = false)
     {
-        if (member.GetCustomAttributes<DataClassificationAttribute>(false).Any(attribute =>
-                (!inherited || attribute.GetType().GetCustomAttribute<AttributeUsageAttribute>(true)?.Inherited != false) &&
-                (attribute.Classification != DataClassification.None ||
-                 member is not PropertyInfo && attribute is SensitiveAttribute { IsSensitive: false }))) return true;
+        if (HasDirectClassification(member, inherited)) return true;
         if (member is Type type) return type.BaseType != null && HasClassification(type.BaseType, true);
         if (member is not PropertyInfo property || property.GetMethod is not { IsVirtual: true } getter) return false;
         var definition = getter.GetBaseDefinition();
@@ -114,4 +118,10 @@ internal static class DiagnosticTypeMetadata
                 if (candidate.GetMethod?.GetBaseDefinition() == definition && HasClassification(candidate, true)) return true;
         return false;
     }
+
+    private static bool HasDirectClassification(MemberInfo member, bool inherited) =>
+        member.GetCustomAttributes<DataClassificationAttribute>(false).Any(attribute =>
+            (!inherited || attribute.GetType().GetCustomAttribute<AttributeUsageAttribute>(true)?.Inherited != false) &&
+            (attribute.Classification != DataClassification.None ||
+             member is not PropertyInfo && attribute is SensitiveAttribute { IsSensitive: false }));
 }

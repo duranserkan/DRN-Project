@@ -62,32 +62,8 @@ internal sealed class DiagnosticRedactionRules
         Func<T, IEnumerable<T>> references, Func<T, IEnumerable<string?>> catalogs, IEqualityComparer<T> comparer,
         CancellationToken cancellationToken = default) where T : notnull
     {
-        var graph = new Dictionary<T, T[]>(comparer);
-        var pending = new Stack<T>();
-        pending.Push(root);
-        while (pending.TryPop(out var assembly))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (graph.ContainsKey(assembly)) continue;
-            if (graph.Count >= MaxAssemblies) throw new FormatException("Classification inheritance supports at most 1024 assemblies.");
-            var dependencies = references(assembly).Take(MaxAssemblyReferences + 1).ToArray();
-            if (dependencies.Length > MaxAssemblyReferences) throw new FormatException("Classification inheritance supports at most 1024 assembly references.");
-            graph.Add(assembly, dependencies);
-            foreach (var dependency in dependencies) pending.Push(dependency);
-        }
-
-        // Propagate backwards from SharedKernel, including transitive consumers and cycles.
-        var consumers = new HashSet<T>(graph.Keys.Where(assembly => name(assembly) == "DRN.Framework.SharedKernel"), comparer);
-        bool changed;
-        do
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            changed = false;
-            foreach (var (assembly, dependencies) in graph)
-                if (!consumers.Contains(assembly) && dependencies.Any(consumers.Contains))
-                    changed |= consumers.Add(assembly);
-        } while (changed);
-
+        var graph = BuildGraph(root, references, comparer, cancellationToken);
+        var consumers = FindConsumers(graph, name, comparer, cancellationToken);
         var result = Empty;
         var count = 0;
         foreach (var assembly in graph.Keys.Where(consumers.Contains))
@@ -105,6 +81,43 @@ internal sealed class DiagnosticRedactionRules
             }
         }
         return result;
+    }
+
+    private static Dictionary<T, T[]> BuildGraph<T>(T root, Func<T, IEnumerable<T>> references,
+        IEqualityComparer<T> comparer, CancellationToken cancellationToken) where T : notnull
+    {
+        var graph = new Dictionary<T, T[]>(comparer);
+        var pending = new Stack<T>();
+        pending.Push(root);
+        while (pending.TryPop(out var assembly))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (graph.ContainsKey(assembly)) continue;
+            if (graph.Count >= MaxAssemblies) throw new FormatException("Classification inheritance supports at most 1024 assemblies.");
+            var dependencies = references(assembly).Take(MaxAssemblyReferences + 1).ToArray();
+            if (dependencies.Length > MaxAssemblyReferences) throw new FormatException("Classification inheritance supports at most 1024 assembly references.");
+            graph.Add(assembly, dependencies);
+            foreach (var dependency in dependencies) pending.Push(dependency);
+        }
+        return graph;
+    }
+
+    private static HashSet<T> FindConsumers<T>(Dictionary<T, T[]> graph, Func<T, string> name,
+        IEqualityComparer<T> comparer, CancellationToken cancellationToken) where T : notnull
+    {
+        // Propagate backwards from SharedKernel, including transitive consumers and cycles.
+        var consumers = new HashSet<T>(graph.Keys.Where(assembly => name(assembly) == "DRN.Framework.SharedKernel"), comparer);
+        bool changed;
+        do
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            changed = false;
+            foreach (var (assembly, dependencies) in graph)
+                if (!consumers.Contains(assembly) && dependencies.Any(consumers.Contains))
+                    changed |= consumers.Add(assembly);
+        } while (changed);
+
+        return consumers;
     }
 
     internal static DiagnosticRedactionRules Parse(string json)
@@ -125,22 +138,27 @@ internal sealed class DiagnosticRedactionRules
                 if (group.Name is not ("secretFields" or "personalFields" or "sensitiveFieldPaths" or "secretPathSegments") ||
                     groups.ContainsKey(group.Name))
                     throw new FormatException("Diagnostic redaction rules contain an unknown or duplicate group.");
-                if (group.Value.ValueKind != JsonValueKind.Array)
-                    throw new FormatException("Diagnostic redaction rule groups must be arrays of strings.");
-                var values = ImmutableArray.CreateBuilder<string>();
-                foreach (var entry in group.Value.EnumerateArray())
-                {
-                    if (++count > MaxRules)
-                        throw new FormatException("A diagnostic redaction rule file must contain at most 256 rules.");
-                    if (entry.ValueKind != JsonValueKind.String || entry.GetString() is not { } value ||
-                        value.Length > MaxRuleLength || DiagnosticRuleCatalog.Normalize(value) is not { Length: > 0 } normalized)
-                        throw new FormatException("Diagnostic redaction rules must be nonempty names of at most 512 characters with ASCII letters or digits.");
-                    values.Add(normalized);
-                }
-                groups.Add(group.Name, values.Distinct(StringComparer.Ordinal).ToImmutableArray());
+                groups.Add(group.Name, ParseGroup(group.Value, ref count));
             }
             return new(groups.GetValueOrDefault("secretFields", []), groups.GetValueOrDefault("personalFields", []),
                 groups.GetValueOrDefault("sensitiveFieldPaths", []), groups.GetValueOrDefault("secretPathSegments", []));
         }
+    }
+
+    private static ImmutableArray<string> ParseGroup(JsonElement group, ref int count)
+    {
+        if (group.ValueKind != JsonValueKind.Array)
+            throw new FormatException("Diagnostic redaction rule groups must be arrays of strings.");
+        var values = ImmutableArray.CreateBuilder<string>();
+        foreach (var entry in group.EnumerateArray())
+        {
+            if (++count > MaxRules)
+                throw new FormatException("A diagnostic redaction rule file must contain at most 256 rules.");
+            if (entry.ValueKind != JsonValueKind.String || entry.GetString() is not { } value ||
+                value.Length > MaxRuleLength || DiagnosticRuleCatalog.Normalize(value) is not { Length: > 0 } normalized)
+                throw new FormatException("Diagnostic redaction rules must be nonempty names of at most 512 characters with ASCII letters or digits.");
+            values.Add(normalized);
+        }
+        return values.Distinct(StringComparer.Ordinal).ToImmutableArray();
     }
 }

@@ -42,12 +42,14 @@ internal sealed class DiagnosticJsonSize : IDisposable
         return checked((int)_writer.BytesCommitted);
     }
 
-    public void Dispose()
+    public void Dispose() => Return(this);
+
+    private static void Return(DiagnosticJsonSize sizing)
     {
-        _writer.Reset(_buffer);
-        _buffer.Release();
-        if (_cached == null) _cached = this;
-        else _writer.Dispose();
+        sizing._writer.Reset(sizing._buffer);
+        sizing._buffer.Release();
+        if (_cached == null) _cached = sizing;
+        else sizing._writer.Dispose();
     }
 
     private sealed class DiscardingBuffer : IBufferWriter<byte>

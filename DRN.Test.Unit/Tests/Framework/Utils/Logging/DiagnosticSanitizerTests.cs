@@ -454,6 +454,53 @@ public class DiagnosticSanitizerTests
     }
 
     [Fact]
+    public void Url_Pairs_Should_Share_The_Model_Capture_Node_Budget()
+    {
+        var policy = Policy(new DiagnosticLogOptions { MaxNodes = 16, MaxProcessingMilliseconds = 100 });
+        for (var index = 0; index < 8; index++)
+            policy.SanitizeValue("TargetUrl", "/?value=probe").Should().Be("/?value=probe");
+
+        policy.SanitizeValue("Count", 42).Should().Be(DiagnosticSanitizer.Limited);
+        policy.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(new[] { "ScopeWorkLimit" });
+    }
+
+    [Theory]
+    [DataInlineUnit("/%25GG")]
+    [DataInlineUnit("/?value=%25GG")]
+    [DataInlineUnit("/#value=%25GG")]
+    public void Malformed_Encoded_Urls_Should_Fail_Closed_Without_Disabling_Later_Captures(string url)
+    {
+        var policy = Policy(new DiagnosticLogOptions { MaxProcessingMilliseconds = 100 });
+
+        policy.SanitizeUrl(url).Should().Be(DiagnosticSanitizer.Invalid);
+        policy.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(new[] { "SanitizationFailed" });
+        policy.SanitizeUrl("/public?value=visible").Should().Be("/public?value=visible");
+    }
+
+    [Theory]
+    [DataInlineUnit("/#token-probe", "/#token-probe")]
+    [DataInlineUnit("/#token=probe&section=public", "/#token=redacted&section=public")]
+    public void Url_Fragments_Should_Redact_Named_Values_And_Preserve_Bare_Text(string url, string expected)
+    {
+        Policy(new DiagnosticLogOptions { MaxProcessingMilliseconds = 100 }).SanitizeUrl(url).Should().Be(expected);
+    }
+
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public void Query_Node_Exhaustion_Should_Bound_Partial_And_Deferred_Captures(bool deferred)
+    {
+        var policy = Policy(new DiagnosticLogOptions { MaxNodes = 16, MaxProcessingMilliseconds = 100 });
+        for (var index = 0; index < 14; index++) policy.SanitizeValue("Count", index).Should().Be(index);
+
+        var capture = policy.Capture("TargetUrl", "/?first=one&second=two", deferRedaction: deferred);
+
+        capture.Value.Should().Be(deferred ? DiagnosticSanitizer.Limited
+            : "/?first=one&_diagnostic=" + DiagnosticSanitizer.Limited);
+        policy.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(new[] { "ScopeWorkLimit" });
+    }
+
+    [Fact]
     public void Scoped_Entries_Should_Be_Detached_And_Protect_All_Capture_Paths()
     {
         var policy = Policy();

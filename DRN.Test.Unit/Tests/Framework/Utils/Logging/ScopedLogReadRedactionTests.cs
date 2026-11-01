@@ -13,6 +13,87 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Logging;
 
 public class ScopedLogReadRedactionTests
 {
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public void Detached_Capture_Reads_And_Copies_Should_Enforce_Destination_Depth(bool copy)
+    {
+        var capture = Policy().Capture("Items", new object[] { new object[] { "deep-probe" } });
+        var destination = new DiagnosticSanitizer(new DiagnosticLogOptions { MaxDepth = 1, MaxProcessingMilliseconds = 100 });
+
+        var result = copy ? destination.CopyCapture(capture).Value
+            : destination.MaterializeSnapshot(new Dictionary<string, object> { ["Items"] = capture.Value! }, true)["Items"];
+
+        var items = JsonSerializer.SerializeToElement(result);
+        items.GetArrayLength().Should().Be(1);
+        items[0].GetArrayLength().Should().Be(1);
+        items[0][0].GetString().Should().Be(DiagnosticSanitizer.Limited);
+        JsonSerializer.Serialize(capture.Value).Should().Contain("deep-probe");
+    }
+
+    [Theory]
+    [DataInlineUnit("TargetUrl", "/?first=one&second=two#first=three&second=four",
+        "/?first=redacted&second=redacted#first=redacted&second=redacted")]
+    [DataInlineUnit("Request_QueryString", "first=one&second=two", "first=redacted&second=redacted")]
+    public void Deferred_Text_Reads_Should_Combine_Source_And_Destination_Rules(string path, string text, string expected)
+    {
+        var capture = Policy("first").Capture(path, text, deferRedaction: true);
+        var snapshot = new Dictionary<string, object> { [path] = capture.Value! };
+
+        Policy("second").MaterializeSnapshot(snapshot, true)[path].Should().Be(expected);
+        Policy("second").MaterializeSnapshot(snapshot, false)[path].Should().Be(text);
+    }
+
+    [Fact]
+    public void Native_Copies_Should_Share_The_Destination_Capture_Budget()
+    {
+        var source = Policy().Capture("Items", new[] { 1 });
+        var sanitizer = new DiagnosticSanitizer(new DiagnosticLogOptions { MaxNodes = 16, MaxProcessingMilliseconds = 100 });
+        for (var index = 0; index < 15; index++) sanitizer.SanitizeValue("Count", index).Should().Be(index);
+
+        var copy = sanitizer.CopyCapture(source);
+
+        var items = JsonSerializer.SerializeToElement(copy.Value);
+        items.GetArrayLength().Should().Be(1);
+        items[0].GetString().Should().Be(DiagnosticSanitizer.Limited);
+        sanitizer.SanitizeValue("Count", 42).Should().Be(DiagnosticSanitizer.Limited);
+    }
+
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public void Deferred_Throwing_Getters_Should_Preserve_Classification_Without_Reexecution(bool configuredName)
+    {
+        using var settings = SettingsProvider.Development();
+        var sanitizer = configuredName ? Policy("Model.Ordinary") : Policy();
+        var source = new ScopedLog(settings, sanitizer);
+        var model = new ThrowingCaptureModel();
+        source.Add("Model", model);
+        model.ReadCount.Should().Be(2);
+        sanitizer.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(new[] { "GetterFailed" });
+
+        var copy = new ScopedLog(settings, Policy());
+        copy.CopyFrom(source);
+        foreach (var log in new[] { source, copy })
+        {
+            var raw = JsonSerializer.SerializeToElement(log.GetLogs(false)["Model"]);
+            raw.GetProperty("Classified").GetString().Should().Be(DiagnosticSanitizer.Invalid);
+            raw.GetProperty("Ordinary").GetString().Should().Be(DiagnosticSanitizer.Invalid);
+            var redacted = JsonSerializer.SerializeToElement(log.GetLogs()["Model"]);
+            redacted.GetProperty("Classified").GetString().Should().Be(DiagnosticSanitizer.Redacted);
+            redacted.GetProperty("Ordinary").GetString().Should().Be(configuredName
+                ? DiagnosticSanitizer.Redacted : DiagnosticSanitizer.Invalid);
+        }
+        model.ReadCount.Should().Be(2);
+    }
+
+    private sealed class ThrowingCaptureModel
+    {
+        [IgnoreLog] public int ReadCount { get; private set; }
+        [Sensitive] public string Classified { get { ReadCount++; throw new InvalidOperationException("Getter probe."); } }
+        public string Ordinary { get { ReadCount++; throw new InvalidOperationException("Getter probe."); } }
+    }
+
     [Fact]
     public void Materialized_Lists_And_Native_Copies_Should_Remain_Detached()
     {
@@ -116,6 +197,7 @@ public class ScopedLogReadRedactionTests
         }));
         log.Add("Password", new string('x', 1025));
         log.Add("Items", new[] { "one", "two", "three" });
+        log.Add("Map", new Dictionary<string, object> { ["First"] = 1, ["Second"] = 2, ["Third"] = 3 });
         log.Add("TargetUrl", "/?a=one&b=two&c=three");
         log.GetLogs()["Password"].Should().Be(DiagnosticSanitizer.Redacted);
         log.GetLogs(false)["Password"].Should().Be(DiagnosticSanitizer.Limited);
@@ -125,6 +207,11 @@ public class ScopedLogReadRedactionTests
             var items = JsonSerializer.SerializeToElement(log.GetLogs(redact)["Items"]);
             items.GetArrayLength().Should().Be(3);
             items[2].GetString().Should().Be(DiagnosticSanitizer.Limited);
+            var map = JsonSerializer.SerializeToElement(log.GetLogs(redact)["Map"]);
+            map.EnumerateObject().Count().Should().Be(3);
+            map.GetProperty("First").GetInt32().Should().Be(1);
+            map.GetProperty("Second").GetInt32().Should().Be(2);
+            map.GetProperty("_diagnostic_limit").GetString().Should().Be(DiagnosticSanitizer.Limited);
         }
     }
 
