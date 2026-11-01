@@ -108,7 +108,7 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
         if (!Eligible(property) || !rules.MatchesField(property.Name) || contract.Accepted(property)) return;
         var location = property.Locations.FirstOrDefault(item => item.IsInSource);
         if (location == null) return;
-        context.ReportDiagnostic(Diagnostic.Create(contract.HasUnknown(property) ? UnknownClassification : MissingClassification,
+        context.ReportDiagnostic(Diagnostic.Create(ClassificationContract.HasUnknown(property) ? UnknownClassification : MissingClassification,
             location, property.Name));
     }
 
@@ -448,7 +448,7 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
             return false;
         }
 
-        internal bool HasUnknown(IPropertySymbol property) => property.GetAttributes().Concat(property.Type.GetAttributes())
+        internal static bool HasUnknown(IPropertySymbol property) => property.GetAttributes().Concat(property.Type.GetAttributes())
             .Any(attribute => Ancestors(attribute.AttributeClass).Any(type =>
                 type.ToDisplayString() == "Microsoft.Extensions.Compliance.Classification.DataClassificationAttribute"));
 

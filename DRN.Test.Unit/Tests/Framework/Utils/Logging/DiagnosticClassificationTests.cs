@@ -172,7 +172,7 @@ public sealed class DiagnosticClassificationTests
         data.GetProperty("StatusCode").GetInt32().Should().Be(503);
         data.GetProperty("Password").GetString().Should().Be(DiagnosticSanitizer.Redacted);
         data.GetProperty("Status.Code").GetString().Should().Be(DiagnosticSanitizer.Redacted);
-        var wrongKind = new DiagnosticCapturePolicy(new DiagnosticNameException(DiagnosticCaptureKind.ObjectRoot, "Wrong kind", "ClientError"));
+        var wrongKind = new DiagnosticCapturePolicy(new DiagnosticNameExemption(DiagnosticCaptureKind.ObjectRoot, "Wrong kind", "ClientError"));
         Policy().SanitizeValue("ClientError", input, wrongKind).Should().Be(DiagnosticSanitizer.Redacted);
     }
 
@@ -180,7 +180,7 @@ public sealed class DiagnosticClassificationTests
     public void Json_Keys_And_Url_Structure_Should_Keep_Their_Independent_Protection()
     {
         using var json = JsonDocument.Parse("""{"StatusCode":200,"Password":"json-secret","CallbackUrl":"https://user:pass@example.test/resetpassword/secret?token=secret"}""");
-        var policy = new DiagnosticCapturePolicy(new DiagnosticNameException(DiagnosticCaptureKind.JsonProperty, "HTTP status only", "Report", "StatusCode"));
+        var policy = new DiagnosticCapturePolicy(new DiagnosticNameExemption(DiagnosticCaptureKind.JsonProperty, "HTTP status only", "Report", "StatusCode"));
         var result = JsonSerializer.SerializeToElement(Policy().SanitizeValue("Report", json.RootElement, policy));
         result.GetProperty("StatusCode").GetInt32().Should().Be(200);
         result.GetProperty("Password").GetString().Should().Be(DiagnosticSanitizer.Redacted);
@@ -194,7 +194,7 @@ public sealed class DiagnosticClassificationTests
         var source = new ScopedLog(settings, Policy());
         source.AddProperties("Model", new Model());
         source.AddWithPolicy("Response_StatusCode", 503,
-            new DiagnosticCapturePolicy(new DiagnosticNameException(DiagnosticCaptureKind.NamedEntry, "HTTP status only", "Response_StatusCode")));
+            new DiagnosticCapturePolicy(new DiagnosticNameExemption(DiagnosticCaptureKind.NamedEntry, "HTTP status only", "Response_StatusCode")));
         var same = new ScopedLog(settings, Policy());
         same.CopyFrom(source);
         same.GetLogs()["Model.Keyboard"].Should().Be("layout");

@@ -14,6 +14,8 @@ Dependencies upgraded to dotnet 10.0.14
 
 *   **Explicit Diagnostic Name Exceptions**: Named model properties own classification without built-in logging-prefix matches. Property `[Sensitive(false)]` handles reviewed property false positives. `Add(key, value, exemptionReason)` and `SanitizeValue(path, value, exemptionReason)` permit one application-reviewed scalar without constructing policies. Supported values include nullable scalars, DateOnly, TimeOnly and Uri. Uri always receives structural URL protection regardless of the entry name. Complex reason-bearing captures return an unavailable marker without traversal. `AddWithPolicy`, `AddPropertiesWithPolicy` and `SanitizeWithPolicy` retain exact complex/nested exceptions. Grants do not extend to descendants or override classification, configured full-path rules, limits or structural URL redaction. Native scoped copies preserve bound decisions only under destination protection. Re-entering public or foreign snapshots applies ordinary protection.
 
+    Construct `DiagnosticCapturePolicy` with `DiagnosticNameExemption` entries for exact capture kinds and original path segments.
+
 *   **Property Discovery**: Added `GetPropertiesOfType<T>` to find properties with an exact declared type using caller-supplied binding flags.
 
 *   **Diagnostic Name Matching**: Secret field detection matches `secret`, including normalized separator variants. Names containing only `sec`, such as `ElapsedSeconds`, `Section`, and `ResponseCaptureLimited`, remain eligible for capture without exemptions. Explicit classifications and other configured or built-in patterns still apply.

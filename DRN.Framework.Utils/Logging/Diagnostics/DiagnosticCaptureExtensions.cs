@@ -13,14 +13,20 @@ public static class DiagnosticCaptureExtensions
         sanitizer is DiagnosticSanitizer native ? native.SanitizeDictionary(path, values, classifications) : DiagnosticSanitizer.Invalid;
 
     /// <summary>Exempts one supported scalar. Foreign implementations keep their existing protection.</summary>
-    public static IScopedLog Add(this IScopedLog log, string key, object? value, string exemptionReason) =>
-        log is ScopedLog native ? native.Add(key, value, exemptionReason) :
-            log.Add(key, DiagnosticSanitizer.IsSimpleValue(value) ? value ?? string.Empty : DiagnosticSanitizer.Invalid);
+    public static IScopedLog Add(this IScopedLog log, string key, object? value, string exemptionReason)
+    {
+        if (log is ScopedLog native) return native.Add(key, value, exemptionReason);
+        var safeValue = DiagnosticSanitizer.IsSimpleValue(value) ? value ?? string.Empty : DiagnosticSanitizer.Invalid;
+        return log.Add(key, safeValue);
+    }
 
     /// <summary>Exempts one supported scalar. Foreign implementations keep their existing protection.</summary>
-    public static object? SanitizeValue(this IDiagnosticSanitizer sanitizer, string path, object? value, string exemptionReason) =>
-        sanitizer is DiagnosticSanitizer native ? native.SanitizeValue(path, value, exemptionReason) :
-            sanitizer.SanitizeValue(path, DiagnosticSanitizer.IsSimpleValue(value) ? value : DiagnosticSanitizer.Invalid);
+    public static object? SanitizeValue(this IDiagnosticSanitizer sanitizer, string path, object? value, string exemptionReason)
+    {
+        if (sanitizer is DiagnosticSanitizer native) return native.SanitizeValue(path, value, exemptionReason);
+        var safeValue = DiagnosticSanitizer.IsSimpleValue(value) ? value : DiagnosticSanitizer.Invalid;
+        return sanitizer.SanitizeValue(path, safeValue);
+    }
 
     public static IScopedLog AddWithPolicy(this IScopedLog log, string key, object value, DiagnosticCapturePolicy policy) =>
         log is ScopedLog native ? native.AddWithPolicy(key, value, policy) : log.Add(key, value);

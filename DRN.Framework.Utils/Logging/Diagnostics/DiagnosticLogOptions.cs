@@ -20,12 +20,15 @@ public sealed record DiagnosticLogOptions : IValidatableObject
     internal string? LoadedRuleFile { get; init; }
     internal string? LoadedRuleAssemblyName { get; init; }
 
-    internal DiagnosticRedactionRules GetRules() => LoadedRules != null && RuleFile == LoadedRuleFile &&
-        RuleAssemblyName == LoadedRuleAssemblyName ? LoadedRules :
-        RuleFile == null && RuleAssemblyName == null ? DiagnosticRedactionRules.Empty :
-        RuleFiles.GetValue(this, static options => new Lazy<DiagnosticRedactionRules>(() =>
+    internal DiagnosticRedactionRules GetRules()
+    {
+        if (LoadedRules != null && RuleFile == LoadedRuleFile && RuleAssemblyName == LoadedRuleAssemblyName)
+            return LoadedRules;
+        if (RuleFile == null && RuleAssemblyName == null) return DiagnosticRedactionRules.Empty;
+        return RuleFiles.GetValue(this, static options => new Lazy<DiagnosticRedactionRules>(() =>
             EmbeddedClassificationRules.Load(options.RuleAssemblyName).Merge(options.RuleFile == null
                 ? DiagnosticRedactionRules.Empty : ReadRules(options.RuleFile)))).Value;
+    }
 
     private static DiagnosticRedactionRules ReadRules(string path)
     {

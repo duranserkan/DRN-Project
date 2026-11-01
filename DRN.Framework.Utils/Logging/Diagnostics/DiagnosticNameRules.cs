@@ -40,13 +40,15 @@ internal sealed class DiagnosticNameRules
             {
                 Span<char> buffer = stackalloc char[512];
                 var name = Normalize(value, buffer);
-                var builtIn = DiagnosticRuleCatalog.Matches(name, DiagnosticRuleCatalog.SecretFields) ||
-                              DiagnosticRuleCatalog.Matches(name, _projectRules.SecretFields) ? DiagnosticRuleType.Secret :
-                    DiagnosticRuleCatalog.Matches(name, DiagnosticRuleCatalog.PersonalFields) ||
-                    DiagnosticRuleCatalog.Matches(name, _projectRules.PersonalFields) ? DiagnosticRuleType.Personal :
-                    DiagnosticRuleCatalog.Matches(name, DiagnosticRuleCatalog.FieldPaths) ? DiagnosticRuleType.FieldPath : DiagnosticRuleType.None;
-                var additional = DiagnosticRuleCatalog.Matches(name, _additional) ? DiagnosticRuleType.Secret :
-                    DiagnosticRuleCatalog.Matches(name, _additionalPaths) ? DiagnosticRuleType.FieldPath : DiagnosticRuleType.None;
+                var builtIn = DiagnosticRuleType.None;
+                if (DiagnosticRuleCatalog.Matches(name, DiagnosticRuleCatalog.SecretFields) ||
+                    DiagnosticRuleCatalog.Matches(name, _projectRules.SecretFields)) builtIn = DiagnosticRuleType.Secret;
+                else if (DiagnosticRuleCatalog.Matches(name, DiagnosticRuleCatalog.PersonalFields) ||
+                         DiagnosticRuleCatalog.Matches(name, _projectRules.PersonalFields)) builtIn = DiagnosticRuleType.Personal;
+                else if (DiagnosticRuleCatalog.Matches(name, DiagnosticRuleCatalog.FieldPaths)) builtIn = DiagnosticRuleType.FieldPath;
+                var additional = DiagnosticRuleType.None;
+                if (DiagnosticRuleCatalog.Matches(name, _additional)) additional = DiagnosticRuleType.Secret;
+                else if (DiagnosticRuleCatalog.Matches(name, _additionalPaths)) additional = DiagnosticRuleType.FieldPath;
                 result = (builtIn, additional);
                 if (_cache.Count < _capacity) _cache.Add(value, result);
             }

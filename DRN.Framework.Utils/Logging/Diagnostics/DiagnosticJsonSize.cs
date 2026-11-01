@@ -61,7 +61,7 @@ internal sealed class DiagnosticJsonSize : IDisposable
 
         public Memory<byte> GetMemory(int sizeHint = 0)
         {
-            if (sizeHint < 0) throw new ArgumentOutOfRangeException(nameof(sizeHint));
+            ArgumentOutOfRangeException.ThrowIfNegative(sizeHint);
             var length = Math.Max(256, sizeHint);
             if (_bytes == null || _bytes.Length < length)
             {

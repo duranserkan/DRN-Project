@@ -79,6 +79,8 @@ When test execution is explicitly allowed, run unit and analyzer tests before in
 
 ## Conventions
 
+`DiagnosticCapturePolicy` accepts `DiagnosticNameExemption` entries for exact capture kinds and original path segments. Its contract is owned by `DRN.Framework.Utils/Logging/Diagnostics/DiagnosticCapturePolicy.cs` and the adjacent diagnostic guide.
+
 Diagnostic name rules are owned by `DRN.Framework.Utils/Logging/Diagnostics/data-classification-rules.json` and shared with analyzers and browser diagnostics. Coverage includes CVV/CVC/PIN-code fields, usernames, first/last names, birth dates, and IBAN. Keep analyzer vectors and `diagnostic-golden-cases.json` aligned. Avoid the broad `otp` pattern because it matches `RootPath`.
 
 Classification-rule maintenance uses `.agent/workflows/data-classification.md` with `drn-utils`, `drn-sharedkernel`, and `drn-testing`. Prefer a project-owned `data-classification-rules.json` for domain-specific names. Register one own catalog as EmbeddedResource or AdditionalFiles. SharedKernel targets forward embedded catalogs to analysis and publish DataClassificationRulesAttribute metadata, retained in reference assemblies. Analyzers inherit catalogs from referenced SharedKernel consumers. Distinct own files are rejected; identical physical items are deduplicated. Legacy `diagnostic-rules.json` is accepted.

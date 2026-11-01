@@ -523,6 +523,8 @@ Dictionary diagnostics use `AddDictionary` or `SanitizeDictionary` with exact `D
 
 SharedKernel's classification analyzer checks model properties independently of capture and `[IgnoreLog]`. Use `[Personal]`, `[Sensitive]` or a derived company attribute for positive classification. Named models use their own property names without built-in logging-prefix matches. Direct `[Sensitive(false)]` preserves a property false positive without overriding positive classification, configured full-path rules or URL protection. For one supported scalar exception, use `Add(key, value, exemptionReason)` or `SanitizeValue(path, value, exemptionReason)` with an application-authored reason. Supported scalars include nullable values, DateOnly, TimeOnly and Uri. Uri always receives URL sanitization regardless of the entry name. Complex reason-bearing values return an unavailable marker without traversal. Keep `DiagnosticCapturePolicy` for complex/nested exceptions. Neither form grants whole subtrees. Native copies retain bound decisions under destination protection; public snapshots do not carry authorization. See the [migration and capture boundaries](Logging/Diagnostics/README.md#boundaries-and-migration).
 
+Construct complex or nested `DiagnosticCapturePolicy` grants with `DiagnosticNameExemption` entries for exact capture kinds and path segments.
+
 ### Core Features
 
 *   **Contextual**: Every `ScopedLog` has a stable `CorrelationId` and captures an active W3C `TraceId` when available. Hosting adds request and user context.

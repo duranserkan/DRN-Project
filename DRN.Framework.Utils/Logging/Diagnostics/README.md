@@ -113,6 +113,8 @@ DRN0020 checks capture calls, including reason-bearing and policy-bearing calls.
 
 ### Exact capture exceptions
 
+Construct `DiagnosticCapturePolicy` with `DiagnosticNameExemption` entries. Each entry describes a reviewed name-rule exemption, not a throwable exception.
+
 Keep `AddWithPolicy`, `AddPropertiesWithPolicy` and `SanitizeWithPolicy` for multiple exceptions or specific nested nodes. Construct policies only in trusted application code. An empty policy grants nothing. Reason-bearing and policy-bearing calls acknowledge the runtime boundary without suppressing independent property-declaration diagnostics.
 
 Exceptions identify the exact capture kind and original path segments with a required nonblank reason. `NamedEntry` identifies an Add/SanitizeValue root, `ObjectRoot` an AddProperties prefix, and Property, DictionaryKey or JsonProperty identifies a child. ListItem appends an invariant numeric index segment, while name matching retains the collection's field path. Dotted keys are one segment, distinct from nested paths. Case/separator normalization does not broaden exception identity. Policies are immutable and bounded by capture limits. There are no wildcards or subtree grants.

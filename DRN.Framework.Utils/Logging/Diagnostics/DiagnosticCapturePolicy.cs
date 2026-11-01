@@ -1,12 +1,12 @@
 namespace DRN.Framework.Utils.Logging.Diagnostics;
 
-/// <summary>The structural node to which an exact diagnostic name exception applies.</summary>
+/// <summary>The structural node to which an exact diagnostic name exemption applies.</summary>
 public enum DiagnosticCaptureKind { NamedEntry, ObjectRoot, Property, DictionaryKey, JsonProperty, ListItem }
 
-/// <summary>An application-authored exception for one node, never its descendants.</summary>
-public sealed class DiagnosticNameException
+/// <summary>An application-authored exemption for one node, never its descendants.</summary>
+public sealed class DiagnosticNameExemption
 {
-    public DiagnosticNameException(DiagnosticCaptureKind kind, string justification, params string[] segments)
+    public DiagnosticNameExemption(DiagnosticCaptureKind kind, string justification, params string[] segments)
     {
         if (!Enum.IsDefined(kind)) throw new ArgumentOutOfRangeException(nameof(kind));
         ArgumentException.ThrowIfNullOrWhiteSpace(justification);
@@ -26,12 +26,12 @@ public sealed class DiagnosticNameException
 /// <summary>Immutable, explicit capture exceptions. Never construct this policy from request data.</summary>
 public sealed class DiagnosticCapturePolicy
 {
-    private readonly DiagnosticNameException[] _exceptions;
-    public DiagnosticCapturePolicy(params DiagnosticNameException[] exceptions)
+    private readonly DiagnosticNameExemption[] _exceptions;
+    public DiagnosticCapturePolicy(params DiagnosticNameExemption[] exceptions)
     {
         ArgumentNullException.ThrowIfNull(exceptions);
         if (exceptions.Any(item => item == null)) throw new ArgumentException("Exceptions cannot be null.", nameof(exceptions));
-        _exceptions = (DiagnosticNameException[])exceptions.Clone();
+        _exceptions = (DiagnosticNameExemption[])exceptions.Clone();
     }
 
     internal void Validate(DiagnosticLogOptions options)

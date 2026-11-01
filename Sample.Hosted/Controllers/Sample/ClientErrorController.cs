@@ -15,7 +15,7 @@ namespace Sample.Hosted.Controllers.Sample;
 public class ClientErrorController(IScopedLog scopedLog, IDiagnosticSanitizer sanitizer) : ControllerBase
 {
     private static readonly DiagnosticCapturePolicy CapturePolicy = new(
-        new DiagnosticNameException(DiagnosticCaptureKind.Property, "Random diagnostic correlation identifier.",
+        new DiagnosticNameExemption(DiagnosticCaptureKind.Property, "Random diagnostic correlation identifier.",
             "ClientError", nameof(ClientErrorPayload.ClientErrorId)));
 
     [HttpPost("Report")]

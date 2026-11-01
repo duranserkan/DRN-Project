@@ -24,18 +24,18 @@ internal sealed class DiagnosticModelProjection(IDiagnosticSanitizer sanitizer)
         _remainingFrames -= frames.Length;
         if (truncated)
             frames = [.. frames, new StackFrameSourceCodeInfo { ErrorDetails = DiagnosticSanitizer.Limited }];
-        return source.Error is not { } error
-            ? new ExceptionDetails(Text(source.ExceptionMessage), frames)
-            : new ExceptionDetails(error, frames)
-            {
-                ExceptionType = Text(source.ExceptionType),
-                ExceptionMessage = Text(source.ExceptionMessage),
-                InnerExceptionType = Text(source.InnerExceptionType),
-                InnerExceptionMessage = Text(source.InnerExceptionMessage),
-                FormattedException = Format(error),
-                LoaderExceptionMessages = error is ReflectionTypeLoadException loader
-                    ? loader.LoaderExceptions.Take(sanitizer.Options.MaxCollectionEntries).Select(item => Text(item?.Message)).ToArray() : []
-            };
+        if (source.Error is not { } error)
+            return new ExceptionDetails(Text(source.ExceptionMessage), frames);
+        return new ExceptionDetails(error, frames)
+        {
+            ExceptionType = Text(source.ExceptionType),
+            ExceptionMessage = Text(source.ExceptionMessage),
+            InnerExceptionType = Text(source.InnerExceptionType),
+            InnerExceptionMessage = Text(source.InnerExceptionMessage),
+            FormattedException = Format(error),
+            LoaderExceptionMessages = error is ReflectionTypeLoadException loader
+                ? loader.LoaderExceptions.Take(sanitizer.Options.MaxCollectionEntries).Select(item => Text(item?.Message)).ToArray() : []
+        };
     }
 
     private StackFrameSourceCodeInfo Frame(StackFrameSourceCodeInfo frame)
