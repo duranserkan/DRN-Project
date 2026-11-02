@@ -234,6 +234,26 @@ public class ScopedLogReadRedactionTests
         model.ReadCount.Should().Be(2);
     }
 
+    [Fact]
+    public void Top_Level_Throwing_Getters_Should_Record_Warnings_And_Preserve_Unavailable_Values()
+    {
+        using var settings = SettingsProvider.Development();
+        var sanitizer = Policy();
+        var log = new ScopedLog(settings, sanitizer);
+        var model = new ThrowingCaptureModel();
+
+        log.AddProperties("Model", model);
+
+        sanitizer.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(new[] { "GetterFailed" });
+        var raw = log.GetLogs(false);
+        raw["Model.Classified"].Should().Be("[diagnostic getter unavailable]");
+        raw["Model.Ordinary"].Should().Be("[diagnostic getter unavailable]");
+        var redacted = log.GetLogs();
+        redacted["Model.Classified"].Should().Be(DiagnosticSanitizer.Redacted);
+        redacted["Model.Ordinary"].Should().Be("[diagnostic getter unavailable]");
+        model.ReadCount.Should().Be(2);
+    }
+
     private sealed class ThrowingCaptureModel
     {
         [IgnoreLog] public int ReadCount { get; private set; }

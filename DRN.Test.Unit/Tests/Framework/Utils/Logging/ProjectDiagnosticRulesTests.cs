@@ -289,6 +289,28 @@ public class ProjectDiagnosticRulesTests
     }
 
     [Fact]
+    public void Identically_Configured_Copies_Should_Preserve_Metrics_And_Project_Url_Redaction()
+    {
+        using var settings = SettingsProvider.Development();
+        var source = new ScopedLog(settings, new DiagnosticSanitizer(Options()));
+        source.Increase("Completed", 3);
+        source.IncreaseTimeSpentOn("Work", TimeSpan.FromSeconds(2));
+        source.Add("TargetUrl", "/handoff/private");
+        var destination = new ScopedLog(settings, new DiagnosticSanitizer(Options()));
+
+        destination.CopyFrom(source);
+
+        foreach (var log in new[] { source, destination })
+        {
+            var snapshot = log.GetLogs();
+            snapshot["Stats_Completed"].Should().Be(3L);
+            snapshot["Stats_TimeSpentOn_Work_Counter"].Should().Be(1L);
+            snapshot["Stats_TimeSpentOn_Work_Seconds"].Should().Be(2d);
+            snapshot["TargetUrl"].Should().Be("/handoff/redacted");
+        }
+    }
+
+    [Fact]
     public void Invalid_Project_Files_Should_Fail_Instead_Of_Disabling_Protection()
     {
         var path = Path.GetTempFileName();

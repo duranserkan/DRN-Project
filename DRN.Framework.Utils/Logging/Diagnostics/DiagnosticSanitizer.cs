@@ -45,6 +45,7 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
 
     public DiagnosticLogOptions Options { get; }
     internal bool RedactionEnabled { get; }
+    internal string[] UrlRules => _urlRules;
 
     // Accessed only inside Guard. Snapshot-only sanitizers do not need a projector.
     private DiagnosticValueProjector Projector => field ??= new DiagnosticValueProjector(this);
@@ -134,7 +135,7 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
 
     internal bool VisitNode(int depth) => WorkAvailable() && CountNode() && depth <= Options.MaxDepth;
 
-    internal void RecordGetterFailure() => _status.Add("GetterFailed");
+    internal void RecordGetterFailure() => Guard(() => _status.Add("GetterFailed"), false);
 
     internal string NextFieldKey() => $"_diagnostic_field_{++_keySequence}";
 

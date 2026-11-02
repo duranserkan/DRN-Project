@@ -573,12 +573,12 @@ public class ScopedLog : IScopedLog
     {
         // CopyFrom binds metadata to the detached metric scalar under the same lock.
         DiagnosticCaptureMetadata metadata = default;
-        if (Sanitizer is DiagnosticSanitizer)
+        if (Sanitizer is DiagnosticSanitizer native)
         {
             var path = prefix + name;
             DiagnosticNameDecision[] decisions = string.Equals(path, key, StringComparison.Ordinal)
                 ? [new(path, true)] : [new(path, true), new(key, true)];
-            metadata = new DiagnosticCaptureMetadata(decisions, Sanitizer.Options.SensitivePathSegments);
+            metadata = new DiagnosticCaptureMetadata(decisions, native.UrlRules);
         }
         _entries[key] = entry with { Capture = metadata };
         if (!previous.HasValue) _entryCount++;

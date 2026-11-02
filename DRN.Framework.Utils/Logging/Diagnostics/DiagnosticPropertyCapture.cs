@@ -62,6 +62,7 @@ internal readonly struct DiagnosticPropertyCapture(ScopedLog owner, DiagnosticCa
         }
         catch (Exception)
         {
+            _native?.RecordGetterFailure();
             const string unavailable = "[diagnostic getter unavailable]";
             if (_native == null) owner.Store(Sanitizer.SanitizeKey(originalKey), unavailable);
             else owner.StoreCapture(Sanitizer.SanitizeKey(originalKey), _native.Capture(originalKey, unavailable, policy,
