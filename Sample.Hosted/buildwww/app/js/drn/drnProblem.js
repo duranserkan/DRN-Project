@@ -53,22 +53,31 @@ function parse(body, contentType, status) {
     problem.detail = displayText(value.detail);
     problem.requestId = identifier(value.requestId, 200);
 
-    if (isObject(value.errors)) {
-        let remaining = MAX_ERRORS;
-        for (const [field, messages] of Object.entries(value.errors)) {
-            if (remaining === 0) break;
-            if (field.length > 200 || !Array.isArray(messages)) continue;
-            const accepted = [];
-            for (const message of messages) {
-                const text = displayText(message);
-                if (!text) continue;
-                accepted.push(text);
-                if (--remaining === 0) break;
-            }
-            if (accepted.length) problem.errors[field] = accepted;
-        }
-    }
+    parseErrors(value.errors, problem.errors);
     return problem;
+}
+
+function acceptMessages(messages, remaining) {
+    const accepted = [];
+    for (const message of messages) {
+        const text = displayText(message);
+        if (!text) continue;
+        accepted.push(text);
+        if (accepted.length === remaining) break;
+    }
+    return accepted;
+}
+
+function parseErrors(errors, target) {
+    if (!isObject(errors)) return;
+    let remaining = MAX_ERRORS;
+    for (const [field, messages] of Object.entries(errors)) {
+        if (remaining === 0) break;
+        if (field.length > 200 || !Array.isArray(messages)) continue;
+        const accepted = acceptMessages(messages, remaining);
+        remaining -= accepted.length;
+        if (accepted.length) target[field] = accepted;
+    }
 }
 
 /** Read an HTMX XMLHttpRequest without changing its body or response processing. */
@@ -170,36 +179,11 @@ function appendText(parent, tag, value, className = '') {
     return element;
 }
 
-/** Keep validation beside the form; other failures use a toast and one history entry. */
-function show(problem, context = {}) {
-    if (window.DRN.Notifications.isActive?.() === false) return null;
-    const title = FRIENDLY_TITLES.get(problem.title.toLowerCase()) || problem.title;
-    const region = regionFor(context);
-    const record = window.DRN.Notifications.publish({
-        type: 'error', title, message: problem.detail,
-        problemType: problem.type, status: problem.status, requestId: problem.requestId,
-        operation: context.operation || '',
-        target: region?.id || (region ? `region-${Array.from(document.querySelectorAll('form, [data-problem-region]')).indexOf(region)}` : ''),
-        persist: context.persist !== false
-    });
-    if (!region || Object.keys(problem.errors).length === 0) {
-        clearRegion(region);
-        window.DRN.Toast.show({ type: 'error', message: problem.detail || title, record: false });
-        return record;
-    }
-
-    clearRegion(region);
-    const summary = document.createElement('section');
-    summary.className = 'alert alert-danger text-break';
-    summary.dataset.drnProblemSummary = '';
-    summary.tabIndex = -1;
-    summary.setAttribute('aria-label', 'Request error');
-    appendText(summary, 'h2', title, 'h6');
-    if (problem.detail && problem.detail !== title) appendText(summary, 'p', problem.detail);
+function renderValidationErrors(region, errorsByName, summary) {
     const list = document.createElement('ul');
     const fields = [];
     const form = region instanceof HTMLFormElement ? region : null;
-    for (const [name, errors] of Object.entries(problem.errors)) {
+    for (const [name, errors] of Object.entries(errorsByName)) {
         // Match names directly. Server field names are never interpreted as CSS selectors.
         const matches = form ? Array.from(form.elements).filter(field => field.name === name) : [];
         const first = matches.find(field => field instanceof HTMLElement && field.type !== 'hidden' && !field.disabled);
@@ -213,7 +197,7 @@ function show(problem, context = {}) {
             error.id = `drn-field-error-${++messageSequence}`;
             error.className = 'text-danger small';
             error.textContent = errors.join(' ');
-            first.insertAdjacentElement('afterend', error);
+            first.after(error);
             for (const field of matches) {
                 fields.push({ field, message: error, invalid: field.getAttribute('aria-invalid') });
                 field.setAttribute('aria-invalid', 'true');
@@ -223,6 +207,19 @@ function show(problem, context = {}) {
         } else item.textContent = message;
     }
     if (list.childElementCount) summary.appendChild(list);
+    return fields;
+}
+
+function showValidation(problem, context, region, title) {
+    clearRegion(region);
+    const summary = document.createElement('section');
+    summary.className = 'alert alert-danger text-break';
+    summary.dataset.drnProblemSummary = '';
+    summary.tabIndex = -1;
+    summary.setAttribute('aria-label', 'Request error');
+    appendText(summary, 'h2', title, 'h6');
+    if (problem.detail && problem.detail !== title) appendText(summary, 'p', problem.detail);
+    const fields = renderValidationErrors(region, problem.errors, summary);
     if (problem.requestId) {
         const details = document.createElement('details');
         appendText(details, 'summary', 'Details');
@@ -242,6 +239,26 @@ function show(problem, context = {}) {
         const live = document.getElementById('drn-notification-assertive');
         if (live) live.textContent = `${title} ${problem.detail}`.trim();
     }
+}
+
+/** Keep validation beside the form; other failures use a toast and one history entry. */
+function show(problem, context = {}) {
+    if (window.DRN.Notifications.isActive?.() === false) return null;
+    const title = FRIENDLY_TITLES.get(problem.title.toLowerCase()) || problem.title;
+    const region = regionFor(context);
+    const record = window.DRN.Notifications.publish({
+        type: 'error', title, message: problem.detail,
+        problemType: problem.type, status: problem.status, requestId: problem.requestId,
+        operation: context.operation || '',
+        target: region?.id || (region ? `region-${Array.from(document.querySelectorAll('form, [data-problem-region]')).indexOf(region)}` : ''),
+        persist: context.persist !== false
+    });
+    if (!region || Object.keys(problem.errors).length === 0) {
+        clearRegion(region);
+        window.DRN.Toast.show({ type: 'error', message: problem.detail || title, record: false });
+        return record;
+    }
+    showValidation(problem, context, region, title);
     return record;
 }
 

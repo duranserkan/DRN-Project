@@ -213,6 +213,215 @@ public class ScopedLogTests
     }
 
     [Fact]
+    public void Events_Should_Retain_Eight_Additional_Events_And_Report_Only_Omissions()
+    {
+        var log = CreateLog();
+        var primary = new ScopeEvent(new EventId(0, "Primary"));
+        log.GetLogs().Should().NotContainKey("OmittedEventCount");
+        log.WithEvent(primary);
+        log.GetLogs().Should().NotContainKey("OmittedEventCount");
+        var additional = Enumerable.Range(1, 8).Select(id => new ScopeEvent(new EventId(id))).ToArray();
+        foreach (var item in additional) log.WithEvent(item);
+        var full = log.GetLogs();
+        full.Should().NotContainKey("OmittedEventCount");
+
+        log.WithEvent(new ScopeEvent(new EventId(9)));
+        log.AddToList("AdditionalEvents", new ScopeEvent(new EventId(10)));
+        log.Event.Should().BeSameAs(primary);
+        ((List<object>)log.GetLogs()["AdditionalEvents"]).Should().Equal(additional);
+        log.GetLogs()["OmittedEventCount"].Should().Be(2L);
+        full.Should().NotContainKey("OmittedEventCount");
+
+        var copy = CreateLog();
+        copy.CopyFrom(log);
+        copy.Event.Should().BeSameAs(primary);
+        ((List<object>)copy.GetLogs()["AdditionalEvents"]).Should().Equal(additional);
+        copy.GetLogs()["OmittedEventCount"].Should().Be(2L);
+        copy.CopyFrom(copy);
+        copy.GetLogs()["OmittedEventCount"].Should().Be(2L);
+
+        var occupied = CreateLog();
+        occupied.WithEvent(new ScopeEvent(new EventId(100)));
+        occupied.CopyFrom(log);
+        ((List<object>)occupied.GetLogs()["AdditionalEvents"]).Should().Equal(new[] { primary }.Concat(additional.Take(7)));
+        occupied.GetLogs()["OmittedEventCount"].Should().Be(3L);
+    }
+
+    [Fact]
+    public void Additional_Event_Limit_Should_Preserve_Primary_Capacity_And_Count_Concurrent_Omissions()
+    {
+        var log = CreateLog();
+        Parallel.For(0, 32, id => log.AddToList("AdditionalEvents", new ScopeEvent(new EventId(id))));
+        log.Event.Should().BeNull();
+        var primary = new ScopeEvent(new EventId(100));
+        log.WithEvent(primary);
+        log.Event.Should().BeSameAs(primary);
+        ((List<object>)log.GetLogs()["AdditionalEvents"]).Should().HaveCount(8);
+        log.GetLogs()["OmittedEventCount"].Should().Be(24L);
+    }
+
+    [Fact]
+    public void Foreign_Event_Omissions_Should_Be_Bounded_Copied_And_Emitted()
+    {
+        var events = Enumerable.Range(1, 10).Select(id => new ScopeEvent(new EventId(id))).ToArray();
+        var source = Substitute.For<IScopedLog>();
+        source.Event.Returns(new ScopeEvent(new EventId(0)));
+        source.GetLogs().Returns(new Dictionary<string, object>
+        {
+            ["AdditionalEvents"] = events,
+            ["OmittedEventCount"] = 3L
+        });
+        var copy = CreateLog();
+        copy.CopyFrom(source);
+        ((List<object>)copy.GetLogs()["AdditionalEvents"]).Should().Equal(events.Take(8));
+        copy.GetLogs()["OmittedEventCount"].Should().Be(5L);
+
+        foreach (var log in new IScopedLog[] { source, copy })
+        {
+            var logger = Substitute.For<ILogger>();
+            logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
+            logger.LogScoped(log);
+            var call = logger.ReceivedCalls().Single(item => item.GetMethodInfo().Name == "Log").GetArguments();
+            var state = (IReadOnlyList<KeyValuePair<string, object?>>)call[2]!;
+            var record = (IReadOnlyDictionary<string, object>)state.Single(pair => pair.Key == "@Logs").Value!;
+            ((List<object>)record["AdditionalEvents"]).Should().Equal(events.Take(8));
+            record["OmittedEventCount"].Should().Be(5L);
+        }
+    }
+
+    [Fact]
+    public void Events_Should_Bypass_Diagnostic_Budgets_And_Remain_Detached_On_Copy()
+    {
+        using var settings = SettingsProvider.Development();
+        var options = new DiagnosticLogOptions
+        {
+            MaxFieldBytes = 1024, MaxInputBytes = 1024, MaxScopeBytes = 4096,
+            MaxNodes = 16, MaxCollectionEntries = 1, MaxProcessingMilliseconds = 100
+        };
+        var sanitizer = new DiagnosticSanitizer(options);
+        var source = new ScopedLog(settings, sanitizer);
+        sanitizer.SanitizeText(new string('x', 1024));
+        sanitizer.SanitizeText("overflow").Should().Be(DiagnosticSanitizer.Limited);
+        var text = new string('e', 8192);
+        var primary = new ScopeEvent(new EventId(42, text), text, text);
+        var second = new ScopeEvent(new EventId(43, text), text, text);
+        var third = new ScopeEvent(new EventId(44, text), text, text);
+        source.WithEvent(primary).WithEvent(second).WithEvent(third);
+
+        source.Event.Should().BeSameAs(primary);
+        var snapshot = source.GetLogs();
+        snapshot["EventName"].Should().Be(text);
+        snapshot["EventOutcome"].Should().Be(text);
+        snapshot["EventReason"].Should().Be(text);
+        ((List<object>)snapshot["AdditionalEvents"]).Should().Equal(second, third);
+
+        var destination = new ScopedLog(settings, new DiagnosticSanitizer(options));
+        var destinationEvent = new ScopeEvent(new EventId(1, "Destination"));
+        destination.WithEvent(destinationEvent);
+        destination.CopyFrom(source);
+        destination.Event.Should().BeSameAs(destinationEvent);
+        ((List<object>)destination.GetLogs()["AdditionalEvents"]).Should().Equal(primary, second, third);
+        ((List<object>)snapshot["AdditionalEvents"]).Clear();
+        ((List<object>)source.GetLogs()["AdditionalEvents"]).Should().Equal(second, third);
+        source.WithEvent(new ScopeEvent(new EventId(45, "Later")));
+        ((List<object>)destination.GetLogs()["AdditionalEvents"]).Should().Equal(primary, second, third);
+
+        var custom = CreateStorageLog(options);
+        custom.CopyFrom(source);
+        custom.Event.Should().BeSameAs(primary);
+        ((List<object>)custom.GetLogs()["AdditionalEvents"]).Should().HaveCount(3);
+    }
+
+    [Fact]
+    public void Events_Should_Bypass_Custom_Sanitizers_At_Capture_And_Emission()
+    {
+        var options = new DiagnosticLogOptions { MaxScopeBytes = 4096, MaxRecordBytes = 4096 };
+        var log = CreateStorageLog(options);
+        var text = new string('e', 8192);
+        var primary = new ScopeEvent(new EventId(42, text), text, text);
+        var additional = new ScopeEvent(new EventId(43, text), text, text);
+        log.WithEvent(primary).WithEvent(additional);
+        log.Sanitizer.DidNotReceive().SanitizeValue(Arg.Any<string>(), Arg.Is<object>(value => value is ScopeEvent));
+
+        var policy = Substitute.For<IDiagnosticSanitizer>();
+        policy.Options.Returns(options);
+        policy.SanitizeValue("", Arg.Any<object>()).Returns(call =>
+        {
+            var diagnostics = (IReadOnlyDictionary<string, object>)call[1];
+            diagnostics.Should().NotContainKey("EventId").And.NotContainKey("AdditionalEvents");
+            return new Dictionary<string, object> { ["Safe"] = true };
+        });
+        var logger = Substitute.For<ILogger>();
+        logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
+        logger.LogScoped(log, LogLevel.Warning, policy);
+        var call = logger.ReceivedCalls().Single(item => item.GetMethodInfo().Name == "Log").GetArguments();
+        ((EventId)call[1]!).Name.Should().Be(text);
+        var state = (IReadOnlyList<KeyValuePair<string, object?>>)call[2]!;
+        var record = (IReadOnlyDictionary<string, object>)state.Single(pair => pair.Key == "@Logs").Value!;
+        record["Safe"].Should().Be(true);
+        record.Should().NotContainKey("OmittedEventCount");
+        record["EventName"].Should().Be(text);
+        record["EventOutcome"].Should().Be(text);
+        record["EventReason"].Should().Be(text);
+        ((List<object>)record["AdditionalEvents"]).Should().Equal(additional);
+    }
+
+    [Fact]
+    public void Foreign_Typed_Events_Should_Survive_While_Ordinary_Fields_Remain_Redacted()
+    {
+        var text = new string('e', 8192);
+        var primary = new ScopeEvent(new EventId(42, text), text, text);
+        var additional = new ScopeEvent(new EventId(43, text), text, text);
+        var source = Substitute.For<IScopedLog>();
+        source.Event.Returns(primary);
+        source.GetLogs().Returns(new Dictionary<string, object>
+        {
+            ["Password"] = "private-probe", ["EventId"] = 42, ["EventName"] = text,
+            ["EventOutcome"] = text, ["EventReason"] = text,
+            ["AdditionalEvents"] = new List<object> { additional }
+        });
+        var logger = Substitute.For<ILogger>();
+        logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
+        logger.LogScoped(source, LogLevel.Information, new DiagnosticSanitizer(new DiagnosticLogOptions
+        {
+            MaxScopeBytes = 4096, MaxRecordBytes = 4096, MaxProcessingMilliseconds = 100
+        }));
+        var call = logger.ReceivedCalls().Single(item => item.GetMethodInfo().Name == "Log").GetArguments();
+        var state = (IReadOnlyList<KeyValuePair<string, object?>>)call[2]!;
+        var record = (IReadOnlyDictionary<string, object>)state.Single(pair => pair.Key == "@Logs").Value!;
+        record["Password"].Should().Be(DiagnosticSanitizer.Redacted);
+        record["EventReason"].Should().Be(text);
+        ((List<object>)record["AdditionalEvents"]).Should().Equal(additional);
+
+        var destination = CreateLog();
+        destination.CopyFrom(source);
+        destination.Event.Should().BeSameAs(primary);
+        destination.GetLogs()["Password"].Should().Be(DiagnosticSanitizer.Redacted);
+        ((List<object>)destination.GetLogs()["AdditionalEvents"]).Should().Equal(additional);
+    }
+
+    [Fact]
+    public void Foreign_Event_Shaped_Diagnostics_Should_Not_Gain_Typed_Event_Authority()
+    {
+        var source = Substitute.For<IScopedLog>();
+        source.GetLogs().Returns(new Dictionary<string, object>
+        {
+            ["AdditionalEvents"] = new List<object>
+            {
+                new Dictionary<string, object> { ["Password"] = "private-probe" }
+            }
+        });
+        var logger = Substitute.For<ILogger>();
+        logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
+        logger.LogScoped(source, LogLevel.Information, new DiagnosticSanitizer(new DiagnosticLogOptions
+        {
+            MaxProcessingMilliseconds = 100
+        }));
+        var call = logger.ReceivedCalls().Single(item => item.GetMethodInfo().Name == "Log").GetArguments();
+        call[2]!.ToString().Should().NotContain("private-probe").And.Contain(DiagnosticSanitizer.Redacted);
+    }
+
+    [Fact]
     public void TraceId_Should_Capture_Activity_And_Remain_Stable()
     {
         using var activity = new Activity("scope-test").SetIdFormat(ActivityIdFormat.W3C).Start();
@@ -387,6 +596,70 @@ public class ScopedLogTests
         log.Add("Custom_TimeSpentOn_Work_Seconds", 1d);
         log.IncreaseTimeSpentOn("Work", TimeSpan.FromSeconds(2), "Custom_").Should().Be(TimeSpan.FromSeconds(3));
         log.GetLogs()["Custom_TimeSpentOn_Work_Counter"].Should().Be(3L);
+    }
+
+    [Fact]
+    public void Rejected_Replacements_Should_Release_Entry_Capacity_And_Byte_Accounting()
+    {
+        var log = CreateStorageLog(new DiagnosticLogOptions { MaxNodes = 16, MaxScopeBytes = 4096 });
+        for (var index = 0; index < 8; index++) log.Store($"Slot{index}", 0L);
+        log.Store("Overflow", 0L);
+        log.GetLogs().Should().NotContainKey("Overflow");
+
+        log.Store("Slot0", new string('x', 4096));
+        log.GetLogs().Should().NotContainKey("Slot0");
+        log.Store("Overflow", 0L);
+        log.GetLogs()["Overflow"].Should().Be(0L);
+        log.Store("Another", 0L);
+        log.GetLogs().Should().NotContainKey("Another");
+    }
+
+    [Fact]
+    public void Failed_Duration_Reservations_Should_Remain_Hidden_And_Not_Consume_Entry_Capacity()
+    {
+        var log = CreateStorageLog(new DiagnosticLogOptions { MaxNodes = 16, MaxScopeBytes = 4096 });
+        var storedKeys = new[] { nameof(ScopedLog), "App_Name", "App_InstanceId", "App_NexusId",
+            "App_NexusInstanceId", "App_Environment", "App_Environment_MachineName", ScopedLogConventions.KeyOfScopeCreatedAt };
+        foreach (var key in storedKeys) log.Store(key, 0L);
+        var counterKey = ScopedLogConventions.TimeSpentOnCounter("Work");
+        var durationKey = ScopedLogConventions.TimeSpentOnKey("Work");
+        using (var sizing = DiagnosticJsonSize.Rent())
+        {
+            var used = storedKeys.Sum(key => sizing.MeasureEntry(key, 0L));
+            var counterReservation = sizing.Measure(counterKey) + 40;
+            // Leave enough for the counter reservation, but not its paired duration reservation.
+            var fillerBytes = 4096 - 2048 - used - counterReservation - 1;
+            log.Store("Filler", new string('x', fillerBytes - sizing.Measure("Filler") - 4));
+        }
+
+        log.IncreaseTimeSpentOn("Work", TimeSpan.FromSeconds(1)).Should().Be(TimeSpan.Zero);
+        log.GetLogs().Should().NotContainKey(counterKey).And.NotContainKey(durationKey);
+        using var settings = SettingsProvider.Development();
+        var copy = new ScopedLog(settings, new DiagnosticSanitizer(new DiagnosticLogOptions { MaxProcessingMilliseconds = 100 }));
+        copy.CopyFrom(log);
+        copy.GetLogs().Should().NotContainKey(counterKey).And.NotContainKey(durationKey);
+
+        log.Store("Filler", "");
+        for (var index = 0; index < 7; index++) log.Store($"Slot{index}", 0L);
+        log.GetLogs()["Slot6"].Should().Be(0L);
+        log.Store("Overflow", 0L);
+        log.GetLogs().Should().NotContainKey("Overflow");
+
+        log.Store("Filler", new string('x', 4096));
+        log.Store(counterKey, 1L);
+        log.GetLogs()[counterKey].Should().Be(1L);
+        log.Increase("TimeSpentOn_Work_Counter").Should().Be(2L);
+    }
+
+    private static ScopedLog CreateStorageLog(DiagnosticLogOptions options)
+    {
+        using var settings = SettingsProvider.Development();
+        var sanitizer = Substitute.For<IDiagnosticSanitizer>();
+        sanitizer.Options.Returns(options);
+        sanitizer.SanitizeKey(Arg.Any<string>()).Returns(call => call.Arg<string>());
+        sanitizer.SanitizeValue(Arg.Any<string>(), Arg.Any<object>()).Returns(call => call[1]);
+        sanitizer.GetStatus().Returns(new Dictionary<string, object>());
+        return new ScopedLog(settings, sanitizer);
     }
 
     [Fact]

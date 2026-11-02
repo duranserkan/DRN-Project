@@ -79,26 +79,30 @@ function renderTime(createdAt) {
     return time;
 }
 
+function renderDiagnosticDetails(details) {
+    const diagnostic = createElement('pre', 'small text-break user-select-text');
+    diagnostic.style.whiteSpace = 'pre-wrap';
+    let inStack = false;
+    for (const [index, line] of details.split('\n').entries()) {
+        if (index) diagnostic.append('\n');
+        const label = !inStack && line.match(/^(Message|Source|Line|Page|Stack):/);
+        if (!label) { diagnostic.append(line); continue; }
+        diagnostic.append(createElement('strong', '', label[0]));
+        const value = line.slice(label[0].length);
+        const location = label[1] === 'Line' && value.match(/^( -?\d+, )(column:)( -?\d+)$/);
+        if (location) diagnostic.append(location[1], createElement('strong', '', location[2]), location[3]);
+        else diagnostic.append(value);
+        inStack = label[1] === 'Stack';
+    }
+    return diagnostic;
+}
+
 function renderOccurrence(entry) {
     const row = createElement('li', 'border-top py-2');
     row.append(renderTime(entry.createdAt));
     if (entry.clientErrorId && entry.clientErrorDetails) {
-        row.append(createElement('h4', 'h6 mt-2', 'Client-side error details'));
-        const diagnostic = createElement('pre', 'small text-break user-select-text');
-        diagnostic.style.whiteSpace = 'pre-wrap';
-        let inStack = false;
-        for (const [index, line] of entry.clientErrorDetails.split('\n').entries()) {
-            if (index) diagnostic.append('\n');
-            const label = !inStack && line.match(/^(Message|Source|Line|Page|Stack):/);
-            if (!label) { diagnostic.append(line); continue; }
-            diagnostic.append(createElement('strong', '', label[0]));
-            const value = line.slice(label[0].length);
-            const location = label[1] === 'Line' && value.match(/^( -?\d+, )(column:)( -?\d+)$/);
-            if (location) diagnostic.append(location[1], createElement('strong', '', location[2]), location[3]);
-            else diagnostic.append(value);
-            inStack = label[1] === 'Stack';
-        }
-        row.append(diagnostic);
+        row.append(createElement('h4', 'h6 mt-2', 'Client-side error details'),
+            renderDiagnosticDetails(entry.clientErrorDetails));
     }
     for (const [label, id] of [['Request reference', entry.requestId], ['Client error reference', entry.clientErrorId]]) {
         if (!id) continue;
@@ -141,7 +145,7 @@ function renderOccurrences(group, expanded) {
             for (const occurrence of group.entries.slice(shown, shown + PAGE_SIZE)) {
                 const row = renderOccurrence(occurrence);
                 firstNewRow ??= row;
-                occurrences.insertBefore(row, more);
+                more.before(row);
             }
             shown += PAGE_SIZE;
             if (moveFocus && firstNewRow) {
@@ -199,15 +203,7 @@ function updateTriggers(entries) {
     }
 }
 
-function refresh(force = false) {
-    panel = document.getElementById(PANEL_ID);
-    const entries = store().list();
-    updateTriggers(entries);
-    if (!panel) return;
-    if (!force && !panel.matches('.show, .showing')) return;
-
-    const search = panel.querySelector('#drn-notification-search');
-    if (search.value !== query) search.value = query;
+function updateFilters(entries) {
     for (const control of panel.querySelectorAll('[data-notification-filter]')) {
         const severity = control.dataset.notificationFilter;
         const count = filterNotifications(entries, severity).length;
@@ -220,6 +216,18 @@ function refresh(force = false) {
         control.classList.add(selected ? `btn-${FILTER_COLORS[severity]}`
             : count > 0 ? `btn-outline-${FILTER_COLORS[severity]}` : 'btn-outline-secondary');
     }
+}
+
+function refresh(force = false) {
+    panel = document.getElementById(PANEL_ID);
+    const entries = store().list();
+    updateTriggers(entries);
+    if (!panel) return;
+    if (!force && !panel.matches('.show, .showing')) return;
+
+    const search = panel.querySelector('#drn-notification-search');
+    if (search.value !== query) search.value = query;
+    updateFilters(entries);
     const filtered = filterNotifications(entries, filter, query);
     const groups = groupNotifications(filtered);
     const list = panel.querySelector('#drn-notification-list');
@@ -259,22 +267,22 @@ async function handleClick(event) {
     if (!(event.target instanceof Element)) return;
     const control = event.target.closest('button');
     if (!control || !panel?.contains(control)) return;
-    if (control.hasAttribute('data-notification-filter')) {
+    if (Object.hasOwn(control.dataset, 'notificationFilter')) {
         filter = control.dataset.notificationFilter;
         limit = PAGE_SIZE;
-    } else if (control.hasAttribute('data-notification-load-more')) {
+    } else if (Object.hasOwn(control.dataset, 'notificationLoadMore')) {
         limit += PAGE_SIZE;
-    } else if (control.hasAttribute('data-notification-clear-all')) {
+    } else if (Object.hasOwn(control.dataset, 'notificationClearAll')) {
         panel.querySelector('#drn-notification-search').focus();
         forgetUndo();
         undoEntries = store().clear();
         undoTimer = setTimeout(() => { forgetUndo(); refresh(); }, 10_000);
         announce('Notifications cleared. Undo is available for ten seconds.');
-    } else if (control.hasAttribute('data-notification-clear-filtered')) {
+    } else if (Object.hasOwn(control.dataset, 'notificationClearFiltered')) {
         panel.querySelector('#drn-notification-search').focus();
         store().dismiss(filterNotifications(store().list(), filter, query).map(entry => entry.id));
         announce('Filtered notifications dismissed.');
-    } else if (control.hasAttribute('data-notification-undo')) {
+    } else if (Object.hasOwn(control.dataset, 'notificationUndo')) {
         const entries = undoEntries;
         forgetUndo();
         store().restore(entries);

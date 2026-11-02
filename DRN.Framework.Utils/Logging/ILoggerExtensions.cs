@@ -23,13 +23,21 @@ public static class ILoggerExtensions
             if (!logger.IsEnabled(level)) return;
             var native = scopedLog as ScopedLog;
             var policy = sanitizer ?? native?.Sanitizer ?? new DiagnosticSanitizer(new DiagnosticLogOptions());
-            var snapshot = scopedLog.GetLogs();
+            ScopeEventSnapshot events;
+            IReadOnlyDictionary<string, object> snapshot;
+            if (native != null) snapshot = native.GetDiagnosticLogs(redact: true, out events);
+            else
+            {
+                var diagnostics = new Dictionary<string, object>(scopedLog.GetLogs(), StringComparer.Ordinal);
+                events = ScopeEventSnapshot.TakeFrom(scopedLog.Event, diagnostics);
+                snapshot = diagnostics;
+            }
             if (native == null || sanitizer != null && !ReferenceEquals(sanitizer, native.Sanitizer))
                 snapshot = policy.SanitizeValue("", snapshot) as IReadOnlyDictionary<string, object>
                            ?? new Dictionary<string, object> { ["DiagnosticSnapshotUnavailable"] = true };
-            var eventId = snapshot.TryGetValue("EventId", out var id) && id is int numeric
-                ? new EventId(numeric, snapshot.GetValueOrDefault("EventName") as string) : default;
-            foreach (var record in DiagnosticLogFormatter.Create(snapshot, policy.Options))
+            var eventId = events.Primary?.Id ?? (snapshot.TryGetValue("EventId", out var id) && id is int numeric
+                ? new EventId(numeric, snapshot.GetValueOrDefault("EventName") as string) : default);
+            foreach (var record in DiagnosticLogFormatter.Create(snapshot, policy.Options, events))
                 logger.Log(level, eventId, new ScopedLogState(record), null, static (state, _) => state.ToString());
         }
         catch (Exception)

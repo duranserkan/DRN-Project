@@ -177,17 +177,6 @@ public sealed class DiagnosticClassificationTests
     }
 
     [Fact]
-    public void Json_Keys_And_Url_Structure_Should_Keep_Their_Independent_Protection()
-    {
-        using var json = JsonDocument.Parse("""{"StatusCode":200,"Password":"json-secret","CallbackUrl":"https://user:pass@example.test/resetpassword/secret?token=secret"}""");
-        var policy = new DiagnosticCapturePolicy(new DiagnosticNameExemption(DiagnosticCaptureKind.JsonProperty, "HTTP status only", "Report", "StatusCode"));
-        var result = JsonSerializer.SerializeToElement(Policy().SanitizeValue("Report", json.RootElement, policy));
-        result.GetProperty("StatusCode").GetInt32().Should().Be(200);
-        result.GetProperty("Password").GetString().Should().Be(DiagnosticSanitizer.Redacted);
-        result.GetProperty("CallbackUrl").GetString().Should().NotContain("user:pass").And.NotContain("=secret").And.NotContain("/secret");
-    }
-
-    [Fact]
     public void Native_Copies_Should_Preserve_Granted_Values_But_Respect_Stricter_Destination_Rules()
     {
         using var settings = SettingsProvider.Development();
@@ -248,6 +237,70 @@ public sealed class DiagnosticClassificationTests
         stricterUrls.GetLogs()["Responses"].Should().Be(DiagnosticSanitizer.Redacted);
     }
 
+    [Fact]
+    public void Missing_Metadata_Should_Not_Gain_Provenance_From_Appended_Captures()
+    {
+        var capture = new DiagnosticCaptureResult("visible", [], []);
+        var missing = default(DiagnosticCaptureMetadata);
+        missing.HasValue.Should().BeFalse();
+        missing.Append(capture).HasValue.Should().BeFalse();
+        Action snapshot = () => missing.Snapshot("visible");
+        snapshot.Should().Throw<InvalidOperationException>();
+
+        var present = new DiagnosticCaptureMetadata(capture);
+        present.HasValue.Should().BeTrue();
+        present.Snapshot("visible").Value.Should().Be("visible");
+    }
+
+    [Fact]
+    public void Appended_Metadata_Should_Reuse_Identical_Url_Rules_And_Intersect_Other_Provenance()
+    {
+        string[] rules = ["handoff", "exchange"];
+        var capture = new DiagnosticCaptureResult("visible", [], rules);
+        var metadata = new DiagnosticCaptureMetadata(capture);
+        metadata = metadata.Append(capture);
+        metadata.Snapshot("visible").UrlRules.Should().BeSameAs(rules);
+        metadata = metadata.Append(capture);
+        metadata.Snapshot("visible").UrlRules.Should().BeSameAs(rules);
+
+        metadata = metadata.Append(capture with { UrlRules = ["handoff", "Exchange"] });
+        metadata.Snapshot("visible").UrlRules.Should().Equal("handoff");
+        metadata = metadata.Append(capture);
+        metadata.Snapshot("visible").UrlRules.Should().Equal("handoff");
+        rules.Should().Equal("handoff", "exchange");
+
+        var missing = capture with { UrlRules = null };
+        metadata = metadata.Append(missing);
+        metadata.Snapshot("visible").UrlRules.Should().BeEmpty();
+        metadata = new DiagnosticCaptureMetadata(missing).Append(missing).Append(capture);
+        metadata.Snapshot("visible").UrlRules.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Appended_List_Metadata_Should_Detach_On_Copy_And_Reset_On_Replacement()
+    {
+        using var settings = SettingsProvider.Development();
+        var source = new ScopedLog(settings, Policy());
+        source.AddToList("Items", new Dictionary<string, string> { ["InitialField"] = "first" });
+        source.AddToList("Items", new Dictionary<string, string> { ["InitialField"] = "second" });
+        var copy = new ScopedLog(settings, Policy());
+        copy.CopyFrom(source);
+
+        source.AddToList("Items", new Dictionary<string, string> { ["LaterField"] = "third" });
+        var earlier = new ScopedLog(settings, Policy("LaterField"));
+        earlier.CopyFrom(copy);
+        JsonSerializer.SerializeToElement(earlier.GetLogs()["Items"]).GetArrayLength().Should().Be(2);
+        var later = new ScopedLog(settings, Policy("LaterField"));
+        later.CopyFrom(source);
+        later.GetLogs()["Items"].Should().Be(DiagnosticSanitizer.Redacted);
+
+        source.Add("Items", "replacement");
+        source.AddToList("Items", "fresh");
+        var replaced = new ScopedLog(settings, Policy("InitialField", "LaterField"));
+        replaced.CopyFrom(source);
+        JsonSerializer.SerializeToElement(replaced.GetLogs()["Items"])[0].GetString().Should().Be("fresh");
+    }
+
     private sealed record CapturedResponse([property: Sensitive(false)] int StatusCode, string CallbackUrl);
 
     [Fact]
@@ -259,8 +312,7 @@ public sealed class DiagnosticClassificationTests
                      ("CallbackUrl", "/?%6fpaque=private"),
                      ("CallbackUri", "/#opaque=private"),
                      ("Request_QueryString", "opaque=private"),
-                     ("Model", new { CallbackUrl = "/?opaque=private" }),
-                     ("Json", JsonSerializer.SerializeToElement(new { CallbackUrl = "/?opaque=private" }))
+                     ("Model", new { CallbackUrl = "/?opaque=private" })
                  })
         {
             var source = new ScopedLog(settings, Policy());
@@ -363,7 +415,7 @@ public sealed class DiagnosticClassificationTests
     [DataInlineUnit("Name")]
     [DataInlineUnit("Outcome")]
     [DataInlineUnit("Reason")]
-    public void Native_Event_Copies_Should_Apply_Destination_Field_Limits(string field)
+    public void Native_Event_Copies_Should_Preserve_Fields_Above_Destination_Field_Limits(string field)
     {
         using var settings = SettingsProvider.Development();
         var text = new string('x', 2048);
@@ -383,17 +435,13 @@ public sealed class DiagnosticClassificationTests
         var destination = new ScopedLog(settings, sanitizer);
         destination.CopyFrom(source);
 
-        var expected = new ScopeEvent(new EventId(42, field == "Name" ? DiagnosticSanitizer.Limited : "Save"),
-            field == "Outcome" ? DiagnosticSanitizer.Limited : null,
-            field == "Reason" ? DiagnosticSanitizer.Limited : null);
-        destination.GetLogs()["Report"].Should().Be(expected);
-        sanitizer.GetStatus()["DiagnosticCaptureWarnings"].Should().BeOfType<string[]>()
-            .Which.Should().Contain("FieldInputLimit");
+        destination.GetLogs()["Report"].Should().BeSameAs(original);
+        sanitizer.GetStatus().Should().NotContainKey("DiagnosticCaptureWarnings");
         source.GetLogs()["Report"].Should().Be(original);
     }
 
     [Fact]
-    public void Native_Event_Copies_Should_Charge_Strings_To_Destination_Input_Budget()
+    public void Native_Event_Copies_Should_Not_Charge_Strings_To_Destination_Input_Budget()
     {
         using var settings = SettingsProvider.Development();
         var text = new string('x', 600);
@@ -409,10 +457,8 @@ public sealed class DiagnosticClassificationTests
         var destination = new ScopedLog(settings, sanitizer);
         destination.CopyFrom(source);
 
-        destination.GetLogs()["Report"].Should().Be(new ScopeEvent(new EventId(42, text),
-            DiagnosticSanitizer.Limited, DiagnosticSanitizer.Limited));
-        sanitizer.GetStatus()["DiagnosticCaptureWarnings"].Should().BeOfType<string[]>()
-            .Which.Should().Contain("ScopeInputLimit");
+        destination.GetLogs()["Report"].Should().BeSameAs(original);
+        sanitizer.GetStatus().Should().NotContainKey("DiagnosticCaptureWarnings");
         source.GetLogs()["Report"].Should().Be(original);
     }
 
@@ -478,12 +524,12 @@ public sealed class DiagnosticClassificationTests
     public void Typed_Collection_Properties_Should_Keep_Their_Own_Names_And_Protect_Untyped_Children()
     {
         var model = new CollectionModel();
-        var data = JsonSerializer.SerializeToElement(Policy().SanitizeValue("ClientReport", model));
+        var data = JsonSerializer.SerializeToElement(Policy().SanitizeValue("ClientReport", model), new JsonSerializerOptions());
         data.GetProperty("Values")[0].GetString().Should().Be("public");
         data.GetProperty("Metadata").GetProperty("Count").GetInt32().Should().Be(3);
         data.GetProperty("Metadata").GetProperty("Password").GetString().Should().Be(DiagnosticSanitizer.Redacted);
-        data.GetProperty("Json").GetProperty("Count").GetInt32().Should().Be(3);
-        data.GetProperty("Json").GetProperty("Password").GetString().Should().Be(DiagnosticSanitizer.Redacted);
+        data.GetProperty("Json").GetProperty("ValueKind").GetInt32().Should().Be((int)JsonValueKind.Object);
+        data.GetProperty("Json").TryGetProperty("Count", out _).Should().BeFalse();
     }
 
     private sealed class CollectionModel

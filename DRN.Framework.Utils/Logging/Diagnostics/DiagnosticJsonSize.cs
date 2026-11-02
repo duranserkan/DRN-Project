@@ -36,6 +36,9 @@ internal sealed class DiagnosticJsonSize : IDisposable
     // Reserve both the property separator and an entry delimiter, including for the first entry.
     internal int MeasureEntry(string key, object value) => Measure(key) + Measure(value) + 2;
 
+    // Reuse the measured item, adding two array brackets, the property separator, and an entry delimiter.
+    internal int MeasureSingleItemListEntry(string key, int itemBytes) => Measure(key) + itemBytes + 4;
+
     private int Complete()
     {
         _writer.Flush();

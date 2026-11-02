@@ -98,20 +98,24 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
             .map(item => normalize(item, now())).filter(item => item?.persist) ?? [];
     }
 
+    function saveSession() {
+        if (!context.owner) return;
+        try {
+            const cache = storage();
+            if (!cache) return;
+            const raw = JSON.stringify(envelope(entries.filter(entry => entry.persist)));
+            if (raw !== lastRaw) cache.setItem(storageKey(), raw);
+            lastRaw = raw;
+        } catch {
+            // Notifications must still work when storage is blocked or its quota is exhausted.
+            try { storage()?.removeItem(storageKey()); lastRaw = null; } catch { /* Storage can be entirely unavailable. */ }
+        }
+    }
+
     function save(initialize = false) {
         if (!context || storageFailed || (suspended && !initialize)) return;
         if (!locks) {
-            if (!context.owner) return;
-            try {
-                const cache = storage();
-                if (!cache) return;
-                const raw = JSON.stringify(envelope(entries.filter(entry => entry.persist)));
-                if (raw !== lastRaw) cache.setItem(storageKey(), raw);
-                lastRaw = raw;
-            } catch {
-                // Notifications must still work when storage is blocked or its quota is exhausted.
-                try { storage()?.removeItem(storageKey()); lastRaw = null; } catch { /* Storage can be entirely unavailable. */ }
-            }
+            saveSession();
             return;
         }
         const next = entries.filter(entry => entry.persist);
@@ -217,6 +221,21 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
         for (const listener of listeners) listener();
     }
 
+    function loadHistory(owner) {
+        try {
+            // An unidentified authenticated user must not retain or restore any account's history.
+            if (!owner && !locks) storage()?.removeItem(storageKey());
+            const raw = owner ? storage()?.getItem(storageKey()) : null;
+            lastRaw = raw;
+            if (raw && encoder.encode(raw).length <= maxBytes) {
+                const saved = JSON.parse(raw);
+                if (saved?.version === 1 && saved.owner === owner && Array.isArray(saved.entries)) {
+                    entries = savedEntries(saved);
+                }
+            }
+        } catch { /* Invalid or unavailable history is replaced with an empty cache. */ }
+    }
+
     function configure(value) {
         const app = stringWithinMaxLength(value?.app, 300);
         const owner = stringWithinMaxLength(value?.owner, 200);
@@ -236,19 +255,7 @@ export function createNotificationStore({ locks = globalThis.navigator?.locks,
         pending = 0;
         scheduledBatch = null;
         lastRaw = null;
-        try {
-            // An unidentified authenticated user must not retain or restore any account's history.
-            if (!owner && !locks) storage()?.removeItem(storageKey());
-            const raw = owner ? storage()?.getItem(storageKey()) : null;
-            lastRaw = raw;
-            if (raw && encoder.encode(raw).length <= maxBytes) {
-                const saved = JSON.parse(raw);
-                if (saved?.version === 1 && saved.owner === owner && Array.isArray(saved.entries)) {
-                    entries = saved.entries.slice(0, maxEntries)
-                        .map(item => normalize(item, now())).filter(item => item?.persist);
-                }
-            }
-        } catch { /* Invalid or unavailable history is replaced with an empty cache. */ }
+        loadHistory(owner);
         persisted = entries.filter(entry => entry.persist);
         entries = [...startupEntries, ...entries];
         pruneSaveAndNotify(true);

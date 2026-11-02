@@ -188,8 +188,6 @@ public class ProjectDiagnosticRulesTests
         sanitizer.SanitizeUrl("/handoff/private?membership_number=member&attempt=2")
             .Should().Be("/handoff/redacted?membership_number=redacted&attempt=2");
         sanitizer.SanitizeUrl("/token/private").Should().Be("/token/redacted");
-        sanitizer.SanitizeBody("{\"membershipNumber\":\"member\"}", "application/json")
-            .Should().NotContain("\"member\"").And.Contain(DiagnosticSanitizer.Redacted);
         sanitizer.SanitizeBody("membershipNumber=member", "application/x-www-form-urlencoded")
             .Should().Be("membershipNumber=%5Bredacted%5D");
     }
@@ -288,6 +286,28 @@ public class ProjectDiagnosticRulesTests
         var destination = new ScopedLog(settings, Policy());
         destination.CopyFrom(source);
         destination.GetLogs()["TargetUrl"].Should().Be("/handoff/redacted?membershipNumber=redacted");
+    }
+
+    [Fact]
+    public void Identically_Configured_Copies_Should_Preserve_Metrics_And_Project_Url_Redaction()
+    {
+        using var settings = SettingsProvider.Development();
+        var source = new ScopedLog(settings, new DiagnosticSanitizer(Options()));
+        source.Increase("Completed", 3);
+        source.IncreaseTimeSpentOn("Work", TimeSpan.FromSeconds(2));
+        source.Add("TargetUrl", "/handoff/private");
+        var destination = new ScopedLog(settings, new DiagnosticSanitizer(Options()));
+
+        destination.CopyFrom(source);
+
+        foreach (var log in new[] { source, destination })
+        {
+            var snapshot = log.GetLogs();
+            snapshot["Stats_Completed"].Should().Be(3L);
+            snapshot["Stats_TimeSpentOn_Work_Counter"].Should().Be(1L);
+            snapshot["Stats_TimeSpentOn_Work_Seconds"].Should().Be(2d);
+            snapshot["TargetUrl"].Should().Be("/handoff/redacted");
+        }
     }
 
     [Fact]

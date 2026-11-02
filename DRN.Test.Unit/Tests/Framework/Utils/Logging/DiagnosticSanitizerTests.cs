@@ -95,21 +95,16 @@ public class DiagnosticSanitizerTests
     }
 
     [Fact]
-    public void Form_And_Json_Bodies_Should_Apply_Configured_Source_Paths()
+    public void Form_Bodies_Should_Apply_Configured_Source_Paths()
     {
         var options = new DiagnosticLogOptions { SensitiveFieldPaths = ["Checkout.Value"] };
         const string form = "%56alue=private&Count=2&Password=secret";
-        const string json = """{"Value":"private","Count":2,"Password":"secret"}""";
 
         foreach (var path in new[] { "/Checkout", "/Other", "" })
         {
             var expected = path == "/Checkout" ? DiagnosticSanitizer.Redacted : "private";
             Policy(options).SanitizeBody(form, "application/x-www-form-urlencoded", path)
                 .Should().Be($"Value={Uri.EscapeDataString(expected)}&Count=2&Password=%5Bredacted%5D");
-            using var body = JsonDocument.Parse(Policy(options).SanitizeBody(json, "application/json", path));
-            body.RootElement.GetProperty("Value").GetString().Should().Be(expected);
-            body.RootElement.GetProperty("Count").GetInt32().Should().Be(2);
-            body.RootElement.GetProperty("Password").GetString().Should().Be(DiagnosticSanitizer.Redacted);
         }
 
         Policy(options).SanitizeUrl("/Checkout?Value=public&Password=secret")
@@ -230,7 +225,16 @@ public class DiagnosticSanitizerTests
             var value = item.GetProperty("value");
             object? actual = item.GetProperty("kind").GetString() switch
             {
-                "field" => sanitizer.SanitizeValue(item.GetProperty("field").GetString()!, value),
+                "field" => sanitizer.SanitizeValue(item.GetProperty("field").GetString()!, value.ValueKind switch
+                {
+                    JsonValueKind.String => value.GetString(),
+                    JsonValueKind.Number => (object)value.GetDecimal(),
+                    JsonValueKind.True => true,
+                    JsonValueKind.False => false,
+                    JsonValueKind.Null => null,
+                    JsonValueKind.Array => value.EnumerateArray().Select(element => element.GetString()).ToArray(),
+                    _ => throw new InvalidOperationException("Golden field cases must supply scalars or string arrays.")
+                }),
                 "url" => sanitizer.SanitizeUrl(value.GetString()),
                 _ => sanitizer.SanitizeText(value.GetString())
             };
@@ -312,7 +316,7 @@ public class DiagnosticSanitizerTests
         log.Add("Json", JsonSerializer.SerializeToElement(new { Password = "json-probe", Description = "available" },
             new JsonSerializerOptions { PropertyNamingPolicy = null }));
 
-        var snapshot = JsonSerializer.SerializeToElement(log.GetLogs());
+        var snapshot = JsonSerializer.SerializeToElement(log.GetLogs(), new JsonSerializerOptions());
         snapshot.GetProperty("Nested").EnumerateObject().Select(property => property.Name)
             .Should().BeEquivalentTo(new[] { "Description", "Password" });
         snapshot.GetProperty("Flat.Description").GetString().Should().Be("available");
@@ -321,8 +325,7 @@ public class DiagnosticSanitizerTests
         snapshot.GetProperty("Map").GetProperty("Password").GetString().Should().Be(DiagnosticSanitizer.Redacted);
         snapshot.GetProperty("Map").GetProperty("Item").EnumerateObject().Select(property => property.Name)
             .Should().BeEquivalentTo(new[] { "Description", "Password" });
-        snapshot.GetProperty("Json").GetProperty("Password").GetString().Should().Be(DiagnosticSanitizer.Redacted);
-        snapshot.GetProperty("Json").GetProperty("Description").GetString().Should().Be("available");
+        snapshot.GetProperty("Json").GetProperty("ValueKind").GetInt32().Should().Be((int)JsonValueKind.Object);
         snapshot.ToString().Should().NotContain("PublicValue").And.NotContain("ClassifiedValue")
             .And.NotContain("IgnoredValue").And.NotContain("-probe");
     }
@@ -395,32 +398,22 @@ public class DiagnosticSanitizerTests
         public override string Ignored { get { GetterReads++; return "override-probe"; } }
     }
 
-    [Theory]
-    [DataInlineUnit(false)]
-    [DataInlineUnit(true)]
-    public void Url_Fields_Should_Have_Equivalent_Protection_In_Dtos_Dictionaries_And_Json(bool camelCase)
+    [Fact]
+    public void Url_Fields_Should_Have_Equivalent_Protection_In_Dtos_And_Dictionaries()
     {
         var dto = new { Url = "/User/ConfirmEmail?code=url-probe&id=42", Count = 2 };
         var dictionary = new Dictionary<string, object> { ["Url"] = dto.Url, ["Count"] = dto.Count };
-        var options = new JsonSerializerOptions { PropertyNamingPolicy = camelCase ? JsonNamingPolicy.CamelCase : null };
-        var urlName = camelCase ? "url" : "Url";
-        var countName = camelCase ? "count" : "Count";
-        (object Value, string UrlName, string CountName)[] inputs =
-            [(dto, "Url", "Count"), (dictionary, "Url", "Count"), (JsonSerializer.SerializeToElement(dto, options), urlName, countName)];
+        object[] inputs = [dto, dictionary];
         foreach (var input in inputs)
         {
-            var safe = JsonSerializer.SerializeToElement(Policy().SanitizeValue("Report", input.Value));
-            safe.GetProperty(input.UrlName).GetString().Should().Be("/User/ConfirmEmail?code=redacted&id=42");
-            safe.GetProperty(input.CountName).GetInt32().Should().Be(2);
+            var safe = JsonSerializer.SerializeToElement(Policy().SanitizeValue("Report", input));
+            safe.GetProperty("Url").GetString().Should().Be("/User/ConfirmEmail?code=redacted&id=42");
+            safe.GetProperty("Count").GetInt32().Should().Be(2);
         }
-
-        using var body = JsonDocument.Parse(Policy().SanitizeBody(JsonSerializer.Serialize(dto, options), "application/json"));
-        body.RootElement.GetProperty(urlName).GetString().Should().Be("/User/ConfirmEmail?code=redacted&id=42");
-        body.RootElement.GetProperty(countName).GetInt32().Should().Be(2);
     }
 
     [Fact]
-    public void Json_Forms_And_Urls_Should_Redact_By_Structure_Only()
+    public void Forms_And_Urls_Should_Redact_By_Structure_Only()
     {
         var policy = Policy();
         policy.SanitizeUrl("https://example.test/path?value=opaque%2Fprobe")
@@ -429,13 +422,88 @@ public class DiagnosticSanitizerTests
         policy.SanitizeUrl("/token%3Dopaque-probe").Should().Be("/token%3Dopaque-probe");
         policy.SanitizeBody("message=password%3Dprobe&password=secret", "application/x-www-form-urlencoded")
             .Should().Be("message=password%3Dprobe&password=%5Bredacted%5D");
-        policy.SanitizeBody("{\"password\":\"json-probe\",\"HasRecoveryCodes\":true}", "application/json")
-            .Should().NotContain("json-probe").And.Contain("HasRecoveryCodes");
         policy.SanitizeBody("QrCodeVerify.Code=123456&count=2", "application/x-www-form-urlencoded")
             .Should().NotContain("123456").And.Contain("count=2");
-        policy.SanitizeBody("{bad secret-probe", "application/json").Should().NotContain("secret-probe");
         policy.SanitizeUrl("https://example.test/?value=%GGsecret-probe").Should().NotContain("secret-probe");
         Policy().SanitizeText("opaque/probe").Should().Be("opaque/probe");
+    }
+
+    [Theory]
+    [DataInlineUnit("application/json")]
+    [DataInlineUnit("application/problem+json")]
+    [DataInlineUnit("application/octet-stream")]
+    public void Unsupported_Bodies_Should_Not_Be_Parsed_Or_Exposed(string contentType)
+    {
+        Policy().SanitizeBody("{\"Password\":\"private-probe\"}", contentType)
+            .Should().Be("[unsupported diagnostic body]");
+        Policy().SanitizeBody("{malformed private-probe", contentType)
+            .Should().Be("[unsupported diagnostic body]");
+        Policy().SanitizeBody("", contentType).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Capture_Should_Preserve_Scalars_And_Project_Ordinary_Public_Properties()
+    {
+        var policy = Policy(new DiagnosticLogOptions { MaxProcessingMilliseconds = 100 });
+        policy.SanitizeValue("Value", null).Should().BeNull();
+        policy.SanitizeValue("Count", 42).Should().Be(42);
+        policy.SanitizeValue("Value", "visible").Should().Be("visible");
+        using var document = JsonDocument.Parse("""{"Count":2,"Password":"private"}""");
+        var result = JsonSerializer.SerializeToElement(policy.SanitizeValue("Report", document.RootElement), new JsonSerializerOptions());
+        result.GetProperty("ValueKind").GetInt32().Should().Be((int)JsonValueKind.Object);
+        result.TryGetProperty("Count", out _).Should().BeFalse();
+        result.TryGetProperty("Password", out _).Should().BeFalse();
+        var container = JsonSerializer.SerializeToElement(policy.SanitizeValue("Document", document), new JsonSerializerOptions());
+        container.GetProperty("RootElement").GetProperty("ValueKind").GetInt32().Should().Be((int)JsonValueKind.Object);
+        policy.SanitizeValue("Items", new System.Text.Json.Nodes.JsonArray(1, 2))
+            .Should().Be("[unsupported lazy diagnostic collection]");
+    }
+
+    [Fact]
+    public void Capture_Should_Distinguish_Shared_Children_From_Ancestor_Cycles()
+    {
+        var policy = Policy(new DiagnosticLogOptions { MaxProcessingMilliseconds = 100 });
+        var child = new List<object> { 42 };
+        var root = new List<object> { child, child };
+        root.Add(root);
+
+        var result = JsonSerializer.SerializeToElement(policy.SanitizeValue("Items", root));
+        result.GetArrayLength().Should().Be(3);
+        result[0][0].GetInt32().Should().Be(42);
+        result[1][0].GetInt32().Should().Be(42);
+        result[2].GetString().Should().Be("[diagnostic cycle]");
+    }
+
+    [Fact]
+    public void Reentrant_Capture_Should_Use_Independent_Ancestor_Tracking()
+    {
+        var policy = Policy(new DiagnosticLogOptions { MaxProcessingMilliseconds = 100 });
+        var root = new List<object>();
+        var reading = false;
+        object? reentrantResult = null;
+        root.Add(new ReentrantCapture(() =>
+        {
+            if (reading) return 42;
+            reading = true;
+            try
+            {
+                reentrantResult = policy.SanitizeValue("Items", root);
+                return 42;
+            }
+            finally { reading = false; }
+        }));
+
+        var result = JsonSerializer.SerializeToElement(policy.SanitizeValue("Items", root));
+        result[0].GetProperty("Value").GetInt32().Should().Be(42);
+        reentrantResult.Should().NotBeNull();
+        var nested = JsonSerializer.SerializeToElement(reentrantResult);
+        nested[0].GetProperty("Value").GetInt32().Should().Be(42);
+    }
+
+    // Object-typed properties are intentionally ignored by diagnostic capture.
+    private sealed class ReentrantCapture(Func<int> read)
+    {
+        public int Value => read();
     }
 
     [Fact]

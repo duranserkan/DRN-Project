@@ -1,10 +1,40 @@
 using System.Text.Json;
+using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Logging.Diagnostics;
+using Microsoft.Extensions.Logging;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Logging;
 
 public class DiagnosticLogFormatterTests
 {
+    [Fact]
+    public void Events_Should_Be_Complete_On_The_Parent_Without_Consuming_Diagnostic_Budgets()
+    {
+        var text = new string('e', 20000);
+        var primary = new ScopeEvent(new EventId(42, text), text, text);
+        var additional = new ScopeEvent(new EventId(43, text), text, text);
+        var detail = new string('d', 9000);
+        var records = DiagnosticLogFormatter.Create(new Dictionary<string, object> { ["Detail"] = detail },
+            new DiagnosticLogOptions { MaxRecordBytes = 4096 }, new ScopeEventSnapshot(primary, [additional], 2));
+
+        records.Count.Should().BeGreaterThan(1);
+        records[0]["EventId"].Should().Be(42);
+        records[0]["OmittedEventCount"].Should().Be(2L);
+        records[0]["EventName"].Should().Be(text);
+        records[0]["EventOutcome"].Should().Be(text);
+        records[0]["EventReason"].Should().Be(text);
+        ((List<object>)records[0]["AdditionalEvents"]).Should().Equal(additional);
+        JsonSerializer.SerializeToUtf8Bytes(records[0]).Length.Should().BeGreaterThan(4096);
+        foreach (var child in records.Skip(1))
+        {
+            child.Should().NotContainKey("AdditionalEvents");
+            child.Should().NotContainKey("OmittedEventCount");
+            JsonSerializer.SerializeToUtf8Bytes(child).Length.Should().BeLessThanOrEqualTo(4096);
+        }
+        using var payload = Reconstruct(records.Skip(1));
+        payload.RootElement.GetProperty("Detail").GetString().Should().Be(detail);
+    }
+
     [Fact]
     public void Escaped_Fragments_Should_Stay_Within_Byte_Limits_And_Reconstruct_Exactly()
     {

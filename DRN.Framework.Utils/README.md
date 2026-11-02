@@ -552,13 +552,17 @@ Inside an operation with an injected `IScopedLog`:
 log.WithEvent(new ScopeEvent(OrderLogEvents.OrderProcessed, "success", "completed"));
 ```
 
-`WithEvent` sets the first event as primary. `EventId`, `EventName`, `EventOutcome`, and `EventReason` expose it directly and appear in `GetLogs()`. Later calls retain their `ScopeEvent` values under `AdditionalEvents` without replacing the primary event. `LogScoped` passes the primary .NET `EventId` to `ILogger` and preserves exception/warning severity.
+`WithEvent` sets the first event as primary. `EventId`, `EventName`, `EventOutcome`, and `EventReason` expose it directly and appear in `GetLogs()`. The next eight events appear under `AdditionalEvents`. Further events are omitted without throwing. `OmittedEventCount` appears in snapshots and emitted logs only when greater than zero. The same limit applies to `ScopeEvent` values added through `AddToList("AdditionalEvents", ...)`.
 
-`CopyFrom` keeps destination correlation, trace, and primary event ownership. Source events are retained as additional events when a primary already exists.
+Event contents are preserved without sanitization or byte limits, including when a custom sanitizer is supplied. Keep event names, outcomes, and reasons safe to log. A `ScopeEvent` passed through ordinary `Add` retains its contents, but its containing diagnostic field remains subject to classification and output limits.
 
-Native copies preserve metric exemptions and accumulated values while enforcing destination rules. Custom sanitizers receive redacted source snapshots instead of internal capture values.
+`LogScoped` passes the primary .NET `EventId` to `ILogger` and preserves exception/warning severity. Retained events and any omission count appear on the first record, which can exceed diagnostic byte limits. Providers may impose their own record limits. See [emission and reconstruction](Logging/Diagnostics/README.md#emission-and-reconstruction) for split logs.
 
-`GetLogs` returns detached sanitized snapshots. Later caller mutations or additions do not change earlier snapshots. `CopyFrom` preserves destination ownership and sanitizes new inputs, including foreign implementations. Redaction uses field names, explicit URL structure, and classification attributes. Free-text contents are preserved within capture limits; classify sensitive fields or omit sensitive text before logging.
+`CopyFrom` preserves destination correlation, trace, and existing events. When a primary already exists, the source primary joins the additional events. Copies respect the eight-event limit and accumulate source omissions plus any events omitted at the destination.
+
+Copies between native scoped logs preserve metric exemptions and accumulated values while enforcing destination rules. Copies to custom sanitizers use redacted diagnostics.
+
+`GetLogs` returns detached snapshots with sanitized diagnostics and unchanged retained events. Later mutations or additions do not change earlier snapshots. Diagnostic redaction uses field names, URL structure, and classification attributes. Free text is preserved within capture limits, so classify sensitive fields or omit sensitive text before logging.
 
 ### OpenTelemetry correlation
 
@@ -574,7 +578,8 @@ Add project-specific names through `data-classification-rules.json`. Register an
 
 The shared name catalog protects CVV/CVC/PIN-code fields, usernames, first/last names, dates of birth, and IBAN fields. Matching ignores ASCII case and separators. See the [diagnostic rule boundaries](Logging/Diagnostics/README.md#compile-time-classification) before adding broader patterns.
 
-`AddProperties` and nested object projection capture public instance getters once and skip indexers and `[IgnoreLog]` members. Public fields are omitted. Captured values retain classification metadata for default redaction in `GetLogs()`, `LogScoped()`, and `ToString()`. In Development, `ScopedLog.GetLogs(redact: false)` returns an unredacted view of the same bounded capture; other environments reject this flag. Name-based redaction also applies to dictionary keys, JSON properties, and explicitly named log entries. Getter failures produce safe markers. Direct sanitizer calls still redact immediately and skip classified getters. Add classification to nonstandard secret-bearing properties before logging them.
+`AddProperties` and nested object projection capture public instance getters once and skip indexers and `[IgnoreLog]` members. Public fields are omitted. Captured values retain classification metadata for default redaction in `GetLogs()`, `LogScoped()`, and `ToString()`. In Development, `ScopedLog.GetLogs(redact: false)` returns an unredacted view of the same bounded capture; other environments reject this flag. Name-based redaction also applies to dictionary keys and explicitly named log entries. Getter failures produce safe markers. Direct sanitizer calls still redact immediately and skip classified getters. Add classification to nonstandard secret-bearing properties before logging them.
+
 
 ```csharp
 public class OrderService(IScopedLog logger)
@@ -1007,11 +1012,11 @@ The default limit is 10 MiB. `Validate` and `ValidateAsync` return bytes only th
 
 ## Diagnostics
 
-JSON and form-body redaction applies configured field paths using the supplied source path and decoded field names. URL query keys remain independent of the URL path.
+Form-body redaction applies configured field paths using the supplied source path and decoded field names. URL query keys remain independent of the URL path.
 
 `AddDrnUtils` registers the diagnostic redactor for Sensitive, Personal, and the combined classification set. Each returns `[redacted]` through `IRedactorProvider`.
 
-Positive classifications and `[IgnoreLog]` on mapped interface properties also protect concrete and nested diagnostic captures. Runtime type decisions are cached, and existing service discovery registers known closed types in frozen lookups with a cached fallback for later types. Snapshots remain detached and bounded. These optimizations do not make capture or export allocation-free.
+Positive classifications and `[IgnoreLog]` on interface properties also protect concrete and nested diagnostic captures. Diagnostic snapshots are detached and bounded.
 
 URL redaction uses plain `redacted` in protected path segments, query values, and named fragment values. Bare fragments such as `#installation` are preserved. Ordinary diagnostic values and whole-field redaction use `[redacted]`. See the [diagnostic policy](Logging/Diagnostics/README.md).
 

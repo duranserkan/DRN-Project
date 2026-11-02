@@ -1,6 +1,6 @@
 # Diagnostic redaction and grouping
 
-Use `IScopedLog` for private diagnostic context. Native scoped logs capture bounded, detached values once and preserve classification metadata. `GetLogs()` redacts by default; `LogScoped()` and `ToString()` use that redacted view. Sensitive values remain in scope memory until the scope is released. Keep public notifications and Problem Details safe independently of diagnostic retention.
+Use `IScopedLog` for private diagnostic context. Scoped logs capture bounded, detached diagnostic values once. `GetLogs()` redacts diagnostics by default; `LogScoped()` and `ToString()` use that redacted view. [Scope events](../../README.md#scope-events) retain their contents without redaction. Sensitive diagnostic values remain in scope memory until the scope is released. Keep public notifications and Problem Details safe independently of diagnostic retention.
 
 In Development, `ScopedLog.GetLogs(redact: false)` returns an unredacted view of the same capture. Other environments reject this flag. Development exception pages opt out for logs and request details while retaining capture limits, `[IgnoreLog]`, buffering rules, and HTML encoding. Direct sanitizer calls still redact immediately. Custom capture implementations and previously sanitized values cannot recover removed data. Configuration debug-view protections remain separate. Keep Development pages and saved startup reports private.
 
@@ -63,11 +63,11 @@ Code fixes offer separate Personal and Sensitive actions, with Fix All for the s
 
 Bare `[Sensitive(false)]` opts one property out of built-in name rules. `Justification` is optional. It represents `DataClassification.None`, while carrying an explicit DRN exemption. It is invalid on types and fields. Positive classification on the property, inherited property, declared property type or runtime value type still wins. `[IgnoreLog]` still prevents capture. An unchanged inherited property keeps its exemption; an override or hidden property needs its own. Interface annotations do not automatically annotate implementations. Interface-typed `AddProperties` capture checks both the declared property and its implementation for positive classification and ignore attributes, while retaining the declared property name.
 
-False does not exempt descendants, dictionary keys, JSON properties or a parent prefix. Additional configured sensitive rules, capture limits and URL structural protection remain authoritative. `[IgnoreLog, Sensitive(false)]` satisfies the analyzer but remains ignored during capture.
+False does not exempt descendants, dictionary keys or a parent prefix. Additional configured sensitive rules, capture limits and URL structural protection remain authoritative. `[IgnoreLog, Sensitive(false)]` satisfies the analyzer but remains ignored during capture.
 
 ### Typed models and untyped entries
 
-Anonymous objects remain allowed when their property names do not match diagnostic name rules. Every anonymous creation is checked independently, including nested objects, collection entries, lambdas, inferred member names and generated code, even without logging. A matching name requires conversion to a named class or record with `[Sensitive]`, `[Personal]`, or `[Sensitive(false)]` for a reviewed false positive. An annotation on a source property does not transfer to an inferred anonymous property. Reason strings, capture policies and `[IgnoreLog]` do not bypass this requirement. This checks names, not the contents of values. Dictionary and JSON keys retain their existing capture rules.
+Anonymous objects remain allowed when their property names do not match diagnostic name rules. Every anonymous creation is checked independently, including nested objects, collection entries, lambdas, inferred member names and generated code, even without logging. A matching name requires conversion to a named class or record with `[Sensitive]`, `[Personal]`, or `[Sensitive(false)]` for a reviewed false positive. An annotation on a source property does not transfer to an inferred anonymous property. Reason strings, capture policies and `[IgnoreLog]` do not bypass this requirement. This checks names, not the contents of values. Dictionary keys retain their existing capture rules.
 
 For example, replace `new { StatusCode = 200, Password = password }` with an instance of:
 
@@ -81,7 +81,7 @@ Upgrading also diagnoses existing configuration projections and generated schema
 
 Named classes and structs own classification through their property names and annotations. `AddProperties("ClientReport", model)`, `Add("ClientReport", model)` and `SanitizeValue("ClientReport", model)` do not apply built-in name rules to the model's logging prefix. Each typed property starts a fresh name check. Matching property names still need classification or `[Sensitive(false)]`. Configured `SensitiveFields` and `SensitiveFieldPaths` always check the complete capture path, including prefixes. Type classifications also remain authoritative in redacted views.
 
-Anonymous objects, dictionaries, JSON and scalar entries retain structural name matching. Inside a typed property, untyped children match relative to that property's name, without the logging prefix. A typed collection property does not exempt its entries, and lazy collections are still not enumerated. Browser data is untyped and retains its existing full-path rules.
+Anonymous objects, dictionaries and scalar entries retain structural name matching. Inside a typed property, untyped children match relative to that property's name, without the logging prefix. A typed collection property does not exempt its entries, and lazy collections are still not enumerated. Browser data is untyped and retains its existing full-path rules.
 
 For one application-reviewed scalar, pass a nonblank reason directly. Supported values are strings, characters, booleans, signed/unsigned 8/16/32/64-bit integers, float, double, decimal, enums, Guid, DateTime, DateTimeOffset, DateOnly, TimeOnly, TimeSpan, and Uri. Nullable versions and null are accepted. Null remains null in sanitizer output; scoped logs retain their empty-string representation. The reason is for code review, not content-based validation. Blank or oversized reasons and unsupported values return an unavailable marker without traversal. Do not take exemption reasons from request input.
 
@@ -92,7 +92,7 @@ log.Add("Response_StatusCode", 503, exemptionReason: "HTTP response status only.
 sanitizer.SanitizeValue("Response_StatusCode", 503, exemptionReason: "HTTP response status only.");
 ```
 
-These overloads do not construct a policy object. They retain positive classification, configured rules, URL sanitization and budgets. TimeSpan capture applies the exception to its generated `_Seconds` entry. Import `DRN.Framework.Utils.Logging.Diagnostics` for interface extension overloads. Existing interfaces need no new implementation members; custom loggers and sanitizers fall back to their existing behavior without exemptions.
+These overloads retain positive classification, configured rules, URL sanitization and budgets. TimeSpan capture applies the exception to its generated `_Seconds` entry. Import `DRN.Framework.Utils.Logging.Diagnostics` for interface extension overloads. Custom loggers and sanitizers fall back to their existing behavior without exemptions.
 
 ### Dictionary classifications
 
@@ -105,7 +105,7 @@ log.AddDictionary("Response", values,
     new("StatusCode", DiagnosticDataKind.NonSensitive, "HTTP response status."));
 ```
 
-Sensitive and Personal redact the entire value without traversing it. NonSensitive requires a nonblank, bounded application-authored reason and a supported scalar value. Invalid classifications fail the capture closed. A NonSensitive complex value produces an unavailable marker. Positive classifications win over conflicting NonSensitive entries, runtime type classifications remain protected, and configured rules always win. Key comparison is exact and case-sensitive. Missing classifications retain name-based protection.
+Sensitive and Personal redact the entire value. Direct `SanitizeDictionary` skips traversal. Scoped `AddDictionary` captures values for Development-only unredacted reads, so getters may run. NonSensitive requires a nonblank, bounded application-authored reason and a supported scalar value. Invalid classifications fail the capture closed. A NonSensitive complex value produces an unavailable marker. Positive classifications win over conflicting NonSensitive entries, runtime type classifications remain protected, and configured rules always win. Key comparison is exact and case-sensitive. Missing classifications retain name-based protection.
 
 Dictionary classification captures check each key independently of the logging prefix. Configured rules still inspect the full path. Classifications apply only at the current dictionary level. Nested dictionaries retain structural name matching and need separate classified capture when they contain matching keys. There is no subtree grant. URLs, capture budgets, detached snapshots and stricter-destination checks remain enforced. Foreign logger/sanitizer implementations receive an unavailable marker because they cannot enforce these classifications.
 
@@ -117,11 +117,11 @@ Construct `DiagnosticCapturePolicy` with `DiagnosticNameExemption` entries. Each
 
 Keep `AddWithPolicy`, `AddPropertiesWithPolicy` and `SanitizeWithPolicy` for multiple exceptions or specific nested nodes. Construct policies only in trusted application code. An empty policy grants nothing. Reason-bearing and policy-bearing calls acknowledge the runtime boundary without suppressing independent property-declaration diagnostics.
 
-Exceptions identify the exact capture kind and original path segments with a required nonblank reason. `NamedEntry` identifies an Add/SanitizeValue root, `ObjectRoot` an AddProperties prefix, and Property, DictionaryKey or JsonProperty identifies a child. ListItem appends an invariant numeric index segment, while name matching retains the collection's field path. Dotted keys are one segment, distinct from nested paths. Case/separator normalization does not broaden exception identity. Policies are immutable and bounded by capture limits. There are no wildcards or subtree grants.
+Exceptions identify the exact capture kind and original path segments with a required nonblank reason. `NamedEntry` identifies an Add/SanitizeValue root, `ObjectRoot` an AddProperties prefix, and Property or DictionaryKey identifies a child. ListItem appends an invariant numeric index segment, while name matching retains the collection's field path. Dotted keys are one segment, distinct from nested paths. Case/separator normalization does not broaden exception identity. Policies are immutable and bounded by capture limits. There are no wildcards or subtree grants.
 
-For an anonymous object under `ClientError`, exempting the root permits traversal only. Its children still match the full untyped path and require separate decisions. Named models need no root exemption, but their individual properties retain classification and getter protection. Calling SanitizeText does not certify text as non-sensitive. A property carrying a dictionary or JSON value cannot authorize its entries.
+For an anonymous object under `ClientError`, exempting the root permits traversal only. Its children still match the full untyped path and require separate decisions. Named models need no root exemption, but their individual properties retain classification and getter protection. Calling SanitizeText does not certify text as non-sensitive. A property carrying a dictionary cannot authorize its entries.
 
-Native ScopedLog copies preserve bound decisions alongside detached values, only when the destination's configured name rules permit them. A stricter destination rule conservatively redacts the copied entry. Additional destination URL rules also redact the entry conservatively. Copied event names, outcomes and reasons obey destination field and input budgets. Replacing values invalidates grants. Public snapshots contain no grant token, and foreign snapshots receive ordinary protection when re-entering capture. Re-adding a public snapshot may redact an otherwise exempted value again.
+Copies between native scoped logs preserve exemptions only when the destination's configured rules permit them. Stricter name or URL rules may redact the entire copied diagnostic entry. Replacing a value removes its exemption. Re-adding a public snapshot applies ordinary protection and may redact an otherwise exempted value again.
 
 ### Boundaries and migration
 
@@ -133,19 +133,15 @@ The analyzer checks declarations independently of logging and supplements them w
 
 This upgrade can break builds containing matching unclassified properties. Review each finding, select the correct classification, or explicitly declare a false positive. Do not mass-apply Sensitive or disable all test analysis. Standard per-diagnostic suppression is available for deliberate runtime regression fixtures and staged migration, but does not disable runtime protection. Excluding transitive analyzer assets also prevents compiler enforcement.
 
-Analyzer and runtime embed the same source-owned rule catalog and share normalization/matching code. Runtime caches a bounded number of repeated path decisions per sanitizer policy. Type classifications, including negative results, and readable member metadata are cached separately. Existing `AddServicesWithAttributes` discovery registers closed types in a frozen lookup per assembly. Attribute inspection and member plans are lazy. Closed generics and other types discovered later use the same metadata rules through a cached fallback. Registration does not invoke model getters or classification attribute constructors.
+Positive classifications and `[IgnoreLog]` on interface properties also protect concrete and nested captures, including inherited implementations. A positive interface classification overrides an implementation's `[Sensitive(false)]`. Interface exemptions do not waive concrete property name rules. An unrelated explicit interface implementation does not classify a same-named public property.
 
-Runtime member plans include positive classifications and `[IgnoreLog]` from mapped interface properties. These protections also apply to concrete and nested capture, including inherited implementations. A positive interface classification defeats an implementation's `[Sensitive(false)]`. Interface exemptions do not waive concrete property name rules. An unrelated explicit interface implementation does not classify a same-named public property. Compiler declaration requirements remain unchanged.
-
-Native snapshot reads materialize one detached value tree while storage is stable. Native copies retain their separate detached capture path. JSON byte accounting reuses a writer with a pooled discard buffer that is cleared on return. Fragment sizing measures spans and creates only the accepted fragment string. Capture still uses reflection getters and may box values. Paths, detached collections, and final output still allocate. No source generator is used, and neither allocation-free capture nor a measured speedup is claimed.
-
-Deferred URL and query-string reads apply captured source rules before destination rules. Source processing has a fresh budget for each value. Destination accounting remains cumulative across the snapshot. Reusing source policy preparation does not extend the destination budget or retain source workers between snapshots. A single source needs no cache dictionary. Additional sources use reference-identity lookup. Failure snapshots are allocated only on failure and remain independent between reads.
+Copied URLs and query strings retain source protection and also apply destination rules.
 
 The shared [rule catalog](data-classification-rules.json) matches substrings after removing separators and normalizing ASCII case. Built-in rules check typed property names and untyped structural paths. Configured rules always check full paths. Patterns such as `secret`, `token`, `client`, `cred`, `conn`, `code`, and `key` protect matching names unless an applicable explicit exception permits that node. Secret matching uses `secret`, so `Seconds`, `Section`, and `ResponseCaptureLimited` do not match merely because they contain `sec`. Unmatched text fields retain their contents within capture limits. URL segment rules use the same matching to redact the following segment and cannot be waived by name exceptions.
 
 The catalog also protects `cvv`, `cvc`, and `pincode` as secret fields, and `username`, `firstname`, `lastname`, `dateofbirth`, `birthdate`, and `iban` as personal fields. Separator and case variants match too. Broad patterns such as `name`, `address`, `pin`, `pan`, and `otp` are not included: they would match ordinary names such as `FileName`, `ServiceAddress`, `ShippingMethod`, `Panel`, and `RootPath`. Classify secret-bearing OTP properties explicitly with `[Sensitive]`.
 
-For untyped JSON or forms, extend `DiagnosticLogging` with `SensitiveFields`, `SensitiveFieldPaths`, or `SensitivePathSegments`. Custom rules also use normalized substring matching; rules that normalize to empty are ignored. Additional rules cannot remove built-in protection. Bootstrap `ScopedLog(IAppSettings)` uses the same configuration as DI. Direct duration-field additions and copied snapshots remain eligible for capture unless another rule matches their path; dedicated metric methods check the operation name before generating their metric keys.
+For untyped dictionaries or forms, extend `DiagnosticLogging` with `SensitiveFields`, `SensitiveFieldPaths`, or `SensitivePathSegments`. Custom rules also use normalized substring matching; rules that normalize to empty are ignored. Additional rules cannot remove built-in protection. Bootstrap `ScopedLog(IAppSettings)` uses the same configuration as DI. Direct duration-field additions and copied snapshots remain eligible for capture unless another rule matches their path; dedicated metric methods check the operation name before generating their metric keys.
 
 ```csharp
 public sealed class Operation(IScopedLog log)
@@ -181,7 +177,7 @@ Register the project's own file as an embedded resource:
 </ItemGroup>
 ```
 
-SharedKernel build targets forward recognized embedded catalogs to the analyzer and generate a `DataClassificationRulesAttribute` carrying the same text. This metadata survives reference-assembly generation, so analyzers inherit catalogs from referenced projects that consume SharedKernel, including transitive consumers. The generated attribute also establishes the SharedKernel reference for catalog-only projects. Catalogs from unrelated assemblies are ignored. Dependencies must be rebuilt with these targets to publish their catalogs. Analyzers read symbols and never load or execute dependency assemblies.
+Analyzers inherit catalogs from referenced projects that consume SharedKernel, including transitive references. Rebuild dependencies with SharedKernel's build targets to make their catalogs available. Catalogs from unrelated assemblies are ignored.
 
 To load those same embedded/inherited catalogs at runtime, name the application assembly:
 
@@ -193,9 +189,9 @@ To load those same embedded/inherited catalogs at runtime, name the application 
 }
 ```
 
-Runtime follows that assembly's reference graph and includes catalogs from SharedKernel consumers using the same parser and merge logic. It reads attribute metadata without invoking attribute constructors. Missing dependencies or invalid inherited catalogs fail loading. The graph is cached per root assembly. No loose catalog file needs to be deployed for this mode. Assemblies introduced outside that reference graph, such as separately loaded plugins, are not implicitly included.
+Runtime includes catalogs from referenced SharedKernel consumers. Missing transitive dependencies are skipped. Invalid inherited catalogs fail loading. No loose catalog file needs to be deployed for this mode. Separately loaded plugins outside the application's references are not implicitly included.
 
-Alternatively, register a loose file as an AdditionalFiles item. It is also published in generated assembly metadata for downstream analysis. If runtime uses RuleFile, copy the same file to build and publish output:
+Alternatively, register a loose file as an AdditionalFiles item. Referencing projects inherit these rules too. If runtime uses RuleFile, copy the same file to build and publish output:
 
 ```xml
 <ItemGroup>
@@ -228,13 +224,14 @@ The browser imports the built-in catalog at bundle time. Server RuleFile setting
 
 ## Supported capture and limits
 
-JSON and form bodies match configured field paths against the supplied source path and decoded field name. For example, `Checkout.Value` protects the `Value` form field when the source path is `/Checkout`. URL query and fragment keys remain independent of the URL path.
+Form bodies match configured field paths against the supplied source path and decoded field name. For example, `Checkout.Value` protects the `Value` form field when the source path is `/Checkout`. URL query and fragment keys remain independent of the URL path.
 
 Browser array capture retains at most the first 256 positions, followed by a limit marker when truncated. Holes become null, getters are not invoked, and sparse indices cannot expand the captured array beyond this bound.
 
-The sanitizer supports text, URLs, UTF-8 JSON/text/form bodies, primitives, JSON trees, dictionaries, lists, scope events, and DTO projections. Object projections capture readable public instance properties only. Public fields are omitted, including on nested objects. Name-based redaction still applies to properties, dictionary keys, JSON properties, and explicitly named log entries. It produces detached values. It skips indexers, catches getter failures, detects cycles, and replaces unsupported lazy collections. It never falls back to an arbitrary object's `ToString`. Application getters cannot be preempted, so use small purpose-built diagnostic DTOs.
+The sanitizer supports text, URLs, UTF-8 text/form bodies, primitives, dictionaries, lists, scope events, and DTO projections. Object projections capture readable public instance properties only. Public fields are omitted, including on nested objects. Name-based redaction still applies to properties, dictionary keys, and explicitly named log entries. It produces detached values. It skips indexers, catches getter failures, detects cycles, and replaces unsupported lazy collections. It never falls back to an arbitrary object's `ToString`. Application getters cannot be preempted, so use small purpose-built diagnostic DTOs.
 
-Explicit URL capture and fields ending in `Url` or `Uri` remove user information and apply named query and path rules. Fragments containing `=` use field-name rules for their pairs; bare fragments retain their URL representation without content inspection. Fields ending in `QueryString` and form bodies apply field-name rules to their pairs. Supported percent encodings are decoded before matching; bare fragments are not decoded for matching. Unmatched values, including nested URL strings inside query values, receive no content inspection. JSON bodies are parsed before field projection. Malformed JSON and invalid encodings encountered during matching produce unavailable markers. Plain text is never parsed as JSON, assignments, or URLs.
+
+Explicit URL capture and fields ending in `Url` or `Uri` remove user information and apply named query and path rules. Fragments containing `=` use field-name rules for their pairs; bare fragments retain their URL representation without content inspection. Fields ending in `QueryString` and form bodies apply field-name rules to their pairs. Supported percent encodings are decoded before matching; bare fragments are not decoded for matching. Unmatched values, including nested URL strings inside query values, receive no content inspection. Invalid encodings encountered during matching produce unavailable markers. Plain text is never parsed as JSON, assignments, or URLs.
 
 | Budget | Default |
 |---|---:|
@@ -247,15 +244,17 @@ Explicit URL capture and fields ending in `Url` or `Uri` remove user information
 | Key/path | 256 UTF-8 bytes |
 | Active sanitization work | 50 ms per scope |
 
-`DiagnosticLogOptions` owns validated configuration ranges. Work checks run between sanitizer operations and cannot preempt user getters. Repeated additions share capture budgets. Oversized or incomplete raw fields become reason markers before clipping. Snapshot reads use a separate bounded read budget without consuming the capture budget again. Both views retain output limits. `DiagnosticCaptureWarnings`, `DiagnosticScopeLimit`, and `DiagnosticCaptureLimited` identify capture loss. Output limits include JSON escaping and record metadata, but exclude provider-specific envelopes.
+`DiagnosticLogOptions` owns validated configuration ranges. Work checks run between sanitizer operations and cannot preempt user getters. Repeated diagnostic additions share capture budgets. Oversized or incomplete raw fields become reason markers before clipping. Snapshot reads use a separate bounded read budget without consuming the capture budget again. Both diagnostic views retain output limits. `DiagnosticCaptureWarnings`, `DiagnosticScopeLimit`, and `DiagnosticCaptureLimited` identify diagnostic capture loss. Output limits include JSON escaping and record metadata, but exclude provider-specific envelopes and scope events.
+
+Scope events have a separate limit of one primary and eight additional events. Further events are omitted without throwing, with `OmittedEventCount` included only when nonzero. See [scope events](../../README.md#scope-events) for capture and copy behavior.
 
 HTTP error response capture reads at most the field limit plus one byte, restores seekable stream positions, and does not dispose the response. Unsupported encodings/content types and failed reads produce markers. No new request-body capture is enabled.
 
 ## Emission and reconstruction
 
-Call `logger.LogScoped(log)` or `logger.LogScoped(log, LogLevel.Warning)` for explicit severity. Disabled levels skip snapshotting and formatting. Foreign `IScopedLog` implementations are sanitized at emission. Pass the application's sanitizer through the four-argument overload when a foreign implementation needs custom field or URL rules. Sink failures are contained without retries and can lose an entire emission.
+Call `logger.LogScoped(log)` or `logger.LogScoped(log, LogLevel.Warning)` for explicit severity. Disabled levels skip snapshotting and formatting. Diagnostics from custom `IScopedLog` implementations are sanitized at emission. Supply the application's sanitizer when custom field or URL rules are needed. Sink failures are contained without retries and can lose an entire emission.
 
-A fitting event remains one structured `@Logs` record. Oversized safe snapshots use one parent and bounded child records. Every record contains:
+A fitting diagnostic payload remains one structured `@Logs` record. Larger diagnostic snapshots use one parent and bounded child records. Retained events and any `OmittedEventCount` appear only on the parent, outside the reconstructed diagnostic payload. Event contents can make that record exceed configured byte limits. Every record contains:
 
 - `DiagnosticGroupId`, a new ID for this emission.
 - `LogRecordId` and `ParentLogRecordId`, formatted as `group/index`.
@@ -265,10 +264,12 @@ A fitting event remains one structured `@Logs` record. Oversized safe snapshots 
 
 The event category `EventId` is independent of these record references. Each child has `PayloadEncoding: "json-text"`, a zero-based `PayloadFragmentIndex`, and `PayloadFragmentCount` excluding the parent. Concatenate `PayloadFragment` strings in index order to reconstruct the bounded sanitized JSON. Structural and attribute redaction happens before fragmentation. Total-limit loss remains explicit in the reconstructed snapshot. Very large context fields may become limit markers.
 
-Delivery is best effort and not atomic. Compare received record IDs with `RelatedLogRecordIds` to detect missing delivery. The emitter cannot report a downstream missing-record count. `ScopedLog.ToString()` returns one bounded sanitized JSON snapshot and cannot emit additional records.
+Delivery is best effort and not atomic. Compare received record IDs with `RelatedLogRecordIds` to detect missing delivery. `OmittedEventCount` counts events excluded by the scope limit, not records lost during delivery. `ScopedLog.ToString()` returns one JSON snapshot containing diagnostics and retained events. Providers may impose their own record limits.
 
 ## Protection boundary
 
-Covered outputs include scoped additions, events, exceptions, copies and exports, Hosting request diagnostics, Flurl exception diagnostics, startup reporting, developer model/view copies, and Sample browser reports with independent server enforcement. Configuration debug-view protections retain their own contract.
+Covered diagnostic outputs include scoped additions, exceptions, copies and exports, Hosting request diagnostics, Flurl exception diagnostics, startup reporting, developer model/view copies, and Sample browser reports with independent server enforcement. Configuration debug-view protections retain their own contract.
+
+Scope event contents bypass sanitization, including custom sanitizers. Keep them safe to log. Custom `IScopedLog` implementations expose events through `Event` and `ScopeEvent` values under `AdditionalEvents`. Event-shaped dictionaries remain ordinary diagnostics.
 
 Original exceptions and `HttpContext` remain available to filters and `Microsoft.AspNetCore.Diagnostics.UnhandledException` subscribers for compatibility. Subscribers own their export policy. Arbitrary direct logger calls, historical logs, and unclassified secrets are not automatically protected.
