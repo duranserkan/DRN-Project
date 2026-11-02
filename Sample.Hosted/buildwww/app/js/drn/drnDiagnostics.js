@@ -127,6 +127,36 @@ export function createDiagnosticSanitizer() {
             if ((name.endsWith('url') || name.endsWith('uri')) && input) return urlCore(input);
             return input;
         }
+        function arrayValue(path, input, depth, ancestors) {
+            const output = [];
+            const length = Math.min(input.length, MAX_COLLECTION_ENTRIES);
+            for (let index = 0; index < length; index++) {
+                const descriptor = Object.getOwnPropertyDescriptor(input, index);
+                output.push(!descriptor ? null : descriptorValue(path, descriptor, depth, ancestors));
+            }
+            if (input.length > length) output.push(limited());
+            return output;
+        }
+        function descriptorValue(path, descriptor, depth, ancestors) {
+            return descriptor && 'value' in descriptor
+                ? value(path, descriptor.value, depth + 1, ancestors) : GETTER_UNAVAILABLE;
+        }
+        function objectValue(path, input, depth, ancestors) {
+            const output = Object.create(null);
+            let count = 0;
+            for (const key in input) {
+                if (!Object.hasOwn(input, key)) continue;
+                if (count++ >= MAX_COLLECTION_ENTRIES) {
+                    output._diagnostic_limit = limited();
+                    break;
+                }
+                if (key.length > MAX_KEY_BYTES) { output[replacementKey()] = limited(); continue; }
+                const descriptor = Object.getOwnPropertyDescriptor(input, key);
+                const field = path + '.' + key;
+                output[safeKey(key)] = isSensitive(field) ? redact() : descriptorValue(field, descriptor, depth, ancestors);
+            }
+            return output;
+        }
         function value(path, input, depth = 0, ancestors = new Set()) {
             return guard(() => {
                 tick();
@@ -139,32 +169,8 @@ export function createDiagnosticSanitizer() {
                 if (ancestors.has(input)) return '[diagnostic cycle]';
                 ancestors.add(input);
                 try {
-                    if (Array.isArray(input)) {
-                        const output = [];
-                        const length = Math.min(input.length, MAX_COLLECTION_ENTRIES);
-                        for (let index = 0; index < length; index++) {
-                            const descriptor = Object.getOwnPropertyDescriptor(input, index);
-                            output.push(!descriptor ? null : 'value' in descriptor
-                                ? value(path, descriptor.value, depth + 1, ancestors) : GETTER_UNAVAILABLE);
-                        }
-                        if (input.length > length) output.push(limited());
-                        return output;
-                    }
-                    const output = Object.create(null);
-                    let count = 0;
-                    for (const key in input) {
-                        if (!Object.hasOwn(input, key)) continue;
-                        if (count++ >= MAX_COLLECTION_ENTRIES) {
-                            output._diagnostic_limit = limited();
-                            break;
-                        }
-                        if (key.length > MAX_KEY_BYTES) { output[replacementKey()] = limited(); continue; }
-                        const descriptor = Object.getOwnPropertyDescriptor(input, key);
-                        const field = path + '.' + key;
-                        output[safeKey(key)] = isSensitive(field) ? redact() : descriptor && 'value' in descriptor
-                            ? value(field, descriptor.value, depth + 1, ancestors) : GETTER_UNAVAILABLE;
-                    }
-                    return output;
+                    return Array.isArray(input) ? arrayValue(path, input, depth, ancestors)
+                        : objectValue(path, input, depth, ancestors);
                 } finally { ancestors.delete(input); }
             });
         }
