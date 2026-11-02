@@ -1,12 +1,10 @@
 using System.Collections;
-using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
-using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Settings;
 using DRN.Framework.Utils.Time;
 using DRN.Framework.Utils.Logging.Diagnostics;
@@ -17,23 +15,8 @@ namespace DRN.Framework.Utils.Logging;
 [Scoped<IScopedLog>]
 public class ScopedLog : IScopedLog
 {
-    [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
-    private static class PropertyCache<TValue> where TValue : class
-    {
-        private static readonly PropertyInfo[] Properties = typeof(TValue)
-            .GetProperties(BindingFlag.InstancePublic)
-            .Where(property => property.GetMethod is { IsPublic: true } && property.GetIndexParameters().Length == 0)
-            .ToArray();
-        [SuppressMessage("Major Code Smell", "S2743:Static fields should not be used in generic types",
-            Justification = "Each TValue requires its own runtime metadata cache because entries are projected from that declared type's properties.")]
-        private static readonly ConcurrentDictionary<Type, DiagnosticTypeMetadata.Member[]> RuntimeProperties = new();
-
-        internal static DiagnosticTypeMetadata.Member[] For(Type runtimeType) => RuntimeProperties.GetOrAdd(runtimeType, static type =>
-            Properties.Select(property => DiagnosticTypeMetadata.ForProperty(property, type)).ToArray());
-    }
-
-    // Duration, correlation, trace, and four primary-event fields.
-    private const int SnapshotMetadataFieldCount = 7;
+    // Duration, correlation, and trace. Events are attached after diagnostic bounds.
+    private const int SnapshotMetadataFieldCount = 3;
     // Leave room for scope metadata and limit markers added when snapshots are materialized.
     private const int SnapshotReserveBytes = 2048;
     private const int MetricValueReserveBytes = 40;
@@ -41,15 +24,21 @@ public class ScopedLog : IScopedLog
     private static readonly object TrueValue = true;
     private static readonly object AppInstanceIdValue = AppConstants.AppInstanceId;
 
-    // Mutable metrics stay private; snapshots materialize detached primitive values.
-    private sealed class CounterValue(long value)
+    private enum EntryKind { Reservation, Diagnostic, Counter, Duration }
+
+    // EntryKind selects the active numeric representation.
+    [StructLayout(LayoutKind.Explicit)]
+    private struct MetricValue
     {
-        public long Value = value;
+        [FieldOffset(0)] public long Counter;
+        [FieldOffset(0)] public double Duration;
     }
 
-    private sealed class DurationValue(double value)
+    // Metrics remain unboxed in storage. Reservations never appear in snapshots or entry counts.
+    private record struct LogEntry(EntryKind Kind, int Bytes, object? Value,
+        DiagnosticCaptureMetadata Capture = default, MetricValue Metric = default)
     {
-        public double Value = value;
+        internal readonly bool HasValue => Kind != EntryKind.Reservation;
     }
 
     private static object CloneLogValue(object value)
@@ -69,7 +58,7 @@ public class ScopedLog : IScopedLog
                 return clone;
             }
             case IEnumerable<object> objectEnumerable:
-                return objectEnumerable.Select(item => item == null ? null! : CloneLogValue(item)).ToList();
+                return objectEnumerable.Select(CloneLogValue).ToList();
             default:
                 return value;
         }
@@ -81,8 +70,10 @@ public class ScopedLog : IScopedLog
     private Dictionary<(Type Type, string? Caller), string>? _measurementKeys;
     private Dictionary<(Type Type, string Prefix), string[]>? _propertyKeys;
     private ScopeEvent? _event;
-    private readonly Dictionary<string, int> _entryBytes = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, DiagnosticCaptureResult> _captures = new(StringComparer.Ordinal);
+    private List<ScopeEvent>? _additionalEvents;
+    private long _omittedEventCount;
+    private readonly Dictionary<string, LogEntry> _entries;
+    private int _entryCount;
     private int _storedBytes;
     private volatile bool _captureLimited;
     private readonly DateTimeOffset _createdAt = DateTimeProvider.UtcNow;
@@ -102,30 +93,40 @@ public class ScopedLog : IScopedLog
     public IScopedLog WithEvent(ScopeEvent scopeEvent)
     {
         ArgumentNullException.ThrowIfNull(scopeEvent);
-        scopeEvent = Sanitizer.SanitizeValue("Event", scopeEvent) as ScopeEvent
-                     ?? new ScopeEvent(new Microsoft.Extensions.Logging.EventId(scopeEvent.Id.Id), Reason: DiagnosticSanitizer.Limited);
-        using var sizing = DiagnosticJsonSize.Rent();
-        var size = sizing.Measure(scopeEvent);
         lock (_sync)
         {
             if (_event == null)
-            {
-                if (size + _storedBytes > Sanitizer.Options.MaxScopeBytes - SnapshotReserveBytes)
-                {
-                    scopeEvent = new ScopeEvent(new Microsoft.Extensions.Logging.EventId(scopeEvent.Id.Id, DiagnosticSanitizer.Limited), Reason: DiagnosticSanitizer.Limited);
-                    size = sizing.Measure(scopeEvent);
-                    _captureLimited = true;
-                }
-                _storedBytes += size;
                 Volatile.Write(ref _event, scopeEvent);
-                return this;
-            }
+            else AddAdditionalEventLocked(scopeEvent);
         }
-        AddToList(ScopedLogConventions.KeyOfAdditionalEvents, scopeEvent);
         return this;
     }
 
-    private Dictionary<string, object> LogData { get; } = new(32, StringComparer.Ordinal);
+    // Caller holds _sync so retention and omission accounting are atomic.
+    private void AddAdditionalEventLocked(ScopeEvent scopeEvent)
+    {
+        if ((_additionalEvents?.Count ?? 0) < ScopeEventSnapshot.MaxAdditionalEvents)
+            (_additionalEvents ??= []).Add(scopeEvent);
+        else RecordOmittedEventsLocked(1);
+    }
+
+    private void RecordOmittedEventsLocked(long count) =>
+        _omittedEventCount += Math.Min(count, long.MaxValue - _omittedEventCount);
+
+    private void CopyEvents(ScopeEventSnapshot events)
+    {
+        lock (_sync)
+        {
+            if (events.Primary is { } primary)
+            {
+                if (_event == null) Volatile.Write(ref _event, primary);
+                else AddAdditionalEventLocked(primary);
+            }
+            if (events.Additional is { Length: > 0 } additional)
+                foreach (var scopeEvent in additional) AddAdditionalEventLocked(scopeEvent);
+            RecordOmittedEventsLocked(events.OmittedCount);
+        }
+    }
 
     public ScopedLog(IAppSettings appSettings) : this(appSettings, DiagnosticSanitizer.FromSettings(appSettings)) { }
 
@@ -135,6 +136,7 @@ public class ScopedLog : IScopedLog
             throw new ArgumentException("The display sanitizer cannot be used for scoped log exports.", nameof(sanitizer));
         _isDevelopment = appSettings.IsDevelopmentEnvironment;
         Sanitizer = sanitizer;
+        _entries = new Dictionary<string, LogEntry>(Math.Clamp(sanitizer.Options.MaxNodes, 0, 32), StringComparer.Ordinal);
         Add(nameof(ScopedLog), TrueValue);
         Add("App_Name", appSettings.ApplicationName);
         Add("App_InstanceId", AppInstanceIdValue);
@@ -145,43 +147,53 @@ public class ScopedLog : IScopedLog
         Add(ScopedLogConventions.KeyOfScopeCreatedAt, DateTimeProvider.UtcNow);
     }
 
-    public TimeSpan ScopeDuration
-    {
-        get
-        {
-            lock (_sync)
-                return DateTimeProvider.UtcNow - _createdAt;
-        }
-    }
+    public TimeSpan ScopeDuration => DateTimeProvider.UtcNow - _createdAt;
 
     // Caller holds _sync. Sorted insertion appends without shifting existing entries.
     private SortedList<string, object> SnapshotLogDataLocked(int additionalCapacity = 0, bool cloneValues = true)
     {
-        var snapshot = new SortedList<string, object>(checked(LogData.Count + additionalCapacity), StringComparer.Ordinal);
-        var keys = LogData.Keys.ToArray();
+        var snapshot = new SortedList<string, object>(checked(_entryCount + additionalCapacity), StringComparer.Ordinal);
+        var keys = new string[_entryCount];
+        var index = 0;
+        foreach (var pair in _entries)
+            if (pair.Value.HasValue) keys[index++] = pair.Key;
         Array.Sort(keys, snapshot.Comparer);
 
         foreach (var key in keys)
-            snapshot.Add(key, LogData[key]);
-
-        for (var index = 0; index < snapshot.Count; index++)
         {
-            var value = snapshot.GetValueAtIndex(index);
-            snapshot.SetValueAtIndex(index, value switch
+            var entry = _entries[key];
+            snapshot.Add(key, entry.Kind switch
             {
-                CounterValue counter => counter.Value,
-                DurationValue duration => duration.Value,
-                _ => cloneValues ? CloneLogValue(value) : value
+                EntryKind.Counter => entry.Metric.Counter,
+                EntryKind.Duration => entry.Metric.Duration,
+                _ => cloneValues ? CloneLogValue(entry.Value!) : entry.Value!
             });
         }
 
         return snapshot;
     }
 
+    // Caller holds _sync and supplies the detached snapshot from the same lock.
+    private Dictionary<string, DiagnosticCaptureResult> SnapshotCapturesLocked(IReadOnlyDictionary<string, object> snapshot)
+    {
+        var captures = new Dictionary<string, DiagnosticCaptureResult>(StringComparer.Ordinal);
+        foreach (var pair in _entries)
+            if (pair.Value.Capture is { HasValue: true } capture)
+                captures.Add(pair.Key, capture.Snapshot(snapshot[pair.Key]));
+        return captures;
+    }
+
     public IReadOnlyDictionary<string, object> GetLogs() => GetLogs(redact: true);
 
-    /// <summary>Returns a detached bounded snapshot. Unredacted reads are allowed only in Development.</summary>
+    /// <summary>Returns detached bounded diagnostics with retained events. Unredacted diagnostic reads require Development.</summary>
     public IReadOnlyDictionary<string, object> GetLogs(bool redact)
+    {
+        var output = GetDiagnosticLogs(redact, out var events);
+        events.WriteTo(output);
+        return output;
+    }
+
+    internal Dictionary<string, object> GetDiagnosticLogs(bool redact, out ScopeEventSnapshot events)
     {
         if (!redact && !_isDevelopment)
             throw new InvalidOperationException("Unredacted diagnostic snapshots are only available in Development.");
@@ -200,20 +212,15 @@ public class ScopedLog : IScopedLog
             foreach (var pair in status) snapshot[pair.Key] = pair.Value;
             if (_captureLimited) snapshot["DiagnosticScopeLimit"] = true;
 
-            var scopeEvent = Event;
-            if (scopeEvent != null)
-            {
-                snapshot[ScopedLogConventions.KeyOfEventId] = scopeEvent.Id.Id;
-                snapshot[ScopedLogConventions.KeyOfEventName] = scopeEvent.Id.Name ?? string.Empty;
-                snapshot[ScopedLogConventions.KeyOfEventOutcome] = scopeEvent.Outcome ?? string.Empty;
-                snapshot[ScopedLogConventions.KeyOfEventReason] = scopeEvent.Reason ?? string.Empty;
-            }
+            events = SnapshotEventsLocked();
             // Native materialization creates the detached tree while private lists are stable.
             // It only reads captured values and never invokes the original model getters.
             output = reader?.MaterializeSnapshot(snapshot, redact) ?? snapshot;
         }
         return DiagnosticLogFormatter.BoundSnapshot(output, Sanitizer.Options.MaxScopeBytes);
     }
+
+    private ScopeEventSnapshot SnapshotEventsLocked() => new(_event, _additionalEvents?.ToArray(), _omittedEventCount);
 
     public bool HasException { get; private set; }
     public bool HasWarning { get; private set; }
@@ -311,34 +318,38 @@ public class ScopedLog : IScopedLog
         return this;
     }
 
-    private void StoreCapture(string key, DiagnosticCaptureResult capture) =>
+    internal void StoreCapture(string key, DiagnosticCaptureResult capture) =>
         Store(key, capture.Value ?? string.Empty, capture);
 
-    private void Store(string key, object value, DiagnosticCaptureResult? capture = null)
+    internal void Store(string key, object value, DiagnosticCaptureResult? capture = null)
     {
         using var sizing = DiagnosticJsonSize.Rent();
         var size = sizing.MeasureEntry(key, value);
         lock (_sync)
+            StoreLocked(key, value, size, capture);
+    }
+
+    // Caller holds _sync and supplies the measured JSON entry size.
+    private void StoreLocked(string key, object value, int size, DiagnosticCaptureResult? capture)
+    {
+        var previous = _entries.GetValueOrDefault(key);
+        if ((_entryCount >= Sanitizer.Options.MaxNodes && !previous.HasValue) ||
+            _storedBytes - previous.Bytes + size > Sanitizer.Options.MaxScopeBytes - SnapshotReserveBytes)
         {
-            var previousSize = _entryBytes.GetValueOrDefault(key);
-            if ((!LogData.ContainsKey(key) && LogData.Count >= Sanitizer.Options.MaxNodes) ||
-                _storedBytes - previousSize + size > Sanitizer.Options.MaxScopeBytes - SnapshotReserveBytes)
+            _captureLimited = true;
+            if (previous.HasValue)
             {
-                _captureLimited = true;
-                if (LogData.Remove(key))
-                {
-                    _captures.Remove(key);
-                    _entryBytes.Remove(key);
-                    _storedBytes -= previousSize;
-                }
-                return;
+                _entries.Remove(key);
+                _entryCount--;
+                _storedBytes -= previous.Bytes;
             }
-            LogData[key] = value;
-            _captures.Remove(key);
-            if (capture != null && ReferenceEquals(capture.Value, value)) _captures[key] = capture;
-            _entryBytes[key] = size;
-            _storedBytes += size - previousSize;
+            return;
         }
+        DiagnosticCaptureMetadata metadata = capture != null && ReferenceEquals(capture.Value, value)
+            ? new DiagnosticCaptureMetadata(capture) : default;
+        _entries[key] = new LogEntry(EntryKind.Diagnostic, size, value, metadata);
+        if (!previous.HasValue) _entryCount++;
+        _storedBytes += size - previous.Bytes;
     }
 
     public IScopedLog AddIfNotNullOrEmpty(string key, string value)
@@ -361,40 +372,43 @@ public class ScopedLog : IScopedLog
     {
         Dictionary<string, DiagnosticCaptureResult>? captures = null;
         IReadOnlyDictionary<string, object> sourceLogs;
+        ScopeEventSnapshot events;
         if (source is ScopedLog scopedLog && Sanitizer is DiagnosticSanitizer)
         {
             lock (scopedLog._sync)
             {
-                sourceLogs = scopedLog.SnapshotLogDataLocked();
                 // Stored values are detached and never exposed. Snapshot and provenance are bound under one lock.
-                captures = scopedLog._captures.ToDictionary(pair => pair.Key,
-                    pair => pair.Value with { Value = sourceLogs[pair.Key] }, StringComparer.Ordinal);
+                sourceLogs = scopedLog.SnapshotLogDataLocked();
+                captures = scopedLog.SnapshotCapturesLocked(sourceLogs);
+                events = scopedLog.SnapshotEventsLocked();
             }
         }
-        else sourceLogs = source.GetLogs();
+        else if (source is ScopedLog nativeSource)
+            sourceLogs = nativeSource.GetDiagnosticLogs(redact: true, out events);
+        else
+        {
+            var diagnostics = new Dictionary<string, object>(source.GetLogs(), StringComparer.Ordinal);
+            events = ScopeEventSnapshot.TakeFrom(source.Event, diagnostics);
+            sourceLogs = diagnostics;
+        }
         if (sourceLogs.Count > Sanitizer.Options.MaxNodes) _captureLimited = true;
         foreach (var (key, value) in sourceLogs.Take(Sanitizer.Options.MaxNodes))
-        {
-            if (key == ScopedLogConventions.KeyOfAdditionalEvents && value is IList<object> events)
-                foreach (var additionalEvent in events.Take(Sanitizer.Options.MaxCollectionEntries))
-                    AddToList(key, additionalEvent);
-            else
-            {
-                if (key is ScopedLogConventions.KeyOfCorrelationId or ScopedLogConventions.KeyOfTraceId or
-                    ScopedLogConventions.KeyOfEventId or ScopedLogConventions.KeyOfEventName or
-                    ScopedLogConventions.KeyOfEventOutcome or ScopedLogConventions.KeyOfEventReason) continue;
-                if (Sanitizer is DiagnosticSanitizer native && captures?.TryGetValue(key, out var capture) == true)
-                    StoreCapture(Sanitizer.SanitizeKey(key), native.CopyCapture(capture, deferRedaction: true));
-                else Add(key, value);
-            }
-        }
+            CopyEntry(key, value, captures);
 
         HasException |= source.HasException;
         HasWarning |= source.HasWarning;
-        if (source.Event is { } scopeEvent)
-            WithEvent(scopeEvent);
-
+        CopyEvents(events);
         return this;
+    }
+
+    private void CopyEntry(string key, object value, Dictionary<string, DiagnosticCaptureResult>? captures)
+    {
+        if (key is ScopedLogConventions.KeyOfCorrelationId or ScopedLogConventions.KeyOfTraceId or
+            ScopedLogConventions.KeyOfEventId or ScopedLogConventions.KeyOfEventName or
+            ScopedLogConventions.KeyOfEventOutcome or ScopedLogConventions.KeyOfEventReason) return;
+        if (Sanitizer is DiagnosticSanitizer native && captures?.TryGetValue(key, out var capture) == true)
+            StoreCapture(Sanitizer.SanitizeKey(key), native.CopyCapture(capture, deferRedaction: true));
+        else Add(key, value);
     }
 
     public IScopedLog WithLoggerName(string? name) => Add(ScopedLogConventions.KeyOfLoggerName, name ?? "n/a");
@@ -437,71 +451,45 @@ public class ScopedLog : IScopedLog
                 DiagnosticCaptureKind.ObjectRoot, [prefix], rootExempt, rootNamePath, deferRedaction: true));
             return this;
         }
-        var properties = PropertyCache<TValue>.For(classObject.GetType());
+        var properties = DiagnosticPropertyCapture.PropertiesFor<TValue>(classObject.GetType());
         if (properties.Length > Sanitizer.Options.MaxCollectionEntries) _captureLimited = true;
-        string[] keys;
+        var keys = GetPropertyKeys<TValue>(prefix, properties);
+        var root = new DiagnosticNameDecision(prefix, rootExempt, rootNamePath);
+        var capture = new DiagnosticPropertyCapture(this, policy, ignoredPropertyNames, root);
+
+        // User getters execute outside the storage lock and may call back into logging.
+        for (var index = 0; index < keys.Length; index++)
+            capture.Add(classObject, keys[index], properties[index]);
+
+        return this;
+    }
+
+    private string[] GetPropertyKeys<TValue>(string prefix, DiagnosticTypeMetadata.Member[] properties) where TValue : class
+    {
         lock (_sync)
         {
             _propertyKeys ??= new();
             var identity = (typeof(TValue), prefix);
-            if (!_propertyKeys.TryGetValue(identity, out keys!))
+            if (!_propertyKeys.TryGetValue(identity, out var keys))
             {
                 keys = new string[Math.Min(properties.Length, Sanitizer.Options.MaxCollectionEntries)];
                 for (var index = 0; index < keys.Length; index++)
                     keys[index] = ScopedLogConventions.PropertyLogKey(prefix, properties[index].Property);
                 if (_propertyKeys.Count < Sanitizer.Options.MaxNodes) _propertyKeys.Add(identity, keys);
             }
+            return keys;
         }
-
-        // User getters execute outside the storage lock and may call back into logging.
-        for (var index = 0; index < keys.Length; index++)
-        {
-            var (propertyInfo, ignoredByAttribute, sensitive, exempt) = properties[index];
-            var namePath = typedModel ? propertyInfo.Name : null;
-            var segments = new[] { prefix, propertyInfo.Name };
-            exempt |= native != null && policy?.Exempts(DiagnosticCaptureKind.Property, segments) == true;
-            var ignored = ignoredByAttribute || ignoredPropertyNames.Contains(propertyInfo.Name);
-            if (ignored) Store(Sanitizer.SanitizeKey(keys[index]), ScopedLogConventions.IgnoredLogValue);
-            else if (native == null && (sensitive || Sanitizer.IsSensitive(keys[index])))
-                Store(Sanitizer.SanitizeKey(keys[index]), DiagnosticSanitizer.Redacted);
-            else
-            {
-                try
-                {
-                    var value = propertyInfo.GetValue(classObject) ?? string.Empty;
-                    if (native == null) Add(keys[index], value);
-                    else
-                    {
-                        var key = keys[index];
-                        if (value is TimeSpan time && key.Length <= Sanitizer.Options.MaxKeyBytes)
-                        {
-                            key = ScopedLogConventions.TimeSpanKey(key);
-                            if (namePath != null) namePath = ScopedLogConventions.TimeSpanKey(namePath);
-                            value = time.TotalSeconds;
-                        }
-                        var capture = native.Capture(key, value, policy, DiagnosticCaptureKind.Property, segments, exempt, namePath,
-                            deferRedaction: true, classified: sensitive);
-                        capture = capture with { Decisions = [new(prefix, rootExempt, rootNamePath), .. capture.Decisions] };
-                        StoreCapture(Sanitizer.SanitizeKey(key), capture);
-                    }
-                }
-                catch (Exception)
-                {
-                    const string unavailable = "[diagnostic getter unavailable]";
-                    if (native == null) Store(Sanitizer.SanitizeKey(keys[index]), unavailable);
-                    else StoreCapture(Sanitizer.SanitizeKey(keys[index]), native.Capture(keys[index], unavailable, policy,
-                        DiagnosticCaptureKind.Property, segments, exempt, namePath, deferRedaction: true, classified: sensitive));
-                }
-            }
-        }
-
-        return this;
     }
 
     public void AddToActions(string action) => AddToList(ScopedLogConventions.KeyOfActions, action);
 
     public void AddToList(string key, object value)
     {
+        if (key == ScopedLogConventions.KeyOfAdditionalEvents && value is ScopeEvent scopeEvent)
+        {
+            lock (_sync) AddAdditionalEventLocked(scopeEvent);
+            return;
+        }
         var capture = Sanitizer is DiagnosticSanitizer native ? native.Capture(key, value, deferRedaction: true) : null;
         value = (capture != null ? capture.Value : Sanitizer.SanitizeValue(key, value)) ?? string.Empty;
         key = Sanitizer.SanitizeKey(key);
@@ -510,23 +498,21 @@ public class ScopedLog : IScopedLog
 
         lock (_sync)
         {
-            if (LogData.TryGetValue(key, out var obj) && obj is List<object> list)
+            if (_entries.TryGetValue(key, out var entry) && entry.Value is List<object> list)
             {
                 if (list.Count >= Sanitizer.Options.MaxCollectionEntries || _storedBytes + itemSize > Sanitizer.Options.MaxScopeBytes - SnapshotReserveBytes)
                 { _captureLimited = true; return; }
                 list.Add(value);
-                // Only URL rules applied to every item can authorize a native copy of the list.
-                if (capture != null && _captures.TryGetValue(key, out var previous))
-                    _captures[key] = new DiagnosticCaptureResult(list, [.. previous.Decisions, .. capture.Decisions],
-                        (previous.UrlRules ?? []).Intersect(capture.UrlRules ?? [], StringComparer.Ordinal).ToArray());
-                else _captures.Remove(key);
+                DiagnosticCaptureMetadata metadata = capture != null && entry.Capture is { HasValue: true } previous
+                    ? previous.Append(capture) : default;
+                _entries[key] = entry with { Bytes = entry.Bytes + itemSize, Capture = metadata };
                 _storedBytes += itemSize;
-                _entryBytes[key] = _entryBytes.GetValueOrDefault(key) + itemSize;
             }
             else
             {
                 var items = new List<object>(8) { value };
-                Store(key, items, capture == null ? null : capture with { Value = items });
+                var entrySize = sizing.MeasureSingleItemListEntry(key, itemSize - 1);
+                StoreLocked(key, items, entrySize, capture == null ? null : capture with { Value = items });
             }
         }
     }
@@ -545,7 +531,7 @@ public class ScopedLog : IScopedLog
         lock (_sync)
         {
             if (_counterKeys.TryGetValue((prefix, key), out var cached)) return cached.Length == 0 ? 0 : IncreaseLocked(cached, by, prefix, key);
-            if (_counterKeys.Count >= Sanitizer.Options.MaxNodes && !_counterKeys.ContainsKey((prefix, key))) { _captureLimited = true; return 0; }
+            if (_counterKeys.Count >= Sanitizer.Options.MaxNodes) { _captureLimited = true; return 0; }
             if (safe.Length > 0 && !ReserveMetric(safe)) safe = "";
             _counterKeys[(prefix, key)] = safe;
             return safe.Length == 0 ? 0 : IncreaseLocked(safe, by, prefix, key);
@@ -554,35 +540,48 @@ public class ScopedLog : IScopedLog
 
     private bool ReserveMetric(string key)
     {
-        if (LogData.ContainsKey(key)) return true;
+        if (_entries.TryGetValue(key, out var entry) && entry.HasValue) return true;
         using var sizing = DiagnosticJsonSize.Rent();
         var size = sizing.Measure(key) + MetricValueReserveBytes;
-        if (LogData.Count >= Sanitizer.Options.MaxNodes || _storedBytes + size > Sanitizer.Options.MaxScopeBytes - SnapshotReserveBytes)
+        if (_entryCount >= Sanitizer.Options.MaxNodes || _storedBytes + size > Sanitizer.Options.MaxScopeBytes - SnapshotReserveBytes)
         { _captureLimited = true; return false; }
         _storedBytes += size;
-        _entryBytes[key] = size;
+        _entries[key] = new LogEntry(EntryKind.Reservation, size, null);
         return true;
     }
 
     // Caller holds _sync and supplies the fully composed key.
     private long IncreaseLocked(string counterKey, long by, string prefix, string name)
     {
-        if (LogData.TryGetValue(counterKey, out var obj) && obj is CounterValue counter)
-            return counter.Value += by;
+        // No dictionary mutations or callbacks occur while the reference is used.
+        ref var stored = ref CollectionsMarshal.GetValueRefOrNullRef(_entries, counterKey);
+        if (!Unsafe.IsNullRef(ref stored) && stored.Kind == EntryKind.Counter)
+        {
+            var counter = stored.Metric.Counter + by;
+            stored.Metric = new MetricValue { Counter = counter };
+            return counter;
+        }
 
-        var value = (obj is long existing ? existing : 0) + by;
-        LogData[counterKey] = new CounterValue(value);
-        CaptureMetric(counterKey, prefix, name);
+        var entry = _entries.GetValueOrDefault(counterKey);
+        var value = (entry.Value is long existing ? existing : 0) + by;
+        StoreMetricLocked(counterKey, new LogEntry(EntryKind.Counter, entry.Bytes, null, Metric: new MetricValue { Counter = value }),
+            entry, prefix, name);
         return value;
     }
 
-    private void CaptureMetric(string key, string prefix, string name)
+    private void StoreMetricLocked(string key, LogEntry entry, LogEntry previous, string prefix, string name)
     {
-        _captures.Remove(key);
+        // CopyFrom binds metadata to the detached metric scalar under the same lock.
+        DiagnosticCaptureMetadata metadata = default;
         if (Sanitizer is DiagnosticSanitizer)
-            // CopyFrom replaces the private metric value with its detached scalar under the same lock.
-            _captures[key] = new DiagnosticCaptureResult(LogData[key],
-                [new(prefix + name, true), new(key, true)], Sanitizer.Options.SensitivePathSegments);
+        {
+            var path = prefix + name;
+            DiagnosticNameDecision[] decisions = string.Equals(path, key, StringComparison.Ordinal)
+                ? [new(path, true)] : [new(path, true), new(key, true)];
+            metadata = new DiagnosticCaptureMetadata(decisions, Sanitizer.Options.SensitivePathSegments);
+        }
+        _entries[key] = entry with { Capture = metadata };
+        if (!previous.HasValue) _entryCount++;
     }
 
     public TimeSpan IncreaseTimeSpentOn(string key, TimeSpan by, string prefix = ScopedLogConventions.Stats)
@@ -600,7 +599,7 @@ public class ScopedLog : IScopedLog
         lock (_sync)
         {
             if (_durationKeys.TryGetValue((prefix, key), out var cached)) return IncreaseDurationLocked(cached, by, prefix, key);
-            if (_durationKeys.Count >= Sanitizer.Options.MaxNodes && !_durationKeys.ContainsKey((prefix, key))) { _captureLimited = true; return TimeSpan.Zero; }
+            if (_durationKeys.Count >= Sanitizer.Options.MaxNodes) { _captureLimited = true; return TimeSpan.Zero; }
             if (keys.Counter.Length > 0 && (!ReserveMetric(keys.Counter) || !ReserveMetric(keys.Duration))) keys = ("", "");
             _durationKeys[(prefix, key)] = keys;
             return IncreaseDurationLocked(keys, by, prefix, key);
@@ -615,13 +614,19 @@ public class ScopedLog : IScopedLog
         if (keys.Counter.Length == 0) return TimeSpan.Zero;
         IncreaseLocked(keys.Counter, 1, prefix, name);
         double timeSpent;
-        if (LogData.TryGetValue(keys.Duration, out var obj) && obj is DurationValue duration)
-            timeSpent = duration.Value += by.TotalSeconds;
+        // Acquire after the counter update, which may insert into the dictionary.
+        ref var stored = ref CollectionsMarshal.GetValueRefOrNullRef(_entries, keys.Duration);
+        if (!Unsafe.IsNullRef(ref stored) && stored.Kind == EntryKind.Duration)
+        {
+            timeSpent = stored.Metric.Duration + by.TotalSeconds;
+            stored.Metric = new MetricValue { Duration = timeSpent };
+        }
         else
         {
-            timeSpent = (obj is double existing ? existing : 0) + by.TotalSeconds;
-            LogData[keys.Duration] = new DurationValue(timeSpent);
-            CaptureMetric(keys.Duration, prefix, name);
+            var entry = _entries.GetValueOrDefault(keys.Duration);
+            timeSpent = (entry.Value is double existing ? existing : 0) + by.TotalSeconds;
+            StoreMetricLocked(keys.Duration, new LogEntry(EntryKind.Duration, entry.Bytes, null, Metric: new MetricValue { Duration = timeSpent }),
+                entry, prefix, name);
         }
         return TimeSpan.FromSeconds(timeSpent);
     }

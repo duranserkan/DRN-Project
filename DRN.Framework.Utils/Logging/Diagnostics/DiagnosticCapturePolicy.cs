@@ -1,7 +1,14 @@
 namespace DRN.Framework.Utils.Logging.Diagnostics;
 
 /// <summary>The structural node to which an exact diagnostic name exemption applies.</summary>
-public enum DiagnosticCaptureKind { NamedEntry, ObjectRoot, Property, DictionaryKey, JsonProperty, ListItem }
+public enum DiagnosticCaptureKind
+{
+    NamedEntry = 1,
+    ObjectRoot = 2,
+    Property = 3,
+    DictionaryKey = 4,
+    ListItem = 5
+}
 
 /// <summary>An application-authored exemption for one node, never its descendants.</summary>
 public sealed class DiagnosticNameExemption

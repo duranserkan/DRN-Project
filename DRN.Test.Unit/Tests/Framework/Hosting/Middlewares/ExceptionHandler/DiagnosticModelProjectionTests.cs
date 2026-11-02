@@ -71,9 +71,12 @@ public class DiagnosticModelProjectionTests
     }
 
     [Theory]
-    [DataInlineUnit("Development", "page-probe")]
-    [DataInlineUnit("Production", DiagnosticSanitizer.Redacted)]
-    public async Task Page_Logs_And_Request_Details_Should_Opt_Out_Only_In_Development(string environment, string expected)
+    [DataInlineUnit("Development", "page-probe", "application/x-www-form-urlencoded")]
+    [DataInlineUnit("Production", DiagnosticSanitizer.Redacted, "application/x-www-form-urlencoded")]
+    [DataInlineUnit("Development", "page-probe", "application/json")]
+    [DataInlineUnit("Production", DiagnosticSanitizer.Redacted, "application/json")]
+    public async Task Page_Logs_And_Request_Details_Should_Opt_Out_Only_In_Development(
+        string environment, string expected, string contentType)
     {
         // Error handling must work after ordinary serialization has frozen the shared options.
         JsonSerializer.Serialize("warm-up", JsonConventions.DefaultOptions);
@@ -89,11 +92,13 @@ public class DiagnosticModelProjectionTests
 #pragma warning restore DRN0017
         using var services = new ServiceCollection().AddSingleton<IScopedLog>(log).BuildServiceProvider();
         var context = new DefaultHttpContext { RequestServices = services };
-        await using var body = new MemoryStream(Encoding.UTF8.GetBytes("{\"password\":\"body-probe\"}"));
+        var formBody = contentType == "application/x-www-form-urlencoded";
+        var bodyText = formBody ? "password=body-probe" : "{\"password\":\"body-probe\"}";
+        await using var body = new MemoryStream(Encoding.UTF8.GetBytes(bodyText));
         context.Request.Method = "POST";
         context.Request.Body = body;
         context.Request.ContentLength = body.Length;
-        context.Request.ContentType = "application/json";
+        context.Request.ContentType = contentType;
         context.Request.Path = "/handoff/path-probe";
         context.Request.QueryString = new QueryString("?token=query-probe");
         context.Request.Headers.Authorization = "Bearer header-probe";
@@ -115,7 +120,10 @@ public class DiagnosticModelProjectionTests
         model.RouteValues["token"].Should().Be(development ? "route-probe" : DiagnosticSanitizer.Redacted);
         model.RequestPath.Contains("path-probe", StringComparison.Ordinal).Should().Be(development);
         model.Query.QueryString!.Contains("query-probe", StringComparison.Ordinal).Should().Be(development);
-        model.RequestBody.Contains("body-probe", StringComparison.Ordinal).Should().Be(development);
+        if (formBody)
+            model.RequestBody.Contains("body-probe", StringComparison.Ordinal).Should().Be(development);
+        else
+            model.RequestBody.Should().Be("[unsupported diagnostic body]");
         if (development)
             JsonSerializer.Serialize(utils.CreateProblemDetails(context, new InvalidOperationException("failure")).Extensions)
                 .Should().NotContain("header-probe").And.NotContain("cookie-probe").And.NotContain("route-probe");

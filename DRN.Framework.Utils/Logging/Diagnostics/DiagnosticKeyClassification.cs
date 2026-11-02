@@ -2,7 +2,12 @@ using DRN.Framework.SharedKernel.Attributes;
 
 namespace DRN.Framework.Utils.Logging.Diagnostics;
 
-public enum DiagnosticDataKind { Sensitive, Personal, NonSensitive }
+public enum DiagnosticDataKind
+{
+    Sensitive = 1,
+    Personal = 2,
+    NonSensitive = 3
+}
 
 /// <summary>Application-authored classification of one exact dictionary key, never its descendants.</summary>
 public sealed record DiagnosticKeyClassification(

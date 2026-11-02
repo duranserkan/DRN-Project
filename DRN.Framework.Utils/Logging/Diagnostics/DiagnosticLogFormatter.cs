@@ -34,7 +34,16 @@ internal static class DiagnosticLogFormatter
         return result;
     }
 
-    internal static IReadOnlyList<Dictionary<string, object>> Create(IReadOnlyDictionary<string, object> snapshot, DiagnosticLogOptions options)
+    internal static IReadOnlyList<Dictionary<string, object>> Create(IReadOnlyDictionary<string, object> snapshot,
+        DiagnosticLogOptions options, ScopeEventSnapshot events = default)
+    {
+        var records = CreateDiagnostics(snapshot, options);
+        // Trusted event metadata is outside diagnostic budgets and appears once, on the parent record.
+        events.WriteTo(records[0]);
+        return records;
+    }
+
+    private static IReadOnlyList<Dictionary<string, object>> CreateDiagnostics(IReadOnlyDictionary<string, object> snapshot, DiagnosticLogOptions options)
     {
         using var sizing = DiagnosticJsonSize.Rent();
         var group = Guid.NewGuid().ToString("N");

@@ -30,6 +30,22 @@ public sealed class DiagnosticJsonSizeTests
     }
 
     [Fact]
+    public void Single_Item_List_Entry_Size_Should_Match_Serialized_Json()
+    {
+        using var sizing = DiagnosticJsonSize.Rent();
+        object?[] values = [null, "", "\"\\\r\n<>& Türkçe 😀", 123.45m,
+            new Dictionary<string, object?> { ["Nested"] = new[] { "first", "second" } }];
+        const string key = "Items\"\\界";
+        foreach (var value in values)
+        {
+            var entry = new Dictionary<string, object?> { [key] = new List<object?> { value } };
+            // Replace the two object braces with the reserved entry delimiter.
+            var expected = JsonSerializer.SerializeToUtf8Bytes(entry).Length - 1;
+            sizing.MeasureSingleItemListEntry(key, sizing.Measure(value)).Should().Be(expected);
+        }
+    }
+
+    [Fact]
     public void Nested_Rentals_And_Serialization_Failures_Should_Not_Corrupt_Counts()
     {
         using (var sizing = DiagnosticJsonSize.Rent())

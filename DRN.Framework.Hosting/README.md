@@ -879,7 +879,7 @@ Disable the publish item injection when an application owns this behavior itself
 
 Request logging and diagnostic buffering apply wherever `HttpScopeMiddleware` runs. Detailed exception pages and startup reports are Development features.
 
-Development exception pages opt out of redaction for their log viewer and request details, including headers, cookies, URLs, route values, and buffered bodies. The log viewer uses `ScopedLog.GetLogs(redact: false)` on the existing bounded capture. Emitted logs remain redacted. Capture limits, `[IgnoreLog]`, HTML encoding, access rules, and configuration debug-view protections remain active. Keep these pages and saved startup reports private.
+Development exception pages opt out of redaction for their log viewer and request details, including headers, cookies, URLs, route values, and buffered bodies. The log viewer uses `ScopedLog.GetLogs(redact: false)`. Emitted diagnostics remain redacted, while scope events retain their contents. Diagnostic capture limits, `[IgnoreLog]`, HTML encoding, access rules, and configuration debug-view protections remain active. Keep these pages and saved startup reports private.
 
 Failures while generating startup reports record the exception type, stack trace, and fixed `ReportGenerationFailed` category in scoped diagnostics. Their exception messages are omitted.
 

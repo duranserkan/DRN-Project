@@ -17,7 +17,6 @@ internal sealed class DiagnosticCaptureReader(DiagnosticSanitizer owner)
         if (value is DiagnosticCapturedValue captured)
             return captured with { Value = Copy(captured.Value, depth) };
         if (value is string text) return owner.Accept(text) ? text : Limited;
-        if (value is ScopeEvent scopeEvent) return owner.CaptureEvent(scopeEvent);
         if (value is IDictionary<string, object?> map) return CopyMap(map, depth);
         if (value is IList list) return CopyList(list, depth);
         return value;

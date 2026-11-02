@@ -188,8 +188,6 @@ public class ProjectDiagnosticRulesTests
         sanitizer.SanitizeUrl("/handoff/private?membership_number=member&attempt=2")
             .Should().Be("/handoff/redacted?membership_number=redacted&attempt=2");
         sanitizer.SanitizeUrl("/token/private").Should().Be("/token/redacted");
-        sanitizer.SanitizeBody("{\"membershipNumber\":\"member\"}", "application/json")
-            .Should().NotContain("\"member\"").And.Contain(DiagnosticSanitizer.Redacted);
         sanitizer.SanitizeBody("membershipNumber=member", "application/x-www-form-urlencoded")
             .Should().Be("membershipNumber=%5Bredacted%5D");
     }

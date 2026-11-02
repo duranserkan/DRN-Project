@@ -17,6 +17,8 @@ public interface IScopedLog
     IReadOnlyDictionary<string, object> GetLogs();
 
     /// <summary>Sets the first event as primary. Later events are retained separately without replacing it.</summary>
+    /// <remarks>Retains one primary and up to eight additional events. Later events are omitted and reported by
+    /// OmittedEventCount only when nonzero. Retained contents bypass diagnostic sanitization and byte limits.</remarks>
     IScopedLog WithEvent(ScopeEvent scopeEvent);
 
     IScopedLog WithLoggerName(string name);
