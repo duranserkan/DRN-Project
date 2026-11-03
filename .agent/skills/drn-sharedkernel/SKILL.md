@@ -319,6 +319,8 @@ The shared baseline retains `client` matching. Reviewed client IDs use property 
 
 Compiler analysis covers statically known values and paths. Follow the source-owned diagnostic guide for application responsibilities for dynamic data.
 
+AddDictionary/SanitizeDictionary still enforce configured paths. Inline positive classification constructors with constant exact keys protect whole entries, including descendants. NonSensitive and unknown classification expressions do not waive configured paths. Dictionary name analysis accepts known null, empty and exact redacted constants, including ILogger scopes.
+
 Preserve resolved logging-symbol checks, bounded analysis, and exact adjacent comments for DRN0017/DRN0020/DRN0022. DRN0017 uses reported paths; DRN0020 uses dictionary keys at capture. Continue child traversal. Comments cannot waive classified values, configured analyzer paths, or declarations. DRN0023 reports malformed comments; DRN0024 warns only for unused comments. Attributes and reason/policy APIs do not receive unused warnings. Backend runtime uses explicit classifications, with no name fallback. See the [diagnostic guide](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#boundaries-and-migration).
 
 DRN0019 exempts direct EF migration column-definition and constraint-selector anonymous objects containing column-operation metadata. Recognition uses resolved EF APIs, not file paths. Ordinary data objects and logging in migrations remain checked.

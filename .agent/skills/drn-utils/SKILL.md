@@ -181,6 +181,8 @@ Request-scoped structured logging. Aggregates data, metrics, and checkpoints, fl
 
 Dedicated metric methods do not match names with the native sanitizer. Custom sanitizers retain their own sensitivity checks. Use code-owned metric identifiers, never request values.
 
+Configured analyzer paths apply to AddDictionary/SanitizeDictionary. Inline positive classification constructors with constant exact keys protect whole entries. NonSensitive and unknown classification expressions cannot waive configured paths. Dictionary name checks accept known null, empty and exact redacted constants, including ILogger scopes.
+
 Native copies preserve accumulated values and explicit classification metadata without destination name matching. Preserve destination budgets and detached values. Copies to custom sanitizers use redacted source snapshots, never internal capture wrappers.
 
 AddDrnUtils registers DiagnosticRedactor separately for DataClassifications.Sensitive, DataClassifications.Personal and their combined Set. Registering the combined set alone does not cover individual classifications. Verify all three provider lookups.

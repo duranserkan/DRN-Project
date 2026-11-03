@@ -151,6 +151,8 @@ DRN0019 exempts EF migration column definitions and constraint selectors recogni
 
 `DRN0020` checks statically known dictionary keys, including nested initializers and direct local writes. Use AddDictionary/SanitizeDictionary classifications or an exact adjacent DiagnosticNameExemption comment. Configured analyzer paths and other children remain checked. Exploration is bounded. Dynamic and unexamined keys have no runtime name fallback. See [dictionary classifications](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#dictionary-classifications).
 
+Configured paths remain enforced at AddDictionary/SanitizeDictionary calls. Inline positive classification constructors with constant exact keys protect their whole entries. NonSensitive and unknown classification expressions cannot waive configured paths. Dictionary name checks, including ILogger scopes, accept known null, empty and exact `[redacted]` values.
+
 DRN0015 through DRN0020 and DRN0022 analyze generated sources without reporting diagnostics in generated code. Runtime classification remains active for DRN capture APIs.
 
 DRN0017 accepts the exact compile-time `[redacted]` value and checks AddIfNotNullOrEmpty except constant null/empty values. Exact adjacent comments acknowledge reviewed names. Configured analyzer paths, classified values, declarations, and children remain enforced. Backend runtime uses explicit classifications without scanning names again.

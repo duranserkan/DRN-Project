@@ -14,6 +14,8 @@ For project classification catalogs, share schema fixtures between analyzer and 
 
 Dictionary fixtures should use AddDictionary/SanitizeDictionary with explicit classifications. Exact-name comments acknowledge reviewed DRN0020 names but provide no runtime protection. Cover nested keys, mutation, scalar-only NonSensitive exemptions, positive-classification precedence, native copies, and absence of runtime name matching.
 
+Configured-path regressions must cover native and extension dictionary APIs, exact positive classifications, NonSensitive and unknown classifications, and protected descendants. Scope dictionary tests must accept safe constants while retaining diagnostics for unsafe subsequent writes and directly extracted classified properties.
+
 Diagnostic metadata regressions must cover interface-only positive classifications across declared, concrete, nested, generic and explicit-implementation captures. Keep unrelated same-named public properties visible. Verify lazy registration and warm positive/negative decisions without sharing mutable counters between parallel tests. Snapshot and byte-sizing changes require detached native-copy coverage, escaped Unicode fragment reconstruction, repeated writer reuse, serialization failure recovery and reentrant sizing. Warm lookup allocation tests do not prove allocation-free capture or export.
 
 DRN0019 schema-exemption tests must use real EF migration API references. Cover column definitions and composite constraint selectors, while retaining diagnostics for migration data objects, nested defaults, logging and lookalike APIs. Do not exclude migration folders or generated files.

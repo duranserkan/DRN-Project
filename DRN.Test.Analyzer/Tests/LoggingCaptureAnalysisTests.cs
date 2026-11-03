@@ -5,6 +5,84 @@ namespace DRN.Test.Analyzer.Tests;
 public sealed class LoggingCaptureAnalysisTests
 {
     [Theory]
+    [InlineData("null")]
+    [InlineData("\"\"")]
+    [InlineData("\"[redacted]\"")]
+    public async Task Safe_Constants_Should_Not_Waive_User_Defined_Logging_Conversions(string literal)
+    {
+        var diagnostics = await Analyze(Compilation($$"""
+            using Microsoft.Extensions.Logging;
+            using System.Collections.Generic;
+            public sealed class ConvertedValue
+            {
+                public static implicit operator ConvertedValue(string value) => new();
+                public static explicit operator string(ConvertedValue value) => "private";
+            }
+            public class Caller
+            {
+                public void Run(ILogger log)
+                {
+                    log.BeginScope(new Dictionary<string, object> { ["Password"] = (string)(ConvertedValue){{literal}} });
+                    log.LogInformation("{Password}", (string)(ConvertedValue){{literal}});
+                    log.BeginScope(new Dictionary<string, object> { ["Password"] = (object)(string){{literal}} });
+                    log.LogInformation("{Password}", (object)(string){{literal}});
+                }
+            }
+            """));
+
+        diagnostics.Should().HaveCount(2).And.OnlyContain(item => item.Id == "DRN0022");
+        diagnostics.Select(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan))
+            .Should().BeEquivalentTo(
+                "log.BeginScope(new Dictionary<string, object> { [\"Password\"] = (string)(ConvertedValue)" + literal + " })",
+                "log.LogInformation(\"{Password}\", (string)(ConvertedValue)" + literal + ")");
+    }
+
+    [Fact]
+    public async Task Scope_Dictionaries_Should_Accept_Safe_Constants_But_Keep_Unsafe_Writes_Checked()
+    {
+        var diagnostics = await Analyze(Compilation("""
+            using Microsoft.Extensions.Logging;
+            using System.Collections.Generic;
+            using DRN.Framework.SharedKernel.Attributes;
+            public class Input { [Sensitive] public string Value => "private"; }
+            public class Caller
+            {
+                public void Run(ILogger log, string value, Input input)
+                {
+                    log.BeginScope(new Dictionary<string, object>
+                    {
+                        ["Password"] = "[redacted]", ["Token"] = "", ["Email"] = null
+                    });
+                    log.BeginScope(new Dictionary<string, object> { { "Password", "[redacted]" } });
+                    var safe = new Dictionary<string, object>();
+                    safe["Password"] = "[redacted]";
+                    safe.Add("Token", "");
+                    safe["Email"] = null;
+                    log.BeginScope(safe);
+                    log.BeginScope(new Dictionary<string, object> { ["Payload"] = "[redacted]" });
+                    log.BeginScope(new Dictionary<string, object> { ["Password"] = value });
+                    log.BeginScope(new Dictionary<string, object> { ["Payload"] = value });
+                    log.BeginScope(new Dictionary<string, object> { ["Password"] = "[redacted]suffix" });
+                    log.BeginScope(new Dictionary<string, object> { ["Detail"] = input.Value });
+                    var changing = new Dictionary<string, object> { ["Password"] = "[redacted]" };
+                    changing["Password"] = value;
+                    log.BeginScope(changing);
+                }
+            }
+            """), new ProjectDiagnosticRulesTests.RuleFile("data-classification-rules.json",
+            """{"sensitiveFieldPaths":["Payload"]}"""));
+
+        diagnostics.Should().HaveCount(5).And.OnlyContain(item => item.Id == "DRN0022");
+        diagnostics.Select(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan))
+            .Should().BeEquivalentTo(
+                "log.BeginScope(new Dictionary<string, object> { [\"Password\"] = value })",
+                "log.BeginScope(new Dictionary<string, object> { [\"Payload\"] = value })",
+                "log.BeginScope(new Dictionary<string, object> { [\"Password\"] = \"[redacted]suffix\" })",
+                "log.BeginScope(new Dictionary<string, object> { [\"Detail\"] = input.Value })",
+                "log.BeginScope(changing)");
+    }
+
+    [Theory]
     [InlineData("LogTrace")]
     [InlineData("LogDebug")]
     [InlineData("LogInformation")]

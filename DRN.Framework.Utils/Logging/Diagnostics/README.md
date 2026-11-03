@@ -72,6 +72,8 @@ log.AddDictionary("Response", values,
 
 Unclassified keys are visible at runtime. Nested dictionaries need their own explicit classifications for sensitive values. Direct sanitization skips classified traversal; scoped capture retains values for Development-only raw reads.
 
+Configured analyzer paths also apply to AddDictionary and SanitizeDictionary. Inline classification constructors with constant, exact keys and Sensitive or Personal kinds prove protection for the whole entry, including descendants. NonSensitive entries and name comments cannot waive configured paths. Unknown classification expressions remain checked. Known null, empty and exact `[redacted]` dictionary values require no name diagnostic, including in ILogger scopes.
+
 ### Exact capture policies
 
 `DiagnosticCapturePolicy` retains immutable, bounded `DiagnosticNameExemption` entries for API compatibility. Kinds, original segments and reasons are validated, but runtime capture does not match them. The analyzer recognizes reason/policy overloads as name acknowledgements without interpreting individual policy entries. Configured analyzer paths and declaration checks remain enforced. Prefer adjacent comments when an exact capture-name acknowledgement is needed. Policies never override positive runtime classifications.

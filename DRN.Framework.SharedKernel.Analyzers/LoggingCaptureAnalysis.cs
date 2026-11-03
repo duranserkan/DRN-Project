@@ -107,8 +107,12 @@ internal sealed class LoggingCaptureAnalysis(OperationAnalysisContext context, C
         return value;
     }
 
-    private static bool IsSafeConstant(IOperation value) =>
-        Unwrap(value)?.ConstantValue is { HasValue: true, Value: null or "" or "[redacted]" };
+    internal static bool IsSafeConstant(IOperation value)
+    {
+        // User-defined conversions can replace an otherwise harmless constant.
+        while (value is IConversionOperation { OperatorMethod: null } conversion) value = conversion.Operand;
+        return value.ConstantValue is { HasValue: true, Value: null or "" or "[redacted]" };
+    }
 
     private void AnalyzeValue(IOperation value)
     {
