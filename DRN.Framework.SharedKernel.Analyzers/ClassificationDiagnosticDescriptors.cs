@@ -27,5 +27,5 @@ internal static class ClassificationDiagnosticDescriptors
 
     internal static readonly DiagnosticDescriptor InvalidRuleFile = new("DRN0021", "Invalid diagnostic redaction rules",
         "{0}", Category, DiagnosticSeverity.Error, true, helpLinkUri: Help,
-        customTags: [WellKnownDiagnosticTags.CompilationEnd]);
+        customTags: WellKnownDiagnosticTags.CompilationEnd);
 }

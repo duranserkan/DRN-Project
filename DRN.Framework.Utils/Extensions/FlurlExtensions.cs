@@ -10,6 +10,8 @@ namespace DRN.Framework.Utils.Extensions;
 
 public static class FlurlExtensions
 {
+    private const string ResponseKey = "FlurlEx_Response";
+
     public static int GetGatewayStatusCode(this FlurlHttpException exception) =>
         exception.StatusCode switch
         {
@@ -67,7 +69,7 @@ public static class FlurlExtensions
 
                 if (count > sanitizer.Options.MaxFieldBytes)
                 {
-                    scopedLog.Add("FlurlEx_Response", DiagnosticSanitizer.Limited);
+                    scopedLog.Add(ResponseKey, DiagnosticSanitizer.Limited);
                     scopedLog.Add("FlurlEx_ResponseCaptureLimited", true);
                     return;
                 }
@@ -75,12 +77,12 @@ public static class FlurlExtensions
                 var charset = content.Headers.ContentType?.CharSet?.Trim('"');
                 if (!string.IsNullOrEmpty(charset) && !charset.Equals("utf-8", StringComparison.OrdinalIgnoreCase))
                 {
-                    scopedLog.Add("FlurlEx_Response", "[unsupported diagnostic encoding]");
+                    scopedLog.Add(ResponseKey, "[unsupported diagnostic encoding]");
                     return;
                 }
 
                 var body = new UTF8Encoding(false, true).GetString(buffer, 0, count);
-                scopedLog.Add("FlurlEx_Response", sanitizer.SanitizeBody(body,
+                scopedLog.Add(ResponseKey, sanitizer.SanitizeBody(body,
                     content.Headers.ContentType?.MediaType, requestUri?.AbsolutePath ?? string.Empty));
             }
             finally
@@ -91,7 +93,7 @@ public static class FlurlExtensions
         }
         catch (Exception)
         {
-            scopedLog.Add("FlurlEx_Response", "[diagnostic response read unavailable]");
+            scopedLog.Add(ResponseKey, "[diagnostic response read unavailable]");
         }
     }
 

@@ -30,6 +30,9 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
     private const string UrlRedacted = DiagnosticUrlSanitizer.UrlRedacted;
     public const string Limited = "[diagnostic capture limited]";
     internal const string Invalid = "[diagnostic field unavailable]";
+    internal const string CollectionLimitKey = "_diagnostic_limit";
+    internal const string QueryLimitMarker = "_diagnostic=" + Limited;
+    private const string FieldInputLimitStatus = "FieldInputLimit";
     private readonly Lock _gate = new();
     private readonly DiagnosticNameRules _rules;
     private readonly DiagnosticUrlSanitizer _urls;
@@ -66,7 +69,7 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
             SensitivePathSegments = options.SensitivePathSegments.ToArray()
         };
         _rules = new DiagnosticNameRules(Options);
-        _urlRules = [.. Options.SensitivePathSegments, .. Options.LoadedRules!.UrlSegments];
+        _urlRules = [.. Options.SensitivePathSegments, .. Options.LoadedRules.UrlSegments];
         _urls = new DiagnosticUrlSanitizer(this, _rules);
         _reader = new DiagnosticCaptureReader(this);
     }
@@ -145,13 +148,13 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
         if (!WorkAvailable()) return false;
         if (value.Length > limit)
         {
-            _status.Add("FieldInputLimit");
+            _status.Add(FieldInputLimitStatus);
             return false;
         }
         var bytes = Encoding.UTF8.GetByteCount(value);
         _inputBytes += bytes;
         if (bytes <= limit && _inputBytes <= Options.MaxInputBytes) return true;
-        _status.Add(bytes > limit ? "FieldInputLimit" : "ScopeInputLimit");
+        _status.Add(bytes > limit ? FieldInputLimitStatus : "ScopeInputLimit");
         return false;
     }
 
@@ -161,6 +164,14 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
         () => IsValidKey(key) ? key : NextFieldKey(),
         $"_diagnostic_field_{Interlocked.Increment(ref _keySequence)}");
     public object? SanitizeValue(string fieldPath, object? value) => Capture(fieldPath, value).Value;
+
+    /// <summary>Exempts one supported scalar from built-in name rules, with an application-authored reason.</summary>
+    public object? SanitizeValue(string fieldPath, object? value, string exemptionReason) =>
+        CaptureWithReason(fieldPath, value, exemptionReason).Value;
+
+    /// <summary>Captures a value with application-authored exceptions for exact structural nodes.</summary>
+    public object? SanitizeValue(string fieldPath, object? value, DiagnosticCapturePolicy policy) =>
+        Capture(fieldPath, value, policy).Value;
 
     /// <summary>Captures dictionary entries with exact, application-authored key classifications.</summary>
     public object? SanitizeDictionary<TValue>(string path, IReadOnlyDictionary<string, TValue> values,
@@ -186,7 +197,7 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
         var ancestors = new HashSet<object>(ReferenceEqualityComparer.Instance) { values };
         foreach (var item in values)
         {
-            if (output.Count >= Options.MaxCollectionEntries || !WorkAvailable()) { output["_diagnostic_limit"] = Limited; break; }
+            if (output.Count >= Options.MaxCollectionEntries || !WorkAvailable()) { output[CollectionLimitKey] = Limited; break; }
             var safe = UniqueKey(output, item.Key);
             output[safe] = CaptureClassifiedEntry(path, item.Key, item.Value, rules, ancestors, context);
         }
@@ -234,40 +245,39 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
             ++_nodes;
             return Invalid;
         }
-        return Projector.Project(path + "." + key, value, 1, ancestors, context,
-            [path, key], DiagnosticCaptureKind.DictionaryKey, classified, key, positive);
+        var node = new DiagnosticCaptureNode(path + "." + key, [path, key],
+            DiagnosticCaptureKind.DictionaryKey, classified, key, positive);
+        return Projector.Project(node, value, 1, ancestors, context);
     }
 
     internal static bool HasClassifiedType(object? value) => value != null && IsClassified(value.GetType());
 
-    /// <summary>Exempts one supported scalar from built-in name rules, with an application-authored reason.</summary>
-    public object? SanitizeValue(string fieldPath, object? value, string exemptionReason) =>
-        CaptureWithReason(fieldPath, value, exemptionReason).Value;
-
     internal DiagnosticCaptureResult CaptureWithReason(string path, object? value, string exemptionReason, bool deferRedaction = false) => Guard(() =>
+    {
+        ValidateReason(value, exemptionReason);
+        return Capture(new DiagnosticCaptureNode(path, [path], Exempt: true), value, deferRedaction: deferRedaction);
+    }, new DiagnosticCaptureResult(Invalid, []));
+
+    private void ValidateReason(object? value, string exemptionReason)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(exemptionReason);
         if (exemptionReason.Length > Options.MaxFieldBytes) throw new ArgumentException("Diagnostic reason exceeds capture limits.");
         if (!IsSimpleValue(value)) throw new ArgumentException("Reason-based exemptions require a supported scalar.", nameof(value));
-        return Capture(path, value, exempt: true, deferRedaction: deferRedaction);
-    }, new DiagnosticCaptureResult(Invalid, []));
+    }
 
     internal static bool IsSimpleValue(object? value) => value is null or string or char or bool or
         byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal or
         Guid or DateTime or DateTimeOffset or DateOnly or TimeOnly or TimeSpan or Uri || value.GetType().IsEnum;
 
-    /// <summary>Captures a value with application-authored exceptions for exact structural nodes.</summary>
-    public object? SanitizeValue(string fieldPath, object? value, DiagnosticCapturePolicy policy) =>
-        Capture(fieldPath, value, policy).Value;
-
     internal DiagnosticCaptureResult Capture(string path, object? value, DiagnosticCapturePolicy? policy = null,
-        DiagnosticCaptureKind kind = DiagnosticCaptureKind.NamedEntry, string[]? segments = null, bool exempt = false,
-        string? namePath = null, bool deferRedaction = false, bool classified = false) => Guard(() =>
+        bool deferRedaction = false) => Capture(new DiagnosticCaptureNode(path, [path]), value, policy, deferRedaction);
+
+    internal DiagnosticCaptureResult Capture(DiagnosticCaptureNode node, object? value, DiagnosticCapturePolicy? policy = null,
+        bool deferRedaction = false) => Guard(() =>
     {
         policy?.Validate(Options);
         var context = new DiagnosticCaptureContext(policy, deferRedaction);
-        var result = Projector.Project(path, value, 0, null,
-            context, segments ?? [path], kind, exempt, namePath, classified);
+        var result = Projector.Project(node, value, 0, null, context);
         return new DiagnosticCaptureResult(result, context.Decisions.ToArray(), _urlRules);
     }, new DiagnosticCaptureResult(Invalid, []));
 
@@ -326,7 +336,7 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
         if (name.EndsWith("querystring", StringComparison.Ordinal))
         {
             var sanitized = Pairs(value.TrimStart('?'), context, UrlRedacted);
-            if (context.DeferRedaction && sanitized.Contains("_diagnostic=" + Limited, StringComparison.Ordinal)) return Limited;
+            if (context.DeferRedaction && sanitized.Contains(QueryLimitMarker, StringComparison.Ordinal)) return Limited;
             return context.DeferRedaction ? new DiagnosticCapturedValue(value, DiagnosticRedactionKind.QueryString, Options) : sanitized;
         }
         if ((name.EndsWith("url", StringComparison.Ordinal) || name.EndsWith("uri", StringComparison.Ordinal)) && value.Length > 0)
@@ -337,7 +347,7 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
     internal object CaptureUrl(string value, DiagnosticCaptureContext context)
     {
         var sanitized = Url(value, context);
-        if (context.DeferRedaction && sanitized.Contains("_diagnostic=" + Limited, StringComparison.Ordinal)) return Limited;
+        if (context.DeferRedaction && sanitized.Contains(QueryLimitMarker, StringComparison.Ordinal)) return Limited;
         return context.DeferRedaction && sanitized is not (Limited or Invalid)
             ? new DiagnosticCapturedValue(value, DiagnosticRedactionKind.Url, Options) : sanitized;
     }

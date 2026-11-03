@@ -284,6 +284,9 @@ public class ScopedLog : IScopedLog
 
     public IScopedLog Add(string key, object value) => AddCore(key, value, null);
 
+    /// <summary>Exempts one supported scalar from built-in name rules, with an application-authored reason.</summary>
+    public IScopedLog Add(string key, object? value, string exemptionReason) => AddCore(key, value, null, exemptionReason ?? string.Empty);
+
     /// <summary>Captures a dictionary with classifications for exact keys at this level.</summary>
     public IScopedLog AddDictionary<TValue>(string key, IReadOnlyDictionary<string, TValue> values,
         params DiagnosticKeyClassification[] classifications)
@@ -293,9 +296,6 @@ public class ScopedLog : IScopedLog
         else Store(safeKey, DiagnosticSanitizer.Invalid);
         return this;
     }
-
-    /// <summary>Exempts one supported scalar from built-in name rules, with an application-authored reason.</summary>
-    public IScopedLog Add(string key, object? value, string exemptionReason) => AddCore(key, value, null, exemptionReason ?? string.Empty);
 
     /// <summary>Captures a named entry using explicit, exact application-authored name exceptions.</summary>
     public IScopedLog AddWithPolicy(string key, object value, DiagnosticCapturePolicy policy) => AddCore(key, value, policy);
@@ -428,7 +428,7 @@ public class ScopedLog : IScopedLog
         catch (Exception)
         {
             _captureLimited = true;
-            Store(Sanitizer.SanitizeKey(prefix), "[diagnostic field unavailable]");
+            Store(Sanitizer.SanitizeKey(prefix), DiagnosticSanitizer.Invalid);
             return this;
         }
     }
@@ -447,8 +447,9 @@ public class ScopedLog : IScopedLog
             (native?.IsSensitive(prefix, rootExempt, rootNamePath) ?? Sanitizer.IsSensitive(prefix)))
         {
             if (native == null) Store(Sanitizer.SanitizeKey(prefix), DiagnosticSanitizer.Redacted);
-            else StoreCapture(Sanitizer.SanitizeKey(prefix), native.Capture(prefix, classObject, policy,
-                DiagnosticCaptureKind.ObjectRoot, [prefix], rootExempt, rootNamePath, deferRedaction: true));
+            else StoreCapture(Sanitizer.SanitizeKey(prefix), native.Capture(
+                new DiagnosticCaptureNode(prefix, [prefix], DiagnosticCaptureKind.ObjectRoot, rootExempt, rootNamePath),
+                classObject, policy, deferRedaction: true));
             return this;
         }
         var properties = DiagnosticPropertyCapture.PropertiesFor<TValue>(classObject.GetType());

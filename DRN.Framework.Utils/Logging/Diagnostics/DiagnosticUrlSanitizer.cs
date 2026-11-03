@@ -18,13 +18,18 @@ internal sealed class DiagnosticUrlSanitizer(DiagnosticSanitizer owner, Diagnost
         if (path == Limited) return Limited;
         var query = uri.Query.Length > 1 ? "?" + Pairs(uri.Query[1..], context, UrlRedacted) : "";
         var fragment = UrlFragment(uri.Fragment, context);
-        var authority = relative ? "" : uri.GetComponents(owner.RedactionEnabled
-            ? UriComponents.SchemeAndServer : UriComponents.SchemeAndServer | UriComponents.UserInfo, UriFormat.UriEscaped);
+        var components = owner.RedactionEnabled
+            ? UriComponents.SchemeAndServer : UriComponents.SchemeAndServer | UriComponents.UserInfo;
+        var authority = relative ? "" : uri.GetComponents(components, UriFormat.UriEscaped);
         return authority + path + query + fragment;
     }
 
-    private static string AbsoluteUrl(string value, bool relative) =>
-        relative ? "https://diagnostic.invalid" + (value.StartsWith('/') ? "" : "/") + value : value;
+    private static string AbsoluteUrl(string value, bool relative)
+    {
+        if (!relative) return value;
+        var separator = value.StartsWith('/') ? "" : "/";
+        return "https://diagnostic.invalid" + separator + value;
+    }
 
     private string UrlPath(Uri uri)
     {
@@ -53,8 +58,8 @@ internal sealed class DiagnosticUrlSanitizer(DiagnosticSanitizer owner, Diagnost
         var result = new List<string>();
         foreach (var part in value.Split('&', owner.Options.MaxCollectionEntries + 1))
         {
-            if (result.Count == owner.Options.MaxCollectionEntries || !owner.WorkAvailable()) { result.Add("_diagnostic=" + Limited); break; }
-            if (context != null && !owner.CountNode()) { result.Add("_diagnostic=" + Limited); break; }
+            if (result.Count == owner.Options.MaxCollectionEntries || !owner.WorkAvailable()) { result.Add(QueryLimitMarker); break; }
+            if (context != null && !owner.CountNode()) { result.Add(QueryLimitMarker); break; }
             result.Add(Pair(part, context, redacted, sourcePath));
         }
         return string.Join('&', result);

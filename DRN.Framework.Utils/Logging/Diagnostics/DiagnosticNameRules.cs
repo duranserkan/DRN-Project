@@ -58,8 +58,8 @@ internal sealed class DiagnosticNameRules
 
     public bool MatchesUrlSegment(ReadOnlySpan<char> value)
     {
-        char[]? rented = null;
-        Span<char> buffer = value.Length <= 512 ? stackalloc char[512] : (rented = ArrayPool<char>.Shared.Rent(value.Length));
+        var rented = value.Length <= 512 ? null : ArrayPool<char>.Shared.Rent(value.Length);
+        Span<char> buffer = rented == null ? stackalloc char[512] : rented;
         try
         {
             var name = Normalize(value, buffer);

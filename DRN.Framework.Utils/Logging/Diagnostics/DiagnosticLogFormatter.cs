@@ -7,6 +7,9 @@ internal static class DiagnosticLogFormatter
     private const int LimitMarkerReserveBytes = 64;
     private const int MaxFormattingAttempts = 12;
     private const int MaxContextValueBytes = 256;
+    private const string CaptureLimitedKey = "DiagnosticCaptureLimited";
+    private const string PayloadFragmentKey = "PayloadFragment";
+    private const string PayloadFragmentCountKey = "PayloadFragmentCount";
     private static readonly string[] ContextKeys =
     ["CorrelationId", "TraceId", "TraceIdentifier", "ClientError.ClientErrorId", "EventId", "EventName", "EventOutcome", "ExceptionType", "Response_StatusCode", "HttpMethod"];
 
@@ -30,7 +33,7 @@ internal static class DiagnosticLogFormatter
             result[key] = value;
             bytes += size;
         }
-        if (limited) result["DiagnosticCaptureLimited"] = true;
+        if (limited) result[CaptureLimitedKey] = true;
         return result;
     }
 
@@ -51,7 +54,7 @@ internal static class DiagnosticLogFormatter
         for (var attempt = 0; attempt < MaxFormattingAttempts; attempt++, budget /= 2)
         {
             var bounded = BoundSnapshot(snapshot, budget, sizing);
-            if (attempt > 0) bounded["DiagnosticCaptureLimited"] = true;
+            if (attempt > 0) bounded[CaptureLimitedKey] = true;
             var single = new Dictionary<string, object>(bounded, StringComparer.Ordinal);
             AddReferences(single, group, 0, 1);
             if (sizing.Measure(single) <= options.MaxRecordBytes) return [single];
@@ -77,14 +80,14 @@ internal static class DiagnosticLogFormatter
             var child = Context(snapshot, sizing);
             AddReferences(child, group, children.Count + 1, options.MaxRecords);
             child["PayloadFragmentIndex"] = children.Count;
-            child["PayloadFragmentCount"] = options.MaxRecords - 1;
+            child[PayloadFragmentCountKey] = options.MaxRecords - 1;
             child["PayloadEncoding"] = "json-text";
-            if (bounded.ContainsKey("DiagnosticCaptureLimited")) child["DiagnosticCaptureLimited"] = true;
+            if (bounded.ContainsKey(CaptureLimitedKey)) child[CaptureLimitedKey] = true;
             // Include the fragment key, colon and comma; its value is measured separately.
-            var overhead = sizing.Measure(child) + sizing.MeasureString("PayloadFragment") + 2;
+            var overhead = sizing.Measure(child) + sizing.MeasureString(PayloadFragmentKey) + 2;
             var length = FindFragmentLength(payload, position, overhead, options.MaxRecordBytes, sizing);
             if (length == 0) break;
-            child["PayloadFragment"] = payload.Substring(position, length);
+            child[PayloadFragmentKey] = payload.Substring(position, length);
             children.Add(child);
             position += length;
         }
@@ -93,11 +96,11 @@ internal static class DiagnosticLogFormatter
         var parent = Context(snapshot, sizing);
         AddReferences(parent, group, 0, children.Count + 1);
         parent["DiagnosticSummary"] = "Diagnostic payload is in the referenced records.";
-        if (bounded.ContainsKey("DiagnosticCaptureLimited")) parent["DiagnosticCaptureLimited"] = true;
+        if (bounded.ContainsKey(CaptureLimitedKey)) parent[CaptureLimitedKey] = true;
         for (var index = 0; index < children.Count; index++)
         {
             AddReferences(children[index], group, index + 1, children.Count + 1);
-            children[index]["PayloadFragmentCount"] = children.Count;
+            children[index][PayloadFragmentCountKey] = children.Count;
         }
         return sizing.Measure(parent) <= options.MaxRecordBytes ? [parent, .. children] : null;
     }
@@ -126,7 +129,7 @@ internal static class DiagnosticLogFormatter
                 if (value is string text && (text.Length > MaxContextValueBytes || sizing.MeasureString(text) > MaxContextValueBytes))
                 {
                     context[key] = DiagnosticSanitizer.Limited;
-                    context["DiagnosticCaptureLimited"] = true;
+                    context[CaptureLimitedKey] = true;
                 }
                 else context[key] = value;
             }

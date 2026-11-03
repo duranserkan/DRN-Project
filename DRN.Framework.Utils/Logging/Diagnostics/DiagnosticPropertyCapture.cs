@@ -52,11 +52,11 @@ internal readonly struct DiagnosticPropertyCapture(ScopedLog owner, DiagnosticCa
             if (value is TimeSpan time && key.Length <= Sanitizer.Options.MaxKeyBytes)
             {
                 key = ScopedLogConventions.TimeSpanKey(key);
-                if (namePath != null) namePath = ScopedLogConventions.TimeSpanKey(namePath);
+                namePath = TimeSpanNamePath(namePath);
                 value = time.TotalSeconds;
             }
-            var capture = _native.Capture(key, value, policy, DiagnosticCaptureKind.Property, segments, exempt, namePath,
-                deferRedaction: true, classified: sensitive);
+            var node = new DiagnosticCaptureNode(key, segments, DiagnosticCaptureKind.Property, exempt, namePath, sensitive);
+            var capture = _native.Capture(node, value, policy, deferRedaction: true);
             capture = capture with { Decisions = [root, .. capture.Decisions] };
             owner.StoreCapture(Sanitizer.SanitizeKey(key), capture);
         }
@@ -65,8 +65,12 @@ internal readonly struct DiagnosticPropertyCapture(ScopedLog owner, DiagnosticCa
             _native?.RecordGetterFailure();
             const string unavailable = "[diagnostic getter unavailable]";
             if (_native == null) owner.Store(Sanitizer.SanitizeKey(originalKey), unavailable);
-            else owner.StoreCapture(Sanitizer.SanitizeKey(originalKey), _native.Capture(originalKey, unavailable, policy,
-                DiagnosticCaptureKind.Property, segments, exempt, namePath, deferRedaction: true, classified: sensitive));
+            else owner.StoreCapture(Sanitizer.SanitizeKey(originalKey), _native.Capture(
+                new DiagnosticCaptureNode(originalKey, segments, DiagnosticCaptureKind.Property, exempt, namePath, sensitive),
+                unavailable, policy, deferRedaction: true));
         }
     }
+
+    private static string? TimeSpanNamePath(string? namePath) =>
+        namePath == null ? null : ScopedLogConventions.TimeSpanKey(namePath);
 }
