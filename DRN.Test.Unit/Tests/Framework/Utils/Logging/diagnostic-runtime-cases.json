@@ -1,0 +1,17 @@
+[
+  { "kind": "field", "field": "Input.Password", "value": "password-probe", "expected": "password-probe" },
+  { "kind": "field", "field": "E_m_a_i_l", "value": "personal-probe", "expected": "personal-probe" },
+  { "kind": "field", "field": "ClientError.Message", "value": "client-probe", "expected": "client-probe" },
+  { "kind": "field", "field": "Remote_IpAddr", "value": "192.0.2.1", "expected": "192.0.2.1" },
+  { "kind": "field", "field": "Response_StatusCode", "value": 503, "expected": 503 },
+  { "kind": "field", "field": "HasRecoveryCodes", "value": true, "expected": true },
+  { "kind": "field", "field": "Report.Url", "value": "https://user:credential@example.test/?token=probe", "expected": "https://user:credential@example.test/?token=probe" },
+  { "kind": "field", "field": "Report.CallbackUri", "value": "/token/probe", "expected": "/token/probe" },
+  { "kind": "field", "field": "Report.QueryString", "value": "?password=probe", "expected": "?password=probe" },
+  { "kind": "field", "field": "Report.Url", "value": ["/token/probe"], "expected": ["/token/probe"] },
+  { "kind": "text", "value": "password=probe; user@example.test", "expected": "password=probe; user@example.test" },
+  { "kind": "url", "value": "https://user:credential@example.test/token/path?access%54oken=probe", "expected": "https://example.test/token/path?accessToken=probe" },
+  { "kind": "url", "value": "/search?Password=encoded%252Dprobe", "expected": "/search?Password=encoded-probe" },
+  { "kind": "url", "value": "/path#token=probe", "expected": "/path#token=probe" },
+  { "kind": "url", "value": "/docs#install%20guide", "expected": "/docs#install%20guide" }
+]

@@ -1,6 +1,7 @@
 namespace DRN.Framework.Utils.Logging.Diagnostics;
 
-// Name matching and exemptions describe one structural node, independently of traversal state.
-internal readonly record struct DiagnosticCaptureNode(string Path, string[] Segments,
-    DiagnosticCaptureKind Kind = DiagnosticCaptureKind.NamedEntry, bool Exempt = false,
-    string? NamePath = null, bool Classified = false);
+// Only path length is needed for capture bounds now that names are compiler-owned.
+internal readonly record struct DiagnosticCaptureNode(int PathLength, bool Classified = false)
+{
+    internal DiagnosticCaptureNode(string path, bool classified = false) : this(path.Length, classified) { }
+}

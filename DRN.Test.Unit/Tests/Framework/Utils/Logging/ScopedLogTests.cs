@@ -1,6 +1,6 @@
 using System.Diagnostics;
 // These fixtures deliberately retain unclassified/ignored members to verify runtime getter suppression.
-#pragma warning disable DRN0015, DRN0017
+#pragma warning disable DRN0015
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using DRN.Framework.SharedKernel.Attributes;
@@ -17,20 +17,18 @@ public class ScopedLogTests
     [DataInlineUnit("none")]
     [DataInlineUnit("field")]
     [DataInlineUnit("path")]
-    public void Metric_Identifiers_Should_Exempt_Built_In_Rules_But_Respect_Configured_Rules(string rule)
+    public void Metric_Identifiers_Should_Ignore_Runtime_Name_Rules(string rule)
     {
         using var settings = SettingsProvider.Development();
         var log = new ScopedLog(settings, new DiagnosticSanitizer(MetricOptions(rule)));
-        var allowed = rule == "none";
-        log.Increase("ClientWork").Should().Be(allowed ? 1 : 0);
-        log.IncreaseTimeSpentOn("ClientWork", TimeSpan.FromSeconds(2))
-            .Should().Be(allowed ? TimeSpan.FromSeconds(2) : TimeSpan.Zero);
-        using (log.Measure("ClientWork")) { }
+        log.Increase("TokenWork").Should().Be(1);
+        log.IncreaseTimeSpentOn("TokenWork", TimeSpan.FromSeconds(2))
+            .Should().Be(TimeSpan.FromSeconds(2));
+        using (log.Measure("TokenWork")) { }
         var snapshot = log.GetLogs();
-        snapshot.ContainsKey("Stats_ClientWork").Should().Be(allowed);
-        snapshot.ContainsKey(ScopedLogConventions.TimeSpentOnKey("ClientWork")).Should().Be(allowed);
-        if (allowed)
-            snapshot[ScopedLogConventions.TimeSpentOnCounter("ClientWork")].Should().Be(2L);
+        snapshot.Should().ContainKey("Stats_TokenWork");
+        snapshot.Should().ContainKey(ScopedLogConventions.TimeSpentOnKey("TokenWork"));
+        snapshot[ScopedLogConventions.TimeSpentOnCounter("TokenWork")].Should().Be(2L);
     }
 
     [Fact]
@@ -52,53 +50,43 @@ public class ScopedLogTests
     [DataInlineUnit("none")]
     [DataInlineUnit("field")]
     [DataInlineUnit("path")]
-    public void Metric_Copies_Should_Preserve_Exemptions_And_Respect_Destination_Rules(string rule)
+    public void Metric_Copies_Should_Preserve_Values_Without_Destination_Name_Matching(string rule)
     {
         using var settings = SettingsProvider.Development();
         var options = MetricOptions("none");
         var source = new ScopedLog(settings, new DiagnosticSanitizer(options));
-        source.Increase("ClientWork", 4);
-        source.Increase("ClientWork", 0);
-        source.IncreaseTimeSpentOn("ClientWork", TimeSpan.FromSeconds(2));
-        source.IncreaseTimeSpentOn("ClientWork", TimeSpan.Zero);
+        source.Increase("TokenWork", 4);
+        source.Increase("TokenWork", 0);
+        source.IncreaseTimeSpentOn("TokenWork", TimeSpan.FromSeconds(2));
+        source.IncreaseTimeSpentOn("TokenWork", TimeSpan.Zero);
         var first = new ScopedLog(settings, new DiagnosticSanitizer(options));
         first.CopyFrom(source);
-        first.Increase("ClientWork").Should().Be(5);
-        first.IncreaseTimeSpentOn("ClientWork", TimeSpan.FromSeconds(1)).Should().Be(TimeSpan.FromSeconds(3));
+        first.Increase("TokenWork").Should().Be(5);
+        first.IncreaseTimeSpentOn("TokenWork", TimeSpan.FromSeconds(1)).Should().Be(TimeSpan.FromSeconds(3));
 
         var destination = new ScopedLog(settings, new DiagnosticSanitizer(MetricOptions(rule)));
         destination.CopyFrom(first);
         var snapshot = destination.GetLogs();
-        var counterKey = ScopedLogConventions.TimeSpentOnCounter("ClientWork");
-        var durationKey = ScopedLogConventions.TimeSpentOnKey("ClientWork");
-        if (rule == "none")
-        {
-            snapshot["Stats_ClientWork"].Should().Be(5L);
-            snapshot[counterKey].Should().Be(3L);
-            snapshot[durationKey].Should().Be(3d);
-            destination.Increase("ClientWork").Should().Be(6);
-            destination.IncreaseTimeSpentOn("ClientWork", TimeSpan.FromSeconds(1)).Should().Be(TimeSpan.FromSeconds(4));
-        }
-        else
-        {
-            snapshot["Stats_ClientWork"].Should().Be(DiagnosticSanitizer.Redacted);
-            snapshot[counterKey].Should().Be(DiagnosticSanitizer.Redacted);
-            snapshot[durationKey].Should().Be(DiagnosticSanitizer.Redacted);
-            destination.Increase("ClientWork").Should().Be(0);
-            destination.IncreaseTimeSpentOn("ClientWork", TimeSpan.FromSeconds(1)).Should().Be(TimeSpan.Zero);
-        }
-        source.GetLogs()["Stats_ClientWork"].Should().Be(4L);
+        var counterKey = ScopedLogConventions.TimeSpentOnCounter("TokenWork");
+        var durationKey = ScopedLogConventions.TimeSpentOnKey("TokenWork");
+        snapshot["Stats_TokenWork"].Should().Be(5L);
+        snapshot[counterKey].Should().Be(3L);
+        snapshot[durationKey].Should().Be(3d);
+        destination.Increase("TokenWork").Should().Be(6);
+        destination.IncreaseTimeSpentOn("TokenWork", TimeSpan.FromSeconds(1)).Should().Be(TimeSpan.FromSeconds(4));
+        source.GetLogs()["Stats_TokenWork"].Should().Be(4L);
         source.GetLogs()[durationKey].Should().Be(2d);
 
-        first.Add("Stats_ClientWork", "replacement-probe");
+        // DiagnosticNameExemption: Stats_TokenWork | Deliberate replacement fixture for a metric key.
+        first.Add("Stats_TokenWork", "replacement-probe");
         destination.CopyFrom(first);
-        destination.GetLogs()["Stats_ClientWork"].Should().Be(DiagnosticSanitizer.Redacted);
+        destination.GetLogs()["Stats_TokenWork"].Should().Be("replacement-probe");
     }
 
     private static DiagnosticLogOptions MetricOptions(string rule) => new()
     {
-        SensitiveFields = rule == "field" ? ["ClientWork"] : [],
-        SensitiveFieldPaths = rule == "path" ? ["Stats_ClientWork"] : [],
+        SensitiveFields = rule == "field" ? ["TokenWork"] : [],
+        SensitiveFieldPaths = rule == "path" ? ["Stats_TokenWork"] : [],
         MaxProcessingMilliseconds = 100
     };
 
@@ -367,7 +355,7 @@ public class ScopedLogTests
     }
 
     [Fact]
-    public void Foreign_Typed_Events_Should_Survive_While_Ordinary_Fields_Remain_Redacted()
+    public void Foreign_Typed_Events_And_Unclassified_Fields_Should_Retain_Their_Values()
     {
         var text = new string('e', 8192);
         var primary = new ScopeEvent(new EventId(42, text), text, text);
@@ -389,14 +377,14 @@ public class ScopedLogTests
         var call = logger.ReceivedCalls().Single(item => item.GetMethodInfo().Name == "Log").GetArguments();
         var state = (IReadOnlyList<KeyValuePair<string, object?>>)call[2]!;
         var record = (IReadOnlyDictionary<string, object>)state.Single(pair => pair.Key == "@Logs").Value!;
-        record["Password"].Should().Be(DiagnosticSanitizer.Redacted);
+        record["Password"].Should().Be("private-probe");
         record["EventReason"].Should().Be(text);
         ((List<object>)record["AdditionalEvents"]).Should().Equal(additional);
 
         var destination = CreateLog();
         destination.CopyFrom(source);
         destination.Event.Should().BeSameAs(primary);
-        destination.GetLogs()["Password"].Should().Be(DiagnosticSanitizer.Redacted);
+        destination.GetLogs()["Password"].Should().Be("private-probe");
         ((List<object>)destination.GetLogs()["AdditionalEvents"]).Should().Equal(additional);
     }
 
@@ -418,7 +406,7 @@ public class ScopedLogTests
             MaxProcessingMilliseconds = 100
         }));
         var call = logger.ReceivedCalls().Single(item => item.GetMethodInfo().Name == "Log").GetArguments();
-        call[2]!.ToString().Should().NotContain("private-probe").And.Contain(DiagnosticSanitizer.Redacted);
+        call[2]!.ToString().Should().Contain("private-probe");
     }
 
     [Fact]
@@ -511,8 +499,10 @@ public class ScopedLogTests
         var source = CreateLog();
         destination.WithEvent(primary);
         source.WithEvent(sourceEvent);
+        // DiagnosticNameExemption: DestinationKey | Fixture entry for destination retention.
         destination.Add("DestinationKey", "destination");
         destination.AddWarning("destination-warning");
+        // DiagnosticNameExemption: SourceKey | Fixture entry for copy retention.
         source.Add("SourceKey", "source");
         source.AddException(new InvalidOperationException("source-exception"));
         source.AddToList("Items", "one");

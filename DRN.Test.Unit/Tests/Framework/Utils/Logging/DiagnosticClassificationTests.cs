@@ -38,7 +38,7 @@ public sealed class DiagnosticClassificationTests
         var direct = JsonSerializer.SerializeToElement(Policy().SanitizeValue("Model", model));
         direct.GetProperty("Value").GetString().Should().Be(DiagnosticSanitizer.Redacted);
         direct.GetProperty("Hidden").GetString().Should().Be(ScopedLogConventions.IgnoredLogValue);
-        direct.GetProperty("Keyboard").GetString().Should().Be(DiagnosticSanitizer.Redacted);
+        direct.GetProperty("Keyboard").GetString().Should().Be("layout");
         direct.GetProperty("Ordinary").GetString().Should().Be("visible");
         model.ReadCount.Should().Be(0);
 
@@ -107,15 +107,15 @@ public sealed class DiagnosticClassificationTests
     }
 
     [Fact]
-    public void Catalog_Normalization_Should_Match_Analyzer_Vectors()
+    public void Runtime_Should_Not_Match_Analyzer_Name_Vectors()
     {
         var sanitizer = Policy();
-        foreach (var name in new[] { "Response_StatusCode", "Secret", "CancellationToken", "Keyboard", "E_m_a_i_l", "ClientErrorId" })
-            sanitizer.IsSensitive(name).Should().BeTrue();
-        foreach (var name in new[] { "Sec", "ElapsedSeconds", "Section", "FlurlEx_ResponseCaptureLimited" })
+        foreach (var name in new[] { "Response_StatusCode", "Secret", "CancellationToken", "Keyboard", "E_m_a_i_l", "ClientSecret", "Client_Assertion" })
+            sanitizer.IsSensitive(name).Should().BeFalse();
+        foreach (var name in new[] { "Sec", "ElapsedSeconds", "Section", "FlurlEx_ResponseCaptureLimited", "Client", "ClientId", "ClientErrorId", "Request_l5d-client-id" })
             sanitizer.IsSensitive(name).Should().BeFalse();
         sanitizer.IsSensitive("Émail").Should().BeFalse();
-        sanitizer.IsSensitive("se.Cret").Should().BeTrue();
+        sanitizer.IsSensitive("se.Cret").Should().BeFalse();
     }
 
     [Fact]
@@ -144,7 +144,7 @@ public sealed class DiagnosticClassificationTests
         result.TryGetProperty("PublicField", out _).Should().BeFalse();
         Policy("keyboard").SanitizeValue("Model", new Model()).Should().NotBeNull();
         var configured = JsonSerializer.SerializeToElement(Policy("keyboard").SanitizeValue("Model", new Model()));
-        configured.GetProperty("Keyboard").GetString().Should().Be(DiagnosticSanitizer.Redacted);
+        configured.GetProperty("Keyboard").GetString().Should().Be("layout");
     }
 
     [Fact]
@@ -152,11 +152,11 @@ public sealed class DiagnosticClassificationTests
     {
         var data = JsonSerializer.SerializeToElement(Policy().SanitizeValue("Model", new DerivedModel()));
         data.GetProperty("Password").GetString().Should().Be(DiagnosticSanitizer.Redacted);
-        data.GetProperty("Keyboard").GetString().Should().Be(DiagnosticSanitizer.Redacted);
+        data.GetProperty("Keyboard").GetString().Should().Be("override must remain protected");
     }
 
     [Fact]
-    public void Exact_Path_Grants_Should_Not_Authorize_Descendants_Or_Normalization_Collisions()
+    public void Runtime_Policies_Should_Not_Trigger_Name_Matching_For_Unclassified_Values()
     {
         var sanitizer = Policy();
         var input = new Dictionary<string, object>
@@ -166,18 +166,18 @@ public sealed class DiagnosticClassificationTests
             ["Status.Code"] = "not-authorized"
         };
         var policy = new DiagnosticCapturePolicy(
-            new(DiagnosticCaptureKind.NamedEntry, "Review this report container", "ClientError"),
-            new(DiagnosticCaptureKind.DictionaryKey, "HTTP status only", "ClientError", "StatusCode"));
-        var data = JsonSerializer.SerializeToElement(sanitizer.SanitizeValue("ClientError", input, policy));
+            new(DiagnosticCaptureKind.NamedEntry, "Review this report container", "SecretReport"),
+            new(DiagnosticCaptureKind.DictionaryKey, "HTTP status only", "SecretReport", "StatusCode"));
+        var data = JsonSerializer.SerializeToElement(sanitizer.SanitizeValue("SecretReport", input, policy));
         data.GetProperty("StatusCode").GetInt32().Should().Be(503);
-        data.GetProperty("Password").GetString().Should().Be(DiagnosticSanitizer.Redacted);
-        data.GetProperty("Status.Code").GetString().Should().Be(DiagnosticSanitizer.Redacted);
-        var wrongKind = new DiagnosticCapturePolicy(new DiagnosticNameExemption(DiagnosticCaptureKind.ObjectRoot, "Wrong kind", "ClientError"));
-        Policy().SanitizeValue("ClientError", input, wrongKind).Should().Be(DiagnosticSanitizer.Redacted);
+        data.GetProperty("Password").GetString().Should().Be("secret-probe");
+        data.GetProperty("Status.Code").GetString().Should().Be("not-authorized");
+        var wrongKind = new DiagnosticCapturePolicy(new DiagnosticNameExemption(DiagnosticCaptureKind.ObjectRoot, "Wrong kind", "SecretReport"));
+        JsonSerializer.Serialize(Policy().SanitizeValue("SecretReport", input, wrongKind)).Should().Contain("secret-probe");
     }
 
     [Fact]
-    public void Native_Copies_Should_Preserve_Granted_Values_But_Respect_Stricter_Destination_Rules()
+    public void Native_Copies_Should_Preserve_Values_Without_Destination_Name_Matching()
     {
         using var settings = SettingsProvider.Development();
         var source = new ScopedLog(settings, Policy());
@@ -190,16 +190,16 @@ public sealed class DiagnosticClassificationTests
         same.GetLogs()["Response_StatusCode"].Should().Be(503);
         var stricter = new ScopedLog(settings, Policy("keyboard", "statuscode"));
         stricter.CopyFrom(source);
-        stricter.GetLogs()["Model.Keyboard"].Should().Be(DiagnosticSanitizer.Redacted);
-        stricter.GetLogs()["Response_StatusCode"].Should().Be(DiagnosticSanitizer.Redacted);
+        stricter.GetLogs()["Model.Keyboard"].Should().Be("layout");
+        stricter.GetLogs()["Response_StatusCode"].Should().Be(503);
         source.Add("Response_StatusCode", "replacement");
         same.CopyFrom(source);
-        same.GetLogs()["Response_StatusCode"].Should().Be(DiagnosticSanitizer.Redacted);
-        JsonSerializer.Serialize(Policy().SanitizeValue("", source.GetLogs())).Should().NotContain("layout");
+        same.GetLogs()["Response_StatusCode"].Should().Be("replacement");
+        JsonSerializer.Serialize(Policy().SanitizeValue("", source.GetLogs())).Should().Contain("layout");
     }
 
     [Fact]
-    public void Native_List_Copies_Should_Preserve_Item_Decisions_And_Respect_Destination_Rules()
+    public void Native_List_Copies_Should_Preserve_Values_And_Detach_Later_Appends()
     {
         using var settings = SettingsProvider.Development();
         var options = new DiagnosticLogOptions { SensitivePathSegments = ["handoff"], MaxProcessingMilliseconds = 100 };
@@ -210,7 +210,7 @@ public sealed class DiagnosticClassificationTests
         var firstItems = JsonSerializer.SerializeToElement(first.GetLogs()["Responses"]);
         firstItems.GetArrayLength().Should().Be(1);
         firstItems[0].GetProperty("StatusCode").GetInt32().Should().Be(503);
-        firstItems[0].GetProperty("CallbackUrl").GetString().Should().Be("/handoff/redacted?opaque=visible&token=redacted");
+        firstItems[0].GetProperty("CallbackUrl").GetString().Should().Be("/handoff/private?opaque=visible&token=private");
 
         source.AddToList("Responses", new CapturedResponse(504, "/?opaque=second"));
         var appended = new ScopedLog(settings, new DiagnosticSanitizer(options));
@@ -225,7 +225,7 @@ public sealed class DiagnosticClassificationTests
         {
             var stricter = new ScopedLog(settings, Policy(rule));
             stricter.CopyFrom(appended);
-            stricter.GetLogs()["Responses"].Should().Be(DiagnosticSanitizer.Redacted);
+            JsonSerializer.SerializeToElement(stricter.GetLogs()["Responses"])[0].GetProperty("StatusCode").GetInt32().Should().Be(503);
         }
 
         var urlRules = new DiagnosticSanitizer(new DiagnosticLogOptions
@@ -234,65 +234,31 @@ public sealed class DiagnosticClassificationTests
         });
         var stricterUrls = new ScopedLog(settings, urlRules);
         stricterUrls.CopyFrom(appended);
-        stricterUrls.GetLogs()["Responses"].Should().Be(DiagnosticSanitizer.Redacted);
+        JsonSerializer.Serialize(stricterUrls.GetLogs()["Responses"]).Should().Contain("private");
     }
 
     [Fact]
-    public void Missing_Metadata_Should_Not_Gain_Provenance_From_Appended_Captures()
-    {
-        var capture = new DiagnosticCaptureResult("visible", [], []);
-        var missing = default(DiagnosticCaptureMetadata);
-        missing.HasValue.Should().BeFalse();
-        missing.Append(capture).HasValue.Should().BeFalse();
-        Action snapshot = () => missing.Snapshot("visible");
-        snapshot.Should().Throw<InvalidOperationException>();
-
-        var present = new DiagnosticCaptureMetadata(capture);
-        present.HasValue.Should().BeTrue();
-        present.Snapshot("visible").Value.Should().Be("visible");
-    }
-
-    [Fact]
-    public void Appended_Metadata_Should_Reuse_Identical_Url_Rules_And_Intersect_Other_Provenance()
-    {
-        string[] rules = ["handoff", "exchange"];
-        var capture = new DiagnosticCaptureResult("visible", [], rules);
-        var metadata = new DiagnosticCaptureMetadata(capture);
-        metadata = metadata.Append(capture);
-        metadata.Snapshot("visible").UrlRules.Should().BeSameAs(rules);
-        metadata = metadata.Append(capture);
-        metadata.Snapshot("visible").UrlRules.Should().BeSameAs(rules);
-
-        metadata = metadata.Append(capture with { UrlRules = ["handoff", "Exchange"] });
-        metadata.Snapshot("visible").UrlRules.Should().Equal("handoff");
-        metadata = metadata.Append(capture);
-        metadata.Snapshot("visible").UrlRules.Should().Equal("handoff");
-        rules.Should().Equal("handoff", "exchange");
-
-        var missing = capture with { UrlRules = null };
-        metadata = metadata.Append(missing);
-        metadata.Snapshot("visible").UrlRules.Should().BeEmpty();
-        metadata = new DiagnosticCaptureMetadata(missing).Append(missing).Append(capture);
-        metadata.Snapshot("visible").UrlRules.Should().BeEmpty();
-    }
-
-    [Fact]
-    public void Appended_List_Metadata_Should_Detach_On_Copy_And_Reset_On_Replacement()
+    public void Appended_Classifications_Should_Survive_Detached_Copies_And_Reset_On_Replacement()
     {
         using var settings = SettingsProvider.Development();
         var source = new ScopedLog(settings, Policy());
-        source.AddToList("Items", new Dictionary<string, string> { ["InitialField"] = "first" });
-        source.AddToList("Items", new Dictionary<string, string> { ["InitialField"] = "second" });
+        source.AddToList("Items", new ClassifiedListItem("first"));
+        source.AddToList("Items", new ClassifiedListItem("second"));
         var copy = new ScopedLog(settings, Policy());
         copy.CopyFrom(source);
 
-        source.AddToList("Items", new Dictionary<string, string> { ["LaterField"] = "third" });
+        source.AddToList("Items", new ClassifiedListItem("third"));
         var earlier = new ScopedLog(settings, Policy("LaterField"));
         earlier.CopyFrom(copy);
         JsonSerializer.SerializeToElement(earlier.GetLogs()["Items"]).GetArrayLength().Should().Be(2);
         var later = new ScopedLog(settings, Policy("LaterField"));
         later.CopyFrom(source);
-        later.GetLogs()["Items"].Should().Be(DiagnosticSanitizer.Redacted);
+        JsonSerializer.SerializeToElement(later.GetLogs()["Items"]).GetArrayLength().Should().Be(3);
+        foreach (var item in JsonSerializer.SerializeToElement(later.GetLogs()["Items"]).EnumerateArray())
+            item.GetProperty("Value").GetString().Should().Be(DiagnosticSanitizer.Redacted);
+        JsonSerializer.SerializeToElement(earlier.GetLogs(false)["Items"]).EnumerateArray()
+            .Select(item => item.GetProperty("Value").GetString()).Should().Equal("first", "second");
+        JsonSerializer.SerializeToElement(later.GetLogs(false)["Items"])[2].GetProperty("Value").GetString().Should().Be("third");
 
         source.Add("Items", "replacement");
         source.AddToList("Items", "fresh");
@@ -302,9 +268,10 @@ public sealed class DiagnosticClassificationTests
     }
 
     private sealed record CapturedResponse([property: Sensitive(false)] int StatusCode, string CallbackUrl);
+    private sealed record ClassifiedListItem([property: Sensitive] string Value);
 
     [Fact]
-    public void Native_Copies_Should_Apply_Destination_Rules_To_Query_And_Fragment_Keys()
+    public void Native_Copies_Should_Not_Apply_Destination_Rules_To_Query_And_Fragment_Keys()
     {
         using var settings = SettingsProvider.Development();
         foreach (var (key, value) in new (string, object)[]
@@ -329,7 +296,7 @@ public sealed class DiagnosticClassificationTests
             {
                 var stricter = new ScopedLog(settings, new DiagnosticSanitizer(options));
                 stricter.CopyFrom(same);
-                stricter.GetLogs()[key].Should().Be(DiagnosticSanitizer.Redacted);
+                JsonSerializer.Serialize(stricter.GetLogs()[key]).Should().Contain("private");
             }
         }
     }
@@ -348,7 +315,7 @@ public sealed class DiagnosticClassificationTests
         log.AddProperties<ExemptBaseModel>("Unchanged", new InheritedExemptionModel());
         log.GetLogs()["Unchanged.Keyboard"].Should().Be("layout");
         log.AddProperties<ExemptBaseModel>("Override", new UnclassifiedOverrideModel());
-        log.GetLogs()["Override.Keyboard"].Should().Be(DiagnosticSanitizer.Redacted);
+        log.GetLogs()["Override.Keyboard"].Should().Be("[diagnostic getter unavailable]");
     }
 
     private class ExemptBaseModel
@@ -495,7 +462,7 @@ public sealed class DiagnosticClassificationTests
     }
 
     [Fact]
-    public void Typed_Capture_And_Native_Copies_Should_Still_Apply_Configured_Full_Paths()
+    public void Typed_Capture_And_Native_Copies_Should_Ignore_Configured_Full_Paths()
     {
         using var settings = SettingsProvider.Development();
         var source = new ScopedLog(settings, Policy());
@@ -513,21 +480,22 @@ public sealed class DiagnosticClassificationTests
         };
         var stricter = new ScopedLog(settings, new DiagnosticSanitizer(options));
         stricter.CopyFrom(source);
-        stricter.GetLogs()["ClientError.Keyboard"].Should().Be(DiagnosticSanitizer.Redacted);
-        stricter.GetLogs()["ClientReport"].Should().Be(DiagnosticSanitizer.Redacted);
+        stricter.GetLogs()["ClientError.Keyboard"].Should().Be("layout");
+        JsonSerializer.SerializeToElement(stricter.GetLogs()["ClientReport"]).GetProperty("Keyboard").GetString().Should().Be("layout");
         var direct = JsonSerializer.SerializeToElement(new DiagnosticSanitizer(options).SanitizeValue("ClientReport", new Model()));
-        direct.GetProperty("Keyboard").GetString().Should().Be(DiagnosticSanitizer.Redacted);
-        Policy("ClientReport").SanitizeValue("ClientReport", new Model()).Should().Be(DiagnosticSanitizer.Redacted);
+        direct.GetProperty("Keyboard").GetString().Should().Be("layout");
+        JsonSerializer.SerializeToElement(Policy("ClientReport").SanitizeValue("ClientReport", new Model()))
+            .GetProperty("Keyboard").GetString().Should().Be("layout");
     }
 
     [Fact]
-    public void Typed_Collection_Properties_Should_Keep_Their_Own_Names_And_Protect_Untyped_Children()
+    public void Typed_Collection_Properties_Should_Preserve_Unclassified_Children()
     {
         var model = new CollectionModel();
         var data = JsonSerializer.SerializeToElement(Policy().SanitizeValue("ClientReport", model), new JsonSerializerOptions());
         data.GetProperty("Values")[0].GetString().Should().Be("public");
         data.GetProperty("Metadata").GetProperty("Count").GetInt32().Should().Be(3);
-        data.GetProperty("Metadata").GetProperty("Password").GetString().Should().Be(DiagnosticSanitizer.Redacted);
+        data.GetProperty("Metadata").GetProperty("Password").GetString().Should().Be("private");
         data.GetProperty("Json").GetProperty("ValueKind").GetInt32().Should().Be((int)JsonValueKind.Object);
         data.GetProperty("Json").TryGetProperty("Count", out _).Should().BeFalse();
     }
@@ -558,16 +526,16 @@ public sealed class DiagnosticClassificationTests
         copy.GetLogs()["Response_StatusCode"].Should().Be(503);
         var stricter = new ScopedLog(settings, Policy("StatusCode"));
         stricter.CopyFrom(log);
-        stricter.GetLogs()["Response_StatusCode"].Should().Be(DiagnosticSanitizer.Redacted);
+        stricter.GetLogs()["Response_StatusCode"].Should().Be(503);
 
         IDiagnosticSanitizer sanitizer = Policy();
         var anonymous = new { Count = 3, Password = "private" };
-        sanitizer.SanitizeValue("ClientReport", anonymous).Should().Be(DiagnosticSanitizer.Redacted);
-        sanitizer.SanitizeValue("ClientReport", anonymous, exemptionReason: "Inspect report root.")
+        JsonSerializer.SerializeToElement(sanitizer.SanitizeValue("SecretReport", anonymous)).GetProperty("Password").GetString().Should().Be("private");
+        sanitizer.SanitizeValue("SecretReport", anonymous, exemptionReason: "Inspect report root.")
             .Should().Be("[diagnostic field unavailable]");
-        Policy("StatusCode").SanitizeValue("StatusCode", 503, "HTTP status.").Should().Be(DiagnosticSanitizer.Redacted);
+        Policy("StatusCode").SanitizeValue("StatusCode", 503, "HTTP status.").Should().Be(503);
         Policy().SanitizeValue("Target", new ClassifiedUri(), "Reviewed entry.").Should().Be(DiagnosticSanitizer.Redacted);
-        Policy().SanitizeValue("CallbackUrl", "/?token=private", "Callback URL.").Should().Be("/?token=redacted");
+        Policy().SanitizeValue("CallbackUrl", "/?token=private", "Callback URL.").Should().Be("/?token=private");
         Policy().SanitizeValue("StatusCode", 503, " ").Should().Be("[diagnostic field unavailable]");
         var bounded = new DiagnosticSanitizer(new DiagnosticLogOptions { MaxFieldBytes = 1024, MaxProcessingMilliseconds = 100 });
         bounded.SanitizeValue("StatusCode", new string('x', 2048), "Reviewed entry.").Should().Be(DiagnosticSanitizer.Limited);
@@ -627,15 +595,15 @@ public sealed class DiagnosticClassificationTests
     }
 
     [Fact]
-    public void Uri_Scalars_Should_Always_Use_Url_Protection_And_Destination_Copy_Rules()
+    public void Uri_Scalars_Should_Remove_Credentials_Without_Matching_Names_In_Copies()
     {
         var uri = new Uri("https://user:private@example.test/resetpassword/private?token=private&opaque=visible");
-        const string expected = "https://example.test/resetpassword/redacted?token=redacted&opaque=visible";
+        const string expected = "https://example.test/resetpassword/private?token=private&opaque=visible";
         Policy().SanitizeValue("Target", uri).Should().Be(expected);
-        Policy().SanitizeValue("SecretTarget", uri).Should().Be(DiagnosticSanitizer.Redacted);
+        Policy().SanitizeValue("SecretTarget", uri).Should().Be(expected);
         Policy().SanitizeValue("SecretTarget", uri, "Reviewed target.").Should().Be(expected);
         Policy().SanitizeValue("Target", new Uri("/resetpassword/private", UriKind.Relative), "Reviewed target.")
-            .Should().Be("/resetpassword/redacted");
+            .Should().Be("/resetpassword/private");
 
         using var settings = SettingsProvider.Development();
         var source = new ScopedLog(settings, Policy());
@@ -645,7 +613,7 @@ public sealed class DiagnosticClassificationTests
         same.GetLogs()["SecretTarget"].Should().Be(expected);
         var stricter = new ScopedLog(settings, Policy("opaque"));
         stricter.CopyFrom(source);
-        stricter.GetLogs()["SecretTarget"].Should().Be(DiagnosticSanitizer.Redacted);
+        stricter.GetLogs()["SecretTarget"].Should().Be(expected);
         var bounded = new DiagnosticSanitizer(new DiagnosticLogOptions { MaxFieldBytes = 1024, MaxProcessingMilliseconds = 100 });
         bounded.SanitizeValue("Target", new Uri("https://example.test/" + new string('x', 2048)), "Reviewed target.")
             .Should().Be(DiagnosticSanitizer.Limited);
@@ -687,5 +655,5 @@ public sealed class DiagnosticClassificationTests
         public Detail Details => new();
         public string PublicField = "omitted";
     }
-    private sealed class Detail { public string Password => throw new InvalidOperationException("Name protected getter"); }
+    private sealed class Detail { [Sensitive] public string Password => throw new InvalidOperationException("Classified getter"); }
 }

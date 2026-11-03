@@ -15,7 +15,10 @@ public sealed class DiagnosticClassificationAnalyzerTests
             (DiagnosticClassificationAnalyzer.UnknownClassification, ClassificationDiagnosticDescriptors.UnknownClassification, "DRN0018"),
             (DiagnosticClassificationAnalyzer.AnonymousClassification, ClassificationDiagnosticDescriptors.AnonymousClassification, "DRN0019"),
             (DiagnosticClassificationAnalyzer.DictionaryClassification, ClassificationDiagnosticDescriptors.DictionaryClassification, "DRN0020"),
-            (DiagnosticClassificationAnalyzer.InvalidRuleFile, ClassificationDiagnosticDescriptors.InvalidRuleFile, "DRN0021")
+            (DiagnosticClassificationAnalyzer.InvalidRuleFile, ClassificationDiagnosticDescriptors.InvalidRuleFile, "DRN0021"),
+            (DiagnosticClassificationAnalyzer.UnsafeLoggingCapture, ClassificationDiagnosticDescriptors.UnsafeLoggingCapture, "DRN0022"),
+            (DiagnosticClassificationAnalyzer.InvalidNameExemptionComment, ClassificationDiagnosticDescriptors.InvalidNameExemptionComment, "DRN0023"),
+            (DiagnosticClassificationAnalyzer.UnusedNameExemptionComment, ClassificationDiagnosticDescriptors.UnusedNameExemptionComment, "DRN0024")
         };
 
         foreach (var (publicDescriptor, sharedDescriptor, id) in descriptors)
@@ -165,6 +168,56 @@ public sealed class DiagnosticClassificationAnalyzerTests
         diagnostics.Should().ContainSingle(item => item.Id == "DRN0020");
     }
 
+    [Theory]
+    [InlineData("DRN.Framework.Utils.Logging", "interface", "IScopedLog", true)]
+    [InlineData("DRN.Framework.Utils.Logging", "class", "ScopedLog", true)]
+    [InlineData("Other.Logging", "class", "ScopedLog", false)]
+    public async Task Conditional_String_Captures_Should_Check_Constant_Keys_And_Ignore_Uncaptured_Values(
+        string ownerNamespace, string declaration, string owner, bool supported)
+    {
+        var method = declaration == "interface"
+            ? "void AddIfNotNullOrEmpty(string key, string value);"
+            : "public void AddIfNotNullOrEmpty(string key, string value) { }";
+        var diagnostics = await Analyze(Compilation($$"""
+            namespace {{ownerNamespace}}
+            {
+                public {{declaration}} {{owner}} { {{method}} }
+            }
+            public class Caller
+            {
+                public void Run({{ownerNamespace}}.{{owner}} log, string value, string dynamicKey)
+                {
+                    const string SensitiveKey = "Password";
+                    const string Redacted = "[redacted]";
+                    log.AddIfNotNullOrEmpty("Password", value);
+                    log.AddIfNotNullOrEmpty(value: value, key: SensitiveKey);
+                    log.AddIfNotNullOrEmpty("Password", "[redacted]secret");
+                    log.AddIfNotNullOrEmpty("Payload", value);
+                    log.AddIfNotNullOrEmpty("Status", value);
+                    log.AddIfNotNullOrEmpty(dynamicKey, value);
+                    log.AddIfNotNullOrEmpty("Password", Redacted);
+                    log.AddIfNotNullOrEmpty("Password", "");
+                    log.AddIfNotNullOrEmpty("Password", null);
+                    log.AddIfNotNullOrEmpty("Payload", "");
+                }
+            }
+            """), new ProjectDiagnosticRulesTests.RuleFile("data-classification-rules.json",
+            """{"sensitiveFieldPaths":["Payload"]}"""));
+
+        if (!supported)
+        {
+            diagnostics.Should().BeEmpty();
+            return;
+        }
+        diagnostics.Should().HaveCount(4).And.OnlyContain(item => item.Id == "DRN0017");
+        diagnostics.Select(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan))
+            .Should().BeEquivalentTo(
+                "log.AddIfNotNullOrEmpty(\"Password\", value)",
+                "log.AddIfNotNullOrEmpty(value: value, key: SensitiveKey)",
+                "log.AddIfNotNullOrEmpty(\"Password\", \"[redacted]secret\")",
+                "log.AddIfNotNullOrEmpty(\"Payload\", value)");
+    }
+
     [Fact]
     public async Task Redacted_Constants_Should_Not_Require_Capture_Exemptions()
     {
@@ -178,7 +231,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
                 private const string Redacted = "[redacted]";
                 public void Run(DRN.Framework.Utils.Logging.IScopedLog log, string value)
                 {
-                    log.Add("Request_IpAddress", Redacted);
+                    log.Add("Secret", Redacted);
                     log.Add("Password", "[redacted]");
                     log.Add("Password", value);
                     log.Add("Password", "[redacted]secret");
@@ -187,6 +240,33 @@ public sealed class DiagnosticClassificationAnalyzerTests
             }
             """));
         diagnostics.Should().HaveCount(3).And.OnlyContain(item => item.Id == "DRN0017");
+    }
+
+    [Fact]
+    public async Task Ip_Names_Should_Use_The_Shared_Baseline_Without_Duplicate_Diagnostics()
+    {
+        var compilation = Compilation("""
+            namespace DRN.Framework.Utils.Logging
+            {
+                public interface IScopedLog { void Add(string key, object value); }
+            }
+            public class Request { public string IpAddress { get; set; } }
+            public class Caller
+            {
+                public void Run(DRN.Framework.Utils.Logging.IScopedLog log, string address)
+                {
+                    log.Add("Request_IpAddress", address);
+                    log.Add("Remote_IpAddr", address);
+                }
+            }
+            """);
+
+        (await Analyze(compilation)).Should().HaveCount(3);
+        var configured = await Analyze(compilation, new ProjectDiagnosticRulesTests.RuleFile("data-classification-rules.json",
+            """{"personalFields":["ipadd"]}"""));
+        configured.Should().HaveCount(3);
+        configured.Should().ContainSingle(item => item.Id == "DRN0015");
+        configured.Count(item => item.Id == "DRN0017").Should().Be(2);
     }
 
     [Fact]
@@ -263,7 +343,11 @@ public sealed class DiagnosticClassificationAnalyzerTests
             using NSubstitute.ReceivedExtensions;
             namespace DRN.Framework.Utils.Logging
             {
-                public interface IScopedLog { void Add(string key, object value); }
+                public interface IScopedLog
+                {
+                    void Add(string key, object value);
+                    void AddIfNotNullOrEmpty(string key, string value);
+                }
             }
             public class Caller
             {
@@ -277,6 +361,8 @@ public sealed class DiagnosticClassificationAnalyzerTests
                     log.DidNotReceiveWithAnyArgs().Add("PreAuthRateLimitRejected", false);
                     log.Received(Quantity.Exactly(1)).Add("PreAuthRateLimitRejected", true);
                     SubstituteExtensions.Received(log).Add("PreAuthRateLimitRejected", true);
+                    log.Received().AddIfNotNullOrEmpty("Password", Arg.Any<string>());
+                    log.DidNotReceive().AddIfNotNullOrEmpty("Password", Arg.Any<string>());
                     var values = new Dictionary<string, object> { ["Password"] = "private" };
                     log.Received().Add("Response", values);
                     log.DidNotReceive().Add("Response", values);
@@ -610,12 +696,13 @@ public sealed class DiagnosticClassificationAnalyzerTests
     }
 
     [Fact]
-    public async Task Catalog_Normalization_Should_Match_Runtime_Vectors()
+    public async Task Catalog_Normalization_Should_Match_Browser_Name_Vectors()
     {
         foreach (var name in new[]
                  {
                      "Response_StatusCode", "Secret", "S_e_C_r_E_t", "CancellationToken", "Keyboard",
-                     "E_m_a_i_l", "ClientErrorId", "PreAuthReplenishmentSeconds", "PostAuthReplenishmentSeconds",
+                     "E_m_a_i_l", "ClientSecret", "Client_Assertion", "Client", "ClientId", "ClientErrorId", "Request_l5d_client_id",
+                     "IpAddress", "Remote_IpAddr", "PreAuthReplenishmentSeconds", "PostAuthReplenishmentSeconds",
                      "ControllerClassName", "DiagnosticRedacted", "C_V_V", "Cvc", "Pin_Code",
                      "User_Name", "FirstName", "Last_Name", "DateOfBirth", "Birth_Date", "IBAN"
                  })
@@ -672,6 +759,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
         .Append(typeof(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder).Assembly.Location)
         .Append(typeof(Microsoft.EntityFrameworkCore.DbContext).Assembly.Location)
         .Append(typeof(Microsoft.Extensions.Compliance.Classification.DataClassificationAttribute).Assembly.Location)
+        .Append(typeof(Microsoft.Extensions.Logging.ILogger).Assembly.Location)
         .Distinct(StringComparer.Ordinal).Select(path => MetadataReference.CreateFromFile(path)).ToArray();
 
     internal static CSharpCompilation Compilation(string source, string path = "Models.cs") => CSharpCompilation.Create(
@@ -841,13 +929,13 @@ public sealed class DiagnosticClassificationAnalyzerTests
             {
                 public void Run(DRN.Framework.Utils.Logging.IScopedLog log, Model value)
                 {
-                    log.Add("ClientReport", value);
-                    log.AddProperties("ClientReport", value);
+                    log.Add("SecretReport", value);
+                    log.AddProperties("SecretReport", value);
                     log.Add("StatusCode", 503, exemptionReason: "HTTP status.");
-                    log.Add("ClientReport", new { Count = 3 }, exemptionReason: "Inspect report root.");
+                    log.Add("SecretReport", new { Count = 3 }, exemptionReason: "Inspect report root.");
                     log.Add("StatusCode", 503);
-                    log.Add("ClientReport", new { Count = 3 });
-                    log.Add("ClientReport", new System.Collections.Generic.Dictionary<string, object>());
+                    log.Add("SecretReport", new { Count = 3 });
+                    log.Add("SecretReport", new System.Collections.Generic.Dictionary<string, object>());
                 }
             }
             """));

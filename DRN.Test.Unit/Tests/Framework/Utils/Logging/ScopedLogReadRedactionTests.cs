@@ -6,9 +6,6 @@ using DRN.Framework.Utils.Logging.Diagnostics;
 using Microsoft.Extensions.Logging;
 using static DRN.Test.Unit.Tests.Framework.Utils.Logging.DiagnosticTestSupport;
 
-// These fixtures intentionally exercise runtime protection for sensitive capture names.
-#pragma warning disable DRN0017, DRN0020
-
 namespace DRN.Test.Unit.Tests.Framework.Utils.Logging;
 
 public class ScopedLogReadRedactionTests
@@ -33,9 +30,9 @@ public class ScopedLogReadRedactionTests
 
     [Theory]
     [DataInlineUnit("TargetUrl", "/?first=one&second=two#first=three&second=four",
-        "/?first=redacted&second=redacted#first=redacted&second=redacted")]
-    [DataInlineUnit("Request_QueryString", "first=one&second=two", "first=redacted&second=redacted")]
-    public void Deferred_Text_Reads_Should_Combine_Source_And_Destination_Rules(string path, string text, string expected)
+        "/?first=one&second=two#first=three&second=four")]
+    [DataInlineUnit("Request_QueryString", "first=one&second=two", "first=one&second=two")]
+    public void Deferred_Text_Reads_Should_Ignore_Source_And_Destination_Name_Rules(string path, string text, string expected)
     {
         var capture = Policy("first").Capture(path, text, deferRedaction: true);
         var snapshot = new Dictionary<string, object> { [path] = capture.Value! };
@@ -44,29 +41,26 @@ public class ScopedLogReadRedactionTests
         Policy("second").MaterializeSnapshot(snapshot, false)[path].Should().Be(text);
     }
 
-    [Theory]
-    [DataInlineUnit("TargetUrl", "/?first=one&second=two&third=three&fourth=four", "/?")]
-    [DataInlineUnit("Request_QueryString", "first=one&second=two&third=three&fourth=four", "")]
-    public void Deferred_Reads_Should_Keep_Interleaved_Source_Policies_Separate(string path, string text, string prefix)
+    [Fact]
+    public void Deferred_Urls_Should_Keep_Interleaved_Source_Key_Limits_Separate()
     {
-        var first = Policy("first").Capture(path, text, deferRedaction: true);
-        var second = Policy("second").Capture(path, text, deferRedaction: true);
-        var third = Policy("third").Capture(path, text, deferRedaction: true);
+        var text = "https://user:credential@example.test/?" + new string('x', 40) + "=one";
+        var first = new DiagnosticSanitizer(new DiagnosticLogOptions { MaxKeyBytes = 32, MaxProcessingMilliseconds = 100 })
+            .Capture("Target", new Uri(text), deferRedaction: true);
+        var second = Policy().Capture("Target", new Uri(text), deferRedaction: true);
         var snapshot = new Dictionary<string, object>
         {
-            ["First"] = first.Value!, ["Third"] = third.Value!, ["Second"] = second.Value!,
-            ["FirstAgain"] = first.Value!, ["ThirdAgain"] = third.Value!
+            ["First"] = first.Value!, ["Second"] = second.Value!, ["FirstAgain"] = first.Value!
         };
-        var destination = Policy("fourth");
+        var destination = Policy();
 
         for (var read = 0; read < 2; read++)
         {
             var output = destination.MaterializeSnapshot(snapshot, true);
-            output["First"].Should().Be(prefix + "first=redacted&second=two&third=three&fourth=redacted");
-            output["Third"].Should().Be(prefix + "first=one&second=two&third=redacted&fourth=redacted");
-            output["Second"].Should().Be(prefix + "first=one&second=redacted&third=three&fourth=redacted");
-            output["FirstAgain"].Should().Be(output["First"]);
-            output["ThirdAgain"].Should().Be(output["Third"]);
+            output["First"].ToString().Should().StartWith("https://example.test/?_diagnostic_field_").And.EndWith("=one");
+            output["Second"].Should().Be("https://example.test/?" + new string('x', 40) + "=one");
+            output["FirstAgain"].ToString().Should().StartWith("https://example.test/?_diagnostic_field_").And.EndWith("=one");
+            output["FirstAgain"].Should().NotBe(output["First"]);
         }
         destination.MaterializeSnapshot(snapshot, false).Values.Should().AllBeEquivalentTo(text);
     }
@@ -83,16 +77,16 @@ public class ScopedLogReadRedactionTests
         source.SanitizeText("x").Should().Be(DiagnosticSanitizer.Limited);
         for (var read = 0; read < 2; read++)
         {
-            source.RedactCapturedTextWithFreshBudget(DiagnosticRedactionKind.Url, "/?first=one&second=two")
-                .Should().Be("/?first=redacted&second=two");
+            source.RedactCapturedUrlWithFreshBudget("/?first=one&second=two")
+                .Should().Be("/?first=one&second=two");
             source.GetStatus().Should().BeEmpty();
             for (var index = 0; index < 16; index++) source.SanitizeValue("Count", index).Should().Be(index);
             source.SanitizeValue("Count", 42).Should().Be(DiagnosticSanitizer.Limited);
         }
-        source.RedactCapturedTextWithFreshBudget(DiagnosticRedactionKind.Url, "/?value=%25GG")
+        source.RedactCapturedUrlWithFreshBudget("/?value=%25GG")
             .Should().Be(DiagnosticSanitizer.Invalid);
-        source.RedactCapturedTextWithFreshBudget(DiagnosticRedactionKind.QueryString, "first=one&second=two")
-            .Should().Be("first=redacted&second=two");
+        source.RedactCapturedUrlWithFreshBudget("/?first=one&second=two")
+            .Should().Be("/?first=one&second=two");
         source.GetStatus().Should().BeEmpty();
     }
 
@@ -103,11 +97,11 @@ public class ScopedLogReadRedactionTests
         {
             MaxKeyBytes = 32, MaxCollectionEntries = 1, MaxProcessingMilliseconds = 100
         };
-        var captured = new DiagnosticCapturedValue(new string('x', 33) + "=one&second=two",
-            DiagnosticRedactionKind.QueryString, options);
+        var captured = new DiagnosticCapturedValue("https://example.test/?" + new string('x', 33) + "=one&second=two",
+            DiagnosticRedactionKind.Url, options);
         var source = new DiagnosticSanitizer(options);
-        var first = source.RedactCapturedTextWithFreshBudget(captured.Kind, (string)captured.Value!);
-        source.RedactCapturedTextWithFreshBudget(captured.Kind, (string)captured.Value!).Should().Be(first);
+        var first = source.RedactCapturedUrlWithFreshBudget((string)captured.Value!);
+        source.RedactCapturedUrlWithFreshBudget((string)captured.Value!).Should().Be(first);
         var output = Policy().MaterializeSnapshot(new Dictionary<string, object>
         {
             ["First"] = captured, ["Second"] = captured
@@ -118,8 +112,8 @@ public class ScopedLogReadRedactionTests
         foreach (var value in output.Values)
         {
             var text = (string)value;
-            text.Should().StartWith("_diagnostic_field_").And.Contain("=redacted&")
-                .And.NotContain("=one").And.NotContain("second=two");
+            text.Should().StartWith("https://example.test/?_diagnostic_field_").And.Contain("=one&")
+                .And.NotContain("second=two");
             Uri.UnescapeDataString(text).Should().Contain(DiagnosticSanitizer.Limited);
         }
     }
@@ -129,21 +123,21 @@ public class ScopedLogReadRedactionTests
     [DataInlineUnit(true)]
     public void Deferred_Reads_Should_Keep_Destination_Budgets_Cumulative(bool nodeLimit)
     {
-        var text = "first=" + new string('x', 600);
-        var capture = Policy("first").Capture("Request_QueryString", text, deferRedaction: true);
+        var text = "https://example.test/?first=" + new string('x', 600);
+        var capture = Policy().Capture("Target", new Uri(text), deferRedaction: true).Value!;
         var destination = new DiagnosticSanitizer(new DiagnosticLogOptions
         {
-            MaxNodes = 16, MaxFieldBytes = 1024, MaxInputBytes = 1024, MaxProcessingMilliseconds = 100
+            MaxNodes = 16, MaxFieldBytes = 1024, MaxInputBytes = nodeLimit ? 4096 : 1024, MaxProcessingMilliseconds = 100
         });
         if (nodeLimit)
             for (var index = 0; index < 14; index++) destination.SanitizeValue("Count", index).Should().Be(index);
 
         var output = destination.MaterializeSnapshot(new Dictionary<string, object>
         {
-            ["First"] = capture.Value!, ["Second"] = capture.Value!
+            ["First"] = capture, ["Second"] = capture
         }, true);
 
-        output["First"].Should().Be("first=redacted");
+        output["First"].Should().Be(text);
         output["Second"].Should().Be(DiagnosticSanitizer.Limited);
         destination.GetStatus().Should().ContainKey("DiagnosticCaptureWarnings");
     }
@@ -151,23 +145,26 @@ public class ScopedLogReadRedactionTests
     [Theory]
     [DataInlineUnit(false)]
     [DataInlineUnit(true)]
-    public void Source_Workers_Should_Not_Survive_A_Materialization(bool fail)
+    public void Reads_Should_Apply_Source_Limits_After_Success_Or_Failure(bool fail)
     {
-        var options = new DiagnosticLogOptions { SensitiveFields = ["first"], MaxProcessingMilliseconds = 100 };
-        var captured = new DiagnosticCapturedValue("first=one&second=two", DiagnosticRedactionKind.QueryString, options);
+        var options = new DiagnosticLogOptions { MaxProcessingMilliseconds = 100 };
+        var captured = Policy().Capture("Target", new Uri("https://example.test/?first=one&second=two"), deferRedaction: true).Value!;
         var snapshot = new Dictionary<string, object> { ["Value"] = captured };
         var destination = Policy();
 
         if (fail)
         {
-            snapshot["Invalid"] = new DiagnosticCapturedValue("value=one", DiagnosticRedactionKind.QueryString,
+            snapshot["Invalid"] = new DiagnosticCapturedValue("https://example.test/?value=one", DiagnosticRedactionKind.Url,
                 options with { MaxNodes = 0 });
             destination.MaterializeSnapshot(snapshot, true)["DiagnosticCapture"].Should().Be(DiagnosticSanitizer.Invalid);
             snapshot.Remove("Invalid");
         }
-        else destination.MaterializeSnapshot(snapshot, true)["Value"].Should().Be("first=redacted&second=two");
-        options.SensitiveFields[0] = "second";
-        destination.MaterializeSnapshot(snapshot, true)["Value"].Should().Be("first=one&second=redacted");
+        else destination.MaterializeSnapshot(snapshot, true)["Value"].Should().Be("https://example.test/?first=one&second=two");
+        // A later snapshot brings a different source budget, after both successful and failed reads.
+        snapshot["Value"] = new DiagnosticCapturedValue("https://example.test/?first=one&second=two", DiagnosticRedactionKind.Url,
+            options with { MaxCollectionEntries = 1 });
+        Uri.UnescapeDataString(destination.MaterializeSnapshot(snapshot, true)["Value"].ToString()!)
+            .Should().Be("https://example.test/?first=one&_diagnostic=" + DiagnosticSanitizer.Limited);
     }
 
     [Fact]
@@ -176,7 +173,7 @@ public class ScopedLogReadRedactionTests
         var destination = Policy();
         var snapshot = new Dictionary<string, object>
         {
-            ["Value"] = new DiagnosticCapturedValue("value=one", DiagnosticRedactionKind.QueryString,
+            ["Value"] = new DiagnosticCapturedValue("https://example.test/?value=one", DiagnosticRedactionKind.Url,
                 new DiagnosticLogOptions { MaxNodes = 0 })
         };
 
@@ -228,8 +225,7 @@ public class ScopedLogReadRedactionTests
             raw.GetProperty("Ordinary").GetString().Should().Be(DiagnosticSanitizer.Invalid);
             var redacted = JsonSerializer.SerializeToElement(log.GetLogs()["Model"]);
             redacted.GetProperty("Classified").GetString().Should().Be(DiagnosticSanitizer.Redacted);
-            redacted.GetProperty("Ordinary").GetString().Should().Be(configuredName
-                ? DiagnosticSanitizer.Redacted : DiagnosticSanitizer.Invalid);
+            redacted.GetProperty("Ordinary").GetString().Should().Be(DiagnosticSanitizer.Invalid);
         }
         model.ReadCount.Should().Be(2);
     }
@@ -332,14 +328,14 @@ public class ScopedLogReadRedactionTests
     {
         using var settings = DiagnosticTestSupport.Settings(environment);
         var log = new ScopedLog(settings, Policy());
-        log.Add("Password", "private-probe");
-        log.GetLogs()["Password"].Should().Be(DiagnosticSanitizer.Redacted);
+        log.Add("Model", new CountedModel());
+        JsonSerializer.Serialize(log.GetLogs()).Should().NotContain("classified-probe");
         Action read = () => log.GetLogs(redact: false);
         read.Should().Throw<InvalidOperationException>();
     }
 
     [Fact]
-    public void Copies_Should_Preserve_Classification_And_Source_Url_Protection()
+    public void Copies_Should_Preserve_Classification_Without_Classifying_Url_Names()
     {
         using var settings = SettingsProvider.Development();
         var source = new ScopedLog(settings, new DiagnosticSanitizer(new DiagnosticLogOptions
@@ -350,7 +346,7 @@ public class ScopedLogReadRedactionTests
         source.Add("TargetUrl", "/handoff/path-probe?opaque=query-probe");
         var copy = new ScopedLog(settings, Policy());
         copy.CopyFrom(source);
-        copy.ToString().Should().NotContain("classified-probe").And.NotContain("path-probe").And.NotContain("query-probe");
+        copy.ToString().Should().NotContain("classified-probe").And.Contain("path-probe").And.Contain("query-probe");
         JsonSerializer.Serialize(copy.GetLogs(false)).Should().Contain("classified-probe").And.Contain("path-probe").And.Contain("query-probe");
     }
 
@@ -362,11 +358,12 @@ public class ScopedLogReadRedactionTests
         {
             MaxFieldBytes = 1024, MaxCollectionEntries = 2, MaxProcessingMilliseconds = 100
         }));
+        // DiagnosticNameExemption: Password | Verify capture limits remain enforced for sensitive values.
         log.Add("Password", new string('x', 1025));
         log.Add("Items", new[] { "one", "two", "three" });
         log.Add("Map", new Dictionary<string, object> { ["First"] = 1, ["Second"] = 2, ["Third"] = 3 });
-        log.Add("TargetUrl", "/?a=one&b=two&c=three");
-        log.GetLogs()["Password"].Should().Be(DiagnosticSanitizer.Redacted);
+        log.Add("TargetUrl", new Uri("https://example.test/?a=one&b=two&c=three"));
+        log.GetLogs()["Password"].Should().Be(DiagnosticSanitizer.Limited);
         log.GetLogs(false)["Password"].Should().Be(DiagnosticSanitizer.Limited);
         log.GetLogs(false)["TargetUrl"].Should().Be(DiagnosticSanitizer.Limited);
         foreach (var redact in new[] { true, false })
@@ -408,9 +405,9 @@ public class ScopedLogReadRedactionTests
             .Select(call => call.GetArguments()[1]).ToArray();
         foreach (var json in new[] { JsonSerializer.Serialize(inputs), destination.ToString() })
             json.Should().NotContain("classified-probe").And.NotContain("dictionary-probe")
-                .And.NotContain("path-probe").And.NotContain("query-probe")
+                .And.Contain("path-probe").And.Contain("query-probe")
                 .And.Contain(DiagnosticSanitizer.Redacted);
-        destination.GetLogs()["TargetUrl"].Should().Be("/token/redacted?token=redacted");
+        destination.GetLogs()["TargetUrl"].Should().Be("/token/path-probe?token=query-probe");
     }
 
     [Fact]

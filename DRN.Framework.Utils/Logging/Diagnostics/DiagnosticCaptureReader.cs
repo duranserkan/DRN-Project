@@ -81,8 +81,8 @@ internal sealed class DiagnosticCaptureReader(DiagnosticSanitizer owner)
         {
             if (!owner.Accept(text)) return Limited;
             if (captured.SourceOptions is { } sourceOptions)
-                text = SourceWorker(sourceOptions).RedactCapturedTextWithFreshBudget(captured.Kind, text);
-            return owner.RedactCapturedText(captured.Kind, text);
+                text = SourceWorker(sourceOptions).RedactCapturedUrlWithFreshBudget(text);
+            return owner.RedactCapturedUrl(text);
         }
         return Read(captured.Value, depth, redact);
     }

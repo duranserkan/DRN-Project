@@ -9,17 +9,8 @@ internal static class DiagnosticRuleCatalog
     internal static readonly string[] PersonalFields = Read("personalFields");
     internal static readonly string[] FieldPaths = Read("sensitiveFieldPaths");
     internal static readonly string[] Fields = [.. SecretFields, .. PersonalFields, .. FieldPaths];
-    internal static readonly string[] UrlSegments = Read("secretPathSegments");
 
     internal static string Normalize(string value) => string.Concat(value.Where(char.IsAsciiLetterOrDigit)).ToLowerInvariant();
-
-    internal static ReadOnlySpan<char> Normalize(ReadOnlySpan<char> value, Span<char> buffer)
-    {
-        var length = 0;
-        foreach (var character in value)
-            if (char.IsAsciiLetterOrDigit(character)) buffer[length++] = char.ToLowerInvariant(character);
-        return buffer[..length];
-    }
 
     internal static bool Matches(ReadOnlySpan<char> normalized, IEnumerable<string> patterns)
     {
@@ -27,8 +18,6 @@ internal static class DiagnosticRuleCatalog
             if (normalized.Contains(pattern, StringComparison.Ordinal)) return true;
         return false;
     }
-
-    internal static bool MatchesField(string path) => Matches(Normalize(path), Fields);
 
     private static string[] Read(params string[] groups)
     {

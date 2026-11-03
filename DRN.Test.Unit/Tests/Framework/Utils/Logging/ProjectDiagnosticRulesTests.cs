@@ -160,7 +160,7 @@ public class ProjectDiagnosticRulesTests
     }
 
     [Fact]
-    public void Runtime_Should_Inherit_Embedded_Catalogs_From_Referenced_Drn_Projects()
+    public void Runtime_Should_Not_Apply_Embedded_Catalog_Names()
     {
         var sanitizer = new DiagnosticSanitizer(new DiagnosticLogOptions
         {
@@ -169,7 +169,7 @@ public class ProjectDiagnosticRulesTests
         });
         // These names come only from the referenced test-support project's embedded catalog.
         foreach (var field in new[] { "FixtureMemberReference", "Fixture3BReference" })
-            sanitizer.SanitizeValue(field, "probe").Should().Be(DiagnosticSanitizer.Redacted);
+            sanitizer.SanitizeValue(field, "probe").Should().Be("probe");
         sanitizer.SanitizeValue("UnrelatedReference", "probe").Should().Be("probe");
     }
 
@@ -179,17 +179,17 @@ public class ProjectDiagnosticRulesTests
     };
 
     [Fact]
-    public void Project_File_Should_Add_Normalized_Rules_And_Preserve_Builtins()
+    public void Project_File_Should_Not_Cause_Runtime_Name_Redaction()
     {
         var sanitizer = new DiagnosticSanitizer(Options());
         foreach (var name in new[] { "Challenge_Response", "MEMBERSHIP_NUMBER", "Payload.PrivateValue", "Password" })
-            sanitizer.SanitizeValue(name, "probe").Should().Be(DiagnosticSanitizer.Redacted);
+            sanitizer.SanitizeValue(name, "probe").Should().Be("probe");
         sanitizer.SanitizeValue("FileName", "report.txt").Should().Be("report.txt");
         sanitizer.SanitizeUrl("/handoff/private?membership_number=member&attempt=2")
-            .Should().Be("/handoff/redacted?membership_number=redacted&attempt=2");
-        sanitizer.SanitizeUrl("/token/private").Should().Be("/token/redacted");
+            .Should().Be("/handoff/private?membership_number=member&attempt=2");
+        sanitizer.SanitizeUrl("/token/private").Should().Be("/token/private");
         sanitizer.SanitizeBody("membershipNumber=member", "application/x-www-form-urlencoded")
-            .Should().Be("membershipNumber=%5Bredacted%5D");
+            .Should().Be("membershipNumber=member");
     }
 
     [Fact]
@@ -197,21 +197,37 @@ public class ProjectDiagnosticRulesTests
     {
         using var settings = SettingsProvider.Development(new { DiagnosticLogging = Options() });
         var sanitizer = DiagnosticSanitizer.FromSettings(settings);
-        sanitizer.SanitizeValue("MembershipNumber", "member").Should().Be(DiagnosticSanitizer.Redacted);
+        sanitizer.SanitizeValue("MembershipNumber", "member").Should().Be("member");
         var log = new ScopedLog(settings);
         log.Add("MembershipNumber", "member");
-        log.GetLogs()["MembershipNumber"].Should().Be(DiagnosticSanitizer.Redacted);
+        log.GetLogs()["MembershipNumber"].Should().Be("member");
     }
 
     [Fact]
-    public void Project_Rules_Should_Preserve_Reviewed_Exemptions_And_Configured_Precedence()
+    public void Settings_Loading_Should_Reject_Invalid_Configured_Catalogs()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(path, "{\"personalFields\":null}");
+            using var settings = SettingsProvider.Development(new { DiagnosticLogging = Options() with { RuleFile = path } });
+            Action sanitizer = () => DiagnosticSanitizer.FromSettings(settings);
+            Action log = () => new ScopedLog(settings);
+            sanitizer.Should().Throw<FormatException>();
+            log.Should().Throw<FormatException>();
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void Project_Rules_Should_Preserve_Reviewed_Values_Without_Runtime_Matching()
     {
         var sanitizer = new DiagnosticSanitizer(Options());
         var value = (IReadOnlyDictionary<string, object>)sanitizer.SanitizeValue("Model", new ReviewedModel())!;
         value["MembershipNumber"].Should().Be("public-reference");
         var configured = new DiagnosticSanitizer(Options() with { SensitiveFields = ["membershipnumber"] });
         var protectedValue = (IReadOnlyDictionary<string, object>)configured.SanitizeValue("Model", new ReviewedModel())!;
-        protectedValue["MembershipNumber"].Should().Be(DiagnosticSanitizer.Redacted);
+        protectedValue["MembershipNumber"].Should().Be("public-reference");
     }
 
     private sealed class ReviewedModel
@@ -221,11 +237,11 @@ public class ProjectDiagnosticRulesTests
     }
 
     [Fact]
-    public void Project_Field_Paths_Should_Protect_Typed_Models_Despite_Name_Exemptions()
+    public void Project_Field_Paths_Should_Not_Redact_Typed_Models_At_Runtime()
     {
         var sanitizer = new DiagnosticSanitizer(Options());
         var value = (IReadOnlyDictionary<string, object>)sanitizer.SanitizeValue("Payload", new PathModel())!;
-        value["PrivateValue"].Should().Be(DiagnosticSanitizer.Redacted);
+        value["PrivateValue"].Should().Be("probe");
         var other = (IReadOnlyDictionary<string, object>)sanitizer.SanitizeValue("Other", new PathModel())!;
         other["PrivateValue"].Should().Be("probe");
     }
@@ -237,7 +253,7 @@ public class ProjectDiagnosticRulesTests
     }
 
     [Fact]
-    public void Rule_Snapshots_Should_Be_Stable_Per_Options_And_Survive_File_Removal()
+    public void Rule_Validation_Should_Be_Cached_Per_Options_And_Snapshots_Should_Survive_File_Removal()
     {
         var path = Path.GetTempFileName();
         try
@@ -247,14 +263,15 @@ public class ProjectDiagnosticRulesTests
             using var settings = SettingsProvider.Development();
             var log = new ScopedLog(settings, new DiagnosticSanitizer(options));
             log.Add("MembershipNumber", "member");
-            File.WriteAllText(path, "{}");
-            new DiagnosticSanitizer(options).SanitizeValue("MembershipNumber", "member").Should().Be(DiagnosticSanitizer.Redacted);
-            new DiagnosticSanitizer(options with { }).SanitizeValue("MembershipNumber", "member").Should().Be("member");
+            File.WriteAllText(path, "{\"personalFields\":null}");
+            new DiagnosticSanitizer(options).SanitizeValue("MembershipNumber", "member").Should().Be("member");
+            Action invalid = () => new DiagnosticSanitizer(options with { });
+            invalid.Should().Throw<FormatException>();
             File.Delete(path);
-            log.GetLogs()["MembershipNumber"].Should().Be(DiagnosticSanitizer.Redacted);
+            log.GetLogs()["MembershipNumber"].Should().Be("member");
             var copy = new ScopedLog(settings, Policy());
             copy.CopyFrom(log);
-            copy.GetLogs()["MembershipNumber"].Should().Be(DiagnosticSanitizer.Redacted);
+            copy.GetLogs()["MembershipNumber"].Should().Be("member");
             Action missing = () => new DiagnosticSanitizer(options with { });
             missing.Should().Throw<FileNotFoundException>();
         }
@@ -262,34 +279,33 @@ public class ProjectDiagnosticRulesTests
     }
 
     [Fact]
-    public void Changing_A_Snapshot_RuleFile_Should_Load_The_New_File()
+    public void Changing_A_Snapshot_RuleFile_Should_Validate_The_New_File()
     {
         var path = Path.GetTempFileName();
         try
         {
-            File.WriteAllText(path, "{\"personalFields\":[\"alternateReference\"]}");
+            File.WriteAllText(path, "{\"personalFields\":null}");
             var original = new DiagnosticSanitizer(Options());
-            var changed = new DiagnosticSanitizer(original.Options with { RuleFile = path });
-            changed.SanitizeValue("AlternateReference", "probe").Should().Be(DiagnosticSanitizer.Redacted);
-            changed.SanitizeValue("MembershipNumber", "member").Should().Be("member");
-            original.SanitizeValue("MembershipNumber", "member").Should().Be(DiagnosticSanitizer.Redacted);
+            Action changed = () => new DiagnosticSanitizer(original.Options with { RuleFile = path });
+            changed.Should().Throw<FormatException>();
+            original.SanitizeValue("MembershipNumber", "member").Should().Be("member");
         }
         finally { File.Delete(path); }
     }
 
     [Fact]
-    public void Copies_Should_Keep_Project_Url_Rules_When_The_Destination_Has_None()
+    public void Copies_Should_Preserve_Urls_Without_Applying_Project_Name_Rules()
     {
         using var settings = SettingsProvider.Development();
         var source = new ScopedLog(settings, new DiagnosticSanitizer(Options()));
         source.Add("TargetUrl", "/handoff/private?membershipNumber=member");
         var destination = new ScopedLog(settings, Policy());
         destination.CopyFrom(source);
-        destination.GetLogs()["TargetUrl"].Should().Be("/handoff/redacted?membershipNumber=redacted");
+        destination.GetLogs()["TargetUrl"].Should().Be("/handoff/private?membershipNumber=member");
     }
 
     [Fact]
-    public void Identically_Configured_Copies_Should_Preserve_Metrics_And_Project_Url_Redaction()
+    public void Identically_Configured_Copies_Should_Preserve_Metrics_And_Url_Values()
     {
         using var settings = SettingsProvider.Development();
         var source = new ScopedLog(settings, new DiagnosticSanitizer(Options()));
@@ -306,12 +322,12 @@ public class ProjectDiagnosticRulesTests
             snapshot["Stats_Completed"].Should().Be(3L);
             snapshot["Stats_TimeSpentOn_Work_Counter"].Should().Be(1L);
             snapshot["Stats_TimeSpentOn_Work_Seconds"].Should().Be(2d);
-            snapshot["TargetUrl"].Should().Be("/handoff/redacted");
+            snapshot["TargetUrl"].Should().Be("/handoff/private");
         }
     }
 
     [Fact]
-    public void Invalid_Project_Files_Should_Fail_Instead_Of_Disabling_Protection()
+    public void Legacy_Project_File_Configuration_Should_Still_Be_Validated()
     {
         var path = Path.GetTempFileName();
         try

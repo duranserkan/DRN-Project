@@ -1,8 +1,6 @@
-using System.Collections;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Text;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
@@ -11,6 +9,8 @@ using DRN.Framework.Utils.Settings;
 namespace DRN.Framework.Utils.Logging.Diagnostics;
 
 /// <summary>Scope-local structural redaction and bounded capture. Free-text contents are preserved.</summary>
+/// <remarks>Consumer applications own dynamic data classification and redaction for their use case.
+/// Explicit classifications and capture limits do not certify arbitrary values as safe to log.</remarks>
 public interface IDiagnosticSanitizer
 {
     DiagnosticLogOptions Options { get; }
@@ -27,17 +27,14 @@ public interface IDiagnosticSanitizer
 public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
 {
     public const string Redacted = "[redacted]";
-    private const string UrlRedacted = DiagnosticUrlSanitizer.UrlRedacted;
     public const string Limited = "[diagnostic capture limited]";
     internal const string Invalid = "[diagnostic field unavailable]";
     internal const string CollectionLimitKey = "_diagnostic_limit";
     internal const string QueryLimitMarker = "_diagnostic=" + Limited;
     private const string FieldInputLimitStatus = "FieldInputLimit";
     private readonly Lock _gate = new();
-    private readonly DiagnosticNameRules _rules;
     private readonly DiagnosticUrlSanitizer _urls;
     private readonly DiagnosticCaptureReader _reader;
-    private readonly string[] _urlRules;
     private readonly HashSet<string> _status = new(StringComparer.Ordinal);
     private long _inputBytes;
     private int _nodes;
@@ -48,7 +45,6 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
 
     public DiagnosticLogOptions Options { get; }
     internal bool RedactionEnabled { get; }
-    internal string[] UrlRules => _urlRules;
 
     // Accessed only inside Guard. Snapshot-only sanitizers do not need a projector.
     private DiagnosticValueProjector Projector => field ??= new DiagnosticValueProjector(this);
@@ -59,18 +55,17 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
     {
         RedactionEnabled = redact;
         Validator.ValidateObject(options, new ValidationContext(options), true);
+        options.ValidateRuleSources();
         Options = options with
         {
-            LoadedRules = options.GetRules(),
+            RulesValidated = true,
             LoadedRuleFile = options.RuleFile,
             LoadedRuleAssemblyName = options.RuleAssemblyName,
             SensitiveFields = options.SensitiveFields.ToArray(),
             SensitiveFieldPaths = options.SensitiveFieldPaths.ToArray(),
             SensitivePathSegments = options.SensitivePathSegments.ToArray()
         };
-        _rules = new DiagnosticNameRules(Options);
-        _urlRules = [.. Options.SensitivePathSegments, .. Options.LoadedRules.UrlSegments];
-        _urls = new DiagnosticUrlSanitizer(this, _rules);
+        _urls = new DiagnosticUrlSanitizer(this);
         _reader = new DiagnosticCaptureReader(this);
     }
 
@@ -83,19 +78,8 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
     // TODO: Evaluate diagnostic redaction support for ASP.NET Core Identity's [PersonalData] and [ProtectedPersonalData], including inherited attributes and getter suppression.
     internal static bool IsClassified(MemberInfo member) => DiagnosticTypeMetadata.IsClassified(member);
 
-    internal bool IsSensitive(string fieldPath, bool exempt, string? namePath = null) => RedactionEnabled && (namePath == null
-        ? _rules.MatchField(fieldPath, exempt).IsMatch
-        : _rules.MatchField(fieldPath, true).IsMatch || !exempt && _rules.MatchField(namePath).IsMatch);
-
-    // Named models own their property names. Anonymous objects and collections retain structural name matching.
-    internal static bool IsModelType(Type type) => type is { IsPrimitive: false, IsEnum: false } &&
-                                                   type != typeof(decimal) && type != typeof(Guid) && type != typeof(DateTime) &&
-                                                   type != typeof(DateTimeOffset) && type != typeof(DateOnly) && type != typeof(TimeOnly) &&
-                                                   type != typeof(TimeSpan) && !typeof(Uri).IsAssignableFrom(type) && type != typeof(ScopeEvent) &&
-                                                   !typeof(IEnumerable).IsAssignableFrom(type) &&
-                                                   !(type.IsDefined(typeof(CompilerGeneratedAttribute), false) && type.Name.Contains("AnonymousType", StringComparison.Ordinal));
-
-    public bool IsSensitive(string fieldPath) => RedactionEnabled && _rules.MatchField(fieldPath).IsMatch;
+    /// <summary>Name classification is compiler-owned. Runtime protection uses explicit classifications.</summary>
+    public bool IsSensitive(string fieldPath) => false;
 
     public IReadOnlyDictionary<string, object> GetStatus()
     {
@@ -160,12 +144,12 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
 
     public string SanitizeText(string? value) => Guard(() => Accept(value ?? "") ? value ?? "" : Limited, Invalid);
     public string SanitizeUrl(string? value) => Guard(() => Accept(value ?? "") ? Url(value ?? "") : Limited, Invalid);
-    public string SanitizeKey(string key) => Guard(
-        () => IsValidKey(key) ? key : NextFieldKey(),
-        $"_diagnostic_field_{Interlocked.Increment(ref _keySequence)}");
+    public string SanitizeKey(string key) => Guard((Owner: this, Key: key),
+        static (owner, state) => owner.IsValidKey(state.Key) ? state.Key : owner.NextFieldKey(),
+        static state => state.Owner.NextFieldKey());
     public object? SanitizeValue(string fieldPath, object? value) => Capture(fieldPath, value).Value;
 
-    /// <summary>Exempts one supported scalar from built-in name rules, with an application-authored reason.</summary>
+    /// <summary>Captures a reviewed scalar. The reason acknowledges compiler name rules, not runtime matching.</summary>
     public object? SanitizeValue(string fieldPath, object? value, string exemptionReason) =>
         CaptureWithReason(fieldPath, value, exemptionReason).Value;
 
@@ -179,20 +163,19 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
 
     internal DiagnosticCaptureResult CaptureDictionary<TValue>(string path, IReadOnlyDictionary<string, TValue> values,
         DiagnosticKeyClassification[] classifications, bool deferRedaction = false) => Guard(
-        () => CaptureDictionaryCore(path, values, classifications, deferRedaction), new DiagnosticCaptureResult(Invalid, []));
+        () => CaptureDictionaryCore(path, values, classifications, deferRedaction), new DiagnosticCaptureResult(Invalid));
 
     private DiagnosticCaptureResult CaptureDictionaryCore<TValue>(string path, IReadOnlyDictionary<string, TValue> values,
         DiagnosticKeyClassification[] classifications, bool deferRedaction)
     {
         ArgumentNullException.ThrowIfNull(values);
         ArgumentNullException.ThrowIfNull(classifications);
-        if (!WorkAvailable() || ++_nodes > Options.MaxNodes) return new DiagnosticCaptureResult(Limited, []);
+        if (!WorkAvailable() || ++_nodes > Options.MaxNodes) return new DiagnosticCaptureResult(Limited);
         var rules = DictionaryClassifications(classifications);
-        if (values.IgnoredLog()) return new DiagnosticCaptureResult(ScopedLogConventions.IgnoredLogValue, []);
-        var sensitive = IsSensitive(path, false, "") || RedactionEnabled && IsClassified(values.GetType());
-        if (sensitive && !deferRedaction) return new DiagnosticCaptureResult(Redacted, []);
-        var context = new DiagnosticCaptureContext(null, deferRedaction);
-        if (!sensitive) context.Decisions.Add(new(path, false, ""));
+        if (values.IgnoredLog()) return new DiagnosticCaptureResult(ScopedLogConventions.IgnoredLogValue);
+        var sensitive = RedactionEnabled && IsClassified(values.GetType());
+        if (sensitive && !deferRedaction) return new DiagnosticCaptureResult(Redacted);
+        var context = new DiagnosticCaptureContext(deferRedaction);
         var output = new Dictionary<string, object?>(StringComparer.Ordinal);
         var ancestors = new HashSet<object>(ReferenceEqualityComparer.Instance) { values };
         foreach (var item in values)
@@ -201,8 +184,7 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
             var safe = UniqueKey(output, item.Key);
             output[safe] = CaptureClassifiedEntry(path, item.Key, item.Value, rules, ancestors, context);
         }
-        return new DiagnosticCaptureResult(sensitive ? new DiagnosticCapturedValue(output, DiagnosticRedactionKind.Classified) : output,
-            context.Decisions.ToArray(), _urlRules);
+        return new DiagnosticCaptureResult(sensitive ? new DiagnosticCapturedValue(output, DiagnosticRedactionKind.Classified) : output);
     }
 
     private Dictionary<string, DiagnosticDataKind> DictionaryClassifications(DiagnosticKeyClassification[] classifications)
@@ -245,8 +227,7 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
             ++_nodes;
             return Invalid;
         }
-        var node = new DiagnosticCaptureNode(path + "." + key, [path, key],
-            DiagnosticCaptureKind.DictionaryKey, classified, key, positive);
+        var node = new DiagnosticCaptureNode(path.Length + 1 + key.Length, positive);
         return Projector.Project(node, value, 1, ancestors, context);
     }
 
@@ -255,8 +236,8 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
     internal DiagnosticCaptureResult CaptureWithReason(string path, object? value, string exemptionReason, bool deferRedaction = false) => Guard(() =>
     {
         ValidateReason(value, exemptionReason);
-        return Capture(new DiagnosticCaptureNode(path, [path], Exempt: true), value, deferRedaction: deferRedaction);
-    }, new DiagnosticCaptureResult(Invalid, []));
+        return Capture(new DiagnosticCaptureNode(path), value, deferRedaction: deferRedaction);
+    }, new DiagnosticCaptureResult(Invalid));
 
     private void ValidateReason(object? value, string exemptionReason)
     {
@@ -270,26 +251,20 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
         Guid or DateTime or DateTimeOffset or DateOnly or TimeOnly or TimeSpan or Uri || value.GetType().IsEnum;
 
     internal DiagnosticCaptureResult Capture(string path, object? value, DiagnosticCapturePolicy? policy = null,
-        bool deferRedaction = false) => Capture(new DiagnosticCaptureNode(path, [path]), value, policy, deferRedaction);
+        bool deferRedaction = false) => Capture(new DiagnosticCaptureNode(path), value, policy, deferRedaction);
 
     internal DiagnosticCaptureResult Capture(DiagnosticCaptureNode node, object? value, DiagnosticCapturePolicy? policy = null,
         bool deferRedaction = false) => Guard(() =>
     {
         policy?.Validate(Options);
-        var context = new DiagnosticCaptureContext(policy, deferRedaction);
+        var context = new DiagnosticCaptureContext(deferRedaction);
         var result = Projector.Project(node, value, 0, null, context);
-        return new DiagnosticCaptureResult(result, context.Decisions.ToArray(), _urlRules);
-    }, new DiagnosticCaptureResult(Invalid, []));
+        return new DiagnosticCaptureResult(result);
+    }, new DiagnosticCaptureResult(Invalid));
 
     // Only native scoped storage supplies this detached result, never a caller-owned snapshot.
-    internal DiagnosticCaptureResult CopyCapture(DiagnosticCaptureResult capture, bool deferRedaction = false) => Guard(() =>
-    {
-        if (_urlRules.Except(capture.UrlRules ?? [], StringComparer.Ordinal).Any() ||
-            capture.Decisions.Any(decision => IsSensitive(decision.Path, decision.Exempt, decision.NamePath)))
-            return new DiagnosticCaptureResult(deferRedaction
-                ? new DiagnosticCapturedValue(CopySafe(capture.Value, 0), DiagnosticRedactionKind.Classified) : Redacted, []);
-        return new DiagnosticCaptureResult(CopySafe(capture.Value, 0), capture.Decisions, _urlRules);
-    }, new DiagnosticCaptureResult(Invalid, []));
+    internal DiagnosticCaptureResult CopyCapture(DiagnosticCaptureResult capture) => Guard(
+        () => new DiagnosticCaptureResult(CopySafe(capture.Value, 0)), new DiagnosticCaptureResult(Invalid));
 
     internal object? CopySafe(object? value, int depth) => _reader.Copy(value, depth);
 
@@ -298,19 +273,18 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
         Guard((snapshot, redact), static (owner, state) => owner._reader.Materialize(state.snapshot, state.redact),
             static _ => new Dictionary<string, object> { ["DiagnosticCapture"] = Invalid });
 
-    internal string RedactCapturedText(DiagnosticRedactionKind kind, string text) =>
-        kind == DiagnosticRedactionKind.Url ? Url(text) : Pairs(text.TrimStart('?'), redacted: UrlRedacted);
+    internal string RedactCapturedUrl(string text) => Url(text);
 
     // Only snapshot-private source workers use this. Destination and capture budgets never reset.
-    internal string RedactCapturedTextWithFreshBudget(DiagnosticRedactionKind kind, string text) =>
-        Guard((kind, text), static (source, state) =>
+    internal string RedactCapturedUrlWithFreshBudget(string text) =>
+        Guard(text, static (source, value) =>
         {
             source._inputBytes = 0;
             source._nodes = 0;
             source._spentMilliseconds = 0;
             source._keySequence = 0;
             source._status.Clear();
-            return source.RedactCapturedText(state.kind, state.text);
+            return source.RedactCapturedUrl(value);
         }, static _ => Invalid);
 
     public string SanitizeBody(string? value, string? contentType, string sourcePath = "") => Guard(() =>
@@ -318,35 +292,18 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
         value ??= string.Empty;
         if (!Accept(value)) return Limited;
         var media = contentType?.Split(';')[0].Trim().ToLowerInvariant();
-        if (media == "application/x-www-form-urlencoded") return Pairs(value, sourcePath: sourcePath);
+        if (media == "application/x-www-form-urlencoded") return _urls.Pairs(value);
         if (media?.StartsWith("text/", StringComparison.Ordinal) == true) return value;
         return value.Length == 0 ? "" : "[unsupported diagnostic body]";
     }, Invalid);
 
-    private string Url(string value, DiagnosticCaptureContext? context = null) => _urls.Url(value, context);
+    private string Url(string value) => _urls.Url(value);
 
-    private string Pairs(string value, DiagnosticCaptureContext? context = null, string redacted = Redacted,
-        string sourcePath = "") => _urls.Pairs(value, context, redacted, sourcePath);
-
-    internal object StringValue(string path, string value, DiagnosticCaptureContext context)
-    {
-        if (!Accept(value)) return Limited;
-        Span<char> buffer = stackalloc char[512];
-        var name = DiagnosticNameRules.Normalize(path, buffer);
-        if (name.EndsWith("querystring", StringComparison.Ordinal))
-        {
-            var sanitized = Pairs(value.TrimStart('?'), context, UrlRedacted);
-            if (context.DeferRedaction && sanitized.Contains(QueryLimitMarker, StringComparison.Ordinal)) return Limited;
-            return context.DeferRedaction ? new DiagnosticCapturedValue(value, DiagnosticRedactionKind.QueryString, Options) : sanitized;
-        }
-        if ((name.EndsWith("url", StringComparison.Ordinal) || name.EndsWith("uri", StringComparison.Ordinal)) && value.Length > 0)
-            return CaptureUrl(value, context);
-        return value;
-    }
+    internal string StringValue(string value) => Accept(value) ? value : Limited;
 
     internal object CaptureUrl(string value, DiagnosticCaptureContext context)
     {
-        var sanitized = Url(value, context);
+        var sanitized = _urls.Url(value, countNodes: true);
         if (context.DeferRedaction && sanitized.Contains(QueryLimitMarker, StringComparison.Ordinal)) return Limited;
         return context.DeferRedaction && sanitized is not (Limited or Invalid)
             ? new DiagnosticCapturedValue(value, DiagnosticRedactionKind.Url, Options) : sanitized;

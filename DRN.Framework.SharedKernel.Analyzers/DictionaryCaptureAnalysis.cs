@@ -5,7 +5,9 @@ using Microsoft.CodeAnalysis.Operations;
 
 namespace DRN.Framework.SharedKernel.Analyzers;
 
-internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context, DiagnosticRedactionRules rules, IInvocationOperation call)
+internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context, DiagnosticRedactionRules rules, IInvocationOperation call,
+    DiagnosticNameExemption exemptions,
+    DiagnosticDescriptor? descriptor = null, Action<IOperation>? inspectValue = null)
 {
     private const int MaxDictionaryWork = 16384;
     private const int MaxDictionaryDepth = 32;
@@ -25,11 +27,15 @@ internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context
     private string? Report(IOperation? key, bool allowed, string? parentPath)
     {
         if (key?.ConstantValue is not { HasValue: true, Value: string name }) return null;
-        var fullPath = parentPath == null ? null : parentPath + "." + name;
-        var matchesPath = fullPath != null && rules.MatchesPath(fullPath);
-        var reportedName = matchesPath ? fullPath! : name;
+        var fullPath = string.IsNullOrEmpty(parentPath) ? name : parentPath + "." + name;
+        var matchesPath = rules.MatchesPath(fullPath);
+        var reportedName = matchesPath ? fullPath : name;
         if (!allowed && (rules.MatchesField(name) || matchesPath) && _reported.Add(reportedName))
-            context.ReportDiagnostic(Diagnostic.Create(ClassificationDiagnosticDescriptors.DictionaryClassification, call.Syntax.GetLocation(), reportedName));
+        {
+            if (!matchesPath && exemptions.Allows(call.Syntax, reportedName)) return fullPath;
+            context.ReportDiagnostic(Diagnostic.Create(descriptor ?? ClassificationDiagnosticDescriptors.DictionaryClassification,
+                call.Syntax.GetLocation(), descriptor == null ? reportedName : DiagnosticNameExemption.NameMessage(reportedName, matchesPath)));
+        }
         return fullPath;
     }
 
@@ -137,11 +143,16 @@ internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context
         if (entry is IInvocationOperation add)
         {
             var childPath = Report(add.Arguments.FirstOrDefault()?.Value, allowKeys, capturePath);
-            foreach (var argument in add.Arguments.Skip(1)) Inspect(argument.Value, false, depth + 1, childPath);
+            foreach (var argument in add.Arguments.Skip(1))
+            {
+                inspectValue?.Invoke(argument.Value);
+                Inspect(argument.Value, false, depth + 1, childPath);
+            }
         }
         else if (entry is ISimpleAssignmentOperation { Target: IPropertyReferenceOperation index } assignment)
         {
             var childPath = Report(index.Arguments.FirstOrDefault()?.Value, allowKeys, capturePath);
+            inspectValue?.Invoke(assignment.Value);
             Inspect(assignment.Value, false, depth + 1, childPath);
         }
     }

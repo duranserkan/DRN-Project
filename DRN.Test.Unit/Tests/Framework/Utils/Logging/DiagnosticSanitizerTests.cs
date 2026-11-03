@@ -37,7 +37,7 @@ public class DiagnosticSanitizerTests
 
         var oversizedPath = JsonSerializer.SerializeToElement(Policy(options).SanitizeValue("Data",
             new Dictionary<string, object> { [key] = text }));
-        oversizedPath.GetProperty(key).GetString().Should().Be(DiagnosticSanitizer.Redacted);
+        oversizedPath.GetProperty(key).GetString().Should().Be(DiagnosticSanitizer.Limited);
     }
 
     [Fact]
@@ -73,12 +73,12 @@ public class DiagnosticSanitizerTests
             policy.SanitizeText(text).Should().BeSameAs(text);
             policy.SanitizeValue("Message", text).Should().Be(text);
             policy.SanitizeBody(text, "text/plain").Should().Be(text);
-            policy.SanitizeValue("Password", text).Should().Be(DiagnosticSanitizer.Redacted);
+            policy.SanitizeValue("Password", text).Should().Be(text);
         }
     }
 
     [Fact]
-    public void Field_And_Url_Rules_Should_Keep_Their_Separate_Scopes()
+    public void Runtime_Field_And_Url_Names_Should_Not_Be_Classified()
     {
         var policy = Policy(new DiagnosticLogOptions
         {
@@ -86,52 +86,48 @@ public class DiagnosticSanitizerTests
             SensitivePathSegments = ["handoff", "---"]
         });
         policy.IsSensitive("Handoff.Count").Should().BeFalse();
-        policy.IsSensitive("Root.O-P_A.QuE.Value").Should().BeTrue();
+        policy.IsSensitive("Root.O-P_A.QuE.Value").Should().BeFalse();
         policy.SanitizeUrl("/opaque/public-value").Should().Be("/opaque/public-value");
         policy.SanitizeUrl("/v2-H-A_N.Doff-flow/opaque-probe")
-            .Should().Be("/v2-H-A_N.Doff-flow/redacted");
+            .Should().Be("/v2-H-A_N.Doff-flow/opaque-probe");
         policy.SanitizeBody("code=opaque-probe&count=2", "application/x-www-form-urlencoded")
-            .Should().Be("code=%5Bredacted%5D&count=2");
+            .Should().Be("code=opaque-probe&count=2");
     }
 
     [Fact]
-    public void Form_Bodies_Should_Apply_Configured_Source_Paths()
+    public void Form_Bodies_Should_Ignore_Configured_Source_Paths()
     {
         var options = new DiagnosticLogOptions { SensitiveFieldPaths = ["Checkout.Value"] };
         const string form = "%56alue=private&Count=2&Password=secret";
 
         foreach (var path in new[] { "/Checkout", "/Other", "" })
         {
-            var expected = path == "/Checkout" ? DiagnosticSanitizer.Redacted : "private";
             Policy(options).SanitizeBody(form, "application/x-www-form-urlencoded", path)
-                .Should().Be($"Value={Uri.EscapeDataString(expected)}&Count=2&Password=%5Bredacted%5D");
+                .Should().Be("Value=private&Count=2&Password=secret");
         }
 
         Policy(options).SanitizeUrl("/Checkout?Value=public&Password=secret")
-            .Should().Be("/Checkout?Value=public&Password=redacted");
+            .Should().Be("/Checkout?Value=public&Password=secret");
     }
 
     [Fact]
-    public void Long_Url_Segments_Should_Still_Match_Without_Truncation()
+    public void Long_Url_Segments_Should_Be_Preserved_Without_Name_Matching()
     {
         var segment = new string('x', 600) + "resetpassword";
         Policy().SanitizeUrl("/" + segment + "/opaque-probe")
-            .Should().Be("/" + segment + "/redacted");
+            .Should().Be("/" + segment + "/opaque-probe");
     }
 
     [Fact]
-    public void Name_Rules_Should_Report_Deterministic_Categories_And_Limits()
+    public void Runtime_Name_Queries_Should_Not_Classify_Any_Name()
     {
-        var rules = new DiagnosticNameRules(new DiagnosticLogOptions { MaxKeyBytes = 512 });
-        rules.MatchField("Phone.Password").Type.Should().Be(DiagnosticRuleType.Secret);
-        rules.MatchField("Contact.Phone").Type.Should().Be(DiagnosticRuleType.Personal);
-        rules.MatchField("Headers.Authorization").Type.Should().Be(DiagnosticRuleType.Secret);
-        rules.MatchField(new string('x', 512)).IsMatch.Should().BeFalse();
-        rules.MatchField(new string('x', 513)).Type.Should().Be(DiagnosticRuleType.Limit);
+        var sanitizer = Policy();
+        foreach (var name in new[] { "Phone.Password", "Contact.Phone", "Headers.Authorization", new string('x', 513) })
+            sanitizer.IsSensitive(name).Should().BeFalse();
     }
 
     [Fact]
-    public void Configured_Rules_Should_Match_Normalized_Substrings()
+    public void Runtime_Configured_Rules_Should_Not_Match_Normalized_Substrings()
     {
         var policy = Policy(new DiagnosticLogOptions
         {
@@ -139,11 +135,11 @@ public class DiagnosticSanitizerTests
             SensitiveFieldPaths = ["Checkout.Value"],
             SensitivePathSegments = ["handoff"]
         });
-        policy.SanitizeValue("CustomOpaqueSuffix", "probe").Should().Be(DiagnosticSanitizer.Redacted);
-        policy.SanitizeValue("Root.Checkout.ValueSuffix", "probe").Should().Be(DiagnosticSanitizer.Redacted);
+        policy.SanitizeValue("CustomOpaqueSuffix", "probe").Should().Be("probe");
+        policy.SanitizeValue("Root.Checkout.ValueSuffix", "probe").Should().Be("probe");
         policy.SanitizeValue("Result.Count", 2).Should().Be(2);
         policy.SanitizeUrl("/v2-handoff-flow/probe?attempt=2")
-            .Should().Be("/v2-handoff-flow/redacted?attempt=2");
+            .Should().Be("/v2-handoff-flow/probe?attempt=2");
     }
 
     [Fact]
@@ -215,9 +211,9 @@ public class DiagnosticSanitizerTests
     }
 
     [Fact]
-    public void Shared_Golden_Cases_Should_Preserve_Browser_Server_Conventions()
+    public void Runtime_Cases_Should_Preserve_Unclassified_Values_And_Explicit_Url_Processing()
     {
-        using var stream = typeof(DiagnosticSanitizerTests).Assembly.GetManifestResourceStream("DiagnosticGoldenCases.json")!;
+        using var stream = typeof(DiagnosticSanitizerTests).Assembly.GetManifestResourceStream("DiagnosticRuntimeCases.json")!;
         using var cases = JsonDocument.Parse(stream);
         foreach (var item in cases.RootElement.EnumerateArray())
         {
@@ -299,7 +295,7 @@ public class DiagnosticSanitizerTests
     }
 
     [Fact]
-    public void Object_Logging_Should_Omit_Fields_And_Preserve_Name_Redaction()
+    public void Object_Logging_Should_Omit_Fields_And_Preserve_Explicit_Classification()
     {
         var input = new PropertyCapture();
         var policy = Policy();
@@ -321,13 +317,13 @@ public class DiagnosticSanitizerTests
             .Should().BeEquivalentTo(new[] { "Description", "Password" });
         snapshot.GetProperty("Flat.Description").GetString().Should().Be("available");
         snapshot.GetProperty("Flat.Password").GetString().Should().Be(DiagnosticSanitizer.Redacted);
-        snapshot.GetProperty("Password").GetString().Should().Be(DiagnosticSanitizer.Redacted);
-        snapshot.GetProperty("Map").GetProperty("Password").GetString().Should().Be(DiagnosticSanitizer.Redacted);
+        snapshot.GetProperty("Password").GetString().Should().Be("named-probe");
+        snapshot.GetProperty("Map").GetProperty("Password").GetString().Should().Be("dictionary-probe");
         snapshot.GetProperty("Map").GetProperty("Item").EnumerateObject().Select(property => property.Name)
             .Should().BeEquivalentTo(new[] { "Description", "Password" });
         snapshot.GetProperty("Json").GetProperty("ValueKind").GetInt32().Should().Be((int)JsonValueKind.Object);
         snapshot.ToString().Should().NotContain("PublicValue").And.NotContain("ClassifiedValue")
-            .And.NotContain("IgnoredValue").And.NotContain("-probe");
+            .And.NotContain("IgnoredValue");
     }
 
     private sealed class PropertyCapture
@@ -336,14 +332,14 @@ public class DiagnosticSanitizerTests
         [Sensitive] public readonly string ClassifiedValue = "classified-field-probe";
         [IgnoreLog] public readonly string IgnoredValue = "ignored-field-probe";
         public string Description => "available";
-        public string Password => throw new InvalidOperationException("Name-redacted getter must not execute.");
+        [Sensitive] public string Password => throw new InvalidOperationException("Classified getter must not execute.");
     }
 
     private sealed class Classified
     {
         [Sensitive] public string Code => throw new InvalidOperationException("secret-getter");
         [IgnoreLog] public string Ignored => throw new InvalidOperationException("ignored-getter");
-        public bool HasRecoveryCodes => throw new InvalidOperationException("Substring-classified getter must not execute.");
+        [Sensitive] public bool HasRecoveryCodes => throw new InvalidOperationException("Classified getter must not execute.");
         public string Failure => throw new InvalidOperationException("getter-message-probe");
     }
 
@@ -399,7 +395,7 @@ public class DiagnosticSanitizerTests
     }
 
     [Fact]
-    public void Url_Fields_Should_Have_Equivalent_Protection_In_Dtos_And_Dictionaries()
+    public void Url_Strings_Should_Remain_Text_In_Dtos_And_Dictionaries()
     {
         var dto = new { Url = "/User/ConfirmEmail?code=url-probe&id=42", Count = 2 };
         var dictionary = new Dictionary<string, object> { ["Url"] = dto.Url, ["Count"] = dto.Count };
@@ -407,23 +403,23 @@ public class DiagnosticSanitizerTests
         foreach (var input in inputs)
         {
             var safe = JsonSerializer.SerializeToElement(Policy().SanitizeValue("Report", input));
-            safe.GetProperty("Url").GetString().Should().Be("/User/ConfirmEmail?code=redacted&id=42");
+            safe.GetProperty("Url").GetString().Should().Be(dto.Url);
             safe.GetProperty("Count").GetInt32().Should().Be(2);
         }
     }
 
     [Fact]
-    public void Forms_And_Urls_Should_Redact_By_Structure_Only()
+    public void Forms_And_Urls_Should_Validate_Encoding_Without_Name_Matching()
     {
         var policy = Policy();
         policy.SanitizeUrl("https://example.test/path?value=opaque%2Fprobe")
             .Should().Be("https://example.test/path?value=opaque%2Fprobe");
-        policy.SanitizeUrl("/token/opaque-probe?count=2").Should().Be("/token/redacted?count=2");
+        policy.SanitizeUrl("/token/opaque-probe?count=2").Should().Be("/token/opaque-probe?count=2");
         policy.SanitizeUrl("/token%3Dopaque-probe").Should().Be("/token%3Dopaque-probe");
         policy.SanitizeBody("message=password%3Dprobe&password=secret", "application/x-www-form-urlencoded")
-            .Should().Be("message=password%3Dprobe&password=%5Bredacted%5D");
+            .Should().Be("message=password%3Dprobe&password=secret");
         policy.SanitizeBody("QrCodeVerify.Code=123456&count=2", "application/x-www-form-urlencoded")
-            .Should().NotContain("123456").And.Contain("count=2");
+            .Should().Be("QrCodeVerify.Code=123456&count=2");
         policy.SanitizeUrl("https://example.test/?value=%GGsecret-probe").Should().NotContain("secret-probe");
         Policy().SanitizeText("opaque/probe").Should().Be("opaque/probe");
     }
@@ -526,7 +522,7 @@ public class DiagnosticSanitizerTests
     {
         var policy = Policy(new DiagnosticLogOptions { MaxNodes = 16, MaxProcessingMilliseconds = 100 });
         for (var index = 0; index < 8; index++)
-            policy.SanitizeValue("TargetUrl", "/?value=probe").Should().Be("/?value=probe");
+            policy.SanitizeValue("TargetUrl", new Uri("https://example.test/?value=probe")).Should().Be("https://example.test/?value=probe");
 
         policy.SanitizeValue("Count", 42).Should().Be(DiagnosticSanitizer.Limited);
         policy.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(new[] { "ScopeWorkLimit" });
@@ -547,8 +543,8 @@ public class DiagnosticSanitizerTests
 
     [Theory]
     [DataInlineUnit("/#token-probe", "/#token-probe")]
-    [DataInlineUnit("/#token=probe&section=public", "/#token=redacted&section=public")]
-    public void Url_Fragments_Should_Redact_Named_Values_And_Preserve_Bare_Text(string url, string expected)
+    [DataInlineUnit("/#token=probe&section=public", "/#token=probe&section=public")]
+    public void Url_Fragments_Should_Preserve_Named_Values_And_Bare_Text(string url, string expected)
     {
         Policy(new DiagnosticLogOptions { MaxProcessingMilliseconds = 100 }).SanitizeUrl(url).Should().Be(expected);
     }
@@ -561,10 +557,10 @@ public class DiagnosticSanitizerTests
         var policy = Policy(new DiagnosticLogOptions { MaxNodes = 16, MaxProcessingMilliseconds = 100 });
         for (var index = 0; index < 14; index++) policy.SanitizeValue("Count", index).Should().Be(index);
 
-        var capture = policy.Capture("TargetUrl", "/?first=one&second=two", deferRedaction: deferred);
+        var capture = policy.Capture("TargetUrl", new Uri("https://example.test/?first=one&second=two"), deferRedaction: deferred);
 
         capture.Value.Should().Be(deferred ? DiagnosticSanitizer.Limited
-            : "/?first=one&_diagnostic=" + DiagnosticSanitizer.Limited);
+            : "https://example.test/?first=one&_diagnostic=" + DiagnosticSanitizer.Limited);
         policy.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(new[] { "ScopeWorkLimit" });
     }
 
@@ -583,7 +579,7 @@ public class DiagnosticSanitizerTests
         var copy = new ScopedLog(SettingsProvider.Development(), Policy());
         copy.CopyFrom(log);
         var serialized = copy.ToString();
-        serialized.Should().NotContain("dictionary-probe").And.NotContain("mutation-probe");
+        serialized.Should().Contain("dictionary-probe").And.NotContain("mutation-probe");
         serialized.Should().Contain("list-probe").And.Contain("event-probe").And.Contain("exception-probe");
         copy.GetLogs()["Stack"].Should().Be(new string('s', 2000));
         copy.CorrelationId.Should().NotBe(log.CorrelationId);
@@ -601,8 +597,8 @@ public class DiagnosticSanitizerTests
         var safe = (IReadOnlyDictionary<string, object?>)policy.SanitizeValue("", map)!;
         safe.Should().HaveCount(3);
         safe.Keys.Should().OnlyContain(key => key.Length < 256);
-        safe["key-probe-a"].Should().Be(DiagnosticSanitizer.Redacted);
-        safe["key-probe-b"].Should().Be(DiagnosticSanitizer.Redacted);
+        safe["key-probe-a"].Should().Be(1);
+        safe["key-probe-b"].Should().Be(2);
 
         var foreign = Substitute.For<IScopedLog>();
         foreign.GetLogs().Returns(new Dictionary<string, object> { ["Password"] = "foreign-probe" });
@@ -610,7 +606,7 @@ public class DiagnosticSanitizerTests
         logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
         logger.LogScoped(foreign);
         var state = logger.ReceivedCalls().Single(call => call.GetMethodInfo().Name == "Log").GetArguments()[2];
-        state!.ToString().Should().NotContain("foreign-probe").And.Contain("redacted");
+        state!.ToString().Should().Contain("foreign-probe");
     }
 
     [Fact]

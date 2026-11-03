@@ -6,7 +6,8 @@ using Microsoft.CodeAnalysis.Operations;
 namespace DRN.Framework.SharedKernel.Analyzers;
 
 internal sealed class ModelCaptureAnalysis(OperationAnalysisContext context, ClassificationContract contract,
-    DiagnosticRedactionRules rules, IInvocationOperation call, bool flat)
+    DiagnosticRedactionRules rules, IInvocationOperation call, bool flat, DiagnosticNameExemption exemptions,
+    bool namesAcknowledged = false)
 {
     private const int MaxModelDepth = 16;
     private const string TimeSpanTypeName = "System.TimeSpan";
@@ -27,7 +28,8 @@ internal sealed class ModelCaptureAnalysis(OperationAnalysisContext context, Cla
         if (contract.Positive(type)) return;
         if (call.TargetMethod.Name == "Add" && type.ToDisplayString() is TimeSpanTypeName or NullableTimeSpanTypeName)
             path += SecondsSuffix;
-        if (rules.MatchesPath(path) || !IsModelType(type) && rules.MatchesField(path))
+        if (rules.MatchesPath(path) || !namesAcknowledged && !IsModelType(type) && rules.MatchesField(path) &&
+            !exemptions.Allows(call.Syntax, path))
         {
             // Untyped roots still require an explicit capture decision.
             context.ReportDiagnostic(Diagnostic.Create(ClassificationDiagnosticDescriptors.PathClassification, call.Syntax.GetLocation(), path, type.Name));
@@ -94,13 +96,17 @@ internal sealed class ModelCaptureAnalysis(OperationAnalysisContext context, Cla
             ReportProperty(property, full);
             return;
         }
-        if (!rules.MatchesField(propertyNamePath) || contract.Exempt(property))
+        if (namesAcknowledged || !rules.MatchesField(propertyNamePath) || contract.Exempt(property))
         {
             Visit(property.Type, full, propertyNamePath, depth + 1);
             return;
         }
         if (!rules.MatchesField(property.Name) || !property.Locations.Any(location => location.IsInSource))
-            ReportProperty(property, full);
+        {
+            if (exemptions.Allows(call.Syntax, full)) Visit(property.Type, full, propertyNamePath, depth + 1);
+            else ReportProperty(property, full);
+        }
+        else Visit(property.Type, full, propertyNamePath, depth + 1);
     }
 
     private void ReportProperty(IPropertySymbol property, string path) =>

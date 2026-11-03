@@ -29,7 +29,7 @@ public class FlurlDiagnosticCaptureTests
         response.DidNotReceive().Dispose();
         log.GetLogs()["FlurlEx_ResponseCaptureLimited"].Should().Be(true);
         log.GetLogs()["FlurlExCall_Duration_Seconds"].Should().Be(1.25d);
-        log.ToString().Should().NotContain("request-probe");
+        log.ToString().Should().Contain("request-probe");
         exception.Message.Should().Be("Upstream failed");
     }
 

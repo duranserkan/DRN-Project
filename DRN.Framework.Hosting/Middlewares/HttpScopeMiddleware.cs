@@ -128,6 +128,7 @@ public class HttpScopeMiddleware(RequestDelegate next)
         var request = httpContext.Request;
         var safeUrl = sanitizer.SanitizeUrl(request.PathBase.Add(request.Path).Value + request.QueryString.Value);
         var queryStart = safeUrl.IndexOf('?');
+        // DiagnosticNameExemption: Request_IpAddress | Retain the request peer address in private operational diagnostics.
         scopedLog
         .WithLoggerName(nameof(HttpScopeMiddleware))
         .WithTraceIdentifier(httpContext.TraceIdentifier)
@@ -138,11 +139,9 @@ public class HttpScopeMiddleware(RequestDelegate next)
         .Add("Request_Host", sanitizer.SanitizeText(httpContext.Request.Host.ToString()))
         .Add("Request_Path", queryStart < 0 ? safeUrl : safeUrl[..queryStart])
         .AddIfNotNullOrEmpty("Request_QueryString", queryStart < 0 ? string.Empty : safeUrl[(queryStart + 1)..])
-        // Do not read the address for diagnostics.
-        .Add("Request_IpAddress", DiagnosticSanitizer.Redacted)
-        .AddIfNotNullOrEmpty("Request_l5d-client-id",
-            sanitizer.SanitizeText(httpContext.Request.Headers.TryGetValue("l5d-client-id", out var l5dId)
-                ? l5dId.ToString()
-                : string.Empty));
+        .Add("Request_IpAddress", httpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty);
+
+        // DiagnosticNameExemption: Request_l5d-client-id | Retain the service mesh client identity in private operational diagnostics.
+        scopedLog.AddIfNotNullOrEmpty("Request_l5d-client-id", httpContext.Request.Headers["l5d-client-id"].ToString());
     }
 }

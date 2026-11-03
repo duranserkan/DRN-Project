@@ -4,9 +4,11 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Changed
 
+*   **Request Diagnostics**: Request values use bounded capture. `Request_IpAddress` is recorded as an empty string when no remote address is available; empty `l5d-client-id` headers remain omitted.
+
 *   **Development Exception Pages**: Display unredacted scoped logs and request details while retaining capture limits, buffering rules, and `[IgnoreLog]` exclusions. Emitted logs and non-Development projections remain redacted.
 
-*   **Diagnostic Redaction**: HTTP and startup logging, developer exception/compilation views, and Development exception detail copies use the shared diagnostic policy. Startup report generation failures retain the exception type, stack trace, and a fixed failure category, omitting exception messages. Single-entry reason strings retain HTTP status, authentication outcome, and rate-limit outcome/action/rule metadata. Named model properties own classification without built-in logging-prefix matches; configured rules still check full paths. IP addresses and rate-limit partition values remain protected. Model classifications include request cookies and partition identifiers. Free text is bounded without content scanning. Original filter and DiagnosticSource objects retain their compatibility contract; subscribers own their export policy. SharedKernel classification errors apply to consumer models independently of logging calls and `[IgnoreLog]`.
+*   **Diagnostic Redaction**: HTTP/startup logging and developer views use bounded explicit classification. Backend capture does not scan names or configured fields/paths, including URL/query/form names. Cookie and partition classifications retain protection. Explicit URL processing removes credentials and validates encoding. Original callback objects retain their compatibility contract. SharedKernel compiler classification checks remain active.
 
 *   **Exception Diagnostics**: Production responses and eligible API/HTMX errors avoid collecting an unused diagnostic model when no post-creation filter requires it. Existing filter callbacks, Development HTML diagnostics, and explicit model requests retain their behavior.
 *   **Rate Limit Defaults**: Post-auth buckets now allow 250 tokens per user and pre-auth buckets allow 2,500 tokens per IP, with matching refills every 60 seconds. Explicit configuration overrides remain supported.

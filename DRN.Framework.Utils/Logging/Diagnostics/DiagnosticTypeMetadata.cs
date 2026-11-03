@@ -9,7 +9,7 @@ namespace DRN.Framework.Utils.Logging.Diagnostics;
 
 internal static class DiagnosticTypeMetadata
 {
-    internal sealed record Member(PropertyInfo Property, bool Ignored, bool Sensitive, bool Exempt)
+    internal sealed record Member(PropertyInfo Property, bool Ignored, bool Sensitive)
     {
         internal string Name => Property.Name;
         internal object? Read(object value) => Property.GetValue(value);
@@ -58,10 +58,7 @@ internal static class DiagnosticTypeMetadata
             classified |= IsClassified(candidate);
         }
 
-        // An interface exemption cannot waive a concrete declaration's name rules.
-        var exempt = implementation.GetCustomAttributes<SensitiveAttribute>(false).Any(attribute =>
-            attribute.GetType() == typeof(SensitiveAttribute) && !attribute.IsSensitive);
-        return new Member(property, ignored, classified, exempt);
+        return new Member(property, ignored, classified);
     }
 
     private static IEnumerable<PropertyInfo> InterfaceProperties(MethodInfo getter, Type runtimeType)

@@ -1,6 +1,6 @@
 namespace DRN.Framework.Utils.Logging.Diagnostics;
 
-/// <summary>The structural node to which an exact diagnostic name exemption applies.</summary>
+/// <summary>The structural kind recorded in a validated diagnostic capture policy.</summary>
 public enum DiagnosticCaptureKind
 {
     NamedEntry = 1,
@@ -10,7 +10,7 @@ public enum DiagnosticCaptureKind
     ListItem = 5
 }
 
-/// <summary>An application-authored exemption for one node, never its descendants.</summary>
+/// <summary>An application-authored review entry. Runtime capture validates entries without matching names.</summary>
 public sealed class DiagnosticNameExemption
 {
     public DiagnosticNameExemption(DiagnosticCaptureKind kind, string justification, params string[] segments)
@@ -30,7 +30,7 @@ public sealed class DiagnosticNameExemption
     public IReadOnlyList<string> Segments { get; }
 }
 
-/// <summary>Immutable, explicit capture exceptions. Never construct this policy from request data.</summary>
+/// <summary>Immutable capture review metadata retained for compatibility. Never construct it from request data.</summary>
 public sealed class DiagnosticCapturePolicy
 {
     private readonly DiagnosticNameExemption[] _exceptions;
@@ -49,22 +49,16 @@ public sealed class DiagnosticCapturePolicy
                 string.Join('.', item.Segments).Length > options.MaxKeyBytes || item.Justification.Length > options.MaxFieldBytes))
             throw new ArgumentException("Diagnostic exceptions exceed capture limits.");
     }
-
-    internal bool Exempts(DiagnosticCaptureKind kind, IReadOnlyList<string> segments) =>
-        _exceptions.Any(item => item.Kind == kind && item.Segments.SequenceEqual(segments, StringComparer.Ordinal));
 }
 
-internal sealed record DiagnosticNameDecision(string Path, bool Exempt, string? NamePath = null);
-internal sealed record DiagnosticCaptureResult(object? Value, DiagnosticNameDecision[] Decisions, string[]? UrlRules = null);
+internal sealed record DiagnosticCaptureResult(object? Value);
 
 // Metadata wraps detached values, never caller-owned objects. GetLogs removes these wrappers.
-internal enum DiagnosticRedactionKind { Classified, Url, QueryString }
+internal enum DiagnosticRedactionKind { Classified, Url }
 internal sealed record DiagnosticCapturedValue(object? Value, DiagnosticRedactionKind Kind,
     [property: System.Text.Json.Serialization.JsonIgnore] DiagnosticLogOptions? SourceOptions = null);
 
-internal sealed class DiagnosticCaptureContext(DiagnosticCapturePolicy? policy, bool deferRedaction = false)
+internal readonly struct DiagnosticCaptureContext(bool deferRedaction = false)
 {
     internal bool DeferRedaction { get; } = deferRedaction;
-    internal List<DiagnosticNameDecision> Decisions { get; } = [];
-    internal bool Exempts(DiagnosticCaptureKind kind, IReadOnlyList<string> segments) => policy?.Exempts(kind, segments) == true;
 }

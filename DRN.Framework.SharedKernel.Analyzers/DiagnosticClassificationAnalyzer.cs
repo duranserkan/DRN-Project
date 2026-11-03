@@ -21,9 +21,12 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
     public static readonly DiagnosticDescriptor AnonymousClassification = ClassificationDiagnosticDescriptors.AnonymousClassification;
     public static readonly DiagnosticDescriptor DictionaryClassification = ClassificationDiagnosticDescriptors.DictionaryClassification;
     public static readonly DiagnosticDescriptor InvalidRuleFile = ClassificationDiagnosticDescriptors.InvalidRuleFile;
+    public static readonly DiagnosticDescriptor UnsafeLoggingCapture = ClassificationDiagnosticDescriptors.UnsafeLoggingCapture;
+    public static readonly DiagnosticDescriptor InvalidNameExemptionComment = ClassificationDiagnosticDescriptors.InvalidNameExemptionComment;
+    public static readonly DiagnosticDescriptor UnusedNameExemptionComment = ClassificationDiagnosticDescriptors.UnusedNameExemptionComment;
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
-        [MissingClassification, InvalidExemption, PathClassification, UnknownClassification, AnonymousClassification, DictionaryClassification, InvalidRuleFile];
+        [MissingClassification, InvalidExemption, PathClassification, UnknownClassification, AnonymousClassification, DictionaryClassification, InvalidRuleFile, UnsafeLoggingCapture, InvalidNameExemptionComment, UnusedNameExemptionComment];
 
     public override void Initialize(AnalysisContext context)
     {
@@ -38,12 +41,21 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
             var personal = start.Compilation.GetTypeByMetadataName(AttributeNamespace + "PersonalAttribute");
             if (sensitive == null || personal == null) return;
             var contract = new ClassificationContract(sensitive, personal);
+            var exemptions = new DiagnosticNameExemption();
+            start.RegisterSyntaxTreeAction(exemptions.Collect);
+            start.RegisterCompilationEndAction(exemptions.ReportUnused);
             start.RegisterSymbolAction(symbol => AnalyzeProperty(symbol, contract, rules), SymbolKind.Property);
             start.RegisterOperationAction(operation => AnalyzeAnonymousObject(operation, rules), OperationKind.AnonymousObjectCreation);
             start.RegisterSyntaxNodeAction(node => AnalyzeAttribute(node, contract), Microsoft.CodeAnalysis.CSharp.SyntaxKind.Attribute);
             start.RegisterOperationAction(operation => AnalyzeConstructor(operation, contract), OperationKind.Invocation);
-            start.RegisterOperationAction(operation => AnalyzeCapture(operation, contract, rules), OperationKind.Invocation);
-            start.RegisterOperationAction(operation => AnalyzeDictionaryCapture(operation, rules), OperationKind.Invocation);
+            start.RegisterOperationAction(operation => AnalyzeCapture(operation, contract, rules, exemptions), OperationKind.Invocation);
+            start.RegisterOperationAction(operation => AnalyzeDictionaryCapture(operation, rules, exemptions), OperationKind.Invocation);
+            start.RegisterOperationAction(operation =>
+            {
+                var call = (IInvocationOperation)operation.Operation;
+                if (!IsSubstituteVerification(call))
+                    LoggingCaptureAnalysis.Analyze(operation, contract, rules, call, exemptions);
+            }, OperationKind.Invocation);
         });
     }
 
@@ -150,7 +162,7 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
     private static IOperation? GetArgumentValue(IInvocationOperation call, int ordinal) =>
         call.Arguments.FirstOrDefault(argument => argument.Parameter?.Ordinal == ordinal)?.Value;
 
-    private static void AnalyzeDictionaryCapture(OperationAnalysisContext context, DiagnosticRedactionRules rules)
+    private static void AnalyzeDictionaryCapture(OperationAnalysisContext context, DiagnosticRedactionRules rules, DiagnosticNameExemption exemptions)
     {
         var call = (IInvocationOperation)context.Operation;
         if (IsSubstituteVerification(call)) return;
@@ -166,7 +178,7 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
         var dictionaryApi = method.Name is "AddDictionary" or "SanitizeDictionary";
         var prefix = GetArgumentValue(call, offset);
         var rootPath = prefix?.ConstantValue is { HasValue: true, Value: string path } ? path : null;
-        new DictionaryCaptureAnalysis(context, rules, call).Analyze(value, dictionaryApi, rootPath);
+        new DictionaryCaptureAnalysis(context, rules, call, exemptions).Analyze(value, dictionaryApi, rootPath);
     }
 
     private static void AnalyzeAttribute(SyntaxNodeAnalysisContext context, ClassificationContract contract)
@@ -193,33 +205,42 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
             context.ReportDiagnostic(Diagnostic.Create(InvalidExemption, invocation.Syntax.GetLocation(), "Derived Sensitive attributes must pass true"));
     }
 
-    private static void AnalyzeCapture(OperationAnalysisContext context, ClassificationContract contract, DiagnosticRedactionRules rules)
+    private static void AnalyzeCapture(OperationAnalysisContext context, ClassificationContract contract, DiagnosticRedactionRules rules,
+        DiagnosticNameExemption exemptions)
     {
         var call = (IInvocationOperation)context.Operation;
         if (IsSubstituteVerification(call)) return;
-        if (!IsModelCapture(call, out var flat)) return;
-        var prefix = GetArgumentValue(call, 0);
+        if (!IsModelCapture(call, out var flat, out var namesAcknowledged)) return;
+        var offset = call.TargetMethod.IsExtensionMethod && call.TargetMethod.ReducedFrom == null ? 1 : 0;
+        var prefix = GetArgumentValue(call, offset);
         if (prefix == null || !prefix.ConstantValue.HasValue || prefix.ConstantValue.Value is not string path) return;
-        var type = GetCaptureType(call, flat);
+        var type = GetCaptureType(call, flat, offset);
         if (type == null) return;
-        new ModelCaptureAnalysis(context, contract, rules, call, flat).Analyze(type, path);
+        new ModelCaptureAnalysis(context, contract, rules, call, flat, exemptions, namesAcknowledged).Analyze(type, path);
     }
 
-    private static bool IsModelCapture(IInvocationOperation call, out bool flat)
+    private static bool IsModelCapture(IInvocationOperation call, out bool flat, out bool namesAcknowledged)
     {
         var method = call.TargetMethod;
         var owner = method.ContainingType.ToDisplayString();
-        flat = method.Name == "AddProperties" && IsScopedLog(owner);
-        var valueCapture = method.Name is "Add" or "AddToList" && IsScopedLog(owner) ||
-                           method.Name == "SanitizeValue" && IsSanitizer(owner);
-        // Reason and policy overloads own runtime validation. Declarations are still checked independently.
-        return flat ? call.Arguments.Length >= 2 : valueCapture && call.Arguments.Length == 2;
+        var extensions = owner == "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticCaptureExtensions";
+        flat = method.Name is "AddProperties" or "AddPropertiesWithPolicy" && (IsScopedLog(owner) || extensions);
+        var valueCapture = method.Name is "Add" or "AddToList" or "AddIfNotNullOrEmpty" or "AddWithPolicy" && (IsScopedLog(owner) || extensions) ||
+                           method.Name is "SanitizeValue" or "SanitizeWithPolicy" && (IsSanitizer(owner) || extensions);
+        var offset = method.IsExtensionMethod && method.ReducedFrom == null ? 1 : 0;
+        namesAcknowledged = method.Name.EndsWith("WithPolicy", StringComparison.Ordinal) ||
+                            !flat && call.Arguments.Length > 2 + offset;
+        // Reasons and policies acknowledge names, but never configured capture paths.
+        return (flat || valueCapture) && call.Arguments.Length >= 2 + offset;
     }
 
-    private static ITypeSymbol? GetCaptureType(IInvocationOperation call, bool flat)
+    private static ITypeSymbol? GetCaptureType(IInvocationOperation call, bool flat, int offset)
     {
-        var value = GetArgumentValue(call, 1);
+        var value = GetArgumentValue(call, 1 + offset);
         while (value is IConversionOperation conversion) value = conversion.Operand;
+        // Conditional string capture never stores a constant null or empty value.
+        if (call.TargetMethod.Name == "AddIfNotNullOrEmpty" &&
+            value?.ConstantValue is { HasValue: true, Value: null or "" }) return null;
         // The exact constant marker contains no captured data. Runtime values remain checked.
         if (!flat && value?.ConstantValue is { HasValue: true, Value: "[redacted]" }) return null;
         return flat ? call.TargetMethod.TypeArguments.FirstOrDefault() : value?.Type;
@@ -228,6 +249,9 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
     private static bool IsSubstituteVerification(IInvocationOperation call)
     {
         var receiver = call.Instance;
+        if (receiver == null && call.TargetMethod.ContainingAssembly.Name == "Microsoft.Extensions.Logging.Abstractions" &&
+            call.TargetMethod.ContainingType.ToDisplayString() == "Microsoft.Extensions.Logging.LoggerExtensions")
+            receiver = call.Arguments.FirstOrDefault(argument => argument.Parameter?.Name == "logger")?.Value;
         while (receiver is IConversionOperation conversion) receiver = conversion.Operand;
         if (receiver is not IInvocationOperation verification) return false;
         var method = verification.TargetMethod.ReducedFrom ?? verification.TargetMethod;
