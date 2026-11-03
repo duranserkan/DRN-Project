@@ -26,3 +26,6 @@
 | DRN0019 | DRN.Classification | Error | Matching anonymous properties require a named class or record with explicit classification or false-positive exemption |
 | DRN0020 | DRN.Classification | Error | Matching dictionary captures require AddDictionary or SanitizeDictionary with key classifications |
 | DRN0021 | DRN.Classification | Error | Project or inherited classification catalog is unreadable, invalid, oversized, or ambiguous |
+| DRN0022 | DRN.Classification | Error | Sensitive ILogger placeholders, scope dictionary keys, or directly captured classified properties require removal or explicit redaction |
+| DRN0023 | DRN.Classification | Error | DiagnosticNameExemption comment requires an exact name and nonempty justification within documented bounds |
+| DRN0024 | DRN.Classification | Warning | DiagnosticNameExemption comment suppresses no name diagnostic |

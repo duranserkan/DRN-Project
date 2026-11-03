@@ -53,9 +53,9 @@ public class DiagnosticLogFormatterTests
     {
         var policy = new DiagnosticSanitizer(new DiagnosticLogOptions());
         var safe = policy.SanitizeText(new string('a', 4000) + " password=split-secret-probe; " + new string('z', 4000));
-#pragma warning disable DRN0017 // Deliberately exercise runtime name-based redaction before fragmentation.
-        var redacted = policy.SanitizeValue("Password", "field-secret-probe")!;
-#pragma warning restore DRN0017
+        var classified = policy.SanitizeDictionary("Fields", new Dictionary<string, string> { ["Password"] = "field-secret-probe" },
+            new DiagnosticKeyClassification("Password", DiagnosticDataKind.Sensitive));
+        var redacted = JsonSerializer.SerializeToElement(classified).GetProperty("Password").GetString()!;
         var records = DiagnosticLogFormatter.Create(new Dictionary<string, object>
             { ["Message"] = safe, ["Password"] = redacted },
             new DiagnosticLogOptions { MaxRecordBytes = 4096 });

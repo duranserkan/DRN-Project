@@ -10,24 +10,27 @@ namespace DRN.Framework.Utils.Logging.Diagnostics;
 [Config("DiagnosticLogging")]
 public sealed record DiagnosticLogOptions : IValidatableObject
 {
-    private static readonly ConditionalWeakTable<DiagnosticLogOptions, Lazy<DiagnosticRedactionRules>> RuleFiles = new();
+    private static readonly ConditionalWeakTable<DiagnosticLogOptions, Lazy<bool>> ValidatedRuleSources = new();
 
     /// <summary>Optional project rule file. Relative paths resolve from AppContext.BaseDirectory. Loaded once per options instance.</summary>
     public string? RuleFile { get; init; }
     /// <summary>Optional application assembly name for loading its catalog and those of referenced SharedKernel consumers.</summary>
     public string? RuleAssemblyName { get; init; }
-    internal DiagnosticRedactionRules? LoadedRules { get; init; }
+    internal bool RulesValidated { get; init; }
     internal string? LoadedRuleFile { get; init; }
     internal string? LoadedRuleAssemblyName { get; init; }
 
-    internal DiagnosticRedactionRules GetRules()
+    internal void ValidateRuleSources()
     {
-        if (LoadedRules != null && RuleFile == LoadedRuleFile && RuleAssemblyName == LoadedRuleAssemblyName)
-            return LoadedRules;
-        if (RuleFile == null && RuleAssemblyName == null) return DiagnosticRedactionRules.Empty;
-        return RuleFiles.GetValue(this, static options => new Lazy<DiagnosticRedactionRules>(() =>
+        if (RulesValidated && RuleFile == LoadedRuleFile && RuleAssemblyName == LoadedRuleAssemblyName) return;
+        if (RuleFile == null && RuleAssemblyName == null) return;
+        // Preserve validation failures and once-per-options I/O without retaining unused catalog graphs.
+        _ = ValidatedRuleSources.GetValue(this, static options => new Lazy<bool>(() =>
+        {
             EmbeddedClassificationRules.Load(options.RuleAssemblyName).Merge(options.RuleFile == null
-                ? DiagnosticRedactionRules.Empty : ReadRules(options.RuleFile)))).Value;
+                ? DiagnosticRedactionRules.Empty : ReadRules(options.RuleFile));
+            return true;
+        })).Value;
     }
 
     private static DiagnosticRedactionRules ReadRules(string path)
@@ -52,8 +55,11 @@ public sealed record DiagnosticLogOptions : IValidatableObject
     [Range(1, 1024)] public int MaxCollectionEntries { get; init; } = 256;
     [Sensitive(false, Justification = "Diagnostic key size budget."), Range(32, 512)] public int MaxKeyBytes { get; init; } = 256;
     [Range(1, 100)] public int MaxProcessingMilliseconds { get; init; } = 50;
+    /// <summary>Legacy configuration, validated but not matched at runtime. Use explicit classifications.</summary>
     public string[] SensitiveFields { get; init; } = [];
+    /// <summary>Legacy configuration, validated but not matched at runtime. Analyzer paths belong in the project catalog.</summary>
     public string[] SensitiveFieldPaths { get; init; } = [];
+    /// <summary>Legacy configuration, validated but not matched against URL segments.</summary>
     public string[] SensitivePathSegments { get; init; } = [];
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)

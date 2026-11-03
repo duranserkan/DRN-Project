@@ -1,7 +1,7 @@
 ---
 name: drn-testing
 description: "DRN.Framework.Testing - canonical DTT attribute/context matrix with DrnTestContext, DrnTestContextUnit, ContainerContext, ApplicationContext, DataInline/DataMember/DataSelf, MTP command guidance, AwesomeAssertions, AutoFixture, NSubstitute, Testcontainers, and xUnit v3. Keywords: testing, dtt, drntest-context, applicationcontext, testcontainers, mtp, xunit, data-attributes, unit-testing, integration-testing"
-last-updated: 2026-10-29
+last-updated: 2026-11-03
 difficulty: intermediate
 tokens: ~1.7K
 ---
@@ -10,15 +10,19 @@ tokens: ~1.7K
 
 > Canonical DTT (Duran's Testing Technique) guidance for choosing attributes, contexts, and test commands.
 
-For project classification catalogs, share a JSON fixture between analyzer and runtime tests. Verify AdditionalFiles and EmbeddedResource registration, generated reference-assembly metadata, inherited SharedKernel-consumer catalogs, unrelated-assembly exclusion, runtime RuleAssemblyName/RuleFile loading, and copy/publish boundaries. Cover custom fields/paths, unchanged built-ins, malformed/oversized/unreadable sources, duplicate registration, compilation isolation, snapshot/copy protection, and code fixes. Include MSBuild escaping vectors for generated metadata. Cover ordinary nonmatching names whenever adding patterns. Use fresh raw options to test loose-file reload and existing snapshots to test stable protection. Do not execute tests without the existing execution gate.
+For project classification catalogs, share schema fixtures between analyzer and runtime validation tests. Verify AdditionalFiles and EmbeddedResource registration, reference-assembly metadata, inherited catalogs, unrelated-assembly exclusion, and copy/publish boundaries. Keep one baseline catalog for browser and analyzer. Backend runtime cases must assert absence of name matching separately. Cover malformed sources, duplicate registration, concurrent compilation isolation, explicit snapshot classification, and code fixes. Use invalid replacement files to prove runtime revalidation rather than comparing values that no longer depend on catalog contents. Do not execute tests without the existing execution gate.
 
-Dictionary capture fixtures should normally use AddDictionary/SanitizeDictionary with explicit key classifications. Suppress DRN0020 only in explained runtime-fallback tests. Cover nested keys, mutation before capture, scalar-only NonSensitive exemptions, positive/configured precedence and native copy behavior.
+Dictionary fixtures should use AddDictionary/SanitizeDictionary with explicit classifications. Exact-name comments acknowledge reviewed DRN0020 names but provide no runtime protection. Cover nested keys, mutation, scalar-only NonSensitive exemptions, positive-classification precedence, native copies, and absence of runtime name matching.
+
+Configured-path regressions must cover native and extension dictionary APIs, exact positive classifications, NonSensitive and unknown classifications, and protected descendants. Scope dictionary tests must accept safe constants while retaining diagnostics for unsafe subsequent writes and directly extracted classified properties.
 
 Diagnostic metadata regressions must cover interface-only positive classifications across declared, concrete, nested, generic and explicit-implementation captures. Keep unrelated same-named public properties visible. Verify lazy registration and warm positive/negative decisions without sharing mutable counters between parallel tests. Snapshot and byte-sizing changes require detached native-copy coverage, escaped Unicode fragment reconstruction, repeated writer reuse, serialization failure recovery and reentrant sizing. Warm lookup allocation tests do not prove allocation-free capture or export.
 
 DRN0019 schema-exemption tests must use real EF migration API references. Cover column definitions and composite constraint selectors, while retaining diagnostics for migration data objects, nested defaults, logging and lookalike APIs. Do not exclude migration folders or generated files.
 
 DRN0017/DRN0020 skip instance calls directly chained from NSubstitute Received/DidNotReceive and their WithAnyArgs variants. Ordinary calls on substitutes and model/anonymous declaration diagnostics remain checked. Keep verification calls directly chained rather than relying on aliases or wrappers.
+
+Logging analyzer tests use real Microsoft logging references. Cover templates, overloads, scope writes, inherited/interface classifications, lookalikes, and verification calls. Include inherited properties implementing interfaces introduced by the receiver type, with unrelated explicit implementations as counterexamples. For DRN0017/DRN0020/DRN0022 comments, assert exact-name and statement boundaries, malformed DRN0023 errors, and unused DRN0024 warnings. Preserve classified values, configured analyzer paths, declarations, and child checks. Unused attributes and reason/policy APIs must not warn. Pair compiler coverage with explicit runtime classification tests, including copies. See [SharedKernel guidance](../drn-sharedkernel/SKILL.md#attributes).
 
 SharedKernel classification errors also cover test models. Annotate fixture credentials and personal properties normally. Use direct `[Sensitive(false)]` only for deliberate operational false positives. Matching anonymous properties, including nested ones, require named annotated models under DRN0019. Keep intentional runtime-rejection fixtures under narrowly scoped, explained DRN0015 through DRN0019 suppressions. Do not exempt an entire test project. External-dependency launch logs must suppress credential getters and omit container graphs.
 
@@ -51,6 +55,7 @@ Rules:
 - Use `DataInlineUnit` for pure logic and isolated services. Use `DataInline` when real dependencies make the signal more honest.
 - Never use `DrnTestContext` in unit-test projects. Use `DrnTestContextUnit` there and place full `DrnTestContext` coverage in integration-test projects discovered from the current repository.
 - The context must be the first parameter when requested; attribute data follows; AutoFixture/NSubstitute fill missing parameters.
+- For one null inline value, use an explicit scalar cast such as `[DataInlineUnit((string?)null)]`. Bare `null` or `null!` can bind to the entire params array instead of a single data element.
 - Interface/abstract parameters auto-mocked by NSubstitute can replace matching `ServiceCollection` registrations. Use those substitutes for dependencies, not for concrete convenience methods whose implementation is the behavior under test.
 - Assertions use `AwesomeAssertions`.
 - Unit self-data derives from `DataSelfUnitAttribute`.

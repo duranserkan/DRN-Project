@@ -11,7 +11,7 @@ public class ClientErrorSanitizationTests
 {
     [Theory]
     [DataInlineUnit]
-    public void Typed_Reports_Should_Preserve_Text_And_Redact_Urls_Without_Relying_On_Browser_Policy(DrnTestContextUnit services)
+    public void Typed_Reports_Should_Preserve_Unclassified_Text_Without_Reapplying_Browser_Name_Rules(DrnTestContextUnit services)
     {
         var user = Substitute.For<IScopedUser>();
         user.Id.Returns("user-id");
@@ -28,12 +28,12 @@ public class ClientErrorSanitizationTests
 
         controller.Report(payload).Should().BeOfType<OkResult>();
 
-        log.ToString().Should().NotContain("url-probe");
+        log.ToString().Should().Contain("url-probe");
         log.GetLogs()["ClientError.Message"].Should().Be(payload.Message);
         log.GetLogs()["ClientError.ClientErrorId"].Should().Be(payload.ClientErrorId);
         log.GetLogs()["ClientError.DiagnosticLimited"].Should().Be(true);
         log.GetLogs()["ClientError.Stack"].Should().Be(payload.Stack);
-        log.GetLogs()["ClientError.Url"].Should().Be("https://example.test/?token=redacted");
+        log.GetLogs()["ClientError.Url"].Should().Be(payload.Url);
         payload.Message.Should().Contain("message-probe");
     }
 }

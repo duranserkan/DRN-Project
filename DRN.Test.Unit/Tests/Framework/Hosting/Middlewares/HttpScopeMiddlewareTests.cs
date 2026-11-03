@@ -2,6 +2,7 @@ using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Logging;
+using DRN.Framework.Utils.Logging.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Logging;
@@ -11,23 +12,62 @@ namespace DRN.Test.Unit.Tests.Framework.Hosting.Middlewares;
 public class HttpScopeMiddlewareTests
 {
     [Theory]
-    [DataInlineUnit]
-    public async Task Request_Diagnostics_Should_Redact_Without_Mutating_The_Request(DrnTestContextUnit services)
+    [DataInlineUnit("192.0.2.1", false)]
+    [DataInlineUnit("2001:db8::1", false)]
+    [DataInlineUnit(null, false)]
+    [DataInlineUnit("192.0.2.1", true)]
+    public async Task Request_Diagnostics_Should_Capture_Ip_Without_Runtime_Name_Redaction(
+        DrnTestContextUnit services, string? ipAddress, bool redactIp)
     {
         var context = new DefaultHttpContext();
         context.Request.Path = "/User/ConfirmEmail";
         context.Request.QueryString = new QueryString("?code=query-probe&id=42");
-        context.Connection.RemoteIpAddress = System.Net.IPAddress.Parse("192.0.2.1");
+        context.Request.Headers["l5d-client-id"] = "client-identity-probe";
+        context.Connection.RemoteIpAddress = ipAddress == null ? null : System.Net.IPAddress.Parse(ipAddress);
         var settings = services.GetRequiredService<IAppSettings>();
-        var log = new ScopedLog(settings);
+        var log = new ScopedLog(settings, new DiagnosticSanitizer(new DiagnosticLogOptions
+        {
+            SensitiveFields = redactIp ? ["ipadd"] : [],
+            MaxProcessingMilliseconds = 100
+        }));
         var middleware = new HttpScopeMiddleware(_ => Task.CompletedTask);
 
         await middleware.InvokeAsync(context, log, Substitute.For<IScopedUser>(), services,
             Substitute.For<ILogger<HttpScopeMiddleware>>(), settings, Substitute.For<IDrnExceptionHandler>());
 
-        log.ToString().Should().NotContain("query-probe").And.NotContain("192.0.2.1");
+        log.ToString().Should().Contain("query-probe");
+        log.GetLogs()["Request_IpAddress"].Should().Be(ipAddress ?? string.Empty);
+        (context.Connection.RemoteIpAddress?.ToString()).Should().Be(ipAddress);
         log.GetLogs()["Request_QueryString"].ToString().Should().Contain("id=42");
+        log.GetLogs()["Request_l5d-client-id"].Should().Be("client-identity-probe");
+        context.Request.Headers["l5d-client-id"].ToString().Should().Be("client-identity-probe");
         context.Request.QueryString.Value.Should().Contain("query-probe");
+    }
+
+    [Theory]
+    [DataInlineUnit((string?)null)]
+    [DataInlineUnit("")]
+    [DataInlineUnit("client-identity-probe")]
+    public async Task Client_Identity_Should_Omit_Empty_Values_And_Ignore_Runtime_Name_Paths(
+        DrnTestContextUnit services, string? clientId)
+    {
+        var context = new DefaultHttpContext();
+        if (clientId != null) context.Request.Headers["l5d-client-id"] = clientId;
+        var settings = services.GetRequiredService<IAppSettings>();
+        var log = new ScopedLog(settings, new DiagnosticSanitizer(new DiagnosticLogOptions
+        {
+            SensitiveFieldPaths = ["Request_l5d-client-id"],
+            MaxProcessingMilliseconds = 100
+        }));
+        var middleware = new HttpScopeMiddleware(_ => Task.CompletedTask);
+
+        await middleware.InvokeAsync(context, log, Substitute.For<IScopedUser>(), services,
+            Substitute.For<ILogger<HttpScopeMiddleware>>(), settings, Substitute.For<IDrnExceptionHandler>());
+
+        if (string.IsNullOrEmpty(clientId))
+            log.GetLogs().Should().NotContainKey("Request_l5d-client-id");
+        else
+            log.GetLogs()["Request_l5d-client-id"].Should().Be(clientId);
     }
 
     [Theory]

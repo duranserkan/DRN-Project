@@ -1,7 +1,7 @@
 ---
 name: drn-sharedkernel
 description: "DRN.Framework.SharedKernel - Foundational domain primitives, exception hierarchy, repository contracts and cancellation semantics, pagination, JSON conventions, app constants, and shared extensions. Keywords: entity, aggregate-root, domain-event, repository, repository-cancellation, cancellation, pagination, exception, json, domain-modeling, source-known-id, entity-type, appconstants, path-extensions"
-last-updated: 2026-11-01
+last-updated: 2026-11-03
 difficulty: intermediate
 tokens: ~2.5K
 ---
@@ -311,7 +311,17 @@ using DRN.Framework.SharedKernel.Extensions;
 
 ## Attributes
 
-DRN0017 accepts the exact compile-time string `[redacted]` as a capture value without an exemption policy. Runtime strings and values containing additional text remain checked.
+DRN0017 accepts the exact compile-time string `[redacted]` as a capture value. AddIfNotNullOrEmpty also excludes constant null and empty values. Runtime strings and values containing additional text remain checked.
+
+The browser and analyzer use one shared catalog, including `ipadd`. Reviewed operational IP captures need explicit compiler acknowledgements. Positive classifications remain enforced at runtime.
+
+The shared baseline retains `client` matching. Reviewed client IDs use property exemptions or exact capture comments. Do not change browser behavior indirectly through compiler catalog edits.
+
+Compiler analysis covers statically known values and paths. Follow the source-owned diagnostic guide for application responsibilities for dynamic data.
+
+AddDictionary/SanitizeDictionary still enforce configured paths. Inline positive classification constructors with constant exact keys protect whole entries, including descendants. NonSensitive and unknown classification expressions do not waive configured paths. Dictionary name analysis accepts known null, empty and exact redacted constants, including ILogger scopes.
+
+Preserve resolved logging-symbol checks, bounded analysis, and exact adjacent comments for DRN0017/DRN0020/DRN0022. DRN0017 uses reported paths; DRN0020 uses dictionary keys at capture. Continue child traversal. Comments cannot waive classified values, configured analyzer paths, or declarations. DRN0023 reports malformed comments; DRN0024 warns only for unused comments. Attributes and reason/policy APIs do not receive unused warnings. Backend runtime uses explicit classifications, with no name fallback. See the [diagnostic guide](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#boundaries-and-migration).
 
 DRN0019 exempts direct EF migration column-definition and constraint-selector anonymous objects containing column-operation metadata. Recognition uses resolved EF APIs, not file paths. Ordinary data objects and logging in migrations remain checked.
 
@@ -322,7 +332,7 @@ DRN0017/DRN0020 skip instance calls directly chained from resolved NSubstitute R
 | `[IgnoreLog]` | Exclude properties from scoped logging |
 | `[Sensitive]`, `[Personal]` | Extensible Microsoft classification families. Scoped logs read classified getters once and redact output; direct sanitizer calls skip them. Runtime mapped interface classifications also protect concrete and nested capture. Derived attributes satisfy analysis. Direct property `[Sensitive(false)]` exempts built-in name rules only, never positive classification or explicit URL protection. |
 | `DRN0015` through `DRN0019` | Default build errors for missing property classification, invalid false annotations, matched scalar/untyped paths or external property names, unverifiable custom Microsoft classification, and matching anonymous properties. Anonymous matches require annotated named models, including nested and inferred members. Named models use property names without built-in logging-prefix matches. Apply across SharedKernel consumers, including test models and ignored properties. Generated sources are analyzed without reporting diagnostics. Personal/Sensitive fixes support selected Fix All. False-positive fixes and DRN0016 `Use Sensitive(true)` require individual selection. Generated declarations receive no source edits. No automatic anonymous-to-record fix. |
-| `DRN0020` | Matching constant dictionary keys at capture require AddDictionary/SanitizeDictionary. Checks initializers and direct local writes, including nested dictionaries. Bound depth and total work per capture, including prior-write scans, and check cancellation. Preserve path-sensitive revisits within that budget. Unexamined and dynamic/aliased data retains runtime protection. No automatic code fix. |
+| `DRN0020` | Matching known dictionary keys require explicit classification or exact-name comments. Comments cannot waive configured analyzer paths or children. Check initializers and direct writes within depth/work bounds with cancellation. Dynamic/unexamined values require application classification; no runtime name fallback exists. |
 | `[SecureKey]` | Validate string meets secure key requirements |
 | `[EntityType<TApp>(byte)]` | Unique entity type ID bound to application partition `TApp : IAppId` |
 | `[TestEntityType(byte)]` | Convenience entity type attribute bound directly to `TestApp` (`AppId = 127`) |
@@ -332,7 +342,7 @@ DRN0017/DRN0020 skip instance calls directly chained from resolved NSubstitute R
 
 ## Related Skills
 
-Project classification catalogs: register one own `data-classification-rules.json` through EmbeddedResource or AdditionalFiles. The legacy name `diagnostic-rules.json` remains accepted. Build targets forward embedded files to analysis and generate DataClassificationRulesAttribute metadata retained in reference assemblies. Inherit additive catalogs from referenced SharedKernel consumers, including transitive references; ignore unrelated assemblies. Do not load dependency code in analyzers. DRN0021 reports invalid, unreadable, oversized, or ambiguous catalogs. Use the shared parser and immutable per-compilation rules, never mutable global rule state or filesystem scanning. Align Utils runtime RuleAssemblyName or RuleFile configuration with the compiler inputs. Test reference-assembly inheritance, isolation, exclusions, invalid metadata, custom-name fixes, and positive/nonmatching vectors. Use the profile's classification maintenance workflow for new files and entries.
+Register one project catalog through EmbeddedResource or AdditionalFiles. Legacy diagnostic-rules.json remains accepted. Build targets publish metadata retained in reference assemblies. Inherit additive catalogs from referenced SharedKernel consumers without loading dependency code. DRN0021 reports invalid catalogs. Use immutable per-compilation rules and comment-usage tracking. Backend runtime catalogs no longer redact names. Test inheritance, isolation, invalid metadata, fixes, and matching/nonmatching names.
 
 - [drn-domain-design.md](../drn-domain-design/SKILL.md) - Domain & Repository patterns
 - [drn-entityframework.md](../drn-entityframework/SKILL.md) - DrnContext usage

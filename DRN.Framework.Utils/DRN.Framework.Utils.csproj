@@ -30,10 +30,6 @@
         </None>
     </ItemGroup>
 
-    <ItemGroup>
-        <EmbeddedResource Include="Logging/Diagnostics/data-classification-rules.json" LogicalName="DRN.DiagnosticRules.json" />
-    </ItemGroup>
-
     <Target Name="PrepareDescription" BeforeTargets="GenerateNuspec">
         <PropertyGroup>
             <PackageDescription>$([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)/PACKAGE-DESCRIPTION"))</PackageDescription>

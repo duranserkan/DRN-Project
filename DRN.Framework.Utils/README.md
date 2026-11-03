@@ -517,13 +517,13 @@ When Development has no default Nexus key, `AppSettings` derives deterministic 3
 
 ## Logging (`IScopedLog`)
 
-Dictionary diagnostics use `AddDictionary` or `SanitizeDictionary` with exact `DiagnosticKeyClassification` entries. Sensitive and Personal redact whole values. NonSensitive requires a reason and a supported scalar. Matching statically known dictionary captures produce DRN0020 guidance. See the [dictionary classification contract](Logging/Diagnostics/README.md#dictionary-classifications).
+Dictionary diagnostics use `AddDictionary` or `SanitizeDictionary` with exact `DiagnosticKeyClassification` entries. Sensitive and Personal redact whole values. NonSensitive requires a reason and a supported scalar. Matching statically known dictionary captures produce DRN0020 guidance. See the [dictionary classification contract](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#dictionary-classifications).
 
-`IScopedLog` aggregates structured operational data, metrics, checkpoints, and exceptions for a logical scope. Hosting emits one grouped record when it fits and bounded linked records for larger sanitized diagnostics. See [diagnostic redaction and grouping](Logging/Diagnostics/README.md) for classification, limits, and reconstruction.
+`IScopedLog` aggregates structured operational data, metrics, checkpoints, and exceptions for a logical scope. Hosting emits one grouped record when it fits and bounded linked records for larger sanitized diagnostics. See [diagnostic redaction and grouping](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md) for classification, limits, and reconstruction.
 
-SharedKernel's classification analyzer checks model properties independently of capture and `[IgnoreLog]`. Use `[Personal]`, `[Sensitive]` or a derived company attribute for positive classification. Named models use their own property names without built-in logging-prefix matches. Direct `[Sensitive(false)]` preserves a property false positive without overriding positive classification, configured full-path rules or URL protection. For one supported scalar exception, use `Add(key, value, exemptionReason)` or `SanitizeValue(path, value, exemptionReason)` with an application-authored reason. Supported scalars include nullable values, DateOnly, TimeOnly and Uri. Uri always receives URL sanitization regardless of the entry name. Complex reason-bearing values return an unavailable marker without traversal. Keep `DiagnosticCapturePolicy` for complex/nested exceptions. Neither form grants whole subtrees. Native copies retain bound decisions under destination protection; public snapshots do not carry authorization. See the [migration and capture boundaries](Logging/Diagnostics/README.md#boundaries-and-migration).
+SharedKernel's classification analyzer checks model properties independently of capture and `[IgnoreLog]`. Use `[Personal]`, `[Sensitive]` or a derived company attribute for positive classification. Named models use their own property names without built-in logging-prefix matches. Direct `[Sensitive(false)]` acknowledges a property false positive without overriding positive classification or configured analyzer paths. For one supported scalar acknowledgement, use `Add(key, value, exemptionReason)` or `SanitizeValue(path, value, exemptionReason)` with an application-authored reason. Supported scalars include nullable values, DateOnly, TimeOnly and Uri. Uri always receives URL sanitization regardless of the entry name. Complex reason-bearing values return an unavailable marker without traversal. The analyzer recognizes policy overloads as name acknowledgements without interpreting individual entries. Configured paths and declaration checks remain enforced. Native copies preserve explicit classification metadata and destination budgets; public snapshots carry no classification metadata. See the [migration and capture boundaries](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#boundaries-and-migration).
 
-Construct complex or nested `DiagnosticCapturePolicy` grants with `DiagnosticNameExemption` entries for exact capture kinds and path segments.
+`DiagnosticCapturePolicy` validates `DiagnosticNameExemption` entries for capture kinds, original path segments, and reasons. Use adjacent comments when an exact compiler name acknowledgement is needed.
 
 ### Core Features
 
@@ -556,13 +556,13 @@ log.WithEvent(new ScopeEvent(OrderLogEvents.OrderProcessed, "success", "complete
 
 Event contents are preserved without sanitization or byte limits, including when a custom sanitizer is supplied. Keep event names, outcomes, and reasons safe to log. A `ScopeEvent` passed through ordinary `Add` retains its contents, but its containing diagnostic field remains subject to classification and output limits.
 
-`LogScoped` passes the primary .NET `EventId` to `ILogger` and preserves exception/warning severity. Retained events and any omission count appear on the first record, which can exceed diagnostic byte limits. Providers may impose their own record limits. See [emission and reconstruction](Logging/Diagnostics/README.md#emission-and-reconstruction) for split logs.
+`LogScoped` passes the primary .NET `EventId` to `ILogger` and preserves exception/warning severity. Retained events and any omission count appear on the first record, which can exceed diagnostic byte limits. Providers may impose their own record limits. See [emission and reconstruction](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#emission-and-reconstruction) for split logs.
 
 `CopyFrom` preserves destination correlation, trace, and existing events. When a primary already exists, the source primary joins the additional events. Copies respect the eight-event limit and accumulate source omissions plus any events omitted at the destination.
 
-Copies between native scoped logs preserve metric exemptions and accumulated values while enforcing destination rules. Copies to custom sanitizers use redacted diagnostics.
+Copies between native scoped logs preserve accumulated metrics and explicit classifications while enforcing destination capture budgets. Copies to custom sanitizers use redacted diagnostics.
 
-`GetLogs` returns detached snapshots with sanitized diagnostics and unchanged retained events. Later mutations or additions do not change earlier snapshots. Diagnostic redaction uses field names, URL structure, and classification attributes. Free text is preserved within capture limits, so classify sensitive fields or omit sensitive text before logging.
+`GetLogs` returns detached snapshots with explicit classifications redacted and retained events unchanged. Later mutations do not change earlier snapshots. Backend runtime does not match names or configured paths. Explicit URL processing removes credentials and validates encoding. Classify sensitive values or omit them before capture.
 
 ### OpenTelemetry correlation
 
@@ -574,11 +574,11 @@ Use module-owned catalogs such as `OrderLogEvents` with stable IDs and names. ID
 
 ### Operation data
 
-Add project-specific names through `data-classification-rules.json`. Register an EmbeddedResource item and set `DiagnosticLogging:RuleAssemblyName` to the application assembly to share its own and referenced SharedKernel-consumer catalogs with runtime diagnostics. Build targets expose catalogs to analyzers and preserve them in reference-assembly metadata. Alternatively, register AdditionalFiles, copy the file to build/publish output, and set `DiagnosticLogging:RuleFile` to its deployed path, relative to AppContext.BaseDirectory. Loading is additive and invalid configured sources fail sanitizer creation. Runtime inheritance skips missing transitive assemblies, including their unavailable catalogs. Missing configured roots, other assembly load failures, and invalid catalogs still fail creation. See [project classification rules](Logging/Diagnostics/README.md#project-classification-rules) for schema, registration, bounds, and lifecycle.
+Add project-specific compiler rules through `data-classification-rules.json`, registered as EmbeddedResource or AdditionalFiles. Build targets expose catalogs to analyzers and preserve them in reference-assembly metadata. Optional runtime `DiagnosticLogging:RuleAssemblyName` and `RuleFile` settings load and validate catalogs but do not apply name matching. See [project classification rules](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#project-classification-rules) for schema, registration, bounds, and lifecycle.
 
-The shared name catalog protects CVV/CVC/PIN-code fields, usernames, first/last names, dates of birth, and IBAN fields. Matching ignores ASCII case and separators. See the [diagnostic rule boundaries](Logging/Diagnostics/README.md#compile-time-classification) before adding broader patterns.
+The browser and analyzer share a name catalog covering CVV/CVC/PIN-code fields, usernames, first/last names, dates of birth, and IBAN fields. Matching ignores ASCII case and separators. See the [diagnostic rule boundaries](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#compile-time-classification) before adding broader patterns.
 
-`AddProperties` and nested object projection capture public instance getters once and skip indexers and `[IgnoreLog]` members. Public fields are omitted. Captured values retain classification metadata for default redaction in `GetLogs()`, `LogScoped()`, and `ToString()`. In Development, `ScopedLog.GetLogs(redact: false)` returns an unredacted view of the same bounded capture; other environments reject this flag. Name-based redaction also applies to dictionary keys and explicitly named log entries. Getter failures produce safe markers. Direct sanitizer calls still redact immediately and skip classified getters. Add classification to nonstandard secret-bearing properties before logging them.
+`AddProperties` and nested object projection capture public instance getters once and skip indexers and `[IgnoreLog]` members. Public fields are omitted. Captured values retain classification metadata for default redaction in `GetLogs()`, `LogScoped()`, and `ToString()`. In Development, `ScopedLog.GetLogs(redact: false)` returns an unredacted view of the same bounded capture; other environments reject this flag. Dictionary keys and named entries require explicit classification for runtime redaction. Getter failures produce safe markers. Direct sanitizer calls still redact immediately and skip classified getters. Add classification to secret-bearing properties before logging them.
 
 
 ```csharp
@@ -1012,13 +1012,15 @@ The default limit is 10 MiB. `Validate` and `ValidateAsync` return bytes only th
 
 ## Diagnostics
 
-Form-body redaction applies configured field paths using the supplied source path and decoded field names. URL query keys remain independent of the URL path.
+See the [diagnostic contract](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md) for capture behavior and application responsibilities for dynamic data.
+
+Form-body processing validates encoding and bounds without matching field names or source paths. URL query and path names are not classified at runtime.
 
 `AddDrnUtils` registers the diagnostic redactor for Sensitive, Personal, and the combined classification set. Each returns `[redacted]` through `IRedactorProvider`.
 
 Positive classifications and `[IgnoreLog]` on interface properties also protect concrete and nested diagnostic captures. Diagnostic snapshots are detached and bounded.
 
-URL redaction uses plain `redacted` in protected path segments, query values, and named fragment values. Bare fragments such as `#installation` are preserved. Ordinary diagnostic values and whole-field redaction use `[redacted]`. See the [diagnostic policy](Logging/Diagnostics/README.md).
+Explicit URL capture removes credentials and validates encoding without matching path, query, or fragment names. Explicit value classifications use `[redacted]`.
 
 ### Development Status
 
@@ -1365,7 +1367,7 @@ Casing and safe path helpers live in `DRN.Framework.SharedKernel.Extensions`.
 
 ### Flurl & HTTP Diagnostics
 
-*   **Logging**: `PrepareScopeLogForFlurlExceptionAsync()` adds centrally sanitized Flurl failure diagnostics to `IScopedLog`. Error bodies are read with a strict byte bound. Unsupported or incomplete bodies produce markers. DRN Hosting applies it to unhandled Flurl exceptions. Declare nonstandard sensitive fields through the [diagnostic policy](Logging/Diagnostics/README.md). Text bodies retain their contents within capture limits.
+*   **Logging**: `PrepareScopeLogForFlurlExceptionAsync()` adds centrally sanitized Flurl failure diagnostics to `IScopedLog`. Error bodies are read with a strict byte bound. Unsupported or incomplete bodies produce markers. DRN Hosting applies it to unhandled Flurl exceptions. Text and form bodies retain their contents within capture limits. Runtime capture does not match field names. Classify, redact, or omit sensitive upstream payloads according to the [diagnostic contract](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md).
 *   **Status Codes**: `GetGatewayStatusCode()` preserves `4xx`, `503`, and `504` statuses and maps other statuses to `502`.
 *   **Linkerd Diagnostics**: Flurl exception logging captures `l5d-proxy-error` and `l5d-proxy-connection` response headers before reading the body. For explicitly handled responses, call `response.AddLinkerdProxyDiagnostics(scopedLog)` before conversion or disposal. The helper records present, nonempty values under `Response_l5d-proxy-error` and `Response_l5d-proxy-connection`, without reading or disposing the response. Header values are untrusted diagnostics, may reveal internal topology, and must not be used for authorization or returned to clients. Absence of a header does not prove a failure originated in the application. Incoming `l5d-client-id` logging remains informational. Automatic capture applies to the existing Flurl exception path, not every response or `Try*` result.
 *   **Testing**: `ClearFilteredSetups()` utility for complex test scenarios.

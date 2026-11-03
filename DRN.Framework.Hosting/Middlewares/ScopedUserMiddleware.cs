@@ -15,8 +15,7 @@ public class ScopedUserMiddleware(RequestDelegate next)
     {
         ((ScopedUser)scopedUser).SetUser(httpContext.User);
 
-        log.Add("User_Authenticated", scopedUser.Authenticated,
-            exemptionReason: "Authentication outcome flag, not a credential.");
+        log.Add("User_Authenticated", scopedUser.Authenticated, exemptionReason: "Authentication outcome flag, not a credential.");
         log.AddIfNotNullOrEmpty("User_Id", scopedUser.Id ?? string.Empty);
         log.AddIfNotNullOrEmpty("User_Amr", scopedUser.Amr ?? string.Empty);
 

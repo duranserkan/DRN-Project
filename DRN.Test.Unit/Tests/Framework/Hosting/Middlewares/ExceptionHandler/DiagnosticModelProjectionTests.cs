@@ -72,8 +72,10 @@ public class DiagnosticModelProjectionTests
 
     [Theory]
     [DataInlineUnit("Development", "page-probe", "application/x-www-form-urlencoded")]
+    [DataInlineUnit("Staging", DiagnosticSanitizer.Redacted, "application/x-www-form-urlencoded")]
     [DataInlineUnit("Production", DiagnosticSanitizer.Redacted, "application/x-www-form-urlencoded")]
     [DataInlineUnit("Development", "page-probe", "application/json")]
+    [DataInlineUnit("Staging", DiagnosticSanitizer.Redacted, "application/json")]
     [DataInlineUnit("Production", DiagnosticSanitizer.Redacted, "application/json")]
     public async Task Page_Logs_And_Request_Details_Should_Opt_Out_Only_In_Development(
         string environment, string expected, string contentType)
@@ -84,12 +86,11 @@ public class DiagnosticModelProjectionTests
         using var settings = DiagnosticTestSupport.Settings(environment);
         var log = new ScopedLog(settings, new DiagnosticSanitizer(new DiagnosticLogOptions
         {
-            // Exercise URL protection without classifying the entire route-value collection by its path.
+            // Legacy URL name rules do not classify request details.
             SensitivePathSegments = ["handoff"], MaxProcessingMilliseconds = 100
         }));
-#pragma warning disable DRN0017 // Verify the page opt-out independently of normal log exports.
-        log.Add("Password", "page-probe");
-#pragma warning restore DRN0017
+        log.AddDictionary("Fields", new Dictionary<string, string> { ["Password"] = "page-probe" },
+            new DiagnosticKeyClassification("Password", DiagnosticDataKind.Sensitive));
         using var services = new ServiceCollection().AddSingleton<IScopedLog>(log).BuildServiceProvider();
         var context = new DefaultHttpContext { RequestServices = services };
         var formBody = contentType == "application/x-www-form-urlencoded";
@@ -112,21 +113,31 @@ public class DiagnosticModelProjectionTests
 
         var model = await utils.CreateErrorPageModelAsync(context, new InvalidOperationException("failure"));
 
-        model.Logs["Password"].Should().Be(expected);
-        log.GetLogs()["Password"].Should().Be(DiagnosticSanitizer.Redacted);
+        JsonSerializer.SerializeToElement(model.Logs["Fields"]).GetProperty("Password").GetString().Should().Be(expected);
+        JsonSerializer.SerializeToElement(log.GetLogs()["Fields"]).GetProperty("Password").GetString().Should().Be(DiagnosticSanitizer.Redacted);
         var development = environment == "Development";
-        model.Headers["Authorization"].Single().Should().Be(development ? "Bearer header-probe" : DiagnosticSanitizer.Redacted);
+        model.Headers["Authorization"].Single().Should().Be("Bearer header-probe");
         model.Cookies["session"].Should().Be(development ? "cookie-probe" : DiagnosticSanitizer.Redacted);
-        model.RouteValues["token"].Should().Be(development ? "route-probe" : DiagnosticSanitizer.Redacted);
-        model.RequestPath.Contains("path-probe", StringComparison.Ordinal).Should().Be(development);
-        model.Query.QueryString!.Contains("query-probe", StringComparison.Ordinal).Should().Be(development);
+        model.RouteValues["token"].Should().Be("route-probe");
+        model.RequestPath.Should().Contain("path-probe");
+        model.Query.QueryString.Should().Contain("query-probe");
         if (formBody)
-            model.RequestBody.Contains("body-probe", StringComparison.Ordinal).Should().Be(development);
+            model.RequestBody.Should().Contain("body-probe");
         else
             model.RequestBody.Should().Be("[unsupported diagnostic body]");
+        var problem = utils.CreateProblemDetails(context, new InvalidOperationException("failure"));
         if (development)
-            JsonSerializer.Serialize(utils.CreateProblemDetails(context, new InvalidOperationException("failure")).Extensions)
-                .Should().NotContain("header-probe").And.NotContain("cookie-probe").And.NotContain("route-probe");
+        {
+            var exception = (JsonElement)problem.Extensions["exception"]!;
+            exception.GetProperty("headers").GetProperty("Authorization")[0].GetString().Should().Be("Bearer header-probe");
+            exception.GetProperty("headers").GetProperty("Cookie")[0].GetString().Should().Be("session=cookie-probe");
+            exception.GetProperty("routeValues").GetProperty("token").GetString().Should().Be("route-probe");
+        }
+        else
+        {
+            problem.Detail.Should().BeNull();
+            problem.Extensions.Should().BeEmpty();
+        }
     }
 
     [Fact]
@@ -172,12 +183,12 @@ public class DiagnosticModelProjectionTests
     }
 
     [Fact]
-    public void Header_And_Cookie_Copies_Should_Protect_Values_Without_Mutating_Source()
+    public void Header_Copies_Should_Preserve_Values_While_Classified_Cookies_Are_Redacted()
     {
         var source = new Dictionary<string, string?[]> { ["Authorization"] = ["Basic header-probe"], ["Accept"] = ["application/json"] };
         var projection = new DiagnosticModelProjection(new DiagnosticSanitizer(new DiagnosticLogOptions()));
         var safe = projection.Strings(source);
-        safe["Authorization"].Should().Equal(DiagnosticSanitizer.Redacted);
+        safe["Authorization"].Should().Equal("Basic header-probe");
         safe["Accept"].Should().Equal("application/json");
         source["Authorization"].Should().Equal("Basic header-probe");
         projection.Strings(new Dictionary<string, string?[]> { ["CustomSession"] = ["cookie-probe"] }, true)

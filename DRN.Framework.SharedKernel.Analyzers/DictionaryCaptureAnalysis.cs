@@ -5,12 +5,15 @@ using Microsoft.CodeAnalysis.Operations;
 
 namespace DRN.Framework.SharedKernel.Analyzers;
 
-internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context, DiagnosticRedactionRules rules, IInvocationOperation call)
+internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context, DiagnosticRedactionRules rules, IInvocationOperation call,
+    DiagnosticNameExemption exemptions,
+    DiagnosticDescriptor? descriptor = null, Action<IOperation>? inspectValue = null)
 {
     private const int MaxDictionaryWork = 16384;
     private const int MaxDictionaryDepth = 32;
     private readonly HashSet<ISymbol> _activeLocals = new(SymbolEqualityComparer.Default);
     private readonly HashSet<string> _reported = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _classifiedKeys = new(StringComparer.Ordinal);
     // Shared locals need path-sensitive revisits, so bound total work as well as depth.
     private int _remainingWork = MaxDictionaryWork;
 
@@ -22,19 +25,46 @@ internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context
         return true;
     }
 
-    private string? Report(IOperation? key, bool allowed, string? parentPath)
+    private string? Report(IOperation? key, bool allowed, string? parentPath, bool safeValue)
     {
         if (key?.ConstantValue is not { HasValue: true, Value: string name }) return null;
-        var fullPath = parentPath == null ? null : parentPath + "." + name;
-        var matchesPath = fullPath != null && rules.MatchesPath(fullPath);
-        var reportedName = matchesPath ? fullPath! : name;
-        if (!allowed && (rules.MatchesField(name) || matchesPath) && _reported.Add(reportedName))
-            context.ReportDiagnostic(Diagnostic.Create(ClassificationDiagnosticDescriptors.DictionaryClassification, call.Syntax.GetLocation(), reportedName));
+        var fullPath = string.IsNullOrEmpty(parentPath) ? name : parentPath + "." + name;
+        var matchesPath = rules.MatchesPath(fullPath);
+        var reportedName = matchesPath ? fullPath : name;
+        if (!safeValue && (matchesPath || !allowed && rules.MatchesField(name)) && _reported.Add(reportedName))
+        {
+            if (!matchesPath && exemptions.Allows(call.Syntax, reportedName)) return fullPath;
+            context.ReportDiagnostic(Diagnostic.Create(descriptor ?? ClassificationDiagnosticDescriptors.DictionaryClassification,
+                call.Syntax.GetLocation(), descriptor == null ? reportedName : DiagnosticNameExemption.NameMessage(reportedName, matchesPath)));
+        }
         return fullPath;
     }
 
-    internal void Analyze(IOperation value, bool allowKeys, string? capturePath) =>
+    internal void Analyze(IOperation value, bool allowKeys, string? capturePath)
+    {
+        if (allowKeys) CollectClassifiedKeys();
         Inspect(value, allowKeys, 0, capturePath);
+    }
+
+    private void CollectClassifiedKeys()
+    {
+        var classifications = call.Arguments.FirstOrDefault(argument => argument.Parameter?.Name == "classifications")?.Value;
+        while (classifications is IConversionOperation conversion) classifications = conversion.Operand;
+        if (classifications is not IArrayCreationOperation { Initializer: { } initializer }) return;
+        foreach (var entry in initializer.ElementValues)
+        {
+            if (!TryVisit()) return;
+            // Only inline immutable constructor facts prove protection. Unknown expressions remain checked.
+            if (entry is not IObjectCreationOperation { Initializer: null } creation ||
+                creation.Type?.ToDisplayString() != "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticKeyClassification") continue;
+            var key = creation.Arguments.FirstOrDefault(argument => argument.Parameter?.Ordinal == 0)?.Value;
+            var kind = creation.Arguments.FirstOrDefault(argument => argument.Parameter?.Ordinal == 1)?.Value;
+            if (key?.ConstantValue is { HasValue: true, Value: string name } &&
+                kind?.Type?.ToDisplayString() == "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticDataKind" &&
+                kind.ConstantValue is { HasValue: true, Value: 1 or 2 })
+                _classifiedKeys.Add(name);
+        }
+    }
 
     private void Inspect(IOperation operation, bool allowKeys, int depth, string? capturePath)
     {
@@ -136,13 +166,19 @@ internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context
     {
         if (entry is IInvocationOperation add)
         {
-            var childPath = Report(add.Arguments.FirstOrDefault()?.Value, allowKeys, capturePath);
-            foreach (var argument in add.Arguments.Skip(1)) Inspect(argument.Value, false, depth + 1, childPath);
+            foreach (var argument in add.Arguments.Skip(1))
+                InspectEntryValue(add.Arguments.FirstOrDefault()?.Value, argument.Value, allowKeys, depth, capturePath);
         }
         else if (entry is ISimpleAssignmentOperation { Target: IPropertyReferenceOperation index } assignment)
-        {
-            var childPath = Report(index.Arguments.FirstOrDefault()?.Value, allowKeys, capturePath);
-            Inspect(assignment.Value, false, depth + 1, childPath);
-        }
+            InspectEntryValue(index.Arguments.FirstOrDefault()?.Value, assignment.Value, allowKeys, depth, capturePath);
+    }
+
+    private void InspectEntryValue(IOperation? key, IOperation value, bool allowKeys, int depth, string? capturePath)
+    {
+        // A positive classification redacts the whole entry, including its descendants.
+        if (allowKeys && key?.ConstantValue is { HasValue: true, Value: string name } && _classifiedKeys.Contains(name)) return;
+        var childPath = Report(key, allowKeys, capturePath, LoggingCaptureAnalysis.IsSafeConstant(value));
+        inspectValue?.Invoke(value);
+        Inspect(value, false, depth + 1, childPath);
     }
 }

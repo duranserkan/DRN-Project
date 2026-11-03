@@ -6,8 +6,7 @@ using DRN.Framework.Utils.Extensions;
 namespace DRN.Framework.Utils.Logging.Diagnostics;
 
 // Getters run outside ScopedLog's storage lock. The owner retains storage and failure accounting.
-internal readonly struct DiagnosticPropertyCapture(ScopedLog owner, DiagnosticCapturePolicy? policy,
-    string[] ignoredPropertyNames, DiagnosticNameDecision root)
+internal readonly struct DiagnosticPropertyCapture(ScopedLog owner, string[] ignoredPropertyNames)
 {
     private IDiagnosticSanitizer Sanitizer => owner.Sanitizer;
     private readonly DiagnosticSanitizer? _native = owner.Sanitizer as DiagnosticSanitizer;
@@ -32,10 +31,7 @@ internal readonly struct DiagnosticPropertyCapture(ScopedLog owner, DiagnosticCa
 
     internal void Add(object classObject, string key, DiagnosticTypeMetadata.Member property)
     {
-        var (propertyInfo, ignoredByAttribute, sensitive, exempt) = property;
-        var namePath = root.NamePath != null ? propertyInfo.Name : null;
-        var segments = new[] { root.Path, propertyInfo.Name };
-        exempt |= _native != null && policy?.Exempts(DiagnosticCaptureKind.Property, segments) == true;
+        var (propertyInfo, ignoredByAttribute, sensitive) = property;
         var ignored = ignoredByAttribute || ignoredPropertyNames.Contains(propertyInfo.Name);
         if (ignored) { owner.Store(Sanitizer.SanitizeKey(key), ScopedLogConventions.IgnoredLogValue); return; }
         if (_native == null && (sensitive || Sanitizer.IsSensitive(key)))
@@ -52,12 +48,10 @@ internal readonly struct DiagnosticPropertyCapture(ScopedLog owner, DiagnosticCa
             if (value is TimeSpan time && key.Length <= Sanitizer.Options.MaxKeyBytes)
             {
                 key = ScopedLogConventions.TimeSpanKey(key);
-                if (namePath != null) namePath = ScopedLogConventions.TimeSpanKey(namePath);
                 value = time.TotalSeconds;
             }
-            var capture = _native.Capture(key, value, policy, DiagnosticCaptureKind.Property, segments, exempt, namePath,
-                deferRedaction: true, classified: sensitive);
-            capture = capture with { Decisions = [root, .. capture.Decisions] };
+            var node = new DiagnosticCaptureNode(key, sensitive);
+            var capture = _native.Capture(node, value, deferRedaction: true);
             owner.StoreCapture(Sanitizer.SanitizeKey(key), capture);
         }
         catch (Exception)
@@ -65,8 +59,8 @@ internal readonly struct DiagnosticPropertyCapture(ScopedLog owner, DiagnosticCa
             _native?.RecordGetterFailure();
             const string unavailable = "[diagnostic getter unavailable]";
             if (_native == null) owner.Store(Sanitizer.SanitizeKey(originalKey), unavailable);
-            else owner.StoreCapture(Sanitizer.SanitizeKey(originalKey), _native.Capture(originalKey, unavailable, policy,
-                DiagnosticCaptureKind.Property, segments, exempt, namePath, deferRedaction: true, classified: sensitive));
+            else owner.StoreCapture(Sanitizer.SanitizeKey(originalKey), _native.Capture(
+                new DiagnosticCaptureNode(originalKey, sensitive), unavailable, deferRedaction: true));
         }
     }
 }

@@ -27,7 +27,7 @@ internal sealed class DiagnosticCaptureReader(DiagnosticSanitizer owner)
         var result = new Dictionary<string, object?>();
         foreach (var pair in map)
         {
-            if (result.Count >= owner.Options.MaxCollectionEntries || !owner.WorkAvailable()) { result["_diagnostic_limit"] = Limited; break; }
+            if (result.Count >= owner.Options.MaxCollectionEntries || !owner.WorkAvailable()) { result[CollectionLimitKey] = Limited; break; }
             result[owner.UniqueKey(result, pair.Key)] = Copy(pair.Value, depth + 1);
         }
         return result;
@@ -51,7 +51,7 @@ internal sealed class DiagnosticCaptureReader(DiagnosticSanitizer owner)
             var output = new Dictionary<string, object>();
             foreach (var pair in snapshot)
             {
-                if (output.Count >= owner.Options.MaxNodes || !owner.WorkAvailable()) { output["_diagnostic_limit"] = Limited; break; }
+                if (output.Count >= owner.Options.MaxNodes || !owner.WorkAvailable()) { output[CollectionLimitKey] = Limited; break; }
                 output[pair.Key] = Read(pair.Value, 0, redact)!;
             }
             return output;
@@ -81,8 +81,8 @@ internal sealed class DiagnosticCaptureReader(DiagnosticSanitizer owner)
         {
             if (!owner.Accept(text)) return Limited;
             if (captured.SourceOptions is { } sourceOptions)
-                text = SourceWorker(sourceOptions).RedactCapturedTextWithFreshBudget(captured.Kind, text);
-            return owner.RedactCapturedText(captured.Kind, text);
+                text = SourceWorker(sourceOptions).RedactCapturedUrlWithFreshBudget(text);
+            return owner.RedactCapturedUrl(text);
         }
         return Read(captured.Value, depth, redact);
     }
@@ -98,7 +98,10 @@ internal sealed class DiagnosticCaptureReader(DiagnosticSanitizer owner)
         if (ReferenceEquals(options, _firstSourceOptions)) return _firstSource;
         _sources ??= new(ReferenceEqualityComparer.Instance);
         if (!_sources.TryGetValue(options, out var source))
-            _sources.Add(options, source = new DiagnosticSanitizer(options));
+        {
+            source = new DiagnosticSanitizer(options);
+            _sources.Add(options, source);
+        }
         return source;
     }
 
@@ -107,7 +110,7 @@ internal sealed class DiagnosticCaptureReader(DiagnosticSanitizer owner)
         var output = new Dictionary<string, object?>();
         foreach (var pair in map)
         {
-            if (output.Count > owner.Options.MaxCollectionEntries || !owner.WorkAvailable()) { output["_diagnostic_limit"] = Limited; break; }
+            if (output.Count > owner.Options.MaxCollectionEntries || !owner.WorkAvailable()) { output[CollectionLimitKey] = Limited; break; }
             output[pair.Key] = Read(pair.Value, depth + 1, redact);
         }
         return output;
