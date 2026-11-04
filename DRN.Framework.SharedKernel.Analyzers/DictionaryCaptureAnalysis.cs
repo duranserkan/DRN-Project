@@ -152,11 +152,17 @@ internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context
         {
             context.CancellationToken.ThrowIfCancellationRequested();
             if (remaining-- == 0) break;
-            var local = prior is IVariableDeclaratorOperation { Initializer: not null } declaration
-                ? declaration.Symbol
-                : prior.Syntax.SpanStart < call.Syntax.SpanStart ? GetWrittenLocal(prior) : null;
+            ILocalSymbol? local;
+            if (prior is IVariableDeclaratorOperation { Initializer: not null } declaration)
+                local = declaration.Symbol;
+            else
+                local = prior.Syntax.SpanStart < call.Syntax.SpanStart ? GetWrittenLocal(prior) : null;
             if (local == null) continue;
-            if (!writes.TryGetValue(local, out var entries)) writes.Add(local, entries = []);
+            if (!writes.TryGetValue(local, out var entries))
+            {
+                entries = [];
+                writes.Add(local, entries);
+            }
             entries.Add(prior);
         }
         return writes;

@@ -17,8 +17,8 @@ DRN.Onmount.register('[data-js-hello-react-island]', function (options) {
     console.log('[DRN] HelloReact island mounted props:', island.getProps());
     const helloRoot = (this.shadowRoot ?? this).querySelector('.hello-react');
     const styles = helloRoot ? getComputedStyle(helloRoot) : null;
-    const fadeDuration = parseInt(styles?.getPropertyValue('--badge-fade-ms') || '400', 10);
-    const cycleInterval = parseInt(styles?.getPropertyValue('--title-cycle-ms') || '4000', 10);
+    const fadeDuration = Number.parseInt(styles?.getPropertyValue('--badge-fade-ms') || '400', 10);
+    const cycleInterval = Number.parseInt(styles?.getPropertyValue('--title-cycle-ms') || '4000', 10);
     const interval = setInterval(() => {
         if (!island.getProps()) return;
         const badge = this.shadowRoot?.querySelector('.hello-react-badge');
