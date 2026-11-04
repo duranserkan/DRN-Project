@@ -61,6 +61,8 @@ Record project name, family prefix, layer, runnable, and test.
 
 Record build/package config, lockfiles, editor files, CI/CD, containers, docs, and licenses. Include ecosystem manifests such as `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, or .NET project/solution files when present.
 
+For `infra`, record exact discovered ecosystem manifest paths in the plan for executor scope dirt inspection. Include material non-output manifests in baseline inputs; declared outputs retain approved preimage guards. Discovery does not authorize edits outside resolved stages.
+
 ### Documentation Drift Pre-Scan
 
 Per project README:

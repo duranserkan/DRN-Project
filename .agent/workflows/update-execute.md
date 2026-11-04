@@ -41,8 +41,8 @@ If invoked directly, run the shared Startup Gate; otherwise inherit `/update` co
 | `<skill-dir>` | `.agent/skills/<skill-dir>/**` |
 | `skills` | `.agent/skills/**`, all `load-skills-*.md`, task workflows |
 | `agents` | `AGENTS.md`, profile, discovered manifests/build files, task/loader workflows, skill index |
-| `projects` | discovered manifests/build files and project-referencing skills |
-| `infra` | build config, CI/CD, Docker files |
+| `projects` | discovered manifests/build files, project-referencing skills, and exact Stage 3 output paths resolved in the plan |
+| `infra` | build config, CI/CD, Docker files, and exact discovered ecosystem manifest paths recorded in the plan |
 | `files: <paths>` | exact listed paths plus resolved stage output paths in the plan |
 | `stage-<N>` | files touched by Stage N |
 

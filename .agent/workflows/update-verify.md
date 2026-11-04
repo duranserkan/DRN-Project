@@ -81,7 +81,7 @@ Rules:
 
 Failure blocks all later stages; set them `blocked`.
 
-- Skills/loaders: verify bidirectional included-directory/loader listings. Profile `Excluded Skills` must match baseline decisions plus currently approved changes; copying prior approval artifacts is unnecessary. Omit excluded skills from loading routes and union/content checks. Other missing directories/loader entries are `❌`.
+- Skills/loaders: verify bidirectional included-directory/loader listings. Profile `Excluded Skills` must match baseline decisions plus currently approved changes; copying prior approval artifacts is unnecessary. Any loader, task-loading path, or index route referencing an excluded skill is `❌` and fails Stage 0. Omit excluded skills from union/content checks. Other missing directories/loader entries are `❌`.
 - Missing profile extensions: enforce the [Stage 3 table contract](./update-execute.md#skill-discovery-and-custom-routes); exclude recorded missing skills from loader union validation and report in Stage 0.
 - Custom loaders: verify each included `<custom>-*` prefix maps to `load-skills-<custom>.md`; uncategorized included skills map only to `load-skills-custom.md`.
 - Union: verify included skills match `load-skills-all.md` in Standard Load Order with framework/profile conditions preserved; sort custom prefix loaders after Frontend and before generic custom.

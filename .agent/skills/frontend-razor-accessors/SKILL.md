@@ -84,9 +84,5 @@ public record QuestionActions(bool Authorized, bool Locked)
 
 Use properties for cheap state checks and methods for arguments or generated content. Share `ViewData`/`TempData` keys between senders and receivers.
 
-## Framework Overlays
-
-For DRN projects, use [drn-hosting](../drn-hosting/SKILL.md#page--endpoint-management) for `PageCollectionBase`, `EndpointCollectionBase`, and `ControllerForBase` construction.
-
 ## Related Skills
 - [frontend-razor-pages-navigation.md](../frontend-razor-pages-navigation/SKILL.md) - Navigation patterns

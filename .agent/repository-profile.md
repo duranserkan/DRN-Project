@@ -13,7 +13,7 @@
 
 ## Layout
 
-Physical project folders are flat. `DRN.slnx` supplies logical groups. The [Solution Structure guide](../docs/solution-structure.md) owns project roles and solution grouping.
+Physical project folders are flat. `DRN.slnx` supplies logical groups. `docs/solution-structure.md` owns project roles and solution grouping. Resolve repository paths in this profile from the repository root.
 
 | Area | Paths |
 |---|---|
@@ -25,13 +25,13 @@ Physical project folders are flat. `DRN.slnx` supplies logical groups. The [Solu
 | Agent and CI | `.agent/`, `.github/workflows/`, `.github/actions/` |
 | Docs | `README.md`, `ROADMAP.md`, `SECURITY.md`, `NOTICE.md`, `docs/` |
 
-[Quick Start](../docs/quick-start.md) owns prerequisites, installation, build/test commands, and setup. The root README links standalone guides under Documentation; its TOC links only to README sections. The [Sample guide](../Sample.Hosted/README.md) owns startup, developer access, browser behavior, and frontend commands. Package docs live in each module's `README.md` and `RELEASE-NOTES.md`.
+`docs/quick-start.md` owns prerequisites, installation, build/test commands, and setup. The root README links standalone guides under Documentation; its TOC links only to README sections. `Sample.Hosted/README.md` owns startup, developer access, browser behavior, and frontend commands. Package docs live in each module's `README.md` and `RELEASE-NOTES.md`.
 
 ## Skill Routing
 
 - Framework: `overview-drn-framework`, then the relevant `drn-*` skill.
 - Testing: `drn-testing` and `overview-drn-testing` before generic `test-*` routers.
-- Frontend: relevant `drn-buildwww-*` skills. Razor: `frontend-razor-pages-shared` -> `frontend-razor-pages-navigation` -> `frontend-razor-accessors`.
+- Frontend: relevant `drn-buildwww-*` skills. Razor: `frontend-razor-pages-shared` -> `frontend-razor-pages-navigation` -> `frontend-razor-accessors`. DRN accessor construction: `drn-hosting`, Page & Endpoint Management.
 - Package docs: `.agent/workflows/documentation.md`.
 - Classification rules: `.agent/workflows/data-classification.md` with `drn-utils`, `drn-sharedkernel`, and `drn-testing`.
 
@@ -89,7 +89,7 @@ dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 
 ## Frontend Test Scope
 
-Unit tests: `Sample.Hosted/buildwww/tests/*.test.js`. Browser tests: `Sample.Hosted/buildwww/tests/browser/`. The [frontend test guide](../Sample.Hosted/README.md#frontend-tests) owns setup and commands. Execution requires explicit permission.
+Unit tests: `Sample.Hosted/buildwww/tests/*.test.js`. Browser tests: `Sample.Hosted/buildwww/tests/browser/`. `Sample.Hosted/README.md`, Frontend Tests, owns setup and commands. Execution requires explicit permission.
 
 ## DRN Framework Source Overlay
 
@@ -99,12 +99,12 @@ Use these owners for public contracts. For implementation work, discover relevan
 
 | Contract | Owner | Agent guidance |
 |---|---|---|
-| Identity, entities, repositories, analyzer diagnostics | [SharedKernel](../DRN.Framework.SharedKernel/README.md), [EntityFramework](../DRN.Framework.EntityFramework/README.md) | `drn-sharedkernel`, `drn-entityframework` |
-| Configuration, data paths, cancellation, ID/time utilities, events | [Utils](../DRN.Framework.Utils/README.md) | `drn-utils`, `overview-drn-framework` |
-| Classification, capture limits, exemptions, migration | [Diagnostics](../DRN.Framework.Utils/Logging/Diagnostics/README.md); catalog `DRN.Framework.Utils/Logging/Diagnostics/data-classification-rules.json` | `drn-utils`, `drn-sharedkernel`, `drn-testing` |
-| Host hooks, MFA, rate limits, URLs, errors, Razor, Vite publish | [Hosting](../DRN.Framework.Hosting/README.md) | `drn-hosting`, relevant frontend skills |
-| Test contexts, application factories, ownership | [Testing](../DRN.Framework.Testing/README.md) | `drn-testing`, `overview-drn-testing` |
-| Browser errors, notifications, developer access | [Sample](../Sample.Hosted/README.md); `Sample.Hosted/buildwww/types/DrnProblem.d.ts`, `DrnNotifications.d.ts` | `drn-buildwww-libraries` |
+| Identity, entities, repositories, analyzer diagnostics | `DRN.Framework.SharedKernel/README.md`, `DRN.Framework.EntityFramework/README.md` | `drn-sharedkernel`, `drn-entityframework` |
+| Configuration, data paths, cancellation, ID/time utilities, events | `DRN.Framework.Utils/README.md` | `drn-utils`, `overview-drn-framework` |
+| Classification, capture limits, exemptions, migration | `DRN.Framework.Utils/Logging/Diagnostics/README.md`; catalog `DRN.Framework.Utils/Logging/Diagnostics/data-classification-rules.json` | `drn-utils`, `drn-sharedkernel`, `drn-testing` |
+| Host hooks, MFA, rate limits, URLs, errors, Razor, Vite publish | `DRN.Framework.Hosting/README.md` | `drn-hosting`, relevant frontend skills |
+| Test contexts, application factories, ownership | `DRN.Framework.Testing/README.md` | `drn-testing`, `overview-drn-testing` |
+| Browser errors, notifications, developer access | `Sample.Hosted/README.md`; `Sample.Hosted/buildwww/types/DrnProblem.d.ts`, `DrnNotifications.d.ts` | `drn-buildwww-libraries` |
 
 ### Documentation Sync
 
