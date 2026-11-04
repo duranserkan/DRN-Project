@@ -257,4 +257,10 @@ npm test
 npm run test:browser
 ```
 
+Run `npm run test:all` to run both suites in sequence. Browser tests run only when unit tests pass.
+
+Run `npm run build:test:all` to build all frontend assets, then run both test suites. Tests run only when the build succeeds.
+
+Pull request, develop, master, stable release, and preview release workflows run frontend unit tests, build assets, then run browser tests against those assets. Analysis-only dependency setup skips building and testing.
+
 The browser checks cover notification and form-error behavior without a running .NET app or database. `npm run test:browser` ensures Chromium headless shell is installed before running tests, reusing the cached installation when available. It does not depend on npm lifecycle hooks. On Linux, run `npm exec --no --ignore-scripts -- playwright install-deps chromium` if system libraries are missing. CI installs these system dependencies separately and uses the same browser test command.

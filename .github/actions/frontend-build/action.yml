@@ -10,13 +10,13 @@ inputs:
     required: false
     default: Sample.Hosted
   build-assets:
-    description: "Run unit tests and build Vite assets after dependency installation and audit. Set to false for analysis-only setup."
+    description: "Run frontend validation and build Vite assets after dependency installation and audit. Set to false for analysis-only setup."
     required: false
     default: "true"
   browser-tests:
-    description: "Run the focused Chromium suite when building assets."
+    description: "Run the focused Chromium suite against freshly built assets."
     required: false
-    default: "false"
+    default: "true"
 runs:
   using: "composite"
   steps:
@@ -52,6 +52,11 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: npm test
+    - name: Build Vite assets
+      if: ${{ inputs.build-assets != 'false' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: npm run build
     - name: Install Chromium system dependencies
       if: ${{ inputs.build-assets != 'false' && inputs.browser-tests == 'true' }}
       shell: bash
@@ -62,8 +67,3 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: npm run test:browser
-    - name: Build Vite assets
-      if: ${{ inputs.build-assets != 'false' }}
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: npm run build

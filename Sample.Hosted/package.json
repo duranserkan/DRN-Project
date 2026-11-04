@@ -8,10 +8,12 @@
   },
   "scripts": {
     "test": "node --test buildwww/tests/*.test.js",
+    "test:all": "npm test && npm run test:browser",
     "test:browser": "playwright install --only-shell chromium && playwright test",
     "test:browser:serve": "vite --config buildwww/tests/browser/vite.config.js",
     "type-check": "tsc --noEmit",
     "build": "tsc --noEmit && npm run build:app && npm run build:appPostload && npm run build:htmx && npm run build:bootstrap && npm run build:react && npm run build:behaviors",
+    "build:test:all": "npm run build && npm run test:all",
     "build:app": "BUILD_TYPE=app vite build",
     "build:appPostload": "BUILD_TYPE=appPostload vite build",
     "build:behaviors": "npm run build:behaviors:layout && npm run build:behaviors:home && npm run build:behaviors:test",
