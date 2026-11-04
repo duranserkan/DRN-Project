@@ -20,6 +20,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 *   **Sensitive Data Classification**: Added inheritable `[Sensitive]` and `[Personal]` attributes and support for application-derived classifications. Use `[Sensitive(false)]` for reviewed property-name false positives. Positive classification overrides opt-outs. Editor fixes offer Personal, Sensitive, false-positive classification, and correction of invalid opt-outs. These attributes do not change business serialization or binding.
 
+### Bug Fixes
+
+*   **Entity Attribute Analyzer**: Incomplete primary-constructor base lists no longer cause analyzer exceptions while editing derived entity attributes.
+
 ## Version 0.10.0
 
 ### Breaking Changes

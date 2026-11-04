@@ -14,6 +14,7 @@ internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context
     private readonly HashSet<ISymbol> _activeLocals = new(SymbolEqualityComparer.Default);
     private readonly HashSet<string> _reported = new(StringComparer.Ordinal);
     private readonly HashSet<string> _classifiedKeys = new(StringComparer.Ordinal);
+    private Dictionary<ILocalSymbol, List<IOperation>>? _localWrites;
     // Shared locals need path-sensitive revisits, so bound total work as well as depth.
     private int _remainingWork = MaxDictionaryWork;
 
@@ -124,32 +125,46 @@ internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context
 
     private void InspectLocalWrites(ILocalSymbol local, bool allowKeys, int depth, string? capturePath)
     {
-        // Reuse the analyzed operation tree for declarations and direct writes before capture.
-        var root = call.Parent;
-        while (root?.Parent != null) root = root.Parent;
-        if (root == null) return;
-        foreach (var prior in root.Descendants())
+        _localWrites ??= IndexLocalWrites();
+        if (!_localWrites.TryGetValue(local, out var writes)) return;
+        foreach (var write in writes)
         {
-            if (!TryVisit()) break;
-            InspectLocalWrite(prior, local, allowKeys, depth, capturePath);
+            if (!TryVisit()) return;
+            if (write is IVariableDeclaratorOperation { Initializer: { } initializer })
+                Inspect(initializer.Value, allowKeys, depth + 1, capturePath);
+            else if (write is ISimpleAssignmentOperation { Target: ILocalReferenceOperation } assignment)
+                Inspect(assignment.Value, allowKeys, depth + 1, capturePath);
+            else
+                InspectEntry(write, allowKeys, depth, capturePath);
         }
     }
 
-    private void InspectLocalWrite(IOperation prior, ILocalSymbol local, bool allowKeys, int depth, string? capturePath)
+    private Dictionary<ILocalSymbol, List<IOperation>> IndexLocalWrites()
     {
-        if (prior is IVariableDeclaratorOperation { Initializer: { } initializer } declaration &&
-            SymbolEqualityComparer.Default.Equals(declaration.Symbol, local))
-            Inspect(initializer.Value, allowKeys, depth + 1, capturePath);
-        if (prior.Syntax.SpanStart >= call.Syntax.SpanStart) return;
-        if (prior is ISimpleAssignmentOperation { Target: ILocalReferenceOperation assignedLocal } localAssignment &&
-            SymbolEqualityComparer.Default.Equals(assignedLocal.Local, local))
-            Inspect(localAssignment.Value, allowKeys, depth + 1, capturePath);
-        if (IsDictionaryWrite(prior, local))
-            InspectEntry(prior, allowKeys, depth, capturePath);
+        var writes = new Dictionary<ILocalSymbol, List<IOperation>>(SymbolEqualityComparer.Default);
+        var root = call.Parent;
+        while (root?.Parent != null) root = root.Parent;
+        if (root == null) return writes;
+        // Scan once per capture. Bound indexing separately so unrelated operations do not
+        // consume the path-sensitive traversal budget on every shared-local visit.
+        var remaining = MaxDictionaryWork;
+        foreach (var prior in root.Descendants())
+        {
+            context.CancellationToken.ThrowIfCancellationRequested();
+            if (remaining-- == 0) break;
+            var local = prior is IVariableDeclaratorOperation { Initializer: not null } declaration
+                ? declaration.Symbol
+                : prior.Syntax.SpanStart < call.Syntax.SpanStart ? GetWrittenLocal(prior) : null;
+            if (local == null) continue;
+            if (!writes.TryGetValue(local, out var entries)) writes.Add(local, entries = []);
+            entries.Add(prior);
+        }
+        return writes;
     }
 
-    private static bool IsDictionaryWrite(IOperation operation, ILocalSymbol local)
+    private static ILocalSymbol? GetWrittenLocal(IOperation operation)
     {
+        if (operation is ISimpleAssignmentOperation { Target: ILocalReferenceOperation local }) return local.Local;
         var receiver = operation switch
         {
             IInvocationOperation { TargetMethod.Name: "Add", Instance: ILocalReferenceOperation instance } => instance,
@@ -159,7 +174,7 @@ internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context
             } => instance,
             _ => null
         };
-        return receiver != null && SymbolEqualityComparer.Default.Equals(receiver.Local, local) && IsDictionary(receiver.Type);
+        return receiver != null && IsDictionary(receiver.Type) ? receiver.Local : null;
     }
 
     private void InspectEntry(IOperation entry, bool allowKeys, int depth, string? capturePath)

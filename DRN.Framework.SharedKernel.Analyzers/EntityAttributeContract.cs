@@ -57,13 +57,20 @@ internal static class EntityAttributeContract
         return true;
     }
 
-    private static SeparatedSyntaxList<ArgumentSyntax>? GetInitializerArguments(SyntaxNode syntax) => syntax switch
+    private static SeparatedSyntaxList<ArgumentSyntax>? GetInitializerArguments(SyntaxNode syntax)
     {
-        ClassDeclarationSyntax declaration => declaration.BaseList?.Types
-            .OfType<PrimaryConstructorBaseTypeSyntax>().SingleOrDefault()?.ArgumentList.Arguments,
-        ConstructorDeclarationSyntax declaration => declaration.Initializer?.ArgumentList.Arguments,
-        _ => null
-    };
+        if (syntax is ConstructorDeclarationSyntax constructor)
+            return constructor.Initializer?.ArgumentList.Arguments;
+        if (syntax is not ClassDeclarationSyntax { BaseList: { } bases }) return null;
+        PrimaryConstructorBaseTypeSyntax? initializer = null;
+        foreach (var candidate in bases.Types.OfType<PrimaryConstructorBaseTypeSyntax>())
+        {
+            // Incomplete source can contain multiple base initializers while the user is editing.
+            if (initializer != null) return null;
+            initializer = candidate;
+        }
+        return initializer?.ArgumentList.Arguments;
+    }
 
     private static bool IsArgumentForwarded(
         SyntaxNode syntax,
