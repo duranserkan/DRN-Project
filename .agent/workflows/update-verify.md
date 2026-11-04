@@ -29,7 +29,7 @@ Before initializing or resuming:
 Initialize missing progress from the template. Otherwise:
 
 - A Run ID, requested/effective scope, or Semantic Plan SHA-256 mismatch supersedes progress; reinitialize every verification stage without reusing pass/skipped states.
-- An Output Revision SHA-256 or exact selected-artifact mismatch resets every non-skipped stage and Final to `pending`, clears checkpoints, and records the new binding before verification.
+- An Output Revision SHA-256 or exact selected-artifact mismatch resets every stage, including skipped stages, and Final to `pending`, clears checkpoints, and records the new binding before verification. Reevaluate skips under the new binding.
 - Matching bindings resume at the first actionable stage:
 
 - `pending` / `executing`: continue.

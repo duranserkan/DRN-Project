@@ -28,7 +28,7 @@ If invoked directly, run the shared Startup Gate; otherwise inherit `/update` co
    GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0 git -c core.pager=cat -c diff.external= -c diff.noprefix=false diff --cached --no-ext-diff --no-textconv -- <scope-paths>
    ```
 
-   Invoke commands separately in the fixed Git environment, disabling external diff, textconv, pagers, aliases, filters, prompts, credentials, fsmonitor, and network access. Require each to succeed before continuing; later success cannot mask failure.
+   Invoke commands separately; require each to succeed before continuing. These flags disable system config, terminal prompts, optional locks, external diff, and textconv. They do not isolate local/global config, filters, credential helpers, fsmonitor, or network access. Require a trusted isolated environment that blocks those execution/network paths before running; otherwise abort. Built-in command names cannot be replaced by Git aliases. Later success cannot mask failure.
 
    Scope dirt inspection never substitutes for the shared type/mode/content or approved-preimage guards.
 

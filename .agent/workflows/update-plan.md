@@ -101,7 +101,7 @@ Normalize comma-separated `files:` paths relative to the repository root. Dedupl
 | `.agent/workflows/*.md` task/meta/sub-workflows, including `documentation.md`, `commit-polish.md`, `test.md`, `update*.md` | Stage 1, Stage 3, Stage 5 |
 | `.agent/workflows/_shared/*.md` | Stage 1, Stage 5 |
 | `AGENTS.md`, `.agent/repository-profile.md` | Stage 3 |
-| Project/workspace/package manifests and build scripts, including `*.slnx`, `*.sln`, `*.csproj`, `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod` | Stage 3, Stage 6 |
+| Project/workspace/package manifests and build scripts, including `*.slnx`, `*.sln`, `*.csproj`, `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod` | Stage 3, Stage 4, Stage 6 |
 | `.github/workflows/**`, `Directory.*.props`, `global.json`, `nuget.config`, `Dockerfile*`, `docker-compose*` | Stage 4 |
 | `README.md`, `docs/**/*.md`, `**/README.md`, `**/RELEASE-NOTES.md` | Stage 6 |
 | Other existing file | Inspect owner and map nearest stage |
