@@ -1,7 +1,7 @@
 ---
 name: frontend-razor-pages-shared
 description: "Razor Pages layout system - Layout hierarchy (_LayoutBase, _Layout), MainContentLayoutOptions for page configuration, HTMX integration for partial rendering, and Bootstrap grid integration. Foundation for consistent page structure and responsive layouts. Keywords: razor-pages, layout, html-shell, layout-options, htmx, partial-rendering, bootstrap, responsive-design, page-structure"
-last-updated: 2026-10-03
+last-updated: 2026-11-04
 difficulty: intermediate
 tokens: ~1K
 ---
@@ -20,6 +20,13 @@ tokens: ~1K
 - Understanding HTMX layout integration
 
 Follow the [UI accessibility rules](../basic-code-review/SKILL.md#ui-accessibility) when implementing controls.
+
+## Contents
+
+- [Directory Structure](#directory-structure)
+- [Layout Hierarchy](#layout-hierarchy)
+- [Page-Specific Scripts](#page-specific-scripts)
+- [Layout Options](#layout-options)
 
 ## Directory Structure
 
@@ -59,6 +66,18 @@ The system is designed to detect HTMX requests and serve partial content (`_Layo
     Layout = isHtmxRequest ? "_LayoutBaseHtmx" : "_LayoutBase";
 }
 ```
+
+## Page-Specific Scripts
+
+Load shared runtime and layout behaviors from the global shell. Reference page/area behavior bundles only from the owning page's `Scripts` section. Resolve concrete bundle names, commands, and paths through the repository profile and framework-specific frontend skills.
+
+Every intermediate layout must forward the section, and both full-page and htmx base layouts must render it. Scripts needed after a partial navigation belong in the returned body, not only a head that the swap omits. Preserve configured nonce, integrity, application-prefix, and asset-resolution handling. Do not bypass those controls with a custom loader.
+
+Keep component code in external behavior modules and server values in encoded data attributes. If serializing JSON, convert it to a string before attribute rendering so Razor encodes quotes. Keep only intentional inline-script fixtures and required early bootstrap configuration as explicit exceptions.
+
+When extracting scripts, retain Razor namespace imports needed by remaining markup and configuration expressions. Resolve remaining symbols against their declarations and `_ViewImports.cshtml` before removing an import.
+
+Registration must tolerate repeated script execution and late completion after the htmx load event. Scope state/listeners to mounted elements and release owned resources when elements leave. Browser cache reuse does not guarantee scripts execute once. Verify direct load, navigation into the page, revisit, and navigation away through source inspection or authorized runtime checks.
 
 ## Layout Options
 

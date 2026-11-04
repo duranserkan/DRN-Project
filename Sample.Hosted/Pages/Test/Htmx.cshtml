@@ -260,7 +260,7 @@
                             </div>
                             <div class="card-body d-flex flex-column">
                                 <p class="text-muted" id="browser-exception-help">Triggers an uncaught JavaScript error. Expect a generic error toast and a notification history entry with a client error reference. Repeat errors within 10 seconds are suppressed, with up to 5 reports per minute.</p>
-                                <button type="button" id="btnUnhandledBrowserException" class="btn btn-danger w-100 mt-auto"
+                                <button type="button" id="btnUnhandledBrowserException" class="btn btn-danger w-100 mt-auto" data-js-unhandled-browser-exception
                                         aria-describedby="browser-exception-help">
                                     Trigger browser exception
                                 </button>
@@ -274,19 +274,8 @@
 </div>
 
 @section Scripts {
+    <script src="buildwww/app/js/testBehaviors.js"></script>
     <script>
-        DRN.Onmount.register('#btnUnhandledBrowserException', function (options) {
-            const button = this;
-            const onClick = () => {
-                throw new Error('Intentional unhandled browser exception from the HTMX test page.');
-            };
-
-            button.addEventListener('click', onClick);
-            options.disposable = {
-                dispose: () => button.removeEventListener('click', onClick)
-            };
-        }, 'unhandledBrowserException');
-
         console.log("Htmx scripts loaded pre");
 
         DRN.Onmount.register('#divJsTestOutput1', function () {

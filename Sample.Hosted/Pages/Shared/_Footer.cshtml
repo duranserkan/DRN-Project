@@ -7,13 +7,15 @@
 https://github.com/rstacruz/rsjs
 https://rstacruz.github.io/rsjs/
 *@
-<footer class="border-top footer text-muted mt-auto" data-js-drn-footer>
+<footer class="border-top footer text-muted mt-auto" data-js-drn-footer
+        data-preferences-cookie-name="@ConsentContext.CookieName"
+        data-show-cookie-banner="@(showCookieAlertBanner ? "true" : "false")">
     <div class="container-xxl bg-light d-flex flex-wrap justify-content-between align-items-center gap-2 py-1">
         <div id="FooterLeft" class="flex-shrink-0">
             &copy; @DateTime.Now.Year - @ScopeContext.Settings.ApplicationName
         </div>
         <div id="FooterMiddle" class="order-3 order-lg-0 col-12 col-lg-auto">
-            <nav class="footerNavbar d-flex align-items-center">
+            <nav class="footerNavbar d-flex align-items-center" data-js-footer-navbar>
                 <ul class="nav">
                     <li class="nav-item"><a class="nav-link py-0" href="#">Privacy</a></li>
                     <li class="nav-item"><a class="nav-link py-0" href="#">Terms</a></li>
@@ -22,12 +24,12 @@ https://rstacruz.github.io/rsjs/
                     <li class="nav-item"><a class="nav-link py-0" href="#">FAQ</a></li>
                 </ul>
             </nav>
-            <div class="preferenceCookieAlert d-none flex-wrap align-items-center gap-2" role="alert">
+            <div class="preferenceCookieAlert d-none flex-wrap align-items-center gap-2" role="alert" data-js-cookie-alert>
                 <span>We use cookies to enhance your experience. Check out our <a href="~/Privacy" class="alert-link">Privacy Policy</a>.</span>
-                <button type="button" class="btn btn-primary btn-sm accept-policy me-2" aria-label="Accept" id="acceptPreferencesCookieBtn">
+                <button type="button" class="btn btn-primary btn-sm accept-policy me-2" aria-label="Accept" id="acceptPreferencesCookieBtn" data-js-accept-consent>
                     Accept
                 </button>
-                <button type="button" class="btn btn-secondary btn-sm reject-policy" aria-label="Reject" id="rejectPreferencesCookieBtn">
+                <button type="button" class="btn btn-secondary btn-sm reject-policy" aria-label="Reject" id="rejectPreferencesCookieBtn" data-js-reject-consent>
                     Reject
                 </button>
             </div>
@@ -46,7 +48,7 @@ https://rstacruz.github.io/rsjs/
                         <!-- Analytics Cookies -->
                         <li class="dropdown-item" data-bs-toggle="tooltip" data-bs-placement="left" title="Allow us to analyze your activity for better service.">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="analyticsCookiesCheckBox">
+                                <input class="form-check-input" type="checkbox" id="analyticsCookiesCheckBox" data-js-analytics-consent>
                                 <label class="form-check-label" for="analyticsCookiesCheckBox">
                                     Analytics Cookies
                                 </label>
@@ -55,7 +57,7 @@ https://rstacruz.github.io/rsjs/
                         <!-- Marketing Cookies -->
                         <li class="dropdown-item" data-bs-toggle="tooltip" data-bs-placement="left" title="Enable personalized marketing content.">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="marketingCookiesCheckBox">
+                                <input class="form-check-input" type="checkbox" id="marketingCookiesCheckBox" data-js-marketing-consent>
                                 <label class="form-check-label" for="marketingCookiesCheckBox">
                                     Marketing Cookies
                                 </label>
@@ -65,7 +67,7 @@ https://rstacruz.github.io/rsjs/
                             <hr class="dropdown-divider">
                         </li>
                         <li>
-                            <button class="btn btn-sm btn-primary w-100" id="savePreferencesBtn" aria-label="Save Preferences">
+                            <button type="button" class="btn btn-sm btn-primary w-100" id="savePreferencesBtn" aria-label="Save Preferences" data-js-save-consent>
                                 Save Preferences
                             </button>
                         </li>
@@ -75,63 +77,3 @@ https://rstacruz.github.io/rsjs/
         </div>
     </div>
 </footer>
-
-<script>
-    DRN.App.ShowCookieBanner = @Json.Serialize(showCookieAlertBanner);
-    DRN.Onmount.register("[data-js-drn-footer]", function () {
-        const footerNavbar = ".footerNavbar";
-        const preferenceCookieAlert = ".preferenceCookieAlert";
-        const analyticsCookiesCheckBoxId = "#analyticsCookiesCheckBox";
-        const marketingCookiesCheckBoxId = "#marketingCookiesCheckBox";
-        const acceptPreferenceCookieBtnId = "#acceptPreferencesCookieBtn";
-        const rejectPreferenceCookieBtnId = "#rejectPreferencesCookieBtn";
-        const savePreferencesBtnId = "#savePreferencesBtn";
-        const footerComponent = this;
-        const preferencesCookieName = @Json.Serialize(ConsentContext.CookieName);
-
-        let globalPreferences = DRN.Cookie.get(preferencesCookieName, {encoding: 'base64'}) || {};
-        
-        loadPreferences();
-        footerComponent.querySelector(acceptPreferenceCookieBtnId).addEventListener("click", () => savePreferences(createPreferences(true, true)));
-        footerComponent.querySelector(rejectPreferenceCookieBtnId).addEventListener("click", () => savePreferences(createPreferences(false, false)));
-        footerComponent.querySelector(savePreferencesBtnId)?.addEventListener("click", function () {
-            const analytics = footerComponent.querySelector(analyticsCookiesCheckBoxId).checked;
-            const marketing = footerComponent.querySelector(marketingCookiesCheckBoxId).checked;
-            savePreferences(createPreferences(analytics, marketing));
-        });
-
-        adjustFooterVisibility(DRN.App.ShowCookieBanner);
-        
-        function savePreferences(preferences) {
-            globalPreferences = preferences;
-            DRN.Cookie.set(preferencesCookieName, preferences, {
-                days: 365,
-                encoding: 'base64'
-            });
-
-            adjustFooterVisibility(false);
-            loadPreferences();
-        }
-        function loadPreferences() {
-            footerComponent.querySelector(analyticsCookiesCheckBoxId).checked = globalPreferences.AnalyticsConsent || false;
-            footerComponent.querySelector(marketingCookiesCheckBoxId).checked = globalPreferences.MarketingConsent || false;
-        }
-
-        function adjustFooterVisibility(showCookieAlertBanner) {
-            if (showCookieAlertBanner) {
-                footerComponent.querySelector(footerNavbar).classList.replace("d-flex", "d-none");
-                footerComponent.querySelector(preferenceCookieAlert).classList.replace("d-none", "d-flex");
-            } else {
-                footerComponent.querySelector(footerNavbar).classList.replace("d-none", "d-flex");
-                footerComponent.querySelector(preferenceCookieAlert).classList.replace("d-flex", "d-none");
-            }
-        }
-
-        function createPreferences (analyticsConsent, marketingConsent) {
-            return {
-                @nameof(ConsentCookieValues.AnalyticsConsent): analyticsConsent,
-                @nameof(ConsentCookieValues.MarketingConsent): marketingConsent
-            }
-        }
-    });
-</script>

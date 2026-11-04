@@ -222,6 +222,32 @@ npm audit signatures
 npm run build
 ```
 
+### Independently updating component behaviors
+
+RSJS component modules live in `buildwww/app/js/behaviors/`, grouped by UI area. Each area has a separate entry, hashed output, and manifest:
+
+| Entry | Modules | Loaded by | Output directory |
+|---|---|---|---|
+| `layoutBehaviors.js` | `behaviors/layout/`: footer and tooltips | Shared full-page layout | `wwwroot/behaviors/layout/` |
+| `homeBehaviors.js` | `behaviors/home/`: HelloReact island | `HomeAnonymous` page's `Scripts` section | `wwwroot/behaviors/home/` |
+| `testBehaviors.js` | `behaviors/test/`: browser exception demo | `Test/Htmx` page's `Scripts` section | `wwwroot/behaviors/test/` |
+
+The layout bundle loads after the shared runtimes. Page sections are forwarded through both full-page and HTMX layouts, so navigating to a page loads its entry when needed. Other pages do not reference the home or test entries. Shared runtimes, including React, remain global. Cached scripts can execute again during HTMX navigation; `DRN.Onmount` keeps registration idempotent and owns per-element cleanup. Page bundles must not install unguarded document-level listeners. Browser caching does not mean a script executes only once.
+
+Pass component configuration through Razor-encoded data attributes. Register one behavior per source module and import only the area's modules from its entry. Keep runtime implementation imports out of these modules so behavior edits do not rebundle shared libraries.
+
+After dependency setup, build all three outputs with one command from `Sample.Hosted/`:
+
+```bash
+npm run build:behaviors
+```
+
+For a targeted build, use `npm run build:behaviors:layout`, `npm run build:behaviors:home`, or `npm run build:behaviors:test`. The full `npm run build` includes the aggregate command. Each target writes `<entry>.[hash].js` and `.vite/manifest.json` and cleans only its own directory. These are independent builds, so they do not share generated chunks. With unchanged inputs and tooling, unchanged outputs retain their cache identities.
+
+Deploy each changed area's generated asset and manifest together, including the hidden `.vite` directory. Restart the application because it caches manifest paths and integrity hashes for the process lifetime. Preserve previously deployed hashed files until in-flight pages no longer reference them. Fresh pages use the new behavior URL; unchanged bundles retain their URLs and browser caches. Already-open pages need a full reload to adopt new behavior code.
+
+The initial migration needs the updated Razor views, rebuilt `appPostload`, and all three behavior outputs. Exclude the retired `wwwroot/appBehaviors/.vite/manifest.json` from the new deployment; the new targets do not clean that old directory. Retain old hashed assets separately while in-flight pages may still reference them. Later changes confined to one area's modules need only that area's output and manifest. Changes to runtime code, shared configuration, dependencies, or markup can require a broader deployment. The HTMX page retains inline scripts specifically for its nonce acceptance/rejection demonstration; early application configuration remains in the layout.
+
 ## Frontend tests
 
 After installing and auditing dependencies as above, run frontend checks from `Sample.Hosted/`:

@@ -1,319 +1,123 @@
 ---
 name: drn-buildwww-libraries
-description: "DRN buildwww JavaScript architecture - DRN browser utilities, onmount lifecycle, RSJS mounting, htmx CSP nonce security, and Bootstrap customization. Keywords: drn, buildwww, javascript, rsjs, onmount, htmx, csp, nonce, bootstrap, cookie-management, component-mounting"
-last-updated: 2026-10-31
+description: "DRN browser behaviors. Keywords: drn, buildwww, rsjs, onmount, htmx, csp"
+last-updated: 2026-11-04
 difficulty: intermediate
-tokens: ~1.8K
 ---
 
 # DRN buildwww Libraries
 
-> JavaScript utilities, RSJS architecture, htmx integration, and Bootstrap customization in buildwww.
-> DRN-scoped: use only when the repository profile or filesystem declares DRN `buildwww` and the DRN browser API surface.
+Use for profile-declared DRN browser utilities, behaviors, htmx, consent, Bootstrap, and CSP. Keep AGENTS.md, DiSCOS, and the profile active. The profile-declared application guide and browser declarations own public APIs and limits.
 
-## When to Apply
+## Contents
 
-The browser imports the built-in `data-classification-rules.json` at bundle time. Update that import when the source catalog moves. Server `DiagnosticLogging:RuleFile` does not configure browser rules; apply project-specific client rules explicitly through the existing diagnostic configuration API and retain shared browser/server golden cases.
-
-- Using repository JavaScript utilities
-- Implementing RSJS for htmx (Reasonable System for JavaScript Structure)
-- Working with htmx and CSP nonces
-- Customizing Bootstrap styles
-- Understanding client-side cookie management
-- Setting up component mounting with the repository's onmount wrapper
-
----
+- [RSJS Architecture & DrnOnmount](#rsjs-architecture--drnonmount)
+- [Usage Patterns](#usage-patterns)
+- [Application JavaScript Utilities](#application-javascript-utilities)
+- [Script Loading Order](#script-loading-order)
+- [htmx Integration](#htmx-integration)
+- [Bootstrap Customization](#bootstrap-customization)
 
 ## RSJS Architecture & DrnOnmount
 
-This convention follows [RSJS](https://github.com/rstacruz/rsjs): register behaviors that auto-attach to DOM elements via `data-` attributes or classes, instead of imperative initialization. Required for **htmx** — content swaps without full page reload.
-
-DRN buildwww exposes common shared browser utilities under `window.DRN`. Treat `DRN`, `Drn*`, and `DRN.Framework.*` names as shared framework API, not placeholders for app-specific namespaces.
+Follow [RSJS](https://github.com/rstacruz/rsjs): declarative HTML hooks and separately bundled JavaScript behaviors. Prefer `data-js-*` selectors and queries scoped to the mounted element. Keep one behavior per module. The shared framework API is `window.DRN`; `DRN`, `Drn*`, and `DRN.Framework.*` are real names, not placeholders.
 
 ### Onmount Wrapper
 
-The onmount wrapper is an RSJS implementation. It wraps `onmount` with **idempotency** to prevent duplicate registration across htmx swaps.
+`DRN.Onmount.register(selector, callback, idempotencyKey)` uses default cleanup. `registerFull(selector, callback, unregisterCallback, idempotencyKey)` accepts custom cleanup. The key is optional. Registration is deduplicated by selector and key, so page bundles can execute again on htmx navigation.
 
-#### API
-
-```javascript
-// Simple registration — uses default unregister (calls options.disposable.dispose())
-DRN.Onmount.register(selector, callback, idempotencyKey?);
-
-// Full registration — custom mount and unmount callbacks
-DRN.Onmount.registerFull(selector, registerCallback, unregisterCallback, idempotencyKey?);
-```
-
-- **selector**: CSS selector (e.g., `[data-bs-toggle="tooltip"]`, `[data-js-my-island]`).
-- **callback / registerCallback**: Executed per matching element; `this` = the DOM element.
-- **unregisterCallback** (registerFull only): Custom cleanup on unmount; `this` = the DOM element. Call `DRN.Onmount.unregister.call(this, options)` at the end to invoke default disposal.
-- **idempotencyKey** (optional): Prevents re-registration when scripts reload in partials.
-- **options.disposable**: Set in register callback; default `unregister` calls `.dispose()` and `.destroy()` on it automatically.
-
-> `register()` delegates to `registerFull()` with the default `unregister`. Use `registerFull()` when you need custom cleanup (e.g., clearing intervals, removing DOM listeners) — see [drn-buildwww-react](../drn-buildwww-react/SKILL.md) for the canonical example.
-
----
+- Mount callbacks receive `options`; `this` is the matching DOM element.
+- Set `options.disposable` to the owned resource. Default unregister calls its `dispose()` and `destroy()` methods when present.
+- For custom unregister, clear timers/listeners first, then call `DRN.Onmount.unregister.call(this, options)`.
+- Keep mutable state per mounted element. Use a composite disposable when a behavior owns several resources.
+- Initial loading must poll after deferred registrations. Existing htmx polling activates new elements and cleans removed ones. Preserve the body-swap guard so callbacks do not create portals while old body children are being removed.
+- Idempotency prevents duplicate registration, not downloads or execution. A previously loaded behavior remains registered until full reload. Changed code needs a full reload to replace it.
 
 ## Usage Patterns
 
-### 1. Global Components (Standard RSJS)
+### Global and Page-Specific Components
 
-Register global behaviors (e.g., Tooltips) in `appPostload.js` or a dedicated module.
+Group modules under `buildwww/app/js/behaviors/{layout,home,test}/`. Domain entry files import modules without importing runtime implementations. The [Vite skill](../drn-buildwww-vite/SKILL.md#entry-points) owns builds and outputs.
+
+| Entry | Components | Loading |
+|---|---|---|
+| `layoutBehaviors.js` | Footer, tooltips | Global shell after runtime bundles |
+| `homeBehaviors.js` | HelloReact island | HomeAnonymous page `Scripts` section |
+| `testBehaviors.js` | Browser exception demo | HTMX test page `Scripts` section |
+
+Put component logic in modules and encoded data in Razor. Keep inline nonce-test fixtures as explicit test exceptions and early configuration before its consumers.
 
 ```javascript
-// buildwww/app/js/appPostload.js
+// behaviors/layout/tooltip.js
 DRN.Onmount.register('[data-bs-toggle="tooltip"]', function (options) {
-    // 'this' is the element
-    options.disposable = new bootstrap.Tooltip(this, {animation: false}); 
+    options.disposable = new bootstrap.Tooltip(this, {animation: false});
 });
 ```
 
-### 2. Page-Specific Logic (Augmented usage)
-
-Define behaviors directly in Razor Pages `<script>` tags. Use `idempotencyKey` to safely re-execute on htmx swap without duplicate registration.
-
-**Example: page-specific Razor logic**
-
-```razor
-@section Scripts {
-    <script>
-        DRN.Onmount.register('#refreshStatus', function (options) {
-            const button = this;
-            const onClick = () => button.dataset.clicked = "true";
-
-            button.addEventListener('click', onClick);
-
-            options.disposable = {
-                dispose: () => button.removeEventListener('click', onClick)
-            };
-        }, "refreshStatusHandler");
-    </script>
-}
-```
-
-**Example: Localized Logic in Shared Components (`_Footer.cshtml`)**
-
-```razor
-<footer data-js-drn-footer>
-    <!-- content -->
-</footer>
-
-<script>
-    DRN.Onmount.register("[data-js-drn-footer]", function () {
-        // Encapsulate logic for the footer here
-        const footer = this;
-        // ...
-    });
-</script>
-```
-
----
+See [React integration](../drn-buildwww-react/SKILL.md#razor-page-integration) for encoded JSON attributes. Read the mounted element's dataset. Never bypass encoding with raw HTML. Layouts forward/render `Scripts` for full and htmx responses, preserving nonce, SRI, and PathBase.
 
 ## Application JavaScript Utilities
 
-Global utilities are exposed under `window.DRN`.
-
-Pass the owning application's route to `DRN.App.url(applicationRoute)` for browser requests. Resolve `applicationRoute` from that application's endpoints or configuration. Only `~/` paths receive the deployment prefix. External, fragment, relative, and already-resolved URLs stay unchanged. The layout must render `<meta name="drn-app-base" content="@Url.Content("~/")"/>` before the preload bundle so early error reporting can resolve URLs. Preserve controller route segments. Rebuild the owning frontend bundle after changing browser sources when execution is authorized.
-
-### Directory Structure
-
-```
-buildwww/app/js/drn/
-├── drnApp.js           # Application state and globals
-├── drnUtils.js         # General utility functions
-├── drnCookieManager.js # Cookie list/set/get/remove/exists wrapper
-├── drnErrorHandler.js  # Early global error handling
-├── drnOnmount.js       # Component mounting system
-└── drnToast.js         # Bootstrap toast helper
-```
+Shared runtime modules live under `buildwww/app/js/drn/`. Use `DRN.App.url(applicationRoute)` for requests. Only `~/` receives the deployment prefix; external, fragment, relative, and resolved URLs stay unchanged. Render `<meta name="drn-app-base" content="@Url.Content("~/")"/>` before preload and preserve controller segments. Rebuild affected bundles only with execution permission.
 
 ### Problem Details Consumer
 
-Use `DRN.Problem.fromResponse(response)` and `show(problem, context)` for Fetch errors. Context accepts `element`, `target`, `operation`, `persist`, and `focus`. HTMX validation errors appear in the originating form, a `data-problem-region`, or the page summary. Failures without validation errors use a brief toast and one history entry, with friendly text for generic HTTP titles. Preserve input and clear only the matching operation's errors. Resolve the complete browser API, parsing limits, and examples from the profile-declared application guide and declarations.
+Use `DRN.Problem.fromResponse(response)` and `show(problem, context)` for Fetch failures. Context accepts `element`, `target`, `operation`, `persist`, and `focus`. Match validation keys to full posted names, including case, prefixes, and collection indexes; empty keys are form-level. Preserve input and clear only matching operation errors.
 
-Use `DRN.ErrorHandler.reportActionError(error, { operation, message, persist })` only for caught browser failures affecting a user action. Keep public messages safe. Its clientErrorId is shared by the notification and any backend report; backend Problem Details retain requestId. Preserve copy/search support for both references and never reinterpret them as trace IDs.
+- Parse only `application/problem+json`; HTTP status takes precedence. Render public text safely with generic fallback. Never retry mutations automatically or swap JSON as HTML.
+- HTML validation swaps require status 422, `text/html`, and `X-DRN-Validation: true`. Hosting's `HandleHtmxRequests` controls formatting, not authentication.
+- Bound incremental Fetch clone reads before buffering. Preserve streaming UTF-8 decoding and the original response. Do not await clone cancellation while the original can remain unread.
+- HTMX validation appears in the originating form, a `data-problem-region`, or summary, with one history entry and toast fallback only when no inline region exists. Other failures use one brief toast and history entry, without a banner.
+- Require a trusted triggering event or `data-notification-user-action="true"` for HTMX failure feedback; `false` suppresses it. HTTP errors/server toast headers do not generate client-error reports. Transport failures remain client errors.
 
-Global failures publish one generic history entry and a toast with `record: false` when notifications are active. Apply shared rate limiting and duplicate suppression before publishing them. Bound toast presentation without queuing excess feedback or deleting history. Send diagnostics only for a rendered authenticated owner with a non-suspended store. Enforce authentication and per-user quotas at the endpoint through the hosting framework's rule extension point. Bound serialized UTF-8 payloads and contain reporting failures. Resolve exact limits from the profile-declared application guide.
+Use `DRN.ErrorHandler.reportActionError(error, {operation, message, persist})` only for caught failures affecting user actions. Its `clientErrorId` is shared by notification/backend report. Backend Problem Details use `requestId`. Preserve copy/search support and never reinterpret either as a trace ID. See [hosting errors](../drn-hosting/SKILL.md#error-responses).
 
-Browser capture applies catalog name/URL matching before clipping. Backend runtime uses explicit attributes or dictionary classifications without name or configured-path matching. Keep these boundaries separate. Browser configuration is application-supplied and not sent by backend DiagnosticLogging settings. Preserve free-text contents and capture budgets without content scanning. Browser golden cases and backend runtime cases are separate. Rebuild bundles only with execution authorization.
+### Diagnostics and Privacy
 
-Browser and analyzer baseline rules must use the same catalog. Follow the source-owned diagnostic guide for application responsibilities for dynamic data.
+Global failures create one generic history entry and a toast with `record: false` when notifications are active. Apply shared rate limits/deduplication before publication. Bound visible toasts without queues/history deletion. Send diagnostics only for a rendered authenticated owner with an active store. Enforce endpoint authentication/per-user quotas, bound UTF-8 reports, and contain reporting failures.
 
-Browser protected URL values use `redacted`; bare fragments do not set its redaction flag. Backend explicit URL capture validates encoding and removes credentials without name matching. Explicit backend value classifications retain `[redacted]`.
+Browser capture imports the shared classification catalog at build time. Keep browser/analyzer baselines aligned. Server `DiagnosticLogging:RuleFile` does not configure browser rules; applications use the client configuration API. Browser name/URL matching precedes clipping. Backend runtime uses explicit classifications without name/path matching. Preserve free text and capture budgets without content scanning. Keep browser/backend golden cases separate.
 
-Bound browser diagnostic arrays by position, retaining at most 256 entries plus a truncation marker. Sparse holes become null. Inspect own descriptors without invoking getters or inherited properties. Cover sparse indices and dense boundary lengths in regression tests.
+Browser protected URL values use `redacted`; bare fragments do not set the flag. Backend explicit URL capture validates encoding and removes credentials without name matching; explicit value classifications retain `[redacted]`. Bound browser arrays by position to 256 entries plus a truncation marker, sparse holes as null, inspecting own descriptors without getters/inherited properties. Preserve dense/sparse regression coverage.
 
-HTMX HTTP failures and server toast headers must not generate client-error reports; transport failures remain client errors. HTMX failure feedback requires a trusted triggering event or explicit `data-notification-user-action="true"`; false suppresses feedback. Keep backend diagnostics out of notifications. Browser errors supply bounded `clientErrorDetails` for occurrences with a `clientErrorId`. Preserve original browser values except for page URLs, which must use diagnostic URL redaction before display or persistence. Render these as text only after the Show details button is activated. Preserve account isolation and public toast and summary messages. Generate server reports separately through diagnostic capture with redaction.
-
-Only `application/problem+json` is parsed, with the HTTP status taking precedence. Display public messages as text and retain a generic fallback for unusable responses. Do not retry mutations automatically or swap JSON as HTML. An HTML validation swap requires status 422, `text/html`, and `X-DRN-Validation: true`. Hosting's `HandleHtmxRequests` option controls error formatting without changing authentication behavior.
-
-Fetch parsing must bound incremental clone reads before buffering the whole body. Preserve streaming UTF-8 decoding and the original response, and do not await clone cancellation while the original may remain unread. Resolve byte and character limits from the application guide.
-
-Validation keys match complete posted names, including casing, prefixes, and collection indices. An empty key is form-level feedback. Keep Razor response selection explicit and preserve existing API validation keys. See [Hosting error guidance](../drn-hosting/SKILL.md#error-responses) for server-side conventions.
+Keep backend diagnostics out of notifications. Browser `clientErrorDetails` stay bounded and associated with `clientErrorId`. Preserve original values except page URLs, which require redaction before display/storage. Render details as text only after Show details. Capture the original stack once; never synthesize a handler stack. The profile-declared browser guide owns display ordering, stack formatting/fallback, and saved-detail compatibility.
 
 ### Notification History
 
-Severity filters use primary, danger, warning, and info for All, Errors, Warnings, and Info respectively. Use a colored outline when populated, matching fill when selected, and neutral outline when empty and unselected. Preserve counts, keyboard focus, and `aria-pressed`. Remove obsolete variant classes when selection or counts change.
+Use `DRN.Toast.show` for toast/history, `record: false` for routine acknowledgments, `DRN.Notifications.publish` for history alone, and `persist: false` for page-local history. Server feedback uses `SendToast`. Forms may set `data-notification-operation` and `data-notification-persist`. Avoid duplicate inline/toast feedback and routine validation history. The application guide owns limits, panel behavior, and formatting.
 
-Capture each browser error's original stack once for both server reporting and notification details. Display message, source location, and page URL before the stack. Render labels with bold elements and values as plain text, preserving stack indentation and line breaks. Do not interpret stack contents as labels or HTML. Existing saved details retain their original text order. Omit a leading error heading from display only when it duplicates the message. Preserve the original stack for server reporting within existing capture limits. Preserve other supplied text and source location when no browser frame lines are recognized, and show `Stack frames unavailable`. Never synthesize a replacement stack from the reporting handler.
-
-Use `DRN.Notifications.publish` to retain a message without a toast. Use `DRN.Toast.show` for a toast and history entry, `record: false` for toast-only feedback, or `persist: false` for memory-only history. Forms and components can set `data-notification-operation` and `data-notification-persist`. Server handlers use `SendToast`. Direct client feedback uses `DRN.Toast.show`.
-
-Choose immediate presentation and retention independently:
-
-- Routine acknowledgments, such as copying text: toast only with `record: false`.
-- Results worth revisiting, such as export completion or background failure: toast and history.
-- Updates that need no immediate attention: history only with `DRN.Notifications.publish`.
-- Server-reported validation: contextual feedback through `DRN.Problem` and one history entry, with a toast fallback when no inline region exists.
-- Request failures without validation errors: a brief toast and one history entry through `DRN.Problem`, without a page banner.
-
-Do not repeat inline feedback with an additional toast or record routine client-side field validation in history. Omit feedback when neither immediate attention nor later review is useful. `persist: false` controls storage only, not toast visibility or whether history is recorded. Keep the decision guide in the profile-declared application documentation aligned with these rules.
-
-Keep history bounded and isolated by application and account. Publish safe public summaries, with browser diagnostics confined to expanded client error details. Account changes clear history and contextual errors. Stale pages pause until reloaded. Closing feedback and dismissing history are separate actions. Resolve retention limits, panel behavior, and API options from the profile-declared application guide and browser declarations.
-
-Keep the notification bell visible. Its badge counts unseen entries and hides at zero. Opening the panel marks existing history seen; later arrivals remain unseen until it is opened again. Persist seen state, preserve it through Undo, and keep deduplicated source identities seen. New publications always start unseen.
-
-Update badges immediately while deferring closed-panel filtering and list rendering until opening. Forced account-context refreshes must still clear prior-account DOM and Undo state. Cache entry sizing only for immutable internal records and invalidate history pruning at the next expiry. Batch synchronous persistence deltas in their original order without merging across queued browser tasks or weakening the ownership check inside the lock.
-
-Use Bootstrap `text-bg-warning` on action buttons needing attention and `text-bg-danger` for count badges. Render the normal button color initially and apply warning only after reading saved attendance, so acknowledged items do not flash yellow on navigation. On `shown.bs.offcanvas`, remove only the opened item's warning class, preserving its other classes and counts. Notifications additionally mark existing history seen and hide the zero unseen badge. Keep severity colors inside history. When displaying a request reference, briefly explain that users can share it with support to locate the request.
-
-Persist notification history and other actionbar attendance in local storage so new and existing tabs share the latest state. Scope attendance by application/account and validate the notification history owner. Refresh on storage events without replaying toasts. Serialize notification read/modify/write operations under an application-scoped Web Lock. Merge operation deltas against the latest saved history inside the lock, recheck ownership there, and never let a suspended account overwrite another account's history. Keep the public notification API synchronous while persistence queues asynchronously. Protect pending local changes from storage-event refreshes. Without Web Locks, use tab-local session storage. Storage or lock failures retain current-page feedback in memory. Keep `persist: false` notifications local to the page. Compare the acknowledged activity version, falling back to `data-actionbar-count` text. Capped or unchanged counts need an explicit `data-actionbar-attention-version` on the button to distinguish new activity. Blocked storage falls back to current-page memory.
-
-Persist actionbar attendance under independent panel keys within the application/account scope. Read legacy map entries as fallback, but never replace that shared map when acknowledging a panel. Preserve failed writes in current-page memory. Notification removal deltas must match nonempty source identities as well as IDs, because concurrent source deduplication can retain another tab's ID.
-
-Authenticated notification owners require a stable account ID. Never substitute a request trace ID or the anonymous owner. An empty owner clears history and suspends notifications and HTMX requests until a fresh account context is supplied. Preserve anonymous history for unauthenticated users.
-
-Retain bounded startup feedback through the first valid notification configuration, merging it with saved history as new persistence deltas. Preserve timestamps and client error references. Discard it for an invalid initial owner or prior suspension, and never carry it across later account changes.
-
-Anchor toasts in the positioned `data-toast-host` content wrapper, outside its scrolling content, to avoid covering the header or actionbar. Use opaque Bootstrap `bg-body` surfaces and constrain the stack to the host's width and height. Pages without a host use bottom-center viewport placement.
-
-Keep toast containers below Bootstrap offcanvas and modal backdrops so feedback cannot obscure panel controls. Apply the same stacking order to content-host and viewport placement.
-
-Toast `duration` controls presentation only. Timeout, manual close, visible-toast eviction, and HTMX cleanup must preserve retained history. Explicit history dismissal must not be undone by subsequent toast cleanup. Cover these boundaries with the browser fixture and real Bootstrap lifecycle.
+- Bound history and isolate by application/account. Empty authenticated owners clear history and suspend notifications/HTMX until fresh context; require stable account IDs, never trace IDs or anonymous substitutes. Preserve anonymous history for unauthenticated users.
+- Account changes clear history, errors, prior-account DOM, and Undo. Stale pages pause until reload. Retain bounded startup feedback only through first valid configuration, preserving timestamps/references and merging persistence deltas; discard on invalid owner/prior suspension and never carry across accounts.
+- Keep the bell visible, count unseen entries, hide zero badge. Opening marks existing entries seen; later arrivals remain unseen. Persist seen state through Undo/deduplication; new publications start unseen. Preserve immediate badges, deferred closed-panel rendering, accessible filters, and colors defined by the application guide.
+- Persist under an application-scoped Web Lock. Merge against latest storage and recheck owner inside the lock. Suspended pages cannot overwrite another owner. Keep public APIs synchronous, persistence asynchronous, pending changes protected, and synchronous deltas ordered without merging browser tasks. Follow source-owned expiry/sizing rules.
+- Without Web Locks use tab-local session storage. Storage/lock failures retain feedback in memory. Keep `persist: false` page-local. Storage refresh must not replay toasts. Removal deltas match nonempty source identities as well as IDs.
+- Store actionbar attendance under independent app/account/panel keys. Read legacy values without replacing the map. Preserve failed writes in memory. Compare `data-actionbar-attention-version`, falling back to count text; capped/unchanged counts need explicit versions to signal new activity.
+- Preserve source-owned actionbar colors/attendance behavior and support-reference explanations. Toasts stay opaque, bounded to `data-toast-host` outside scrolling content or bottom-center viewport fallback, and below modal/offcanvas backdrops. Duration, close, eviction, and HTMX cleanup affect presentation only, never history or explicit dismissals. Preserve browser lifecycle coverage.
 
 ### Cookie Manager
 
-Provides low-level cookie operations. Consent preferences are stored by Razor/footer code using `DRN.Cookie.get()` and `DRN.Cookie.set()` with the server-provided consent cookie name.
-
-```javascript
-const preferences = DRN.Cookie.get(preferencesCookieName, {encoding: 'base64'}) || {};
-if (preferences.AnalyticsConsent) {
-    // load analytics scripts
-}
-```
-
----
+The footer uses `DRN.Cookie.get`/`set` with base64 encoding and its element's server-provided cookie name. Keep instance configuration local; resolve the full cookie API from browser declarations.
 
 ## Script Loading Order
 
-All scripts load in a specific order defined in `_LayoutBase.cshtml`. This order is critical — each layer depends on the previous:
-
-```
-appPreload.js          → DRN.App, DRN.Utils, DRN.Onmount, DRN.React = {} namespace
-  ↓
-<inline script>        → DRN.App config (Environment, CsrfToken, Cultures)
-  ↓
-htmxBundle.js          → htmx + safe-nonce extension + client validation
-  ↓
-bootstrapBundle.js     → Bootstrap JS plugins
-  ↓
-appPostload.js         → Global DRN.Onmount registrations (tooltips, etc.)
-  ↓
-reactBundle.tsx         → DRN.React.mount() + component registry
-  ↓
-@section Scripts { }   → Page-specific registrations (DRN.Onmount.register/registerFull)
-```
-
-> **Dependency rule**: `appPreload.js` must execute first — it initializes `window.DRN` so all subsequent scripts can attach to the shared framework browser API. If a bundle loads before `window.DRN` is ready, it logs a critical error.
-
----
+The full shell loads preload, early `DRN.App` configuration, htmx, Bootstrap, postload, React, then layout behaviors. Preload initializes `window.DRN` and `DRN.React` before dependents. Postload installs application-wide listeners and deferred DOM work. Page `Scripts` sections load home/test behaviors after content. React stays a global runtime; splitting behavior bundles does not lazy-load React itself.
 
 ## htmx Integration
 
 ### Security with CSP Nonces
 
-This convention integrates htmx with a strict CSP using nonces.
-
-`_LayoutBase.cshtml` sets `htmx.config.inlineScriptNonce` through the `htmx-config` meta tag. `htmxSafeNonce.js` defines the `safe-nonce` extension used by `hx-ext="safe-nonce"`: it reads `HX-Nonce` or CSP nonce headers from htmx responses and removes swapped `<script>` tags whose nonce does not match.
-
-```javascript
-// buildwww/lib/htmx/htmxSafeNonce.js
-htmx.defineExtension('safe-nonce', {
-    transformResponse: function (text, xhr, elt) {
-        // parse response and remove scripts without the response nonce
-    }
-});
-```
+The shell's `htmx-config` configures script/style nonces. The `safe-nonce` extension reads `HX-Nonce` or CSP headers and removes swapped scripts whose nonce does not match. Use normal Vite-backed script references. Preserve request verification tokens and never weaken CSP/CSRF to load a bundle.
 
 ### Client Validation
 
-`htmxBundle.js` imports `htmxValidation.js`, which uses `aspnet-client-validation` with `watch: true` so htmx swaps are scanned automatically. Keep validation on this direct `data-val-*` path.
-
-### Razor Usage
-
-```razor
-<!-- Auto-includes request verification token (CSRF) via headers if configured -->
-<button hx-post="~@Get.Page.Test.Htmx?handler=Auto"
-        hx-target="#result">
-    Submit
-</button>
-```
-
----
+`htmxValidation.js` uses `aspnet-client-validation` with `watch: true` to scan swapped `data-val-*` content. Register custom providers before bootstrap. Keep this direct path and release detached input/form indexes with normal cleanup.
 
 ## Bootstrap Customization
 
-Bootstrap styles are customized via SCSS and compiled by Vite.
-
-### Structure
-
-```
-buildwww/lib/bootstrap/
-├── bootstrap.scss      # Variable overrides and imports
-└── bootstrapBundle.js  # JavaScript component imports
-```
-
-### Configuration
-
-**`bootstrap.scss`: existing stylesheet pattern**:
-
-The relative paths below reflect existing Sass imports. For new imports, follow [Package Imports](../drn-buildwww-packages/SKILL.md#package-imports). Migrate these paths only after verifying package resolution and the frontend build.
-
-```scss
-// 1. Configure default variables
-$primary: #0750bc;
-
-// 2. Existing relative Sass imports, retained pending migration verification
-@import "../../../node_modules/bootstrap/scss/functions";
-@import "../../../node_modules/bootstrap/scss/variables";
-@import "../../../node_modules/bootstrap/scss/maps";
-@import "../../../node_modules/bootstrap/scss/mixins";
-@import "../../../node_modules/bootstrap/scss/utilities";
-
-// 3. Merge Bootstrap Icons into the same CSS bundle
-@import "../../../node_modules/bootstrap-icons/font/bootstrap-icons";
-```
-
-**`bootstrapBundle.js`**:
-Imports the selected Bootstrap plugins and exposes them under `window.bootstrap`.
-
-```javascript
-import Alert from 'bootstrap/js/dist/alert'
-import Button from 'bootstrap/js/dist/button'
-import Modal from 'bootstrap/js/dist/modal'
-import Tooltip from 'bootstrap/js/dist/tooltip'
-import Toast from 'bootstrap/js/dist/toast'
-import Collapse from 'bootstrap/js/dist/collapse'
-import Dropdown from 'bootstrap/js/dist/dropdown'
-import Tab from 'bootstrap/js/dist/tab'
-import Popover from 'bootstrap/js/dist/popover'
-import Offcanvas from 'bootstrap/js/dist/offcanvas'
-```
-
----
+`buildwww/lib/bootstrap/bootstrap.scss` owns variable overrides, imports, and Bootstrap Icons. `bootstrapBundle.js` exposes selected plugins under `window.bootstrap`. Follow [package imports](../drn-buildwww-packages/SKILL.md#package-imports) for new imports. Do not migrate relative Sass imports without verifying resolution and an authorized build.
 
 ## Related Skills
 
-- [drn-buildwww-vite.md](../drn-buildwww-vite/SKILL.md) - Vite configuration
-- [drn-buildwww-react.md](../drn-buildwww-react/SKILL.md) - React mounted islands (primary consumer of `registerFull`)
-- Framework-scoped hosting/security skill declared by `.agent/repository-profile.md`, when present.
+- [Vite builds](../drn-buildwww-vite/SKILL.md)
+- [React islands](../drn-buildwww-react/SKILL.md)
+- [Razor layouts](../frontend-razor-pages-shared/SKILL.md)
