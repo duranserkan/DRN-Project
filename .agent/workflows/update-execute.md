@@ -12,7 +12,7 @@ If invoked directly, run the shared Startup Gate; otherwise inherit `/update` co
 
 ### Staleness Guard
 
-1. Warn if the plan is older than 24 hours.
+1. Warn if plan age exceeds 24 hours.
 2. Abort if `Baseline HEAD` differs from current `HEAD`; revision changes require a fresh plan.
 3. Require a non-empty Run ID and exact Requested Scope/effective Scope match across the invocation, plan, preview, and any correction progress.
 4. Before the first execution mutation, recompute the Semantic Plan SHA-256, preview raw-byte SHA-256, optional proposed-diff SHA-256, and baseline manifest/hash. Abort unless those bindings match and the preview records every exact output preimage/postimage tuple, the current Run ID, requested/effective scope, and risk decision.
@@ -28,7 +28,7 @@ If invoked directly, run the shared Startup Gate; otherwise inherit `/update` co
    GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0 git -c core.pager=cat -c diff.external= -c diff.noprefix=false diff --cached --no-ext-diff --no-textconv -- <scope-paths>
    ```
 
-   Run each command as a separate invocation using the fixed Git environment (disabling external diff, textconv, pagers, aliases, filters, prompts, credentials, fsmonitor, and network access) and require its exit status to be successful before continuing; a later successful command must not mask an earlier failure.
+   Invoke commands separately; require each to succeed before continuing. These flags disable system config, terminal prompts, optional locks, external diff, and textconv. They do not isolate local/global config, filters, credential helpers, fsmonitor, or network access. Require a trusted isolated environment that blocks those execution/network paths before running; otherwise abort. Built-in command names cannot be replaced by Git aliases. Later success cannot mask failure.
 
    Scope dirt inspection never substitutes for the shared type/mode/content or approved-preimage guards.
 
@@ -40,9 +40,9 @@ If invoked directly, run the shared Startup Gate; otherwise inherit `/update` co
 | `<group>` | `.agent/workflows/load-skills-<group>.md`, `.agent/skills/<group>-*/**` |
 | `<skill-dir>` | `.agent/skills/<skill-dir>/**` |
 | `skills` | `.agent/skills/**`, all `load-skills-*.md`, task workflows |
-| `agents` | `AGENTS.md`, profile, solution/csproj files, task/loader workflows, skill index |
-| `projects` | solution/csproj files and project-referencing skills |
-| `infra` | build config, CI/CD, Docker files |
+| `agents` | `AGENTS.md`, profile, discovered manifests/build files, task/loader workflows, skill index |
+| `projects` | discovered manifests/build files, project-referencing skills, and exact Stage 3 output paths resolved in the plan |
+| `infra` | build config, CI/CD, Docker files, and exact discovered ecosystem manifest paths recorded in the plan |
 | `files: <paths>` | exact listed paths plus resolved stage output paths in the plan |
 | `stage-<N>` | files touched by Stage N |
 
@@ -52,9 +52,9 @@ If dirty, abort with: `"Plan is stale — run /update again to regenerate the pl
 
 `/update-execute` is the sole source-mutation owner for a failed run.
 
-1. Enter only from plan status `failed` or `correcting`. Require the verification progress Run ID, requested/effective scope, Semantic Plan SHA-256, and failed Output Revision SHA-256 to match the current failed run.
-2. Read the stable finding IDs and targets from `Corrections Required`. Reject a target outside the current scope or Stage 1-5 `### Outputs`; scope or semantic-plan widening starts a fresh run.
-3. Require the correction-labeled apply preview, exact diff, and fresh explicit approval produced by `/update`. Never reuse the original apply approval.
+1. Enter only from `failed` or `correcting`. Verification progress must match the failed run's Run ID, requested/effective scope, Semantic Plan SHA-256, and failed Output Revision SHA-256.
+2. Read stable finding IDs/targets from `Corrections Required`. Reject targets outside current scope or Stage 1-5 `### Outputs`. Scope/semantic-plan widening requires a fresh run.
+3. Require `/update`'s correction-labeled apply preview, exact diff, and fresh explicit approval. Never reuse original apply approval.
 4. Initialize or resume `.agent/temp/update-correction-progress.md`:
 
    ```markdown
@@ -65,12 +65,12 @@ If dirty, abort with: `"Plan is stale — run /update again to regenerate the pl
    - [ ] <finding-id> | <exact target> | <action>
    ```
 
-5. Set plan status to `correcting` before the first correction. Apply only pending approved corrections, checkpoint each item, and abort on any binding or target change.
-6. When every correction is complete, set correction progress and plan status to `done`. The caller must review changed outputs before verification; correction never transitions directly to `reviewed` or `verifying`.
+5. Set `correcting` before corrections. Apply only pending approved items, checkpoint each, and abort on binding/target changes.
+6. After all corrections, set correction progress and plan status to `done`. Require caller review before verification; never transition directly to `reviewed` or `verifying`.
 
 ### Resumption And VCS
 
-Resume from the first incomplete stage. Use Git read-only: no commit, push, stash, checkout, or ref mutation.
+Resume at the first incomplete stage. Git is read-only: no commit, push, stash, checkout, or ref mutation.
 
 ---
 
@@ -79,7 +79,7 @@ Resume from the first incomplete stage. Use Git read-only: no commit, push, stas
 ### Group Loaders
 
 1. Preserve YAML frontmatter, descriptions, `// turbo` annotations, and skill order.
-2. Regenerate file-read entries; append new skills at the end.
+2. Regenerate included file-read entries; preserve framework/profile conditions and append new skills at the end.
 3. Update token estimate: total skill bytes / 4, rounded to 0.1K.
 4. Create/update `.agent/workflows/load-skills-<custom>.md` for each custom prefix.
 5. Use `load-skills-custom.md` only for uncategorized skills.
@@ -89,14 +89,14 @@ Resume from the first incomplete stage. Use Git read-only: no commit, push, stas
 
 Discover task workflows in `.agent/workflows/*.md` except `load-skills-*.md`, including `documentation.md`, `commit-polish.md`, and `update*.md`.
 
-Use the plan's workflow classification and `Custom Workflows` header as the execution contract. If current discovery finds a custom route missing from the plan, or a planned custom workflow no longer exists, abort with: `"Plan is stale — run /update again to regenerate the plan"`.
+Use the plan's workflow classification and `Custom Workflows` header. Abort on an unplanned custom route or missing planned custom workflow: `"Plan is stale — run /update again to regenerate the plan"`.
 
 Sync only skill-loading or shared-workflow reference sections. Preserve all other instructions.
 
 ### Custom Group And Irrelevance Removal
 
 - Create/update custom loaders per the planner's Custom loader rule.
-- If irrelevance removal was approved, remove references from loaders/task workflows, flag Stage 3/5, and report directories for manual deletion. Never auto-delete directories.
+- Persist approved `Skill | Reason` rows under profile `Excluded Skills`. Omit excluded skills from loaders, task loading, and index routes. Retain directories. Preserve exclusions across runs; changes require approval.
 
 ---
 
@@ -105,9 +105,9 @@ Sync only skill-loading or shared-workflow reference sections. Preserve all othe
 Regenerate from all group loaders:
 
 1. Preserve YAML and `// turbo-all`.
-2. Emit group sections in Standard Load Order: Basic -> Overview -> DRN Framework -> Testing -> Frontend -> Custom.
+2. Emit included groups in Standard Load Order: Basic -> Overview -> DRN Framework -> Testing -> Frontend -> Custom. Preserve conditional loading; omit empty/excluded groups.
 3. In Custom, list per-prefix custom loaders alphabetically, then `load-skills-custom.md` if present.
-4. Update total token estimate. Include every existing custom loader.
+4. Update total token estimate. Include every custom loader with included skills.
 
 ---
 
@@ -118,19 +118,19 @@ Keep `AGENTS.md` portable. Put project-specific facts in `.agent/repository-prof
 ### Profile Overview And Commands
 
 - Populate Type, Architecture, Frontend, and Testing from discovered projects.
-- Update project names in `dotnet build`, unit test, and integration test commands.
+- Replace copied commands using destination manifests, scripts, build files, or CI and its runner/package manager. Flag unsupported commands; never invent them.
 - Preserve the repo rule: do not run build/test commands unless the user explicitly allows it.
 
 ### Skill Discovery And Custom Routes
 
-1. Read the plan header and discovery summary first.
-2. Treat `Custom Workflows: <route> -> <workflow>` as authoritative for Stage 3 and Stage 5.
+1. Read the plan header and discovery summary.
+2. `Custom Workflows: <route> -> <workflow>` governs Stages 3/5.
 3. Do not independently discover or reclassify a different custom route set during execution.
 4. Use the plan classification for non-custom skill-loading, task, sub-workflow, and meta routes.
 5. Update the `AGENTS.md` Workflows table from discovered task workflows; add new routes, remove stale routes, and preserve portable descriptions when the route already exists.
 6. Keep custom route details in the profile: route, workflow file, trigger/intent, and required custom loaders.
 7. Create/refresh custom skill load-set entries in the profile.
-8. Preserve missing copied profile skills through the profile's `Missing Profile Extensions` table contract with exact status `⚠️ Missing profile reference`. Do not add missing skills to loaders, delete them from the profile, or treat them as Stage 6 drift.
+8. Under affected profile load sets, record missing skills as `Skill | Expected Loader | Status | Resolution` with exact status `⚠️ Missing profile reference`; no placeholder rows. Exclude them from loaders/union checks, retaining profile entries. Restore when copied or remove/update entries after review. Owned by Stage 3, not Stage 6.
 
 ### Project Prefix Rename
 
@@ -150,7 +150,7 @@ If a project prefix changed:
 
 ## 4. Stage 4: Sync Non-Project References
 
-Flag only. Verify references to build config, CI/CD actions, containers, and solution files in commands. Report stale items with the Evidence Contract. Do not modify files.
+Flag only. Verify command references to build config, CI/CD, containers, and manifests. Report stale items with the Evidence Contract. Do not modify files.
 
 ---
 

@@ -155,6 +155,20 @@ function reportActionErrorCore(error, context) {
     return record;
 }
 
+function isDuplicateErrorHeading(heading, message) {
+    const errorHeading = /^[\w.$]+:(.*)$/.exec(heading);
+    const displayedMessage = typeof message === 'string' ? message.replace(/^Uncaught(?: \(in promise\))?\s+/, '') : '';
+    return errorHeading !== null &&
+        (heading === displayedMessage || errorHeading[1].replace(/^[ \t]+/, '') === displayedMessage);
+}
+
+function isStackFrame(line) {
+    if (/^at\s+\S/.test(line.trimStart())) return true;
+    const separator = line.indexOf('@');
+    // Firefox/Safari frames need a nonempty location between '@' and ':line'.
+    return separator >= 0 && /:\d/.test(line.slice(separator + 2));
+}
+
 function notificationDetails(message, source, line, column, stack, safePageUrl) {
     let clipped = false;
     function field(value, maximum) {
@@ -167,17 +181,10 @@ function notificationDetails(message, source, line, column, stack, safePageUrl) 
     let stackText = field(stack, 2000);
     const firstLine = stackText.split('\n', 1)[0];
     const heading = firstLine.trimEnd();
-    const errorHeading = heading.match(/^[\w.$]+:(.*)$/);
-    const displayedMessage = typeof message === 'string' ? message.replace(/^Uncaught(?: \(in promise\))?\s+/, '') : '';
-    if (errorHeading && (heading === displayedMessage || errorHeading[1].replace(/^[ \t]+/, '') === displayedMessage))
+    if (isDuplicateErrorHeading(heading, message))
         stackText = stackText.slice(firstLine.length + 1);
     // Recognize browser frame lines without replacing or reconstructing the original stack.
-    const hasFrames = stackText.split('\n').some(frame => {
-        if (/^at\s+\S/.test(frame.trimStart())) return true;
-        const separator = frame.indexOf('@');
-        // Firefox/Safari frames need a nonempty location between '@' and ':line'.
-        return separator >= 0 && /:\d/.test(frame.slice(separator + 2));
-    });
+    const hasFrames = stackText.split('\n').some(isStackFrame);
     const fields = [`Message: ${field(message, 500)}`,
         `Source: ${field(source, 200)}`, `Line: ${line}, column: ${column}`, `Page: ${field(safePageUrl, 500)}`];
     if (clipped) fields.push('Diagnostic details were truncated.');
@@ -198,7 +205,9 @@ function buildPayload(message, source, line, column, stack) {
     const capture = drnDiagnostics.createCapture();
     let clipped = false;
     function field(value, maximum, isUrl = false) {
-        const safe = isUrl ? capture.url(value || '') : capture.text(typeof value === 'string' ? value : '');
+        let safe;
+        if (isUrl) safe = capture.url(value || '');
+        else safe = capture.text(typeof value === 'string' ? value : '');
         if (safe.length <= maximum) return safe;
         clipped = true;
         const end = /[\uD800-\uDBFF]/.test(safe[maximum - 1]) ? maximum - 1 : maximum;
@@ -225,9 +234,10 @@ function reportUnhandledError(event, isRejection) {
     handlingUnhandledError = true;
     try {
         const reason = isRejection ? event.reason : event.error;
-        const message = isRejection
-            ? reason instanceof Error ? reason.message : String(reason || 'Unhandled Promise Rejection')
-            : event.message || '';
+        let message;
+        if (isRejection)
+            message = reason instanceof Error ? reason.message : String(reason || 'Unhandled Promise Rejection');
+        else message = event.message || '';
         const source = isRejection ? 'unhandledrejection' : event.filename || '';
         const line = isRejection ? 0 : event.lineno || 0;
         const column = isRejection ? 0 : event.colno || 0;

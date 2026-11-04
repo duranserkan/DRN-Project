@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Attributes;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -16,6 +17,7 @@ public class Htmx(IAntiforgery antiForgery) : PageModel
         // Intentionally empty: GET request initializes default page view.
     }
 
+    [SuppressMessage("Major Code Smell", "S2325", Justification = "Razor Pages excludes static methods from handler discovery.")]
     public IActionResult OnPostUnhandledException() =>
         throw new InvalidOperationException("Intentional unhandled server exception from the HTMX test page.");
 
@@ -51,7 +53,7 @@ public class Htmx(IAntiforgery antiForgery) : PageModel
     // DELETE method with automatic CSRF validation
     public IActionResult OnDelete(string message) => ResultMessage(message, "Success (DELETE with Automatic Validation)");
 
-    private IActionResult ResultMessage(string message, string validation) => Partial(ResultMessageView, new HtmxResultMessage
+    private PartialViewResult ResultMessage(string message, string validation) => Partial(ResultMessageView, new HtmxResultMessage
     {
         Message = message,
         TokenValidation = validation,

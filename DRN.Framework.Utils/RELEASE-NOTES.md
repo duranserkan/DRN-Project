@@ -6,34 +6,26 @@ Dependencies upgraded to dotnet 10.0.14
 
 ### New Features
 
+*   **Project Classification Rules**: Optional `DiagnosticLogging:RuleFile` and `RuleAssemblyName` settings validate file-based and embedded catalogs. Invalid or missing configured sources fail sanitizer creation. See the [diagnostic guide](Logging/Diagnostics/README.md) for configuration and migration guidance.
 
-*   **Project Classification Rules**: Project catalogs extend compiler name checks. Optional runtime `DiagnosticLogging:RuleFile` and `RuleAssemblyName` settings validate loose and embedded/inherited catalogs without applying name matching. Relative files resolve from the application base directory. Invalid or missing configured sources fail sanitizer creation; missing transitive assemblies are skipped. Validation results are cached per options instance and diagnostic snapshots do not reread files.
+*   **Compiler and Browser Name Rules**: Shared rules cover CVV/CVC/PIN-code fields, usernames, first/last names, dates of birth, IBAN, and client/IP-address patterns. They match `secret` and separator variants without matching `sec` alone in names such as `ElapsedSeconds`. Compiler matches support reviewed property opt-outs, scalar reason overloads, capture policies, and exact-name comments. These do not waive declaration requirements or configured analyzer paths. See the [diagnostic guide](Logging/Diagnostics/README.md) for exemption rules.
 
-*   **Diagnostic Field Coverage**: Browser and compiler name rules share one catalog, including CVV/CVC/PIN-code fields, usernames, first/last names, dates of birth, IBAN, client and IP-address patterns. Backend runtime uses explicit classifications rather than name matching.
-
-*   **Dictionary Classification**: AddDictionary and SanitizeDictionary accept exact key classifications for Sensitive, Personal and NonSensitive data. NonSensitive requires a reason and supported scalar. Positive classifications and budgets remain authoritative through native copies. Nested dictionaries require separate classification. Foreign implementations fail closed.
-
-*   **Explicit Diagnostic Name Exceptions**: Property Sensitive(false), scalar reason overloads, and capture policies acknowledge reviewed compiler name matches. Reasons require supported scalars and nonblank text. Complex reason-bearing captures return an unavailable marker. Positive classifications and capture limits remain enforced. Public snapshots carry no classification metadata.
-
-    Policy entries are validated. The analyzer recognizes policy overloads without interpreting individual entries. Use adjacent `DiagnosticNameExemption` comments to acknowledge exact capture names.
+*   **Dictionary Capture**: `AddDictionary` and `SanitizeDictionary` accept Sensitive, Personal, and NonSensitive classifications for exact keys. NonSensitive requires a supported scalar value and a nonblank reason. Nested dictionaries require separate classification. Exemptions do not override positive classifications or capture limits.
 
 *   **Property Discovery**: Added `GetPropertiesOfType<T>` to find properties with an exact declared type using caller-supplied binding flags.
 
-*   **Diagnostic Name Matching**: Browser and compiler checks match `secret`, including normalized separator variants. Names containing only `sec`, such as `ElapsedSeconds`, `Section`, and `ResponseCaptureLimited`, need no exemption solely for that substring. Reviewed client identifiers and operational IP addresses require compiler acknowledgements.
-
-*   **Diagnostic Redaction**: Scoped logs apply explicit Sensitive, Personal, derived, and dictionary classifications to bounded snapshots. Capture reads classified getters once and preserves metadata; direct sanitization skips classified getters. Both skip ignored getters and public fields. Runtime capture does not match names, including configured name lists. Free text remains bounded without content scanning. Matching models require compiler classification or reviewed exemptions.
-    *   Positive classifications and `[IgnoreLog]` on interface properties also protect concrete and nested captures. Interface exemptions do not waive concrete property name rules.
+*   **Diagnostic Classification and Redaction**: Scoped logs redact explicitly classified Sensitive, Personal, derived, and dictionary values within capture limits. Interface classifications and `[IgnoreLog]` also protect concrete and nested captures. Scoped capture reads classified getters once; direct sanitization skips them. Both omit ignored getters and public fields. Backend runtime does not infer classification from names or scan free-text contents, including when catalogs are configured. Applications must classify dynamic data explicitly.
 *   **Grouped Diagnostic Overflow**: `LogScoped` keeps fitting diagnostics in one record and emits bounded parent/child records for larger sanitized diagnostics, preserving correlation and an expected-record manifest. Capture loss is explicit. Consumers must reconstruct `json-text` payload fragments when records are split. `ToString()` returns one snapshot with sanitized diagnostics and retained events.
 
-*   **Scoped Public Errors**: Added lazy `ScopeContext.Problem` for public error details and extensions, with throwing helpers for every `ExceptionFor` factory. Helpers preserve public defaults, keep diagnostic data private, and hide their frames from formatted stack traces. DRN Hosting uses these defaults while preserving existing response values and framework-controlled fields.
-
-*   **Rate Limit Defaults**: Increased post-auth burst capacity and refill from 100 to 250 tokens, and pre-auth capacity and refill from 1,000 to 2,500 tokens. Refill periods remain 60 seconds. Explicit configuration overrides remain supported.
+*   **Scoped Public Errors**: Added `ScopeContext.Problem` for public error details and extensions, with throwing helpers for every `ExceptionFor` factory. DRN Hosting applies these defaults without replacing existing response values or framework-controlled fields. Diagnostic data stays private.
 
 *   **HTTP Diagnostics**: Flurl exception logs sanitize URLs, proxy headers, and bounded error-body capture. Call `AddLinkerdProxyDiagnostics` to capture proxy diagnostics for explicitly handled responses without consuming their body. Unsupported or oversized bodies produce safe markers.
 
 ### Changed
 
-*   **Scope Event Retention**: Scoped logs retain one primary and eight additional events. Further events are omitted without throwing; `OmittedEventCount` appears only when nonzero and carries through copies. Retained event contents bypass sanitization and diagnostic byte limits. Keep them safe to log. Events appear on the first emitted record, which remains subject to provider limits.
+*   **Rate Limit Defaults**: Increased post-auth burst capacity and refill from 100 to 250 tokens, and pre-auth capacity and refill from 1,000 to 2,500 tokens. Refill periods remain 60 seconds. Explicit settings override these defaults.
+
+*   **Scope Event Retention**: Scoped logs retain one primary and eight additional events. Further events are omitted without throwing and counted in `OmittedEventCount`. Event contents bypass sanitization and diagnostic byte limits. Keep them safe to log. Events appear on the first emitted record and remain subject to provider limits.
 
 ## Version 0.10.0
 

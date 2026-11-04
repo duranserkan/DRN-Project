@@ -1,473 +1,148 @@
 ---
 name: drn-hosting
-description: "DRN.Framework.Hosting - DrnProgramBase for web application bootstrapping, endpoint configuration, security middleware (CSP, nonce), authentication/authorization, TagHelpers for asset management, and Razor Pages integration. Essential for web application setup and hosting. Keywords: hosting, web-application, drnprogrambase, endpoints, middleware, security, csp, nonce, authentication, authorization, taghelpers, razor-pages, mfa, background-service"
-last-updated: 2026-11-01
+description: "DRN hosting: startup, authentication/MFA, API errors, rate limits, Razor endpoints and TagHelpers. Keywords: hosting, drnprogrambase, security, csp, nonce, authentication, authorization, razor-pages, mfa"
+last-updated: 2026-11-04
 difficulty: advanced
-tokens: ~3K
+tokens: ~2.7K
 ---
 
 # DRN.Framework.Hosting
 
-> Web application hosting with security-first design, endpoints, and middlewares.
+Apply `AGENTS.md` and DiSCOS. Document public behavior; keep internals in source and local paths in the profile.
 
-Resolve upstream links and local source through [Documentation And Source References](../overview-drn-framework/SKILL.md#documentation-and-source-references).
+Use [version-matched references](../overview-drn-framework/SKILL.md#documentation-and-source-references). The [Hosting README][hosting] owns signatures, examples, defaults, and migration. Development guidance may be unreleased. `Example*` names are placeholders.
 
-`Example*` types, `AddExampleHostedServices`, and `Get.Page`/`Get.Endpoint` members below are illustrative application code. Substitute the destination repository's hosted program, registration methods, controllers, and route accessors.
+## Contents
 
-## When to Apply
-- Creating new hosted applications
-- Configuring security (CSP, Auth, MFA)
-- Working with endpoints and Razor Pages
-- Adding or customizing middlewares
-- Using TagHelpers for frontend rendering
-
----
+- [DrnProgramBase Pattern](#drnprogrambase-pattern)
+- [Security Features](#security-features)
+- [Page & Endpoint Management](#page--endpoint-management)
+- [Error Responses](#error-responses)
+- [Rate Limiting Rules](#rate-limiting-rules)
+- [TagHelpers](#taghelpers)
+- [Related Skills](#related-skills)
 
 ## DrnProgramBase Pattern
 
-Customize hosting through public/protected `DrnProgramBase` hooks. Their XML documentation describes use cases, timing, and base-call requirements. For framework implementation changes, consult the repository profile's source map.
+Derive from `DrnProgramBase<TProgram>`, implement `IDrnProgram` and `AddServicesAsync`. Use public/protected hooks, not internal configurators. README **Lifecycle & Execution Flow** and **DrnProgramBase Deep Dive** own timing and base-call rules.
 
-Keep this skill and package docs focused on setup, extension points, observable behavior, and migration requirements. Keep internal algorithms and claim-validation mechanics in source comments; preserve useful reference links.
+See README **QuickStart** and global usings. `DrnProgramActions` offers `ApplicationBuilderCreatedAsync` and `ApplicationValidatedAsync` hooks.
 
-All DRN web apps inherit from `DrnProgramBase<TProgram>`:
+Configure Source-Known epoch/minimum before startup or first ID/epoch use. Temporary hosts and `SkipValidation` do not bypass time validation. Temporary applications skip endpoint validation/accessor population, enter service validation, run `ApplicationValidatedAsync`, and return without starting. Use explicit `DrnDevelopmentSettings` test flags; never weaken runtime checks with environment branches. See [testing](../drn-testing/SKILL.md).
 
-```csharp
-public class ExampleProgram : DrnProgramBase<ExampleProgram>, IDrnProgram
-{
-    public static async Task Main(string[] args) => await RunAsync(args);
-
-    protected override Task AddServicesAsync(
-        WebApplicationBuilder builder, 
-        IAppSettings appSettings, 
-        IScopedLog scopedLog)
-    {
-        builder.Services.AddExampleHostedServices(appSettings);
-        return Task.CompletedTask;
-    }
-    
-    protected override MfaRedirectionConfig ConfigureMFARedirection()
-        => new(Get.Page.User.Management.EnableAuthenticator, 
-               Get.Page.User.LoginWith2Fa,
-               Get.Page.User.Login, 
-               Get.Page.User.Logout, 
-               Get.Page.All);
-}
-```
-
-### Builder Phase Hooks
-
-Host creation validates Source-Known time before program/actions constructors and hooks. `TemporaryApplication` and `SkipValidation` do not bypass it. Configure the epoch and minimum before startup or first ID/epoch use; see [the time contract](../drn-sharedkernel/SKILL.md#source-known-identity-system).
-
-| Method | Purpose |
-|--------|---------|
-| `AddServicesAsync()` | **[Required]** Add services to DI |
-| `ConfigureSwaggerOptions()` | Customize Swagger/OpenAPI |
-| `ConfigureApplicationBuilder()` | Root builder customization |
-| `ConfigureMvcBuilder()` | IMvcBuilder customization; Razor edit loops use IDE/`dotnet watch` Hot Reload, not runtime compilation |
-| `ConfigureDefaultSecurityHeaders()` | CSP and security header policies |
-| `ConfigureDefaultCsp()` | Customize CSP directives |
-| `ConfigureSecurityHeaderPolicyBuilder()` | Route-specific security policies |
-| `ConfigureAuthorizationOptions()` | Authorization policy config |
-| `ConfigureCookiePolicy()` | GDPR and consent cookie settings |
-| `ConfigureStaticFileOptions()` | Static file serving and caching |
-| `ConfigureResponseCachingOptions()` | Response caching (16MB limit, case insensitive) |
-| `ConfigureResponseCompressionOptions()` | Compression MIME types, HTTPS=false (BREACH prevention) |
-| `ConfigureCompressionProviders()` | Brotli + Gzip provider setup |
-| `ConfigureBrotliCompressionLevel()` | Brotli level (default: SmallestSize) |
-| `ConfigureGzipCompressionLevel()` | Gzip level (default: SmallestSize) |
-| `ConfigureMvcOptions()` | MvcOptions configuration |
-| `ConfigureForwardedHeadersOptions()` | Forwarded headers (default: All) |
-| `ConfigureRequestLocalizationOptions()` | Localization cultures, cookie provider |
-| `ConfigureHostFilteringOptions()` | Allowed hosts from config |
-| `ConfigureIdentityRenewal(IServiceCollection, IAppSettings)` / `ConfigureSecurityStampValidatorOptions(SecurityStampValidatorOptions, IAppSettings, AuthenticationClaimConfig)` | Optional Identity renewal wiring and stamp callback customization; retain base preservation for active Identity cookies |
-| `ConfigureDefaultCspBase()` | Base CSP directives (base-uri, form-action, frame-ancestors) |
-| `ConfigureCookieTempDataProvider()` | TempData cookie settings |
-| `CreatePreAuthRateLimiter()` | Pre-auth rate limiter orchestration |
-| `ConfigurePostAuthRateLimiterOptions()` | Post-auth rate limiter orchestration and policies |
-
-### Application Phase Hooks
-
-| Method | Purpose |
-|--------|---------|
-| `ConfigureApplicationPipelineStart()` | Earliest middleware (HSTS, Security Headers) |
-| `ConfigureApplicationPreScopeStart()` | Pre-logger (Static files) |
-| `ConfigureApplicationPostScopeStart()` | After HttpScopeMiddleware |
-| `ConfigureApplicationPreAuthentication()` | Before Auth (Localization) |
-| `ConfigureApplicationPostAuthentication()` | Post-Auth (MFA Redirection) |
-| `ConfigureApplicationPostAuthorization()` | Post-AuthZ (Swagger UI) |
-| `MapApplicationEndpoints()` | Route mapping (Controllers, Razor Pages) |
-| `ValidateEndpoints()` | Post-mapping endpoint validation |
-| `ValidateServicesAsync()` | DI validation |
-| `ConfigureMFARedirection()` | MFA page configuration |
-| `ConfigureMFAExemption()` | Route-specific MFA exemption config |
-| `ConfigureAuthenticationClaims()` | Subject/name/email/roles with Identity defaults and explicit aliases, plus exact `Mfa` marker (`amr=mfa`); one shared DI config |
-
-**Execution order**: Builder Phase → `builder.Build()` → Pipeline Phase → `ValidateEndpoints()` → `ValidateServicesAsync()` → `ApplicationValidatedAsync()` → `application.StartAsync()` → `application.WaitForShutdownAsync()`
-
-Temporary applications skip `ValidateEndpoints()` and endpoint-accessor population, enter `ValidateServicesAsync()` (which honors `SkipValidation`), run `ApplicationValidatedAsync()`, and return before `StartAsync()`.
-
-### Environment Hierarchy & Testing Invariants
-
-- **`Development`**: Configured for local development with convenience defaults, not hacks.
-- **`Staging`**: Stricter operational defaults.
-- **`Production`**: Most strict security and operational defaults.
-- **No Environment Hacking**: Do not weaken runtime invariants by branching on `environment.IsDevelopment()` to accommodate tests or mock missing assets. Use explicit `DrnDevelopmentSettings:TemporaryApplication` and `DrnDevelopmentSettings:SkipValidation` flags when configuring test hosts.
-
-### Advanced Startup (`DrnProgramActions`)
-
-Intercept startup without modifying main program class:
-
-```csharp
-public class ExampleProgramActions : DrnProgramActions
-{
-    public override async Task ApplicationBuilderCreatedAsync<TProgram>(
-        TProgram program, WebApplicationBuilder builder,
-        IAppSettings appSettings, IScopedLog scopedLog)
-    {
-        // Hook into builder creation (e.g., launch containers)
-    }
-
-    public override async Task ApplicationValidatedAsync<TProgram>(
-        TProgram program, WebApplication application,
-        IAppSettings appSettings, IScopedLog scopedLog)
-    {
-        // Hook after DRN validations (e.g., seed data)
-    }
-}
-```
-
-### Configuration Properties
-
-| Property | Description |
-|----------|-------------|
-| `AppBuilderType` | Controls builder creation (Empty, Slim, Default, DrnDefaults) |
-| `DrnProgramSwaggerOptions` | OpenAPI and Swagger UI config |
-
----
+Razor uses IDE/`dotnet watch` Hot Reload, not runtime compilation. Execution needs authorization. Framework overview and Utils own configuration, DI, app data, environment conventions, and `[HostedService]` registration.
 
 ## Security Features
 
 ### MFA by Default
 
-MFA is required by default, including endpoints with role or named policies. Use `[AllowAnonymous]` for public endpoints and `AuthPolicy.MfaExempt` for authenticated access without MFA.
+MFA applies by default, including role and named-policy endpoints. `[AllowAnonymous]` permits public access; `AuthPolicy.MfaExempt` permits authenticated access without MFA.
 
-- Register authentication with an effective default or policy-selected scheme. An exemption allowlist does not select a scheme.
-- Use `ConfigureAuthenticationClaims()` for custom provider mappings; ordinary Identity applications need no override.
-- Identity applications register `AddSignInManager<DrnSignInManager<TUser>>()` and `AddDrnIdentityMfaPolicies()`.
-- Use `ConfigureMFARedirection()` for local browser setup/challenge pages; return `null` for no redirection.
-- Retain base renewal callbacks when using Identity cookies. Refresh does not count as fresh MFA.
-- Shared MFA authorization works without Identity. External providers require their own validated authentication handlers.
+- Register an effective default or policy-selected authentication scheme. Exemption allowlists do not select schemes.
+- Ordinary Identity apps need no claim-mapping override. Use `ConfigureAuthenticationClaims()` for custom providers.
+- Identity apps register `AddSignInManager<DrnSignInManager<TUser>>()` and `AddDrnIdentityMfaPolicies()`.
+- `ConfigureMFARedirection()` supplies local setup/challenge pages; `null` disables redirection.
+- Retain base Identity renewal callbacks. Refresh is not fresh MFA.
+- External providers need validated handlers; shared MFA authorization does not require Identity.
 
-See the upstream Hosting README for [renewal](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#renewal-and-assurance), [revocation limits](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#identity-revocation-contract), and [audit events](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#audit-events).
-
-```csharp
-// Opt-out options:
-[AllowAnonymous]                            // Fully anonymous
-[Authorize(Policy = AuthPolicy.MfaExempt)]  // Single-factor only
-
-// Disable MFA as the default/fallback while retaining the registered MFA policies:
-protected override void ConfigureAuthorizationOptions(AuthorizationOptions options)
-{
-    base.ConfigureAuthorizationOptions(options);
-
-    var authenticatedUserPolicy = new AuthorizationPolicyBuilder()
-        .RequireAuthenticatedUser()
-        .Build();
-
-    options.DefaultPolicy = authenticatedUserPolicy;
-    options.FallbackPolicy = authenticatedUserPolicy;
-}
-```
+README **MFA** owns assurance, renewal, revocation, audit events, and replacing default/fallback policies while retaining registered MFA policies.
 
 ### GDPR & Consent
 
-- With the default `DrnDefaults` setup, Cookie Policy evaluates consent on every request and withholds non-essential response cookies until consent is granted.
-- `ConsentCookie` represents the policy consent state and is script-readable under `HttpOnlyPolicy.None`.
-- `ScopedUserMiddleware` populates `IScopedLog` with consent flags (`Consent_Analytics`, `Consent_Marketing`) and `ScopeContext` with `ConsentCookie`.
-- Applications remain responsible for analytics and marketing script activation, category-specific preferences, and accurate `IsEssential` classification.
+`DrnDefaults` withholds non-essential response cookies until consent. Apps own script activation, category preferences, and `IsEssential` classification. README **Cookies and consent** owns cookie settings and exposed consent state.
 
 ### Swagger And Developer Tool Authorization
 
-Swagger remains enabled only in Development by default. Consumers can override `ConfigureSwaggerOptions`, call base, then set `AddSwagger = true` and `AuthorizationPolicy` to a named application policy. The policy protects UI, assets, and JSON/YAML documents, including custom document routes outside the UI prefix. Default MFA enforcement still applies. Null preserves existing authorization behavior; blank names are rejected.
+Swagger is Development-only by default. To enable elsewhere, call base in `ConfigureSwaggerOptions`, set `AddSwagger = true`, and assign a named `AuthorizationPolicy`. It protects UI, assets, and JSON/YAML documents, including custom document routes. MFA still applies. Null preserves existing authorization behavior; blank policy names are invalid.
 
-
-### Per-Route Security Headers
-
-Assign the validated slash-trimmed UI prefix back to `SwaggerUIOptions.RoutePrefix` so Swagger middleware and CSP selection use the same normalized path.
-
-When Swagger is enabled, its UI prefix must be nonempty after trimming slashes; validate after the consumer callback and reject null, empty, or slash-only prefixes. Prefixes such as `api-docs` are supported. Root mounts are rejected because they would apply Swagger CSP across the entire application. The response policy selector matches the complete validated prefix with segment boundaries. Reserve that subtree for `CspFor.CspPolicySwagger` (same-origin scripts and inline styles); place ordinary application pages outside it. No request marker middleware is needed. Disabled Swagger retains application policies.
-
-```csharp
-protected override void ConfigureSecurityHeaderPolicyBuilder(SecurityHeaderPolicyBuilder builder, IServiceProvider serviceProvider, IAppSettings appSettings)
-{
-    base.ConfigureSecurityHeaderPolicyBuilder(builder, serviceProvider, appSettings);
-    // Add policies and SetPolicySelector via builder
-}
-```
-
----
+Enabled Swagger requires a nonempty slash-trimmed `SwaggerUIOptions.RoutePrefix`, e.g. `api-docs`. Root mounts are rejected. Reserve that subtree for Swagger CSP and put ordinary pages elsewhere. Disabled Swagger retains application policies. Customize `ConfigureSecurityHeaderPolicyBuilder` while retaining base behavior. See README **Route-specific security headers**.
 
 ## Page & Endpoint Management
 
-`IPageUtils.RenderPageAsync` supports standard `_ViewStart` files and layouts. Page links use endpoint routing even when the original request has no matching endpoint. It owns a separate DI scope and awaits its disposal on success or failure. Passing `parentContext` preserves `PathBase` and the CSP nonce without transferring ownership of the parent request scope.
-
-### Application URL Convention
-
-Keep static route accessors request-independent. Prefer MVC page/action routing or `Url.Endpoint(endpoint, values)` for initialized API accessors. Use `~/` for application-relative HTML and HTMX URLs, and `Url.Content` in C#. Reserve `Request.ApplicationUrl` for configured destinations such as MFA pages. Leave validated return URLs unchanged. See [Application URLs](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#application-urls) for contracts and examples.
-
-### PageCollectionBase
-
-Use `ForPage` for page navigation and `ForUrl` for URL entries. Active page links match page identity. Active href links match the resolved local request path, ignoring queries and fragments.
+Static accessors use `PageCollectionBase<ExamplePageFor>.PageCollection` and `(ExampleEndpointFor)EndpointCollectionBase<ExampleProgram>.EndpointCollection!`. Pages self-initialize; API metadata requires endpoint initialization. Never retain request-specific URLs or authorization results statically.
 
 ```csharp
 public class ExamplePageFor : PageCollectionBase<ExamplePageFor>
 {
-    public RootPageFor Root { get; } = new();
     public UserPageFor User { get; } = new();
 }
 
 public class UserPageFor : PageForBase
 {
     protected override string[] PathSegments { get; } = ["User"];
-    public string Login { get; init; } = string.Empty;    // "/User/Login"
-    public string Register { get; init; } = string.Empty;  // "/User/Register"
-    public UserProfilePageFor Profile { get; } = new();
-}
-```
-
-```razor
-<a asp-page="@Get.Page.User.Login">Log In</a>
-```
-
-### EndpointCollectionBase
-
-```csharp
-public class ExampleEndpointFor : EndpointCollectionBase<ExampleProgram>
-{
-    public ExampleApiFor Api { get; } = new();
+    public string Login { get; init; } = string.Empty;
 }
 
 public class TagFor() : ControllerForBase<ExampleTagController>(ExampleApiFor.ControllerRouteTemplate)
 {
     public ApiEndpoint GetAsync { get; private set; } = null!;
-    public ApiEndpoint PostAsync { get; private set; } = null!;
-}
-
-// Usage: Get.Endpoint.Api.Tag.GetAsync.Path()
-```
-
----
-
-## Middlewares
-
-### Error Responses
-
-Map the caught exception to status, then infer the standard problem type/title. DRN subclasses retain `Status` (default 500); Flurl preserves upstream 400-499/503/504 and maps everything else, including no response, to 502; BadHttpRequestException preserves `StatusCode` (default 400); other exceptions map to 500. Names and inner exceptions do not select status. Type precedence is response, scope, status default, then `about:blank`; a Type override does not change status. Preserve cancellation, started-response, abort, and API/HTMX eligibility rules. See [Hosting status mappings](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#api-failure-responses).
-
-API errors from 400 through 599 use Problem Details in every environment, serialized with SharedKernel `JsonConventions.DefaultOptions`. MVC and HTTP JSON overrides do not apply. Classify matched endpoints by API metadata and unmatched routes or routing-generated 405 responses by `DrnApiErrorOptions.PathPrefixes`. Preserve authentication decisions, headers, cookies, validation errors, and public extensions. Use `HttpContext.TraceIdentifier` for requestId and default instance to PathBase + Path without queries. Keep exceptions private and serialization fallbacks redacted.
-
-`DrnApiErrorOptions.HandleHtmxRequests` defaults to false. Enable it for HTMX Problem Details, including Razor handlers. Authentication, cookie redirects, endpoint opt-outs, and custom non-problem bodies retain their behavior. See [HTMX partial requests](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#htmx-partial-requests) for request selection and exception-hook behavior.
-
-`ScopeContext.Problem` supplies missing fields and extension keys without allocation on reads. Existing values win, including framework-generated titles and types. Scoped extensions cannot replace standard fields or validation errors. `CustomizeProblemDetails` runs once for MVC-generated and typed problems, but not generic exception or empty-error responses. See [Hosting API failure responses](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#api-failure-responses) for examples and migration.
-
-Keep Razor response selection explicit: `Page()` retains HTML, while an `ObjectResult` containing `ValidationProblemDetails(ModelState)` selects JSON with status 400 or 422. Use safe public messages, exact posted field names, and an empty key for form-level errors. Preserve existing API keys. See [browser error guidance](../drn-buildwww-libraries/SKILL.md#problem-details-consumer) for HTML validation swaps.
-
-Leave `Type` unset for routine failures and reuse Hosting's status-based defaults. Do not require per-entity or per-exception type catalogs. Define explicit stable types only for public conditions that clients must distinguish beyond HTTP status. Never derive identifiers from exception class names, routes, or request data. Preserve explicit overrides and keep private diagnostics out of public messages.
-
-Swagger adds only a representative 400 response describing all 4xx and 5xx errors. Preserve other declared statuses, validation schemas, custom response types, and browser/HEAD metadata. Honor inherited `[DisableDrnProblemDetails]` on controllers or actions: it disables DRN formatting and automatic Swagger error metadata while retaining native ASP.NET Core responses and authentication behavior.
-
-Use `DrnErrorPageOptions` for application-owned browser 400, 404, and 5xx error pages. Preserve status codes, the original request reference when rendering internally, redaction, existing response bodies, browser Development diagnostics, deployment prefixes, and fallback authorization for unmatched routes. Keep error pages anonymous, non-cacheable, and independent of application data. Supported API exceptions bypass the browser-oriented `WriteProductionErrorResponseAsync` override unless opted out. See [Hosting custom error pages](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#custom-error-pages) for configuration, models, and response customization.
-
-Response-only production/API paths skip diagnostic model creation only when no post-creation filter consumes it. Run pre-filters before deciding eligibility, preserve populated post-filter callbacks and ordering, and keep explicit `GetExceptionPageModel` requests and Development HTML diagnostics unchanged.
-
-Use bounded diagnostic projections for request details, exceptions, startup reporting, and HTTP bodies. Backend runtime uses explicit attributes and dictionary classifications, with no name or configured-path matching. Explicit URL capture still removes credentials and validates encoding. Compiler name checks remain active. Request IP and nonempty client IDs are retained; rate-limit identifiers keep separate protection. Preserve buffering, access control, IgnoreLog, and public response contracts. Raw callback objects retain their compatibility boundary. SanitizeText does not certify contents. Follow the source-owned diagnostic guide.
-
-Startup report generation failures retain the exception type, stack trace, and fixed `ReportGenerationFailed` category in scoped diagnostics. Do not capture their exception messages.
-
-Request diagnostics log nonempty `l5d-client-id` headers under `Request_l5d-client-id` with an exact compiler acknowledgement. Omit empty values and preserve capture limits.
-
-Follow the source-owned diagnostic guide for application responsibilities when capturing dynamic request data.
-
-For access-denied redirects, use `AccessDeniedPageModel` and opt in with `PreserveAccessDeniedRequestId()` on the active cookie events instance after Identity registration and other callback assignments. Preserve the existing callback, nonredirect responses, and single-use TempData reference. Keep routes, markup and authorization policies application-owned. See the same README section for setup and `EventsType` guidance.
-
-| Middleware | Purpose |
-|------------|---------|
-| `HttpScopeMiddleware` | Request/response logging with IScopedLog, TraceId, duration |
-| `PreAuthRateLimitingMiddleware` | Early abuse throttling before authentication |
-| `ScopedUserMiddleware` | Populates IScopedLog with user identity and consent |
-| `MfaRedirectionMiddleware` | Redirect users without MFA to setup page |
-| `MfaExemptionMiddleware` | Exempt specific routes/schemes from MFA |
-
-### Rate Limiting Rules
-
-- Derive from `SingletonRateLimitRule` / `ScopedRateLimitRule` for automatic attribute-based DI registration.
-- Return `null` when the rule does not apply; return `RateLimitRuleResult.TokenBucket(...)`, `FixedWindow(...)`, `SlidingWindow(...)`, `ConcurrencyLimiter(...)`, `CustomPartition(...)`, `AllowRequest(...)`, or `DenyRequest(...)` when it applies.
-- `RateLimitRuleResult.Action` is `Limit`, `Allow`, or `Deny`; `StopRemainingRules` only controls whether later rules compose after this result.
-- Lower `Order` runs first. Matching rules compose through .NET's native chained limiter, so tenant + user + IP can all apply; framework defaults use `int.MaxValue`.
-- Override `ShortCircuitOnMatch` for same-order allow/deny rules that must run before normal same-order quota rules; use lower `Order` when they must bypass earlier singleton or scoped quotas. If they return `null`, later rules still evaluate. If they return a result, that result decides the action and remaining rules are skipped.
-- The pre-auth middleware honors ASP.NET Core `[DisableRateLimiting]` endpoint metadata; use it for trusted health checks or operational endpoints that must never consume quota. `[EnableRateLimiting]` does not bypass the global pre-auth limiter.
-- Default post-auth partitioning uses stable user id claims (`NameIdentifier`/`sub`) with auth scheme, not mutable display names.
-- Use scoped rules plus `IScopedUser` for post-auth claim-aware partitions. Prefer `RateLimitFor` (or app-owned wrappers around `RateLimitFor`) over repeated `HttpContext.User` parsing.
-- Set `PolicyName` on a rule only when it should run for endpoints marked with matching ASP.NET Core `[EnableRateLimiting("policy-name")]` metadata. `null` means global DRN rule; blank names are invalid.
-- Post-auth defaults to 250/minute; pre-auth defaults to a coarser 2,500/minute IP bucket for B2B NAT/VPN/CDN egress addresses. Configure settings under `DrnAppFeatures:DrnRateLimit`; phase override values of 0 inherit the shared settings. Settings are a startup snapshot exposed through `IAppSettings.Features.RateLimit`.
-- Treat `DrnRateLimitOptions` as global defaults. Tenant plan, feature-flag, account, or endpoint-specific quotas belong in app-owned rules; because rule evaluation is synchronous, load plan data into the request scope or a refreshed in-memory snapshot before evaluating the rule.
-- Limiter partition factories must not capture `HttpContext` or scoped services; pass immutable values because limiters are reused per partition.
-- Post-auth uses DI-configured `RateLimiterOptions`, so named policies and rejection callbacks registered through `AddRateLimiter(options => ...)` remain available to `[EnableRateLimiting("policy-name")]`.
-- DRN emits metrics through the `DRN.Framework.Hosting.RateLimiting` meter; add this meter to OpenTelemetry exports when pre-auth metrics or DRN rule-level rejection metrics are needed. The action tag distinguishes `limit`, `allow`, `deny`, and `unknown`.
-- Derive traffic rates from existing counters without combining pre-auth and post-auth counts. Use actual rejected leases and their action for limiter diagnostics, not a one-second threshold derived from refill rates. Preserve burst capacity, phase/partition/instance boundaries, and explicit `deny` versus `limit` decisions. See [Telemetry](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#telemetry) for sampling limits and rejection log fields.
-- Rate-limit-specific rejected IP and partition fields default to deterministic keyed hashes with a `blake3-keyed:` prefix. This preserves correlation for those fields but does not anonymize the complete request log; standard request and user fields may still contain raw identifiers. Treat logs as sensitive, and use `DrnRateLimit.PartitionLogMode = PlainText` only for controlled development or dedicated encrypted audit sinks.
-- Built-in limiter state is process-local. `HybridCache` can cache policy data, but hard multi-replica quotas need edge enforcement or a Redis-backed custom `RateLimiter` returned through `RateLimitRuleResult.CustomPartition(...)`.
-
----
-
-## Background Services
-
-Use `[HostedService]` attribute to auto-register `BackgroundService` implementations:
-
-```csharp
-[HostedService]
-public class MyBackgroundWorker : BackgroundService
-{
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        while (!stoppingToken.IsCancellationRequested)
-            await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
-    }
 }
 ```
 
----
+README **Endpoint Management** covers endpoint collection grouping/initialization.
+
+Prefer MVC page/action routing or `Url.Endpoint(endpoint, values)` for initialized APIs. Use `~/` for application-relative HTML/HTMX URLs and `Url.Content` in C#. Reserve `Request.ApplicationUrl` for configured destinations such as MFA pages. Preserve validated return URLs. See README **Application URLs**.
+
+Use `ForPage` for page identities and `ForUrl` for URLs. Active href matching uses local request paths without queries/fragments. See [Razor accessors](../frontend-razor-accessors/SKILL.md) for presentation.
+
+`IPageUtils.RenderPageAsync` supports `_ViewStart`, layouts, and links for unmatched requests. It asynchronously disposes its own DI scope on success/failure. `parentContext` preserves `PathBase`/nonce without transferring scope ownership.
+
+## Error Responses
+
+DRN exceptions retain status (default 500). Flurl preserves upstream 400-499/503/504; other statuses or no response become 502. `BadHttpRequestException` retains `StatusCode` (default 400); other exceptions become 500. Names/inner exceptions do not choose status. Preserve cancellation, started-response, and abort behavior; never replace a response that can no longer be changed.
+
+Problem Type precedence: response, scope, status default, `about:blank`. Type overrides never change status. Leave Type unset for routine failures. Explicit types identify stable public conditions beyond status, never CLR names, routes, or request data.
+
+API statuses 400-599 use Problem Details in every environment with `JsonConventions.DefaultOptions`, not MVC/HTTP JSON overrides. Matched endpoints use API metadata; unmatched routes/routing 405s use `DrnApiErrorOptions.PathPrefixes` (default empty). Preserve auth decisions, headers, cookies, validation, and extensions. `requestId` is `HttpContext.TraceIdentifier`; default instance is PathBase + Path without query. Keep exceptions and serialization fallbacks private/redacted.
+
+`ScopeContext.Problem` fills missing fields/keys without overriding standard fields or validation. `[DisableDrnProblemDetails]` opts controllers/actions out of formatting and Swagger error metadata, retaining native responses/authentication. README **API Failure Responses** owns customization callbacks and Swagger response metadata.
+
+`HandleHtmxRequests` defaults false. Opt in for HTMX Problem Details, including Razor handlers. Preserve redirects, auth, opt-outs, and custom non-problem bodies. Razor `Page()` selects HTML; `ObjectResult` containing `ValidationProblemDetails(ModelState)` selects JSON at 400/422. Use safe messages, exact posted field names, and an empty key for form-level errors. Preserve existing API keys. See README **API Failure Responses**, **HTMX Partial Requests**, and [browser handling](../drn-buildwww-libraries/SKILL.md#problem-details-consumer).
+
+`DrnErrorPageOptions` configures browser 400/404/5xx pages. Keep them anonymous, non-cacheable, and independent of application data. Preserve status, request reference, deployment prefixes, redaction, existing bodies, Development diagnostics, and unmatched-route fallback authorization. Supported API exceptions bypass `WriteProductionErrorResponseAsync` unless opted out.
+
+For access-denied references, use `AccessDeniedPageModel` and `PreserveAccessDeniedRequestId()`. Follow README **Custom Error Pages** for cookie-event ordering, callback preservation, single-use TempData, and `EventsType` setup.
+
+Follow [Utils](../drn-utils/SKILL.md) and the profile's diagnostic guide. Apps own dynamic classification. `SanitizeText` does not certify content; runtime names do not redact. Keep private diagnostics out of public errors, including raw callbacks.
+
+See [Developer Diagnostics](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#developer-diagnostics) and [Startup Exception Reports](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#startup-exception-reports) for privacy and failure-logging rules.
+
+## Rate Limiting Rules
+
+README **Rate Limiting** owns settings/examples; **Telemetry** owns metrics/log fields.
+
+- Derive from `SingletonRateLimitRule`/`ScopedRateLimitRule` for automatic DI. Return null when inapplicable; otherwise return a `RateLimitRuleResult` quota, custom partition, allow, or deny result.
+- Lower `Order` runs first; rules compose. `Action` and `StopRemainingRules` are distinct. `ShortCircuitOnMatch` prioritizes same-order allow/deny; lower Order bypasses earlier quotas. Null permits later evaluation.
+- `[DisableRateLimiting]` bypasses pre-auth quota; `[EnableRateLimiting]` does not. `PolicyName` targets matching named policies; null is global, blank invalid. Post-auth retains DI-configured policies/rejection callbacks.
+- Defaults: post-auth 250/minute; pre-auth IP bucket 2,500/minute. `DrnAppFeatures:DrnRateLimit` is a startup snapshot; zero phase values inherit shared settings. App rules own tenant/account/endpoint quotas.
+- Use stable user IDs plus scheme, not display names. Scoped rules use `IScopedUser`/`RateLimitFor`. Preload policy data for synchronous evaluation. Partition factories receive immutable values, never captured HttpContext/scoped services.
+- Rejected IP/partition fields use keyed hashes, not whole-log anonymization. PlainText is for controlled development/encrypted audit sinks. State is process-local; hard multi-replica quotas require edge/custom distributed enforcement, not HybridCache alone.
+- README **Telemetry** owns the `DRN.Framework.Hosting.RateLimiting` meter, traffic/phase boundaries, rejection counts, and allow/deny distinctions.
 
 ## TagHelpers
 
-Activate DRN TagHelpers for Razor Pages in `Pages/_ViewImports.cshtml`:
+Activate in the applicable `_ViewImports.cshtml`:
 
 ```razor
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
 @addTagHelper *, DRN.Framework.Hosting
 ```
 
-The automatic behaviors below apply only to views covered by the DRN directive.
+Helpers resolve Vite assets/SRI, add CSP nonces and CSRF tokens to `hx-post/put/delete/patch`, and mark active links. README **Razor TagHelpers** owns targets, opt-outs, and script defaults; buildwww skills own asset layout.
 
-| TagHelper | Target | Purpose |
-|-----------|--------|---------|
-| `ViteScriptTagHelper` | `<script>` | Resolve Vite manifest + SRI |
-| `ViteLinkTagHelper` | `<link>` | Resolve Vite manifest + SRI |
-| `NonceTagHelper` | `<script>`, `<style>`, `<link>`, `<iframe>` | Add CSP nonce |
-| `CsrfTokenTagHelper` | `hx-post/put/delete/patch` | Add CSRF token |
-| `AuthorizedOnlyTagHelper` | `*[authorized-only]` | Render if authenticated |
-| `AnonymousOnlyTagHelper` | `*[anonymous-only]` | Render if anonymous |
-| `PolicyOnlyTagHelper` | `*[policy-only="PolicyName"]` | Render when the current request user satisfies a named policy; optional `policy-resource` |
-| `PageAnchorAspPageTagHelper` | `<a asp-page>` | Mark active page |
-| `PageAnchorHrefTagHelper` | `<a href>` | Mark active page |
-| `ScriptDefaultsTagHelper` | `<script>` | Modern defaults: `defer` (external), `type="module"` (inline) |
+`authorized-only`/`anonymous-only` are presence-only markers using `ScopeContext.Authenticated`; even `"false"` enables filtering. Omit the marker or use Razor conditions to disable it. They do not check completed MFA. `policy-only="PolicyName"` checks the current user with optional `policy-resource`; invalid policy names fail. Visibility never inspects linked endpoints or replaces endpoint authorization.
 
-**Vite**: `<script src="buildwww/app/js/appPostload.js">` -> `<script src="/appPostload/appPostload.abc123.js" integrity="sha256-xyz">`
-
-**Nonce**: With the DRN directive active, auto-added to `<script>`, `<style>`, `<link>`, `<iframe>`. Opt-out: `<script disable-nonce="true">`
-
-**CSRF**: With the DRN directive active, auto-added to `hx-post/put/delete/patch`. Opt-out: `<button disable-csrf-token="true">`
-
-**Auth visibility**:
 ```razor
-<nav authorized-only>Profile links here</nav>
 <a asp-page="/User/Login" anonymous-only>Sign In</a>
-<a asp-page="/Admin/Users" policy-only="ManageUsers">Manage users</a>
-<button policy-only="EditDocument" policy-resource="@Model.Document">Edit</button>
+<button type="button" policy-only="EditDocument" policy-resource="@Model.Document">Edit</button>
 ```
 
-`authorized-only` and `anonymous-only` are presence-only markers without bound boolean properties. Use bare attributes; any value, including `"false"`, still activates filtering. Omit the marker to omit its filter, or use Razor conditionals for dynamic rendering. Both markers are removed from rendered HTML.
-
-Both helpers use `ScopeContext.Authenticated`: `authorized-only` renders for signed-in users and `anonymous-only` for signed-out users. Endpoint policies own MFA enforcement by convention. On anonymous or MFA-exempt pages, authenticated setup/pending users can see `authorized-only` content. Use `policy-only` when visibility requires a specific policy; completed MFA is not checked by `authorized-only`.
-
-`policy-only` checks a named policy against the current user. Supply `policy-resource` when required by the policy; invalid policy names raise errors. It does not sign users in or inspect linked endpoints. Always enforce endpoint authorization separately.
-
-**Active page marking**:
-```razor
-<a asp-page="/Dashboard">Dashboard</a>
-<!-- If on /Dashboard → class="active fw-bold" aria-current="page" -->
-<a asp-page="/Settings" ActiveClass="current">Settings</a>
-<a asp-page="/Help" MarkWhenActive="false">Help</a>
-```
-
----
-
-## Configuration (appsettings.json)
-
-### Kestrel
-
-```json
-{
-  "Kestrel": {
-    "EndpointDefaults": { "Protocols": "Http1" },
-    "Endpoints": { "All": { "Url": "http://*:5988" } }
-  }
-}
-```
-
-### NLog
-
-```json
-{
-  "NLog": {
-    "targets": {
-      "console": { "type": "Console", "layout": "${longdate}|${level}|${logger}|${message}${onexception:|${exception:format=tostring}}" }
-    },
-    "rules": [
-      { "logger": "*", "minLevel": "Info", "writeTo": "console" },
-      { "logger": "Microsoft.*", "maxLevel": "Info", "final": true },
-      { "logger": "Microsoft.Hosting.Lifetime", "minLevel": "Info", "writeTo": "console", "final": true }
-    ]
-  }
-}
-```
-
-### wwwroot Structure
-
-**Application (`*.Hosted/wwwroot/`)** — Vite build output:
-```
-wwwroot/
-├── app/           # app.[hash].css, appPreload.[hash].js
-├── appPostload/   # appPostload.[hash].js
-├── images/        # Static images
-└── lib/           # htmx, bootstrap, react bundles
-```
-
-**Vite source (`*.Hosted/buildwww/`)** — unbundled source files:
-```
-buildwww/
-├── app/
-│   ├── css/       # App stylesheets
-│   └── js/        # App scripts (appPreload.js, appPostload.js)
-├── lib/           # Library sources (htmx, bootstrap, react)
-├── plugins/       # Vite plugins
-└── types/         # TypeScript type definitions
-```
-
-> `vite.config.js` defines named builds (`app`, `appPostload`, `htmx`, `bootstrap`, `react`) selected via `BUILD_TYPE` env var. Output goes to `wwwroot/` with content-hashed filenames and manifest files for TagHelper resolution.
->
-> `ViteManifest` discovers Vite's default `.vite/manifest.json` files under the active web root, or `ContentRootPath/wwwroot` when the web root is empty. The package's `buildTransitive` target uses the exact convention path `buildTransitive/$(PackageId).targets` and includes `wwwroot/**/.vite/manifest.json` for Web SDK publish output. When changing Staging/static-web-asset behavior, verify manifest discovery in the running app as well as server startup.
-
-> See [drn-entityframework](../drn-entityframework/SKILL.md) for `LaunchExternalDependenciesAsync` setup with Testcontainers.
-
----
+Vite publish must retain `.vite/manifest.json`. See README **Vite Manifest Publish Support** and `drn-buildwww-vite`.
 
 ## Related Skills
 
-- [overview-drn-framework.md](../overview-drn-framework/SKILL.md) - Framework overview
-- [drn-utils.md](../drn-utils/SKILL.md) - Utils and DI
-- [frontend-razor-pages-shared.md](../frontend-razor-pages-shared/SKILL.md) - Layout system
-- [frontend-razor-accessors.md](../frontend-razor-accessors/SKILL.md) - Accessor patterns
+- [Framework overview](../overview-drn-framework/SKILL.md): shared conventions.
+- [EntityFramework](../drn-entityframework/SKILL.md): dependency launch.
+- [Razor layout](../frontend-razor-pages-shared/SKILL.md): UI lifecycle.
 
----
-
-## Global Usings
-
-```csharp
-global using DRN.Framework.SharedKernel;
-global using DRN.Framework.SharedKernel.Domain;
-global using DRN.Framework.Utils.DependencyInjection;
-global using DRN.Framework.Hosting.DrnProgram;
-global using DRN.Framework.Hosting.Endpoints;
-global using Microsoft.AspNetCore.Mvc.RazorPages;
-```
+[hosting]: https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md

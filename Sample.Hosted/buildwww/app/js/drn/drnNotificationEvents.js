@@ -1,5 +1,14 @@
 import { mediaType } from './drnHttp.js';
 
+function syncHistory() {
+    DRN.Notifications.sync();
+}
+
+function isValidationFragment(xhr, contentType) {
+    return xhr.status === 422 && contentType === 'text/html' &&
+        xhr.getResponseHeader('X-DRN-Validation') === 'true';
+}
+
 function affectsUserAction(detail) {
     const element = detail?.requestConfig?.elt || detail?.elt;
     const explicit = element?.closest?.('[data-notification-user-action]')?.dataset.notificationUserAction;
@@ -52,6 +61,11 @@ export function installNotificationEvents(panel) {
     function stale(detail) {
         return !DRN.Notifications.isActive() ||
             (detail?.xhr && requestEpochs.has(detail.xhr) && requestEpochs.get(detail.xhr) !== epoch);
+    }
+
+    function shouldClearProblem(detail) {
+        return detail?.xhr?.status >= 200 && detail.xhr.status < 300 &&
+            !handled.has(detail.xhr) && !stale(detail);
     }
 
     function showAccountChange() {
@@ -143,9 +157,6 @@ export function installNotificationEvents(panel) {
     else start();
     document.addEventListener('htmx:load', refresh);
     window.addEventListener('pageshow', refresh);
-    function syncHistory() {
-        DRN.Notifications.sync();
-    }
     DRN.Notifications.subscribe(() => {
         const active = DRN.Notifications.isActive();
         const becameInactive = observedActive && !active;
@@ -195,8 +206,7 @@ export function installNotificationEvents(panel) {
             detail.shouldSwap = false;
             detail.isError = true;
             showFailure(detail);
-        } else if (xhr.status === 422 && contentType === 'text/html' &&
-            xhr.getResponseHeader('X-DRN-Validation') === 'true') {
+        } else if (isValidationFragment(xhr, contentType)) {
             // Only application-owned validation fragments opt into an error-status swap.
             detail.shouldSwap = true;
             detail.isError = false;
@@ -209,7 +219,7 @@ export function installNotificationEvents(panel) {
         'The request timed out', 'The outcome is unknown. Check the current state before trying again.'));
     document.addEventListener('htmx:afterRequest', event => {
         const detail = event.detail;
-        if (detail?.xhr?.status >= 200 && detail.xhr.status < 300 && !handled.has(detail.xhr) && !stale(detail))
+        if (shouldClearProblem(detail))
             DRN.Problem.clear(requestContext(detail));
     });
     document.addEventListener('htmx:beforeCleanupElement', event => DRN.Toast.cleanup(event.detail?.elt));

@@ -1,12 +1,13 @@
 <label for="drn-notification-search" class="form-label">Search notifications</label>
 <input id="drn-notification-search" type="search" class="form-control mb-3" maxlength="200" autocomplete="off"
        placeholder="Message, action, or request reference" aria-controls="drn-notification-list"/>
-<div class="d-flex flex-wrap gap-1 mb-3" role="group" aria-label="Notification severity">
+<fieldset class="d-flex flex-wrap gap-1 mb-3">
+    <legend class="visually-hidden">Notification severity</legend>
     <button type="button" class="btn btn-sm btn-primary" data-notification-filter="all" aria-pressed="true">All (0)</button>
     <button type="button" class="btn btn-sm btn-outline-secondary" data-notification-filter="info" aria-pressed="false">Info (0)</button>
     <button type="button" class="btn btn-sm btn-outline-secondary" data-notification-filter="warning" aria-pressed="false">Warnings (0)</button>
     <button type="button" class="btn btn-sm btn-outline-secondary" data-notification-filter="error" aria-pressed="false">Errors (0)</button>
-</div>
+</fieldset>
 <div class="d-flex flex-wrap gap-2 mb-3">
     <button type="button" class="btn btn-sm btn-outline-secondary" data-notification-clear-filtered disabled>Clear filtered</button>
     <button type="button" class="btn btn-sm btn-outline-danger" data-notification-clear-all disabled>Clear all</button>
@@ -15,6 +16,6 @@
     <span>Notifications cleared.</span>
     <button type="button" class="btn btn-sm btn-link" data-notification-undo>Undo</button>
 </div>
-<p id="drn-notification-result" class="text-body-secondary small" role="status">No notifications.</p>
+<output id="drn-notification-result" class="d-block mb-3 text-body-secondary small">No notifications.</output>
 <ul id="drn-notification-list" class="list-unstyled mb-3" aria-label="Notification history"></ul>
 <button type="button" class="btn btn-outline-secondary w-100 d-none" data-notification-load-more hidden>Load more</button>

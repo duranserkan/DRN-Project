@@ -170,6 +170,97 @@ public sealed class ProjectDiagnosticRulesTests
     }
 
     [Fact]
+    public async Task Shared_Model_Graphs_Should_Be_Bounded_Without_Disabling_Later_Captures()
+    {
+        var declarations = new System.Text.StringBuilder("public class Level0 { public int Value { get; set; } }\n");
+        for (var level = 1; level <= 10; level++)
+        {
+            declarations.Append($"public class Level{level} {{ ");
+            for (var branch = 0; branch < 8; branch++)
+                declarations.Append($"public Level{level - 1} Branch{branch} {{ get; set; }} ");
+            declarations.AppendLine("}");
+        }
+        var compilation = Compilation($$"""
+            namespace DRN.Framework.Utils.Logging
+            {
+                public interface IScopedLog { void Add(string key, object value); }
+            }
+            {{declarations}}
+            public class Caller
+            {
+                public void Run(DRN.Framework.Utils.Logging.IScopedLog log, Level10 large, Level0 small)
+                {
+                    log.Add("Root", large);
+                    log.Add("Payload", small);
+                }
+            }
+            """);
+        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var diagnostics = await compilation.WithAnalyzers([new DiagnosticClassificationAnalyzer()],
+                new AnalyzerOptions([new RuleFile("data-classification-rules.json", """{"sensitiveFieldPaths":["Payload.Value"]}""")]))
+            .GetAnalyzerDiagnosticsAsync(cancellation.Token).WaitAsync(cancellation.Token);
+        diagnostics.Should().HaveCount(2);
+        diagnostics.Should().ContainSingle(item => item.Id == "DRN0025");
+        diagnostics.Should().ContainSingle(item => item.Id == "DRN0017")
+            .Which.GetMessage().Should().Contain("Payload.Value");
+    }
+
+    [Fact]
+    public async Task Shared_Model_Types_Should_Be_Checked_At_Each_Configured_Path()
+    {
+        var diagnostics = await Analyze(Compilation("""
+            namespace DRN.Framework.Utils.Logging
+            {
+                public interface IScopedLog { void Add(string key, object value); }
+            }
+            public class Leaf { public string Value { get; set; } = ""; }
+            public class Model
+            {
+                public Leaf Left { get; set; }
+                public Leaf Right { get; set; }
+            }
+            public class Caller
+            {
+                public void Run(DRN.Framework.Utils.Logging.IScopedLog log, Model model) => log.Add("Root", model);
+            }
+            """), new RuleFile("data-classification-rules.json",
+            """{"sensitiveFieldPaths":["Root.Left.Value","Root.Right.Value"]}"""));
+        diagnostics.Should().HaveCount(2).And.OnlyContain(diagnostic => diagnostic.Id == "DRN0017");
+        diagnostics.Select(diagnostic => diagnostic.GetMessage()).Should().Contain(message => message.Contains("Root.Left.Value"))
+            .And.Contain(message => message.Contains("Root.Right.Value"));
+    }
+
+    [Fact]
+    public async Task Shared_Dictionary_Locals_Should_Not_Spend_Their_Budget_Rescanning_Unrelated_Operations()
+    {
+        var unrelated = string.Concat(Enumerable.Repeat("System.Console.WriteLine(0);\n", 1000));
+        var entries = string.Join(", ", Enumerable.Range(0, 12).Select(index => $"[\"Branch{index}\"] = shared"));
+        var diagnostics = await Analyze(Compilation($$"""
+            using System.Collections.Generic;
+            namespace DRN.Framework.Utils.Logging
+            {
+                public interface IScopedLog { void Add(string key, object value); }
+            }
+            public class Caller
+            {
+                public void Run(DRN.Framework.Utils.Logging.IScopedLog log)
+                {
+                    {{unrelated}}
+                    var shared = new Dictionary<string, object>();
+                    shared["Value"] = "private";
+                    var root = new Dictionary<string, object> { {{entries}} };
+                    log.Add("Root", root);
+                    shared["LaterValue"] = "private";
+                }
+            }
+            """), new RuleFile("data-classification-rules.json",
+            """{"sensitiveFieldPaths":["Root.Branch11.Value","Root.Branch11.LaterValue"]}"""));
+        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRN0020");
+        diagnostics.Single().GetMessage().Should().Contain("Root.Branch11.Value");
+    }
+
+    [Fact]
     public async Task Project_Field_Paths_Should_Check_Typed_Capture_Prefixes()
     {
         var compilation = DiagnosticClassificationAnalyzerTests.Compilation("""

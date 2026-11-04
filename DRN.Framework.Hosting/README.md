@@ -25,7 +25,6 @@
 
 - [QuickStart: Beginner](#quickstart-beginner)
 - [QuickStart: Advanced](#quickstart-advanced)
-- [Directory Structure](#directory-structure)
 - [Lifecycle & Execution Flow](#lifecycle--execution-flow)
 - [DrnProgramBase Deep Dive](#drnprogrambase-deep-dive)
 - [Configuration](#configuration)
@@ -45,7 +44,7 @@
 
 ## QuickStart: Beginner
 
-Use a .NET 10 web project with a `DRN.Framework.Hosting` package reference. Inherit from `DrnProgramBase<TProgram>` and register application services. Configure `Environment` and `NLog` before calling `RunAsync`; see [Configuration](#configuration).
+Use a .NET 10 web project with a `DRN.Framework.Hosting` package reference. Inherit from `DrnProgramBase<TProgram>` and register application services. Configure `Environment`, `NexusAppSettings:AppId`, `NexusAppSettings:AppInstanceId`, and `NLog` before calling `RunAsync`; see [Configuration](#configuration).
 
 ```csharp
 using DRN.Framework.Hosting.DrnProgram;
@@ -102,28 +101,6 @@ while a debugger is attached to preserve the log privacy gate. Do not request `I
 theory parameter for application logging: AutoFixture supplies an interface substitute, not xUnit's runner-owned
 helper.
 
-## Directory Structure
-
-```text
-DRN.Framework.Hosting/
-├── DrnProgram/          # DrnProgramBase, options, actions, conventions
-├── Endpoints/           # EndpointCollectionBase, PageForBase, type-safe accessors
-├── Auth/                # Policies, MFA configuration, requirements
-├── BackgroundServices/  # StaticAssetWarmService (pre-warm compressed assets)
-├── Consent/             # GDPR cookie consent management
-├── Extensions/          # Configuration, controller context, endpoint helpers
-├── HealthCheck/         # WeatherForecastControllerBase for quick health checks
-├── Identity/            # Identity integration and scoped user middleware
-├── Middlewares/         # HttpScopeMiddleware, exception handling, security middlewares
-├── Nexus/               # Nexus HTTP request and client helpers
-├── RateLimiting/        # Pre-auth and post-auth rate-limit rules
-├── TagHelpers/          # Razor TagHelpers (Vite, Nonce, CSRF, Auth-Only, Anon-Only)
-├── Utils/               # AppStartupStatus, ServerSettings, Vite manifest, ResourceExtractor
-├── Areas/               # Framework-provided Razor Pages (e.g., Error pages)
-├── buildTransitive/     # NuGet publish integration
-├── wwwroot/             # Framework style and script assets
-```
-
 ## Lifecycle & Execution Flow
 
 Use configuration hooks for services and options, pipeline hooks for middleware, and `DrnProgramActions` for startup integration. The diagram shows startup order; the [pipeline table](#2-pipeline-hooks-application-phase) lists the complete request sequence.
@@ -131,7 +108,7 @@ Use configuration hooks for services and options, pipeline hooks for middleware,
 ```mermaid
 flowchart TD
     Start(["RunAsync: settings and bootstrap logging"])
-    Start --> Time["Resolve SharedKernel time floor; always validate cached UTC"]
+    Start --> Time["Validate configured ID generation time"]
     Time --> Builder["ConfigureSwaggerOptions; create builder and load settings"]
     Builder --> Configure["ConfigureApplicationBuilder; AddServicesAsync"]
     Configure --> Callback["Optional configureBuilder callback"]
@@ -265,6 +242,8 @@ Override `ConfigureSwaggerOptions`, call base, then set `AddSwagger = true` and 
 
 
 ## Configuration
+
+Set `NexusAppSettings:AppId` and `NexusAppSettings:AppInstanceId` explicitly in every environment, including when either value is zero. AppId accepts 0 through 127 and must match the application's entity partition. AppInstanceId accepts 0 through 63; assign distinct values to concurrent instances generating IDs for that application. Staging and Production require private `DrnAppFeatures:SeedKey` and Nexus keys. See [Utils configuration](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/README.md#configuration) for key requirements.
 
 ### Layering
 
@@ -827,8 +806,8 @@ Without the DRN directive, Vite resolution, CSP nonces, HTMX CSRF headers, activ
 
 | TagHelper | Target | Purpose |
 | :--- | :--- | :--- |
-| `ViteScriptTagHelper` | `<script src="buildwww/...">` | Resolves Vite manifest entries and adds subresource integrity (SRI). |
-| `ViteLinkTagHelper` | `<link href="buildwww/...">` | Resolves Vite manifest entries for CSS assets, adds SRI. |
+| `ViteScriptTagHelper` | `<script src="buildwww/...">` or `<script src="node_modules/...">` | Resolves Vite manifest entries and adds subresource integrity (SRI). |
+| `ViteLinkTagHelper` | `<link href="buildwww/...">` or `<link href="node_modules/...">` | Resolves Vite manifest entries for CSS assets, adds SRI. |
 | `NonceTagHelper` | `<script>`, `<style>`, `<link>`, `<iframe>` | Automatically injects the request-specific CSP nonce. |
 | `CsrfTokenTagHelper` | `hx-post`, `hx-put`, `hx-delete`, `hx-patch`, or `add-csrf-token` | Adds `RequestVerificationToken` to `hx-headers`. On matched elements, `disable-csrf-token` opts out. |
 | `AuthorizedOnlyTagHelper` | `*[authorized-only]` | Renders the element only if the user is authenticated. |
@@ -837,6 +816,10 @@ Without the DRN directive, Vite resolution, CSP nonces, HTMX CSRF headers, activ
 | `PageAnchorAspPageTagHelper` | `<a asp-page="...">` | Adds `active fw-bold` and `aria-current="page"` when the link matches the current page. |
 | `PageAnchorHrefTagHelper` | `<a href="...">` | On Razor Pages, adds `active fw-bold` and `aria-current="page"` when the resolved root-relative href path matches the public request path, including custom routes and deployment prefixes. Ignores queries and fragments. Absolute, protocol-relative, fragment-only, and relative links are not marked active. Use `asp-page` for page-identity matching. |
 | `ScriptDefaultsTagHelper` | `<script>` | Modern defaults: `defer` for external scripts, `type="module"` for inline scripts. Opt-out via `defer="false"` or explicit `type`. |
+
+`CsrfTokenTagHelper` supplies tokens; it does not enable server-side validation for controller or minimal endpoints. Preserve Razor Pages' antiforgery conventions and configure appropriate validation for cookie-authenticated state-changing endpoints.
+
+Set `disable-nonce="true"` to suppress nonce injection on an element. This does not change the Content Security Policy (CSP), so the browser can still block the element. Active-link helpers accept `active-class` to customize their CSS classes and `mark-when-active="false"` to disable class marking. A matching link still receives `aria-current="page"` when class marking is disabled.
 
 ### Authorization Visibility
 
@@ -866,6 +849,8 @@ When publishing with a custom web root, build targets do not automatically captu
 During loading, `ViteManifest` rejects manifests outside the resolved root and assets outside their output directory or missing from disk with `ConfigurationException`. Normal startup loads manifests during pipeline configuration; temporary hosts and `SkipValidation` skip that eager check. Asset hashes populate `Integrity` as base64 SHA-256 (`sha256-...`) for `ViteScriptTagHelper` and `ViteLinkTagHelper`.
 
 Keep manifests and referenced assets under the application's web root, and verify CSS and JavaScript loading after publish.
+
+Missing manifests or unmatched entry names do not by themselves fail startup. An unresolved Vite script or stylesheet entry is omitted and replaced with an HTML comment in every environment, including Production. Verify that each referenced entry exists after the frontend build.
 
 Disable the publish item injection when an application owns this behavior itself:
 

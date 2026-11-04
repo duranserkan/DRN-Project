@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using DRN.Framework.SharedKernel.Diagnostics;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
@@ -66,6 +67,11 @@ internal sealed class LoggingCaptureAnalysis(OperationAnalysisContext context, C
         var message = Argument("message") ?? Argument("messageFormat");
         if (message?.ConstantValue is not { HasValue: true, Value: string template } || template.Length > MaxTemplateLength ||
             !values.IsDefault && values.Length == 0) return;
+        AnalyzeTemplateNames(template, values);
+    }
+
+    private void AnalyzeTemplateNames(string template, ImmutableArray<IOperation> values)
+    {
         var position = 0;
         var valueIndex = 0;
         while (position < template.Length && valueIndex < MaxValues)
@@ -79,13 +85,18 @@ internal sealed class LoggingCaptureAnalysis(OperationAnalysisContext context, C
             while (nameEnd < close && template[nameEnd] is not (',' or ':')) nameEnd++;
             var name = template.Substring(open + 1, nameEnd - open - 1);
             var knownSafe = !values.IsDefault && valueIndex < values.Length && IsSafeConstant(values[valueIndex]);
-            var configuredPath = rules.MatchesPath(name);
-            if (!knownSafe && (configuredPath || rules.MatchesField(name) && !exemptions.Allows(call.Syntax, name)))
-                context.ReportDiagnostic(Diagnostic.Create(Descriptor, call.Syntax.GetLocation(),
-                    DiagnosticNameExemption.NameMessage(name, configuredPath)));
+            AnalyzeTemplateName(name, knownSafe);
             valueIndex++;
             position = close + 1;
         }
+    }
+
+    private void AnalyzeTemplateName(string name, bool knownSafe)
+    {
+        var configuredPath = rules.MatchesPath(name);
+        if (!knownSafe && (configuredPath || rules.MatchesField(name) && !exemptions.Allows(call.Syntax, name)))
+            context.ReportDiagnostic(Diagnostic.Create(Descriptor, call.Syntax.GetLocation(),
+                DiagnosticNameExemption.NameMessage(name, configuredPath)));
     }
 
     // Paired braces are escaped. Opening runs select their last brace, closing runs their first.

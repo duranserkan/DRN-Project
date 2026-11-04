@@ -1,4 +1,5 @@
 using ValidationException = System.ComponentModel.DataAnnotations.ValidationException;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Diagnostics;
@@ -11,6 +12,8 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Logging;
 
 public class ProjectDiagnosticRulesTests
 {
+    private static readonly int[] CancellationReferences = [1];
+
     [Fact]
     public void Missing_Transitive_Assemblies_Should_Not_Discard_Available_Catalogs()
     {
@@ -31,10 +34,10 @@ public class ProjectDiagnosticRulesTests
     public void Invalid_Transitive_Assemblies_Should_Still_Fail_Discovery()
     {
         var references = new[] { new AssemblyName("Invalid.Dependency") };
-        Action failedLoad = () => EmbeddedClassificationRules.LoadReferences(references,
+        Action failedLoad = () => _ = EmbeddedClassificationRules.LoadReferences(references,
             _ => throw new FileLoadException()).ToArray();
         failedLoad.Should().Throw<FileLoadException>();
-        Action invalidImage = () => EmbeddedClassificationRules.LoadReferences(references,
+        Action invalidImage = () => _ = EmbeddedClassificationRules.LoadReferences(references,
             _ => throw new BadImageFormatException()).ToArray();
         invalidImage.Should().Throw<BadImageFormatException>();
     }
@@ -146,7 +149,7 @@ public class ProjectDiagnosticRulesTests
             {
                 referenceCalls++;
                 cancellation.Cancel();
-                return new[] { 1 };
+                return CancellationReferences;
             },
             _ =>
             {
@@ -212,7 +215,7 @@ public class ProjectDiagnosticRulesTests
             File.WriteAllText(path, "{\"personalFields\":null}");
             using var settings = SettingsProvider.Development(new { DiagnosticLogging = Options() with { RuleFile = path } });
             Action sanitizer = () => DiagnosticSanitizer.FromSettings(settings);
-            Action log = () => new ScopedLog(settings);
+            Action log = () => _ = new ScopedLog(settings);
             sanitizer.Should().Throw<FormatException>();
             log.Should().Throw<FormatException>();
         }
@@ -232,6 +235,7 @@ public class ProjectDiagnosticRulesTests
 
     private sealed class ReviewedModel
     {
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance property exercises reflection capture of a reviewed value.")]
         [Sensitive(false, Justification = "Public reference in this fixture.")]
         public string MembershipNumber => "public-reference";
     }
@@ -248,6 +252,7 @@ public class ProjectDiagnosticRulesTests
 
     private sealed class PathModel
     {
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance property exercises typed model capture with configured paths.")]
         [Sensitive(false, Justification = "Exercise full-path protection independently of name exemptions.")]
         public string PrivateValue => "probe";
     }
@@ -265,14 +270,14 @@ public class ProjectDiagnosticRulesTests
             log.Add("MembershipNumber", "member");
             File.WriteAllText(path, "{\"personalFields\":null}");
             new DiagnosticSanitizer(options).SanitizeValue("MembershipNumber", "member").Should().Be("member");
-            Action invalid = () => new DiagnosticSanitizer(options with { });
+            Action invalid = () => _ = new DiagnosticSanitizer(options with { });
             invalid.Should().Throw<FormatException>();
             File.Delete(path);
             log.GetLogs()["MembershipNumber"].Should().Be("member");
             var copy = new ScopedLog(settings, Policy());
             copy.CopyFrom(log);
             copy.GetLogs()["MembershipNumber"].Should().Be("member");
-            Action missing = () => new DiagnosticSanitizer(options with { });
+            Action missing = () => _ = new DiagnosticSanitizer(options with { });
             missing.Should().Throw<FileNotFoundException>();
         }
         finally { File.Delete(path); }
@@ -286,7 +291,7 @@ public class ProjectDiagnosticRulesTests
         {
             File.WriteAllText(path, "{\"personalFields\":null}");
             var original = new DiagnosticSanitizer(Options());
-            Action changed = () => new DiagnosticSanitizer(original.Options with { RuleFile = path });
+            Action changed = () => _ = new DiagnosticSanitizer(original.Options with { RuleFile = path });
             changed.Should().Throw<FormatException>();
             original.SanitizeValue("MembershipNumber", "member").Should().Be("member");
         }
@@ -335,10 +340,10 @@ public class ProjectDiagnosticRulesTests
             foreach (var json in InvalidDiagnosticRuleCases.Create())
             {
                 File.WriteAllText(path, json);
-                Action create = () => new DiagnosticSanitizer(Options() with { RuleFile = path });
+                Action create = () => _ = new DiagnosticSanitizer(Options() with { RuleFile = path });
                 create.Should().Throw<FormatException>();
             }
-            Action blank = () => new DiagnosticSanitizer(Options() with { RuleFile = " " });
+            Action blank = () => _ = new DiagnosticSanitizer(Options() with { RuleFile = " " });
             blank.Should().Throw<ValidationException>();
         }
         finally { File.Delete(path); }

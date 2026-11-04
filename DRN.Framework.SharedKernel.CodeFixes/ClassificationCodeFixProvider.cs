@@ -133,13 +133,16 @@ internal static class ClassificationEdit
         if (exempt) attribute = attribute.WithArgumentList(SyntaxFactory.AttributeArgumentList(
             SyntaxFactory.SingletonSeparatedList(SyntaxFactory.AttributeArgument(SyntaxFactory.LiteralExpression(SyntaxKind.FalseLiteralExpression)))));
         var list = SyntaxFactory.AttributeList(SyntaxFactory.SingletonSeparatedList(attribute));
-        SyntaxNode replacement = target switch
+        // Keep directives and documentation before the first attribute, not on the old first token.
+        var leadingTrivia = target.GetLeadingTrivia();
+        SyntaxNode replacement = target.WithoutLeadingTrivia() switch
         {
             PropertyDeclarationSyntax property => property.AddAttributeLists(list),
             ParameterSyntax parameter => parameter.AddAttributeLists(list.WithTarget(SyntaxFactory.AttributeTargetSpecifier(SyntaxFactory.Token(SyntaxKind.PropertyKeyword)))),
             _ => target
         };
         var root = await document.GetSyntaxRootAsync(token);
-        return document.WithSyntaxRoot(root!.ReplaceNode(target, replacement.WithAdditionalAnnotations(Formatter.Annotation)));
+        return document.WithSyntaxRoot(root!.ReplaceNode(target,
+            replacement.WithLeadingTrivia(leadingTrivia).WithAdditionalAnnotations(Formatter.Annotation)));
     }
 }

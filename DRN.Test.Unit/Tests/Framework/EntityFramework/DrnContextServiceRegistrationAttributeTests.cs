@@ -485,10 +485,9 @@ public readonly struct SecondValidationApp : IAppId
 [EntityType<FirstValidationApp>(250)]
 public sealed class FirstPartitionEntity : SourceKnownEntity;
 
-#pragma warning disable DRN0002 // Intentional duplicate entity type to test runtime validation
+[SuppressMessage("DRN.Domain", "DRN0002", Justification = "Intentional duplicate entity type exercises runtime validation.")]
 [EntityType<FirstValidationApp>(250)]
 public sealed class FirstPartitionDuplicateEntity : SourceKnownEntity;
-#pragma warning restore DRN0002
 
 [EntityType<SecondValidationApp>(250)]
 public sealed class SecondPartitionEntity : SourceKnownEntity;

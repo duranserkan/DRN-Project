@@ -7,6 +7,8 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Http;
 
 public class LinkerdDiagnosticsTests
 {
+    private static readonly string[] HeaderValues = ["first", "second", "third"];
+
     [Theory]
     [DataInlineUnit("l5d-proxy-error", 1, "first")]
     [DataInlineUnit("l5d-proxy-error", 2, "first, second")]
@@ -23,7 +25,7 @@ public class LinkerdDiagnosticsTests
             MaxCollectionEntries = 2, MaxProcessingMilliseconds = 100
         }));
         using var message = new HttpResponseMessage(System.Net.HttpStatusCode.BadGateway);
-        message.Headers.Add(header, new[] { "first", "second", "third" }.Take(count));
+        message.Headers.Add(header, HeaderValues.Take(count));
         var response = Substitute.For<IFlurlResponse>();
         response.ResponseMessage.Returns(message);
 

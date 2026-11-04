@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.EntityFramework.Context.Interceptors;
@@ -143,9 +144,8 @@ public class InheritanceModelTests
         }
     }
 
-#pragma warning disable DRN0001 // Missing metadata intentionally exercises runtime validation.
+    [SuppressMessage("DRN.Domain", "DRN0001", Justification = "Missing metadata intentionally exercises runtime validation.")]
     public sealed class MissingMetadataEntity : InheritanceRoot;
-#pragma warning restore DRN0001
 
     private abstract class InheritanceContext(DbContextOptions options) : DbContext(options)
     {

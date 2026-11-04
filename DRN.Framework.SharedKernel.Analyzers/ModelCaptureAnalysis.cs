@@ -10,6 +10,7 @@ internal sealed class ModelCaptureAnalysis(OperationAnalysisContext context, Cla
     bool namesAcknowledged = false)
 {
     private const int MaxModelDepth = 16;
+    private const int MaxModelWork = 16384;
     private const string TimeSpanTypeName = "System.TimeSpan";
     private const string NullableTimeSpanTypeName = TimeSpanTypeName + "?";
     private const string DateTimeOffsetTypeName = "System.DateTimeOffset";
@@ -22,9 +23,30 @@ internal sealed class ModelCaptureAnalysis(OperationAnalysisContext context, Cla
     private const string EnumerableTypeName = "System.Collections.IEnumerable";
     private const string SecondsSuffix = "_Seconds";
     private readonly HashSet<ITypeSymbol> _ancestors = new(SymbolEqualityComparer.Default);
+    // Shared types must be revisited under different paths, so depth alone cannot bound work.
+    private int _remainingWork = MaxModelWork;
+    private bool _workLimitReported;
+
+    private bool TryVisit()
+    {
+        context.CancellationToken.ThrowIfCancellationRequested();
+        if (_remainingWork == 0)
+        {
+            if (!_workLimitReported)
+            {
+                _workLimitReported = true;
+                context.ReportDiagnostic(Diagnostic.Create(ClassificationDiagnosticDescriptors.IncompleteModelAnalysis,
+                    call.Syntax.GetLocation()));
+            }
+            return false;
+        }
+        _remainingWork--;
+        return true;
+    }
 
     internal void Analyze(ITypeSymbol type, string path)
     {
+        context.CancellationToken.ThrowIfCancellationRequested();
         if (contract.Positive(type)) return;
         if (call.TargetMethod.Name == "Add" && type.ToDisplayString() is TimeSpanTypeName or NullableTimeSpanTypeName)
             path += SecondsSuffix;
@@ -40,6 +62,7 @@ internal sealed class ModelCaptureAnalysis(OperationAnalysisContext context, Cla
 
     private void Visit(ITypeSymbol current, string currentPath, string namePath, int depth)
     {
+        if (!TryVisit()) return;
         if (current is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable)
             current = nullable.TypeArguments[0];
         if (ShouldSkipType(current, depth) || !_ancestors.Add(current)) return;
@@ -75,6 +98,7 @@ internal sealed class ModelCaptureAnalysis(OperationAnalysisContext context, Cla
         for (var level = named; level != null; level = level.BaseType)
             foreach (var property in level.GetMembers().OfType<IPropertySymbol>().Where(ClassificationContract.Eligible))
             {
+                if (!TryVisit()) return;
                 if (!names.Add(property.Name) || contract.Positive(property) || contract.Positive(property.Type) ||
                     contract.Positive(property.ContainingType)) continue;
                 var propertyNamePath = IsModelType(named) ? property.Name : namePath + "." + property.Name;

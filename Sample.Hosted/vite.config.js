@@ -68,6 +68,39 @@ const builds = {
             },
         },
     },
+    layoutBehaviors: {
+        plugins: [iifeWrap()],
+        build: {
+            outDir: 'wwwroot/behaviors/layout',
+            rolldownOptions: {
+                input: {
+                    layoutBehaviors: resolve(import.meta.dirname, 'buildwww/app/js/layoutBehaviors.js')
+                }
+            }
+        }
+    },
+    homeBehaviors: {
+        plugins: [iifeWrap()],
+        build: {
+            outDir: 'wwwroot/behaviors/home',
+            rolldownOptions: {
+                input: {
+                    homeBehaviors: resolve(import.meta.dirname, 'buildwww/app/js/homeBehaviors.js')
+                }
+            }
+        }
+    },
+    testBehaviors: {
+        plugins: [iifeWrap()],
+        build: {
+            outDir: 'wwwroot/behaviors/test',
+            rolldownOptions: {
+                input: {
+                    testBehaviors: resolve(import.meta.dirname, 'buildwww/app/js/testBehaviors.js')
+                }
+            }
+        }
+    },
     htmx: {
         plugins: [iifeWrap(), stripHtmxEval()],
         build: {

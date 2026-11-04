@@ -708,6 +708,33 @@ public partial class SourceKnownEntityTypeAnalyzerTests
     }
 
     [Fact]
+    public async Task DerivedAttribute_ConstructedAmbiguousPrimaryBaseInitializers_Should_Not_Crash()
+    {
+        const string source = """
+            using DRN.Framework.SharedKernel.Domain;
+            public interface IOther;
+            public sealed class CustomAttribute(byte value) : EntityTypeAttribute<DefaultApp>(value), IOther;
+            """;
+        var tree = CSharpSyntaxTree.ParseText(source);
+        var root = tree.GetRoot();
+        var initializer = root.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.PrimaryConstructorBaseTypeSyntax>().Single();
+        var otherBase = root.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.SimpleBaseTypeSyntax>().Single();
+        // The parser only creates a primary-constructor initializer for the first base type.
+        // Construct the malformed tree directly to exercise the multiple-initializer guard.
+        var ambiguousBase = SyntaxFactory.PrimaryConstructorBaseType(otherBase.Type, initializer.ArgumentList);
+        tree = tree.WithRootAndOptions(root.ReplaceNode(otherBase, ambiguousBase), tree.Options);
+        tree.GetRoot().DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.PrimaryConstructorBaseTypeSyntax>()
+            .Should().HaveCount(2);
+        var compilation = CSharpCompilation.Create("Domain", [tree], GetBaseReferences(),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        EntityAttributeContract.IsSupported(compilation.GetTypeByMetadataName("CustomAttribute"), compilation, CancellationToken.None)
+            .Should().BeFalse();
+        var diagnostics = await compilation.WithAnalyzers([new SourceKnownEntityTypeAnalyzer()]).GetAnalyzerDiagnosticsAsync();
+        diagnostics.Should().NotContain(diagnostic => diagnostic.Id == "AD0001");
+        diagnostics.Should().ContainSingle(diagnostic => diagnostic.Id == "DRN0008");
+    }
+
+    [Fact]
     public void EntityMetadataExtraction_ObservesCancellation()
     {
         const string source = """

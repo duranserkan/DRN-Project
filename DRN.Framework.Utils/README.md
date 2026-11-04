@@ -204,7 +204,7 @@ For DRN Hosting rate limiting, use `HybridCache` to cache tenant plan, feature f
 > [!NOTE]
 > `[Singleton<T>]`, `[Scoped<T>]`, `[Transient<T>]`, and their keyed variants accept an optional `tryAdd` parameter (default: `true`). When `true`, `TryAdd` is used so existing registrations are not overwritten. Set it to `false` to allow multiple implementations of the same service type.
 
-Assembly scan metadata is cached, while registration modules and startup-validation state remain isolated to each service collection and provider. Repeating registration for the same assembly on one service collection is idempotent.
+Repeating registration for the same assembly on one service collection is idempotent. Registrations and startup validation remain independent across service collections and providers.
 
 ### Hosted Services
 
@@ -297,7 +297,7 @@ For root-wide migration, replace `cancellation.Cancel()`, `Merge(token)`, `Token
 
 Services can require complex registration logic or post-startup actions. Attributes inheriting from `ServiceRegistrationAttribute` handle this.
 
-A class can carry multiple registration attributes. Discovery enumerates all of them, deduplicates equal attributes across the assembly, and retains each distinct module's service descriptors for startup validation. Use `GetModuleAttributes(Type)` for plural discovery; `GetModuleAttribute(Type)` requires exactly one attribute.
+A class can carry multiple registration attributes. Equal attributes across an assembly are applied once. Use `GetModuleAttributes(Type)` for plural discovery; `GetModuleAttribute(Type)` requires exactly one attribute.
 
 **Example**: `DrnContext<T>` (in `DRN.Framework.EntityFramework`) is decorated with `[DrnContextServiceRegistration]`, which:
 1.  Registers the DbContext.
@@ -397,6 +397,30 @@ Override the mount directory by registering `IMountedSettingsConventionsOverride
 
 Set `DrnAppDataSettings:RequireTemp` or `DrnAppDataSettings:RequireData` to fail startup when the resolved path is not valid.
 
+### Localization Settings
+
+Configure localization through the `DrnLocalizationSettings` section. Read the resolved settings through `IAppSettings.Localization`.
+
+| Setting | Default | Behavior |
+|---|---|---|
+| `Enabled` | `false` | Enables request localization in DRN Hosting. |
+| `DefaultCulture` | `"en"` | Culture used when no supported request culture is selected. An invalid value falls back to `en`. |
+| `SupportedCultures` | `[]` | Supported request and UI cultures. Invalid culture names are removed. |
+| `EnsureBaseLanguage` | `true` | Adds neutral languages for regional cultures, such as `de` for `de-CH`. |
+
+```json
+{
+  "DrnLocalizationSettings": {
+    "Enabled": true,
+    "DefaultCulture": "en",
+    "SupportedCultures": ["en", "de-CH"],
+    "EnsureBaseLanguage": true
+  }
+}
+```
+
+DRN Hosting requires `Enabled = true`; overriding localization options alone does not enable it. Request culture selection checks the application-specific culture cookie, query string, then `Accept-Language`, in that order.
+
 ### DrnAppFeatures
 
 Feature flags and runtime knobs bound from the `DrnAppFeatures` configuration section via `[Config]`.
@@ -429,11 +453,11 @@ This JSON shows Development defaults. Replace `SeedKey` with private key materia
 `DrnRateLimit` is the configuration key; application code reads the same settings through `IAppSettings.Features.RateLimit`.
 Shared values apply to both DRN Hosting rate limiting phases. Phase-specific values set to `0` inherit the shared value; positive phase-specific values override it. Treat these values as global defaults; tenant plan, feature-flag, and account-specific quotas belong in DRN Hosting rate-limit rules. See the [Hosting README rate limiting settings](../DRN.Framework.Hosting/README.md#settings-quick-reference) for operational guidance, endpoint metadata behavior, and production scaling notes.
 
-Nested option objects must be validated explicitly before relying on child data annotations for startup safety. `DrnAppFeatures` validates `DrnRateLimit` as part of root validation because plain `Validator.TryValidateObject` does not recursively walk nested objects by itself.
+Invalid `DrnRateLimit` values fail startup validation.
 
 #### Seed keys and derived settings
 
-`DrnAppFeatures.SeedKey` feeds [AppSecuritySettings](Settings/AppSecuritySettings.cs). BLAKE3 derive-key mode uses a distinct DRN Framework context string for each output:
+`DrnAppFeatures.SeedKey` determines these [AppSecuritySettings](Settings/AppSecuritySettings.cs) values:
 
 | Output | Representation | Use |
 |---|---|---|
@@ -451,7 +475,7 @@ Changing `SeedKey` changes app-specific names, rate-limit keyed hashes, Developm
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `ApplicationStartedBy` | `string?` | `null` | Identifies which test started the application (set automatically by `DrnTestContext`). |
-| `SeedData` | `bool` | `false` | Enables data seeding on startup. |
+| `SeedData` | `bool` | `false` | Application-defined seeding flag. The framework does not use it to enable or suppress EF seed hooks; custom seed code must inspect it explicitly. |
 | `SeedKey` | `string` | `"Peace at home!…"` | Secret key for seed operations. Enforced `[SecureKey(MinLength = 58)]`. Built-in default is permitted only in `Development`; sample key is permitted only during test execution. |
 | `InternalRequestHttpVersion` | `string` | `"1.1"` | HTTP version used by `IInternalRequest`. |
 | `InternalRequestProtocol` | `string` | `"http"` | Protocol scheme used by `IInternalRequest` (e.g., `http`, `https`). |
@@ -500,7 +524,7 @@ The following example illustrates the key format. Supply private key material in
 }
 ```
 
-`Keys` must contain exactly one default key. Generation always uses the default key. `UseSourceKnownIdKeyFallback` defaults to `false`, so parsing accepts only the default key. Enable it for routine rotation to try the default key first and then the remaining configured keys. After a candidate authenticates, backward collision verification stays with that key pair; a failed proof rejects the ID without further fallback.
+`Keys` must contain exactly one default key after the Development fallback is applied. An empty configured `Keys` collection is valid only in Development, where the fallback adds a default key. Generation always uses the default key. `UseSourceKnownIdKeyFallback` defaults to `false`, so parsing accepts only the default key. Enable it for routine rotation to accept IDs authenticated with the remaining configured keys too.
 
 Retain old keys only for routine rotation. After compromise, select a fresh default and remove the compromised key from every instance's `Keys`, or disable fallback to reject all non-default keys. Recreate the ID utilities (normally by restarting the application) to apply key changes. Identifiers that require a removed key stop authenticating; reissue them from trusted numeric IDs and entity types. Keeping a compromised key enabled also keeps forged IDs acceptable.
 
@@ -513,7 +537,7 @@ Retain old keys only for routine rotation. After compromise, select a fresh defa
 
 Invalid user-provided keys are not hashed, stretched, truncated, repaired, or treated as another format. Validation rejects malformed encodings, empty keys, wrong decoded lengths, and raw values that are not exactly 32 UTF-8 bytes. Exception messages avoid including the secret key value. `NexusKey.SampleKeyMaterial` is forbidden in all environments, including tests. See [NexusAppSettings.cs](Settings/NexusAppSettings.cs).
 
-When Development has no default Nexus key, `AppSettings` derives deterministic 32-byte material from `AppSecuritySettings`. It stores the result in memory as `Base64UrlEncoded`, then applies the same BLAKE3 MAC/encryption key separation used for configured keys. This fallback is not random and is unavailable outside Development.
+When Development has no default Nexus key, a deterministic key derived from the application's seed is supplied automatically. This fallback is not random and is unavailable outside Development.
 
 ## Logging (`IScopedLog`)
 
@@ -836,7 +860,7 @@ var decoded = Base32Encoding.Decode(unpadded);
 | `EncryptRuntimeIntrinsics` / `DecryptRuntimeIntrinsics` | Explicit x86 AES-NI or ARM AES intrinsics |
 | `EncryptWithFramework` / `DecryptWithFramework` | Explicit cross-platform .NET AES provider |
 
-A live instance supports concurrent calls. Intrinsic operations read pre-expanded round keys without locks or per-call allocation. The [source remarks](Data/Encryption/Aes256.cs) record portable-provider concurrency verification against .NET 10.0.10: each operation creates its own cipher state without changing the configured key. This is version-specific evidence and must be rechecked when changing the runtime. Dispose the instance after all callers finish to clear intrinsic schedules and dispose portable key state.
+A live instance supports concurrent calls. Dispose it only after all callers finish. Calls after disposal are unsupported.
 
 > [!WARNING]
 > `Aes256` is a deterministic, single-block ECB primitive with no authentication. Do not compose it into multi-block ECB encryption.
@@ -892,9 +916,9 @@ var fileHash = fileStream.Hash(HashAlgorithm.Sha256);
 
 ### JSON & Document Utilities
 
-*   **Safe JSON Merge Patch**: `JsonMergePatch.SafeApplyMergePatch(target, patch)` implements RFC 7396 processing semantics without mutating either input. Semantic no-ops reuse the target; changed object targets are cloned once and merged without repeated subtree cloning. `MergeResult` is a readonly record struct, `Json` is nullable for a root-level JSON `null` result, and `Changed` reports only actual document changes.
+*   **Safe JSON Merge Patch**: `JsonMergePatch.SafeApplyMergePatch(target, patch)` implements RFC 7396 processing semantics without mutating either input. Semantic no-ops reuse the target. `MergeResult` is a readonly record struct, `Json` is nullable for a root-level JSON `null` result, and `Changed` reports only actual document changes.
 *   **In-Place JSON Merge Patch**: `JsonMergePatch.ApplyMergePatchInPlace(ref target, patch)` and `ApplyMergePatchInPlace(targetObject, patchObject)` perform full RFC 7396 merge patch operations directly in-place, preserving existing nested object references and updating the `ref target` reference if the root type changes.
-*   **Resource Safety**: All merge methods validate the complete patch depth before applying changes. The repository unit suite includes every RFC 7396 Appendix A example.
+*   **Resource Safety**: All merge methods reject patches exceeding the configured depth limit before changing the target.
 *   **Query String Serialization**: `QueryParameterSerializer` flattens nested objects and arrays into query strings for API clients.
 
 Merge patch object properties set to `null` remove those properties; arrays and other non-object patches replace the target. The default maximum patch depth is 64 and must be positive. The query serializer has a separate default depth limit of 10. See [JsonMergePatch.cs](Data/Json/JsonMergePatch.cs) and [QueryParameterSerializer.cs](Data/Serialization/QueryParameterSerializer.cs).
@@ -1149,17 +1173,14 @@ The `Generate` method dispatches to secure or plain generation based on the `Use
 | Method | Behavior |
 |--------|----------|
 | `Generate` | Dispatches to secure or plain based on `UseSecureSourceKnownIds` |
-| `GenerateSecure` | AES-256-ECB encryption of the full 16-byte GUID block |
-| `GeneratePlain` | Plaintext with visible `8D8D` version/variant markers |
+| `GenerateSecure` | Generates an encrypted GUID that conceals identity fields |
+| `GeneratePlain` | Generates an unencrypted GUID with integrity validation |
 | `ToSecure` | Converts a plain ID to its secure form (idempotent) |
 | `ToPlain` | Converts a secure ID to its plain form (idempotent) |
 
-The secure variant encrypts the entire 16-byte GUID with `Aes256` as a pseudo-random permutation (PRP). For this single block, ECB is equivalent to CBC with a zero IV and uses no nonce. It is deterministic: equal blocks under the same key produce equal ciphertext. Integrity comes from the separate 32-bit BLAKE3 keyed MAC, not from AES. BLAKE3 derives distinct MAC and encryption keys from the decoded `NexusKey` material.
+Secure IDs conceal their encoded fields and are deterministic for the same input and key configuration. They do not replace authorization or rate limiting. Use the generation and parsing APIs rather than constructing or decoding GUID bytes yourself.
 
-Generation uses the default `NexusKey`. Parse uses a default-first key-ring fallback when `UseSourceKnownIdKeyFallback` is enabled, allowing old IDs to authenticate while their keys and formats remain accepted. The secure collision guard checks all enabled verification keys. Its guarantee applies to that key set: later keys can introduce cross-key ambiguity, and removing keys can invalidate rare non-default variants whose collision proof depended on them. Explicit `Secure` parsing avoids plaintext misclassification.
-
-> [!NOTE]
-> `SourceKnownEntityIdUtils` is a singleton and reuses each key-ring entry's `Aes256` instance. Intrinsic and portable paths preserve the same encrypted ID format. See [AES-256 single-block encryption](#aes-256-single-block-encryption-aes256) for concurrency, runtime-verification and disposal requirements.
+Generation uses the default `NexusKey`. Parsing can accept old IDs when `UseSourceKnownIdKeyFallback` is enabled and their keys and formats remain accepted. Changes to the verification key set can change which existing IDs are accepted. Verify compatibility before rotating keys and reissue affected IDs from trusted entity data. Explicit `Secure` parsing accepts only secure IDs.
 
 ```csharp
 // Generate with flag-based dispatch (secure by default)
@@ -1168,7 +1189,7 @@ var entityId = sourceKnownEntityIdUtils.Generate<User>(id);
 // Explicitly secure
 var secureId = sourceKnownEntityIdUtils.GenerateSecure<User>(id);
 
-// Explicitly plain (visible markers for debugging/development)
+// Explicitly plain (identity fields are not concealed)
 var plainId = sourceKnownEntityIdUtils.GeneratePlain<User>(id);
 
 // Convert between secure and plain forms (idempotent)
@@ -1200,11 +1221,11 @@ The same operations are available through `ISourceKnownEntityIdOperations`, incl
 | `ConfiguredDefault` | `NexusAppSettings.UseSecureSourceKnownIds`: `true` selects Secure; `false` selects Plain |
 | `Secure` | Decrypt and verify; never try plain parsing |
 | `Plain` | Verify plain input; never decrypt |
-| `Auto` | For each key, try plain markers/MAC first, then decrypt if verification fails |
+| `Auto` | Accept either a valid plain ID or a valid secure ID |
 
-Explicit Secure, Plain or Auto overrides configuration. `Auto` retains the previous detection behavior, including decryption of ciphertext with apparent plain markers after its plain MAC fails. Key rotation, partition validation, MAC checks and backward collision verification still apply. `ToSecure` and `ToPlain` continue accepting either representation under either configuration.
+Explicit Secure, Plain or Auto overrides configuration. Key acceptance, integrity checks, and partition validation still apply. `ToSecure` and `ToPlain` accept either representation under either configuration.
 
-With `UseSecureSourceKnownIds = true`, default parsing blocks direct plaintext MAC guessing: AES prevents callers without the key from independently choosing the recovered ID and its 32-bit MAC. Authorization and rate limiting remain necessary.
+With `UseSecureSourceKnownIds = true`, default parsing rejects plain IDs. Authorization and rate limiting remain necessary even when an ID passes validation.
 
 Keep format selection under application control. Explicit `Plain`/`Auto` and conversion helpers accept plain IDs, relaxing the secure-only boundary. Before converting external GUIDs, validate them using the endpoint's required format; trusted internal records can be converted directly.
 
@@ -1278,11 +1299,11 @@ The plaintext form of a `SourceKnownEntityId` (SKEID) packs identity, integrity,
 
 ### Epoch & Time Addressing
 
-SourceKnownEntityIds use epoch-based time addressing for monotonic ordering. Current releases support the first epoch, which starts on **2025-01-01** and spans approximately **68 years** ($2^{31}$ seconds total coverage, split across two halves).
+Source-Known numeric IDs encode creation time relative to the configured epoch. The default origin is **2025-01-01 UTC**; `SourceKnownIdSettings:DefaultEpoch` can override it before first use. The supported range spans approximately **68 years** from that origin. Secure GUIDs are opaque and must not be used for chronological sorting.
 
 | Property | Value |
 |----------|-------|
-| Epoch start | 2025-01-01 |
+| Default epoch start | 2025-01-01 UTC; configurable before first use |
 | Supported duration | ~68 years ($2^{31}$ seconds) |
 | Supported epoch | 0 |
 
@@ -1340,7 +1361,7 @@ Extensions cover .NET types, DI descriptors, HTTP diagnostics, and dynamic metho
 *   **Invoke**: `instance.InvokeMethod("Name", args)` and `type.InvokeStaticMethod("Name", args)`.
 *   **Generics**: `instance.InvokeMethod("Name", typeArgs, args)` and `type.InvokeStaticMethod("Name", typeArgs, args)`.
 *   **Argument Overloads**: Specialized 0, 1, 2, 3 argument and `Span<object?>` overloads avoid a `params` argument array. Boxing and other caller allocations can still occur.
-*   **Caching & Execution**: `FindMethod` caches discovery through `MethodCacheKey`; invocation uses runtime `MethodInvoker`.
+*   **Discovery**: `FindMethod` returns matching method metadata for repeated use.
 *   **Uncached Discovery**: `type.FindMethodUncached(...)` for explicit cache-bypassing scenarios (e.g. one-off startup discovery).
 
 Pass generic type arguments as an explicit `Type[]`, such as `instance.InvokeMethod("Name", [typeof(string)])`. A single `typeof(string)` argument selects an ordinary method accepting `Type`. The former generic/fast aliases were removed; use `FindMethod`, `FindMethodUncached`, `InvokeMethod`, and `InvokeStaticMethod`. For an already resolved method, use `MethodInvoker.Create(methodInfo)` or a compiled delegate. See [MethodUtils.cs](Extensions/MethodUtils.cs).

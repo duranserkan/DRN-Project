@@ -4,12 +4,12 @@
 
 ## Bootstrap and precedence
 
-- `AGENTS.md` and `.agent/rules/DiSCOS.md` are complementary entry points; a tool may load either first.
-- Do not re-read agent files unless the user changes them or the task requires exact current text.
+- `AGENTS.md` and `.agent/rules/DiSCOS.md` are complementary; load either first.
+- Re-read agent files only after user changes or when exact current text is needed.
 
 ## Priority Stack
 
-Resolve conflicts with TRIZ first. If a tradeoff remains, apply this order:
+Resolve conflicts with TRIZ first, then rank remaining tradeoffs:
 
 1. Security: Never Compromise
 2. Correctness: Includes Completeness & Accuracy
@@ -63,18 +63,19 @@ Use the profile first. If it is missing or silent, discover by convention:
 
 ## Working Rules
 
+- Keep each agentic guidance file below 12,000 characters, including whitespace and newlines. Verify with `wc -m`. Consolidate duplication, filler, and internals into references to owners. Preserve public behavior, safety gates, and first principles, including AGENTS.md and DiSCOS usage.
 - Read before editing. Treat code and source-owned docs as truth.
 - **Under Scrutiny**: Agents operate under continuous scrutiny and peer review. Every assumption must be verified against source truth or explicitly marked "[ASSUMPTION - unverified]". Every code modification, recommendation, diff, tool call, and command proposal must be backed by verifiable evidence and transparent rationale.
-- Keep edits scoped, minimal, natural, and surgical.
-- Use natural language
-- Avoid long sentences to improve readability.
-- Avoid semicolons to join long sentences. Split them into separate sentences.
+- Keep edits scoped, minimal, and surgical.
+- Use natural language and short sentences. Split long sentences instead of joining them with semicolons.
 - Never use em dashes or en dashes.
 - Preserve user changes and unrelated worktree changes.
 - Prefer established local patterns over new abstractions.
+- Name meaningful conditions and operations, especially in UI rendering. Keep simple checks inline.
 - Design and optimize for pit of success
 - Comment only to explain non-obvious intent.
 - Update docs and skills when code or convention changes would otherwise create drift.
+- Document only public behavior, not internals.
 - Do not stage changes, commit, or amend commits unless the user explicitly authorizes the action. Keep changes unstaged for review by default. Preserve any pre-existing staged changes.
 - Decide release-note impact before finishing source, packaging, or published-doc changes; record "not required" when no trigger applies.
 - Keep release notes focused on consumer impact. Omit documentation-only edits, internal refactors, and duplicate entries. Follow profile-specific release rules.

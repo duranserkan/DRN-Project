@@ -283,6 +283,64 @@ public sealed class ClassificationCodeFixTests
     }
 
     [Fact]
+    public async Task Classification_Fixes_Should_Preserve_Directives_And_Documentation()
+    {
+        const string source = """
+            public class Model
+            {
+            #if FEATURE
+                /// <summary>Credential documentation.</summary>
+                public string Password { get; set; } = "";
+            #endif
+                public string Label { get; set; } = "";
+            }
+            """;
+        foreach (var (selection, fixAll) in new[]
+                 {
+                     ("Personal", false), ("Sensitive", false), ("SensitiveFalse", false),
+                     ("Personal", true), ("Sensitive", true)
+                 })
+        {
+            using var workspace = new AdhocWorkspace();
+            var options = new CSharpParseOptions(documentationMode: DocumentationMode.Diagnose, preprocessorSymbols: ["FEATURE"]);
+            var document = CreateProject(workspace).WithParseOptions(options).AddDocument("Model.cs", source);
+            var provider = ClassificationProvider(selection);
+            CodeAction action;
+            if (fixAll)
+            {
+                var context = new FixAllContext(document, provider, FixAllScope.Document, selection,
+                    provider.FixableDiagnosticIds, new ClassificationDiagnostics(), CancellationToken.None);
+                action = (await provider.GetFixAllProvider()!.GetFixAsync(context))!;
+            }
+            else
+            {
+                var diagnostic = (await DiagnosticClassificationAnalyzerTests.Analyze(
+                    (CSharpCompilation)(await document.Project.GetCompilationAsync())!)).Single();
+                action = (await GetActions(document, diagnostic, provider)).Single(item => item.EquivalenceKey == selection);
+            }
+            var changed = await Apply(document, action);
+            var text = await changed.GetTextAsync();
+            foreach (var enabled in new[] { true, false })
+            {
+                var symbols = enabled ? new[] { "FEATURE" } : Array.Empty<string>();
+                var tree = CSharpSyntaxTree.ParseText(text, options.WithPreprocessorSymbols(symbols));
+                var after = CSharpCompilation.Create("Consumer", [tree], DiagnosticClassificationAnalyzerTests.References,
+                    new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+                (await DiagnosticClassificationAnalyzerTests.Analyze(after)).Should().BeEmpty();
+                var model = after.GetTypeByMetadataName("Model")!;
+                model.GetMembers("Label").Single().GetAttributes().Should().BeEmpty();
+                if (enabled)
+                {
+                    var property = model.GetMembers("Password").Single();
+                    property.GetAttributes().Should().ContainSingle();
+                    property.GetDocumentationCommentXml().Should().Contain("Credential documentation.");
+                }
+                else model.GetMembers("Password").Should().BeEmpty();
+            }
+        }
+    }
+
+    [Fact]
     public async Task Generated_Property_Should_Not_Offer_A_Source_Edit()
     {
         using var workspace = new AdhocWorkspace();

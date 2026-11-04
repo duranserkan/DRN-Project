@@ -26,18 +26,19 @@ record
 end
 ```
 
-This protocol has one supported evidence format. Do not perform legacy-format
-discovery, migration, or compatibility branching.
+Only this evidence format is supported. Never discover, migrate, or branch for legacy formats.
 
 Encoding rules:
-- Reject values containing control characters. All paths must be UTF-8. Endpoint, selector, scope-input, and output paths must be repository-relative. Only canonical physical-identity fields—including `physical-path`, `common-parent`, `physical-root` and its left/right variants, `git-top-level`, and an absolute `admin-path`—may be absolute.
-- Integers: ASCII without leading zeros, except `sequence` values which MUST be exactly 20 zero-padded ASCII decimal digits (`00000000000000000000` to `18446744073709551615`). Allocate sequence values monotonically; reject sequence overflow and duplicate sequence values.
+- Reject control characters; paths must be UTF-8. Endpoint names are common-parent-relative. Path/glob selectors and records keyed by `root-id` use endpoint-relative paths; `peer-path` uses `peer-root-id`. Commit records use owning-Git-root-relative paths. Only physical-identity fields (`physical-path`, `common-parent`, `physical-root` variants, `git-top-level`, and `admin-path`) may be absolute.
+- Integers: ASCII without leading zeros, except `sequence`: exactly 20 zero-padded ASCII decimal digits (`00000000000000000000` to `18446744073709551615`). Allocate monotonically; reject overflow and duplicates.
 - Booleans: `0`/`1`. Hashes: lowercase hex. Missing values: `N/A`.
 - Fields emit in schema order; sort records bytewise by key; reject duplicates.
 - Hash each artifact with `shasum -a 256 -b -- <artifact>` and bind the digest into approval subjects.
 - Store preimages/patches by hash only when exclusions permit. Never store secrets.
 
 Endpoint IDs: `left`, `right`. Git-root IDs: `shared` (project mode) or `left`/`right` (repository mode).
+
+For Git operations and accepted/actual commit comparisons, prepend `endpoint-topology.physical-root` relative to its `owning-git-root-id`'s `topology-git.git-top-level` to endpoint-relative paths. This prefix is empty in repository mode; project example: `Pages/X` becomes `AppA.Hosted/Pages/X`. Validate containment; convert once. Baseline selectors stay endpoint-relative; named scopes stay symbolic. Reject retained evidence with ambiguous path bases.
 
 ## 2. Record Schemas
 
@@ -69,17 +70,17 @@ Field order is normative.
 
 `commit-changed-path` records exact path delta from accepted base to user commit. `commit-tree-entry` records resulting tree. Require actual/accepted tree SHA match before emitting `commit-verification`.
 
-Born branches require `parent-count=1` and `parent-sha=accepted-base-head`. `UNBORN` requires `parent-count=0` and `parent-sha=N/A`. User commit SHA must equal verified post-commit HEAD, differ from accepted base, and match tree digests. Commit verification validates the exact allowed transition: the accepted output becomes exactly the reported commit, the commit has the accepted base as its direct parent, no extra paths enter the commit, pre-existing unrelated staged work remains unchanged in the index, pre-existing unrelated unstaged work remains unchanged in the worktree dirt, accepted output is no longer left staged or dirty, and current HEAD points to the verified commit.
+Born branches require `parent-count=1` and `parent-sha=accepted-base-head`. `UNBORN` requires `parent-count=0` and `parent-sha=N/A`. Verify the exact transition: user commit SHA equals current post-commit HEAD and differs from accepted base; actual/accepted tree digests match; only accepted output enters the commit. Preserve unrelated pre-existing staged work in the index and unstaged work in worktree dirt. Accepted output must no longer be staged or dirty.
 
 `apply-progress` state is `started` or `completed`. Persist `started` atomically before the first output mutation; its existence makes a resumed `applying` unit indeterminate and routes it to rollback. Persist `completed` only after every actual output matches the manifest.
 
-`recovery` outcome is `pending`, `recovering`, `rolled-back`, `partial`, or `terminated-partial`. Pending records use `N/A` for approval fields until explicit Recovery approval is recorded. Recovery records are append-only and use the same 20-digit monotonically increasing `sequence` rules.
+`recovery` outcomes: `pending`, `recovering`, `rolled-back`, `partial`, `terminated-partial`. Pending approval fields stay `N/A` until explicit Recovery approval. Records are append-only, following the 20-digit monotonic `sequence` rules.
 
 ## 3. Approval Subjects
 
 Bind canonical evidence into Apply, Acceptance, and Recovery subjects defined in [Sync Shared Approval Subjects](./_shared/sync-shared.md#4-approval-subjects).
 
-Hash exact subject UTF-8 bytes to compute `approval_subject_sha256`. Mutating `/sync` subscopes MUST always hash their required preview artifact (or textual preview diff when present) to compute `approval_preview_sha256`; reserve `approval_preview_sha256: N/A` only for workflows without separate preview evidence. Keep hashing the textual preview diff when present and persist the resulting hash through the shared Approval Envelope format.
+Hash exact subject UTF-8 bytes as `approval_subject_sha256`. Mutating `/sync` subscopes must hash their required preview artifact, using the textual preview diff when present, as `approval_preview_sha256`. Persist it through the shared Approval Envelope format. Allow `approval_preview_sha256: N/A` only for workflows without separate preview evidence.
 
 ## 4. Reusable Baseline Store
 
@@ -111,6 +112,6 @@ baseline_sha256="<lowercase-hex>"
 variance_sha256="<lowercase-hex>"
 ```
 
-Select a baseline through a valid `current` pointer in the baseline key directory. Only an absent baseline key directory is a first comparison. If the directory exists, fail closed when `promotion.lock` exists, `current` is absent or malformed, companions are missing or digest-mismatched, or checkpoint evidence does not match the normalized invocation.
+Select a baseline using the baseline key directory's valid `current` pointer. Only an absent directory means first comparison. Otherwise fail closed on `promotion.lock`, absent/malformed `current`, missing/digest-mismatched companions, or checkpoint evidence mismatching the normalized invocation.
 
 Promote only after `/sync-execute` proves full final scope. Acquire `promotion.lock` with a standard exclusive operation; abort if it exists. Write and `shasum`-verify companions; write and verify a temporary `current` in the same directory; then replace `current` with a same-directory `mv`. Revalidate the resulting pointer and companions before releasing the owned lock. Any failure, observed change, or leftover lock fails closed.

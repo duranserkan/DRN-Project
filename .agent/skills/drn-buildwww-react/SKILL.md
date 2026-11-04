@@ -1,486 +1,163 @@
 ---
 name: drn-buildwww-react
-description: "DRN buildwww React 19 mounted islands - Shadow DOM, Tailwind CSS 4, typed registry, DRN.React mount/update/dispose API, Razor integration, and Vite IIFE build. Keywords: drn, buildwww, react, islands-architecture, onmount, components, shadow-dom, typescript, tailwind, mount-api, iife"
-last-updated: 2026-10-03
+description: "DRN React mounted islands. Keywords: drn, buildwww, react, shadow-dom, tailwind, typescript, onmount, mount-api, iife"
+last-updated: 2026-11-04
 difficulty: advanced
-tokens: ~4K
 ---
 
-# DRN React Mounted Islands (buildwww)
+# DRN React Mounted Islands
 
-> React 19 components rendered client-side into isolated Shadow DOM islands within server-rendered Razor Pages — no SPA, no hydration.
-> DRN-scoped: use only when the repository profile or filesystem declares DRN `buildwww` and the DRN browser API surface.
+Use when the profile declares DRN buildwww and the task concerns React components, typed registries, host callbacks, Shadow DOM, styles, or mounting lifecycle. Keep `AGENTS.md`, DiSCOS, and the profile active. Resolve dependency versions from manifests and lockfiles.
 
-## When to Apply
-- Creating new React components for Razor Pages
-- Modifying `reactBundle.tsx` or the component registry
-- Adding island→host communication (callbacks, props updates)
-- Debugging Shadow DOM style isolation or lifecycle issues
-- Configuring Vite React build (`build:react`)
+## Contents
 
----
-
-## Table of Contents
-
-1. [Architecture Overview](#architecture-overview)
-2. [File Layout](#file-layout)
-3. [Type System](#type-system)
-4. [Vite Build Configuration](#vite-build-configuration)
-5. [CSS Strategy](#css-strategy)
-6. [The Component Registry](#the-component-registry)
-7. [Mount API](#mount-api)
-8. [Razor Page Integration](#razor-page-integration)
-9. [Adding a New Component](#adding-a-new-component)
-10. [Conventions](#conventions)
-11. [Related Skills](#related-skills)
-
----
+- [Architecture Overview](#architecture-overview)
+- [File Layout](#file-layout)
+- [Type System](#type-system)
+- [Vite Build Configuration](#vite-build-configuration)
+- [CSS Strategy](#css-strategy)
+- [The Component Registry](#the-component-registry)
+- [Mount API](#mount-api)
+- [Razor Page Integration](#razor-page-integration)
+- [Adding a New Component](#adding-a-new-component)
+- [Conventions](#conventions)
 
 ## Architecture Overview
 
-This convention uses **Mounted Islands Architecture** — React components are explicitly mounted into target DOM nodes as isolated islands, not a monolithic SPA. Each island:
-
-- Renders **client-side only** (no SSR/hydration — Razor Pages handle server rendering)
-- Mounts inside **Shadow DOM** by default for CSS isolation from Bootstrap
-- Uses **Tailwind CSS 4** inside Shadow DOM while the host page uses Bootstrap 5
-- Integrates with the repository's **onmount wrapper** for lifecycle management (mount on connect, dispose on HTMX swap)
-- Communicates with the host page via **typed props and callbacks**
+Razor renders the host HTML. React renders client-side islands, without SSR or hydration. Islands use Shadow DOM by default, Tailwind inside the island, Bootstrap outside, typed props/callbacks for communication, and `DRN.Onmount` for activation and disposal on navigation.
 
 ### Script Loading Prerequisites
 
-`reactBundle.tsx` relies on the page-wide script loading order defined in [drn-buildwww-libraries](../drn-buildwww-libraries/SKILL.md#script-loading-order). Key constraint: `appPreload.js` **must** initialize the shared `window.DRN.React` object before this bundle loads — otherwise `mount()` is not attached and a critical error is logged.
+Preload must initialize `window.DRN.React` before `reactBundle.tsx`. The runtime exposes `DRN.React.mount`; page behavior bundles call it after the runtime loads. React stays global in the current shell. Only home mounting behavior is page-specific. See [loading order](../drn-buildwww-libraries/SKILL.md#script-loading-order).
 
-Treat `DRN`, `Drn*`, and `DRN.Framework.*` names as shared framework API, not placeholders for app-specific namespaces.
-
----
+`DRN`, `Drn*`, and `DRN.Framework.*` are shared framework names, not placeholders.
 
 ## File Layout
 
-```
-<frontend-package>/buildwww/
-├── lib/react/
-│   ├── reactBundle.tsx          # Entry point — registry and mount API
-│   ├── reactBundle.css          # CSS aggregator — @reference tailwind, @import components
-│   ├── IslandErrorBoundary.tsx  # Per-island render failure boundary
-│   ├── PortalContext.tsx        # Global portal context, hook, and IslandPortal
-│   ├── nonceHelper.ts           # Memoized document CSP nonce discovery
-│   ├── portalHost.ts            # Shared Shadow DOM portal host lifecycle
-│   ├── styleManager.ts          # Document and Shadow DOM stylesheet lifecycle
-│   └── components/              # One file pair per component (add more here)
-│       ├── HelloReactComponent.tsx   # Reference implementation
-│       └── HelloReactComponent.css   # Scoped styles (.drn-react-root prefix)
-├── types/
-│   └── DrnReactTypes.ts         # Shared types — registry, RootData, ReactMountedIsland
-└── app/js/drn/
-    └── drnOnmount.js            # Mount/unmount lifecycle manager
-```
+| Owner | Purpose |
+|---|---|
+| `buildwww/lib/react/reactBundle.tsx` | Registry and mount API |
+| `reactBundle.css` | Tailwind references and component CSS imports |
+| `components/` | TSX and optional CSS file pairs |
+| `IslandErrorBoundary.tsx` | Per-island render failure boundary |
+| `PortalContext.tsx`, `portalHost.ts` | Shared Shadow DOM portal host |
+| `styleManager.ts`, `nonceHelper.ts` | Stylesheets, containers, CSP nonce discovery |
+| `buildwww/types/DrnReactTypes.ts` | Registry, root, mount, and disposal types |
+| `buildwww/app/js/behaviors/home/` | Page-specific island mounting |
+| `buildwww/app/js/drn/drnOnmount.js` | Lifecycle registration wrapper |
 
-> `HelloReactComponent` is the **reference implementation**. New components follow the same file-pair pattern inside `components/` and are wired via the 4-point registration described in [Adding a New Component](#adding-a-new-component).
-
-**Checked-in output**: `wwwroot/lib/react/reactBundle.[hash].js`. Use the manifest as the source of truth before adding Razor link tags for React assets.
-
----
+HelloReact is the reference component. Resolve output paths from Vite's manifest, not copied hashes. Keep implementation details in these owners instead of duplicating them in skills.
 
 ## Type System
 
-All React-specific types live in `buildwww/types/DrnReactTypes.ts`:
+`ReactComponentRegistry` maps names to component prop types. Keep it aligned with runtime `COMPONENT_REGISTRY`. `ReactMountOptions.useShadow` defaults to true. `ReactMountedIsland<P>` exposes `update(Partial<P>)`, `getProps(): P | null`, and `dispose()`.
 
-```typescript
-// Maps component names to their React types — used by mount() for type-safe props
-// Add one entry per component (HelloReact is the reference example)
-export type ReactComponentRegistry = {
-    'HelloReact': React.ComponentType<HelloReactProps>;
-    // 'MyComponent': React.ComponentType<MyComponentProps>;  ← extend here
-};
-
-// Tracks mounted roots per DOM element (WeakMap values)
-export type RootData<P = unknown> = {
-    root: Root;
-    name: string;
-    isShadow: boolean;
-    currentProps?: P;
-};
-
-// Cleanup contract for island disposal
-export interface Disposable {
-    dispose: () => void;
-}
-
-// Return type of DRN.React.mount() — enables bidirectional communication
-export interface ReactMountedIsland<P> extends Disposable {
-    update: (newProps: Partial<P>) => void;
-    getProps: () => P | null;
-}
-
-// Shadow DOM toggle (default: true)
-export interface ReactMountOptions {
-    useShadow?: boolean;  // @default true
-}
-
-// Children rendered by IslandPortal into the shared global Shadow DOM host
-export interface IslandPortalProps {
-    children: React.ReactNode;
-}
-```
-
----
+`RootData` tracks the root, name, shadow mode, and current props per DOM element. Component, error-boundary, and portal declarations live in shared types. Use these rather than parallel definitions.
 
 ## Vite Build Configuration
 
-React has its own **dedicated build** invoked via `npm run build:react`:
+The dedicated `build:react` target uses React and Tailwind plugins. A single JavaScript entry permits native IIFE output named `DrnReactMicroFrontend`, independent of runtime/behavior builds. Preserve the existing `import.meta` transformation for classic-script output. Mixed-entry classic builds use [Vite isolation guidance](../drn-buildwww-vite/SKILL.md#vite-configuration).
 
-```javascript
-// vite.config.js — react build type
-react: {
-    plugins: [
-        react(),            // @vitejs/plugin-react — JSX transform
-        tailwindcss()       // @tailwindcss/vite — Tailwind 4 compilation
-    ],
-    build: {
-        outDir: 'wwwroot/lib/react',
-        rolldownOptions: {
-            input: {
-                reactBundle: resolve(__dirname, 'buildwww/lib/react/reactBundle.tsx'),
-            },
-            output: {
-                format: 'iife',                    // Self-contained, no module imports
-                name: 'DrnReactMicroFrontend'      // Shared global wrapper name
-            },
-            transform: {
-                define: { 'import.meta': '{}' }    // IIFE doesn't support import.meta
-            }
-        }
-    }
-}
-```
-
-**Key decisions**:
-- **IIFE format** — self-executing bundle, no ES module dependency resolution at runtime
-- **Separate build** — React bundle is independent from the app/bootstrap/htmx builds
-- **Tailwind plugin** — compiles `@apply` directives at build time; no runtime Tailwind in browser
-
----
+Building requires explicit execution permission. A home-behavior-only change uses `build:behaviors:home`; component, registry, or React CSS changes require the React build too. Markup/configuration changes also require deploying the Razor view.
 
 ## CSS Strategy
 
-### Dual-Import Pattern
-
-`reactBundle.tsx` imports CSS twice for two different purposes:
-
-```typescript
-import './reactBundle.css'                    // Let Vite/Tailwind process the CSS dependency
-import bundleStyles from './reactBundle.css?inline';  // Inlined as string for Shadow DOM injection
-```
-
-- First import: lets Vite/Tailwind process the CSS dependency for the bundle
-- Second import (`?inline`): raw CSS string used to create constructable stylesheets for Shadow DOM
-
 ### CSS Aggregation
 
-`reactBundle.css` aggregates all component styles — add one `@import` per component:
-
-```css
-@reference "tailwindcss/theme";       /* Load Tailwind theme for @apply resolution */
-@reference "tailwindcss/utilities";   /* Load utilities — no global CSS emitted */
-
-@import "./components/HelloReactComponent.css";  /* Reference component */
-/* @import "./components/MyComponent.css";          ← add new components here */
-```
-
-`@reference` loads Tailwind tokens without emitting `:root` custom properties — prevents leaking into the host page.
+`reactBundle.tsx` imports `reactBundle.css?inline` for stylesheet injection. The aggregator imports component styles and uses Tailwind `@reference` so tokens support `@apply` without emitting global rules. Do not add a second emitted stylesheet unless the output contract needs one.
 
 ### Scoping Convention
 
-All component CSS is scoped under `.drn-react-root`:
+Scope document-visible selectors under `.drn-react-root`, including resets. The shared sheet is also adopted into the document for light-DOM islands, so Shadow DOM alone does not isolate it. Reserve `:host` for Shadow DOM behavior. Avoid global `:root` and document-wide `*` resets.
 
-```css
-.drn-react-root .hello-react { ... }
-.drn-react-root .hello-react-card { ... }
-```
-
-The same bundle stylesheet is also adopted into `document` for light-DOM islands. Keep every document-visible selector scoped to `.drn-react-root`; reserve `:host` selectors for Shadow DOM host behavior. Scope resets to React descendants explicitly instead of using document-wide selectors such as `*`.
-
-`.drn-react-root` is applied to:
-- **Shadow DOM**: the portal host `<div>` inside the shadow root
-- **Light DOM** (`useShadow: false`): added as a class to the mount element
+The shadow container receives `.drn-react-root`; light-DOM mounts apply it to the mount element. Component CSS works in island and shared-portal Shadow DOM roots.
 
 ### Shadow DOM Style Injection
 
-```typescript
-// Constructable stylesheet (modern browsers)
-const sharedSheet = new CSSStyleSheet();
-sharedSheet.replaceSync(bundleStyles);
-shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, sharedSheet];
+Use the shared constructable sheet when supported. Fallback inserts nonce-bearing `<style>` in document, island, and portal roots. Reuse existing style/nonce helpers, which read htmx metadata or DOM. Never create unnonced fallbacks or replace other components' adopted sheets.
 
-// Fallback (<style> tag for older browsers)
-const styleTag = document.createElement('style');
-styleTag.textContent = bundleStyles;
-shadow.appendChild(styleTag);
-```
+### CSS and JavaScript Timing
 
-### CSS↔JS Coordination (Timing Tokens)
-
-CSS custom properties serve as the single source of truth for animation timing. `HelloReactComponent` demonstrates this pattern:
-
-```css
-.drn-react-root .hello-react {
-    --badge-fade-ms: 400;
-    --title-cycle-ms: 4000;
-}
-```
-
-JavaScript reads these via `getComputedStyle`:
-
-```javascript
-const styles = getComputedStyle(helloRoot);
-const FADE_DURATION_MS = parseInt(styles.getPropertyValue('--badge-fade-ms') || '400', 10);
-```
-
-> This pattern is optional per component — use it when CSS should own animation timing constants.
-
----
+CSS custom properties may own animation timing. HelloReact uses `--badge-fade-ms` and `--title-cycle-ms`; behavior reads them with `getComputedStyle`. Preserve fallbacks and clear every interval/pending timeout on unmount.
 
 ## The Component Registry
 
-All mountable components are registered in `reactBundle.tsx`. Each component gets one entry — the registry grows as you add components:
-
-```typescript
-const COMPONENT_REGISTRY: ReactComponentRegistry = {
-    'HelloReact': HelloReactComponent
-    // 'MyComponent': MyComponent  ← add new components here
-};
-```
-
-The registry maps string keys to component types. `DRN.React.mount('HelloReact', ...)` looks up this registry. An unregistered name logs an error listing available components.
-
-### Root Tracking
-
-A `WeakMap<HTMLElement, RootData>` (`rootMap`) tracks mounted roots per DOM element:
-- Prevents double-mounting
-- Enables safe re-mount (cleans up existing root if component name or shadow mode changes)
-- WeakMap ensures garbage collection when elements are removed from DOM
-
----
+Register components in both `ReactComponentRegistry` and runtime `COMPONENT_REGISTRY`. Unknown names log an error and return null. Tracking prevents duplicate roots and cleans up when component name or shadow mode changes. Weak references do not replace explicit disposal.
 
 ## Mount API
 
 ### `DRN.React.mount(name, element, props, options?)`
 
-Returns `ReactMountedIsland<P> | null`:
+Returns an island handle or null for an invalid element/component. `update(partialProps)` merges props and rerenders, `getProps()` returns a shallow copy or null after disposal, and `dispose()` unmounts. Old handles cannot mutate/dispose a replacement root on the same element.
 
-```typescript
-const island = DRN.React.mount('HelloReact', domElement, {
-    title: 'Hello',
-    onReady: () => console.log('Ready'),
-    onCardClick: () => console.log('Clicked')
-});
-```
-
-**Return value API**:
-
-| Method | Purpose |
-|--------|---------|
-| `island.update(partialProps)` | Merge new props and re-render without remounting |
-| `island.getProps()` | Returns shallow copy of current merged props, or `null` after dispose |
-| `island.dispose()` | Unmounts React root and removes from tracking map |
-
-### Rendering Pipeline
-
-Every mounted component is wrapped in:
-
-```tsx
-<React.StrictMode>
-    <IslandErrorBoundary>
-        <PortalContext.Provider value={portalContainer}>
-            {React.createElement(Component, props)}
-        </PortalContext.Provider>
-    </IslandErrorBoundary>
-</React.StrictMode>
-```
-
-`IslandErrorBoundary` catches render failures per-island — one crashed island does **not** affect other islands or the host page.
+Each island renders inside StrictMode, an `IslandErrorBoundary`, and the portal provider. Render failures remain local. Preserve the boundary's reset behavior when props change.
 
 ### Global Portal Host
 
-`getGlobalPortalContainer()` creates one `#drn-global-portals` host under `document.body`, attaches an open Shadow DOM root, and reuses the shared React stylesheet. The cached container is reused while connected and recreated on the next island mount after an HTMX body swap detaches it.
-
-Components render overlays through `IslandPortal`, which reads the shared container from `PortalContext`:
-
-```tsx
-import { IslandPortal } from '../PortalContext';
-
-<IslandPortal>
-    <div className="my-component-dialog">Dialog content</div>
-</IslandPortal>
-```
-
-Keep portal component styles under `.drn-react-root` so the same rules work in island and global-portal Shadow DOM roots. Dispose the owning island through the standard onmount lifecycle; React then removes that island's portal children.
-
----
+`IslandPortal` renders overlays into shared `#drn-global-portals` Shadow DOM. Reuse the connected host and recreate it after htmx swaps detach it. Keep styles under `.drn-react-root`. Dispose the owning island so React removes its portal children. Never mount portals while htmx is removing old body children.
 
 ## Razor Page Integration
 
-Islands mount via the onmount wrapper — **not** via declarative `data-app-island` attributes.
+Render declarative data and an external page bundle. Put registration in the domain behavior module, not an inline Razor script. Home references `homeBehaviors.js` in its `Scripts` section. Full and htmx layouts must render that section.
 
-### Pattern
-
-```html
-<!-- Razor Page (.cshtml) -->
-<div data-js-my-component-island></div>
-
+```razor
+@{
+    var versions = Json.Serialize(new { dotnet = pkg.Dotnet, react = pkg.React }).ToString();
+}
+<div data-js-hello-react-island data-versions="@versions"></div>
 @section Scripts {
-    <script>
-        DRN.Onmount.registerFull('[data-js-my-component-island]', function (options) {
-            const island = DRN.React.mount('MyComponent', this, {
-                title: 'Hello',
-                onReady: () => console.log('Component ready')
-            });
-
-            // Store island as disposable for automatic cleanup on unmount
-            options.disposable = island;
-        }, function (options) {
-            // Custom cleanup (intervals, event listeners, etc.)
-            if (this._myIntervalId)
-                clearInterval(this._myIntervalId);
-
-            // Call default unregister to dispose 'options.disposable'
-            DRN.Onmount.unregister.call(this, options);
-        });
-    </script>
+    <script src="buildwww/app/js/homeBehaviors.js"></script>
 }
 ```
 
-### Key Integration Points
+Here `pkg` is the server package-version provider. Convert JSON to string so Razor encodes attribute quotes. Never use raw HTML for data attributes. Read configuration from the mounted element instead of captured server values from an earlier navigation.
 
-1. **`this`** — the DOM element matched by the selector
-2. **`options.disposable = island`** — wires island disposal into the onmount unregister lifecycle
-3. **Custom unregister** — clean up non-React resources first (intervals, DOM listeners), then delegate to default `unregister`
-4. **Shadow DOM access** — `this.shadowRoot` gives access to the shadow root for querying rendered content
-5. **Props from server** — use `@Json.Serialize()` to pass server-side data as initial props
-
-### Server-Side Version Injection
-
-```csharp
-// Razor Page — pass package versions from PackageVersions.cs
-var pkg = PackageVersions.Instance;
-// In <script>:
-versions: {
-    dotnet: @Json.Serialize(pkg.Dotnet),
-    react: @Json.Serialize(pkg.React)
-}
+```javascript
+// behaviors/home/hello-react-island.js, imported by homeBehaviors.js
+DRN.Onmount.register('[data-js-hello-react-island]', function (options) {
+    const island = DRN.React.mount('HelloReact', this, {
+        title: 'Hello',
+        versions: JSON.parse(this.dataset.versions)
+    });
+    options.disposable = island;
+});
 ```
 
----
+Use `registerFull` for custom cleanup, or a composite disposable for timers/listeners plus the island. Dispose extra resources before the island. The wrapper deduplicates registrations across page-script executions. Initial polling must follow deferred registration; htmx polling and late script registration must both work. Revisits mount new elements without duplicate listeners.
+
+Access rendered Shadow DOM through `shadowRoot`. React rendering is asynchronous; descendants may not exist immediately after `mount()`. Use readiness callbacks when behavior requires rendered content.
 
 ## Adding a New Component
 
-### 1. Create component file
-
-```
-buildwww/lib/react/components/MyComponent.tsx
-buildwww/lib/react/components/MyComponent.css   (optional)
-```
-
-### 2. Export props interface and component
-
-```typescript
-export interface MyComponentProps {
-    title: string;
-    onReady?: () => void;  // Follow on* callback convention
-}
-
-export const MyComponent = ({ title, onReady }: MyComponentProps) => {
-    useEffect(() => { onReady?.(); }, [onReady]);
-    return <div className="my-component">{title}</div>;
-};
-```
-
-### 3. Register in type system
-
-Update `buildwww/types/DrnReactTypes.ts`:
-
-```typescript
-export type ReactComponentRegistry = {
-    'HelloReact': React.ComponentType<HelloReactProps>;
-    'MyComponent': React.ComponentType<MyComponentProps>;  // ← Add
-};
-```
-
-### 4. Register in bundle
-
-Update `reactBundle.tsx`:
-
-```typescript
-import { MyComponent } from './components/MyComponent';
-
-const COMPONENT_REGISTRY: ReactComponentRegistry = {
-    'HelloReact': HelloReactComponent,
-    'MyComponent': MyComponent  // ← Add
-};
-```
-
-### 5. Add CSS import (if applicable)
-
-Update `reactBundle.css`:
-
-```css
-@import "./components/MyComponent.css";
-```
-
-### 6. Mount from Razor
-
-Follow the [Razor Page Integration](#razor-page-integration) pattern.
-
-### 7. Build
-
-```bash
-npm run build:react   # BUILD_TYPE=react vite build
-```
-
----
+1. Create typed TSX and optional scoped CSS under `buildwww/lib/react/components/`.
+2. Add its type to `ReactComponentRegistry` and implementation to `COMPONENT_REGISTRY`.
+3. Import its CSS from `reactBundle.css` when needed.
+4. Add mounting behavior to the owning domain and import it from the domain entry.
+5. Render its hook/configuration and page bundle reference. Preserve runtime dependency order.
+6. When execution is authorized, build changed runtime/behavior targets and verify full load, htmx entry, revisit, and unmount.
 
 ## Conventions
 
-Follow the [UI accessibility rules](../basic-code-review/SKILL.md#ui-accessibility) when implementing controls. React event handler props do not require CSP permission for inline scripts. Keep the existing bundle loading and nonce requirements.
+Follow [UI accessibility guidance](../basic-code-review/SKILL.md#ui-accessibility). React event props do not need inline-script CSP permission; bundle/style nonce rules still apply.
 
 ### Callback Convention
 
-Components accept `on*`-prefixed function props for island→host event notification:
-
-| Rule | Example |
-|------|---------|
-| Name with `on` prefix | `onReady`, `onSelectionChange`, `onSubmit` |
-| Execute in host page scope | Outside Shadow DOM — vanilla JS context |
-| Replaceable via `update()` | `island.update({ onReady: newHandler })` |
-| Removable via `update()` | `island.update({ onReady: undefined })` |
-| Pass plain data only | No React internals in callback arguments |
-
-### CSS Conventions
-
-- All selectors scoped under `.drn-react-root .component-name`
-- Use `@apply` from Tailwind utilities — compiles at build time
-- Timing tokens as CSS custom properties (CSS is source of truth)
-- No global `:root` styles — use `@reference` not `@import` for Tailwind
+Use `on`-prefixed function props, such as `onReady` and `onCardClick`. Callbacks execute in host scope, can be replaced through `update`, or removed by setting undefined. Pass plain data, not React internals. Keep StrictMode callback handling safe against repeated effects.
 
 ### Lifecycle Conventions
 
-- Always set `options.disposable = island` in `registerFull`
-- Custom cleanup (intervals, DOM listeners) in unregister callback **before** `DRN.Onmount.unregister.call()`
-- Never call `root.unmount()` directly — use `island.dispose()` instead
+- Keep handles/resources local to each mounted element.
+- Assign the handle or composite object to `options.disposable`.
+- For custom unregister, release timers/listeners before `DRN.Onmount.unregister.call(this, options)`.
+- Use `island.dispose()`, not direct `root.unmount()` from host code.
+- Full reload adopts new code for existing registrations; cache reuse does not replace behavior registration.
 
-### Evolution Triggers (from HomeAnonymous.cshtml roadmap)
+### Evolution Triggers
 
-| Trigger | Action |
-|---------|--------|
-| 5–6+ components with shared state | Add lightweight cross-island state bus |
-| Bundle size concern | Lazy-load registry entries with dynamic `import()` |
-| High-performance isolated islands | Consider Svelte 5 or Vue Vapor mode registries |
-| Multiple frameworks coexist | Invest in full micro-frontend separation |
-
----
+Consider an event bus when several islands need shared state, lazy registry imports when bundle size warrants them, alternate renderers for proven requirements, and micro-frontends for multiple frameworks or independent teams. Domain behavior bundles alone require no new runtimes or independent applications.
 
 ## Related Skills
 
-- [drn-buildwww-libraries](../drn-buildwww-libraries/SKILL.md) — onmount wrapper structure and lifecycle
-- [drn-buildwww-vite](../drn-buildwww-vite/SKILL.md) — Vite multi-build configuration
-- [drn-buildwww-packages](../drn-buildwww-packages/SKILL.md) — React, Tailwind, and type dependency management
+- [Behavior lifecycle](../drn-buildwww-libraries/SKILL.md)
+- [Vite builds](../drn-buildwww-vite/SKILL.md)
+- [Package dependencies](../drn-buildwww-packages/SKILL.md)

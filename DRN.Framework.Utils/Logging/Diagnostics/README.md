@@ -40,6 +40,7 @@ SharedKernel distributes these diagnostics transitively. Public readable instanc
 | DRN0022 | Sensitive ILogger names or directly captured classified properties require a decision. |
 | DRN0023 | Malformed DiagnosticNameExemption comment. |
 | DRN0024 | Warning: a valid DiagnosticNameExemption comment suppresses no name diagnostic. |
+| DRN0025 | Model capture exceeded the analysis work limit, so configured paths may remain unchecked. Capture a smaller model or classify sensitive subtrees explicitly. |
 
 Company attributes may derive from Sensitive or Personal, including in referenced assemblies. Derived Sensitive attributes must remain positive. Runtime non-None Microsoft classifications still redact, but unrelated classification families do not satisfy compiler verification. A custom attribute returning None is not a supported exemption.
 

@@ -157,7 +157,7 @@ public class DiagnosticModelProjectionTests
             ["Authorization"] = ["one", "two", "three"]
         });
         headers["Authorization"].Should().Equal("one", "two", DiagnosticSanitizer.Limited);
-        Action useForLogging = () => new ScopedLog(settings, sanitizer);
+        Action useForLogging = () => _ = new ScopedLog(settings, sanitizer);
         useForLogging.Should().Throw<ArgumentException>();
     }
 

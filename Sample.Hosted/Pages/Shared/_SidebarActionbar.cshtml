@@ -22,25 +22,21 @@
                     continue;
                 }
 
-                var badgeContent = navItem.GetBadgeContent();
                 <li class="nav-item" id="@navItem.ActionItemId" data-js-actionbar-item>
                     <div title="@navItem.Title" data-bs-toggle="tooltip" data-bs-placement="left">
                         <button class="btn btn-light nav-link d-flex align-items-center py-2 @borderBottom border-top rounded-0" type="button" aria-label="@navItem.Title"
                                 data-bs-toggle="offcanvas" data-bs-target="#@navItem.ActionItemCanvasId">
                             <span class="position-relative">
                                 <i class="bi @navItem.Icon" style="font-size: 1.25em;" aria-hidden="true"></i>
-                                @if (navItem.BadgeContentGenerator != null || !string.IsNullOrWhiteSpace(navItem.BadgeContent))
+                                @if (navItem.TryGetBadgeContent(out var badgeContent))
                                 {
-                                    @if (!string.IsNullOrWhiteSpace(badgeContent))
-                                    {
-                                        <span style="font-size: 0.7rem;" class="position-absolute top-0 start-100 translate-middle badge rounded-pill text-bg-danger">
-                                            <span data-actionbar-count class="@navItem.ActionItemBadgeContentClass">@badgeContent</span>
-                                            @if (!string.IsNullOrWhiteSpace(navItem.BadgeVisuallyHiddenContent))
-                                            {
-                                                <span class="visually-hidden">@navItem.BadgeVisuallyHiddenContent</span>
-                                            }
-                                        </span>
-                                    }
+                                    <span style="font-size: 0.7rem;" class="position-absolute top-0 start-100 translate-middle badge rounded-pill text-bg-danger">
+                                        <span data-actionbar-count class="@navItem.ActionItemBadgeContentClass">@badgeContent</span>
+                                        @if (navItem.HasBadgeVisuallyHiddenContent)
+                                        {
+                                            <span class="visually-hidden">@navItem.BadgeVisuallyHiddenContent</span>
+                                        }
+                                    </span>
                                 }
                             </span>
                         </button>
@@ -65,20 +61,16 @@
                 <div class="d-flex gap-3 text-primary">
                     <h4 class="position-relative">
                         <i class="bi @navItem.Icon" aria-hidden="true"></i>
-                        @if (navItem.BadgeContentGenerator != null || !string.IsNullOrWhiteSpace(navItem.BadgeContent))
+                        @if (navItem.TryGetBadgeContent(out var badgeContent))
                         {
-                            var badgeContent = navItem.GetBadgeContent();
-                            @if (!string.IsNullOrWhiteSpace(badgeContent))
-                            {
-                                <span style="font-size: 0.7rem;" data-js-actionbar-badge
-                                      class="position-absolute top-0 start-100 translate-middle badge rounded-pill text-bg-danger">
-                                    <span class="@navItem.ActionItemBadgeContentClass">@badgeContent</span>
-                                    @if (!string.IsNullOrWhiteSpace(navItem.BadgeVisuallyHiddenContent))
-                                    {
-                                        <span class="visually-hidden">@navItem.BadgeVisuallyHiddenContent</span>
-                                    }
-                                </span>
-                            }
+                            <span style="font-size: 0.7rem;" data-js-actionbar-badge
+                                  class="position-absolute top-0 start-100 translate-middle badge rounded-pill text-bg-danger">
+                                <span class="@navItem.ActionItemBadgeContentClass">@badgeContent</span>
+                                @if (navItem.HasBadgeVisuallyHiddenContent)
+                                {
+                                    <span class="visually-hidden">@navItem.BadgeVisuallyHiddenContent</span>
+                                }
+                            </span>
                         }
                     </h4>
                     <h4>

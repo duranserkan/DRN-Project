@@ -4,7 +4,9 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 Dependencies upgraded to dotnet 10.0.14
 
-Repository cancellation tokens are explicitly classified as operational false positives and excluded from object logging with `[IgnoreLog]`. SharedKernel classification analyzers apply transitively to model properties in consumers.
+### Breaking Changes
+
+SharedKernel classification analyzers apply transitively. Review application model properties and add required classification annotations when upgrading.
 
 ## Version 0.10.0
 

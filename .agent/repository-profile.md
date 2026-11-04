@@ -1,8 +1,6 @@
 # Repository Profile - DRN-Project
 
-> Local overlay for this repository. Keep `AGENTS.md` generic; keep DRN framework skills reusable.
-
-The local paths and source map below apply only to this checkout. When porting agent files, rebuild this profile from the destination repository. Files in `.agent/temp/` are local workflow history, not reusable guidance.
+> Local overlay for `AGENTS.md` and `.agent/rules/DiSCOS.md`. Keep those entry points portable. Rebuild this profile from the destination when porting. `.agent/temp/` is local workflow history.
 
 ## Snapshot
 
@@ -10,33 +8,32 @@ The local paths and source map below apply only to this checkout. When porting a
 |---|---|
 | Type | .NET 10 framework plus DDD reference app |
 | Architecture | Domain -> Infrastructure/Application -> Hosted |
-| Frontend | Razor Pages + htmx + Bootstrap 5; Vite-built assets |
-| Testing | DTT; unit, analyzer, then integration tests |
+| Frontend | Razor Pages, htmx, Bootstrap 5, Vite |
+| Testing | DTT; unit, analyzer, then integration |
 
 ## Layout
 
-Physical project folders are flat at the repository root. `DRN.slnx` supplies logical IDE groups. The [Solution Structure guide](../docs/solution-structure.md) documents these groups and project roles for repository readers.
+Physical project folders are flat. `DRN.slnx` supplies logical groups. `docs/solution-structure.md` owns project roles and solution grouping. Resolve repository paths in this profile from the repository root.
 
-| Area | Physical folders | Solution folder |
-|---|---|---|
-| Framework packages | `DRN.Framework.*` | `/Src/Framework/` |
-| Nexus service | `DRN.Nexus.*` | `/Src/Nexus/` |
-| Reference app | `Sample.*` | `/Src/Sample/` |
-| Tests | `DRN.Test.*` | `/Test/` |
-| Infrastructure | `Docker/`, `docker-compose.yml`, `docker-compose.dcproj` | `/Docker/` |
-| Agent and CI | `.agent/`, `.github/workflows/`, `.github/actions/` | `/Items/` |
-| Docs | `README.md`, `ROADMAP.md`, `SECURITY.md`, `NOTICE.md`, `docs/` | `/Docs/` |
+| Area | Paths |
+|---|---|
+| Framework | `DRN.Framework.*` |
+| Nexus | `DRN.Nexus.*`, host `DRN.Nexus.Hosted/` |
+| Reference app | `Sample.*`, host `Sample.Hosted/` |
+| Tests | `DRN.Test.*` |
+| Infrastructure | `Docker/`, `docker-compose.yml`, `docker-compose.dcproj` |
+| Agent and CI | `.agent/`, `.github/workflows/`, `.github/actions/` |
+| Docs | `README.md`, `ROADMAP.md`, `SECURITY.md`, `NOTICE.md`, `docs/` |
 
-The [Quick Start guide](../docs/quick-start.md) owns prerequisites, solution build and test commands, package installation, and application setup. The root README groups standalone guide links under Documentation at the end of About Project. Its table of contents links only to sections within the README.
-
-Hosted projects: `Sample.Hosted/` for the reference app; `DRN.Nexus.Hosted/` for Nexus. The [Sample application guide](../Sample.Hosted/README.md) owns local startup, developer-tool access, error behavior, notifications, and frontend builds and tests. Framework package docs live in each `DRN.Framework.*` folder as `README.md`, `RELEASE-NOTES.md`, and package metadata when present.
+`docs/quick-start.md` owns prerequisites, installation, build/test commands, and setup. The root README links standalone guides under Documentation; its TOC links only to README sections. `Sample.Hosted/README.md` owns startup, developer access, browser behavior, and frontend commands. Package docs live in each module's `README.md` and `RELEASE-NOTES.md`.
 
 ## Skill Routing
 
-- DRN framework: load `overview-drn-framework`, then the relevant `drn-*` skill.
-- Testing: load `drn-testing` and `overview-drn-testing` before generic `test-*` router skills.
-- Frontend: read this profile first. For DRN buildwww work, load relevant `drn-buildwww-*` skills. For Razor UI, load `frontend-razor-pages-shared` -> `frontend-razor-pages-navigation` -> `frontend-razor-accessors`; package root is `Sample.Hosted/`.
-- Framework package docs: use `.agent/workflows/documentation.md`.
+- Framework: `overview-drn-framework`, then the relevant `drn-*` skill.
+- Testing: `drn-testing` and `overview-drn-testing` before generic `test-*` routers.
+- Frontend: relevant `drn-buildwww-*` skills. Razor: `frontend-razor-pages-shared` -> `frontend-razor-pages-navigation` -> `frontend-razor-accessors`. DRN accessor construction: `drn-hosting`, Page & Endpoint Management.
+- Package docs: `.agent/workflows/documentation.md`.
+- Classification rules: `.agent/workflows/data-classification.md` with `drn-utils`, `drn-sharedkernel`, and `drn-testing`.
 
 ### Framework Skills
 
@@ -46,13 +43,11 @@ Hosted projects: `Sample.Hosted/` for the reference app; `DRN.Nexus.Hosted/` for
 
 ### Missing Profile Extensions
 
-When copied to another repository, keep profile-declared custom skills that are missing under `.agent/skills/` as `⚠️ Missing profile reference` warnings. Generated loaders must include only existing skill directories. Resolve a missing reference by copying the skill or removing/updating the profile entry after review.
-
-When missing custom skills exist, record them under the affected load-set section in a table with columns in this order: `Skill`, `Expected Loader`, `Status`, `Resolution`. Only rows whose `Status` is exactly `⚠️ Missing profile reference` satisfy Stage 0 verification. Keep missing skills out of generated loaders, `load-skills-all.md`, and loader union validation until the skill directory exists. Do not keep placeholder rows.
+Use the [Stage 3 contract](workflows/update-execute.md#skill-discovery-and-custom-routes) for missing load-set skills.
 
 ## Documentation Modules
 
-When no narrower module is requested, `/documentation` targets:
+Default `/documentation` scope:
 
 - `DRN.Framework.SharedKernel`
 - `DRN.Framework.Utils`
@@ -62,11 +57,11 @@ When no narrower module is requested, `/documentation` targets:
 - `DRN.Framework.Jobs`
 - `DRN.Framework.MassTransit`
 
-`/optimize docs` and `/optimize all` include the README and release-note documentation owned by these modules in addition to root documentation, the [Quick Start guide](../docs/quick-start.md), the [Solution Structure guide](../docs/solution-structure.md), and the [Sample application guide](../Sample.Hosted/README.md).
+`/optimize docs` and `/optimize all` include these modules' READMEs/release notes, root docs, Quick Start, Solution Structure, and the Sample guide.
 
 ## Commands
 
-Do not run or plan build/test commands unless the user explicitly allows it.
+Do not run or plan build/test commands without explicit user permission. When allowed, run unit and analyzer tests before integration tests. MTP test projects run individually, not through `.slnx`.
 
 ```bash
 dotnet build DRN.slnx
@@ -75,149 +70,60 @@ dotnet run --project DRN.Test.Analyzer/DRN.Test.Analyzer.csproj
 dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 ```
 
-When test execution is explicitly allowed, run unit and analyzer tests before integration tests.
-
 ## Conventions
 
-`DiagnosticCapturePolicy` accepts `DiagnosticNameExemption` entries for exact capture kinds and original path segments. Its contract is owned by `DRN.Framework.Utils/Logging/Diagnostics/DiagnosticCapturePolicy.cs` and the adjacent diagnostic guide.
-
-Diagnostic name rules are owned by `DRN.Framework.Utils/Logging/Diagnostics/data-classification-rules.json` and shared with analyzers and browser diagnostics. Backend runtime capture does not match names, including configured fields/paths or URL/query/form names. Preserve explicit classifications and bounds. Browser behavior remains separate. Keep analyzer/browser vectors in `diagnostic-golden-cases.json` and backend vectors in `diagnostic-runtime-cases.json`. Avoid broad `otp` because it matches `RootPath`.
-
-Dynamic data classification and redaction belong to the consuming application according to its use case. Keep guidance aligned with the [diagnostic contract](../DRN.Framework.Utils/Logging/Diagnostics/README.md).
-
-The browser and analyzer consume the same catalog, including `ipadd`. HTTP diagnostics deliberately capture `RemoteIpAddress` as text under `Request_IpAddress`, or an empty string when absent, with an exact compiler acknowledgement. Explicit classifications still apply. Rate-limit rejection identifiers retain their separate protection.
-
-The shared baseline retains `client` matching. Reviewed client identifiers use explicit compiler acknowledgements. HTTP diagnostics log nonempty `l5d-client-id` headers under `Request_l5d-client-id` with an exact comment. Preserve scoped capture limits and unchanged browser matching.
-
-Logging analysis is owned by `DiagnosticClassificationAnalyzer`, `LoggingCaptureAnalysis`, and `DiagnosticNameExemption` in `DRN.Framework.SharedKernel.Analyzers`. Resolve interface classifications on the property's statically known receiver type, including inherited implementations. The [diagnostic guide](../DRN.Framework.Utils/Logging/Diagnostics/README.md#boundaries-and-migration) owns coverage and exemption contracts. Keep SharedKernel documentation, `drn-sharedkernel`, `drn-utils`, `drn-testing`, and analyzer regression tests aligned.
-
-Exact adjacent `DiagnosticNameExemption` comments acknowledge DRN0017, DRN0020, and DRN0022 name matches. DRN0017 uses the reported capture path; DRN0020 uses the exact dictionary key at capture. Preserve configured analyzer paths, classified values, declarations, and child traversal. DRN0024 warns only on unused comments, never redundant attributes or reason/policy exemptions. Unclassified exempted values remain visible at runtime.
-
-Dictionary APIs enforce configured analyzer paths. Inline positive classification constructors with constant exact keys protect whole entries. NonSensitive and unknown classification expressions do not waive configured paths. Dictionary analysis accepts known null, empty and exact redacted constants, including ILogger scope initializers and direct writes.
-
-Classification-rule maintenance uses `.agent/workflows/data-classification.md` with `drn-utils`, `drn-sharedkernel`, and `drn-testing`. Prefer a project-owned `data-classification-rules.json` for domain-specific names. Register one own catalog as EmbeddedResource or AdditionalFiles. SharedKernel targets forward embedded catalogs to analysis and publish DataClassificationRulesAttribute metadata, retained in reference assemblies. Analyzers inherit catalogs from referenced SharedKernel consumers. Distinct own files are rejected; identical physical items are deduplicated. Legacy `diagnostic-rules.json` is accepted.
-
-Dictionary classification analysis bounds depth and traversal work, including earlier local writes, and checks cancellation. Preserve path-sensitive shared-local checks within the budget. Unexamined paths require explicit application protection; there is no runtime name fallback.
-
-Diagnostic input capture does not special-case JSON types. They follow ordinary property/collection rules and attributes, without logical JSON traversal or automatic ignoring. Unsupported body content types, including application/json and application/*+json, use the generic unsupported-body marker. Preserve JSON output serialization, byte sizing and grouping. Keep Utils docs, tests and drn-utils aligned.
-
-DiagnosticTypeMetadata owns lazy cached type/member metadata, including frozen service-discovery lookups and fallback caches. Positive interface classifications and IgnoreLog protect concrete/nested captures. Native snapshots materialize a detached tree under the storage lock and copies retain detached captures. DiagnosticJsonSize owns pooled cleared-buffer byte accounting and fragment sizing. Preserve explicit classifications, raw Development snapshots, output bounds, and exact reconstruction. Scope events attach after diagnostic bounding. Do not claim measured speedups without execution evidence.
-
-Runtime RuleAssemblyName/RuleFile catalog loading and validation remain for compatibility, but loaded names do not redact values. SensitiveFields, SensitiveFieldPaths, and SensitivePathSegments also have no runtime matching effect. Shared parser/inheritance live in DiagnosticRedactionRules; legacy loading lives in DiagnosticLogOptions and EmbeddedClassificationRules. Analyzer catalogs still enforce statically known names and paths. Browser project rules require explicit client configuration.
-
-For new names or files, cover custom matches, nonmatches, invalid inputs, compilation isolation, reference-assembly inheritance, unrelated-assembly exclusion, code fixes, runtime snapshots, and baseline protection. The shared analyzer/runtime fixture is `DRN.Test.Unit/Tests/Framework/Utils/Logging/ProjectRules/data-classification-rules.json`. `DRN.Test.Utils/Classification/data-classification-rules.json` exercises real embedded build registration and runtime inheritance, including escaped MSBuild characters.
-
-Runtime embedded catalog discovery skips missing transitive assembly references. Unavailable assemblies contribute no catalogs. Missing configured roots, other assembly load failures, and invalid catalogs still fail sanitizer creation. Keep this boundary covered by `ProjectDiagnosticRulesTests` and documented in the Utils diagnostic guide.
-
-- Source-Known identity: require explicit `NexusAppSettings:AppId` and `NexusAppSettings:AppInstanceId` in every environment; zero is valid for both. Utils `Validate<TEntity>` uses entity metadata; `Validate(id, entityType)` uses the configured partition unless overridden through `TApp : IAppId` or an explicit `EntityTypeId(entityType, expectedAppId)`. SharedKernel and EF repository validation use entity metadata or an explicit composite identity. See `drn-utils` and `drn-sharedkernel` for API contracts.
-- Source-Known input format: GUID operations, entity/repository GUID helpers, and GUID-input repository reads accept non-nullable `SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault`. GUID deletes offer a collection-plus-format overload and a params overload using ConfiguredDefault. The Utils constructor sets immutable `ISourceKnownEntityIdOperations.DefaultFormat` from `UseSecureSourceKnownIds` (true → Secure, false → Plain). Format is enforced at GUID parsing; explicit Auto accepts both forms. Parsed-record validation and repository record reads/deletes have no format parameter: they check stored validity and expected identity, accepting either representation. Generated records also check validity/identity. Treat parsed records as trusted internal values; conversions reauthenticate the GUID using Auto. Null GUIDs remain supported; undefined formats throw even for null GUIDs/empty GUID batches. Rebuild consumers and update GUID signatures and custom operations, including DefaultFormat.
-- Recurring workers: preserve non-overlapping execution, cooperative cancellation, and disposal contracts documented in `drn-utils`.
-- Logging: use `IScopedLog` for request and operation diagnostics. Direct `ILogger` emission is appropriate for scope flushing, bootstrap failures, or dedicated audit events that need stable `EventId` filtering. Record request audit decisions in the scoped log too, but do not copy full request logs into dedicated audit events. Hosting event definitions belong in `DRN.Framework.Hosting.Logging.HostingLogEvents`; consumers can define companion catalogs.
-- Event contracts: use .NET `EventId` with public static `<Module>LogEvents` catalogs in each owning module's `Logging` namespace. Fields are `public static readonly`; IDs are unique within the module and published IDs/names must not be reassigned. Use Utils `ScopeEvent` with `IScopedLog.WithEvent`: first event is primary, later events are retained separately. Standard fields are `EventId`, `EventName`, `EventOutcome`, and `EventReason`. Every scoped log has a stable `CorrelationId`; nullable `TraceId` captures a real W3C activity at construction. Never generate fallback trace IDs. HTTP `TraceIdentifier` stays separate. OpenTelemetry native correlation uses the activity at emission. `LogScoped` forwards the primary event ID. Filter dedicated events by logger category and ID; avoid module-specific wrapper types.
-- Event retention: preserve one primary and eight additional events, with `OmittedEventCount` only when nonzero. Event contents bypass sanitization and diagnostic byte limits. The [Utils scope-event contract](../DRN.Framework.Utils/README.md#scope-events) owns capture, copies, and emission behavior. Keep it and `drn-utils` aligned.
-- DI: use attributes; do not manually register attribute-decorated services. `[Scoped<T>]`, `[Singleton<T>]`, and `[Transient<T>]` declare lifetimes. `[Config("Section")]` and `[ConfigRoot]` bind configuration. `[HostedService]` declares background services.
-- Entities: use Source-Known IDs with `long` internal IDs and `Guid` external IDs. Add `[EntityType<TApp>(byte)]` or a supported domain-derived attribute to every concrete, effectively non-private `SourceKnownEntity`. Analyzer and runtime model/assembly discovery exclude abstract entities and entities that are private or nested at any depth inside a private type.
-- Entity usage: `DRN0009`–`DRN0014` check constant partitions/formats, hidden identity members, generic entities, abstract metadata/repository bindings, and uninitialized ID operations. See [SharedKernel diagnostics](../DRN.Framework.SharedKernel/README.md#compile-time-roslyn-analyzers) and `drn-sharedkernel` for scope and exceptions. Runtime rejection tests must use non-constant inputs.
-- Entity operation lifecycle: EF materialization and SavingChanges for Added entities attach operations before commit; construction, Add, and standalone ID generation do not. Use injected ID utilities before initialization. No diagnostic proves readiness, and initialization does not prove persistence.
-- Source-Known time: configure the immutable epoch/minimum pair before startup or first ID/epoch use. Hosts validate before constructors/hooks; historical reads freeze the pair without enforcing the generation floor. Keep one origin across a dataset's services and restarts. See `drn-sharedkernel` for the time contract and `drn-testing` for isolation rules.
-- Entity creation-date filters: Source-Known IDs have 250ms precision. Inclusive boundaries include the full tick payload range; exclusive boundaries exclude it. `Between` and `Outside` normalize reversed endpoints. Cover inclusive/exclusive, equal/distinct/reversed ranges, and the epoch-half sign transition with pure unit tests; use database integration only when provider translation or query plans are under test.
-- DTOs: derive from `Dto`, live in `*.Contract`, expose `Guid` IDs only, and return DTOs from APIs. Do not return entities.
-- UnsafeAccessors: prefer `[UnsafeAccessor]` (`System.Runtime.CompilerServices`) over runtime reflection (`MethodInfo`, `PropertyInfo`, `FieldInfo`, `Invoke`, `GetValue`, `SetValue`) whenever the target type is known and accessible at compile time. Reserve runtime reflection strictly for dynamically discovered types.
-- Testing: use `[Fact]` without inline data or generated parameters. Use `[DataInline]` / `[DataInlineUnit]`, `[DataMember]` / `[DataMemberUnit]`, and `DataSelfAttribute` / `DataSelfUnitAttribute` for inline, member, and generated self data. Request `DrnTestContext` / `DrnTestContextUnit` only when needed; inline/member/self data follows the optional context, and AutoFixture/NSubstitute fill remaining parameters. Never use `DrnTestContext` in `DRN.Test.Unit`; use `DrnTestContextUnit` there and place full `DrnTestContext` coverage in `DRN.Test.Integration`. List unit tests before integration tests. When test execution is explicitly allowed, run MTP projects with `dotnet run --project <test-csproj>`; do not use `.slnx` for test runs. Keep reusable hosted test programs in the `DRN.Test.Utils` SDK Web support project with `IsTestProject=false`, not inside the MTP test executable. `DrnWebApplicationFactory<TProgram>` automatically resolves and binds secondary `IDrnProgram` entry points in multi-program support assemblies, allowing multiple test programs to be hosted via `ApplicationContext.CreateClientAsync<TProgram>()`.
-- Frontend: Vite source lives in `Sample.Hosted/buildwww/`; built assets live under `Sample.Hosted/wwwroot/`. Browser utilities live under `window.DRN`; Vite imports `buildwww/app/js/drn/drnUtils.js` as `drnUtils`. `DRN`, `Drn*`, and `DRN.Framework.*` are shared framework surface, not placeholders. React islands use `buildwww/types/DrnReactTypes.ts`, `.drn-react-root`, and the `DrnReactMicroFrontend` IIFE wrapper. `NonceTagHelper` injects CSP nonces. CSRF is auto-added on `hx-post`, `hx-put`, `hx-delete`, and `hx-patch`.
-- Sample developer tools: signed-in users with completed MFA can access Swagger, HTMX, and Developer View in Development. Other environments require `SystemAdmin` or a matching boolean claim set to `true`: `SwaggerAccess` for Swagger, `TestPagesAccess` for HTMX and Developer View. These claim names also name the policies used by endpoints and navbar visibility. Default MFA applies in every environment. Framework consumers retain Development-only Swagger defaults. Developer previews are explicit endpoints; no pre-authentication `DeveloperView` path trigger remains.
-- Git: use GitFlow-inspired flow. Merge `develop` to `master`. Tag releases as `release/v*.*.*` or `release/v*.*.*-previewNNN`. Squash merge to `develop`; use merge commits to `master`.
-- CI/CD: PR workflows use split checkout: trusted workflow/composite action code from `github.event.pull_request.base.sha` at workspace root; PR source under `src`. PR jobs stay secretless, set explicit `timeout-minutes`, and join through an aggregate gatekeeper. Release workflows derive one version from `release/v...` tags, verify the tag commit equals protected source branch HEAD, keep build artifacts in the publishing job unless artifacts must cross jobs, preserve pre-publish NuGet packages for provenance and SBOM verification because NuGet.org repository signing changes their digests, and require consumers to verify the repository signature before removing `.signature.p7s` from a copy used for GitHub attestation verification. Stage Docker images with deterministic `staged-*` cleanup tags, generate SPDX 2.3 SBOMs with a digest-pinned scanner, scan the exact staged digest, attest multi-platform index provenance, bind each platform SBOM to its exact image manifest digest, publish packages, then promote Docker tags from scanned digests.
-- Security: require CSP nonces, CSRF anti-forgery, and input validation. Pin third-party GitHub Actions to full immutable Git commit SHAs with version comments; verify tag-to-SHA mapping from the official upstream action repository. Pin container base images to verified registry content digests. `.github/CODEOWNERS` owns itself, workflows, and composite actions. Branch rulesets should require code-owner review and code-scanning/gatekeeper statuses. CodeRabbit global rules come from `knowledge_base.code_guidelines.filePatterns` for `AGENTS.md` and `.agent/rules/DiSCOS.md`. See `basic-security-checklist`, `overview-github-actions`, and `drn-hosting`.
-- Containers: keep Docker SDK/runtime distro choices and `DOTNET_RUNTIME_VERSION` aligned with `RuntimeFrameworkVersion` metadata.
-- Workflow artifacts: `/clarify` owns `.agent/temp/CLARIFY-*`; `/answer` accepts canonical reviewed CLARIFY input and may resume an approved `clarified` artifact solely to create its collision-safe `.agent/temp/DEVELOP-*`; `/develop` owns the basename-matched `.agent/temp/WALKTHROUGH-*`. System plans must reference and link these pipeline documents.
+- DI/configuration: use DRN attributes. Do not manually register attribute-decorated services. Follow `overview-drn-framework` and `drn-utils`.
+- Identity: explicit `NexusAppSettings:AppId` and `AppInstanceId` in every environment; zero is valid. Use Source-Known IDs and entity metadata. DTOs derive from `Dto`, live in `*.Contract`, and expose `Guid` IDs, not entities. `drn-sharedkernel` and `drn-utils` own identity formats, time configuration, and lifecycle contracts.
+- Runtime access: prefer `[UnsafeAccessor]` when target types are known and accessible at compile time. Reserve reflection for dynamically discovered types.
+- Logging: use `IScopedLog` for request/operation diagnostics. Direct `ILogger` is for bootstrap, scope flushing, or dedicated audit events. Do not duplicate full request logs in audit events. Dynamic classification is the application's responsibility; backend runtime capture has no name-based redaction fallback.
+- Testing: use `DrnTestContextUnit` in `DRN.Test.Unit`; full `DrnTestContext` belongs in integration tests. Reusable hosted test programs belong in `DRN.Test.Utils`, not MTP executables. `drn-testing` owns data attributes and fixture contracts. Do not weaken production invariants for tests.
+- Frontend: source is `Sample.Hosted/buildwww/`; output is `Sample.Hosted/wwwroot/`. Browser APIs use `window.DRN`. `DRN`, `Drn*`, and `DRN.Framework.*` are real framework names, not placeholders. Buildwww skills own mounting, React, nonce, and CSRF conventions.
+- Sample behaviors: `buildwww/app/js/behaviors/{layout,home,test}/` feed separate `layoutBehaviors.js`, `homeBehaviors.js`, and `testBehaviors.js` entries. Load layout globally and page entries through their owning Razor `Scripts` sections. Use declarative data and idempotent mounting. `Sample.Hosted/README.md`, Independently updating component behaviors, owns aggregate/selective commands, nonce-fixture exceptions, and deployment/restart rules.
+- Sample developer tools: completed MFA is required everywhere. Development allows signed-in users; other environments require `SystemAdmin` or boolean `SwaggerAccess`/`TestPagesAccess` claims set to `true`. The matching policies govern endpoints and visibility. Framework Swagger remains Development-only by default.
+- Sample/Nexus configure `/Api` for unmatched API routes. Sample opts into HTMX Problem Details through `DrnApiErrorOptions.HandleHtmxRequests`. Preserve browser account isolation and separate `requestId`/`clientErrorId` references.
+- Git: GitFlow-inspired. Integration branch `develop`, release branch `master`. Squash merge to `develop`; merge commits from `develop` to `master`. Tags: `release/v*.*.*` or `release/v*.*.*-previewNNN`.
+- Security: CSP nonces, CSRF, and input validation are required. Pin third-party Actions to full immutable SHAs with version comments and verify upstream tag alignment. Pin container bases to verified registry digests. Keep SDK/runtime distro choices and `DOTNET_RUNTIME_VERSION` aligned with `RuntimeFrameworkVersion`.
+- PR CI: trusted workflow/action code comes from `github.event.pull_request.base.sha` at workspace root; PR source lives under `src`. Jobs are secretless, have timeouts, and join an aggregate gatekeeper. `.github/CODEOWNERS` owns itself, workflows, and composite actions. Branch rulesets should require code-owner review and scanning/gatekeeper statuses.
+- Release CI: derive one version from the release tag and verify its commit equals protected branch HEAD. Keep artifacts in the publishing job unless crossing jobs is necessary. Preserve pre-publish NuGet packages for provenance/SBOM checks. Verify NuGet.org's repository signature before removing `.signature.p7s` from a copy for GitHub attestation verification. Scan exact staged Docker digests, attest multi-platform provenance, bind SPDX 2.3 platform SBOMs to image digests, publish packages, then promote scanned digests. Use deterministic `staged-*` cleanup tags and a digest-pinned scanner.
+- CodeRabbit loads `AGENTS.md` and DiSCOS through `knowledge_base.code_guidelines.filePatterns`.
+- Workflow artifacts: `/clarify` owns `CLARIFY-*`; `/answer` accepts reviewed CLARIFY input and may resume approved `clarified` input solely to create collision-safe `DEVELOP-*`; `/develop` owns the matching `WALKTHROUGH-*`. Keep these in `.agent/temp/` and link them from system plans.
 
 ## Frontend Test Scope
 
-Sample frontend unit tests live in `Sample.Hosted/buildwww/tests/*.test.js`, with browser tests in `Sample.Hosted/buildwww/tests/browser/`. Commands and setup belong in the [Sample frontend test guide](../Sample.Hosted/README.md#frontend-tests). Execution requires explicit permission.
+Unit tests: `Sample.Hosted/buildwww/tests/*.test.js`. Browser tests: `Sample.Hosted/buildwww/tests/browser/`. `Sample.Hosted/README.md`, Frontend Tests, owns setup and commands. Execution requires explicit permission.
 
 ## DRN Framework Source Overlay
 
-Framework conventions and defaults live in framework-scoped DRN skills, especially `overview-drn-framework`. Before changing shared framework facts, check the source-owned files below.
-
 ### Source Map
 
-| Shared fact | Source of truth | Main consumers |
+Use these owners for public contracts. For implementation work, discover relevant source within the named module instead of copying implementation details into this profile.
+
+| Contract | Owner | Agent guidance |
 |---|---|---|
-| Expected Source-Known identity | [EntityTypeId.cs](../DRN.Framework.SharedKernel/Domain/EntityTypeId.cs), [SourceKnownEntityId.cs](../DRN.Framework.SharedKernel/Domain/SourceKnownEntityId.cs), [SourceKnownEntity.cs](../DRN.Framework.SharedKernel/Domain/SourceKnownEntity.cs), [EF SourceKnownRepository.cs](../DRN.Framework.EntityFramework/Domain/SourceKnownRepository.cs) | SharedKernel/EntityFramework/Utils READMEs and skills |
-| Trusted ID generation floor | [SourceKnownGenerationTime.cs](../DRN.Framework.SharedKernel/Domain/SourceKnownGenerationTime.cs), [SourceKnownIdSettings.cs](../DRN.Framework.Utils/Settings/SourceKnownIdSettings.cs), [TimeStampManager.cs](../DRN.Framework.Utils/Time/TimeStampManager.cs) | SharedKernel/Utils/Hosting READMEs and skills |
-| Hosting default implementation boundaries | [DrnProgramBase.cs](../DRN.Framework.Hosting/DrnProgram/DrnProgramBase.cs), internal `Drn*Configurator.cs` files in `DRN.Framework.Hosting/DrnProgram/Configurators/`, [DrnStartupExceptionReporter.cs](../DRN.Framework.Hosting/DrnProgram/DrnStartupExceptionReporter.cs) | `drn-hosting`; preserve public/protected hooks, deferred options callbacks, pipeline order, per-program NLog options, and lifecycle/disposal ownership when moving defaults |
-| Razor page rendering lifecycle | [PageUtils.cs](../DRN.Framework.Hosting/Endpoints/PageUtils.cs) | Hosting README and release notes, `drn-hosting`; preserve standard view-start/layout rendering, endpoint-generated links for unmatched requests, and await disposal of each rendering scope on success or failure without disposing the parent request scope |
-| Configuration source order | [ConfigurationExtensions.cs](../DRN.Framework.Hosting/Extensions/ConfigurationExtensions.cs) | Utils README, Hosting README, DRN framework skills |
-| Rate limit defaults | [DrnAppFeatures.cs](../DRN.Framework.Utils/Settings/DrnAppFeatures.cs), [RateLimitTokenBucketOptions.cs](../DRN.Framework.Hosting/RateLimiting/RateLimitTokenBucketOptions.cs) | Utils/Hosting READMEs and release notes, `drn-utils`, `drn-hosting`; default post-auth capacity/refill is 250 and pre-auth capacity/refill is 2,500, every 60 seconds |
-| Mounted settings paths | [MountedSettingsConventions.cs](../DRN.Framework.Utils/Settings/Conventions/MountedSettingsConventions.cs) | Utils README, Hosting README |
-| App data and temp paths | [AppConstants.cs](../DRN.Framework.SharedKernel/AppConstants.cs), [AppData.cs](../DRN.Framework.Utils/Data/App/AppData.cs), [DrnAppDataSettings.cs](../DRN.Framework.Utils/Settings/DrnAppDataSettings.cs) | SharedKernel README, Utils README, DRN framework skills |
-| Cancellation scopes | [CancellationUtils.cs](../DRN.Framework.Utils/Cancellation/CancellationUtils.cs), [CancellationScope.cs](../DRN.Framework.Utils/Cancellation/CancellationScope.cs), [CancellationScopeKey.cs](../DRN.Framework.SharedKernel/Cancellation/CancellationScopeKey.cs) | Utils README, `drn-utils` skill |
-| Repository cancellation | [SharedKernel SourceKnownRepository.cs](../DRN.Framework.SharedKernel/Domain/Repository/SourceKnownRepository.cs), [EntityFramework SourceKnownRepository.cs](../DRN.Framework.EntityFramework/Domain/SourceKnownRepository.cs) | SharedKernel and EntityFramework READMEs and skills |
-| Entity creation-date filter tick bounds | [EntityDateTimeUtils.cs](../DRN.Framework.Utils/Entity/EntityDateTimeUtils.cs), [EpochTimeUtils.cs](../DRN.Framework.Utils/Time/EpochTimeUtils.cs), [SourceKnownIdUtils.cs](../DRN.Framework.Utils/Ids/SourceKnownIdUtils.cs) | Utils README, Utils release notes, `drn-utils`, `drn-testing`, and DRN framework overview skills |
-| Development settings defaults | [DrnDevelopmentSettings.cs](../DRN.Framework.Utils/Settings/DrnDevelopmentSettings.cs) | EntityFramework README, Testing README |
-| Test settings convention | [SettingsProvider.cs](../DRN.Framework.Testing/Providers/SettingsProvider.cs) | Testing README, testing skills |
-| Test-context/application provider ownership and host lifecycle | [DrnTestContext.cs](../DRN.Framework.Testing/Contexts/DrnTestContext.cs), [ApplicationContext.cs](../DRN.Framework.Testing/Contexts/Application/ApplicationContext.cs), [DrnWebApplicationFactory.cs](../DRN.Framework.Testing/Contexts/Application/DrnWebApplicationFactory.cs) | Testing README, Testing release notes, `drn-testing` skill |
-| Vite manifest discovery and publish support | [ViteManifest.cs](../DRN.Framework.Hosting/Utils/Vite/ViteManifest.cs), [DRN.Framework.Hosting.targets](../DRN.Framework.Hosting/buildTransitive/DRN.Framework.Hosting.targets) | Hosting README, frontend Vite skill, DRN hosting skill |
-| Unified authentication claim configuration | [AuthenticationClaimConfig.cs](../DRN.Framework.Utils/Auth/AuthenticationClaimConfig.cs), [MfaClaimConfig.cs](../DRN.Framework.Utils/Auth/MFA/MfaClaimConfig.cs), [DrnProgramBase.cs](../DRN.Framework.Hosting/DrnProgram/DrnProgramBase.cs) | Utils/Hosting docs and skills; one ConfigureAuthenticationClaims override, Identity defaults with explicit aliases, nested exact MFA marker |
-| Opt-in MFA assurance and phase/revocation contract | [MfaPrincipal.cs](../DRN.Framework.Utils/Auth/MFA/MfaPrincipal.cs), [MFA.cs](../DRN.Framework.Hosting/Auth/Policies/MFA.cs), [MfaRevocationTests.cs](../DRN.Test.Integration/Tests/Framework/Hosting/Auth/MfaRevocationTests.cs) | Utils/Hosting READMEs and release notes, `drn-utils`, `drn-hosting`; default MFA policy remains unchanged |
-| Renewal timestamp and MFA evidence binding | [MfaClaimPreservation.cs](../DRN.Framework.Hosting/Auth/MfaClaimPreservation.cs), [DrnSecurityConfigurator.cs](../DRN.Framework.Hosting/DrnProgram/Configurators/DrnSecurityConfigurator.cs), [DrnSignInManager.cs](../DRN.Framework.Hosting/Identity/DrnSignInManager.cs), [MfaClaimPreservationTests.cs](../DRN.Test.Unit/Tests/Framework/Hosting/Auth/MfaClaimPreservationTests.cs) | Hosting docs and skills; stamp, explicit-cookie and bearer refresh preserve original account-bound evidence; stamp callbacks snapshot each identity before consumer mutation; lifecycle hooks configure wiring without disabling shared semantics |
-| Policy-selected MFA proof and Identity enrollment | [MfaPolicyProof.cs](../DRN.Framework.Hosting/Auth/MfaPolicyProof.cs), [MfaPrincipal.cs](../DRN.Framework.Utils/Auth/MFA/MfaPrincipal.cs), [IdentityMfaPolicy.cs](../DRN.Framework.Hosting/Identity/IdentityMfaPolicy.cs) | Hosting/Utils docs and skills; Sample/Nexus opt-in Identity registration |
-| Canonical authentication claims and account validation | [AuthClaimTypes.cs](../DRN.Framework.Utils/Auth/AuthClaimTypes.cs), [SubjectClaims.cs](../DRN.Framework.Utils/Auth/SubjectClaims.cs), [MfaPrincipal.cs](../DRN.Framework.Utils/Auth/MFA/MfaPrincipal.cs) | Utils/Hosting docs and skills; Identity options and future handlers supply canonical claims/native metadata; subject agreement uses configured types/aliases and their case variants, ignoring unconfigured standard claims; shared validators preserve issuer/evidence isolation |
-| Razor authorization visibility | [PolicyOnlyTagHelper.cs](../DRN.Framework.Hosting/TagHelpers/PolicyOnlyTagHelper.cs), [AuthorizedOnlyTagHelper.cs](../DRN.Framework.Hosting/TagHelpers/AuthorizedOnlyTagHelper.cs), [AnonymousOnlyTagHelper.cs](../DRN.Framework.Hosting/TagHelpers/AnonymousOnlyTagHelper.cs) | Hosting README and release notes, `drn-hosting` |
+| Identity, entities, repositories, analyzer diagnostics | `DRN.Framework.SharedKernel/README.md`, `DRN.Framework.EntityFramework/README.md` | `drn-sharedkernel`, `drn-entityframework` |
+| Configuration, data paths, cancellation, ID/time utilities, events | `DRN.Framework.Utils/README.md` | `drn-utils`, `overview-drn-framework` |
+| Classification, capture limits, exemptions, migration | `DRN.Framework.Utils/Logging/Diagnostics/README.md`; catalog `DRN.Framework.Utils/Logging/Diagnostics/data-classification-rules.json` | `drn-utils`, `drn-sharedkernel`, `drn-testing` |
+| Host hooks, MFA, rate limits, URLs, errors, Razor, Vite publish | `DRN.Framework.Hosting/README.md` | `drn-hosting`, relevant frontend skills |
+| Test contexts, application factories, ownership | `DRN.Framework.Testing/README.md` | `drn-testing`, `overview-drn-testing` |
+| Browser errors, notifications, developer access | `Sample.Hosted/README.md`; `Sample.Hosted/buildwww/types/DrnProblem.d.ts`, `DrnNotifications.d.ts` | `drn-buildwww-libraries` |
 
 ### Documentation Sync
 
-Notification severity filters use primary, danger, warning, and info for All, Errors, Warnings, and Info. Populated filters use colored outlines, selected filters use matching fills, and empty unselected filters remain neutral. Preserve counts and `aria-pressed` alongside color.
+Document public usage, behavior, configuration, and migration. Omit internals. Classify public impact first; inspect private details only to prove public behavior or documentation accuracy.
 
-Browser error reporters capture the original stack once for server reports and notification details. Display message, source location, and page URL before the stack. Render labels in bold and values as plain text, preserving stack line breaks. Existing saved details retain their original text order. Omit a leading error heading from display only when it duplicates the message. Preserve the original stack for server reporting within existing capture limits. When no browser frame lines are recognized, preserve other supplied text and source location and show `Stack frames unavailable`. Keep the Sample guide and `drn-buildwww-libraries` aligned.
+When shared behavior changes, verify its owner, update affected module READMEs and framework skills, assess release-note impact, and search changed names/defaults/examples for drift. Keep browser declarations aligned with the Sample guide. Run `git diff --check`.
 
-Browser contracts: the [Sample application guide](../Sample.Hosted/README.md) owns Swagger access, error response examples, HTMX presentation, and notification usage. Keep it aligned with the [Problem Details declarations](../Sample.Hosted/buildwww/types/DrnProblem.d.ts), [notification declarations](../Sample.Hosted/buildwww/types/DrnNotifications.d.ts), and `drn-buildwww-libraries`. Category routes and schemas are available in the Sample's Swagger UI.
+### Release Notes
 
-Sample notification history requires a stable account ID for authenticated owners. Missing IDs emit an empty owner, clear history, and suspend notifications and HTMX requests. The anonymous owner is reserved for unauthenticated users.
+Describe net consumer impact since the last published release (`release/v0.10.0` for upcoming 0.10.1). Preserve published history. Do not list documentation edits, README/release-note packaging edits, or fixes to bugs introduced after that baseline. Describe new features in final form.
 
-The notification bell stays visible, with a badge only for unseen entries. Opening the panel marks existing history seen without deleting it. Saved history, seen state, and actionbar attendance use local storage and synchronize across tabs for the same application and account. Notification persistence merges operation deltas under an application-scoped Web Lock, with synchronous local feedback and asynchronous shared writes. Without Web Locks, notification history uses tab-local session storage. Memory-only notifications remain local to the page. Request failures without validation errors use friendly toast feedback and one history entry; field validation stays inline. The Sample application guide owns the full behavior.
+Internal refactors, tests, comments, agent docs, and dependency-only updates without consumer impact need no entry outside coordinated releases. Dependency/runtime/container changes require notes when breaking, security-relevant, consumer-visible, or affecting published artifacts. Coordinated releases add the version to every Documentation Modules package, even without package-specific changes. Use concise alignment wording, e.g. `Dependencies upgraded to dotnet 10.0.11`.
 
-Browser failure contracts belong in the Sample application guide: [HTMX errors](../Sample.Hosted/README.md#htmx-errors), [browser error reporting](../Sample.Hosted/README.md#browser-error-reporting), and [notification history](../Sample.Hosted/README.md#notification-history). Keep `drn-buildwww-libraries` and the browser declarations aligned with those contracts. Preserve separate backend `requestId` and browser `clientErrorId` references, safe public summaries and toasts, account isolation, and bounded reporting. Notification occurrences show bounded browser `clientErrorDetails` as text after the Show details button is activated. Preserve original browser values except for page URLs, which use diagnostic URL redaction before display or persistence. Server reports retain diagnostic capture redaction. Backend exception details remain excluded. The Sample's `ClientErrorRateLimitRule` owns its endpoint quota through the framework's attribute-registered rule chain.
-
-Error-path performance contracts: Fetch Problem Details uses bounded incremental clone reads. Notification persistence batches synchronous deltas in order and hidden panels defer list rendering while badges update. Response-only exception handling skips unused diagnostic models while preserving pre/post filter contracts. `SampleDrnExceptionFilter` is an explicit demonstration/test registration, not a default application filter. Keep the Sample/Hosting guides and `drn-buildwww-libraries`/`drn-hosting` aligned.
-
-API failure responses: [DrnApiErrorResponse.cs](../DRN.Framework.Hosting/Middlewares/ApiErrors/DrnApiErrorResponse.cs) owns the shared Problem Details contract for all 4xx and 5xx statuses (400 through 599). Keep the Hosting README/release notes and `drn-hosting` aligned. `DrnApiErrorOptions.PathPrefixes` defaults empty; Sample and Nexus configure `/Api` for unmatched routes. Preserve API metadata classification, browser behavior, authentication/retry headers, production redaction, and requestId semantics. Swagger adds only a representative 400 response describing the full error range while preserving other declared statuses, validation schemas, and custom response types.
-
-HTMX error configuration belongs in the [Hosting README](../DRN.Framework.Hosting/README.md#htmx-partial-requests). Sample opts in through `DrnApiErrorOptions.HandleHtmxRequests`. Keep Hosting docs and `drn-hosting` aligned when this public contract changes.
-
-`[DisableDrnProblemDetails]` opts controllers or actions out of DRN error formatting and automatic Swagger error metadata. Preserve native ASP.NET Core responses and authentication behavior.
-
-`ScopeContext.Problem` owns lazy, ASP.NET-independent public error defaults. Hosting fills missing fields only and defaults instance to PathBase + Path without queries. Keep Utils/Hosting docs and skills aligned. Do not expose exception messages or logs implicitly, or let scoped extensions override standard fields or validation errors.
-
-`ScopeProblem` mirrors every `ExceptionFor` factory with a throwing helper, leaves public defaults unchanged, and hides helper frames from formatted stack traces. Keep both usage forms in Utils and Hosting examples. Routine failures leave `Type` unset and use Hosting's status-based defaults. Do not require per-entity or per-exception catalogs. Explicit types are reserved for public conditions clients must distinguish beyond HTTP status, with stable identities independent of CLR names and routes.
-
-Error-page configuration and contracts belong in the [Hosting README](../DRN.Framework.Hosting/README.md#custom-error-pages). Keep sample routes and behavior in the [Sample application guide](../Sample.Hosted/README.md#error-pages-and-api-failures) and maintenance guidance in `drn-hosting`.
-
-Application URLs: keep static route accessors request-independent and resolve URLs at the request boundary. Follow [Hosting application URL conventions](../DRN.Framework.Hosting/README.md#application-urls). Changes to those contracts belong in the Hosting README, `drn-hosting`, and affected frontend skills.
-
-Document public usage, behavior, configuration, and migration steps; omit implementation details. Release notes describe the net change from the last published release (`release/v0.10.0` for the upcoming 0.10.1 release). Do not list documentation changes, including README or release-note packaging changes, or fixes for bugs introduced after that baseline. Describe new features in their final form instead of recording their development history. Preserve published release history.
-
-NuGet release-note metadata: each package's `PreparePackageReleaseNotes` target delegates to `_PrepareCurrentPackageReleaseNotes` in `Directory.Build.targets`. Select the first `## Version ...` section, stopping at the next version heading or the `---` footer separator, then always append the canonical DiSC OS attribution and bold `Semper Progressivus: Always Progressive` signature. Every release-note document and NuGet release-note output must retain this signature. Keep the selected section limited to changes since the previous documented release, including preview work under the upcoming release version. Packing fails when no version section exists or the final metadata including the signature exceeds 35,000 characters. The packed `RELEASE-NOTES.md` file retains the complete history, prefix, and footer.
-
-Razor visibility convention: `authorized-only` and `anonymous-only` are presence-only markers based on `ScopeContext.Authenticated`. Endpoint policies enforce MFA; use `policy-only` for policy-specific visibility. Authenticated setup/pending credentials can satisfy `authorized-only` on anonymous or MFA-exempt pages.
-
-When source code changes a shared framework fact:
-
-1. Verify the source-owned file in the source map.
-2. Update package READMEs wherever package readers need the new behavior.
-3. Update owning `DRN.Framework.*` release notes for consumer-visible changes under the release-note rules above.
-4. Update framework-scoped DRN skills used for that package.
-5. Search changed terms, renamed keys, changed defaults, and removed examples across package docs, framework skills, `AGENTS.md`, and this profile.
-6. Run `git diff --check`.
-
-Documentation agents must classify public impact first. Skip private/internal-only checks unless needed to prove public behavior or docs accuracy.
-
-Release notes are not required for internal-only refactors, tests, comments, agent-only docs, or dependency-only updates with no consumer-visible impact outside a coordinated release. Dependency/runtime/container changes require release notes when they are breaking, security-relevant, consumer-visible, or alter published package artifacts. Every coordinated DRN Framework release must add the release version to every profile-declared package `RELEASE-NOTES.md`, even when the package has no package-specific change. Use the established concise dependency-alignment wording when applicable, such as `Dependencies upgraded to dotnet 10.0.11`.
+NuGet notes contain the first `## Version ...` section, ending at the next version or `---` footer, plus canonical DiSC OS attribution and the bold signature below. Missing version sections or metadata over 35,000 characters fail packing. The packed file retains full history, prefix, and footer. `Directory.Build.targets` owns extraction.
 
 ### Package Release Notes Format
 
-DRN Framework packages in this repository use the following template. Use `## Version X.Y.Z` headings, not `## vX.Y.Z`. Omit empty sections. Preserve historical wording unless editing the current version block or repairing a malformed invariant prefix/footer.
+Use `## Version X.Y.Z`, omit empty sections, and preserve historical wording except when repairing invariant prefix/footer errors.
 
 ```markdown
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
@@ -227,21 +133,16 @@ Not every version includes changes, features or bug fixes. This project can incr
 [Optional dedication or milestone message]
 
 ### Breaking Changes
-
-*   **Area**: Detail description.
+* **Area**: Consumer impact.
 
 ### New Features
-
-*   **Feature Group**
-    *   **Feature Description**: Details.
+* **Feature**: Public behavior.
 
 ### Changed
-
-*   **Area**: Detail description.
+* **Area**: Consumer impact.
 
 ### Bug Fixes
-
-*   **Area**: Detail description.
+* **Area**: Observable fix.
 
 ---
 

@@ -20,22 +20,22 @@ Accept only plan status `reviewed` or `verifying`. A `failed` or `correcting` pl
 Before initializing or resuming:
 
 1. Read the plan's Run ID, Requested Scope, effective Scope, and Semantic Plan SHA-256.
-2. Require the current reviewed transition and latest apply/correction approval to cover that same Run ID, requested/effective scope, and semantic plan; otherwise return to the owning review or preview gate.
+2. Require the reviewed transition and latest apply/correction approval for the same Run ID, requested/effective scope, and semantic plan. Otherwise return to the owning review/preview gate.
 3. Resolve the exact bytewise-deduplicated Stage 1-5 `### Outputs` path set. Reject undeclared mutation, an in-scope mutating stage with `N/A`, absolute paths, or repository escapes.
 4. Persist the output status and checksum artifacts defined by [baseline-inputs-hash-spec.md](./_shared/baseline-inputs-hash-spec.md). For an empty output set, use its explicit empty-artifact contract.
 5. Set Output Revision SHA-256 based on output existence: hash `.agent/temp/update-verify-outputs.manifest` for non-empty outputs, and hash `.agent/temp/update-verify-output-status.z` (the zero-byte status artifact required by the shared empty-artifact contract) when outputs are empty. Record the selected artifact path in the progress record (`Output Revision Manifest`), and keep the SHA-256 value lowercase without using `N/A`.
 6. Bind progress to Run ID, requested/effective scopes, Semantic Plan SHA-256, the selected output-revision artifact path, and Output Revision SHA-256.
 
-If the progress file is missing, initialize it from the template. If it exists:
+Initialize missing progress from the template. Otherwise:
 
-- A Run ID, requested/effective scope, or Semantic Plan SHA-256 mismatch supersedes the progress file; reinitialize every verification stage and never reuse its pass/skipped states.
-- An Output Revision SHA-256 or exact selected-artifact mismatch resets every non-skipped stage and Final to `pending`, clears checkpoints, and records the new binding before verification.
-- A fully matching binding resumes from the first actionable stage:
+- A Run ID, requested/effective scope, or Semantic Plan SHA-256 mismatch supersedes progress; reinitialize every verification stage without reusing pass/skipped states.
+- An Output Revision SHA-256 or exact selected-artifact mismatch resets every stage, including skipped stages, and Final to `pending`, clears checkpoints, and records the new binding before verification. Reevaluate skips under the new binding.
+- Matching bindings resume at the first actionable stage:
 
 - `pending` / `executing`: continue.
-- `fail`: reset to `pending` only when matching correction progress is `done` and the plan has returned through `done -> reviewed`; otherwise return to `/update`.
-- `blocked`: reset to `pending` only after the blocking stage is reset or passed.
-- `pass` / `skipped`: terminal only while the complete binding remains current.
+- `fail`: reset to `pending` only with matching correction progress `done` and plan `done -> reviewed`; otherwise return to `/update`.
+- `blocked`: reset to `pending` only after its blocker resets or passes.
+- `pass` / `skipped`: terminal only with a current complete binding.
 
 ```markdown
 # Update Verification Progress
@@ -64,7 +64,7 @@ If the progress file is missing, initialize it from the template. If it exists:
 
 Rules:
 
-- Generate one verification stage per project-family prefix; mark unaffected families `skipped`.
+- Generate one stage per project-family prefix; mark unaffected families `skipped`.
 - Set plan status to `verifying` only after the complete verification binding is persisted.
 - Verdict status:
   - `pass`: no `❌` errors; minor `⚠️` warnings allowed.
@@ -73,7 +73,7 @@ Rules:
   - `blocked`: non-terminal; final verdict fails until cleared.
 - Classify identifiers used to locate/load code as primary (`❌`): class, interface, method, attribute, config key, path.
 - Classify illustrative snippets or example paths as secondary (`⚠️`).
-- Checkpoint `Last verified skill` mid-stage for context recovery.
+- Checkpoint `Last verified skill` mid-stage for recovery.
 
 ---
 
@@ -81,16 +81,16 @@ Rules:
 
 Failure blocks all later stages; set them `blocked`.
 
-- Skills/loaders: verify `.agent/skills/` directories and workflow loader listings are bidirectional. Missing directories or missing loader entries are `❌`.
-- Missing profile extensions: allow only when recorded in the affected profile load-set table with exact status `⚠️ Missing profile reference`; exclude from loader union validation and report in Stage 0.
-- Custom loaders: verify each `<custom>-*` prefix maps to `load-skills-<custom>.md`; uncategorized skills map only to `load-skills-custom.md`.
-- Union: verify `load-skills-all.md` matches loaders in Standard Load Order, with custom prefix loaders sorted after Frontend and before generic custom.
+- Skills/loaders: verify bidirectional included-directory/loader listings. Profile `Excluded Skills` must match baseline decisions plus currently approved changes; copying prior approval artifacts is unnecessary. Any loader, task-loading path, or index route referencing an excluded skill is `❌` and fails Stage 0. Omit excluded skills from union/content checks. Other missing directories/loader entries are `❌`.
+- Missing profile extensions: enforce the [Stage 3 table contract](./update-execute.md#skill-discovery-and-custom-routes); exclude recorded missing skills from loader union validation and report in Stage 0.
+- Custom loaders: verify each included `<custom>-*` prefix maps to `load-skills-<custom>.md`; uncategorized included skills map only to `load-skills-custom.md`.
+- Union: verify included skills match `load-skills-all.md` in Standard Load Order with framework/profile conditions preserved; sort custom prefix loaders after Frontend and before generic custom.
 - Workflow routes: verify `.agent/workflows/*.md` task routes match the `AGENTS.md` Workflows table and profile `Custom Workflow Routes`.
-- Token estimates: compare summed skill file sizes / 4 to `Estimated context:`. If delta >15%, flag `⚠️` only.
+- Token estimates: compare summed skill sizes / 4 to `Estimated context:`. Flag delta >15% as `⚠️` only.
 - Cross-references: verify against the plan drift report.
-- Portability: resolve relative links from each referring file and verify reusable guidance does not require repository-local source/docs outside the copied agent bundle. Check local profile paths against the destination filesystem. Check external framework references against the applicable version and report unavailable remote verification explicitly. Illustrative paths are examples, not required local files.
+- Portability: resolve relative links from referring files. Reusable guidance must not require repository-local source/docs outside the copied bundle. Validate profile paths against the destination filesystem and external framework references against applicable versions. Report unavailable remote verification. Illustrative paths need not exist locally.
 - References: resolve `AGENTS.md` project paths, profile custom load-set entries, and `overview-skill-index` skill directories.
-- Bootstrap freshness: for `all`, verify current-filesystem discovery was rebuilt, the baseline artifacts were persisted, and pre-execution staleness reproduced its Baseline Inputs Hash. Do not recompute the baseline against post-execution output files.
+- Bootstrap freshness (`all`): verify fresh filesystem discovery, persisted baseline artifacts, and pre-execution reproduction of Baseline Inputs Hash. Never recompute the baseline from post-execution outputs.
 
 ---
 
@@ -98,7 +98,7 @@ Failure blocks all later stages; set them `blocked`.
 
 Verify non-project config references:
 
-1. Confirm referenced files exist.
+1. Confirm references exist.
 2. Spot-check details such as framework versions and CI step names.
 3. Flag stale references.
 

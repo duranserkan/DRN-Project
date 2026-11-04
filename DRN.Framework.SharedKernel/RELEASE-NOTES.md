@@ -4,23 +4,27 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
+*   **Model Capture Analysis**: DRN0025 rejects captures that exceed the compiler's model-analysis work limit. Capture a smaller model or explicitly classify sensitive subtrees so configured paths cannot silently escape analysis.
+
 *   **Diagnostic Field Coverage**: Classification requirements include CVV/CVC/PIN-code fields, usernames, first/last names, dates of birth, IBAN, client and IP-address patterns. Annotate matching model properties or explicitly mark reviewed false positives. Browser and compiler checks use the same baseline catalog.
 
 *   **Dictionary Capture Classification**: DRN0020 checks statically known keys, including nested initializers and direct writes. Use explicit dictionary classifications or reviewed exact-name comments. Configured analyzer paths cannot be waived. Backend runtime has no dynamic name fallback.
 
-*   **Model Classification Enforcement**: Transitive error-level diagnostics require matching public readable instance model properties to declare classification or `[Sensitive(false)]`, independently of logging use and `[IgnoreLog]`. DRN0019 requires matching anonymous properties, including nested and inferred members, to move to annotated named classes or records. Harmless anonymous objects remain allowed. Reason strings and capture policies do not bypass declaration checks. Named model capture checks property names without built-in logging-prefix matches. Scalar and untyped capture paths still require explicit decisions. Review existing models and anonymous configuration/schema projections when upgrading. Generated sources are analyzed without reporting DRN0015 through DRN0020 in generated code. Custom Microsoft classifications outside the DRN Personal/Sensitive inheritance families retain runtime protection but require a supported classification for compiler verification. Runtime guards remain active when diagnostics are suppressed.
-
-    Constant sensitive keys in `AddIfNotNullOrEmpty` are also checked, except when the value is constant null, empty, or `[redacted]`.
+*   **Model Classification Enforcement**: Transitive compiler errors require matching public readable instance properties to declare classification or `[Sensitive(false)]`. This applies even when properties are not logged or use `[IgnoreLog]`. Move matching anonymous properties to annotated classes or records. Custom Microsoft classifications outside the DRN Personal/Sensitive families require a supported classification for compiler verification. Review models and anonymous configuration/schema projections when upgrading. See the [diagnostic guide](../DRN.Framework.Utils/Logging/Diagnostics/README.md) for capture rules and exemptions.
 
 *   **Logging Boundary Enforcement**: DRN0022 reports sensitive ILogger placeholders, scope dictionary keys, and direct classified-property captures, including inherited properties implementing classified interfaces on the receiver type. Remove or redact affected values before logging. Standard ILogger does not apply DRN runtime redaction.
 
 ### New Features
 
-*   **Logging Name Exemptions**: Adjacent `// DiagnosticNameExemption: ExactName | Nonempty justification` comments acknowledge DRN0017/DRN0020/DRN0022 name matches. Classified values, configured analyzer paths, declarations, and children remain checked. DRN0023 reports malformed comments. New warning DRN0024 reports only unused comments, including mismatches and duplicates. Attributes and reason/policy exemptions receive no redundant-use warning. Comments do not provide runtime redaction.
+*   **Logging Name Exemptions**: Adjacent `// DiagnosticNameExemption: ExactName | Nonempty justification` comments acknowledge DRN0017/DRN0020/DRN0022 name matches. They do not waive classified values, configured analyzer paths, declaration requirements, or child checks. DRN0023 reports malformed comments and DRN0024 warns about unused comments. Comments do not provide runtime redaction.
 
-*   **Project Classification Rules**: Register `data-classification-rules.json` as an EmbeddedResource or AdditionalFiles item to extend built-in classification checks. Build targets preserve catalog metadata in reference assemblies, enabling additive inheritance from referenced SharedKernel consumers. The legacy filename `diagnostic-rules.json` remains accepted. DRN0021 reports invalid, unreadable, oversized, or ambiguous catalogs. Optional Utils runtime catalog loading validates configuration without applying name matching.
+*   **Project Classification Rules**: Register `data-classification-rules.json` as an EmbeddedResource or AdditionalFiles item to extend compiler classification checks. Rules also inherit from referenced SharedKernel consumers. The legacy filename `diagnostic-rules.json` remains accepted. DRN0021 reports invalid, unreadable, oversized, or ambiguous catalogs.
 
-*   **Sensitive Data Classification**: Added inheritable `[Sensitive]` and `[Personal]` Microsoft classification attributes, including company-derived attributes, and direct property `[Sensitive(false)]` with optional justification for name-rule false positives. Positive classification wins over opt-outs. Scoped logs read classified getters once at capture and redact snapshot output; direct sanitizer calls skip classified getters. Runtime mapped interface classifications protect concrete and nested captures too. Public fields are omitted. Separate editor code fixes offer Personal, Sensitive and deliberate false-positive selection. Invalid opt-outs offer an individual `Use Sensitive(true)` fix. Business serialization and binding are unchanged.
+*   **Sensitive Data Classification**: Added inheritable `[Sensitive]` and `[Personal]` attributes and support for application-derived classifications. Use `[Sensitive(false)]` for reviewed property-name false positives. Positive classification overrides opt-outs. Editor fixes offer Personal, Sensitive, false-positive classification, and correction of invalid opt-outs. These attributes do not change business serialization or binding.
+
+### Bug Fixes
+
+*   **Entity Attribute Analyzer**: Incomplete primary-constructor base lists no longer cause analyzer exceptions while editing derived entity attributes.
 
 ## Version 0.10.0
 

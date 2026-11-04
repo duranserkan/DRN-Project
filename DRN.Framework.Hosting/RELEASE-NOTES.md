@@ -4,14 +4,12 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Changed
 
-*   **Request Diagnostics**: Request values use bounded capture. `Request_IpAddress` is recorded as an empty string when no remote address is available; empty `l5d-client-id` headers remain omitted.
+*   **Request Diagnostics**: Request values use bounded capture. `Request_IpAddress` is recorded as an empty string when no remote address is available. Empty `l5d-client-id` headers are omitted.
 
-*   **Development Exception Pages**: Display unredacted scoped logs and request details while retaining capture limits, buffering rules, and `[IgnoreLog]` exclusions. Emitted logs and non-Development projections remain redacted.
+*   **Development Exception Pages**: Display unredacted scoped logs and request details within capture limits and `[IgnoreLog]` exclusions. Emitted logs and views outside Development remain redacted.
 
-*   **Diagnostic Redaction**: HTTP/startup logging and developer views use bounded explicit classification. Backend capture does not scan names or configured fields/paths, including URL/query/form names. Cookie and partition classifications retain protection. Explicit URL processing removes credentials and validates encoding. Original callback objects retain their compatibility contract. SharedKernel compiler classification checks remain active.
-
-*   **Exception Diagnostics**: Production responses and eligible API/HTMX errors avoid collecting an unused diagnostic model when no post-creation filter requires it. Existing filter callbacks, Development HTML diagnostics, and explicit model requests retain their behavior.
-*   **Rate Limit Defaults**: Post-auth buckets now allow 250 tokens per user and pre-auth buckets allow 2,500 tokens per IP, with matching refills every 60 seconds. Explicit configuration overrides remain supported.
+*   **Diagnostic Redaction**: HTTP and startup logs redact explicitly classified data within capture limits. Backend capture does not infer classification from names, including configured field paths and URL/query/form names. Applications must classify dynamic data explicitly. URL processing removes credentials and validates encoding. Callbacks can still receive raw objects and must keep private diagnostics out of public responses.
+*   **Rate Limit Defaults**: Post-auth buckets now allow 250 tokens per user and pre-auth buckets allow 2,500 tokens per IP, with matching refills every 60 seconds. Explicit settings override these defaults.
 *   **Rate Limit Diagnostics**: Rejection logs include the rule action, distinguishing limiter rejections from explicit deny rules and unattributed rejections, consistent with rate-limit metrics.
 
 ### Breaking Changes
@@ -26,7 +24,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **Scoped Problem Details**: API errors accept public defaults from `ScopeContext.Problem`, preserving existing response values. `instance` defaults to the request path including deployment prefixes and excluding query strings. Exception messages remain private.
 *   **API Error Opt-Out**: Apply `[DisableDrnProblemDetails]` to a controller or action to retain native or application-owned error responses and skip automatic Swagger error metadata. Authentication and authorization are unchanged.
 *   **API Error Metadata**: Swagger adds one representative 400 Problem Details response with required `requestId` and a description covering all 4xx and 5xx statuses. Other declared statuses, validation schemas, and custom response types are preserved.
-*   **Error Pages**: Configure `DrnErrorPageOptions.ServerErrorPage`, `NotFoundPage`, and `BadRequestPage` with application-owned Razor pages using `ServerErrorPageModel`, `NotFoundPageModel`, and `BadRequestPageModel`. Hosting renders browser HTML 5xx, 404, and 400 errors internally while preserving status codes and a redacted fallback. API failures use Problem Details JSON. All three models expose the request reference through `RequestId`. Each custom page is disabled by default. For anonymous, non-cacheable 403 pages, use `AccessDeniedPageModel` and opt in with `CookieAuthenticationEvents.PreserveAccessDeniedRequestId()` to retain the original request reference across cookie redirects. `DrnExceptionHandler.WriteProductionErrorResponseAsync` supports other browser response customizations.
+*   **Custom Browser Error Pages**: `DrnErrorPageOptions` supports application-owned Razor pages for 5xx, 404, and 400 errors. Pages preserve status codes, expose `RequestId`, and have a redacted fallback. Custom pages are disabled by default. See [custom error pages](README.md#custom-error-pages) for setup and other browser response customizations.
+*   **Access-Denied Request References**: Use `AccessDeniedPageModel` with `CookieAuthenticationEvents.PreserveAccessDeniedRequestId()` to retain the original request reference across cookie redirects. Access-denied pages support anonymous access and are not cached.
 *   **Swagger Authorization**: Added `DrnProgramSwaggerOptions.AuthorizationPolicy` to protect Swagger UI, its assets, and OpenAPI documents with an application-owned named policy. Applications can enable Swagger in Staging and Production while retaining role and MFA requirements. Development-only enablement remains the framework default.
 *   **Endpoint URL Generation**: Added `Url.Endpoint(ApiEndpoint, values)` to generate request-aware MVC URLs from endpoint accessors. It preserves deployment prefixes, uses effective MVC action names and destination areas, and reports uninitialized or ambiguous metadata and failed URL generation explicitly. Existing `Path(...)` APIs remain compatible.
 *   **Application URLs**: Added `HttpRequest.ApplicationUrl` for application-owned route paths and `ApplicationUrlTagHelper` for `~/` HTML and HTMX URLs. Deployment prefixes are preserved without changing controller route prefixes or already-resolved URLs.
@@ -37,13 +36,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 *   **Started Response Exceptions**: `HttpScopeMiddleware` now logs and rethrows the original exception when `context.Response.HasStarted`, instead of failing while assigning the response status code.
 *   **Page Rendering**: `IPageUtils.RenderPageAsync` now supports standard `_ViewStart` files, layouts, and endpoint-generated links even for unmatched requests. Rendering also awaits scoped-service cleanup on success or failure.
-*   **Developer JSON Viewer**: Updated bundled JSONEditor to 10.4.3, including upstream editor fixes and corrected dark-theme search highlighting. Request-nonce support is preserved.
+*   **Developer JSON Viewer**: Updated bundled JSONEditor to 10.4.3 and corrected dark-theme search highlighting. Fixed Ace and color-picker styles blocked by the default CSP on runtime exception pages.
 
 *   **Redirects**: Fixed errors when converting started redirects to HTTP 303 and corrected the logged response status.
-*   **Developer Log Viewer**: JSON editor styles now use the request nonce, fixing blocked Ace and color-picker styles on runtime exception pages under the default CSP.
-*   **Proxy-Aware References**: Swagger server URLs now use processed scheme, host, port, and path base instead of raw forwarded headers. Developer error-page assets and active navigation links support deployment prefixes. Active href links compare resolved root-relative paths with the public request path, supporting custom routes without marking external URLs or paths outside the deployment prefix as current. Use `asp-page` for page-identity matching.
-*   **MFA Redirects Behind Proxy Prefixes**: Login, MFA challenge, and setup redirects now include `Request.PathBase` in local destinations. Unauthorized redirects also preserve the public return path and its original query string. Root-hosted paths and configured external destinations retain their existing behavior.
-*   **Vite Assets Behind Proxy Prefixes**: Vite script and link TagHelpers now include `Request.PathBase` in manifest asset URLs, including preload links. Root-hosted URLs, external URLs, and integrity attributes retain their existing behavior.
+*   **Deployment Prefixes**: Swagger URLs, developer error-page assets, active navigation, login/MFA redirects, and Vite assets now support deployment prefixes. Swagger uses processed request values rather than raw forwarded headers. Unauthorized redirects preserve the public return path and query string. Active href links support custom routes and exclude external URLs and paths outside the deployment prefix. Use `asp-page` for page-identity matching.
 
 ## Version 0.10.0
 
