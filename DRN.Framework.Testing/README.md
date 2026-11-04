@@ -159,9 +159,11 @@ Choose the smallest context the test needs. Both contexts implement `IKeyedServi
 | PostgreSQL and RabbitMQ | None | [ContainerContext](#containercontext) |
 | Hosted applications | None | [ApplicationContext](#applicationcontext) |
 | Flurl request mocking | None | [FlurlHttpTest](#flurlhttptest-integration) |
-| One-time startup jobs | None | `StartupJobRunner` runs `ITestStartupJob` implementations |
+| One-time startup jobs | None | Runs `ITestStartupJob` implementations |
 
 Register services and configuration before resolving them. Context-managed resolution applies generated substitutes to matching interface or abstract dependencies. Calling `context.ServiceCollection.BuildServiceProvider()` directly bypasses that step.
+
+Implement `ITestStartupJob` in the test assembly with a public parameterless constructor. Jobs discovered in the assembly of the first test creating a `DrnTestContext` run during its initialization, once per process after successful completion. Unit contexts do not run startup jobs. Jobs in separate support assemblies are not discovered automatically.
 
 `BuildServiceProvider()` replaces the previous context-owned provider. It adds DRN utilities, configuration and logging with no output providers. Services can resolve `ILogger<T>` without emitting logs through that default setup. Hosted logging has separate [debugger conditions](#test-output-logging).
 
@@ -189,9 +191,11 @@ See [Providers](#providers) for file lookup rules and examples.
         var category = new Category("dotnet");
         qaContext.Categories.Add(category);
         await qaContext.SaveChangesAsync();
-        category.Id.Should().BePositive();
+        category.EntityId.Should().NotBe(Guid.Empty);
     }
 ```
+Numeric Source-Known IDs can be negative. Their sign does not indicate validity.
+
 Register the application's infrastructure module before binding. Discovery selects registered `DbContext` service types marked with `DrnContextServiceRegistrationAttribute`. Inheriting from `DrnContext` alone does not register a context for discovery.
 
 Binding starts the shared PostgreSQL container on demand and injects named connection strings. Shared migrations run once per discovered context type. Each binding refreshes the connection strings and disables Npgsql pooling so closed operations release physical sessions.
@@ -306,9 +310,9 @@ public async Task MultiApp_Should_Route_Between_Services(DrnTestContext context)
 }
 ```
 
-#### Address Resolution & Routing Architecture
+#### Address Resolution & Routing
 
-`ApplicationContextRouterHandler` intercepts outbound HTTP calls (`IHttpClientFactory`, `IInternalRequest`, `IExternalRequest`, and Flurl calls made through request wrappers) and resolves targets through three complementary mechanisms:
+Outbound HTTP calls through the configured `IHttpClientFactory`, `IInternalRequest`, and `IExternalRequest` use in-memory routes. Applications can be addressed through type and assembly aliases, configured addresses, or explicit `MapAddress` mappings:
 
 ```mermaid
 flowchart TD
@@ -514,6 +518,8 @@ The extension launches containers only when all four conditions are met:
 
 The default `ExternalDependencyLaunchOptions` uses `Reuse = true` and `HostPort = 5432`. The example chooses port `6432`. Ordinary `PostgresContainerSettings` defaults to `Reuse = false` and `HostPort = 0` for an assigned host port.
 
+`LaunchExternalDependenciesAsync` supports at most one registered context with `UsePrototypeMode = true`. That context uses a separate PostgreSQL container on `HostPort + 1`; other contexts share the container on `HostPort`. Reserve both ports when using prototype provisioning. This restriction applies to the local launch helper, not to all testing or prototype APIs.
+
 ---
 
 ## Connection String Resolution
@@ -619,11 +625,11 @@ Request a context only when the test uses it. Resolve through the context or `Ap
 
 ### Theory Row Metadata
 
-DRN data wrappers preserve xUnit theory-row metadata after AutoFixture reconstructs the row. Metadata resolves in this order:
+DRN data attributes preserve xUnit theory-row metadata. Metadata resolves in this order:
 
 1. Non-null metadata on an `ITheoryDataRow` returned by a member source.
-2. Metadata on the outer `DataInline*`, `DataMember*`, or `DataSelf*` attribute.
-3. Metadata on the generated row returned by the inner AutoFixture provider.
+2. Metadata on the `DataInline*`, `DataMember*`, or `DataSelf*` attribute.
+3. Metadata on the generated data row.
 4. Remaining null values inherit from `[Theory]`.
 
 This order applies to `DisableParallelization`, `Explicit`, `Label`, `Skip`, conditional skip settings, `TestDisplayName`, and `Timeout`. The first level with a non-null `Skip` owns `SkipType`, `SkipUnless`, and `SkipWhen` as one group, preventing conditions from different levels from being mixed. Traits combine across every level; trait names are case-insensitive and retain every distinct value. Integration and unit variants use the same rules, with or without their optional test context.
@@ -864,6 +870,8 @@ using var settings = SettingsProvider.Development<TestApp>(
 ```
 
 Both accept optional `params object[] settings`, applied through `AddObjectToJsonConfiguration` after the defaults. Later values override matching keys; AppId must match the selected partition. The example uses TestApp's AppId `127` and default AppInstanceId `0`.
+
+Use `DevelopmentWithNexusSettings(nexusSettings, ...)` to supply an explicit `NexusAppSettings` object for AppId `0`, or `DevelopmentWithNexusSettings<TApp>(nexusSettings, ...)` for `TApp.AppId`. These factories support custom test key rings and instance settings. Later settings override matching keys, but the final AppId must match the selected partition. Dispose the returned settings after use.
 
 For file-based settings, `SettingsProvider` uses the global `Settings/` folder unless a directory is supplied. The default base name is `settings`, passed to `AddDrnSettings`. Supply a base name without `.json` to `GetConfiguration`, `GetAppSettings` or context configuration methods. `GetSettingsPath` and `GetSettingsData` also accept the extension.
 

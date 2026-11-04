@@ -9,7 +9,7 @@ description: Read-only, evidence-backed review through Priority Stack and reposi
 
 ## 1. Scope And Criteria
 
-Run the Startup Gate once. Load only:
+Run Startup Gate once. Load:
 
 - Core: `basic-agentic-development`, `basic-code-review`, `basic-security-checklist`.
 - Docs/workflows/skills: `basic-documentation`.
@@ -22,7 +22,7 @@ Run the Startup Gate once. Load only:
 | None | Branch, staged, unstaged tracked, and relevant untracked scopes independently. |
 | Re-review/fixes | Changed lines/behavior only; use unchanged context as proof. |
 
-Stop when no reviewable evidence exists.
+Stop without reviewable evidence.
 
 ## 2. Evidence
 
@@ -40,15 +40,17 @@ Stop when no reviewable evidence exists.
 2. Use only `.agent/repository-profile.md`'s `## Conventions` `Git:` entry for configured branch selection. Resolve the current symbolic branch; choose the declared integration branch for a topic branch or the declared release branch when reviewing the integration branch. A detached `HEAD`, the release branch itself, or a missing declaration has no configured base.
 3. Resolve a configured name in this order, skipping unavailable or duplicate candidates: `refs/remotes/<current-upstream-remote>/<name>` for a non-local upstream or `refs/heads/<name>` for `.`, then `refs/remotes/origin/<name>`, then `refs/heads/<name>`.
 4. When no configured ref resolves, try the primary ref in this order, skipping unavailable or duplicate candidates: `refs/remotes/<current-upstream-remote>/HEAD` for a non-local upstream, `refs/remotes/origin/HEAD`, `refs/heads/main`, then `refs/heads/master`.
-5. Run `git merge-base HEAD <resolved-ref>` and use the returned commit SHA as `<merge-base>` in both documented diff commands. If no candidate ref or merge base exists, report branch scope unavailable and continue with the other evidence scopes.
+5. Run `git merge-base HEAD <resolved-ref>`; use its SHA as `<merge-base>` in both diff commands. Without a candidate ref or merge base, report branch scope unavailable and review other scopes.
 
 Report scopes separately, mark empty scopes, deduplicate findings without hiding membership, and check deleted-file references. Split diffs over 500 lines by logical group.
 
-Do not run restore, build, apps, tests, benchmarks, or load tests. Route explicitly requested execution through its owning workflow; otherwise report `not run per repo rule`.
+Never restore, build, run apps/tests/benchmarks/load tests. Route explicitly requested execution through its owner; otherwise report `not run per repo rule`.
 
 ## 3. Evaluate
 
-Apply Security -> Correctness -> Clarity -> Simplicity -> Performance. Use only relevant risk lenses.
+Apply Security -> Correctness -> Clarity -> Simplicity -> Performance with relevant lenses.
+
+Check rendering conditions and refactors against [basic-code-review](../skills/basic-code-review/SKILL.md#architecture-checks).
 
 Every finding must include severity, evidence, impact, violated invariant, concrete recommendation, confidence, and verification. For Critical, Major, and Suggestion fixes:
 
@@ -56,7 +58,7 @@ Every finding must include severity, evidence, impact, violated invariant, concr
 - For Suggestions only, recommend status quo and demote to Note when the fix costs more complexity than the issue.
 - Tag `[IMPROVABLE]` only when evidence shows a simpler local pattern/framework feature.
 
-Before `/optimize`, return findings and candidates only. After it, compare the applied diff with approved scope/preview; verify metadata, references, lifecycle, and source-owned rules. CAD, `/goal`, and `/update` callers own mutations and state transitions.
+Before `/optimize`, return only findings/candidates. Afterward, check the diff against approved scope/preview, metadata, references, lifecycle, and source-owned rules. CAD, `/goal`, and `/update` callers own mutations/transitions.
 
 ## 4. Verdict
 
@@ -77,4 +79,4 @@ State recommendations:
 | `/update` changes (`done`) | `transition_allowed: reviewed` | `none` |
 | `/optimize` | `optimization_review: passed` | `blocked` |
 
-Report scope, verdict, findings by severity, positives/notes when useful, pre-mortem risks, and recommendations. Do not edit reviewed files.
+Report scope, verdict, severity-ranked findings, useful notes, pre-mortem risks, and recommendations. Never edit reviewed files.

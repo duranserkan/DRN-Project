@@ -1,6 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
-// These fixtures deliberately exercise runtime fallback for unclassified and external capture paths.
-#pragma warning disable DRN0015, DRN0017, DRN0018, DRN0019, DRN0020
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils;
 using DRN.Framework.Utils.Logging;
@@ -9,11 +8,16 @@ using Microsoft.Extensions.Compliance.Classification;
 using Microsoft.Extensions.Compliance.Redaction;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using static DRN.Test.Unit.Tests.Framework.Utils.Logging.DiagnosticTestSupport;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Logging;
 
 public class DiagnosticSanitizerTests
 {
+    private static readonly string[] CapturedPropertyNames = ["Description", "Password"];
+    private static readonly string[] ScopeWorkLimitWarnings = ["ScopeWorkLimit"];
+    private static readonly string[] SanitizationFailedWarnings = ["SanitizationFailed"];
+
     private static DiagnosticSanitizer Policy(DiagnosticLogOptions? options = null) => new(options ?? new DiagnosticLogOptions());
 
     [Fact]
@@ -54,6 +58,7 @@ public class DiagnosticSanitizerTests
     }
 
     [Fact]
+    [SuppressMessage("DRN.Classification", "DRN0017", Justification = "Unclassified Password capture verifies free text is preserved without runtime name matching.")]
     public void Free_Text_Should_Preserve_Content_Across_Capture_Paths()
     {
         string[] cases =
@@ -206,7 +211,9 @@ public class DiagnosticSanitizerTests
         [Confidential] public string Custom { get { GetterReads++; return "custom-probe"; } }
         public PersonalRecord Typed { get { GetterReads++; return new PersonalRecord(); } }
         [IgnoreLog, Personal] public string Ignored { get { GetterReads++; return "ignored-probe"; } }
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance property exercises reflection capture of an unclassified value.")]
         public string Outcome => "Processed";
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance property exercises capture with an empty classification.")]
         [Unclassified] public string Hint => "Retry available";
     }
 
@@ -284,23 +291,30 @@ public class DiagnosticSanitizerTests
     [Sensitive]
     private sealed class SensitiveType
     {
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies classified types are not traversed.")]
         public string Value => throw new InvalidOperationException("Classified type getter must not execute.");
     }
 
     private sealed class SensitiveProperties
     {
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies sensitive classification prevents reads.")]
         [Sensitive] public string Value => throw new InvalidOperationException("Sensitive getter must not execute.");
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies personal classification prevents reads.")]
         [Personal] public string Contact => throw new InvalidOperationException("Personal getter must not execute.");
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies IgnoreLog takes precedence over classification.")]
         [IgnoreLog, Sensitive] public string Ignored => throw new InvalidOperationException("Ignored getter must not execute.");
     }
 
     [Fact]
+    [SuppressMessage("DRN.Classification", "DRN0017", Justification = "Unclassified Password entry is the control for explicitly classified object properties.")]
+    [SuppressMessage("DRN.Classification", "DRN0019", Justification = "Anonymous Password fixture verifies JsonElement projection independently of classified model capture.")]
+    [SuppressMessage("DRN.Classification", "DRN0020", Justification = "Unclassified Password dictionary entry is the control for classified nested properties.")]
     public void Object_Logging_Should_Omit_Fields_And_Preserve_Explicit_Classification()
     {
         var input = new PropertyCapture();
         var policy = Policy();
         var projected = (IReadOnlyDictionary<string, object?>)policy.SanitizeValue("Input", input)!;
-        projected.Keys.Should().BeEquivalentTo(new[] { "Description", "Password" });
+        projected.Keys.Should().BeEquivalentTo(CapturedPropertyNames);
         projected["Description"].Should().Be("available");
         projected["Password"].Should().Be(DiagnosticSanitizer.Redacted);
 
@@ -310,17 +324,17 @@ public class DiagnosticSanitizerTests
         log.Add("Password", "named-probe");
         log.Add("Map", new Dictionary<string, object> { ["Password"] = "dictionary-probe", ["Item"] = input });
         log.Add("Json", JsonSerializer.SerializeToElement(new { Password = "json-probe", Description = "available" },
-            new JsonSerializerOptions { PropertyNamingPolicy = null }));
+            FixtureJsonOptions));
 
-        var snapshot = JsonSerializer.SerializeToElement(log.GetLogs(), new JsonSerializerOptions());
+        var snapshot = JsonSerializer.SerializeToElement(log.GetLogs(), ProjectionJsonOptions);
         snapshot.GetProperty("Nested").EnumerateObject().Select(property => property.Name)
-            .Should().BeEquivalentTo(new[] { "Description", "Password" });
+            .Should().BeEquivalentTo(CapturedPropertyNames);
         snapshot.GetProperty("Flat.Description").GetString().Should().Be("available");
         snapshot.GetProperty("Flat.Password").GetString().Should().Be(DiagnosticSanitizer.Redacted);
         snapshot.GetProperty("Password").GetString().Should().Be("named-probe");
         snapshot.GetProperty("Map").GetProperty("Password").GetString().Should().Be("dictionary-probe");
         snapshot.GetProperty("Map").GetProperty("Item").EnumerateObject().Select(property => property.Name)
-            .Should().BeEquivalentTo(new[] { "Description", "Password" });
+            .Should().BeEquivalentTo(CapturedPropertyNames);
         snapshot.GetProperty("Json").GetProperty("ValueKind").GetInt32().Should().Be((int)JsonValueKind.Object);
         snapshot.ToString().Should().NotContain("PublicValue").And.NotContain("ClassifiedValue")
             .And.NotContain("IgnoredValue");
@@ -331,15 +345,21 @@ public class DiagnosticSanitizerTests
         public readonly string PublicValue = "public-field-probe";
         [Sensitive] public readonly string ClassifiedValue = "classified-field-probe";
         [IgnoreLog] public readonly string IgnoredValue = "ignored-field-probe";
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance property verifies capture includes properties while omitting fields.")]
         public string Description => "available";
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies classified properties are not read.")]
         [Sensitive] public string Password => throw new InvalidOperationException("Classified getter must not execute.");
     }
 
     private sealed class Classified
     {
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies sensitive classification prevents reads.")]
         [Sensitive] public string Code => throw new InvalidOperationException("secret-getter");
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies IgnoreLog prevents reads.")]
         [IgnoreLog] public string Ignored => throw new InvalidOperationException("ignored-getter");
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies classified Boolean properties are protected.")]
         [Sensitive] public bool HasRecoveryCodes => throw new InvalidOperationException("Classified getter must not execute.");
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance getter exercises capture failure handling.")]
         public string Failure => throw new InvalidOperationException("getter-message-probe");
     }
 
@@ -445,11 +465,11 @@ public class DiagnosticSanitizerTests
         policy.SanitizeValue("Count", 42).Should().Be(42);
         policy.SanitizeValue("Value", "visible").Should().Be("visible");
         using var document = JsonDocument.Parse("""{"Count":2,"Password":"private"}""");
-        var result = JsonSerializer.SerializeToElement(policy.SanitizeValue("Report", document.RootElement), new JsonSerializerOptions());
+        var result = JsonSerializer.SerializeToElement(policy.SanitizeValue("Report", document.RootElement), ProjectionJsonOptions);
         result.GetProperty("ValueKind").GetInt32().Should().Be((int)JsonValueKind.Object);
         result.TryGetProperty("Count", out _).Should().BeFalse();
         result.TryGetProperty("Password", out _).Should().BeFalse();
-        var container = JsonSerializer.SerializeToElement(policy.SanitizeValue("Document", document), new JsonSerializerOptions());
+        var container = JsonSerializer.SerializeToElement(policy.SanitizeValue("Document", document), ProjectionJsonOptions);
         container.GetProperty("RootElement").GetProperty("ValueKind").GetInt32().Should().Be((int)JsonValueKind.Object);
         policy.SanitizeValue("Items", new System.Text.Json.Nodes.JsonArray(1, 2))
             .Should().Be("[unsupported lazy diagnostic collection]");
@@ -525,7 +545,7 @@ public class DiagnosticSanitizerTests
             policy.SanitizeValue("TargetUrl", new Uri("https://example.test/?value=probe")).Should().Be("https://example.test/?value=probe");
 
         policy.SanitizeValue("Count", 42).Should().Be(DiagnosticSanitizer.Limited);
-        policy.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(new[] { "ScopeWorkLimit" });
+        policy.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(ScopeWorkLimitWarnings);
     }
 
     [Theory]
@@ -537,7 +557,7 @@ public class DiagnosticSanitizerTests
         var policy = Policy(new DiagnosticLogOptions { MaxProcessingMilliseconds = 100 });
 
         policy.SanitizeUrl(url).Should().Be(DiagnosticSanitizer.Invalid);
-        policy.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(new[] { "SanitizationFailed" });
+        policy.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(SanitizationFailedWarnings);
         policy.SanitizeUrl("/public?value=visible").Should().Be("/public?value=visible");
     }
 
@@ -561,10 +581,11 @@ public class DiagnosticSanitizerTests
 
         capture.Value.Should().Be(deferred ? DiagnosticSanitizer.Limited
             : "https://example.test/?first=one&_diagnostic=" + DiagnosticSanitizer.Limited);
-        policy.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(new[] { "ScopeWorkLimit" });
+        policy.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(ScopeWorkLimitWarnings);
     }
 
     [Fact]
+    [SuppressMessage("DRN.Classification", "DRN0020", Justification = "Unclassified Password dictionary entry verifies detached copies preserve captured values without name matching.")]
     public void Scoped_Entries_Should_Be_Detached_And_Protect_All_Capture_Paths()
     {
         var policy = Policy();
@@ -590,6 +611,7 @@ public class DiagnosticSanitizerTests
     }
 
     [Fact]
+    [SuppressMessage("DRN.Classification", "DRN0020", Justification = "Unclassified key-probe entries verify key length validation without runtime name matching.")]
     public void Unsafe_Keys_And_External_Snapshots_Should_Not_Bypass_Policy()
     {
         var policy = Policy();

@@ -61,6 +61,7 @@ public class SidebarActionItem
     public Func<string>? BadgeContentGenerator { get; init; }
     public string BadgeContent { get; init; } = string.Empty;
     public string BadgeVisuallyHiddenContent { get; init; } = string.Empty;
+    public bool HasBadgeVisuallyHiddenContent => !string.IsNullOrWhiteSpace(BadgeVisuallyHiddenContent);
 
     public bool IsDefault { get; init; } = true;
     public string ActionItemId { get; }
@@ -74,5 +75,11 @@ public class SidebarActionItem
     public string GetBadgeContent()
     {
         return BadgeContentGenerator?.Invoke() ?? BadgeContent;
+    }
+
+    public bool TryGetBadgeContent(out string content)
+    {
+        content = GetBadgeContent();
+        return !string.IsNullOrWhiteSpace(content);
     }
 }

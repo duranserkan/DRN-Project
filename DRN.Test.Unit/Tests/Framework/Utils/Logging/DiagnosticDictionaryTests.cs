@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Logging;
@@ -8,6 +9,8 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Logging;
 
 public sealed class DiagnosticDictionaryTests
 {
+    private static readonly string[] SanitizationFailedWarnings = ["SanitizationFailed"];
+
     [Theory]
     [DataInlineUnit(false)]
     [DataInlineUnit(true)]
@@ -18,7 +21,7 @@ public sealed class DiagnosticDictionaryTests
         DiagnosticKeyClassification[] classifications = nullArray ? null! : [null!];
 
         sanitizer.SanitizeDictionary("Fields", values, classifications).Should().Be(DiagnosticSanitizer.Invalid);
-        sanitizer.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(new[] { "SanitizationFailed" });
+        sanitizer.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(SanitizationFailedWarnings);
     }
 
     [Fact]
@@ -41,7 +44,11 @@ public sealed class DiagnosticDictionaryTests
         }
     }
 
-    [Sensitive] private sealed class ClassifiedPayload { public string Content => "classified-complex-probe"; }
+    [Sensitive] private sealed class ClassifiedPayload
+    {
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance property is captured through reflection.")]
+        public string Content => "classified-complex-probe";
+    }
 
     [Fact]
     public void Classifications_Should_Protect_Values_And_Exempt_Only_Exact_Scalar_Keys()
@@ -122,7 +129,11 @@ public sealed class DiagnosticDictionaryTests
             .GetProperty("_diagnostic_limit").GetString().Should().Be(DiagnosticSanitizer.Limited);
     }
 
-    private sealed class ThrowingModel { public string Value => throw new InvalidOperationException("Must not read."); }
+    private sealed class ThrowingModel
+    {
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance getter detects unwanted traversal during capture.")]
+        public string Value => throw new InvalidOperationException("Must not read.");
+    }
 
     [Fact]
     public void Foreign_Implementations_Should_Not_Receive_Unprotected_Dictionary_Values()
@@ -151,5 +162,9 @@ public sealed class DiagnosticDictionaryTests
         data.GetProperty("Count").GetString().Should().Be("[diagnostic field unavailable]");
     }
 
-    [Sensitive] private sealed class ProtectedModel { public string Value => throw new InvalidOperationException("Must not read."); }
+    [Sensitive] private sealed class ProtectedModel
+    {
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies classified objects are not traversed.")]
+        public string Value => throw new InvalidOperationException("Must not read.");
+    }
 }

@@ -1,3 +1,8 @@
+function version(control) {
+    return control.dataset.actionbarAttentionVersion ||
+        control.querySelector('[data-actionbar-count]')?.textContent?.trim() || '';
+}
+
 /** Opening an action panel acknowledges its attention highlight, not its count. */
 export function installActionbarEvents() {
     const selector = '[data-js-actionbar-item] [data-bs-toggle="offcanvas"]';
@@ -47,11 +52,6 @@ export function installActionbarEvents() {
             localStorage.setItem(storageKey + target, current);
             unsaved.delete(target);
         } catch { unsaved.set(target, current); }
-    }
-
-    function version(control) {
-        return control.dataset.actionbarAttentionVersion ||
-            control.querySelector('[data-actionbar-count]')?.textContent?.trim() || '';
     }
 
     function refresh() {

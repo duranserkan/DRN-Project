@@ -30,6 +30,10 @@ public class MainContentLayoutOptions
     public BootstrapGridTier GridTier { get; set; } = BootstrapGridTier.Md;
     public BootstrapTextAlignment TextAlignment { get; set; } = BootstrapTextAlignment.TextStart;
     public SubNavigationCollection? SubNavigation { get; set; }
+
+    public bool HasTitle => !string.IsNullOrWhiteSpace(Title);
+    public bool UsesCard => Type is MainContentType.Card or MainContentType.CardBody;
+    public bool ShouldExpandCard => UsesCard && !CenterVertically && !CenterHorizontally;
 }
 
 public enum MainContentType

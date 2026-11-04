@@ -1,7 +1,7 @@
 ---
 name: overview-skill-index
-description: Use when choosing which repository skills to load for a task, mapping work to skill families, finding related skills, or updating skill routing after skills change.
-last-updated: 2026-08-01
+description: Choose task skills, map work to skill families, find related skills, and update routing after skills change.
+last-updated: 2026-11-04
 difficulty: basic
 tokens: ~2K
 ---
@@ -18,7 +18,7 @@ tokens: ~2K
 4. Load generic `frontend-*` skills only when the repository profile or filesystem declares the matching frontend convention.
 5. Load DRN-scoped buildwww skills only when the repository profile or filesystem declares DRN `buildwww`.
 6. Load profile-declared custom workflows and skills before generic fallback when they match the task, route, layer, or slash-command flag.
-7. If a referenced skill is missing after copying to another repository, skip it and rely on conventions/profile discovery.
+7. Skip profile `Excluded Skills` and missing skills. Report missing references; discover through conventions/profile. `/update` reconciles routes.
 
 ## By Task
 

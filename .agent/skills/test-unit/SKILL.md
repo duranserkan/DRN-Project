@@ -1,7 +1,7 @@
 ---
 name: test-unit
 description: Use when adding or reviewing fast isolated tests for pure logic, deterministic branches, service wiring, validation, or regression coverage without external infrastructure.
-last-updated: 2026-07-29
+last-updated: 2026-11-04
 difficulty: basic
 tokens: ~0.7K
 ---
@@ -52,6 +52,8 @@ Use MC/DC for AND/OR logic whose conditions must independently affect the result
 Use the repository's DI container and service validation helpers if they exist. Keep service-validation tests narrow: prove the graph composes and important scoped/singleton rules hold; do not turn them into broad behavior tests.
 
 ## Verification
+
+Follow the [diagnostic suppression guidance](../basic-code-review/SKILL.md#diagnostic-suppressions).
 
 Run unit tests only when the user and repository instructions allow test execution. Use the command from the repository profile; if absent, discover the narrowest unit-test project or package script.
 

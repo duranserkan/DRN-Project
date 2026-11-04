@@ -1,12 +1,10 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Logging.Diagnostics;
 using Microsoft.Extensions.Logging;
 using static DRN.Test.Unit.Tests.Framework.Utils.Logging.DiagnosticTestSupport;
-
-// These fixtures deliberately exercise unclassified runtime fallback and invalid annotation behavior.
-#pragma warning disable DRN0015, DRN0016, DRN0017, DRN0018, DRN0019, DRN0020
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Logging;
 
@@ -81,7 +79,9 @@ public sealed class DiagnosticClassificationTests
         [IgnoreLog] public int ReadCount { get; protected set; }
         public virtual string Value { get { ReadCount++; return "interface-private-probe"; } }
         public string Hidden => throw new InvalidOperationException("Interface-ignored getter must not execute.");
+        [SuppressMessage("DRN.Classification", "DRN0015", Justification = "Keep the implementation unannotated to test the interface-only exemption.")]
         public string Keyboard => "layout";
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance property exercises reflection capture.")]
         public string Ordinary => "visible";
     }
 
@@ -103,6 +103,7 @@ public sealed class DiagnosticClassificationTests
     private sealed class ExplicitInterfaceModel : IClassifiedValue
     {
         string IClassifiedValue.Value => "interface-private-probe";
+        [SuppressMessage("Performance", "CA1822", Justification = "Public instance property must remain distinct from the classified interface member.")]
         public string Value => "visible";
     }
 
@@ -128,6 +129,7 @@ public sealed class DiagnosticClassificationTests
     [Sensitive] private readonly struct ClassifiedValue;
     private sealed class NullableModel
     {
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies classified nullable properties are not read.")]
         public ClassifiedValue? Value => throw new InvalidOperationException("Must not execute");
     }
 
@@ -156,6 +158,7 @@ public sealed class DiagnosticClassificationTests
     }
 
     [Fact]
+    [SuppressMessage("DRN.Classification", "DRN0020", Justification = "Unclassified StatusCode and Password entries verify runtime policies do not infer classifications from names.")]
     public void Runtime_Policies_Should_Not_Trigger_Name_Matching_For_Unclassified_Values()
     {
         var sanitizer = Policy();
@@ -177,6 +180,7 @@ public sealed class DiagnosticClassificationTests
     }
 
     [Fact]
+    [SuppressMessage("DRN.Classification", "DRN0017", Justification = "Unclassified Response_StatusCode replacement verifies native copies preserve the replacement value.")]
     public void Native_Copies_Should_Preserve_Values_Without_Destination_Name_Matching()
     {
         using var settings = SettingsProvider.Development();
@@ -441,6 +445,7 @@ public sealed class DiagnosticClassificationTests
     private sealed class InheritedExemptionModel : ExemptBaseModel;
     private sealed class UnclassifiedOverrideModel : ExemptBaseModel
     {
+        [SuppressMessage("DRN.Classification", "DRN0015", Justification = "Keep the override unannotated to test inherited exemption handling and getter failure.")]
         public override string Keyboard => throw new InvalidOperationException("Must not execute");
     }
 
@@ -492,7 +497,7 @@ public sealed class DiagnosticClassificationTests
     public void Typed_Collection_Properties_Should_Preserve_Unclassified_Children()
     {
         var model = new CollectionModel();
-        var data = JsonSerializer.SerializeToElement(Policy().SanitizeValue("ClientReport", model), new JsonSerializerOptions());
+        var data = JsonSerializer.SerializeToElement(Policy().SanitizeValue("ClientReport", model), ProjectionJsonOptions);
         data.GetProperty("Values")[0].GetString().Should().Be("public");
         data.GetProperty("Metadata").GetProperty("Count").GetInt32().Should().Be(3);
         data.GetProperty("Metadata").GetProperty("Password").GetString().Should().Be("private");
@@ -504,11 +509,15 @@ public sealed class DiagnosticClassificationTests
     {
         public string[] Values { get; } = ["public"];
         public Dictionary<string, object> Metadata { get; } = new() { ["Count"] = 3, ["Password"] = "private" };
+        [SuppressMessage("DRN.Classification", "DRN0019", Justification = "Unclassified anonymous JSON fixture verifies capture projects JsonElement properties instead of its payload.")]
         public JsonElement Json { get; } = JsonSerializer.SerializeToElement(new { Count = 3, Password = "private" },
-            new JsonSerializerOptions { PropertyNamingPolicy = null });
+            FixtureJsonOptions);
     }
 
     [Fact]
+    [SuppressMessage("Performance", "CA1859", Justification = "Exercise interface extension dispatch to the native implementations.")]
+    [SuppressMessage("DRN.Classification", "DRN0017", Justification = "Unclassified SecretReport capture is the control for the complex-value reason overload rejection.")]
+    [SuppressMessage("DRN.Classification", "DRN0019", Justification = "Anonymous Password fixture verifies runtime fallback before reason overload rejection.")]
     public void Reason_Overloads_Should_Exempt_Only_The_Current_Node_And_Preserve_Other_Protection()
     {
         using var settings = SettingsProvider.Development();
@@ -546,6 +555,7 @@ public sealed class DiagnosticClassificationTests
     }
 
     [Fact]
+    [SuppressMessage("Performance", "CA1859", Justification = "Verify nullable values through the interface extension overload.")]
     public void Simple_Exemptions_Should_Accept_Supported_Scalars_And_Nullable_Values()
     {
         object?[] values = [null, "public", true, (byte)1, (sbyte)-1, (short)-2, (ushort)2,
@@ -595,6 +605,7 @@ public sealed class DiagnosticClassificationTests
     }
 
     [Fact]
+    [SuppressMessage("DRN.Classification", "DRN0017", Justification = "Unclassified SecretTarget verifies URI credential removal independently of name matching.")]
     public void Uri_Scalars_Should_Remove_Credentials_Without_Matching_Names_In_Copies()
     {
         var uri = new Uri("https://user:private@example.test/resetpassword/private?token=private&opaque=visible");
@@ -633,9 +644,19 @@ public sealed class DiagnosticClassificationTests
 
     private class CompanyAttribute : SensitiveAttribute;
     private sealed class ContactAttribute : PersonalAttribute;
+    [SuppressMessage("DRN.Classification", "DRN0016", Justification = "Invalid derived attribute constructor deliberately passes false to verify runtime rejection.")]
     private sealed class InvalidAttribute() : SensitiveAttribute(false);
-    private sealed class InvalidModel { [Invalid] public string Value => throw new InvalidOperationException("Must not execute"); }
-    [Sensitive(false)] private sealed class InvalidType { public string Value => throw new InvalidOperationException("Must not execute"); }
+    private sealed class InvalidModel
+    {
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance getter exercises invalid property classification.")]
+        [Invalid] public string Value => throw new InvalidOperationException("Must not execute");
+    }
+    [SuppressMessage("DRN.Classification", "DRN0016", Justification = "Invalid type-level exemption verifies runtime capture fails closed.")]
+    [Sensitive(false)] private sealed class InvalidType
+    {
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance getter exercises invalid type classification.")]
+        public string Value => throw new InvalidOperationException("Must not execute");
+    }
     private class BaseModel
     {
         [Company] public virtual string Password => throw new InvalidOperationException("Must not execute");
@@ -644,16 +665,27 @@ public sealed class DiagnosticClassificationTests
     private sealed class DerivedModel : BaseModel
     {
         [Sensitive(false)] public override string Password => throw new InvalidOperationException("Must not execute");
+        [SuppressMessage("DRN.Classification", "DRN0015", Justification = "Keep the override unannotated to verify runtime inheritance of the base exemption.")]
         public override string Keyboard => "override must remain protected";
     }
     private sealed class Model
     {
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance property exercises classification exemptions during capture.")]
         [Sensitive(false)] public string Keyboard => "layout";
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies positive classification overrides an exemption.")]
         [Company, Sensitive(false)] public string Password => throw new InvalidOperationException("Must not execute");
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies personal classification prevents reads.")]
         [Contact] public string Email => throw new InvalidOperationException("Must not execute");
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies IgnoreLog prevents reads.")]
+        [SuppressMessage("DRN.Classification", "DRN0015", Justification = "Unclassified ignored token verifies IgnoreLog prevents getter execution independently of classification.")]
         [IgnoreLog] public string IgnoredToken => throw new InvalidOperationException("Must not execute");
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance property exercises nested model capture.")]
         public Detail Details => new();
         public string PublicField = "omitted";
     }
-    private sealed class Detail { [Sensitive] public string Password => throw new InvalidOperationException("Classified getter"); }
+    private sealed class Detail
+    {
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies nested classification prevents reads.")]
+        [Sensitive] public string Password => throw new InvalidOperationException("Classified getter");
+    }
 }

@@ -28,6 +28,7 @@ public class SubNavigationItem(string href, string title, string? icon = null)
     public string Href { get; } = href;
     public string Title { get; } = title;
     public string? Icon { get; } = icon;
+    public string EffectiveIcon => Icon ?? "bi-file-earmark";
 
     public bool IsDefault { get; init; } = true;
     public int Order { get; init; } = 0;

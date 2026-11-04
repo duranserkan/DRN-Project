@@ -14,7 +14,7 @@
 
 > Convention-based Entity Framework Core integration with automatic configuration, migrations, and Source-Known entity lifecycle support.
 
-SharedKernel classification analyzers apply transitively to public readable model properties. Repository cancellation tokens use `[Sensitive(false)]` to identify an operational false positive and `[IgnoreLog]` to avoid capturing the control object. These annotations do not affect repository operations or EF persistence.
+SharedKernel classification analyzers apply transitively to public readable model properties. Classify application model properties with the SharedKernel diagnostic attributes where required.
 
 ## Features
 
@@ -89,7 +89,7 @@ public class UserService(AppContext context)
 }
 ```
 
-Register the assembly containing the context during application startup and configure the matching `AppId` in `appsettings.json`:
+Register the assembly containing the context during application startup. Configure `Environment`, the matching `AppId`, and an explicit `AppInstanceId` in `appsettings.json`:
 
 ```csharp
 using DRN.Framework.Utils.DependencyInjection;
@@ -99,11 +99,15 @@ builder.Services.AddServicesWithAttributes(typeof(AppContext).Assembly);
 
 ```json
 {
+  "Environment": "Development",
   "NexusAppSettings": {
-    "AppId": 1
+    "AppId": 1,
+    "AppInstanceId": 0
   }
 }
 ```
+
+Assign distinct `AppInstanceId` values to concurrent instances generating IDs for the same application. Zero is valid. Staging and Production also require private seed and Nexus key configuration; see [Utils configuration](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/README.md#configuration).
 
 `DRN.Framework.Hosting` runs startup validation automatically. Migration and seeding follow the environment settings described below. Standalone hosts must integrate the framework startup validation lifecycle explicitly.
 
@@ -208,11 +212,11 @@ Entities inheriting from `SourceKnownEntity` receive internal IDs when EF begins
 
 | Stage | Behavior |
 |---|---|
-| Added to tracking | `SourceKnownIdValueGenerator` assigns a non-temporary internal `long` ID if it is zero |
-| Saving an added entity | `DrnSaveChangesInterceptor` supplies a missing internal ID, initializes missing external identity and `EntityIdOps`, sets `ModifiedAt` to `CreatedAt`, and invokes the created hook |
+| Added to tracking | Assigns a non-temporary internal `long` ID if it is zero |
+| Saving an added entity | Supplies missing identity values, enables ID conversion operations, sets `ModifiedAt` to `CreatedAt`, and invokes the created hook |
 | Saving a modified entity | Sets `ModifiedAt` to the current UTC time and invokes the modified hook |
 | Saving a deleted entity | Invokes the deleted hook; this is not automatic soft deletion |
-| Materializing a query result | `DrnMaterializationInterceptor` initializes `EntityIdSource` and `EntityIdOps`, enabling entity ID conversion operations |
+| Materializing a query result | Makes external identity and entity ID conversion operations available |
 
 `CreatedAt` is derived from the Source-Known ID. It is not a separately assigned creation timestamp. Lifecycle hooks can collect domain events; this package does not publish them.
 
@@ -255,8 +259,6 @@ Override `NpgsqlDbContextOptionsAttribute.SeedAsync` to seed a DI-configured con
 | Test helpers | Seeds when the helper performs a migration or creation operation; shared migration helpers can skip already-migrated context types |
 
 Custom EF callbacks run before attribute seeding. Synchronous initialization waits for `SeedAsync`. Each path prefers its matching custom callback and falls back to the other callback when only one is configured.
-
-Reapplying context options preserves custom callbacks and replaces DRN wrappers with callbacks bound to the latest supplied provider. It does not duplicate attribute seeding. Reconfiguration without a provider restores only custom callbacks.
 
 Seeds must tolerate repeated or partially completed runs and use the same scoped context for database work. The attribute hook has no cancellation-token parameter. Cancellation is checked before each attribute but cannot interrupt an attribute already running.
 
@@ -442,7 +444,7 @@ protected override IQueryable<User> EntitiesWithAppliedSettings(string? caller =
 | `GetAllAsync()` | Loads every matching entity; use only for bounded result sets |
 | `Add`, `Remove` | Change tracking state; require a later save |
 | `CreateAsync(entities)`, `DeleteAsync(entities)` | Add or remove tracked entities, then save |
-| `DeleteAsync(ids)` | Executes a database delete immediately with `Settings.Filters`, without fetching entities or invoking save interceptors |
+| `DeleteAsync(ids)` | Executes a database delete immediately with `Settings.Filters`, without fetching entities or invoking tracked lifecycle hooks. An empty ID collection throws `ValidationException`. |
 | `SaveChangesAsync()` | Saves all pending changes in the context, including changes outside this repository |
 
 Filters do not authorize tracked writes. Validate ownership and access before adding, modifying, or removing entities. ID-based bulk deletes bypass retrieval overrides and tracked lifecycle hooks. `CancelChanges()` cancels operations; it does not clear the change tracker or undo completed writes.
@@ -847,6 +849,8 @@ public class SampleProgramActions : DrnProgramActions
 ```
 
 Containers use `PostgresContainerSettings` rather than `postgres-password` or `DrnContext_Dev*`. The default password is `"drn"`. The launch helper injects named connection strings into configuration. `Reuse = true` keeps the container running across application restarts.
+
+`LaunchExternalDependenciesAsync` supports at most one registered context with `UsePrototypeMode = true`. That context uses a separate PostgreSQL container on `HostPort + 1`; other contexts share the container on `HostPort`. Reserve both ports when using prototype provisioning. This restriction applies to the local launch helper, not to prototype mode in general.
 
 ---
 

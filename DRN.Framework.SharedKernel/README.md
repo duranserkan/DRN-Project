@@ -45,6 +45,7 @@
 Define an entity and collect a domain event. SharedKernel supplies the domain types; EntityFramework integration assigns missing IDs during save and wires ID operations during save or materialization.
 
 ```csharp
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Domain;
 
 [EntityType<DefaultApp>(1)] // Unique byte identifier for this entity type
@@ -61,6 +62,7 @@ public class User : AggregateRoot
 
 public class UserCreated(User user) : EntityCreated(user)
 {
+    [Personal]
     public string UserName => user.Name;
 }
 ```
@@ -275,12 +277,12 @@ The identifier system has three forms:
 | Form | Representation | Purpose |
 |---|---|---|
 | Source Known ID (SKID) | 64-bit `long`, 8 bytes | Sortable database key containing creation time, application, instance and sequence fields |
-| Source Known Entity ID (SKEID) | 128-bit `Guid` | Adds entity type, an epoch byte and a 4-byte keyed BLAKE3 MAC for validation without a database lookup |
-| Secure SKEID | 128-bit `Guid` | Encrypts one SKEID block with AES-256-ECB to conceal its encoded fields |
+| Source Known Entity ID (SKEID) | 128-bit `Guid` | Supports integrity, entity-type, and application-partition validation without a database lookup |
+| Secure SKEID | 128-bit `Guid` | Conceals the encoded identity fields |
 
-`ISourceKnownEntityIdOperations` defines `Generate`, nullable/nonnullable `Parse`, all `Validate` overloads, `ToSecure`, and `ToPlain` in SharedKernel. Utils implements it through `ISourceKnownEntityIdUtils` and `SourceKnownEntityIdUtils`. EF interceptors wire operations into entities. ID validation checks structure and identity metadata; application authorization still controls access to the entity.
+`ISourceKnownEntityIdOperations` defines `Generate`, nullable/nonnullable `Parse`, all `Validate` overloads, `ToSecure`, and `ToPlain` in SharedKernel. Utils provides these operations through `ISourceKnownEntityIdUtils`. EntityFramework makes ID operations available on saved and queried entities. ID validation checks structure and identity metadata; application authorization still controls access to the entity.
 
-`Parse(Guid, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault)` accepts `ConfiguredDefault`, `Secure`, `Plain` or `Auto` from `DRN.Framework.SharedKernel.Domain`. ConfiguredDefault selects the immutable `ISourceKnownEntityIdOperations.DefaultFormat`, initialized from Nexus settings (Secure or Plain). Secure only decrypts and verifies, Plain only verifies plaintext, and Auto retains plain-first detection with decryption fallback. Domain GUID helpers forward the format to parsing, then validate stored validity and the requested identity. Generated records also validate validity and identity without another format check. Conversions accept both forms. Format is non-nullable: omit it or pass ConfiguredDefault instead of null. Compiled consumers require rebuilding and custom implementations or method-group bindings require signature updates. See [Utils parsing and validation](../DRN.Framework.Utils/README.md#parse--validation).
+`Parse(Guid, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault)` accepts `ConfiguredDefault`, `Secure`, `Plain` or `Auto` from `DRN.Framework.SharedKernel.Domain`. ConfiguredDefault selects the immutable `ISourceKnownEntityIdOperations.DefaultFormat`, initialized from Nexus settings (Secure or Plain). Secure accepts only secure IDs, Plain accepts only plain IDs, and Auto accepts either valid form. Domain GUID helpers apply the selected format and requested identity checks. Conversions accept both forms. Format is non-nullable: omit it or pass ConfiguredDefault instead of null. Compiled consumers require rebuilding and custom implementations or method-group bindings require signature updates. See [Utils parsing and validation](../DRN.Framework.Utils/README.md#parse--validation).
 
 Record contract excerpt from [SourceKnownEntityId.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/SourceKnownEntityId.cs):
 
@@ -302,7 +304,11 @@ public readonly record struct SourceKnownEntityId(
 );
 ```
 
-`Valid` reports parsing validity. `Secure` identifies the encrypted form of `EntityId`. `EntityTypeId` combines `EntityType` and `Source.AppId`. The sequence layout is implemented in [SourceKnownIdUtils.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Ids/SourceKnownIdUtils.cs); MAC and encryption belong to [SourceKnownEntityIdUtils.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Ids/SourceKnownEntityIdUtils.cs).
+`Valid` reports parsing validity. `Secure` identifies the encrypted form of `EntityId`. `EntityTypeId` combines `EntityType` and `Source.AppId`. Use the ID operations API to generate, parse, and convert identifiers.
+
+`SourceKnownEntityId` equality and hashing use the external GUID. Ordering uses application partition, entity type, and numeric source ID. Different GUID representations of the same source identity can compare as zero while remaining unequal. Consequently, hash-based and sorted collections can deduplicate these values differently. Normalize representations or supply an explicit comparer when collection identity matters.
+
+Numeric Source-Known IDs can be negative. Their sign does not indicate validity.
 
 ### Trusted minimum generation time
 
@@ -324,7 +330,7 @@ Keep the origin unchanged across every service and restart using a dataset. IDs 
 
 #### Source baseline contract
 
-The default minimum is maintained in [SourceKnownGenerationTimePolicy.MinimumGenerationUtc](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/SourceKnownGenerationTime.cs). All builds use the same source value. It detects clocks below the configured floor but does not prove current UTC or prevent rollback across restarts.
+The default minimum is the same in every build configuration. It detects clocks below the configured floor but does not prove current UTC or prevent rollback across restarts.
 
 ### ID Validation & Retrieval Strategies
 
@@ -577,7 +583,7 @@ See [Exceptions.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.F
 
 ## JsonConventions
 
-`JsonConventions.DefaultOptions` centralizes `System.Text.Json` settings. Its static initializer replaces the serializer's static default option instances. Utils convention setup initializes it, including setup used by `DrnTestContext`. Hosting also configures HTTP JSON and MVC options.
+`JsonConventions.DefaultOptions` centralizes `System.Text.Json` settings. Initializing these conventions changes serializer defaults process-wide, including calls that do not pass explicit options. Utils convention setup and `DrnTestContext` apply these defaults. Hosting also configures HTTP JSON and MVC options.
 
 | Setting | Value |
 |---|---|

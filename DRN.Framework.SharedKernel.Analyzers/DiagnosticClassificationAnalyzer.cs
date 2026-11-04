@@ -225,14 +225,17 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
         var owner = method.ContainingType.ToDisplayString();
         var extensions = owner == "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticCaptureExtensions";
         flat = method.Name is "AddProperties" or "AddPropertiesWithPolicy" && (IsScopedLog(owner) || extensions);
-        var valueCapture = method.Name is "Add" or "AddToList" or "AddIfNotNullOrEmpty" or "AddWithPolicy" && (IsScopedLog(owner) || extensions) ||
-                           method.Name is "SanitizeValue" or "SanitizeWithPolicy" && (IsSanitizer(owner) || extensions);
+        var valueCapture = IsValueCapture(method.Name, owner, extensions);
         var offset = method.IsExtensionMethod && method.ReducedFrom == null ? 1 : 0;
         namesAcknowledged = method.Name.EndsWith("WithPolicy", StringComparison.Ordinal) ||
                             !flat && call.Arguments.Length > 2 + offset;
         // Reasons and policies acknowledge names, but never configured capture paths.
         return (flat || valueCapture) && call.Arguments.Length >= 2 + offset;
     }
+
+    private static bool IsValueCapture(string methodName, string owner, bool extensions) =>
+        methodName is "Add" or "AddToList" or "AddIfNotNullOrEmpty" or "AddWithPolicy" && (IsScopedLog(owner) || extensions) ||
+        methodName is "SanitizeValue" or "SanitizeWithPolicy" && (IsSanitizer(owner) || extensions);
 
     private static ITypeSymbol? GetCaptureType(IInvocationOperation call, bool flat, int offset)
     {

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Auth;
@@ -10,6 +11,11 @@ namespace DRN.Test.Unit.Tests.Framework.Utils.Logging;
 
 public class ScopedLogReadRedactionTests
 {
+    private static readonly string[] SanitizationFailedWarnings = ["SanitizationFailed"];
+    private static readonly string[] GetterFailedWarnings = ["GetterFailed"];
+    private static readonly int[] CaptureItems = [1];
+    private static readonly string[] CollectionLimitItems = ["one", "two", "three"];
+
     [Theory]
     [DataInlineUnit(false)]
     [DataInlineUnit(true)]
@@ -185,13 +191,13 @@ public class ScopedLogReadRedactionTests
         second["DiagnosticCapture"].Should().Be(DiagnosticSanitizer.Invalid);
         snapshot["Value"] = "visible";
         destination.MaterializeSnapshot(snapshot, true)["Value"].Should().Be("visible");
-        destination.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(new[] { "SanitizationFailed" });
+        destination.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(SanitizationFailedWarnings);
     }
 
     [Fact]
     public void Native_Copies_Should_Share_The_Destination_Capture_Budget()
     {
-        var source = Policy().Capture("Items", new[] { 1 });
+        var source = Policy().Capture("Items", CaptureItems);
         var sanitizer = new DiagnosticSanitizer(new DiagnosticLogOptions { MaxNodes = 16, MaxProcessingMilliseconds = 100 });
         for (var index = 0; index < 15; index++) sanitizer.SanitizeValue("Count", index).Should().Be(index);
 
@@ -214,7 +220,7 @@ public class ScopedLogReadRedactionTests
         var model = new ThrowingCaptureModel();
         source.Add("Model", model);
         model.ReadCount.Should().Be(2);
-        sanitizer.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(new[] { "GetterFailed" });
+        sanitizer.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(GetterFailedWarnings);
 
         var copy = new ScopedLog(settings, Policy());
         copy.CopyFrom(source);
@@ -240,7 +246,7 @@ public class ScopedLogReadRedactionTests
 
         log.AddProperties("Model", model);
 
-        sanitizer.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(new[] { "GetterFailed" });
+        sanitizer.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(GetterFailedWarnings);
         var raw = log.GetLogs(false);
         raw["Model.Classified"].Should().Be("[diagnostic getter unavailable]");
         raw["Model.Ordinary"].Should().Be("[diagnostic getter unavailable]");
@@ -360,7 +366,7 @@ public class ScopedLogReadRedactionTests
         }));
         // DiagnosticNameExemption: Password | Verify capture limits remain enforced for sensitive values.
         log.Add("Password", new string('x', 1025));
-        log.Add("Items", new[] { "one", "two", "three" });
+        log.Add("Items", CollectionLimitItems);
         log.Add("Map", new Dictionary<string, object> { ["First"] = 1, ["Second"] = 2, ["Third"] = 3 });
         log.Add("TargetUrl", new Uri("https://example.test/?a=one&b=two&c=three"));
         log.GetLogs()["Password"].Should().Be(DiagnosticSanitizer.Limited);
@@ -446,6 +452,7 @@ public class ScopedLogReadRedactionTests
         [IgnoreLog] public string Text { get; set; } = "classified-probe";
         [IgnoreLog] public int ReadCount { get; private set; }
         [Sensitive] public string Value { get { ReadCount++; return Text; } }
+        [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies IgnoreLog prevents reflection capture from reading it.")]
         [IgnoreLog] public string Ignored => throw new InvalidOperationException("Must not execute");
     }
 }

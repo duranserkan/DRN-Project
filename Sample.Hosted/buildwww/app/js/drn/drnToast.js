@@ -139,11 +139,13 @@ function show(options) {
 const drnToast = {
     show: show,
     cleanup(root) {
-        for (const entry of [...activeToasts]) {
+        // Iterate backwards because removing a toast mutates the active collection.
+        for (let index = activeToasts.length - 1; index >= 0; index--) {
+            const entry = activeToasts[index];
             if (root === entry.el || root?.contains(entry.el)) {
                 entry.bsToast.dispose();
                 entry.el.remove();
-                activeToasts.splice(activeToasts.indexOf(entry), 1);
+                activeToasts.splice(index, 1);
             }
         }
     },

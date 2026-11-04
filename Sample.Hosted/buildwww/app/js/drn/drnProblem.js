@@ -188,7 +188,8 @@ function renderValidationErrors(region, errorsByName, summary) {
         const matches = form ? Array.from(form.elements).filter(field => field.name === name) : [];
         const first = matches.find(field => field instanceof HTMLElement && field.type !== 'hidden' && !field.disabled);
         const item = appendText(list, 'li', '');
-        const message = `${name ? `${name}: ` : ''}${errors.join(' ')}`;
+        const prefix = name ? `${name}: ` : '';
+        const message = `${prefix}${errors.join(' ')}`;
         if (first) {
             const link = appendText(item, 'button', message, 'btn btn-link p-0 text-start text-danger');
             link.type = 'button';

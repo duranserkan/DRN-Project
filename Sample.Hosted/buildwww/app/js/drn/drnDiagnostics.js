@@ -20,6 +20,20 @@ const encoder = new TextEncoder();
 const normalize = value => value.replace(/[^a-z0-9]/gi, '').toLowerCase();
 const builtins = new Set([...rules.secretFields, ...rules.personalFields].map(normalize));
 
+function decode(value) {
+    for (let round = 0; round < MAX_DECODE_ROUNDS && value.includes('%'); round++) {
+        try {
+            value = decodeURIComponent(value);
+        } catch (error) {
+            // Literal percents are safe only when no encoded bytes remain to hide a sensitive name.
+            if (error instanceof URIError && round > 0 && !/%[0-9a-f]{2}/i.test(value)) return value;
+            throw error;
+        }
+    }
+    if (/%[0-9a-f]{2}/i.test(value)) throw new URIError('Diagnostic URL decoding limit');
+    return value;
+}
+
 function containsRule(value, rules) {
     for (const rule of rules) if (rule.length > 0 && value.includes(rule)) return true;
     return false;
@@ -86,24 +100,12 @@ export function createDiagnosticSanitizer() {
                 return encodeURIComponent(safeKey(key)) + '=' + encodeURIComponent(safe);
             }).join('&');
         }
-        function decode(value) {
-            for (let round = 0; round < MAX_DECODE_ROUNDS && value.includes('%'); round++) {
-                try {
-                    value = decodeURIComponent(value);
-                } catch (error) {
-                    // Literal percents are safe only when no encoded bytes remain to hide a sensitive name.
-                    if (error instanceof URIError && round > 0 && !/%[0-9a-f]{2}/i.test(value)) return value;
-                    throw error;
-                }
-            }
-            if (/%[0-9a-f]{2}/i.test(value)) throw new URIError('Diagnostic URL decoding limit');
-            return value;
-        }
         function urlCore(value) {
             tick(value.length);
             if (!value) return '';
             const relative = /^[/?#]/.test(value);
-            const url = new URL(relative ? 'https://diagnostic.invalid' + (value.startsWith('/') ? '' : '/') + value : value);
+            const prefix = value.startsWith('/') ? '' : '/';
+            const url = new URL(relative ? 'https://diagnostic.invalid' + prefix + value : value);
             if (!['http:', 'https:', 'ftp:', 'file:', 'otpauth:'].includes(url.protocol)) return INVALID;
             if (url.username || url.password) redact();
             let redactNext = false;

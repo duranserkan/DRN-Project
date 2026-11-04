@@ -1,18 +1,16 @@
 ---
 name: basic-agentic-development
 description: "Agentic development standards - Silent Partner Protocol, context economy, development loop (discovery, planning, execution, verification), and anti-patterns for efficient autonomous development. Keywords: agentic, ai-agent, development-loop, context-economy, autonomous, discovery, planning, execution, verification, anti-patterns, silent-partner"
-last-updated: 2026-10-03
+last-updated: 2026-11-04
 difficulty: basic
 tokens: ~1.5K
 ---
 
 # Agentic Development
 
-> Standards for efficient, autonomous AI-assisted development.
-
 ## Silent Partner Protocol
 
-The agent operates as a **silent partner** — it works autonomously, does not ask for permission on routine operations, and only interrupts with questions when genuinely blocked on ambiguity or facing irreversible decisions.
+Act autonomously on routine work. Ask when ambiguity blocks progress or decisions are irreversible.
 
 **Autonomy Ladder**:
 1. **Trivial** (formatting, imports, lint): Act immediately
@@ -22,21 +20,18 @@ The agent operates as a **silent partner** — it works autonomously, does not a
 
 ### Scrutiny & Audit Posture
 
-The agent operates **under continuous scrutiny**:
-- All actions, edits, reasoning steps, tool usage, and plans must be defensible under peer review.
-- Every assumption must be verified against source truth or tagged `[ASSUMPTION - unverified]`.
-- Static verification or authorized empirical execution evidence must support every completed task.
+- Support actions, reasoning, tool use, and plans with reviewable evidence.
+- Verify assumptions against source or tag them `[ASSUMPTION - unverified]`.
+- Support completion with static checks or authorized execution evidence.
 
 ---
 
 ## Context Economy
 
-Context is a **finite resource**. Every token consumed reduces remaining capacity.
-
 | Principle | Action |
 |-----------|--------|
 | Thin loading by default | Use existing source-owned guidance with the current workflow route and scoped loaders (`/load-skills-basic`, `/load-skills-drn`, `/load-skills-test`, `/load-skills-frontend`); reserve `/load-skills-all` for explicit broad context or `/update all` agent-configuration self-sync |
-| Summarize, don't echo | Never repeat file contents in conversation |
+| Summarize, don't echo | Summarize findings and cite relevant files instead of repeating file contents |
 | Batch reads | Read related files together |
 | Early exit | Stop reading when you have enough context |
 | Prefer outlines | Inspect outline/symbols before full file reads when the platform supports it |
@@ -68,15 +63,22 @@ Context is a **finite resource**. Every token consumed reduces remaining capacit
 - Keep changes unstaged for review by default. Do not stage changes, commit, or amend commits unless the user explicitly authorizes the action. Preserve any pre-existing staged changes.
 - Validate after each change (build, lint, test) only when the active instructions allow those commands
 - Follow existing patterns in the codebase
-- Prefer efficient algorithms and avoid unnecessary allocations, especially in established hot paths. Justify performance-driven complexity with measurements or clear source evidence. Preserve correctness and readability; do not require allocation-free code universally.
+- Avoid unnecessary allocations and repeated work. Simplify algorithms and choose data structures that fit access patterns, ordering, and lifetime needs. Use source evidence and explicit assumptions to justify changes. Measure uncertain tradeoffs, preserve correctness, and avoid complexity whose benefit is unproven.
 - Follow the repository profile's dependency-injection and configuration conventions
 - **No Unapproved Helper Scripts**: Do NOT create, write, or execute ad-hoc helper scripts or code (e.g. Python, Bash, Node, custom tools). Ad-hoc scripts are strictly prohibited under the sync safety contract. For non-sync tasks, writing or executing an ad-hoc script requires a prior detailed description (purpose, full content, exact commands, potential risks) and explicit user approval before writing or running it.
+
+#### Refactoring for Clarity
+
+- Name meaningful compound or repeated conditions and coherent operations, especially in UI rendering. Keep simple checks inline. Use ordinary branches when nested expressions obscure intent.
+- Use cyclomatic complexity to identify code worth reviewing. Simplify redundant decisions and separate coherent responsibilities, but do not extract helpers solely to lower a score.
+- Put decisions on the owning model or module. Use properties for cheap state checks and methods for arguments or generated values. Resolve and validate generated content together to avoid duplicate calls.
+- Preserve short-circuiting, null handling, evaluation count, captured state, callback identity, and mutation/disposal order. Move helpers outside closures only when they do not need local state.
+- Check analyzer suggestions against framework contracts and UI semantics. Follow the [diagnostic suppression guidance](../basic-code-review/SKILL.md#diagnostic-suppressions).
 
 ### 4. Verification
 
 **Mandatory order when permitted**: Build → Test → Lint → Self-Correct
-- .NET: `dotnet build` → `dotnet run --project` (for test projects)
-- Node: `npm run build` / `npm run typecheck` → `npm test`
+- Resolve commands from the profile, manifests, or CI. Use the destination's test runner and package manager.
 - Under `AGENTS.md`, do not build or run tests unless explicitly allowed; use static verification and report skipped commands when permission is absent.
 - Fix warnings introduced by your changes (Boy Scout Rule)
 - Use relative paths in code/configs, not absolute paths
@@ -103,22 +105,15 @@ Capture only durable, generalizable insights discovered during the task into `AG
 
 | Anti-Pattern | Correct Approach |
 |-------------|-----------------|
-| Reading all skills when only one area is relevant | Load the repository profile and the specific workflow or skill family for the task. |
-| Echoing file contents back in conversation | Summarize key points, reference file paths |
-| Asking for permission on trivial changes | Act, then report |
-| Implementing without reading existing code | Discovery first |
 | Ignoring test failures to move forward | Fix failures before proceeding |
 | Over-engineering simple requests | Match complexity to problem (Gall's Law) |
 | Skipping security considerations | Always check against security checklist |
 | Creating placeholder implementations | Deliver complete, runnable code |
-| Creating, writing, or executing ad-hoc helper scripts/code without prior approval | Ad-hoc scripts are prohibited under the sync safety contract. For non-sync tasks, provide a detailed description (purpose, full content, exact commands, potential risks) and obtain explicit user approval before writing or executing any ad-hoc script or code |
-| Using namespaces/names from assumption | Verify with text search, outline/symbol inspection when supported, and `GlobalUsings.cs` |
+| Assuming names or namespaces | Verify against source, project metadata, `GlobalUsings.cs`, or symbol search |
 | Importing uninstalled libraries | Check `*.csproj`/`package.json` before using; ask user before adding |
 | Choosing runtime-access mechanisms without repository context | Follow the repository profile's runtime-access conventions |
 | Weakening production invariants for tests | Follow the repository profile's environment conventions and use explicit test configuration |
 | Using obsolete or deprecated code | Never introduce deprecated or obsolete APIs, types, interfaces, or members (e.g. `[Obsolete]`, `ASPDEPR*`); always use modern, active framework primitives and never suppress deprecation diagnostics with `#pragma` or `[SuppressMessage]` |
-
-> **Name & Namespace Hallucination**: Never assume a namespace from folder structure. Always verify exact names with source files, project metadata, or search before using them.
 
 ---
 
@@ -129,10 +124,10 @@ Capture only durable, generalizable insights discovered during the task into `AG
 | Destructive/irreversible | Ask first |
 | Security-related | Ask first |
 | Reading/analysis | Proceed |
-| Staging changes, committing, or amending commits | Require explicit user authorization for the action. Otherwise leave changes unstaged for review. |
+| Staging, committing, or amending | Require explicit user authorization |
 | Testing your own work | Proceed only when current instructions allow build/test commands |
 | Ambiguous architecture | Ask first |
-| Ad-hoc helper script writing or execution | Prohibited under the sync safety contract; for non-sync tasks, provide a detailed description (purpose, full content, exact commands, potential risks) & obtain explicit user approval first |
+| Ad-hoc helper scripts | Follow the prohibition and approval requirements under Execution |
 | Routine refactoring following patterns | Proceed |
 
 ---

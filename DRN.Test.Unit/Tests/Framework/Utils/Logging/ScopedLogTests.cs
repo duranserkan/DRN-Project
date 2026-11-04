@@ -1,6 +1,4 @@
 using System.Diagnostics;
-// These fixtures deliberately retain unclassified/ignored members to verify runtime getter suppression.
-#pragma warning disable DRN0015
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using DRN.Framework.SharedKernel.Attributes;
@@ -718,6 +716,7 @@ public class ScopedLogTests
     private sealed class AttributedLogData
     {
         public string Visible => "visible";
+        [SuppressMessage("DRN.Classification", "DRN0015", Justification = "Unclassified ignored property verifies runtime getter suppression independently of classification.")]
         [IgnoreLog] public string Secret => throw new InvalidOperationException("Ignored getters must not execute.");
     }
 

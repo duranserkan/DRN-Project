@@ -1,146 +1,92 @@
 ---
 name: frontend-razor-accessors
-description: "Type-safe static accessor pattern - 'Get' class for refactoring-safe routing (Get.Page, Get.Endpoint), permission checks (Get.Claim), and ViewData keys. Eliminates magic strings in Razor views and provides centralized navigation. Keywords: razor-pages, type-safety, navigation, routing, accessors, get-pattern, page-routing, endpoint-routing, refactoring-safety"
-last-updated: 2026-10-04
+description: "Centralize Razor route identifiers, view-data keys, and presentation decisions without retaining request state. Keywords: razor-pages, navigation, routing, accessors, permissions, view-data"
+last-updated: 2026-11-04
 difficulty: intermediate
-tokens: ~1K
+tokens: ~0.8K
 ---
 
-# Static Accessor Pattern (The 'Get' Class)
+# Razor Accessors
 
-> A pattern for providing type-safe, static access to routing, constants, and logic in Razor Views, avoiding "magic strings".
-> Replace `Example*` names with the concrete page, endpoint, controller, and program types discovered in the hosted project or repository profile.
+Follow local conventions. These application-owned examples need only ASP.NET Core; adapt identifiers to discovered pages, named endpoints, and policies. Centralized strings are not compiler-checked routes.
 
-## When to Apply
-- Creating a central entry point for application constants.
-- Finding paths to pages or endpoints (`Get.Page...`).
-- Checking permissions or feature flags in Views (`Get.Claim...`).
-- Defining strongly-typed keys for extensive dictionaries like `ViewData`.
+## Shared Identifiers
 
----
-
-## The `Get` Class
-
-Host a central static class (typically named `Get`) in the `Hosted` project. This class acts as a directory for various helper collections.
+Group repeated identifiers, not request state:
 
 ```csharp
 public static class Get
 {
-    // Navigation & Routing
-    public static ExamplePageFor Page { get; } = PageCollectionBase<ExamplePageFor>.PageCollection;
-    public static ExampleEndpointFor Endpoint { get; } = (ExampleEndpointFor)EndpointCollectionBase<ExampleProgram>.EndpointCollection!;
-    
-    // Security (ScopeContext wrappers)
-    public static RoleFor Role { get; } = new();
-    public static ClaimFor Claim { get; } = new();
-    
-    // Constants
+    public static ExamplePageFor Page { get; } = new();
+    public static EndpointFor Endpoint { get; } = new();
+    public static PolicyFor Policy { get; } = new();
     public static ViewDataKeys ViewDataKeys { get; } = new();
 }
-```
 
----
-
-## Helper Collections (Dependency Construction)
-
-Collections are used to group accessors logically (e.g., by feature or area).
-
-**Page Collection Pattern**:
-```csharp
-public class ExamplePageFor : PageCollectionBase<ExamplePageFor>
+public class ExamplePageFor
 {
-    // Property injection for nested helpers
-    public RootPageFor Root { get; } = new();
     public UserPageFor User { get; } = new();
 }
-```
 
-**Endpoint Collection Pattern**:
-```csharp
-public class ExampleEndpointFor : EndpointCollectionBase<ExampleProgram>
+public class UserPageFor
 {
-    // Dependencies initialized in constructor/property
-    public ExampleUserApiFor User { get; } = new();
-    public ExampleQaApiFor QA { get; } = new();
+    public string Login => "/User/Login";
 }
-```
 
----
-
-## Helper Categories
-
-### Type-Safe Routing (`PageFor` / `EndpointFor`)
-
-Avoid hardcoding URL strings. Use helper classes that generate routes.
-
-**Pattern**:
-```csharp
-// 1. Grouping Class (referenced by ExampleEndpointFor)
-public class ExampleUserApiFor
+public class EndpointFor
 {
-    public const string RouteTemplate = "Api/User/[controller]";
-    
-    // Intermediate grouping or direct controller endpoint
-    public ExampleUserIdentityLoginFor LoginController { get; } = new();
+    public string QuestionDetails => "Questions.Details";
 }
 
-// 2. Controller Endpoint Class
-public class ExampleUserIdentityLoginFor : ControllerForBase<ExampleIdentityLoginController>
+public class PolicyFor
 {
-    public ExampleUserIdentityLoginFor() : base(ExampleUserApiFor.RouteTemplate) { }
-
-    // Returns type-safe endpoint reference
-    public ApiEndpoint Login { get; private set; } = null!;
+    public string DeleteQuestions => "Questions.Delete";
 }
-```
 
-**Usage in Razor**:
-```razor
-<!-- Refactoring-safe link generation -->
-<a asp-page="@Get.Page.User.Login">Login</a>
-<form hx-post="~@Get.Endpoint.User.LoginController.Login.Path()">
-```
-
-Keep accessor paths independent of deployment prefixes. Resolve them at the rendering boundary with page routing or explicit `~/` URLs. Navigation factories should distinguish page identifiers from arbitrary URLs so page declarations do not carry URL syntax. In C#, prefer MVC URL generation or request-aware `LinkGenerator` overloads over custom prefix concatenation. Use the profile-declared endpoint URL helper when available to encapsulate effective action metadata and generation failures. Static accessors must not retain request-specific URLs.
-
-### Logical Accessors (`ClaimFor` / `FeatureFor`)
-
-Wrap complex logic (like `ScopeContext` checks) into readable properties.
-
-**Pattern**:
-```csharp
-public class ClaimFor
-{
-    // Encapsulate the "how"
-    public bool CanDeleteQuestions => ScopeContext.HasClaim(Claims.DeleteQuestion);
-}
-```
-
-**Usage**:
-```razor
-@if (Get.Claim.CanDeleteQuestions) 
-{ 
-    <button>Delete</button> 
-}
-```
-
-### Dictionary Keys (`ViewDataKeys`)
-
-If you use `ViewData` or `TempData`, define keys here to ensure sender and receiver use the same string.
-
-```csharp
-// Definition
 public class ViewDataKeys
 {
     public string Title => "Title";
 }
-
-// Usage
-ViewData[Get.ViewDataKeys.Title] = "My Page";
 ```
 
----
+## Request-Bound Usage
+
+```razor
+@using Microsoft.AspNetCore.Authorization
+@inject IAuthorizationService Authorization
+@{
+    ViewData[Get.ViewDataKeys.Title] = "Questions";
+    var canDelete = (await Authorization.AuthorizeAsync(
+        User, resource: null, policyName: Get.Policy.DeleteQuestions)).Succeeded;
+}
+<a asp-page="@Get.Page.User.Login">Login</a>
+<a asp-route="@Get.Endpoint.QuestionDetails" asp-route-id="42">Question 42</a>
+@if (canDelete)
+{
+    <button type="button" data-action="delete-question">Delete</button>
+}
+```
+
+The named endpoint and policy must be registered; the button's action wiring is application-owned. Match endpoint authorization, including the actual resource for resource-based policies. Visibility never replaces server enforcement.
+
+Resolve URLs through tag helpers, MVC URL generation, request-aware `LinkGenerator`, or explicit `~/` paths. Distinguish page identifiers from URLs. Prefer profile-declared endpoint helpers for effective action metadata and generation failures. Never store request-specific URLs or authorization results statically.
+
+## Named Presentation Decisions
+
+Keep decisions on the view model or request-scoped service. For example, after resolving authorization:
+
+```csharp
+public record QuestionActions(bool Authorized, bool Locked)
+{
+    public bool CanDelete => Authorized && !Locked;
+}
+```
+
+Use properties for cheap state checks and methods for arguments or generated content. Share `ViewData`/`TempData` keys between senders and receivers.
+
+## Framework Overlays
+
+For DRN projects, use [drn-hosting](../drn-hosting/SKILL.md#page--endpoint-management) for `PageCollectionBase`, `EndpointCollectionBase`, and `ControllerForBase` construction.
 
 ## Related Skills
-- Framework-scoped hosting skill declared by `.agent/repository-profile.md`, when present.
 - [frontend-razor-pages-navigation.md](../frontend-razor-pages-navigation/SKILL.md) - Navigation patterns

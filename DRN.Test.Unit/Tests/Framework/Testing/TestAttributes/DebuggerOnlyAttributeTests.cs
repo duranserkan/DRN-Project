@@ -1,9 +1,9 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.Testing.TestAttributes;
 
 namespace DRN.Test.Unit.Tests.Framework.Testing.TestAttributes;
 
-#pragma warning disable xUnit1006
 public class DebuggerOnlyAttributeTests
 {
     [Fact]
@@ -21,8 +21,8 @@ public class DebuggerOnlyAttributeTests
 
     [TheoryDebuggerOnly]
     [DataInline]
+    [SuppressMessage("Usage", "xUnit1006", Justification = "Parameterless theory intentionally verifies debugger-only execution without data dependencies.")]
     public void DebuggerOnlyTheory()
     {
     }
 }
-#pragma warning restore xUnit1006

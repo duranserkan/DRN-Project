@@ -10,8 +10,6 @@
     var layoutOptions = ViewData[Get.ViewDataKeys.MainContentLayoutOptions] as MainContentLayoutOptions ?? new MainContentLayoutOptions();
     ViewData[Get.ViewDataKeys.Title] = layoutOptions.Title;
     
-    // Main content card should stretch if not centered.
-    var shouldExpandCard = layoutOptions is { CenterVertically: false, CenterHorizontally: false, Type: MainContentType.Card or MainContentType.CardBody };
     //todo: add toolbar
     //todo: add debug store as an item to action bar
 }
@@ -46,7 +44,7 @@
 
         <!-- Main content -->
         <div class="d-flex pt-1 flex-grow-1 justify-content-center @(layoutOptions.CenterVertically ? "flex-column" : "") " style="overflow-y: auto;">
-            <main id="drn-main-content" tabindex="-1" class="p-3 w-100 @(shouldExpandCard ? "d-flex flex-column flex-grow-1" : "") @(layoutOptions.CenterVertically ? "" : "h-100")">
+            <main id="drn-main-content" tabindex="-1" class="p-3 w-100 @(layoutOptions.ShouldExpandCard ? "d-flex flex-column flex-grow-1" : "") @(layoutOptions.CenterVertically ? "" : "h-100")">
                 @if (!ScopeContext.MFACompleted)
                 {
                     <div class="d-flex justify-content-end">
@@ -54,12 +52,12 @@
                     </div>
                 }
                 <div id="drn-problem-summary" class="d-none" hidden tabindex="-1"></div>
-                <div class="row @(layoutOptions.CenterHorizontally ? "justify-content-center" : "") @(shouldExpandCard ? "flex-grow-1" : "")">
-                    <div class="pb-2 @layoutOptions.CssColumnSize() @layoutOptions.CssTextAlignment()  @(shouldExpandCard ? "d-flex flex-column" : "")">
-                        @if (layoutOptions.Type is MainContentType.Card or MainContentType.CardBody)
+                <div class="row @(layoutOptions.CenterHorizontally ? "justify-content-center" : "") @(layoutOptions.ShouldExpandCard ? "flex-grow-1" : "")">
+                    <div class="pb-2 @layoutOptions.CssColumnSize() @layoutOptions.CssTextAlignment()  @(layoutOptions.ShouldExpandCard ? "d-flex flex-column" : "")">
+                        @if (layoutOptions.UsesCard)
                         {
-                            <div class="card bg-light-subtle shadow @(shouldExpandCard ? "d-flex flex-grow-1" : "")">
-                                @if (!string.IsNullOrWhiteSpace(layoutOptions.Title))
+                            <div class="card bg-light-subtle shadow @(layoutOptions.ShouldExpandCard ? "d-flex flex-grow-1" : "")">
+                                @if (layoutOptions.HasTitle)
                                 {
                                     @if (Get.Claim.Profile.SlimUi)
                                     {

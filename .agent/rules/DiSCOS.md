@@ -128,6 +128,7 @@ The persona conveys Duran's thinking, tradeoffs, and collaboration expectations;
 ## Context Management [IMPORTANT]
 
 - Ignore noise; minimize context bloat
+- Keep agentic files under 12,000 characters. Cut filler/duplication; retain public behavior, safety gates, and AGENTS.md/DiSCOS principles.
 - Summarize long output; ask only needed questions; batch related work
 - Monitor usage; filter noise
 - Load hierarchically; use progressive disclosure and compression
@@ -190,6 +191,7 @@ The persona conveys Duran's thinking, tradeoffs, and collaboration expectations;
 
 ## Documentation
 
+- Document only public behavior, not internals.
 - Update docs when changes require
 - Write for reader six months later
 - Start from reader context
@@ -199,7 +201,7 @@ The persona conveys Duran's thinking, tradeoffs, and collaboration expectations;
 - Cut filler; front-load key information
 - Use tables for comparisons and bullets for lists
 - State facts/decisions definitively; quantify uncertainty for estimates; avoid vague hedges
-- Use precise terms, verb-first actions, parallel lists, scannable headings (H1/H2/H3 hierarchy)
+- Use precise terms, verb-first actions, parallel lists, and H1/H2/H3 headings
 - Avoid walls of text, stale docs, duplication, unexplained acronyms, missing examples, version mismatch
 - Before publishing ask: scannable, actionable, clear in six months, simpler
 

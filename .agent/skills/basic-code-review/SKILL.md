@@ -1,7 +1,7 @@
 ---
 name: basic-code-review
 description: Use when reviewing code changes, pull requests, staged diffs, or self-reviewing work for security, correctness, clarity, simplicity, performance, breaking changes, and missing verification.
-last-updated: 2026-10-03
+last-updated: 2026-11-04
 difficulty: intermediate
 tokens: ~1.3K
 ---
@@ -12,14 +12,9 @@ tokens: ~1.3K
 
 ## Scrutiny Mandate
 
-Code reviews are conducted **under continuous scrutiny**:
-- Evaluate all diffs, commits, PRs, and agent output with zero-trust self-audit.
-- Demand repository evidence (static checks or authorized execution output) for all claims while respecting command execution gates.
-- Never mark code as verified without static checks or execution proof.
+Review diffs, commits, PRs, and agent output critically. Support claims with repository evidence, static checks, or authorized execution. Do not claim verification without evidence or bypass execution gates.
 
 ## Repository Context Gate
-
-Before reviewing, identify the local conventions that are actually in force:
 
 1. Read `AGENTS.md` and `.agent/repository-profile.md` when present.
 2. Load only relevant scoped skills, such as framework, frontend, testing, or security skills.
@@ -38,30 +33,33 @@ Evaluate every change in order:
 | 4 | Simplicity | Is complexity earned, or accidental? |
 | 5 | Performance | Is optimization justified by measurements or clear source evidence? |
 
-A change that is fast but incorrect fails. A change that is clever but unreadable fails.
-
 ## Architecture Checks
 
 - No dependency points from stable/core layers to volatile infrastructure layers unless the repository architecture explicitly allows it.
 - External contracts do not leak persistence internals, framework-only types, or private identifiers.
 - DTOs, API models, and persistence entities stay separated when the repository uses that boundary.
 - New abstractions remove real complexity or match an established local pattern.
-- Check algorithm efficiency and unnecessary allocations, especially in established hot paths. Require measurements or clear source evidence for performance-driven complexity; preserve correctness and readability rather than requiring allocation-free code universally.
+- Apply the [refactoring guidance](../basic-agentic-development/SKILL.md#refactoring-for-clarity): names should expose intent, and extraction must preserve behavior. Static inspection supports equivalence but does not establish runtime or visual correctness.
+- Check unnecessary allocations, repeated work, and whether algorithms and data structures fit usage. Require source evidence or measurements for claimed benefits, explicit assumptions, and preserved correctness.
 - Public behavior changes are documented and classified as breaking or non-breaking.
 - Follow the repository profile's runtime-access conventions.
-- Never use obsolete or deprecated code: reject deprecated APIs, types, interfaces, or members (e.g. `[Obsolete]`, `ASPDEPR*`); require active, first-class framework primitives and never suppress deprecation diagnostics with `#pragma` or `[SuppressMessage]`.
+- Apply the [deprecated-code rule](../basic-agentic-development/SKILL.md#anti-patterns).
 - Prefer pit of success.
 - Verify third-party API accessibility independently of XML documentation, which may include internal members. Prefer documented public factories and registration APIs over constructing implementation types.
+
+## Diagnostic Suppressions
+
+Prefer suppression attributes over preprocessor directives whenever the diagnostic supports them. In C#, use `[SuppressMessage]` on the narrowest applicable member with the exact rule ID and a concrete `Justification`. For local-variable diagnostics, use the containing method. Avoid test-class suppressions when individual properties, fixture types, or methods can own the diagnostic. Use `#pragma warning disable` only when attributes cannot suppress the diagnostic or cannot target the required source location, explain why, and restore the warning immediately after the affected code. Preserve test intent, including instance getters used by reflection and interface dispatch coverage.
 
 ## UI Accessibility
 
 - Prefer native buttons for actions and anchors with `href` for navigation. Set `type="button"` on non-submit buttons.
-- Preserve layout and visible focus when replacing elements.
+- Prefer native elements when their semantics fit. Preserve accessible names, live announcements, layout, and visible focus when replacing markup. Align affected test fixtures.
 - If a native control cannot be used, provide the appropriate role, keyboard focus, keyboard activation, and visible focus indicators.
 
 ## Dependency Injection And Configuration
 
-- Enforce the repository's declared registration convention only. If the profile says attributes are used, check attributes. If it says manual registration is used, check registration code.
+- Check registrations against the repository's declared convention, whether attributes or manual wiring.
 - Singleton services do not capture mutable request/user state.
 - Scoped dependencies are not retained by longer-lived services.
 - New required configuration has defaults, validation, documentation, or clear deployment instructions.

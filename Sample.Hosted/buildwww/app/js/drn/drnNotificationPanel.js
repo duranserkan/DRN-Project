@@ -18,12 +18,16 @@ let undoEntries = [];
 let undoTimer;
 let detailsSequence = 0;
 
+function matchesSeverity(entry, severity) {
+    return severity === 'all' || entry.type === severity ||
+        (severity === 'info' && entry.type === 'success');
+}
+
 export function filterNotifications(entries, severity = 'all', search = '') {
     const needle = search.trim().toLocaleLowerCase();
     return entries.filter(entry => {
-        const matchesSeverity = severity === 'all' || entry.type === severity ||
-            (severity === 'info' && entry.type === 'success');
-        if (!matchesSeverity || !needle) return matchesSeverity;
+        const severityMatches = matchesSeverity(entry, severity);
+        if (!severityMatches || !needle) return severityMatches;
         const searchable = [entry.title, entry.message, entry.operation, entry.requestId, entry.clientErrorId,
             entry.clientErrorDetails].join('\n').toLocaleLowerCase();
         return searchable.includes(needle);
@@ -213,8 +217,10 @@ function updateFilters(entries) {
         for (const color of Object.values(FILTER_COLORS))
             control.classList.remove(`btn-${color}`, `btn-outline-${color}`);
         control.classList.remove('btn-outline-secondary');
-        control.classList.add(selected ? `btn-${FILTER_COLORS[severity]}`
-            : count > 0 ? `btn-outline-${FILTER_COLORS[severity]}` : 'btn-outline-secondary');
+        let colorClass = 'btn-outline-secondary';
+        if (selected) colorClass = `btn-${FILTER_COLORS[severity]}`;
+        else if (count > 0) colorClass = `btn-outline-${FILTER_COLORS[severity]}`;
+        control.classList.add(colorClass);
     }
 }
 
@@ -235,8 +241,9 @@ function refresh(force = false) {
         node => node.dataset.notificationDetails));
     const focusedInList = list.contains(document.activeElement);
     const result = panel.querySelector('#drn-notification-result');
-    result.textContent = entries.length === 0 ? 'No notifications.' : filtered.length === 0
-        ? 'No matching notifications.' : `${filtered.length} notifications in ${groups.length} groups. Newest first.`;
+    if (entries.length === 0) result.textContent = 'No notifications.';
+    else if (filtered.length === 0) result.textContent = 'No matching notifications.';
+    else result.textContent = `${filtered.length} notifications in ${groups.length} groups. Newest first.`;
     panel.querySelector('[data-notification-clear-all]').disabled = entries.length === 0;
     panel.querySelector('[data-notification-clear-filtered]').disabled = filtered.length === 0;
     const loadMore = panel.querySelector('[data-notification-load-more]');
