@@ -524,7 +524,7 @@ The following example illustrates the key format. Supply private key material in
 }
 ```
 
-`Keys` must contain exactly one default key. Generation always uses the default key. `UseSourceKnownIdKeyFallback` defaults to `false`, so parsing accepts only the default key. Enable it for routine rotation to accept IDs authenticated with the remaining configured keys too.
+`Keys` must contain exactly one default key after the Development fallback is applied. An empty configured `Keys` collection is valid only in Development, where the fallback adds a default key. Generation always uses the default key. `UseSourceKnownIdKeyFallback` defaults to `false`, so parsing accepts only the default key. Enable it for routine rotation to accept IDs authenticated with the remaining configured keys too.
 
 Retain old keys only for routine rotation. After compromise, select a fresh default and remove the compromised key from every instance's `Keys`, or disable fallback to reject all non-default keys. Recreate the ID utilities (normally by restarting the application) to apply key changes. Identifiers that require a removed key stop authenticating; reissue them from trusted numeric IDs and entity types. Keeping a compromised key enabled also keeps forged IDs acceptable.
 
