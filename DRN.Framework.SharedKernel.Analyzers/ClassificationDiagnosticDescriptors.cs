@@ -41,4 +41,8 @@ internal static class ClassificationDiagnosticDescriptors
         "This DiagnosticNameExemption comment suppresses no name diagnostic. Remove it or place it above the intended capture with the exact matching name.",
         Category, DiagnosticSeverity.Warning, true, helpLinkUri: Help,
         customTags: WellKnownDiagnosticTags.CompilationEnd);
+
+    internal static readonly DiagnosticDescriptor IncompleteModelAnalysis = new("DRN0025", "Incomplete model classification analysis",
+        "Model capture exceeds the analysis work limit. Configured paths may remain unchecked. Capture a smaller model or classify sensitive subtrees explicitly.",
+        Category, DiagnosticSeverity.Error, true, helpLinkUri: Help);
 }

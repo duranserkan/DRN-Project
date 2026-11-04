@@ -4,6 +4,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
+*   **Model Capture Analysis**: DRN0025 rejects captures that exceed the compiler's model-analysis work limit. Capture a smaller model or explicitly classify sensitive subtrees so configured paths cannot silently escape analysis.
+
 *   **Diagnostic Field Coverage**: Classification requirements include CVV/CVC/PIN-code fields, usernames, first/last names, dates of birth, IBAN, client and IP-address patterns. Annotate matching model properties or explicitly mark reviewed false positives. Browser and compiler checks use the same baseline catalog.
 
 *   **Dictionary Capture Classification**: DRN0020 checks statically known keys, including nested initializers and direct writes. Use explicit dictionary classifications or reviewed exact-name comments. Configured analyzer paths cannot be waived. Backend runtime has no dynamic name fallback.

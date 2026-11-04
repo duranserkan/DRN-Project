@@ -24,9 +24,10 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
     public static readonly DiagnosticDescriptor UnsafeLoggingCapture = ClassificationDiagnosticDescriptors.UnsafeLoggingCapture;
     public static readonly DiagnosticDescriptor InvalidNameExemptionComment = ClassificationDiagnosticDescriptors.InvalidNameExemptionComment;
     public static readonly DiagnosticDescriptor UnusedNameExemptionComment = ClassificationDiagnosticDescriptors.UnusedNameExemptionComment;
+    public static readonly DiagnosticDescriptor IncompleteModelAnalysis = ClassificationDiagnosticDescriptors.IncompleteModelAnalysis;
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
-        [MissingClassification, InvalidExemption, PathClassification, UnknownClassification, AnonymousClassification, DictionaryClassification, InvalidRuleFile, UnsafeLoggingCapture, InvalidNameExemptionComment, UnusedNameExemptionComment];
+        [MissingClassification, InvalidExemption, PathClassification, UnknownClassification, AnonymousClassification, DictionaryClassification, InvalidRuleFile, UnsafeLoggingCapture, InvalidNameExemptionComment, UnusedNameExemptionComment, IncompleteModelAnalysis];
 
     public override void Initialize(AnalysisContext context)
     {

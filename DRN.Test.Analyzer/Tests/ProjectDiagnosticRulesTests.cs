@@ -200,8 +200,10 @@ public sealed class ProjectDiagnosticRulesTests
         var diagnostics = await compilation.WithAnalyzers([new DiagnosticClassificationAnalyzer()],
                 new AnalyzerOptions([new RuleFile("data-classification-rules.json", """{"sensitiveFieldPaths":["Payload.Value"]}""")]))
             .GetAnalyzerDiagnosticsAsync(cancellation.Token).WaitAsync(cancellation.Token);
-        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRN0017");
-        diagnostics.Single().GetMessage().Should().Contain("Payload.Value");
+        diagnostics.Should().HaveCount(2);
+        diagnostics.Should().ContainSingle(item => item.Id == "DRN0025");
+        diagnostics.Should().ContainSingle(item => item.Id == "DRN0017")
+            .Which.GetMessage().Should().Contain("Payload.Value");
     }
 
     [Fact]

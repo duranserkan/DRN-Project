@@ -25,11 +25,21 @@ internal sealed class ModelCaptureAnalysis(OperationAnalysisContext context, Cla
     private readonly HashSet<ITypeSymbol> _ancestors = new(SymbolEqualityComparer.Default);
     // Shared types must be revisited under different paths, so depth alone cannot bound work.
     private int _remainingWork = MaxModelWork;
+    private bool _workLimitReported;
 
     private bool TryVisit()
     {
         context.CancellationToken.ThrowIfCancellationRequested();
-        if (_remainingWork == 0) return false;
+        if (_remainingWork == 0)
+        {
+            if (!_workLimitReported)
+            {
+                _workLimitReported = true;
+                context.ReportDiagnostic(Diagnostic.Create(ClassificationDiagnosticDescriptors.IncompleteModelAnalysis,
+                    call.Syntax.GetLocation()));
+            }
+            return false;
+        }
         _remainingWork--;
         return true;
     }

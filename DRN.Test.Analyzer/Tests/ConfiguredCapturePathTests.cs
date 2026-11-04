@@ -5,6 +5,46 @@ namespace DRN.Test.Analyzer.Tests;
 public sealed class ConfiguredCapturePathTests
 {
     [Theory]
+    [InlineData(3, "DRN0017")]
+    [InlineData(14, "DRN0025")]
+    public async Task Configured_Paths_After_Shared_Subtrees_Should_Report_Matches_Or_Incomplete_Analysis(
+        int levels, string expectedDiagnostic)
+    {
+        // Revisited shared types exhaust work without hitting the depth or cycle limits.
+        var branches = string.Join("\n", Enumerable.Range(0, levels).Select(level =>
+            $"public class Branch{level} {{ public Branch{level + 1} A {{ get; set; }} public Branch{level + 1} B {{ get; set; }} }}"));
+        var compilation = Compilation($$"""
+            namespace DRN.Framework.Utils.Logging
+            {
+                public interface IScopedLog { void Add(string key, object value); }
+            }
+            {{branches}}
+            public class Branch{{levels}} { public int Value { get; set; } }
+            public class Model
+            {
+                public Branch0 Tree { get; set; }
+                public string Detail { get; set; }
+            }
+            public class Caller
+            {
+                public void Run(DRN.Framework.Utils.Logging.IScopedLog log, Model model)
+                {
+                    log.Add("Payload", model);
+                }
+            }
+            """);
+        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
+        var diagnostics = await Analyze(compilation, new ProjectDiagnosticRulesTests.RuleFile(
+            "data-classification-rules.json", """{"sensitiveFieldPaths":["Payload.Detail"]}"""));
+
+        var diagnostic = diagnostics.Should().ContainSingle().Which;
+        diagnostic.Id.Should().Be(expectedDiagnostic);
+        diagnostic.Severity.Should().Be(Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
+        diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan)
+            .Should().Be("log.Add(\"Payload\", model)");
+    }
+
+    [Theory]
     [InlineData("null")]
     [InlineData("\"\"")]
     [InlineData("\"[redacted]\"")]
