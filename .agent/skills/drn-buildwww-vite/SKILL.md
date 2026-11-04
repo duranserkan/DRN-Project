@@ -183,7 +183,7 @@ const sharedConfig = {
 export default defineConfig(drnUtils.deepMerge(sharedConfig, builds[buildType]));
 ```
 
-Keep aliases aligned with `tsconfig.json` and the actual buildwww layout. `@/*` maps to `buildwww/*` through bundler resolution. Discover paths rather than assuming root-level js/css folders.
+Align aliases with `tsconfig.json` and buildwww. `@/*` maps to `buildwww/*` only through TypeScript `paths`; Vite does not resolve it. Keep `@/` imports type-only unless Vite has a matching `resolve.alias`. Discover paths rather than assuming root-level js/css folders.
 
 ---
 
