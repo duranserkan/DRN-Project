@@ -1,7 +1,7 @@
 ---
 name: drn-buildwww-packages
 description: 'DRN buildwww package dependencies - npm packages for Bootstrap, htmx, ASP.NET validation, onmount, React, Tailwind, and Vite. Keywords: drn, buildwww, npm, packages, dependencies, bootstrap, htmx, aspnet-client-validation, onmount, react, tailwind'
-last-updated: 2026-10-03
+last-updated: 2026-11-05
 difficulty: basic
 tokens: ~0.5K
 ---
@@ -26,6 +26,8 @@ Resolve the frontend package root from `.agent/repository-profile.md` when it de
 Use that root's `package.json` as the source of truth for npm scripts, package names, and pinned top-level versions. Use the sibling lockfile as the source of truth for resolved dependency metadata.
 
 Do not copy package versions into this skill. Hardcoded versions drift when dependency maintenance commits update `package.json`.
+
+Pin the latest verified Node.js LTS release for CI and recommended local development. Use that version as the package engine minimum, allowing newer runtimes. Keep root lockfile metadata and setup docs aligned. Verify the local runtime meets the minimum. Keep version numbers in repository configuration, not skills.
 
 Top-level `dependencies` and `devDependencies` must use exact versions, not caret or tilde ranges. This keeps the supply-chain policy in `package.json` true and makes `npm ci` reproducible.
 
@@ -69,6 +71,7 @@ CI restores dependencies with `npm ci --ignore-scripts` before audit/build. Unde
 - **vite**: Next Generation Frontend Tooling.
 - **sass**: CSS preprocessor.
 - **typescript**: Typed JavaScript superset.
+- **oxlint**: JavaScript and TypeScript linting. The `lint` command fails on warnings and errors.
 - **globals**: Global variable definitions (often used for linting contexts).
 - **@tailwindcss/vite** and **@vitejs/plugin-react**: Vite plugins for Tailwind and React builds.
 

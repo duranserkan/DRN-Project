@@ -151,7 +151,7 @@ The endpoint independently requires authentication. `ClientErrorRateLimitRule` c
 
 Severity filters use primary for All, danger for Errors, warning for Warnings, and info for Info. Filters with entries have a colored outline. The selected filter has a matching fill, even when empty. Empty, unselected filters stay neutral. Counts and `aria-pressed` preserve availability and selection information independently of color.
 
-The Notifications action opens a searchable history panel with All, Errors, Warnings, and Info filters. Info includes success messages. Matching failures are grouped across retained history regardless of time gaps, with individual timestamps and request references preserved. Different operations, targets, severities, statuses, problem types, or message content remain separate. Use Load more to see additional history. Dismiss entries, groups, filtered results, or all history. Clear all offers Undo for 10 seconds. Closing a toast or the panel leaves history intact. Notifications are also available on login and pending-MFA pages.
+The Notifications action opens a searchable history panel with All, Errors, Warnings, and Info filters. Info includes success messages. Matching failures are grouped across retained history regardless of time gaps, with individual timestamps and request references preserved. Different operations, targets, severities, statuses, problem types, or message content remain separate. Use Load more to see additional history. Dismiss entries, groups, filtered results, or all history. Clear all offers Undo for 10 seconds. Closing a toast or the panel leaves history intact. The actionbar and notification bell are shown only after MFA completion.
 
 The default `SidebarActionCollection` includes Notifications. Custom collections can omit or reorder it. The bell remains visible even when history is empty. Its badge counts unseen notifications and hides at zero. Opening the panel marks existing history as seen without dismissing it. Notifications arriving afterward remain unseen until the panel is opened again. Seen state survives reloads and Undo; repeated source identities do not become unseen again. Older cached records without seen state start unseen.
 
@@ -212,7 +212,7 @@ Server handlers can use `SendToast` for immediate `HX-Trigger: showToast` feedba
 
 ## Frontend assets
 
-Node.js and npm are required for rebuilding frontend assets. See [package.json](package.json) for the required Node.js version and build commands. Built assets are checked in, so this tooling is optional when simply running the sample.
+Node.js and npm are required for rebuilding frontend assets. [`.node-version`](../.node-version) pins the recommended LTS version and the version used by CI. [package.json](package.json) accepts that version or newer, enforced during dependency installation by `engine-strict=true`. Built assets are checked in, so this tooling is optional when simply running the sample.
 
 After changing frontend sources in `Sample.Hosted/buildwww/`, rebuild the assets from `Sample.Hosted/`:
 
@@ -221,6 +221,8 @@ npm ci --ignore-scripts
 npm audit signatures
 npm run build
 ```
+
+The full build runs `npm run check` before generating assets. This runs Oxlint, then TypeScript checking. Run `npm run lint` or `npm run type-check` independently when needed. Oxlint checks `buildwww/` and the root Vite and Playwright configuration files with its default rules. Warnings and errors both fail the check. Generated `wwwroot/` assets are outside the lint scope. Targeted `build:*` commands do not run these checks automatically.
 
 ### Independently updating component behaviors
 
@@ -249,6 +251,8 @@ Deploy each changed area's generated asset and manifest together, including the 
 The initial migration needs the updated Razor views, rebuilt `appPostload`, and all three behavior outputs. Exclude the retired `wwwroot/appBehaviors/.vite/manifest.json` from the new deployment; the new targets do not clean that old directory. Retain old hashed assets separately while in-flight pages may still reference them. Later changes confined to one area's modules need only that area's output and manifest. Changes to runtime code, shared configuration, dependencies, or markup can require a broader deployment. The HTMX page retains inline scripts specifically for its nonce acceptance/rejection demonstration; early application configuration remains in the layout.
 
 ## Frontend tests
+
+Unit tests are grouped by module under `buildwww/tests/unit/<module>/`, starting with `drn/drnCookieManager.test.ts`. `npm test` discovers `.test.js` and `.test.ts` files recursively under `buildwww/tests/`, including top-level suites. `npm run type-check` checks application code and TypeScript tests through `tsconfig.tests.json`. Browser tests remain under `buildwww/tests/browser/` and use `.spec.js` or `.spec.ts` names for the separate Playwright runner.
 
 After installing and auditing dependencies as above, run frontend checks from `Sample.Hosted/`:
 

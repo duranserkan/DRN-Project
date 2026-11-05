@@ -6,7 +6,7 @@
 import {htmx} from './htmx.js'
 
 htmx.defineExtension('safe-nonce', {
-    transformResponse: function (text, xhr, elt) {
+    transformResponse: function (text, xhr) {
         if (!htmx.config.refreshOnHistoryMiss) // disable ajax fetching on history miss because it doesn't handle nonce replacement
             htmx.config.refreshOnHistoryMiss = true
 

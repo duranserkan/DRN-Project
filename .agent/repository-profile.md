@@ -90,7 +90,7 @@ dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 
 ## Frontend Test Scope
 
-Unit tests: `Sample.Hosted/buildwww/tests/*.test.js`. Browser tests: `Sample.Hosted/buildwww/tests/browser/`. `Sample.Hosted/README.md`, Frontend Tests, owns setup and commands. Execution requires explicit permission.
+Unit tests: `Sample.Hosted/buildwww/tests/unit/`, grouped by module. `npm test` discovers `.test.js` and `.test.ts` recursively under `buildwww/tests/`, including existing top-level suites. Browser tests: `Sample.Hosted/buildwww/tests/browser/*.spec.*`. `Sample.Hosted/README.md`, Frontend Tests, owns setup and commands. Execution requires explicit permission.
 
 ## DRN Framework Source Overlay
 

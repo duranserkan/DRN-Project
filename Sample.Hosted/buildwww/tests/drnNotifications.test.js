@@ -375,7 +375,7 @@ test('without Web Locks the default store uses tab-local storage only', () => {
     const { storage, cache, settings } = fixture();
     Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: storage });
     Object.defineProperty(globalThis, 'localStorage', { configurable: true,
-        get() { assert.fail('Unlocked shared storage must not be used'); } });
+        get() { return assert.fail('Unlocked shared storage must not be used'); } });
     try {
         const store = createNotificationStore({ ...settings, storage: undefined, locks: null });
         store.configure({ app: '/app/', owner: 'account-a' });

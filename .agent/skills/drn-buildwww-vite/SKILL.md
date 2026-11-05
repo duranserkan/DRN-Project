@@ -1,7 +1,7 @@
 ---
 name: drn-buildwww-vite
 description: "DRN Vite runtime and domain builds. Keywords: drn, buildwww, vite, typescript, bundles, manifest, cache"
-last-updated: 2026-11-04
+last-updated: 2026-11-05
 difficulty: intermediate
 tokens: ~2K
 ---
@@ -16,17 +16,6 @@ tokens: ~2K
 - Modifying Vite build configuration
 - Working with path aliases
 - Understanding build output structure
-
-## Contents
-
-- [Directory Structure](#directory-structure)
-- [Vite Configuration](#vite-configuration)
-- [TypeScript Configuration](#typescript-configuration)
-- [Entry Points](#entry-points)
-- [Output Structure](#output-structure)
-- [Using Built Assets in Razor](#using-built-assets-in-razor)
-
----
 
 ## Directory Structure
 
@@ -44,7 +33,7 @@ tokens: ~2K
 │   │   ├── bootstrap/       # Bootstrap customization
 │   │   └── react/           # React mounted islands (Shadow DOM + Tailwind)
 │   ├── plugins/             # Vite plugins
-│   └── types/               # TypeScript declarations
+│   └── types/               # Shared type contracts and ambient declarations
 ├── wwwroot/                 # Built output (served)
 │   ├── app/                 # Built app files
 │   └── lib/                 # Built library files
@@ -135,6 +124,8 @@ const buildType = process.env.BUILD_TYPE || 'app';
 
 Repository rule: do not run build commands unless the user explicitly allows them.
 
+The full build runs `check`: Oxlint rejects warnings, then TypeScript checks types. Targeted builds skip this gate. The package manifest owns commands and lint scope.
+
 ```bash
 # Build all targets
 npm run build
@@ -191,11 +182,13 @@ Align aliases with `tsconfig.json` and buildwww. `@/*` maps to `buildwww/*` only
 
 The frontend's `tsconfig.json` owns target, JSX, strictness, included source, declarations, and aliases. Keep its bundler resolution and aliases aligned with Vite. Do not copy compiler versions or options into new parallel configuration. Type checking, like builds, requires execution authorization.
 
+Follow [type ownership](references/type-ownership.md) and [test conventions](references/frontend-tests.md).
+
 ---
 
 ## Package Configuration
  
-Detailed package versioning and dependency definitions are managed in:
+Package guidance:
 - [drn-buildwww-packages.md](../drn-buildwww-packages/SKILL.md)
 
 ---

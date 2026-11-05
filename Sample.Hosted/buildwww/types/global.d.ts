@@ -11,7 +11,7 @@ import type {IDrnApp} from './drnApp';
 import type {IDrnReact} from './DrnReact';
 import type {IDrnOnmount} from './DrnOnmount';
 import type {IDrnUtils} from './DrnUtils';
-import type {IDrnCookieManager} from './DrnCookieManager';
+import type {IDrnCookieManager} from './drnCookieManager.types';
 import type {IDrnProblem} from './DrnProblem';
 import type {IDrnErrorHandler} from './DrnErrorHandler';
 import type {IDrnDiagnostics} from './DrnDiagnostics';

@@ -1,13 +1,13 @@
 ---
 name: drn-buildwww-libraries
 description: "DRN browser behaviors. Keywords: drn, buildwww, rsjs, onmount, htmx, csp"
-last-updated: 2026-11-04
+last-updated: 2026-11-05
 difficulty: intermediate
 ---
 
 # DRN buildwww Libraries
 
-Use for profile-declared DRN browser utilities, behaviors, htmx, consent, Bootstrap, and CSP. Keep AGENTS.md, DiSCOS, and the profile active. The profile-declared application guide and browser declarations own public APIs and limits.
+Keep AGENTS.md, DiSCOS, and the profile active. The application guide and browser contracts own public APIs and limits. Follow [type ownership](../drn-buildwww-vite/references/type-ownership.md) and [test conventions](../drn-buildwww-vite/references/frontend-tests.md).
 
 ## Contents
 
@@ -88,7 +88,7 @@ Use `DRN.Toast.show` for toast/history, `record: false` for routine acknowledgme
 
 - Bound history and isolate by application/account. Empty authenticated owners clear history and suspend notifications/HTMX until fresh context; require stable account IDs, never trace IDs or anonymous substitutes. Preserve anonymous history for unauthenticated users.
 - Account changes clear history, errors, prior-account DOM, and Undo. Stale pages pause until reload. Retain bounded startup feedback only through first valid configuration, preserving timestamps/references and merging persistence deltas; discard on invalid owner/prior suspension and never carry across accounts.
-- Keep the bell visible, count unseen entries, hide zero badge. Opening marks existing entries seen; later arrivals remain unseen. Persist seen state through Undo/deduplication; new publications start unseen. Preserve immediate badges, deferred closed-panel rendering, accessible filters, and colors defined by the application guide.
+- Show the bell only after MFA, count unseen entries, hide zero badge. Opening marks existing entries seen; later arrivals remain unseen. Persist seen state through Undo/deduplication; new publications start unseen. Preserve immediate badges, deferred closed-panel rendering, accessible filters, and colors defined by the application guide.
 - Persist under an application-scoped Web Lock. Merge against latest storage and recheck owner inside the lock. Suspended pages cannot overwrite another owner. Keep public APIs synchronous, persistence asynchronous, pending changes protected, and synchronous deltas ordered without merging browser tasks. Follow source-owned expiry/sizing rules.
 - Without Web Locks use tab-local session storage. Storage/lock failures retain feedback in memory. Keep `persist: false` page-local. Storage refresh must not replay toasts. Removal deltas match nonempty source identities as well as IDs.
 - Store actionbar attendance under independent app/account/panel keys. Read legacy values without replacing the map. Preserve failed writes in memory. Compare `data-actionbar-attention-version`, falling back to count text; capped/unchanged counts need explicit versions to signal new activity.
@@ -96,7 +96,7 @@ Use `DRN.Toast.show` for toast/history, `record: false` for routine acknowledgme
 
 ### Cookie Manager
 
-The footer uses `DRN.Cookie.get`/`set` with base64 encoding and its element's server-provided cookie name. Keep instance configuration local; resolve the full cookie API from browser declarations.
+The footer uses `DRN.Cookie.get`/`set` with base64 encoding and its element's server-provided cookie name. Keep instance configuration local; resolve the cookie API from `types/drnCookieManager.types.ts`.
 
 ## Script Loading Order
 

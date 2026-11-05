@@ -85,6 +85,7 @@ export function createDiagnosticSanitizer() {
             catch { status.limited = true; return INVALID; }
         }
         function safeKey(key) {
+            // oxlint-disable-next-line no-control-regex -- Reject control characters in diagnostic keys.
             if (!accept(key, MAX_KEY_BYTES) || /[\u0000-\u001f\u007f]/.test(key) || key.startsWith('_diagnostic_'))
                 return replacementKey();
             return key;
