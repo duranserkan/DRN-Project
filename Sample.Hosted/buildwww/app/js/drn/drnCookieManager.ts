@@ -1,16 +1,19 @@
-//drnCookieManager.js
-import drnUtils from './drnUtils';
+import drnUtils from './drnUtils.js';
+
+import type {DrnCookieOptions, DrnCookieReadOptions, IDrnCookieManager} from '@/types/drnCookieManager.types';
 
 /**
  * DrnCookieManager
  * A robust, clean-code solution for client-side cookie management.
  * * Features:
  * - Automatic JSON serialization/deserialization
- * - Secure defaults (SameSite=Lax, Secure)
+ * - SameSite=Strict by default, Secure on HTTPS
  * - URI Encoding/Decoding to prevent format errors
  * - Fluent options interface
  */
-class DrnCookieManager {
+class DrnCookieManager implements IDrnCookieManager {
+    defaults: Required<Pick<DrnCookieOptions, 'path' | 'sameSite' | 'secure' | 'encoding'>>;
+
     constructor() {
         // Default configuration
         this.defaults = {
@@ -25,7 +28,7 @@ class DrnCookieManager {
      * Lists all cookies as { name, value, raw } objects.
      * @returns {Array<{name: string, value: string, raw: string}>}
      */
-    list() {
+    list(): Array<{name: string, value: string, raw: string}> {
         return document.cookie
             .split(';')
             .map(c => c.trimStart())
@@ -51,11 +54,11 @@ class DrnCookieManager {
      * @param {'Strict'|'Lax'|'None'} [options.sameSite='Strict'] - CSRF protection level
      * @param {'uri'|'base64'|'none'} [options.encoding='uri'] - Encoding strategy.
      */
-    set(name, value, options = {}) {
+    set(name: string, value: string | object, options: DrnCookieOptions = {}): void {
         if (!this._validateName(name)) return;
 
         const config = {...this.defaults, ...options};
-        let stringValue;
+        let stringValue: string;
 
         if (typeof value === 'object' && value != null) {
             try {
@@ -96,15 +99,7 @@ class DrnCookieManager {
         document.cookie = cookieString;
     }
 
-    /**
-     * Retrieves a cookie value by name.
-     * @param {string} name - The name of the cookie.
-     * @param {object} [options] - Retrieval options.
-     * @param {boolean} [options.deserialize=true] - If true, attempts to JSON.parse.
-     * @param {'uri'|'base64'|'none'} [options.encoding='uri'] - Decoding strategy matching the set strategy.
-     * @returns {string|object|null} The value or null if not found.
-     */
-    _findRawCookieValue(name) {
+    _findRawCookieValue(name: string): string | null {
         const nameEQ = encodeURIComponent(name) + '=';
         const ca = document.cookie.split(';');
         for (const item of ca) {
@@ -116,7 +111,7 @@ class DrnCookieManager {
         return null;
     }
 
-    _decodeCookieValue(value, encoding, name) {
+    _decodeCookieValue(value: string, encoding: DrnCookieOptions['encoding'], name: string): string | null {
         try {
             if (encoding === 'uri')
                 return decodeURIComponent(value);
@@ -129,11 +124,11 @@ class DrnCookieManager {
         }
     }
 
-    _parseCookieValue(value, deserialize) {
+    _parseCookieValue(value: string, deserialize: boolean): unknown {
         if (!deserialize) return value;
         try {
             return JSON.parse(value);
-        } catch (e) {
+        } catch {
             return value;
         }
     }
@@ -146,7 +141,7 @@ class DrnCookieManager {
      * @param {'uri'|'base64'|'none'} [options.encoding='uri'] - Decoding strategy matching the set strategy.
      * @returns {string|object|null} The value or null if not found.
      */
-    get(name, options = {}) {
+    get<T = string>(name: string, options: DrnCookieReadOptions = {}): T | null {
         if (!this._validateName(name)) return null;
         const encoding = options.encoding || this.defaults.encoding;
         const deserialize = options.deserialize ?? true;
@@ -157,7 +152,8 @@ class DrnCookieManager {
         const decodedValue = this._decodeCookieValue(rawValue, encoding, name);
         if (decodedValue === null) return null;
 
-        return this._parseCookieValue(decodedValue, deserialize);
+        // Preserve the caller-selected type contract; cookie contents are not schema-validated.
+        return this._parseCookieValue(decodedValue, deserialize) as T | null;
     }
 
     /**
@@ -166,7 +162,7 @@ class DrnCookieManager {
      * @param {string} name - The name of the cookie.
      * @param {object} [options] - Must match path/domain of original cookie.
      */
-    remove(name, options = {}) {
+    remove(name: string, options: DrnCookieOptions = {}): void {
         if (!this.exists(name))
             console.warn(`DrnCookieManager: Attempted to remove non-existent cookie '${name}'`);
         // Proceed anyway (idempotent)
@@ -178,12 +174,13 @@ class DrnCookieManager {
      * @param {string} name
      * @returns {boolean}
      */
-    exists(name) {
-        return this.get(name) !== null;
+    exists(name: string): boolean {
+        if (!this._validateName(name)) return false;
+        return this._findRawCookieValue(name) !== null;
     }
 
     // --- Internal Helpers ---
-    _validateName(name) {
+    _validateName(name: unknown): name is string {
         if (!name || typeof name !== 'string') {
             console.error("DrnCookieManager: Cookie name must be a non-empty string.");
             return false;

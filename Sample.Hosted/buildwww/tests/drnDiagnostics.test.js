@@ -141,6 +141,7 @@ test('array capture preserves dense boundaries and marks overflow', () => {
 
 test('array capture preserves positions and skips own and inherited getters', () => {
     const capture = createDiagnosticSanitizer().createCapture();
+    // oxlint-disable-next-line unicorn/no-new-array -- Sparse slots allow inherited getters; Array.from creates own values.
     const input = new Array(3);
     const prototype = Object.create(Array.prototype);
     Object.defineProperty(prototype, 0, { get() { throw new Error('inherited getter must not run'); } });

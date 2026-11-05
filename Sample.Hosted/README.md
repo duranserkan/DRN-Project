@@ -212,7 +212,7 @@ Server handlers can use `SendToast` for immediate `HX-Trigger: showToast` feedba
 
 ## Frontend assets
 
-Node.js and npm are required for rebuilding frontend assets. See [package.json](package.json) for the required Node.js version and build commands. Built assets are checked in, so this tooling is optional when simply running the sample.
+Node.js and npm are required for rebuilding frontend assets. [`.node-version`](../.node-version) pins the recommended LTS version and the version used by CI. [package.json](package.json) accepts that version or newer, enforced during dependency installation by `engine-strict=true`. Built assets are checked in, so this tooling is optional when simply running the sample.
 
 After changing frontend sources in `Sample.Hosted/buildwww/`, rebuild the assets from `Sample.Hosted/`:
 
@@ -221,6 +221,8 @@ npm ci --ignore-scripts
 npm audit signatures
 npm run build
 ```
+
+The full build runs `npm run check` before generating assets. This runs Oxlint, then TypeScript checking. Run `npm run lint` or `npm run type-check` independently when needed. Oxlint checks `buildwww/` and the root Vite and Playwright configuration files with its default rules. Warnings and errors both fail the check. Generated `wwwroot/` assets are outside the lint scope. Targeted `build:*` commands do not run these checks automatically.
 
 ### Independently updating component behaviors
 
@@ -249,6 +251,8 @@ Deploy each changed area's generated asset and manifest together, including the 
 The initial migration needs the updated Razor views, rebuilt `appPostload`, and all three behavior outputs. Exclude the retired `wwwroot/appBehaviors/.vite/manifest.json` from the new deployment; the new targets do not clean that old directory. Retain old hashed assets separately while in-flight pages may still reference them. Later changes confined to one area's modules need only that area's output and manifest. Changes to runtime code, shared configuration, dependencies, or markup can require a broader deployment. The HTMX page retains inline scripts specifically for its nonce acceptance/rejection demonstration; early application configuration remains in the layout.
 
 ## Frontend tests
+
+Unit tests are grouped by module under `buildwww/tests/unit/<module>/`, starting with `drn/drnCookieManager.test.ts`. `npm test` discovers `.test.js` and `.test.ts` files recursively under `buildwww/tests/`, including top-level suites. `npm run type-check` checks application code and TypeScript tests through `tsconfig.tests.json`. Browser tests remain under `buildwww/tests/browser/` and use `.spec.js` or `.spec.ts` names for the separate Playwright runner.
 
 After installing and auditing dependencies as above, run frontend checks from `Sample.Hosted/`:
 

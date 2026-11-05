@@ -1,4 +1,3 @@
-//drnCookieManager.d.ts
 export interface DrnCookieOptions {
     /**
      * Expiration in seconds (takes precedence over days)
@@ -43,6 +42,13 @@ export interface DrnCookieOptions {
     encoding?: 'uri' | 'base64' | 'none';
 }
 
+export interface DrnCookieReadOptions {
+    /** Attempt JSON deserialization. Defaults to true. */
+    deserialize?: boolean;
+    /** Must match the encoding used when setting the cookie. Defaults to 'uri'. */
+    encoding?: DrnCookieOptions['encoding'];
+}
+
 export interface IDrnCookieManager {
     list(): Array<{ name: string, value: string, raw: string }>;
 
@@ -65,11 +71,11 @@ export interface IDrnCookieManager {
      * Retrieves a cookie value by name.
      * @param {string} name - The name of the cookie.
      * @param {object} [options] - Retrieval options.
-     * @param {boolean} [options.deserialize=false] - If true, attempts to JSON.parse.
+     * @param {boolean} [options.deserialize=true] - If true, attempts to JSON.parse.
      * @param {'uri'|'base64'|'none'} [options.encoding='uri'] - Decoding strategy matching the set strategy.
      * @returns {string|object|null} The value or null if not found.
      */
-    get<T = string>(name: string, options?: object): T | null;
+    get<T = string>(name: string, options?: DrnCookieReadOptions): T | null;
 
     /**
      * Deletes a cookie by setting its expiration to the past.
@@ -80,10 +86,8 @@ export interface IDrnCookieManager {
     remove(name: string, options?: DrnCookieOptions): void;
 
     /**
-     * Boolean check for cookie existence.
+     * Checks cookie presence without decoding or deserializing its value.
      * @param name - The key of the cookie.
      */
     exists(name: string): boolean;
 }
-
-declare const DrnCookieManager: IDrnCookieManager;

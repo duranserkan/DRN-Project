@@ -10,6 +10,7 @@
 !.dockerignore
 !.gitattributes
 !.editorconfig
+!/.node-version
 !.coderabbit.yaml
 !.sample-env
 !/Sample.Hosted/.npmrc

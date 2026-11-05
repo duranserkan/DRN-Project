@@ -1,13 +1,13 @@
 ---
 name: drn-buildwww-libraries
 description: "DRN browser behaviors. Keywords: drn, buildwww, rsjs, onmount, htmx, csp"
-last-updated: 2026-11-04
+last-updated: 2026-11-05
 difficulty: intermediate
 ---
 
 # DRN buildwww Libraries
 
-Use for profile-declared DRN browser utilities, behaviors, htmx, consent, Bootstrap, and CSP. Keep AGENTS.md, DiSCOS, and the profile active. The profile-declared application guide and browser declarations own public APIs and limits.
+Keep AGENTS.md, DiSCOS, and the profile active. The application guide and browser contracts own public APIs and limits. Follow [type ownership](../drn-buildwww-vite/references/type-ownership.md) and [test conventions](../drn-buildwww-vite/references/frontend-tests.md).
 
 ## Contents
 
@@ -96,7 +96,7 @@ Use `DRN.Toast.show` for toast/history, `record: false` for routine acknowledgme
 
 ### Cookie Manager
 
-The footer uses `DRN.Cookie.get`/`set` with base64 encoding and its element's server-provided cookie name. Keep instance configuration local; resolve the full cookie API from browser declarations.
+The footer uses `DRN.Cookie.get`/`set` with base64 encoding and its element's server-provided cookie name. Keep instance configuration local; resolve the cookie API from `types/drnCookieManager.types.ts`.
 
 ## Script Loading Order
 
