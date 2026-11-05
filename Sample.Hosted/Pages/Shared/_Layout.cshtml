@@ -45,12 +45,6 @@
         <!-- Main content -->
         <div class="d-flex pt-1 flex-grow-1 justify-content-center @(layoutOptions.CenterVertically ? "flex-column" : "") " style="overflow-y: auto;">
             <main id="drn-main-content" tabindex="-1" class="p-3 w-100 @(layoutOptions.ShouldExpandCard ? "d-flex flex-column flex-grow-1" : "") @(layoutOptions.CenterVertically ? "" : "h-100")">
-                @if (!ScopeContext.MFACompleted)
-                {
-                    <div class="d-flex justify-content-end">
-                        <partial name="_NotificationTrigger"/>
-                    </div>
-                }
                 <div id="drn-problem-summary" class="d-none" hidden tabindex="-1"></div>
                 <div class="row @(layoutOptions.CenterHorizontally ? "justify-content-center" : "") @(layoutOptions.ShouldExpandCard ? "flex-grow-1" : "")">
                     <div class="pb-2 @layoutOptions.CssColumnSize() @layoutOptions.CssTextAlignment()  @(layoutOptions.ShouldExpandCard ? "d-flex flex-column" : "")">
