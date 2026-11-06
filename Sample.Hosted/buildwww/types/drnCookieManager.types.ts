@@ -46,7 +46,7 @@ export interface DrnCookieReadOptions {
     /** Attempt JSON deserialization. Defaults to true. */
     deserialize?: boolean;
     /** Must match the encoding used when setting the cookie. Defaults to 'uri'. */
-    encoding?: DrnCookieOptions['encoding'];
+    encoding?: NonNullable<DrnCookieOptions['encoding']>;
 }
 
 export interface IDrnCookieManager {
