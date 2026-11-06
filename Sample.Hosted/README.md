@@ -224,7 +224,7 @@ npm run build
 
 The full build runs `npm run check` before generating assets. This runs Oxlint, then TypeScript checking. Run `npm run lint` or `npm run type-check` independently when needed. Oxlint checks `buildwww/` and the root Vite and Playwright configuration files with its default rules. Warnings and errors both fail the check. Generated `wwwroot/` assets are outside the lint scope. Targeted `build:*` commands do not run these checks automatically.
 
-Build scripts work with Windows and POSIX shells. Vite selects each target from the npm script name. Direct Vite calls can select a target with `BUILD_TYPE`; otherwise they default to `app`.
+Build scripts use inline environment assignments such as `BUILD_TYPE=app vite build` and require a POSIX-compatible shell unless the scripts are made cross-platform. Vite selects each target through `BUILD_TYPE`, which targeted npm build scripts set explicitly. Direct Vite calls also use `BUILD_TYPE` and default to `app` when it is unset or empty.
 
 ### Independently updating component behaviors
 

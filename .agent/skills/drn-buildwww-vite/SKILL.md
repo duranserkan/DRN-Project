@@ -115,7 +115,7 @@ const builds = {
     }
 };
 
-// Direct Vite calls use BUILD_TYPE. npm scripts select targets by npm_lifecycle_event.
+// Vite selects targets through BUILD_TYPE. Targeted npm build scripts set it explicitly.
 const buildType = process.env.BUILD_TYPE || 'app';
 ```
 
@@ -208,7 +208,7 @@ Keep modules under `buildwww/app/js/behaviors/{layout,home,test}/`. Each entry i
 | `homeBehaviors.js` | `wwwroot/behaviors/home` | HomeAnonymous page `Scripts` |
 | `testBehaviors.js` | `wwwroot/behaviors/test` | HTMX test page `Scripts` |
 
-`build:behaviors` runs `build:behaviors:layout`, `build:behaviors:home`, and `build:behaviors:test` sequentially. Each selects its target by npm script name, writes a hashed entry and `.vite/manifest.json`, and cleans its own directory. The full build calls this aggregate. Unchanged inputs/tooling preserve unrelated bundle cache identities. Keep separate chunks and output roots.
+`build:behaviors` runs `build:behaviors:layout`, `build:behaviors:home`, and `build:behaviors:test` sequentially. Each script explicitly sets `BUILD_TYPE` to select its Vite target, writes a hashed entry and `.vite/manifest.json`, and cleans its own directory. The full build calls this aggregate. Unchanged inputs/tooling preserve unrelated bundle cache identities. Keep separate chunks and output roots.
 
 Each entry polls after its imports' deferred registrations on initial load:
 
