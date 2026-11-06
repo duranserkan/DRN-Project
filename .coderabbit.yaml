@@ -122,7 +122,7 @@ reviews:
         - Keep scripts aligned with Vite build targets: app, appPostload, htmx, bootstrap, and react.
         - New dependencies need provenance, maintenance, and security justification.
 
-    - path: "Sample.Hosted/vite.config.js"
+    - path: "Sample.Hosted/vite.config.ts"
       instructions: |
         Preserve the DRN buildwww/Vite contract.
         - Source lives in Sample.Hosted/buildwww and generated assets live under Sample.Hosted/wwwroot.

@@ -1,10 +1,11 @@
-// vite.config.plugin.js — Custom Vite/Rolldown plugins for CSP compliance and scope isolation.
+// Custom Vite/Rolldown plugins for CSP compliance and scope isolation.
+import type {Plugin} from 'vite';
 
 // Rolldown plugin: wraps every JS chunk in an IIFE for scope isolation.
 // This avoids minified-name collisions between independently bundled libraries
 // (e.g. Bootstrap vs Syncfusion) without requiring format:'iife' (which
 // doesn't support multiple entry points).
-export function iifeWrap() {
+export function iifeWrap(): Plugin {
     return {
         name: 'iife-wrap',
         renderChunk(code, chunk) {
@@ -20,7 +21,7 @@ export function iifeWrap() {
 // htmx uses eval for hx-vars, hx-on:*, and trigger conditions — none of which
 // this project uses. config.allowEval is already false at runtime; this plugin
 // physically removes the eval token for defense-in-depth and CSP auditability.
-export function stripHtmxEval() {
+export function stripHtmxEval(): Plugin {
     const htmxPathRegex = /(?:^|[/\\])htmx\.org(?:[/\\]|$)/;
     return {
         name: 'strip-htmx-eval',

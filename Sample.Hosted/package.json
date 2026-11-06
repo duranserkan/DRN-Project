@@ -1,7 +1,7 @@
 {
   "name": "sample.hosted",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.10.1",
   "//": "Dependency versions are pinned exactly to prevent supply chain attacks and guarantee reproducible builds.",
   "engines": {
     "node": ">=26.13.0"
@@ -11,8 +11,8 @@
     "test": "node --test \"buildwww/tests/**/*.test.js\" \"buildwww/tests/**/*.test.ts\"",
     "test:all": "npm test && npm run test:browser",
     "test:browser": "playwright install --only-shell chromium && playwright test",
-    "test:browser:serve": "vite --config buildwww/tests/browser/vite.config.js",
-    "lint": "oxlint --deny-warnings buildwww vite.config.js vite.config.plugin.js playwright.config.js",
+    "test:browser:serve": "vite --config buildwww/tests/browser/vite.config.ts",
+    "lint": "oxlint --deny-warnings buildwww vite.config.ts vite.config.plugin.ts playwright.config.ts",
     "type-check": "tsc --noEmit && tsc --project tsconfig.tests.json",
     "check": "npm run lint && npm run type-check",
     "build": "npm run check && npm run build:app && npm run build:appPostload && npm run build:htmx && npm run build:bootstrap && npm run build:react && npm run build:behaviors",
