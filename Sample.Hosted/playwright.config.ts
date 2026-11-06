@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
     testDir: './buildwww/tests/browser',
-    testMatch: '**/*.spec.js',
+    testMatch: ['**/*.spec.js', '**/*.spec.ts'],
     forbidOnly: !!process.env.CI,
     workers: 1,
     retries: 0,

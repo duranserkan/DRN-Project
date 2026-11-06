@@ -1,12 +1,12 @@
-// vite.config.js
 import {defineConfig} from 'vite';
+import type {UserConfig} from 'vite';
 import {resolve} from 'node:path'; // Import resolve for path management
 import drnUtils from './buildwww/app/js/drn/drnUtils.js';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import {iifeWrap, stripHtmxEval} from './vite.config.plugin.js';
+import {iifeWrap, stripHtmxEval} from './vite.config.plugin.ts';
 
-const sharedConfig = {
+const sharedConfig: UserConfig = {
     // Resolve generated asset URLs relative to each bundle under any Request.PathBase.
     base: './',
     build: {
@@ -39,7 +39,7 @@ const sharedConfig = {
 // Scope isolation rule:
 // - Use iifeWrap() for classic-script builds with mixed or multiple entries.
 // - Use native format:'iife' only for single-JS-entry builds that can be named.
-const builds = {
+const builds: Record<string, UserConfig> = {
     app: {
         plugins: [iifeWrap()],
         build: {
@@ -128,7 +128,6 @@ const builds = {
         css: {
             preprocessorOptions: {
                 scss: {
-                    api: 'modern-compiler',
                     // TODO: revisit when Bootstrap 6 removes legacy Sass APIs
                     // These are triggered by Bootstrap 5 source, not our custom SCSS
                     silenceDeprecations: [
@@ -174,4 +173,4 @@ const builds = {
 const buildType = process.env.BUILD_TYPE || 'app';
 
 // Merge shared config with build-specific config
-export default defineConfig(drnUtils.deepMerge(sharedConfig, builds[buildType]));
+export default defineConfig(drnUtils.deepMerge(sharedConfig, builds[buildType] ?? {}) as UserConfig);

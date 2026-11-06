@@ -48,6 +48,8 @@
     "jsx": "react-jsx"
   },
   "include": [
+    "vite.config.ts",
+    "vite.config.plugin.ts",
     "buildwww/app/**/*",
     "buildwww/lib/**/*",
     "buildwww/types/**/*"

@@ -1,7 +1,7 @@
 ---
 name: drn-buildwww-vite
 description: "DRN Vite runtime and domain builds. Keywords: drn, buildwww, vite, typescript, bundles, manifest, cache"
-last-updated: 2026-11-05
+last-updated: 2026-11-06
 difficulty: intermediate
 tokens: ~2K
 ---
@@ -37,7 +37,8 @@ tokens: ~2K
 ├── wwwroot/                 # Built output (served)
 │   ├── app/                 # Built app files
 │   └── lib/                 # Built library files
-├── vite.config.js           # Vite configuration
+├── vite.config.ts           # Vite configuration
+├── vite.config.plugin.ts    # Vite plugins
 ├── tsconfig.json            # TypeScript configuration
 ├── package.json             # npm dependencies
 └── package-lock.json
@@ -52,7 +53,7 @@ Follow [Package Imports](../drn-buildwww-packages/SKILL.md#package-imports) when
 ### Multi-Build Setup
 
 ```javascript
-// vite.config.js uses rolldownOptions; verify installed Vite before changing options.
+// vite.config.ts uses rolldownOptions; verify installed Vite before changing options.
 const builds = {
     app: {
         plugins: [iifeWrap()],
@@ -114,7 +115,7 @@ const builds = {
     }
 };
 
-// Select build via environment variable
+// Vite selects targets through BUILD_TYPE. Targeted npm build scripts set it explicitly.
 const buildType = process.env.BUILD_TYPE || 'app';
 ```
 
@@ -180,7 +181,7 @@ Align aliases with `tsconfig.json` and buildwww. `@/*` maps to `buildwww/*` only
 
 ## TypeScript Configuration
 
-The frontend's `tsconfig.json` owns target, JSX, strictness, included source, declarations, and aliases. Keep its bundler resolution and aliases aligned with Vite. Do not copy compiler versions or options into new parallel configuration. Type checking, like builds, requires execution authorization.
+`tsconfig.json` owns compiler options, source scope, declarations, and aliases. Include the root Vite config and plugin TypeScript files. Align resolution and aliases with Vite. Do not duplicate compiler configuration. Type checking, like builds, requires execution authorization.
 
 Follow [type ownership](references/type-ownership.md) and [test conventions](references/frontend-tests.md).
 
@@ -207,7 +208,7 @@ Keep modules under `buildwww/app/js/behaviors/{layout,home,test}/`. Each entry i
 | `homeBehaviors.js` | `wwwroot/behaviors/home` | HomeAnonymous page `Scripts` |
 | `testBehaviors.js` | `wwwroot/behaviors/test` | HTMX test page `Scripts` |
 
-`build:behaviors` sequentially runs `build:behaviors:layout`, `build:behaviors:home`, and `build:behaviors:test`. Each selects its matching `BUILD_TYPE`, writes a hashed entry and `.vite/manifest.json`, and cleans only its own directory. The full build calls this aggregate command. Unchanged inputs/tooling preserve unrelated bundle cache identities. Do not merge these targets into shared chunks or a common cleaned output root.
+`build:behaviors` runs `build:behaviors:layout`, `build:behaviors:home`, and `build:behaviors:test` sequentially. Each script explicitly sets `BUILD_TYPE` to select its Vite target, writes a hashed entry and `.vite/manifest.json`, and cleans its own directory. The full build calls this aggregate. Unchanged inputs/tooling preserve unrelated bundle cache identities. Keep separate chunks and output roots.
 
 Each entry polls after its imports' deferred registrations on initial load:
 

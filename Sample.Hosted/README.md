@@ -224,6 +224,8 @@ npm run build
 
 The full build runs `npm run check` before generating assets. This runs Oxlint, then TypeScript checking. Run `npm run lint` or `npm run type-check` independently when needed. Oxlint checks `buildwww/` and the root Vite and Playwright configuration files with its default rules. Warnings and errors both fail the check. Generated `wwwroot/` assets are outside the lint scope. Targeted `build:*` commands do not run these checks automatically.
 
+Build scripts use inline environment assignments such as `BUILD_TYPE=app vite build` and require a POSIX-compatible shell unless the scripts are made cross-platform. Vite selects each target through `BUILD_TYPE`, which targeted npm build scripts set explicitly. Direct Vite calls also use `BUILD_TYPE` and default to `app` when it is unset or empty.
+
 ### Independently updating component behaviors
 
 RSJS component modules live in `buildwww/app/js/behaviors/`, grouped by UI area. Each area has a separate entry, hashed output, and manifest:
@@ -252,7 +254,7 @@ The initial migration needs the updated Razor views, rebuilt `appPostload`, and 
 
 ## Frontend tests
 
-Unit tests are grouped by module under `buildwww/tests/unit/<module>/`, starting with `drn/drnCookieManager.test.ts`. `npm test` discovers `.test.js` and `.test.ts` files recursively under `buildwww/tests/`, including top-level suites. `npm run type-check` checks application code and TypeScript tests through `tsconfig.tests.json`. Browser tests remain under `buildwww/tests/browser/` and use `.spec.js` or `.spec.ts` names for the separate Playwright runner.
+Unit tests are grouped by module under `buildwww/tests/unit/<module>/`, starting with `drn/drnCookieManager.test.ts`. `npm test` discovers `.test.js` and `.test.ts` files recursively under `buildwww/tests/`, including top-level suites. `npm run type-check` checks application code and the root `vite.config.ts` and `vite.config.plugin.ts` through `tsconfig.json`, then `playwright.config.ts` and TypeScript tests through `tsconfig.tests.json`. Browser tests remain under `buildwww/tests/browser/` and use `.spec.js` or `.spec.ts` names for the separate Playwright runner.
 
 After installing and auditing dependencies as above, run frontend checks from `Sample.Hosted/`:
 
