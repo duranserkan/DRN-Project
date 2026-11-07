@@ -127,7 +127,7 @@ try {
 }
 ```
 
-The reporter creates one notification and a brief toast. Its `clientErrorId` is shared with any backend report and retained in the backend scoped log. This is a correlation reference, not a distributed trace ID. Provide only safe public text in `message` and `operation`. Select Show details to reveal client-side diagnostic messages, sources, line and column, page URLs, and stacks as selectable text. Select Hide details to collapse them again. These searchable `clientErrorDetails` retain the original browser values except for page URLs, which use diagnostic URL redaction before display or persistence. Details are limited to 4,000 characters. They follow the notification's account isolation, persistence, and retention limits. Reports sent to the server continue to use diagnostic capture with redaction. Toasts keep the public message. `persist: false` keeps the notification in memory. Use `DRN.Problem.show` for backend Problem Details rather than reporting the same failure again as a browser error. Backend exception details are not included.
+The reporter creates one notification and a brief toast. Its `clientErrorId` is shared with any backend report and retained in the backend scoped log. This is a correlation reference, not a distributed trace ID. Provide only safe public text in `message` and `operation`. Select Show details to reveal client-side diagnostic messages, sources, line and column, page URLs, and stacks as selectable text. Select Hide details to collapse them again. These searchable `clientErrorDetails` retain the original browser values except for page URLs, which use diagnostic URL redaction before display or persistence. Details are limited to 4,000 characters. They follow the notification's account isolation, persistence, and retention limits. Reports sent to the server continue to use diagnostic capture with redaction. Action diagnostics show the message from an `Error` or the text of a thrown primitive, including `0` and `false`. Empty or whitespace-only messages appear as `Action failed`, as do other objects, functions, `null`, and `undefined`. Toasts keep the public message. `persist: false` keeps the notification in memory. Use `DRN.Problem.show` for backend Problem Details rather than reporting the same failure again as a browser error. Backend exception details are not included.
 
 The server captures ClientErrorPayload using explicit annotations and capture budgets. It does not repeat browser name checks or apply configured runtime paths. Unclassified string fields, including Url, retain their values. Explicitly classified properties remain redacted. Browser data carries no server classification authority.
 
@@ -269,11 +269,20 @@ npm test
 npm run test:browser
 ```
 
-Run `npm run test:all` to run both suites in sequence. Browser tests run only when unit tests pass.
+Run `npm run test:all` for units followed by the browser suite. A unit failure stops the run. Use `npm run build:test:all` to build the assets first.
 
-Run `npm run build:test:all` to build all frontend assets, then run both test suites. Tests run only when the build succeeds.
+Add `--coverage` to print Node's coverage summary and write LCOV during the same unit run:
 
-Pull request, develop, master, stable release, and preview release workflows run frontend unit tests, build assets, then run browser tests against those assets. Analysis-only dependency setup skips building and testing.
+```bash
+npm run test:all -- --coverage
+npm run test:all -- --coverage --include 'buildwww/lib/**/*.ts' --exclude '**/*.d.ts' --report lib-coverage.info
+```
+
+`npm run test:coverage` collects unit coverage alone and accepts the same overrides. Each supplied filter replaces the corresponding default. Repeat `--include` or `--exclude` for multiple globs. The defaults include `buildwww/{app,lib}/**/*.{ts,tsx,js}`, exclude `**/*.d.ts`, and write `coverage-frontend.info` in the package directory. Node counts unloaded JS and TS files. The React unit tests execute TSX with source maps. Default coverage fails if any production TSX file lacks line data. Playwright runs separately from Node coverage.
+
+The GitHub Actions job summary shows covered lines, total lines, and the coverage percentage for all reported frontend sources, with a breakdown by file extension. The Sample’s React components appear in the `.tsx` row. Pull request and develop jobs publish this summary while backend validation runs in parallel. Master, stable release, and preview release jobs also submit the frontend LCOV and backend coverage in one Sonar scan. A missing report, a report without line data, or a failed quality gate blocks those workflows. Sonar configuration owns the thresholds. Release jobs verify the tag first and package the tested frontend assets.
+
+For multiple frontend packages, run the `frontend-build` action once per package in the same job before the Sonar scan. Set each step's `working-directory` to the package directory and `coverage-report` to `coverage-frontend.info`. Each package writes its own file. Pass the report paths relative to the analysis directory in one `frontend-lcov` input, for example `Sample.Hosted/coverage-frontend.info,Admin.Hosted/coverage-frontend.info`. If the workflow sets `sonar-typescript-tsconfig-paths`, include each package's TSConfig there too. Sonar imports all the reports in the same scan, as it does for the .NET unit, analyzer, and integration reports.
 
 The browser checks cover notification and form-error behavior without a running .NET app or database. `npm run test:browser` installs Playwright’s matching Chromium headless shell if needed. To install the shell ahead of time, run `npm run test:browser:install`. On Linux, run `npm exec --no --ignore-scripts -- playwright install-deps chromium` if system libraries are missing. CI installs those libraries before calling `test:browser`.
 

@@ -294,6 +294,31 @@ test('action and global errors share safe notification references with bounded, 
         reloaded.list().every((record) => record.clientErrorDetails.includes('Page: https://sample.test/action')),
     );
     window.DRN.Notifications = notificationApi;
+    for (const [error, expected] of [
+        [0, '0'],
+        [false, 'false'],
+        [42n, '42'],
+        [Symbol('failure'), 'Symbol(failure)'],
+        ['', 'Action failed'],
+        [' \t\n', 'Action failed'],
+        ['\u0085', 'Action failed'],
+        ['  Save failed  ', '  Save failed  '],
+        [' '.repeat(500) + 'x', 'Action failed'],
+        [' '.repeat(499) + 'xy', ' '.repeat(499) + 'x'],
+        [new Error(), 'Action failed'],
+        [new Error('  '), 'Action failed'],
+        [{ toString: () => 'private object details' }, 'Action failed'],
+        [() => 'private function details', 'Action failed'],
+        [null, 'Action failed'],
+        [undefined, 'Action failed'],
+    ] as const) {
+        timestamp += 60001;
+        const record = handler.reportActionError(error, { operation: 'Save' });
+        assert.ok(record);
+        const payload = JSON.parse(await reports.at(-1)!.body.text());
+        assert.equal(payload.clientErrorId, record.clientErrorId);
+        assert.equal(payload.message, expected);
+    }
     for (const mode of ['action', 'error', 'unhandledrejection']) {
         for (const [stack, hasFrames, displayedStack = stack] of [
             ['', false],

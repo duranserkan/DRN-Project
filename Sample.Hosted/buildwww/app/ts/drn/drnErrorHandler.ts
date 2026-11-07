@@ -131,31 +131,24 @@ function reportActionError(error: unknown, context: ActionContext = {}) {
 }
 
 function actionErrorMessage(error: unknown): string {
-    if (error instanceof Error) return error.message || 'Action failed';
-    switch (typeof error) {
-        case 'object': {
-            if (!error) return 'Action failed';
-            // Preserve custom conversions without serializing arbitrary object properties.
-            if (
-                Symbol.toPrimitive in error ||
-                Symbol.toStringTag in error ||
-                error.toString !== Object.prototype.toString
-            ) {
-                return String(error as { toString(): string }) || 'Action failed';
-            }
-            return 'Action failed';
-        }
+    const value = error instanceof Error ? error.message : error;
+    switch (typeof value) {
+        case 'string':
+            return actionMessageOrFallback(value);
+        case 'number':
+        case 'boolean':
+        case 'bigint':
+        case 'symbol':
+            return String(value);
+        case 'object':
+        case 'function':
         case 'undefined':
             return 'Action failed';
-        case 'function':
-            return String(error) || 'Action failed';
-        case 'string':
-        case 'number':
-        case 'bigint':
-        case 'boolean':
-        case 'symbol':
-            return error ? String(error) : 'Action failed';
     }
+}
+
+function actionMessageOrFallback(message: string): string {
+    return /\P{White_Space}/u.test(message) ? message : 'Action failed';
 }
 
 function reportActionErrorCore(error: unknown, context: ActionContext) {
@@ -166,6 +159,7 @@ function reportActionErrorCore(error: unknown, context: ActionContext) {
     const message = actionErrorMessage(error);
     const stack = error instanceof Error ? error.stack : '';
     const payload = buildPayload(message, 'user-action', 0, 0, stack);
+    payload.message = actionMessageOrFallback(payload.message);
     // Each action occurrence needs its own reference. Keep the shared rate limit.
     if (tryReserveReportSlot(payload.clientErrorId)) sendReport(payload);
 

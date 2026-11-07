@@ -83,6 +83,61 @@ async function visit(page: Page, area: 'home' | 'test' | 'away') {
     await expect(page.locator('main')).toHaveAttribute('data-page', area);
 }
 
+for (const [scenario, scriptNonce, crossOrigin, accepted] of [
+    ['matching nonce', 'response-nonce', false, true],
+    ['missing nonce', '', false, false],
+    ['mismatched nonce', 'wrong-nonce', false, false],
+    ['matching nonce from another origin', 'response-nonce', true, false],
+] as const) {
+    test(`safe-nonce filters swapped scripts: ${scenario}`, async ({ page }) => {
+        // Omit page CSP so it cannot mask a failure of the extension's script filter.
+        await page.route('**/nonce-probe-page', (route) =>
+            route.fulfill({ contentType: 'text/html', body: documentFor('away', 'page-nonce', false) }),
+        );
+        await page.goto('/nonce-probe-page');
+        const origin = new URL(page.url()).origin;
+        const endpoint = new URL('/nonce-probe-response', crossOrigin ? 'http://127.0.0.1:4176' : origin).href;
+        const nonceAttribute = scriptNonce ? ` nonce="${scriptNonce}"` : '';
+        await page.route(endpoint, (route) => {
+            const headers = {
+                'Access-Control-Allow-Origin': origin,
+                'Access-Control-Allow-Headers': '*',
+                'Access-Control-Expose-Headers': 'HX-Nonce',
+                'HX-Nonce': 'response-nonce',
+            };
+            if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+            return route.fulfill({
+                headers,
+                contentType: 'text/html',
+                body: `<p id="swapped">Swapped</p><script id="nonce-probe"${nonceAttribute}>document.body.dataset.probeRan = "yes";</script>`,
+            });
+        });
+
+        const response = await page.evaluate(
+            async ({ endpoint, crossOrigin }) => {
+                // Allow this fixture to reach the extension's response-origin check.
+                if (crossOrigin) window.htmx.config.selfRequestsOnly = false;
+                let response;
+                document.addEventListener(
+                    'htmx:beforeSwap',
+                    (event) => {
+                        const { xhr } = event.detail;
+                        response = { url: xhr.responseURL, nonce: xhr.getResponseHeader('HX-Nonce') };
+                    },
+                    { once: true },
+                );
+                await window.htmx.ajax('get', endpoint, { source: document.body, target: 'main', swap: 'innerHTML' });
+                return response;
+            },
+            { endpoint, crossOrigin },
+        );
+        expect(response).toEqual({ url: endpoint, nonce: 'response-nonce' });
+        await expect(page.locator('main #swapped')).toHaveText('Swapped');
+        await expect(page.locator('main script#nonce-probe')).toHaveCount(accepted ? 1 : 0);
+        expect(await page.locator('body').getAttribute('data-probe-ran')).toBe(accepted ? 'yes' : null);
+    });
+}
+
 test('repeated test-page visits execute the bundle but attach only one disposable click handler', async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));

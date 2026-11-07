@@ -52,11 +52,11 @@ jobs:
         with:
           release-channel: stable
 
-      - name: Setup SDK
-        uses: $/.github/actions/setup-sdk-and-tools
-
-      - name: Build frontend
+      - name: Build and test Sample.Hosted frontend with coverage
         uses: $/.github/actions/frontend-build
+        with:
+          working-directory: Sample.Hosted
+          coverage-report: coverage-frontend.info
 
       - name: Run Sonar release gate
         uses: $/.github/actions/dotnet-sonar-scan
@@ -64,6 +64,7 @@ jobs:
           solution-file: ${{ env.SOLUTION_FILE }}
           version: ${{ steps.version.outputs.version }}
           sonar-token: ${{ secrets.SONAR_TOKEN }}
+          frontend-lcov: Sample.Hosted/coverage-frontend.info
           sonar-typescript-tsconfig-paths: Sample.Hosted/tsconfig.json
           sonar-branch-name: master
 

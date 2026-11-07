@@ -2,6 +2,7 @@
 
 - Put new unit tests in `buildwww/tests/unit/<module>/` and name them `*.test.ts`.
 - The package manifest owns commands. Use quoted recursive globs to discover `.test.js` and `.test.ts` under `buildwww/tests/`.
+- Exercise new production TSX in the Node unit suite so source lines appear in LCOV. The Sample frontend guide owns coverage scope, CI summaries, and Sonar quality gate requirements.
 - Put Vite fixture specs in `buildwww/tests/browser/` and specs that need a running Sample app in `buildwww/tests/hosted/`. Use `*.spec.ts` for both and TypeScript for their fixtures. Run browser tests after unit tests pass.
 - When moving tests, update imports, fixture paths, discovery, and documentation.
 

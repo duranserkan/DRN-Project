@@ -31,6 +31,9 @@ inputs:
     description: "Source-analysis exclusions; defaults to generated wwwroot, bin, and obj output to avoid scanning build artifacts as source."
     required: false
     default: "**/wwwroot/**,**/bin/**,**/obj/**"
+  frontend-lcov:
+    description: "Optional comma-separated frontend LCOV file paths relative to the analysis directory."
+    required: false
   sonar-typescript-tsconfig-paths:
     description: "Comma-separated TSConfig paths or patterns relative to working-directory. Empty uses Sonar discovery."
     required: false
@@ -64,6 +67,7 @@ runs:
         sonar-host-url: ${{ inputs.sonar-host-url }}
         sonar-organization: ${{ inputs.sonar-organization }}
         sonar-exclusions: ${{ inputs.sonar-exclusions }}
+        frontend-lcov: ${{ inputs.frontend-lcov }}
         sonar-typescript-tsconfig-paths: ${{ inputs.sonar-typescript-tsconfig-paths }}
         sonar-secrets-excluded-file-suffixes: ${{ inputs.sonar-secrets-excluded-file-suffixes }}
         version: ${{ inputs.version }}

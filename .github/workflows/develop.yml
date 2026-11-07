@@ -27,8 +27,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Build frontend
+      - name: Build and test Sample.Hosted frontend
         uses: $/.github/actions/frontend-build
+        with:
+          working-directory: Sample.Hosted
+          coverage-report: coverage-frontend.info
 
   backend:
     permissions:
