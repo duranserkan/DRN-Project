@@ -131,31 +131,24 @@ function reportActionError(error: unknown, context: ActionContext = {}) {
 }
 
 function actionErrorMessage(error: unknown): string {
-    if (error instanceof Error) return error.message || 'Action failed';
-    switch (typeof error) {
-        case 'object': {
-            if (!error) return 'Action failed';
-            // Preserve custom conversions without serializing arbitrary object properties.
-            if (
-                Symbol.toPrimitive in error ||
-                Symbol.toStringTag in error ||
-                error.toString !== Object.prototype.toString
-            ) {
-                return String(error as { toString(): string }) || 'Action failed';
-            }
-            return 'Action failed';
-        }
+    const value = error instanceof Error ? error.message : error;
+    switch (typeof value) {
+        case 'string':
+            return value;
+        case 'number':
+        case 'boolean':
+        case 'bigint':
+        case 'symbol':
+            return String(value);
+        case 'object':
+        case 'function':
         case 'undefined':
             return 'Action failed';
-        case 'function':
-            return String(error) || 'Action failed';
-        case 'string':
-        case 'number':
-        case 'bigint':
-        case 'boolean':
-        case 'symbol':
-            return error ? String(error) : 'Action failed';
     }
+}
+
+function actionMessageOrFallback(message: string): string {
+    return /\P{White_Space}/u.test(message) ? message : 'Action failed';
 }
 
 function reportActionErrorCore(error: unknown, context: ActionContext) {
@@ -166,6 +159,7 @@ function reportActionErrorCore(error: unknown, context: ActionContext) {
     const message = actionErrorMessage(error);
     const stack = error instanceof Error ? error.stack : '';
     const payload = buildPayload(message, 'user-action', 0, 0, stack);
+    payload.message = actionMessageOrFallback(payload.message);
     // Each action occurrence needs its own reference. Keep the shared rate limit.
     if (tryReserveReportSlot(payload.clientErrorId)) sendReport(payload);
 
@@ -178,7 +172,15 @@ function reportActionErrorCore(error: unknown, context: ActionContext) {
         title: 'Action could not be completed',
         message: publicMessage,
         clientErrorId: payload.clientErrorId,
-        clientErrorDetails: notificationDetails(message, 'user-action', 0, 0, stack, payload.url),
+        clientErrorDetails: notificationDetails(
+            message,
+            'user-action',
+            0,
+            0,
+            stack,
+            payload.url,
+            actionMessageOrFallback,
+        ),
         operation: context.operation,
         persist: context.persist !== false,
     });
@@ -209,6 +211,7 @@ function notificationDetails(
     column: number,
     stack: unknown,
     safePageUrl: string,
+    formatMessage?: (message: string) => string,
 ) {
     let clipped = false;
     function field(value: unknown, maximum: number) {
@@ -218,14 +221,16 @@ function notificationDetails(
         const end = /[\uD800-\uDBFF]/.test(text.charAt(maximum - 1)) ? maximum - 1 : maximum;
         return text.slice(0, end);
     }
+    const prefix = field(message, 500);
+    const displayMessage = formatMessage ? formatMessage(prefix) : prefix;
     let stackText = field(stack, 2000);
     const firstLine = stackText.split('\n', 1)[0]!;
     const heading = firstLine.trimEnd();
-    if (isDuplicateErrorHeading(heading, message)) stackText = stackText.slice(firstLine.length + 1);
+    if (isDuplicateErrorHeading(heading, displayMessage)) stackText = stackText.slice(firstLine.length + 1);
     // Recognize browser frame lines without replacing or reconstructing the original stack.
     const hasFrames = stackText.split('\n').some(isStackFrame);
     const fields = [
-        `Message: ${field(message, 500)}`,
+        `Message: ${displayMessage}`,
         `Source: ${field(source, 200)}`,
         `Line: ${line}, column: ${column}`,
         `Page: ${field(safePageUrl, 500)}`,

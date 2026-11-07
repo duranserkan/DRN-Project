@@ -3,8 +3,6 @@ import assert from 'node:assert/strict';
 import type { TestContext } from 'node:test';
 import type { DrnCookieOptions } from '@/types/drnCookieManager.types';
 
-let fixtureId = 0;
-
 async function fixture(t: TestContext, { protocol = 'https:', cookies = '' } = {}) {
     const descriptors = new Map(
         ['window', 'document'].map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]),
@@ -29,11 +27,9 @@ async function fixture(t: TestContext, { protocol = 'https:', cookies = '' } = {
         value: { location: { protocol } },
     });
     Object.defineProperty(globalThis, 'document', { configurable: true, value: document });
-    const { default: manager }: typeof import('@ts/drn/drnCookieManager') = await import(
-        `../../../app/ts/drn/drnCookieManager.ts?fixture=${++fixtureId}`
-    );
+    const { DrnCookieManager } = await import('../../../app/ts/drn/drnCookieManager.ts');
     return {
-        manager,
+        manager: new DrnCookieManager(),
         writes,
         // Only echo the name/value pair. Browser attribute enforcement is outside unit scope.
         echoLastWrite(this: void) {

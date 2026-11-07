@@ -7,19 +7,30 @@ inputs:
     default: "."
   working-directory:
     description: "Directory containing the frontend package.json and package-lock.json."
-    required: false
-    default: Sample.Hosted
+    required: true
   build-assets:
-    description: "Run frontend validation and build Vite assets after dependency installation and audit. Set to false for analysis-only setup."
+    description: "Run frontend validation and build Vite assets after dependency installation and audit."
     required: false
     default: "true"
   browser-tests:
     description: "Run the focused Chromium suite against freshly built assets."
     required: false
     default: "true"
+  coverage-report:
+    description: "Optional LCOV output path relative to the frontend package."
+    required: false
 runs:
   using: "composite"
   steps:
+    - name: Require frontend working directory
+      shell: bash
+      env:
+        FRONTEND_DIRECTORY: ${{ inputs.working-directory }}
+      run: |
+        if [[ -z "$FRONTEND_DIRECTORY" ]]; then
+          echo "::error::frontend-build requires working-directory"
+          exit 1
+        fi
     # This nested action resolves from the trusted composite-action checkout in
     # split-checkout PR workflows while inspecting the PR-controlled repository.
     - name: Enforce npm dependency policy
@@ -52,7 +63,50 @@ runs:
       if: ${{ inputs.build-assets != 'false' }}
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      run: npm test
+      env:
+        REPORT: ${{ inputs.coverage-report }}
+      run: |
+        if [[ -z "$REPORT" ]]; then
+          npm test
+        else
+          npm test -- --coverage --report "$REPORT"
+          # Node emits package-relative source paths. Sonar scans the repository root.
+          awk -v prefix="$(git rev-parse --show-prefix)" '/^SF:/ { $0 = "SF:" prefix substr($0, 4) } { print }' "$REPORT" > "$REPORT.tmp"
+          mv "$REPORT.tmp" "$REPORT"
+        fi
+    - name: Summarize frontend line coverage
+      if: ${{ inputs.build-assets != 'false' && inputs.coverage-report != '' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        REPORT: ${{ inputs.coverage-report }}
+      run: |
+        awk -F '[:,]' '
+          /^SF:/ { source = substr($0, 4) }
+          /^DA:[1-9][0-9]*,[0-9]+(,.*)?$/ {
+            key = source SUBSEP $2
+            hits[key] += $3
+          }
+          END {
+            for (key in hits) {
+              total++
+              covered += hits[key] > 0
+              split(key, parts, SUBSEP)
+              if (match(parts[1], /\.[[:alnum:]]+$/)) {
+                ext = substr(parts[1], RSTART + 1)
+                lines[ext]++
+                coveredLines[ext] += hits[key] > 0
+              }
+            }
+            if (!total) { print "Missing frontend line coverage" > "/dev/stderr"; exit 1 }
+            print "### Frontend unit coverage\n"
+            print "| Scope | Covered lines | Total lines | Coverage |"
+            print "| --- | ---: | ---: | ---: |"
+            printf "| All frontend sources | %d | %d | %.1f%% |\n", covered, total, 100 * covered / total
+            for (ext in lines) {
+              printf "| .%s | %d | %d | %.1f%% |\n", ext, coveredLines[ext], lines[ext], 100 * coveredLines[ext] / lines[ext]
+            }
+          }' "$REPORT" >> "$GITHUB_STEP_SUMMARY"
     - name: Build Vite assets
       if: ${{ inputs.build-assets != 'false' }}
       shell: bash

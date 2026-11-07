@@ -17,45 +17,28 @@ env:
   TESTINGPLATFORM_TELEMETRY_OPTOUT: "1"
 
 jobs:
-  frontend:
+  sonar:
     permissions:
       contents: read
     runs-on: ubuntu-26.04
-    timeout-minutes: 15
+    timeout-minutes: 60
     steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Build frontend
-        uses: $/.github/actions/frontend-build
-
-  backend:
-    permissions:
-      contents: read
-    runs-on: ubuntu-26.04
-    timeout-minutes: 45
-    env:
-      SOLUTION_FILE: DRN.slnx
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-
-      - name: Install frontend dependencies for Sonar
+      - name: Build and test Sample.Hosted frontend with coverage
         uses: $/.github/actions/frontend-build
         with:
-          build-assets: "false"
-
-      - name: Run backend Sonar scan
+          working-directory: Sample.Hosted
+          coverage-report: coverage-frontend.info
+      - name: Analyze frontend and backend coverage
         uses: $/.github/actions/dotnet-sonar-scan
         with:
-          solution-file: ${{ env.SOLUTION_FILE }}
+          solution-file: DRN.slnx
           sonar-token: ${{ secrets.SONAR_TOKEN }}
           sonar-typescript-tsconfig-paths: Sample.Hosted/tsconfig.json
+          frontend-lcov: Sample.Hosted/coverage-frontend.info
 
   codeql:
     permissions:
@@ -93,20 +76,17 @@ jobs:
     # Keep this aggregate gate in sync with every required validation job.
     # Add new jobs to both `needs` and the result check below.
     needs:
-      - frontend
-      - backend
+      - sonar
       - codeql
     steps:
       - name: Verify required jobs completed successfully
         env:
-          FRONTEND_RESULT: ${{ needs.frontend.result }}
-          BACKEND_RESULT: ${{ needs.backend.result }}
+          SONAR_RESULT: ${{ needs.sonar.result }}
           CODEQL_RESULT: ${{ needs.codeql.result }}
         run: |
-          if [ "$FRONTEND_RESULT" != "success" ] || [ "$BACKEND_RESULT" != "success" ] || [ "$CODEQL_RESULT" != "success" ]; then
+          if [ "$SONAR_RESULT" != "success" ] || [ "$CODEQL_RESULT" != "success" ]; then
             echo "One or more required checks failed."
-            echo "frontend: $FRONTEND_RESULT"
-            echo "backend: $BACKEND_RESULT"
+            echo "sonar: $SONAR_RESULT"
             echo "codeql: $CODEQL_RESULT"
             exit 1
           fi

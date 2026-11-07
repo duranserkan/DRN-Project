@@ -1,9 +1,10 @@
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
-import handler from '../app/ts/drn/drnErrorHandler.ts';
+import type errorHandler from '../app/ts/drn/drnErrorHandler.ts';
+import { installBrowserGlobals } from './unit/browserGlobals.ts';
 import { createNotificationStore } from '../app/ts/drn/drnNotifications.ts';
 
-test('action and global errors share safe notification references with bounded, resilient reporting', async (t) => {
+async function fixture(t: TestContext) {
     const reports: { url: string; body: Blob }[] = [];
     type Published = Required<
         Pick<Parameters<IDRN['Notifications']['publish']>[0], 'clientErrorId' | 'message' | 'clientErrorDetails'>
@@ -12,13 +13,15 @@ test('action and global errors share safe notification references with bounded, 
     const toasts: Parameters<IDRN['Toast']['show']>[0][] = [];
     type Listener = (event: Partial<ErrorEvent> & { reason?: unknown }) => void;
     const listeners = {} as Record<'error' | 'unhandledrejection', Listener>;
-    let active = true;
-    let transportFails = false;
-    let publishFails = false;
-    let toastFails = false;
-    let beaconAccepted = true;
-    let reportOwner = 'account-a';
-    let duringPublish: (() => void) | null = null;
+    const state = {
+        active: true,
+        transportFails: false,
+        publishFails: false,
+        toastFails: false,
+        beaconAccepted: true,
+        reportOwner: 'account-a',
+        duringPublish: null as (() => void) | null,
+    };
     let timestamp = Date.now();
     t.mock.method(Date, 'now', () => timestamp);
     const window = {
@@ -28,35 +31,35 @@ test('action and global errors share safe notification references with bounded, 
         },
         DRN: {
             Notifications: {
-                isActive: () => active,
+                isActive: () => state.active,
                 publish: (value: Published) => {
-                    if (publishFails) throw new Error('Notification renderer failed');
-                    duringPublish?.();
+                    if (state.publishFails) throw new Error('Notification renderer failed');
+                    state.duringPublish?.();
                     notifications.push(value);
                     return value;
                 },
             },
             Toast: {
                 show: (value: Parameters<IDRN['Toast']['show']>[0]) => {
-                    if (toastFails) throw new Error('Toast renderer failed');
+                    if (state.toastFails) throw new Error('Toast renderer failed');
                     toasts.push(value);
                 },
             },
         },
     };
-    for (const [name, value] of Object.entries({
+    installBrowserGlobals(t, {
         window,
         document: {
             querySelector: (selector: string) =>
                 selector === '[data-notification-context]'
-                    ? { dataset: { notificationOwner: reportOwner } }
+                    ? { dataset: { notificationOwner: state.reportOwner } }
                     : { content: '/app/' },
         },
         navigator: {
             userAgent: 'test',
             sendBeacon: (url: string, body: Blob) => {
-                if (transportFails) throw new Error('Offline');
-                if (!beaconAccepted) return false;
+                if (state.transportFails) throw new Error('Offline');
+                if (!state.beaconAccepted) return false;
                 reports.push({ url, body });
                 return true;
             },
@@ -64,16 +67,20 @@ test('action and global errors share safe notification references with bounded, 
         fetch: async (url: string, options: { body: string }) => {
             reports.push({ url, body: new Blob([options.body]) });
         },
-    })) {
-        const original = Object.getOwnPropertyDescriptor(globalThis, name);
-        Object.defineProperty(globalThis, name, { configurable: true, value });
-        t.after(() => {
-            if (original) Object.defineProperty(globalThis, name, original);
-            else Reflect.deleteProperty(globalThis, name);
-        });
-    }
-
+    });
+    // The module owns the report window and deduplication cache for one page lifetime.
+    const url = new URL('../app/ts/drn/drnErrorHandler.ts', import.meta.url);
+    url.searchParams.set('test', t.name);
+    const { default: handler }: { default: typeof errorHandler } = await import(url.href);
     handler.install();
+    const nextWindow = () => {
+        timestamp += 60001;
+    };
+    return { handler, state, reports, notifications, toasts, listeners, window, nextWindow };
+}
+
+test('action and global errors share safe notification references and suppress duplicates', async (t) => {
+    const { handler, reports, notifications, toasts, listeners } = await fixture(t);
     listeners.error({ message: 'Background failure', filename: 'background.js' });
     listeners.unhandledrejection({ reason: new Error('Background rejection') });
     assert.equal(reports.length, 2);
@@ -107,48 +114,58 @@ test('action and global errors share safe notification references with bounded, 
     assert.ok(entry.clientErrorDetails.includes('Stack:'));
     assert.equal(entry.persist, false);
     assert.equal(toasts[0]!.record, false);
+});
 
-    transportFails = true;
+test('failed transport preserves feedback and inactive accounts suppress reporting', async (t) => {
+    const { handler, state, reports, notifications, listeners } = await fixture(t);
+    state.transportFails = true;
     const offline = handler.reportActionError(new Error('Offline'), { operation: 'Save' });
     assert.ok(offline);
-    assert.notEqual(offline.clientErrorId, entry.clientErrorId);
-    assert.equal(notifications.length, 4);
-    active = false;
+    assert.equal(notifications.length, 1);
+    state.active = false;
     assert.equal(handler.reportActionError(new Error('Stale account'), { operation: 'Save' }), null);
-    assert.equal(notifications.length, 4);
+    assert.equal(notifications.length, 1);
 
     // A stale account must not send diagnostics under a potentially different session.
-    transportFails = false;
+    state.transportFails = false;
     listeners.error({ message: 'Inactive account failure' });
-    assert.equal(reports.length, 3);
-    assert.equal(notifications.length, 4);
-    active = true;
+    assert.equal(reports.length, 0);
+    assert.equal(notifications.length, 1);
+});
+
+test('actions and global errors share the rate limit and recover in the next window', async (t) => {
+    const { handler, reports, notifications, listeners, toasts, state, nextWindow } = await fixture(t);
+    for (let i = 0; i < 4; i++) listeners.error({ message: 'Failure ' + i });
+    assert.ok(handler.reportActionError(new Error('Fifth failure'), { operation: 'Save' }));
+    assert.equal(new Set(notifications.map((entry) => entry.clientErrorId)).size, 5);
     listeners.error({ message: 'Over the shared rate limit' });
-    assert.equal(reports.length, 3);
-    assert.equal(notifications.length, 4);
-
-    timestamp += 60001;
-    transportFails = true;
-    listeners.unhandledrejection({ reason: 'Offline background failure' });
-    assert.equal(notifications.length, 5);
-    assert.equal(reports.length, 3);
-    assert.equal(toasts.length, 5);
-
-    transportFails = false;
-    publishFails = true;
-    assert.doesNotThrow(() => listeners.error({ message: 'Broken notification UI' }));
-    assert.equal(reports.length, 4);
-    publishFails = false;
-    duringPublish = () => listeners.error({ message: 'Reentrant error' });
-    listeners.error({ message: 'Outer error' });
     assert.equal(reports.length, 5);
+    assert.equal(notifications.length, 5);
+
+    nextWindow();
+    state.transportFails = true;
+    listeners.unhandledrejection({ reason: 'Offline background failure' });
     assert.equal(notifications.length, 6);
-    duringPublish = null;
+    assert.equal(reports.length, 5);
+    assert.equal(toasts.length, 6);
+});
+
+test('broken renderers and reentrant global errors do not interrupt subsequent reports', async (t) => {
+    const { state, reports, notifications, listeners, window } = await fixture(t);
+    state.publishFails = true;
+    assert.doesNotThrow(() => listeners.error({ message: 'Broken notification UI' }));
+    assert.equal(reports.length, 1);
+    state.publishFails = false;
+    state.duringPublish = () => listeners.error({ message: 'Reentrant error' });
+    listeners.error({ message: 'Outer error' });
+    assert.equal(reports.length, 2);
+    assert.equal(notifications.length, 1);
+    state.duringPublish = null;
 
     const notificationApi = window.DRN.Notifications;
     Reflect.deleteProperty(window.DRN, 'Notifications');
     assert.doesNotThrow(() => listeners.error({ message: 'Unavailable notification API' }));
-    assert.equal(reports.length, 6);
+    assert.equal(reports.length, 3);
     window.DRN.Notifications = notificationApi;
     assert.doesNotThrow(() =>
         listeners.unhandledrejection({
@@ -160,12 +177,14 @@ test('action and global errors share safe notification references with bounded, 
         }),
     );
     listeners.error({ message: 'Recovered after malformed rejection' });
-    assert.equal(reports.length, 7);
-    assert.equal(notifications.length, 7);
+    assert.equal(reports.length, 4);
+    assert.equal(notifications.length, 2);
+});
 
-    // Exercise the real store lifecycle rather than only a publish stub.
+test('startup feedback follows the store owner on account binding', async (t) => {
+    const { window, reports, listeners, nextWindow } = await fixture(t);
     for (const owner of ['account-a', 'anonymous', '']) {
-        timestamp += 60001;
+        nextWindow();
         const store = createNotificationStore({ locks: null, storage: () => null });
         Object.assign(window.DRN, { Notifications: store });
         listeners.error({ message: 'Startup error', filename: 'startup.js' });
@@ -177,38 +196,41 @@ test('action and global errors share safe notification references with bounded, 
         assert.deepEqual(store.list(), owner ? [early] : []);
         assert.equal(store.isActive(), !!owner);
     }
+});
 
-    window.DRN.Notifications = notificationApi;
+test('anonymous and missing owners suppress reports', async (t) => {
+    const { state, handler, listeners, reports, nextWindow } = await fixture(t);
     for (const owner of ['anonymous', '']) {
-        reportOwner = owner;
-        timestamp += 60001;
+        state.reportOwner = owner;
+        nextWindow();
         const count: number = reports.length;
         listeners.error({ message: 'Anonymous browser error' });
         handler.reportActionError(new Error('Anonymous action'), { operation: 'Save' });
         assert.equal(reports.length, count);
     }
-    reportOwner = 'account-a';
-    timestamp += 60001;
-    publishFails = true;
+});
+
+test('actions tolerate missing or failing feedback services', async (t) => {
+    const { state, handler, window, listeners } = await fixture(t);
+    state.publishFails = true;
     assert.equal(handler.reportActionError(new Error('Original failure'), { operation: 'Save' }), null);
-    publishFails = false;
-    toastFails = true;
+    state.publishFails = false;
+    state.toastFails = true;
     assert.equal(handler.reportActionError(new Error('Original failure'), { operation: 'Save' }), null);
     assert.doesNotThrow(() => listeners.error({ message: 'Broken global toast' }));
-    toastFails = false;
+    state.toastFails = false;
     Reflect.deleteProperty(window.DRN, 'Notifications');
     assert.equal(handler.reportActionError(new Error('Original failure'), { operation: 'Save' }), null);
-    const drn = window.DRN;
     Reflect.deleteProperty(window, 'DRN');
     assert.equal(handler.reportActionError(new Error('Original failure'), { operation: 'Save' }), null);
-    window.DRN = drn;
-    window.DRN.Notifications = notificationApi;
+});
 
-    // Include UTF-8 expansion and JSON escaping, using both transports and reporting paths.
+test('UTF-8 and JSON escaping stay within the byte budget on both transports', async (t) => {
+    const { state, handler, window, reports, notifications, listeners, nextWindow } = await fixture(t);
     for (const accepted of [true, false]) {
-        beaconAccepted = accepted;
+        state.beaconAccepted = accepted;
         for (const character of ['a', '界', '😀', '\u0001']) {
-            timestamp += 60001;
+            nextWindow();
             window.location.href = character.repeat(500);
             Object.assign(globalThis.navigator, { userAgent: character.repeat(300) });
             const error = new Error(character.repeat(500));
@@ -234,8 +256,10 @@ test('action and global errors share safe notification references with bounded, 
             assert.equal(globalPayload.clientErrorId, notifications.at(-1)!.clientErrorId);
         }
     }
+});
 
-    timestamp += 60001;
+test('action and global diagnostics redact URL secrets and report truncation', async (t) => {
+    const { handler, window, reports, notifications, listeners } = await fixture(t);
     window.location.href = 'https://sample.test/action?token=url-probe#access_token=fragment-probe';
     Object.assign(globalThis.navigator, { userAgent: 'test' });
     const sensitive = new Error(
@@ -266,8 +290,11 @@ test('action and global errors share safe notification references with bounded, 
     assert.equal(notifications.at(-1)!.clientErrorDetails.includes('url-probe'), false);
     assert.equal(notifications.at(-1)!.clientErrorDetails.includes('fragment-probe'), false);
     assert.equal((await reports.at(-1)!.body.text()).includes('url-probe'), false);
+});
 
-    // Verify the default persisted history and its reload, not only publication inputs.
+test('persisted diagnostic history reloads with URL secrets removed', async (t) => {
+    const { handler, window, listeners } = await fixture(t);
+    window.location.href = 'https://sample.test/action?token=url-probe#access_token=fragment-probe';
     const cache = new Map<string, string>();
     const storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> = {
         getItem: (key) => cache.get(key) ?? null,
@@ -278,7 +305,6 @@ test('action and global errors share safe notification references with bounded, 
     const store = createNotificationStore(settings);
     store.configure({ app: '/app/', owner: 'account-a' });
     Object.assign(window.DRN, { Notifications: store });
-    timestamp += 60001;
     handler.reportActionError(new Error('Persisted action failure'), { operation: 'Save' });
     listeners.error({ message: 'Persisted global failure', filename: 'app.js' });
     listeners.unhandledrejection({ reason: new Error('Persisted rejection') });
@@ -293,7 +319,78 @@ test('action and global errors share safe notification references with bounded, 
     assert.ok(
         reloaded.list().every((record) => record.clientErrorDetails.includes('Page: https://sample.test/action')),
     );
-    window.DRN.Notifications = notificationApi;
+});
+
+test('oversized action errors keep the local message prefix and limit the server report', async (t) => {
+    const { handler, reports } = await fixture(t);
+    const prefix = '0123456789'.repeat(50);
+    const message = prefix.padEnd(65_537, 'x');
+    const record = handler.reportActionError(new Error(message), { operation: 'Save' });
+    assert.ok(record);
+    assert.equal(record.clientErrorDetails.split('\n', 1)[0], `Message: ${prefix}`);
+    assert.ok(record.clientErrorDetails.includes('Diagnostic details were truncated.'));
+
+    assert.equal(reports.length, 1);
+    const payload = JSON.parse(await reports[0]!.body.text());
+    assert.equal(payload.clientErrorId, record.clientErrorId);
+    assert.equal(payload.message, '[diagnostic capture limited]');
+    assert.equal(payload.diagnosticLimited, true);
+});
+
+test('local action fallback and stack-heading checks use only the displayed prefix', async (t) => {
+    const { handler, reports } = await fixture(t);
+    const visible = 'x'.repeat(500);
+    const blank = ' '.repeat(500);
+    const frame = '    at save (app.js:5:23)';
+    for (const [message, display] of [
+        [visible + 'suffix', visible],
+        [blank + 'suffix', 'Action failed'],
+        [' '.repeat(65_537), 'Action failed'],
+    ] as const) {
+        const error = new Error(message);
+        error.stack = `Error: ${display}\n${frame}`;
+        const record = handler.reportActionError(error, { operation: 'Save' });
+        assert.ok(record);
+        assert.equal(record.clientErrorDetails.split('\n', 1)[0], `Message: ${display}`);
+        assert.ok(record.clientErrorDetails.endsWith(`Stack:\n${frame}`));
+    }
+    const oversizedReport = JSON.parse(await reports.at(-1)!.body.text());
+    assert.equal(oversizedReport.message, '[diagnostic capture limited]');
+    assert.equal(oversizedReport.diagnosticLimited, true);
+});
+
+test('action messages normalize unusual thrown values', async (t) => {
+    const { handler, reports, nextWindow } = await fixture(t);
+    for (const [error, expected] of [
+        [0, '0'],
+        [false, 'false'],
+        [42n, '42'],
+        [Symbol('failure'), 'Symbol(failure)'],
+        ['', 'Action failed'],
+        [' \t\n', 'Action failed'],
+        ['\u0085', 'Action failed'],
+        ['  Save failed  ', '  Save failed  '],
+        [' '.repeat(500) + 'x', 'Action failed'],
+        [' '.repeat(499) + 'xy', ' '.repeat(499) + 'x'],
+        [new Error(), 'Action failed'],
+        [new Error('  '), 'Action failed'],
+        [{ toString: () => 'private object details' }, 'Action failed'],
+        [() => 'private function details', 'Action failed'],
+        [null, 'Action failed'],
+        [undefined, 'Action failed'],
+    ] as const) {
+        nextWindow();
+        const record = handler.reportActionError(error, { operation: 'Save' });
+        assert.ok(record);
+        const payload = JSON.parse(await reports.at(-1)!.body.text());
+        assert.equal(payload.clientErrorId, record.clientErrorId);
+        assert.equal(payload.message, expected);
+        assert.equal(record.clientErrorDetails.split('\n', 1)[0], `Message: ${expected}`);
+    }
+});
+
+test('action and global handlers capture and format stack frames once', async (t) => {
+    const { handler, listeners, reports, notifications, nextWindow } = await fixture(t);
     for (const mode of ['action', 'error', 'unhandledrejection']) {
         for (const [stack, hasFrames, displayedStack = stack] of [
             ['', false],
@@ -325,7 +422,7 @@ test('action and global errors share safe notification references with bounded, 
                     : '    at save (app.js:5:23)',
             ],
         ] as const) {
-            timestamp += 60001;
+            nextWindow();
             const error = new Error('Stack capture probe');
             let reads = 0;
             Object.defineProperty(error, 'stack', {

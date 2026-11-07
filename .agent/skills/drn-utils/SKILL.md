@@ -1,522 +1,65 @@
 ---
 name: drn-utils
-description: "DRN.Framework.Utils - Attribute-based dependency injection, settings, logging, scoped cancellation, ID generation, Base32/TOTP encoding and authentication utilities, entity date filtering, validators, and core utilities. Keywords: dependency-injection, configuration, appsettings, appdata, logging, cancellation, source-known-id, base32, totp, mfa, entity-date-filter, tick-boundary, validators, extensions, http-client"
-last-updated: 2026-11-03
+description: "DRN utilities for DI, configuration, scoped diagnostics, HTTP, Source-Known IDs, cancellation, and MFA."
+last-updated: 2026-11-07
 difficulty: intermediate
-tokens: ~2.7K
 ---
 
 # DRN.Framework.Utils
 
-> Core utilities: attribute-based DI, configuration, logging, and extensions.
+Use the installed `DRN.Framework.Utils` README and XML documentation for API signatures and examples. [Locate the package](../overview-drn-framework/SKILL.md#documentation-and-source-references)
 
-Resolve upstream links and local source through [Documentation And Source References](../overview-drn-framework/SKILL.md#documentation-and-source-references).
+## Registration and configuration
 
-## When to Apply
-- Setting up dependency injection with attributes
-- Accessing configuration via IAppSettings
-- Using or extending logging (IScopedLog)
-- Coordinating explicit root or keyed scoped cancellation with optional type ownership
-- Working with DRN extension methods
-- Understanding service registration patterns
+Scan the application's service assembly with `services.AddServicesWithAttributes(typeof(OrderService).Assembly)`. Annotate the implementation with `[Scoped<IOrderService>]`. Import `DRN.Framework.Utils.DependencyInjection` for the extension and `DRN.Framework.Utils.DependencyInjection.Attributes` for the attribute.
 
----
-
-## Module Registration
-
-```csharp
-services.AddDrnUtils(); // Registers attribute-based services, HybridCache, TimeProvider
-```
-
-`AddDrnUtils()` registers Microsoft's `HybridCache` with default in-memory caching. Register `IDistributedCache` (e.g., Redis) **before** calling `AddDrnUtils()` to enable distributed mode.
-
----
-
-## Attribute-Based Dependency Injection
-
-### Lifetime Attributes
-
-| Attribute | Lifetime | Notes |
-|-----------|----------|-------|
-| `[Singleton<TService>]` | Singleton | `TryAdd` by default |
-| `[Scoped<TService>]` | Scoped | Most common |
-| `[Transient<TService>]` | Transient | New per resolution |
-| `[SingletonWithKey<TService>(key)]` | Keyed singleton | Keyed services |
-| `[ScopedWithKey<TService>(key)]` | Keyed scoped | Keyed services |
-| `[TransientWithKey<TService>(key)]` | Keyed transient | Keyed services |
-| `[HostedService]` | Singleton | Auto-registers `IHostedService` implementations |
-| `[Config("Section")]` | Singleton | Binds configuration section to class |
-| `[ConfigRoot]` | Singleton | Binds to configuration root |
-
-> [!NOTE]
-> All lifetime attributes accept optional `tryAdd` parameter (default: `true`). When `true`, `TryAdd` is used so existing registrations are not overwritten. Set to `false` to allow multiple implementations of the same service type.
-
-```csharp
-public interface IMyService { }
-
-[Scoped<IMyService>]
-public class MyService : IMyService { }
-```
-
-### Registration & Validation
-
-```csharp
-sc.AddServicesWithAttributes();                      // Scans calling assembly
-serviceProvider.ValidateServicesAddedByAttributesAsync(); // Health check
-```
-
-Assembly scan metadata may be cached globally, but `DrnServiceContainer` module state belongs to one service collection and validation deduplication belongs to one provider-validation invocation. Re-registering the same assembly in one collection remains idempotent.
-
-### Module Registration & Startup Actions
-
-Attributes inheriting from `ServiceRegistrationAttribute` handle complex registration and post-startup actions. Example: `DrnContext<T>` uses `[DrnContextServiceRegistration]` to auto-register the DbContext and trigger migrations in Development.
-
----
-
-## Configuration (IAppSettings)
-
-`DrnAppFeatures:DrnRateLimit` configures Hosting's token buckets. Defaults provide 250 post-auth tokens and 2,500 pre-auth tokens, with matching refills every 60 seconds. Phase override values of 0 inherit shared settings.
-
-```csharp
-public interface IAppSettings
-{
-    IConfiguration Configuration { get; }
-    DrnAppFeatures Features { get; }
-    DrnLocalizationSettings Localization { get; }
-    DrnDevelopmentSettings DevelopmentSettings { get; }
-    NexusAppSettings NexusAppSettings { get; }
-    AppEnvironment Environment { get; }
-    bool IsDevelopmentEnvironment { get; }
-    bool IsStagingEnvironment { get; }
-    string AppKey { get; }
-    string ApplicationName { get; }
-    string ApplicationNameNormalized { get; }
-    string GetAppSpecificName(string name, string prefix = "_");
-    
-    bool TryGetConnectionString(string name, out string connectionString);
-    string GetRequiredConnectionString(string name);
-    bool TryGetSection(string key, out IConfigurationSection section);
-    IConfigurationSection GetRequiredSection(string key);
-    T? GetValue<T>(string key);
-    T? GetValue<T>(string key, T defaultValue);
-    T? Get<T>(string key, bool errorOnUnknownConfiguration = false, bool bindNonPublicProperties = true);
-    ConfigurationDebugView GetDebugView();
-    ConfigurationDebugView GetDebugView(bool includeRawValues);
-}
-```
-
-`ConfigurationDebugView` redacts secret-looking values by default, lists child keys even when a provider also defines a scalar value for the parent section, and renders summary paths using the value provider's key casing. Object-to-JSON configuration uses the framework JSON defaults, including camelCase keys; explicit key/value configuration preserves the caller-provided key text.
-
-### Config Attribute
-
-```csharp
-[Config("MySection")]      // Binds appsettings:MySection
-public class MySettings { }
-
-[Config]                   // Uses class name as section
-public class FeatureFlags { }
-
-[ConfigRoot]               // Binds to root
-public class RootSettings { }
-```
-
-### Configuration Sources (in order, later overrides earlier)
-
-Canonical copy: [Maintenance Reference: Configuration Sources](../overview-drn-framework/SKILL.md#maintenance-reference-configuration-sources).
-
-1. `appsettings.json` → 2. `appsettings.{Environment}.json` → 3. User secrets when the application assembly is available → 4. Environment variables → 5. Mounted settings (`/appconfig`) → 6. Command line arguments
-
-`Environment` is required and must be `Development`, `Staging`, or `Production`. DRN validates this value before loading `appsettings.{Environment}.json`; missing, `NotDefined`, or unknown values fail startup with `ConfigurationException`.
-
-Override mount directory via `IMountedSettingsConventionsOverride`.
-
-| Symptom | Solution |
-|---------|----------|
-| `ConfigurationException` | Add missing key to `appsettings.json` |
-| `Environment setting is missing` | Set `Environment` to `Development`, `Staging`, or `Production` |
-| Env vars not binding | Use `__` for nested: `Section__Key` |
-| Mounted settings not loading | Check `/appconfig/` or override via `IMountedSettingsConventionsOverride` |
-
-When grouping options into nested objects, explicitly validate child objects before relying on child data annotations for startup safety; plain `Validator.TryValidateObject` does not recursively walk nested option objects.
-
-`DrnAppFeatures.SeedKey` feeds `AppSecuritySettings`, which derives `AppHashKey`, `AppEncryptionKey`, `AppKey`, and `AppSeed` through BLAKE3 derive-key mode with distinct DRN Framework context strings. The hash and encryption keys stay Base64Url-encoded 32-byte values, `AppKey` stays an 8-character public discriminator, and `AppSeed` stays a signed 64-bit seed value.
-
-### App Data Roots
-
-`IAppData` exposes `Temp` and `Data`. Override roots before DRN config with `DrnAppDataSettings__TempPath` and `DrnAppDataSettings__DataPath`. `TempPath` appends `EntryAssemblyNameNormalized`: `<TempPath>/<EntryAssemblyNameNormalized>`, then `<DataPath>/Temp/<EntryAssemblyNameNormalized>`, then `<LocalApplicationData>/Temp/<EntryAssemblyNameNormalized>`. A configured data path is used as-is for `LocalAppDataPath`; its fallback is `<LocalApplicationData>/<EntryAssemblyNameNormalized>`. Use `GetPath(...)` for safe child paths.
+- Register each module through its extension method and scan its assembly with `AddServicesWithAttributes()`. Use the scoped, singleton, transient, keyed, or hosted-service attributes. Their default `TryAdd` preserves existing registrations. Opt out when registering multiple implementations. Keep registration idempotent per service collection and validation scoped to the provider being validated.
+- `AddDrnUtils()` supplies HybridCache and the system TimeProvider. Register a distributed cache first if required. Use `[Config]` for a section and `[ConfigRoot]` for the root. Validate nested options explicitly.
+- Follow [configuration source precedence](../overview-drn-framework/SKILL.md#maintenance-reference-configuration-sources). Use double underscores for nested environment keys. Configuration debug views redact secret-looking values by default. Keep raw views restricted.
+- Configure `DrnAppDataSettings__TempPath` and `DrnAppDataSettings__DataPath` before loading DRN settings. Use `GetPath(...)` on the selected `IAppData` root for child paths. Preserve traversal and symlink checks. Keep the distinct BLAKE3 derivation contexts for application hash keys, encryption keys, discriminators and seeds.
 
 ### Nexus Keys
 
-Explicitly configure `NexusAppSettings:AppId` (0 through 127) and `NexusAppSettings:AppInstanceId` (0 through 63) in every environment; zero is valid for both. Concurrent instances generating IDs for the same application require distinct AppInstanceIds. `Validate<TEntity>` uses the entity's declared `(EntityType, AppId)`, independently of the configured AppId. `Validate(id, entityType)` uses the configured partition; override it with `Validate<TApp>(id, entityType)` where `TApp : IAppId`, or `Validate(id, entityTypeId)` with an explicit `EntityTypeId`. Nullable inputs preserve null. Parsing and operations validation use `UseSecureSourceKnownIds` when the format is omitted; explicit Secure, Plain or Auto overrides it. [SharedKernel record validation](../drn-sharedkernel/SKILL.md#validation-approaches) checks stored metadata independently of configuration.
-
-`NexusAppSettings.Keys` must contain exactly one default `NexusKey`. Generation uses the default key; parsing tries the default key first and then the remaining configured keys for rotation fallback.
-
-`NexusKey.Format` defaults to `ByteEncoding.Utf8` and supports:
-
-| Format | Requirement |
-|--------|-------------|
-| `Utf8` | Key is exactly 32 UTF-8 bytes. |
-| `Hex` | Hex decodes to exactly 32 bytes, normally 64 hex chars. |
-| `Base64` | Base64 decodes to exactly 32 bytes. |
-| `Base64UrlEncoded` | Base64Url decodes to exactly 32 bytes. |
-
-
----
-
-## Scoped Logging (IScopedLog)
-
-Project-owned `data-classification-rules.json` extends compiler name checks. Register it as EmbeddedResource or AdditionalFiles. SharedKernel publishes reference-assembly catalog metadata. Backend runtime name matching is disabled for typed properties, plain keys, configured fields/paths, URLs, queries, and forms. Legacy RuleAssemblyName/RuleFile loading and validation remain but do not redact names. Follow the source-owned diagnostic guide for application responsibilities for dynamic data.
-
-Legacy catalog loading remains bounded and cached per options instance. Missing configured roots, invalid catalogs, and other load failures still fail construction; missing transitive assemblies are skipped. Analyzer sensitiveFieldPaths cannot be waived by name comments. Runtime SensitiveFields, SensitiveFieldPaths, and SensitivePathSegments are validated but do not match values. Browser rules remain unchanged and need explicit configuration.
-
-The shared catalog protects `cvv`, `cvc`, `pincode`, `username`, `firstname`, `lastname`, `dateofbirth`, `birthdate`, and `iban`. Do not add broad `otp` substring matching: it also matches `RootPath`. Use explicit classification for OTP properties. Preserve matching and nonmatching vectors across analyzer and browser/server fixtures.
-
-Backend explicit URL capture removes credentials and validates encoding without classifying path/query/fragment names. Ordinary Url/Uri/QueryString string fields remain text. Explicit classifications use `[redacted]`. Browser name redaction remains separate. Keep backend runtime fixtures separate from browser golden cases.
-
-Backend form bodies preserve decoded values without matching names or source paths. Capture budgets remain enforced.
-
-Do not special-case JSON types in diagnostic input capture. JsonElement, JsonDocument and JsonNode follow ordinary property/collection rules and attributes. No automatic JSON ignore rule or logical JSON traversal applies. Nonempty unsupported body content types use the generic unsupported-body marker, including application/json and application/*+json. Preserve JSON output serialization, sizing and grouping. Use typed diagnostic models or selected scalars for payload details.
-
-Request-scoped structured logging. Aggregates data, metrics, and checkpoints, flushing one fitting diagnostic entry or bounded linked diagnostic overflow records. Complete scope events are attached to the first record outside diagnostic limits.
-
-Dedicated metric methods do not match names with the native sanitizer. Custom sanitizers retain their own sensitivity checks. Use code-owned metric identifiers, never request values.
-
-Configured analyzer paths apply to AddDictionary/SanitizeDictionary. Inline positive classification constructors with constant exact keys protect whole entries. NonSensitive and unknown classification expressions cannot waive configured paths. Dictionary name checks accept known null, empty and exact redacted constants, including ILogger scopes.
-
-Native copies preserve accumulated values and explicit classification metadata without destination name matching. Preserve destination budgets and detached values. Copies to custom sanitizers use redacted source snapshots, never internal capture wrappers.
-
-AddDrnUtils registers DiagnosticRedactor separately for DataClassifications.Sensitive, DataClassifications.Personal and their combined Set. Registering the combined set alone does not cover individual classifications. Verify all three provider lookups.
-
-DRN0019 exempts direct EF migration schema expressions containing column-operation metadata in column definitions or constraint selectors. Ordinary migration data and logging remain checked. Do not suppress diagnostics by migration path or generated-file marker.
-
-DRN0017/DRN0020 distinguish direct NSubstitute Received/DidNotReceive verification chains, including WithAnyArgs variants, from captures. Ordinary substitute calls and independent declaration diagnostics remain checked. Verification aliases and wrappers are not inferred.
-
-Exact adjacent comments acknowledge DRN0017/DRN0020/DRN0022 name checks. DRN0020 matches dictionary keys at capture and cannot waive configured analyzer paths or child checks. DRN0024 warns only for unused comments, never redundant attributes or reason/policy APIs. Comments provide no runtime name protection. Extracting a classified property can lose its metadata. See [SharedKernel guidance](../drn-sharedkernel/SKILL.md#attributes).
-
-The browser and analyzer share the baseline, including `ipadd`. Reviewed operational IP captures need compiler acknowledgements. Backend runtime uses explicit classifications, not name matching.
-
-Retain `client` in the shared browser/analyzer catalog. Reviewed client identifiers require compiler acknowledgements. Keep browser golden expectations independent of backend runtime expectations.
-
-Compiler rules use normalized substring matching, with named properties independent of logging prefixes and configured analyzer rules checking full paths. Backend runtime does not repeat these checks. Browser matching remains unchanged.
-
-Use AddDictionary/SanitizeDictionary for explicit key classifications. Sensitive/Personal redact values; NonSensitive requires a reason and supported scalar. Classifications are exact and apply at one level. DRN0020 checks statically known matching keys and configured paths. Dynamic keys require application classification. Foreign implementations fail closed. Preserve positive-classification precedence, native copies, and budgets.
-
-DRN0019 requires anonymous properties whose names match the shared catalog to move to named classes or records with classification or direct `[Sensitive(false)]`. This includes nested objects, inferred members and generated code, independently of capture calls. Harmless anonymous properties remain allowed. Reason strings and capture policies cannot bypass declaration analysis.
-
-Secret field matching uses `secret`, not `sec`. Seconds, sections, and response-capture flags need no exemption solely for containing `sec`. Keep analyzer, runtime, and browser cases aligned with the shared catalog.
-
-Object logging captures readable public instance properties only and omits fields. Runtime redaction uses explicit classifications without matching names. Scoped capture reads classified getters once. Direct sanitization skips them. Both skip `[IgnoreLog]` members.
-
-DiagnosticTypeMetadata owns cached type classification and readable member plans. Existing service assembly discovery registers closed types in frozen lookups. Attribute and member construction stays lazy; unknown runtime types use the same cached fallback rules. Merge positive classifications and IgnoreLog from mapped interface properties for concrete and nested capture. Interface exemptions cannot waive concrete name rules, and unrelated explicit implementations must not classify same-named public properties. Keep source getter reflection and boxing claims separate from metadata lookup performance.
-
-Native GetLogs materializes captured values under the storage lock without a preceding deep clone. It never invokes source model getters. CopyFrom retains its detached capture clone. DiagnosticJsonSize reuses thread-local writers with separate reentrant rentals and clears pooled discard buffers before return. Measure JSON escaping with the writer rather than estimating UTF-8 text length. Fragment search measures spans and allocates only accepted strings. Preserve diagnostic byte bounds, snapshot isolation, and exact fragment reconstruction. Scope events are attached after diagnostic bounding. No measured speedup or allocation-free capture claim is warranted without execution evidence.
-
-Server and browser text capture preserve contents within budgets without content scanning. Backend redaction uses explicit classifications and explicit URL credential removal. Browser field-name rules remain unchanged.
-
-DRN0015 through DRN0020 analyze generated sources without reporting diagnostics in generated code. Runtime classification remains active.
-
-Construct `DiagnosticCapturePolicy` from `DiagnosticNameExemption` entries. These describe exact capture kinds and original path segments, not throwable exceptions.
-
-Use `[Sensitive]`, `[Personal]`, or derived attributes for type/member protection. Other Microsoft non-None classifications retain runtime redaction but do not satisfy DRN0015/DRN0018. `[IgnoreLog]` suppresses capture, not classification analysis. `[Sensitive(false)]` acknowledges compiler names and never overrides positive classification. Reason overloads accept supported scalars only; Uri uses explicit structural processing. Complex reason captures fail closed. The analyzer treats policy overloads as name acknowledgements without interpreting individual entries. Configured paths and declarations remain checked. Preserve detached snapshots, classification metadata, and budgets. Public snapshots carry no classification authority. The runtime name matcher/cache has been removed. Do not claim measured speedups without benchmarks. See the source-owned diagnostic guide through the profile.
-
-`ScopeEvent` uses `Id` (.NET `EventId`), `Outcome`, and `Reason`. `IScopedLog.WithEvent` sets the first event as primary and retains later events under `AdditionalEvents`. Scope-level properties retain the `Event` prefix for ID/name/outcome/reason. `LogScoped` forwards the primary event ID with existing severity rules. Every `ScopedLog` generates a stable `CorrelationId` and captures a nullable W3C `TraceId` at construction. Never fabricate a trace ID without an activity. HTTP TraceIdentifier remains separate. Native OpenTelemetry trace/span/flags use the activity at emission; scoped snapshots do not populate those native fields. Copying retains destination correlation and primary event ownership. Keep consumer/module catalogs separate; do not subclass event types.
-
-Retain one primary and eight additional events. Omit further events without throwing and include `OmittedEventCount` only when nonzero. Copies preserve destination events first and accumulate source omissions plus destination overflow. Retained event contents bypass sanitization and diagnostic byte limits, including custom sanitizers. Events and omission counts belong on the first emitted record. Preserve ordinary diagnostic protection for event-shaped dictionaries. Resolve the full scope-event contract through the repository profile.
-
-| Method | Purpose |
-|--------|---------|
-| `Add(key, value)` | Structured log entry |
-| `AddToActions(msg)` | Execution trail |
-| `AddProperties(key, object)` | Flatten complex objects |
-| `Measure(key)` | Capture duration & count |
-| `AddException(ex, msg)` | Log exception with details |
-| `Increase(key, by)` | Atomically increment counter |
-
-**Auto-captured**: Available TraceId and scope duration. Request/response context and automatic exception capture require Hosting integration.
-
----
-
-## HTTP Clients (`IExternalRequest`, `IInternalRequest`)
-
-Wrappers around [Flurl](https://flurl.dev/) with standardized JSON conventions.
-
-```csharp
-// External API
-var response = await request.For("https://api.example.com", HttpVersion.Version11)
-    .AppendPathSegment("v1/charges")
-    .PostJsonAsync(new { Amount = 1000 })
-    .FromJsonAsync<ExternalApiResponse>();
-
-// Internal Service Mesh (Kubernetes/Linkerd)
-public interface INexusRequest { IFlurlRequest For(string path); }
-
-[Singleton<INexusRequest>]
-public class NexusRequest(IInternalRequest request, IAppSettings settings) : INexusRequest
-{
-    public IFlurlRequest For(string path) => request.For(settings.NexusAppSettings.NexusAddress)
-        .AppendPathSegment(path);
-}
-```
-
-`InternalRequest` and `ExternalRequest` accept an optional `HttpMessageHandler?` via constructor dependency injection, enabling in-memory routing and test interception (such as `ApplicationContextRouterHandler`) without mutating global Flurl static state.
-
-Buffered converters capture `HttpStatus` and `Payload`, then dispose the response even if reading fails. Use `using` for streaming wrappers; disposal releases the response and any `IDisposable` payload.
-Converters are exposed as extension methods on `Task<IFlurlResponse>` and `IFlurlResponse`; `HttpResponse` only models the converted result and its ownership.
-
-`HttpResponse.StatusClass` distinguishes `1xx`, `2xx`, `3xx`, `4xx`, and `5xx` responses, and `IsSuccessStatusCode` is true only for `2xx`. Flurl normally follows redirects, so `3xx` is observed only when a redirect remains final. Use `AllowAnyHttpStatus()` with the throwing converters to inspect non-success responses directly.
-
-The `TryToStringAsync`, `TryToBytesAsync`, `TryToStreamAsync`, and `TryFromJsonAsync<T>` converters return `HttpCallResult<T>` for inspectable failures. HTTP status and processing failure are separate: readable `4xx`/`5xx` responses retain their status and payload without a `Failure`; transport, timeout, response-read, and deserialization errors populate `Failure`. A successful HTTP status with malformed JSON preserves the status but has `IsSuccess == false`. Try converters propagate cancellation. Dispose streaming try results, and treat `HttpFailure.Message` and `HttpFailure.Exception` as local diagnostic data that may contain request details and requires redaction before logging or exposure; both are ignored by System.Text.Json serialization.
-
-Use `HttpCallResult<T>.ThrowIfFailure()` to rethrow a captured processing failure with its original stack after inspection. It does not throw for a `3xx`, `4xx`, or `5xx` result whose response was read successfully; status enforcement remains an explicit caller decision through `StatusClass` or `IsSuccessStatusCode`.
-
----
-
-## ScopeContext (Ambient Context)
-
-Access ambient data only after DRN Hosting initializes the current request scope or a test explicitly calls `ScopeContext.InitializeForTest(...)`. A `DrnTestContext` alone does not initialize `ScopeContext`; use injected services during startup, background work, console execution, and other uninitialized scopes.
-
-`ScopeContext.Problem` lazily stores public error defaults (`Type`, `Title`, `Detail`, `Instance`, `Extensions`) without ASP.NET dependencies. Hosting fills missing response fields only. Do not copy logs or exception messages into it. The mutable object belongs to one scope, resets with test initialization, and must not coordinate separate concurrent errors.
-
-`ScopeProblem` mirrors every `ExceptionFor` factory with the same arguments and throws immediately without changing public defaults. Hosting infers the standard problem type from the exception's status; assigning Type does not change status. See [Hosting mapping rules](../drn-hosting/SKILL.md#error-responses). `[StackTraceHidden]` hides helper frames from formatted traces without relocating the throw instruction. Examples show the scoped shorthand and equivalent `throw ExceptionFor` call together.
-
-```csharp
-ScopeContext.UserId;                      // Current user
-ScopeContext.TraceId;                     // Request trace
-ScopeContext.Authenticated;               // Auth status
-ScopeContext.Settings;                    // Static IAppSettings
-ScopeContext.Log;                         // Static IScopedLog
-ScopeContext.IsUserInRole("Admin");       // Role check
-ScopeContext.IsClaimFlagEnabled("FeatureX"); // Feature flag
-```
-
----
+Configure `NexusAppSettings:AppId` (0 through 127) and `AppInstanceId` (0 through 63) explicitly in every environment. Zero is valid. Concurrent generators in the same partition need distinct instance IDs. Configure exactly one default Nexus key. All keys must decode to 32 bytes using the declared UTF-8, Hex, Base64, or Base64Url encoding. Write with the default key and retain previous keys for rotation reads.
 
 ## ID Generation
 
-```csharp
-long internalId = sourceKnownIdUtils.Next<User>();             // DB PK
-SourceKnownEntityId externalId = sourceKnownEntityIdUtils.Generate<User>(internalId); // Public GUID
+`Validate<TEntity>` checks the entity's declared type and application partition. `Validate(id, entityType)` uses the configured partition. Select another explicitly with `Validate<TApp>` or an `EntityTypeId`. Never trust a caller-constructed ID record at an external boundary.
 
-// Secure ↔ Plain conversion (idempotent)
-var secureId = sourceKnownEntityIdUtils.ToSecure(entityId);
-var plainId = sourceKnownEntityIdUtils.ToPlain(entityId);
-```
+`ConfiguredDefault` selects Secure or Plain from `UseSecureSourceKnownIds`. Secure requires decryption and verification. Plain skips decryption. Auto tries plain then encrypted forms. Keep format overrides under application control. Authenticate an external GUID in the required format before conversion. Conversions revalidate using Auto. Undefined formats fail even for null IDs. Apply authorization and rate limits separately. See [SharedKernel validation](../drn-sharedkernel/SKILL.md#validation-approaches).
 
-`ISourceKnownEntityIdUtils` inherits `ISourceKnownEntityIdOperations` (SharedKernel), which defines `Generate`, nullable/nonnullable `Parse`, all `Validate` overloads, `ToSecure`, `ToPlain`. This interface is injected into entities by EF interceptors.
+Configure the epoch and minimum before first use. Generation, decoding and filtering must share an epoch across all users of a dataset. For each 250 ms tick, inclusive date boundaries admit its full 31-bit payload range and exclusive boundaries exclude it. Normalize reversed endpoints before deriving bounds and pass scalar long comparisons to the provider.
 
-Entity ID `Parse` and all `Validate` overloads accept non-nullable `SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault`. The constructor sets read-only DefaultFormat to Secure when `UseSecureSourceKnownIds` is true, otherwise Plain. ConfiguredDefault selects this property; explicit formats remain unchanged. Secure only decrypts/verifies; Plain never decrypts; Auto retains plain-first detection and decryption fallback per key. Undefined formats throw even for null IDs; supported formats preserve null ID results. Conversions retain Auto revalidation. Replace null format arguments with ConfiguredDefault, rebuild consumers and update custom implementations/method-group bindings, including DefaultFormat.
+## Scoped logging and classification
 
-Entity/repository GUID helpers forward the format to parsing, then check the parsed record's validity and identity. Record ValidateId(), Validate<TEntity>() and Validate(expected) have no format parameter and accept either parsed representation. Generated records also validate validity and identity. Records are publicly constructible and do not reauthenticate GUIDs; use them only as trusted internal values. Authenticate untrusted GUIDs through operations, which own keys and resolve configuration. Conversions reauthenticate the GUID using Auto.
+Use `IScopedLog` for operation diagnostics. Use code-owned metric names. A scoped log owns a correlation ID and captures a W3C trace ID only when one exists. HTTP request IDs and native activity fields have separate meanings. Copies retain the destination's correlation and primary event.
 
-Secure-only defaults block direct plaintext MAC guessing. Keep Plain/Auto overrides under application control, and validate external GUIDs with the required format before conversion. Authorization and rate limiting remain necessary. See [the security rationale](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/README.md#parse--validation).
+Scope events bypass diagnostic sanitization and budgets. Supply safe event data. Keep one primary and up to eight additional events on the first emitted record, with the omission count when needed. Ordinary diagnostic values remain bounded on every record.
 
-> [!NOTE]
-> ID generation is automatically handled by `DrnContext` when SourceKnownEntities are saved.
+Classify dynamic backend values at capture. Compiler name/path checks and browser rules do not redact server values at runtime. Explicit URL capture removes credentials and validates encoding. Explicit Sensitive/Personal values redact as `[redacted]`. Free text keeps its contents within capture budgets. Check the installed package’s logging documentation for its capture limits and overflow behavior.
 
-### Entity Creation-Date Filters
+- Use `AddDictionary` or `SanitizeDictionary` for exact key classifications. NonSensitive requires a reason and a supported scalar. Preserve positive classifications and configured analyzer paths. Native copies retain detached values and classification metadata within destination budgets. Custom sanitizers receive redacted snapshots.
+- Preserve inherited and mapped interface classifications, ignored members, single getter evaluation in scoped capture, and getter suppression in direct sanitization. Register redactors for Sensitive, Personal and their combination. Keep catalog validation and analyzer/browser fixtures even though server capture has no name fallback. See [analyzer exemptions](../drn-sharedkernel/SKILL.md#attributes).
+- Use typed diagnostic models or selected scalars for payload details. Unsupported nonempty body types, including JSON, receive the unsupported marker. Keep explicit URL capture separate from ordinary text and diagnostic JSON output.
 
-`IEntityDateTimeUtils` filters `SourceKnownEntity.Id` by its 250ms Source-Known ID creation tick. Each date boundary maps to the minimum ID for that tick (payload bits cleared) and the maximum ID (all 31 app, instance, and sequence payload bits set).
+## HTTP and ambient context
 
-| Filter | Inclusive boundary | Exclusive boundary |
-|---|---|---|
-| `CreatedAfter` | `Id >= tick.Min` | `Id > tick.Max` |
-| `CreatedBefore` | `Id <= tick.Max` | `Id < tick.Min` |
-| `CreatedBetween` | `Id >= begin.Min && Id <= end.Max` | `Id > begin.Max && Id < end.Min` |
-| `CreatedOutside` | `Id <= begin.Max \|\| Id >= end.Min` | `Id < begin.Min \|\| Id > end.Max` |
+Inject `IExternalRequest` for external endpoints or `IInternalRequest` for service traffic. Inject a handler for test routing. Buffered converters dispose the response even on read failure. Dispose streaming wrappers after consumption.
 
-`CreatedBetween` and `CreatedOutside` normalize reversed endpoints before applying thresholds. Equal endpoints therefore select the whole tick for inclusive `Between`, no rows for exclusive `Between`, all rows for inclusive `Outside`, and everything except the tick for exclusive `Outside`.
+Try converters preserve readable HTTP statuses and payloads, return processing failures separately and propagate cancellation. `ThrowIfFailure()` rethrows a captured failure with its original stack. Check status explicitly when a readable error response should fail the operation. Keep failure messages and exceptions out of public responses and redact them before logging.
 
-Keep the payload-mask calculation outside the query expression so providers receive scalar `long` comparisons. Unit regressions must cover inclusive/exclusive payload edges, equal and distinct endpoints, reversed inputs, and the negative-to-positive epoch-half transition. Use database-backed verification only when SQL translation or query-plan behavior is the subject.
-
----
+Use `ScopeContext` only after Hosting initializes a request or a test calls `InitializeForTest`. Use injected services elsewhere. `ScopeContext.Problem` supplies missing public response fields. Keep diagnostics private. Its exception factories throw immediately. [Hosting error mapping](../drn-hosting/SKILL.md#error-responses)
 
 ## Scoped Cancellation
 
-`ICancellationUtils` owns a root and keyed child scopes for the current DI service scope.
+`ICancellationUtils.Root` affects all present and future children in the DI scope. Merging an external token or canceling a keyed child affects only that group. To cancel one operation, create and dispose a local linked token source after all consumers finish.
 
-| Intent | Use | Propagation |
-|---|---|---|
-| Cancel all work | `cancellation.Root.Cancel()` / `.Merge(token)` | Every existing and later-created child. |
-| Cancel a component/workflow | Child `.Cancel()` / `.Merge(token)` | That group only. |
-| Cancel one operation | Local linked token source | Caller-owned work only. |
+Use a typed `CancellationScopeKey.For<T>()` for a component, optionally with a constant name. Ownerless keys share an ordinal, case-sensitive namespace. Names are non-null, at most 128 characters and may be empty. Never derive them from requests or instance IDs. The default key is invalid. Reusing a key returns the same scope and stable token. Canceled scopes stay canceled. The service owns children and their registrations. Preserve callback-safe disposal when cancellation is reentrant. See [repository cancellation](../drn-entityframework/SKILL.md#repository-cancellation).
 
-```csharp
-private static readonly CancellationScopeKey ScopeKey =
-    CancellationScopeKey.For<PaymentWorkflow>();
+## Authentication and other utilities
 
-var scope = cancellation.GetOrCreateScope(ScopeKey);
-scope.Merge(workflowLifetimeToken);
-```
-
-- The same key returns the same scope and token; canceled scopes cannot be reset.
-- Every key requires a non-null name and may have an owning type. Prefer `For<T>()` or `For(Type)` for an empty-name group owned by one type. Use `For<T>(name)` or `For(Type, name)` when that type owns multiple intentional groups, and `For(name)` only when different types intentionally share one ownerless group.
-- Names use ordinal, case-sensitive equality and must be developer-defined constants of at most 128 characters. Empty and whitespace names are permitted. Never use request data, user input, instance IDs, or operation IDs to create groups.
-- Ownerless keys share one ordinal-name namespace within the current `ICancellationUtils` service scope. Although empty and whitespace names are valid, prefer qualified, centrally defined names because unrelated callers using the same ownerless name receive the same scope and can cancel each other's work.
-- Keys are opaque and factory-created; the default value is invalid.
-- `ICancellationUtils` owns child scopes. Callers own and dispose local linked sources used for operation-only cancellation.
-- Replace removed root members with their `cancellation.Root` equivalents.
-
-When maintaining cancellation internals:
-
-- Keep the effective token stable across incremental merges. Detach external registrations after terminal cancellation.
-- Mark the parent disposed and detach children under its lock. Cancel and dispose them outside the lock.
-- During reentrant disposal from a root callback, defer child and root cleanup until root cancellation completes.
-- A single linked source is suitable for fixed inputs. Dispose it only after all consumers finish.
-
-See the upstream [Scoped Cancellation](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/README.md#scoped-cancellation) guide for the complete API and migration example.
-
----
-
-## Concurrency (`LockUtils`)
-
-Lock-free atomic operations via `Interlocked`:
-
-| Method | Purpose |
-|--------|---------|
-| `TryClaimLock(ref int)` | Atomically claim (0→1) |
-| `TryClaimScope(ref int)` | Disposable auto-release scope |
-| `ReleaseLock(ref int)` | Unconditionally release (→0) |
-| `TrySetIfNull<T>(ref T?, T)` | CAS set-if-null |
-| `TrySetIfEqual<T>(ref T?, T, T?)` | CAS when current is the same reference as comparand |
-| `TrySetIfNotEqual<T>(ref T?, T, T?)` | Set if current is not the same reference as comparand (retry loop) |
-| `TrySetIfNotNull<T>(ref T?, T)` | Set if current is not null |
-
-```csharp
-private int _lock;
-using var scope = LockUtils.TryClaimScope(ref _lock);
-if (scope.Acquired) { /* critical section */ }
-```
-
----
-
-## Utilities Reference
-
-Use one `AuthenticationClaimConfig` for mapped consumers. Identity defaults have explicit aliases; custom mappings replace them. Subject agreement checks include only configured types and aliases, including case variants; unconfigured standard subject claims are ignored. Canonical types govern issuance/native metadata; aliases are additional DRN inputs and do not rewrite claims. Identity options and future handler integrations must supply matching native name/role claims and metadata while preserving issuer isolation and exact MFA evidence. See [the claim contract](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/README.md#scope--ambient-context-scopecontext).
-
-`TotpUtils` defaults to six digits, 30-second steps, and ±1-step drift. Verification is stateless; callers must enforce atomic per-account replay protection and attempt limits. It does not issue MFA claims. See upstream [TotpUtils.cs](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Auth/MFA/TotpUtils.cs) for parameter validation details.
-
-`MfaPrincipal.IsRecent` and `IsPhishingResistant` are opt-in checks requiring an explicit trusted issuer and completed/additional evidence on the same authenticated identity. All authenticated subjects/issuers must be unambiguous and agree. IsRecent accepts a caller-supplied current time, an inclusive nonnegative age limit and a timestamp type (default auth_time); reject malformed/conflicting/future evidence. auth_time is authentication recency, not necessarily verified-MFA recency. IsPhishingResistant requires an explicit assurance mapping distinct from completion; never infer it from generic MFA or a passkey label. No default Hosting policy change or claim issuance; provider mapping remains MFA-07.
-
-| Area | Key Types | Purpose |
-|------|-----------|---------|
-| **Data Encoding** | `EncodingExtensions`, `Base32Encoding` | Base64, Base64Url, Hex, Utf8, plus strict RFC 4648 padded/unpadded Base32 |
-| **Authentication** | `AuthenticationClaimConfig`, `MfaClaimConfig`, `MfaPrincipal`, `MfaFor`, `TotpUtils` | One config carries canonical types, explicit aliases, and the MFA marker. Preserve exact evidence/account checks and default subjectless compatibility; assurance and Identity operations require subjects. No Identity-service dependency. |
-| **Hashing** | `HashExtensions` | Blake3 (crypto), XxHash3 (fast), keyed and stream/file hashing; prefer stream overloads for files and large payloads |
-| **JSON** | `JsonMergePatch` | RFC 7386 merge patch with depth protection |
-| **Query Strings** | `QueryParameterSerializer` | Complex objects → query strings |
-| **Streams** | `ToBinaryDataAsync` | Safe consumption with `MaxSizeGuard` |
-| **Validation** | `ValidationExtensions` | DataAnnotations-based programmatic validation |
-| **Validators** | `JpegValidator`, `JpegValidationResult`, `JpegValidationErrorReason` | Structural, stream-based, size-bounded JPEG validation with typed error reasons |
-| **App data** | `IAppData`, `AppDataPathResult`, `DrnAppDataSettings` | Validated temp/data roots with traversal-safe child path resolution |
-| **Pagination** | `IPaginationUtils` | Cursor-based via `SourceKnownEntityId` |
-| **Cancellation** | `ICancellationUtils`, `ICancellationScope`, `CancellationScopeKey` | Explicit root, stable named groups with optional owners, and caller-owned local links |
-| **Diagnostics** | `DevelopmentStatus` | Track pending DB model changes at startup |
-
-### Bit Packing (`NumberBuilder` / `NumberParser`)
-
-Zero-allocation bit manipulation for custom ID generation:
-
-```csharp
-var builder = NumberBuilder.GetLong();
-builder.TryAddNibble(0x05);  // Add 4 bits
-builder.TryAddUShort(65535); // Add 16 bits
-long packed = builder.GetValue();
-
-var parser = NumberParser.Get(packed);
-byte nibble = parser.ReadNibble();
-ushort value = parser.ReadUShort();
-```
-
-### Time & Async
-
-Configure `SourceKnownIdSettings` before startup or first ID/epoch use. `DefaultEpoch` requires an explicit `MinimumUtc`; both freeze on first use, including historical conversion. Hosting validates before constructors/hooks; non-hosted generation validates on first use. See [the time contract](../drn-sharedkernel/SKILL.md#source-known-identity-system).
-
-```csharp
-// Cached UTC timestamp: 250ms precision, refreshed every 10ms
-long timestamp = TimeStampManager.CurrentTimestamp();
-DateTimeOffset now = TimeStampManager.UtcNow;
-
-// Async-safe timer — prevents overlapping executions
-await using var worker = new RecurringActionAsync(
-    async ct => await DoWorkAsync(ct),
-    periodMilliseconds: 1000, start: true,
-    executionTimeout: TimeSpan.FromSeconds(10));
-worker.Stop();
-worker.Start(); // Resume after stopping
-```
-
-`RecurringActionAsync.Stop()` requests cancellation without waiting for the active callback to finish.
-
-`RecurringAction` accepts synchronous `Action` callbacks only. Dedicated threads require a positive period; timer mode accepts zero. Dedicated restarts preserve the configured post-callback delay, including when restarting during an active callback. Synchronous disposal does not wait for active callbacks. `RecurringActionAsync` awaits callbacks; restarted execution and `DisposeAsync()` wait for prior callbacks to finish. Timeouts require token-aware callbacks and request cooperative cancellation; ignoring cancellation can block later iterations and async disposal. Tokenless `Func<Task>` constructors have no timeout parameter.
-
-Validate `RecurringActionAsync` periods and timeouts during construction, including `start: false`. Periods truncate to 1–4,294,967,294 milliseconds; timeouts must be positive and truncate to at most that upper limit. Preserve positive sub-millisecond timeouts. See [timer usage and errors](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/README.md#non-overlapping-async-timer-recurringactionasync).
-
-`TimeProvider` singleton registered to `TimeProvider.System` by default for testable time.
-
-### Extension Methods
-
-```csharp
-// ServiceCollectionExtensions
-var replacement = new MyService();
-services.ReplaceInstance<MyService>(typeof(IMyService), new[] { replacement }, ServiceLifetime.Singleton);
-services.ReplaceTransient<IMyService, MyService>(replacement);
-services.ReplaceScoped<IMyService, MyService>(replacement);
-services.ReplaceSingleton<IMyService, MyService>(replacement);
-services.GetAllAssignableTo<TService>();
-
-// String & Binary
-"hello world".ToStream();
-int v = "123".Parse<int>();     bool ok = "abc".TryParse<int>(out _);
-// Casing/path helpers live in DRN.Framework.SharedKernel.Extensions.
-
-// Type & Assembly
-assembly.GetTypesAssignableTo(typeof(TInterface));
-assembly.GetSubTypes(typeof(T));
-assembly.CreateSubTypes<T>(); // Discover + instantiate parameterless ctors
-type.GetAssemblyName();
-
-// Reflection (cached invokers - prefer UnsafeAccessor when compile-time types are known)
-instance.InvokeMethod("Name", args);
-type.InvokeStaticMethod("Name", args);
-instance.InvokeGenericMethod("Name", typeArgs, args);
-
-// Flurl & HTTP Diagnostics
-await ex.PrepareScopeLogForFlurlExceptionAsync(scopedLog, appFeatures); // Captures request/response into IScopedLog
-exception.GetGatewayStatusCode();              // Maps to 502/503/504
-
-// Object & Dictionary
-object.GetGroupedPropertiesOfSubtype(typeof(T));      // Group properties by subtype
-number.GetBitPositions();                       // Get set bit positions
-```
-
----
-
-## UnsafeAccessors (Preferred Over Reflection)
-
-Use `[UnsafeAccessor]` (`System.Runtime.CompilerServices`) instead of runtime reflection (`Type.GetMethod`, `Type.GetProperty`, `Type.GetField`, `MethodInfo.Invoke`) whenever the target type is accessible at compile time. `[UnsafeAccessor]` provides zero-overhead, AOT-safe, direct compiled access to non-public methods, fields, constructors, and properties.
-
-Use the upstream source-owned signatures as examples: [FlurlExtensions](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Extensions/FlurlExtensions.cs) for field access, [DrnApplicationExtensions](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/DrnProgram/DrnApplicationExtensions.cs) for method access, and [PageUtils](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/Endpoints/PageUtils.cs) for property-setter access.
-
-### When to Use UnsafeAccessor vs Reflection
-
-- **Use `[UnsafeAccessor]`**: Whenever accessing non-public constructors, methods, properties, or fields of known/accessible types (including framework, ASP.NET Core, and library types). Note that `UnsafeAccessorKind.StaticMethod` requires the exact declaring type where the static method is defined (it does not traverse base types for static members).
-- **Use Reflection**: Only when target types or generic signatures cannot be determined at compile time (e.g. dynamically discovered types by assembly name/attribute scan, or inaccessible internal types of third-party assemblies without `InternalsVisibleTo`).
-
----
-
-## Related Skills
-
-- [drn-domain-design.md](../drn-domain-design/SKILL.md) - Domain & Repository patterns
-- [drn-sharedkernel.md](../drn-sharedkernel/SKILL.md) - Domain primitives
-- [drn-hosting.md](../drn-hosting/SKILL.md) - Web hosting
-- [drn-entityframework.md](../drn-entityframework/SKILL.md) - Database access
-- [drn-testing.md](../drn-testing/SKILL.md) - Testing with contexts
-
----
-
-## Global Usings
-
-```csharp
-global using DRN.Framework.SharedKernel;
-global using DRN.Framework.Utils.DependencyInjection;
-```
+- Use the configured canonical claim types and aliases. Require unambiguous subjects and issuers. Assurance checks require completed MFA and trusted issuer evidence on the same authenticated identity. Authentication time alone cannot prove recent MFA. Phishing resistance requires an explicit assurance mapping. The [Hosting skill](../drn-hosting/SKILL.md) owns policy integration and issuance.
+- TOTP defaults to six digits, 30-second steps and one step of drift. Verification is stateless. Enforce atomic per-account replay protection and attempt limits before issuing authentication evidence.
+- Use stream hashing for large inputs, bounded stream reads, strict RFC 4648 Base32 and the structural JPEG validator for their respective formats. Consult the Utils README for byte encodings, bit packing, merge patch, pagination and validators.
+- `RecurringAction` runs synchronous callbacks. Use `RecurringActionAsync` for asynchronous work and a token-aware callback for timeouts. Stop requests cancellation. Async restart and disposal wait for prior work. A callback that ignores cancellation can block them.
+- Prefer `[UnsafeAccessor]` for known, accessible declaring types. Static methods require the exact declaring type. Use reflection for runtime-discovered or inaccessible types.

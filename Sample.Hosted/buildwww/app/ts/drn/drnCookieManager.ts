@@ -11,7 +11,7 @@ import type { DrnCookieOptions, DrnCookieReadOptions, IDrnCookieManager } from '
  * - URI Encoding/Decoding to prevent format errors
  * - Fluent options interface
  */
-class DrnCookieManager implements IDrnCookieManager {
+export class DrnCookieManager implements IDrnCookieManager {
     defaults: Required<Pick<DrnCookieOptions, 'path' | 'sameSite' | 'secure' | 'encoding'>>;
 
     constructor() {

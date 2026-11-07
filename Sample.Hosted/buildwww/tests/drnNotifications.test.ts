@@ -38,6 +38,20 @@ function fixture(
     };
 }
 
+test('a queued publication recovers if the saved JSON is corrupted before the lock is granted', async () => {
+    const locks = queuedLocks();
+    const { store, cache, settings } = fixture({ locks });
+    await locks.drain();
+    const entry = store.publish({ message: 'Keep this notification' });
+    assert.ok(entry);
+    cache.set('drn.notifications.v1:/app/', '{');
+    await locks.drain();
+    const restored = createNotificationStore(settings);
+    restored.configure({ app: '/app/', owner: 'account-a' });
+    assert.deepEqual(restored.list(), [entry]);
+    await locks.drain();
+});
+
 for (const useLocks of [false, true]) {
     test(`initial configuration retains startup feedback alongside saved history, locks: ${useLocks}`, async () => {
         const locks = useLocks ? queuedLocks() : null;

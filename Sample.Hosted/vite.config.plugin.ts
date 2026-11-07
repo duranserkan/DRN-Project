@@ -8,11 +8,11 @@ import type { Plugin } from 'vite';
 export function iifeWrap(): Plugin {
     return {
         name: 'iife-wrap',
-        renderChunk(code, chunk) {
-            if (chunk.fileName.endsWith('.js')) {
-                return { code: `(function(){"use strict";\n${code}\n})();`, map: null };
-            }
-            return null;
+        outputOptions(options) {
+            // The minifier assumes ESM strictness. Preserve it when the chunk runs as a classic script.
+            options.postBanner = '(function(){"use strict";';
+            options.postFooter = '})();';
+            return options;
         },
     };
 }

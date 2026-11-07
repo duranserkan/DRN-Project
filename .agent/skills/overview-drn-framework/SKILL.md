@@ -1,363 +1,58 @@
 ---
 name: overview-drn-framework
-description: "DRN.Framework architecture overview - Package hierarchy (SharedKernel → Utils → Testing/EntityFramework → Hosting), dependency relationships, core conventions, and framework philosophy. Start here for understanding the overall framework structure. Keywords: framework, architecture, overview, package-hierarchy, conventions, framework-philosophy, package-dependencies"
-last-updated: 2026-10-29
+description: "Route DRN framework work to version-matched package documentation and skills. Covers configuration, environment safety, and documentation ownership."
+last-updated: 2026-11-07
 difficulty: basic
-tokens: ~3.1K
 ---
 
 # DRN.Framework Overview
 
-> Architecture overview of DRN.Framework—a convention-based .NET framework for distributed reliable applications.
-
-## When to Apply
-- Understanding framework architecture and design principles
-- Deciding which package to use for a specific need
-- Learning core conventions shared across all packages
-- Extending or contributing to framework packages
-
 ## Documentation And Source References
 
-DRN skills work in both framework source checkouts and package-consuming repositories. Upstream documentation and source links target the [DRN-Project development branch](https://github.com/duranserkan/DRN-Project/tree/develop). These links do not imply those files exist locally.
+For a NuGet consumer, start in the application project:
 
-In a consuming repository, resolve the installed version from package manifests or lockfiles. Prefer bundled package documentation or the matching upstream release tag/commit when checking version-specific behavior. Development-branch guidance may describe unreleased changes. If matching documentation is unavailable, report the verification gap instead of assuming compatibility.
+1. Identify the package and resolved version for the relevant target framework in `obj/project.assets.json` or `packages.lock.json`. Project files and `Directory.Packages.props` show requested versions.
+2. In the assets file, combine a `packageFolders` root with the matching `libraries` entry's `path`. Open the package README named in the `.nuspec`, the release notes if present, and the XML documentation beside the target assembly when available. This works with custom NuGet cache locations and transitive dependencies.
+3. Check the installed signatures and the application's own registration, settings and call sites before applying examples. These skills describe the framework under development. Older packages can differ in overloads, defaults and analyzer IDs. If local evidence is insufficient, use documentation for that exact version or the repository commit recorded in its package metadata. State which behavior remains unverified.
 
-For framework implementation work, use the current repository profile's source map or discover the actual checkout paths. Keep those local paths in the profile. Application names and layouts in examples are illustrative and must be adapted to the destination repository.
-
----
-
-## DiSCOS Alignment
-
-| DiSCOS Principle | Framework Expression |
-|------------------|---------------------|
-| Security by Design | Security headers, CSP, host filtering baked into `DrnProgramBase` |
-| Excellence by Simplicity | Convention over configuration — attribute DI, auto-discovery |
-| Systems Thinking | Layered package hierarchy; optimize whole, not parts |
-| Margin of Safety | Distributed collision-free ID generation; startup validation |
-
----
+In a framework source checkout, use the repository profile or discover the owning projects locally. In a consuming application, its own project files and CI define commands and conventions. Example entity, context and program names stand for application-owned types.
 
 ## Framework Stack
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     DRN.Framework Stack                         │
-├─────────────────────────────────────────────────────────────────┤
-│  DRN.Framework.Hosting      │  Web hosting, security, endpoints │
-│  DRN.Framework.Testing      │  Test contexts, containers        │
-│  DRN.Framework.EntityFramework │ DbContext, migrations, IDs     │
-│  DRN.Framework.Jobs         │  Background job scheduling        │
-│  DRN.Framework.MassTransit  │  Message bus integration          │
-├─────────────────────────────────────────────────────────────────┤
-│  DRN.Framework.Utils        │  DI, settings, logging, IDs       │
-├─────────────────────────────────────────────────────────────────┤
-│  DRN.Framework.SharedKernel │  Domain, exceptions, JSON         │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Package Purposes
-
-| Package | Purpose | Key Features |
-|---------|---------|--------------|
-| **SharedKernel** | Lightweight domain primitives | SourceKnownEntity, AggregateRoot, DomainEvent, Exceptions, JsonConventions |
-| **Utils** | Core utilities | Attribute DI, IAppSettings, HybridCache, Logging, Extensions |
-| **Hosting** | Web application hosting | DrnProgramBase, Security, Endpoints, Middlewares |
-| **EntityFramework** | Database access | DrnContext, Conventions, Auto-migrations |
-| **Testing** | Test infrastructure | DrnTestContext, Containers, DataAttributes, FlurlHttpTest |
-| **Jobs** | Background jobs | Job scheduling (Hangfire-like) |
-| **MassTransit** | Messaging | Message bus integration |
-
----
-
-## Core Conventions
-
-Explicitly configure `NexusAppSettings:AppId` and `NexusAppSettings:AppInstanceId`; explicit zero is valid for both. Utils `Validate<TEntity>` uses entity metadata; `Validate(id, entityType)` uses the configured partition unless overridden through `TApp` or an explicit composite identity. SharedKernel and repositories use entity metadata or an explicit composite identity. See [Utils partition selection](../drn-utils/SKILL.md#nexus-keys) and [SharedKernel validation](../drn-sharedkernel/SKILL.md#validation-approaches).
-
-### 1. Attribute-Based Dependency Injection
-
-All DRN projects use attribute-based service registration:
-
-```csharp
-[Scoped<IMyService>]
-public class MyService : IMyService { }
-
-// Registration in module:
-services.AddServicesWithAttributes();
-```
-
-| Attribute | Lifetime |
-|-----------|----------|
-| `[Singleton<T>]` | Singleton |
-| `[Scoped<T>]` | Scoped |
-| `[Transient<T>]` | Transient |
-| `[Config("Section")]` | Configuration binding |
-| `[HostedService]` | Background service |
-
-> See: [drn-utils.md](../drn-utils/SKILL.md)
-
-### 2. Configuration Layering
-
-Configuration applied in order. Canonical copy: [Maintenance Reference: Configuration Sources](#maintenance-reference-configuration-sources).
-
-1. `appsettings.json`
-2. `appsettings.{Environment}.json`
-3. User secrets when the application assembly is available
-4. Environment variables
-5. Mounted settings (`/appconfig/`)
-6. Command line arguments
-
-`Environment` is required and must be `Development`, `Staging`, or `Production`. DRN validates this value before loading `appsettings.{Environment}.json`; missing, `NotDefined`, or unknown values fail startup with `ConfigurationException`.
-
-### 3. JSON Conventions
-
-System.Text.Json defaults overridden globally:
-- `JsonSerializerDefaults.Web`
-- `JsonStringEnumConverter`
-- `AllowTrailingCommas = true`
-- `PropertyNameCaseInsensitive = true`
-- `CamelCase` naming
-
-### 4. Exception Handling
-
-DRN exceptions declare the HTTP status from which Hosting infers the default problem type. Both `ExceptionFor` and `ScopeContext.Problem` helpers use this path without a type catalog. Prefer existing semantic bases for custom exceptions; unmapped exceptions default to 500. See [Hosting mappings and overrides](../drn-hosting/SKILL.md#error-responses).
-
-| Exception | Status |
-|-----------|--------|
-| `ValidationException` | 400 |
-| `UnauthorizedException` | 401 |
-| `ForbiddenException` | 403 |
-| `NotFoundException` | 404 |
-| `ConflictException` | 409 |
-| `ConfigurationException` | 500 |
-
-```csharp
-throw ExceptionFor.NotFound("User not found");
-```
-
----
-
-## Package Dependency Graph
-
-```mermaid
-graph LR
-    H[Hosting] --> U[Utils]
-    EF[EntityFramework] --> U
-    U --> SK[SharedKernel]
-    T[Testing] --> H
-    T --> EF
-```
-
-**Key Points**:
-- SharedKernel has NO dependencies (can be used in Contract layers)
-- Utils provides core infrastructure
-- Hosting/EntityFramework are peer packages
-- Testing depends on everything for integration tests
-
----
-
-## Module Pattern
-
-Each assembly exposes a module for service registration:
-
-```csharp
-public static class InfraModule
-{
-    public static IServiceCollection AddExampleInfraServices(this IServiceCollection sc)
-    {
-        sc.AddServicesWithAttributes();
-        return sc;
-    }
-}
-```
-
----
-
-## Reliability Characteristics
-
-DRN Framework ensures:
-- **Secure** - Security headers, CSP, host filtering
-- **Observable** - Structured logging, scoped logs
-- **Maintainable** - Convention over configuration
-- **Performant** - Optimized defaults
-- **Scalable** - Distributed ID generation
-- **Self-documenting** - Endpoint metadata
-
----
+| When working on | Start with |
+|---|---|
+| Contracts, IDs, entities, exceptions, analyzers | [SharedKernel](../drn-sharedkernel/SKILL.md). Contract projects can depend on this package alone. |
+| Aggregates, DTO mapping, repository boundaries | [Domain design](../drn-domain-design/SKILL.md) |
+| DI, settings, diagnostics, HTTP, cancellation, ID utilities | [Utils](../drn-utils/SKILL.md) |
+| Persistence, migrations, repositories, PostgreSQL | [EntityFramework](../drn-entityframework/SKILL.md) |
+| Host lifecycle, endpoints, security, Razor, static assets | [Hosting](../drn-hosting/SKILL.md) |
+| DTT, data attributes, contexts, integration hosts | [Testing](../drn-testing/SKILL.md) |
+| Jobs or messaging | The installed Jobs or MassTransit package and the application's registration |
 
 ## DRN Framework Maintenance Reference
 
-These are framework-level facts for reusable DRN skills. In a DRN Framework source repository, verify changes against source-owned package code and package READMEs before updating this section. In a consuming repository, treat the installed DRN Framework version and its package docs as the source of truth.
-
-Package READMEs must remain self-contained for important operational information. Skills may summarize framework behavior, but package readers should not need an agent profile to understand required defaults.
+Register modules through their service-collection extensions. Use DRN lifetime attributes and avoid duplicate manual registrations. Scoped validation belongs to the provider being validated. SharedKernel owns JSON conventions and exception semantics. Hosting owns the public HTTP response. Find the application's composition root to see which modules and startup hooks it uses.
 
 ### Maintenance Reference: Configuration Sources
 
-`AddDrnSettings` loads configuration in this order. Later sources override earlier sources.
+`AddDrnSettings` applies later sources over earlier ones:
 
-1. `appsettings.json`
-2. `appsettings.{Environment}.json`
-3. User secrets when the application assembly can be loaded
-4. Environment variables in this order: `ASPNETCORE_`, `DOTNET_`, then unprefixed
-5. Mounted settings:
-   - `/appconfig/key-per-file-settings/*`
-   - `/appconfig/json-settings/*.json`
-6. Command-line arguments
+1. `appsettings.json`, then `appsettings.{Environment}.json`.
+2. User secrets when the application assembly is available.
+3. Environment variables with `ASPNETCORE_`, then `DOTNET_`, then unprefixed keys.
+4. Mounted key-per-file and JSON settings under `/appconfig`. Override the root through `IMountedSettingsConventionsOverride`.
+5. Command-line arguments.
 
-`Environment` is required and must be `Development`, `Staging`, or `Production`. DRN validates this value before loading `appsettings.{Environment}.json`; missing, `NotDefined`, or unknown values fail startup with `ConfigurationException`.
-
-The mounted root defaults to `/appconfig` and can be overridden by registering `IMountedSettingsConventionsOverride`.
-
-### Maintenance Reference: Development Settings
-
-| Setting | Default | Maintenance note |
-|---------|---------|------------------|
-| `SkipValidation` | `false` | Mostly for test contexts. |
-| `TemporaryApplication` | `false` | Marks a host for configuration or service discovery. It builds the pipeline, skips endpoint validation and accessor population, enters service validation unless `SkipValidation` is set, and returns before `StartAsync`; `ApplicationContext` uses it for its temporary discovery host. |
-| `LaunchExternalDependencies` | `false` | Development-only local PostgreSQL Testcontainers provisioning. |
-| `AutoMigrateDevelopment` | `true` | Applies pending migrations in Development after startup validation. |
-| `AutoMigrateStaging` | `false` | Applies pending migrations in Staging only; never enables prototype recreation. |
-| `Prototype` | `false` | Development-only prototype database recreation gate. |
-| `BreakForUserUnhandledException` | `false` | Developer diagnostics flag. |
-
-#### Environment Hierarchy and Test Invariants
-
-- **`Development`**: For local developer productivity with convenience defaults, not hacks.
-- **`Staging`**: Stricter operational defaults (e.g. explicit migrations, no prototype mode).
-- **`Production`**: Most strict defaults (e.g. strict security headers, strict asset validation, no auto-migration, no prototype mode).
-- **No Environment Hacking for Tests**: Never branch on `environment.IsDevelopment()` or relax core invariants inside framework/application code to accommodate test edge cases. Tests must use explicit test/temporary flags (`TemporaryApplication`, `SkipValidation`, or dedicated test contexts) to control validation and lifecycle behavior.
-
-### Maintenance Reference: App Data Paths
-
-App data paths resolve before DRN configuration. `TempPath` appends `EntryAssemblyNameNormalized` in this order: `DrnAppDataSettings__TempPath/<EntryAssemblyNameNormalized>` -> `DrnAppDataSettings__DataPath/Temp/<EntryAssemblyNameNormalized>` -> `<LocalApplicationData>/Temp/<EntryAssemblyNameNormalized>`. `LocalAppDataPath` uses `DrnAppDataSettings__DataPath` as-is when configured, otherwise `<LocalApplicationData>/<EntryAssemblyNameNormalized>`. `IAppData` owns directory creation, temp cleanup, test temp preservation, and safe child paths.
+Set `Environment` to Development, Staging or Production before loading environment-specific settings. Missing or unknown values fail startup. App data roots resolve earlier. Use the [Utils skill](../drn-utils/SKILL.md) for those roots, explicit application and instance IDs, and key rotation.
 
 ### Maintenance Reference: Migration And Prototype Invariants
 
-Eligible automatic migration startups invoke `MigrateAsync` even with no pending migrations. DI-configured contexts run attribute `SeedAsync` through EF initialization callbacks, under the migration lock for migration operations; failed seeds can be retried on later startups. Explicit DI migration/creation calls also seed. Design-time contexts without DI do not add attribute seeding. Seeds remain idempotent; prototype creation does not gain migration-lock protection.
+Production and Staging require explicit connection strings. Production never auto-migrates. Staging migrates only with `AutoMigrateStaging` and cannot recreate a prototype. Development defaults to automatic migration. The [EntityFramework skill](../drn-entityframework/SKILL.md#prototype-mode) owns every condition for prototype recreation, retryable seeding and the connection modes.
 
-Production:
-- Uses explicit `ConnectionStrings:{ContextName}` values.
-- Never auto-migrates.
-- Never recreates a database through prototype mode.
+Use explicit `TemporaryApplication`, `SkipValidation` or a dedicated test context for test-specific behavior. Keep production invariants active. A temporary host builds the pipeline for discovery, skips endpoint validation/accessor population, performs service validation unless skipped and returns before startup.
 
-Staging:
-- Uses explicit `ConnectionStrings:{ContextName}` values.
-- Applies migrations only when `DrnDevelopmentSettings:AutoMigrateStaging = true`.
-- Never recreates a database through prototype mode.
+### Testing and maintenance
 
-Development:
-- Uses `AutoMigrateDevelopment = true` by default.
-- Prototype recreation is allowed only when every condition is true:
-  - Application environment is Development.
-  - `DrnDevelopmentSettings:AutoMigrateDevelopment = true`.
-  - `DrnDevelopmentSettings:Prototype = true`.
-  - The context attribute has `UsePrototypeMode = true`.
-  - Pending model changes exist.
-  - No migrations have been applied, or applied migrations exist and `UsePrototypeModeWhenMigrationExists = true`.
+Follow the current repository's execution gates. `SettingsProvider` resolves settings locally or under `Settings/`. Read container defaults from the installed Testing package. PostgreSQL binding and RabbitMQ startup are separate operations.
 
-### Maintenance Reference: Connection Modes
-
-| Scenario | Connection source | Notes |
-|----------|-------------------|-------|
-| Production/Staging | `ConnectionStrings:{ContextName}` | Explicit configuration only. |
-| Local Debug with Testcontainers | `LaunchExternalDependenciesAsync()` | Uses `PostgresContainerSettings`; ignores `postgres-password` and `DrnContext_Dev*`. |
-| Docker/Kubernetes Development | `DrnContextDevelopmentConnection` | Uses `postgres-password` plus `DrnContext_Dev*` keys to generate a connection string. |
-| Integration tests | `ContainerContext.Postgres` | Starts/binds PostgreSQL on demand and injects connection strings. |
-| RabbitMQ tests | `RabbitMQContext.StartAsync()` | Explicit opt-in helper; not started by `CreateClientAsync` or PostgreSQL binding. |
-
-### Maintenance Reference: Container Defaults
-
-PostgreSQL:
-
-| Property | Default |
-|----------|---------|
-| `DefaultImage` | `"postgres"` |
-| `DefaultVersion` | `"18.6-alpine3.24"` |
-| `DefaultPassword` | `"drn"` |
-| `Database` | `"drn"` |
-| `Username` | `"drn"` |
-
-RabbitMQ:
-
-| Property | Default |
-|----------|---------|
-| `DefaultImage` | `"rabbitmq"` |
-| `DefaultVersion` | `"4.3.6-management-alpine"` |
-| `Username` | unset |
-| `Password` | unset |
-
-### Maintenance Reference: Testing Settings
-
-`SettingsProvider` uses `settings.json` by convention. It resolves settings from the test-local folder or a `Settings/` folder and passes the selected base name to `AddDrnSettings`.
-
-Use the consuming repository's profile-declared MTP commands in docs. In framework-scoped skills and reusable workflows, keep project paths generic and discover actual test projects from the profile, filesystem, or CI jobs:
-
-```bash
-dotnet run --project <unit-test-csproj>
-dotnet run --project <integration-test-csproj>
-```
-
-Unit tests should be listed before integration tests. Do not use `.slnx` in test-run commands.
-
-### Maintenance Reference: MFA Claim Configuration
-
-DRN Hosting registers one immutable `AuthenticationClaimConfig` from `ConfigureAuthenticationClaims()`: Identity canonical types, explicit aliases, and nested exact MFA marker (`amr=mfa`). Consumers share it; Identity claim options derive from it. `MfaPrincipal` rejects restricted states and conflicting accounts/issuers; exemptions require policy-selected evidence. Identity consumers explicitly register `AddDrnIdentityMfaPolicies` and `DrnSignInManager<TUser>` for issuance/explicit refresh. Overridable lifecycle wiring may omit unused Identity renewal; shared semantics remain active. Identity factories and future handlers supply canonical claims/native metadata; DRN aliases alone do not change native authorization. Provider integrations and pages remain separate work.
-
-### Maintenance Reference: Entity Creation-Date Filters
-
-Generation, historical conversion, and date filters share one immutable epoch. Configure it before startup or first ID/epoch use, and retain it across the dataset's services and restarts. See [the time contract](../drn-sharedkernel/SKILL.md#source-known-identity-system).
-
-Source-Known IDs encode creation time at 250ms precision followed by a 31-bit app, instance, and sequence payload. `IEntityDateTimeUtils` treats every date boundary as the entire representable tick: inclusive filters include the tick's minimum-through-maximum payload range, while exclusive filters exclude that full range. `CreatedBetween` and `CreatedOutside` normalize reversed endpoints.
-
-Keep tick-bound calculations outside query expressions so providers receive scalar `long` comparisons. Regression coverage belongs in unit tests for equal, distinct, reversed, inclusive/exclusive, and epoch-half transition cases; database-backed verification is required only for provider translation or query-plan claims.
-
-### Maintenance Reference: Release Notes Triggers
-
-Apply these package-specific triggers only when the current repository owns and publishes the affected DRN package. Resolve release baselines, packaging targets, version-alignment rules, and required attribution from that repository's profile and package metadata. A consuming application follows its own release policy.
-
-| Package | Release-note trigger examples |
-|---------|-------------------------------|
-| `DRN.Framework.SharedKernel` | Domain primitives, public repository/domain contracts, exceptions, JSON conventions, public entity ID operations. |
-| `DRN.Framework.Utils` | Settings/configuration, DI attributes, logging/scope behavior, validators, hashing, ID utilities, public extension methods. |
-| `DRN.Framework.EntityFramework` | DbContext/repository behavior, migrations, provider defaults, query semantics, database safety gates. |
-| `DRN.Framework.Hosting` | Web hosting pipeline, security headers, CSRF/CSP/host filtering, endpoint behavior, Vite/static asset publishing, rate limiting. |
-| `DRN.Framework.Testing` | Test contexts, data attributes, providers, Testcontainers defaults, integration-test orchestration. |
-| `DRN.Framework.Jobs` | Published jobs package APIs, scheduling behavior, package metadata shipped to consumers. |
-| `DRN.Framework.MassTransit` | Published messaging package APIs, bus/consumer behavior, package metadata shipped to consumers. |
-
-Triggers include public API/contract changes, behavior/default changes, security or operational posture changes, observable bug fixes, data/migration behavior, package metadata changes other than version-only alignment, and dependency/runtime/container changes that are breaking, security-relevant, consumer-visible, or alter published artifacts.
-
-Non-triggers include internal-only refactors, tests, comments, private/internal implementation checks with no consumer-visible effect, agent-only docs, and routine dependency-only updates with no consumer-visible effect. For coordinated releases, follow the current profile's version-alignment rule. Otherwise, record release notes as not required when no trigger applies.
-
-### Maintenance Reference: Release Notes Format
-
-Use the current repository profile and the owning package's existing release notes for the template, heading style, prefix, footer, and package metadata limits. If neither defines a format, use [basic-documentation](../basic-documentation/SKILL.md#3-roadmap-vs-changelog-vs-release-notes) and [basic-git-conventions](../basic-git-conventions/SKILL.md#release-notes). Do not impose an upstream framework publisher's template on consuming applications.
-
-### Maintenance Reference: Documentation Sync Checklist
-
-In a framework source checkout, when source code changes one of the shared facts above:
-
-1. Verify the framework source-owned file or package docs.
-2. Update package READMEs with self-contained important facts wherever package readers need the new behavior.
-3. Update the owning package release notes when a release-note trigger above applies. Follow the current repository profile for coordinated version-alignment releases.
-4. Update framework-scoped DRN skills that agents use for that package.
-5. Search changed terms, renamed keys, changed defaults, and removed examples across package docs, framework skills, `AGENTS.md`, and the repository profile.
-6. Run `git diff --check`.
-
-In a consuming repository, update application-owned docs and affected local skills when required by the application's changes. Use version-matched package documentation to verify framework contracts without requiring upstream source files locally.
-
----
-
-## Related Skills
-
-| Skill | Package |
-|-------|---------|
-| [drn-domain-design.md](../drn-domain-design/SKILL.md) | Identity, Entities, Repositories |
-| [drn-sharedkernel.md](../drn-sharedkernel/SKILL.md) | Domain primitives, exceptions |
-| [drn-utils.md](../drn-utils/SKILL.md) | DI, settings, logging |
-| [drn-hosting.md](../drn-hosting/SKILL.md) | Web hosting, security |
-| [drn-entityframework.md](../drn-entityframework/SKILL.md) | Database access |
-| [drn-testing.md](../drn-testing/SKILL.md) | Test infrastructure |
-
----
+For changes to public behavior, update the owning package documentation and affected skills. Search old names, defaults and examples for drift. Use the publisher's profile for release triggers, format, coordinated version alignment and packaging limits. A consuming repository follows its own release policy. Run `git diff --check` after documentation edits.

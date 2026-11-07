@@ -108,7 +108,7 @@ For an application-owned HTML validation fragment, return status `422`, `Content
 
 ## Browser error reporting
 
-Expanded error details show the message, source, line and column, and page URL before the stack. Labels are bold. Values remain plain text, with stack indentation and line breaks preserved. The reporter reads the original stack once for both notification details and the server report. Display omits the first error heading only when it duplicates the message. The original stack remains unchanged for server reporting, subject to existing capture limits. If no browser frame lines are recognized, the stack section shows `Stack frames unavailable` while preserving other supplied stack text and source location. The reporter never generates a replacement stack. Existing saved details retain their original text order.
+Expanded error details show the message, source, line and column, and page URL before the stack. Labels are bold. Values remain plain text, with stack indentation and line breaks preserved. The reporter reads the original stack once for both notification details and the server report. Local details use the first 500 UTF-16 code units of the message, keeping surrogate pairs intact. Action errors use `Action failed` when that prefix is blank. The display omits a duplicate stack heading based on the displayed message. The original stack remains unchanged for server reporting, subject to existing capture limits. If no browser frame lines are recognized, the stack section shows `Stack frames unavailable` while preserving other supplied stack text and source location. The reporter never generates a replacement stack. Existing saved details retain their original text order.
 
 Browser URL sanitization uses `redacted` for matching path segments, query values, and named fragment values. Backend runtime does not match URL names. Explicit backend URL capture removes credentials and validates encoding; explicit value classifications use `[redacted]`.
 
@@ -127,7 +127,7 @@ try {
 }
 ```
 
-The reporter creates one notification and a brief toast. Its `clientErrorId` is shared with any backend report and retained in the backend scoped log. This is a correlation reference, not a distributed trace ID. Provide only safe public text in `message` and `operation`. Select Show details to reveal client-side diagnostic messages, sources, line and column, page URLs, and stacks as selectable text. Select Hide details to collapse them again. These searchable `clientErrorDetails` retain the original browser values except for page URLs, which use diagnostic URL redaction before display or persistence. Details are limited to 4,000 characters. They follow the notification's account isolation, persistence, and retention limits. Reports sent to the server continue to use diagnostic capture with redaction. Toasts keep the public message. `persist: false` keeps the notification in memory. Use `DRN.Problem.show` for backend Problem Details rather than reporting the same failure again as a browser error. Backend exception details are not included.
+The reporter creates one notification and a brief toast. Its `clientErrorId` is shared with any backend report and retained in the backend scoped log. This is a correlation reference, not a distributed trace ID. Provide only safe public text in `message` and `operation`. Select Show details to reveal client-side diagnostic messages, sources, line and column, page URLs, and stacks as selectable text. Select Hide details to collapse them again. These searchable `clientErrorDetails` retain the original browser values except for page URLs, which use diagnostic URL redaction before display or persistence. Details are limited to 4,000 characters. They follow the notification's account isolation, persistence, and retention limits. Reports sent to the server continue to use diagnostic capture with redaction. Action diagnostics show the message from an `Error` or the text of a thrown primitive, including `0` and `false`. Empty or whitespace-only messages appear as `Action failed`, as do other objects, functions, `null`, and `undefined`. Toasts keep the public message. `persist: false` keeps the notification in memory. Use `DRN.Problem.show` for backend Problem Details rather than reporting the same failure again as a browser error. Backend exception details are not included.
 
 The server captures ClientErrorPayload using explicit annotations and capture budgets. It does not repeat browser name checks or apply configured runtime paths. Unclassified string fields, including Url, retain their values. Explicitly classified properties remain redacted. Browser data carries no server classification authority.
 
@@ -212,6 +212,8 @@ Server handlers can use `SendToast` for immediate `HX-Trigger: showToast` feedba
 
 ## Frontend assets
 
+The Sample frontend targets recent browsers with native ES2025 support.
+
 To rebuild frontend assets, use npm and the exact Node.js version pinned in [`.node-version`](../.node-version). CI uses the same version. During dependency installation, `engine-strict=true` enforces the matching requirement in [package.json](package.json). Built assets are checked in, so this tooling is optional when simply running the sample.
 
 After changing frontend sources in `Sample.Hosted/buildwww/`, rebuild the assets from `Sample.Hosted/`:
@@ -227,6 +229,14 @@ Before generating assets, `npm run build` runs `npm run check`. Oxfmt checks the
 `npm run check` ends with an advisory Knip report on unused files, dependencies, and exports. The full build prints this report in CI. Run `npm run check:unused` directly to get a failing exit code for findings. The script sets `BUILD_TYPE=app` so Knip discovers that variant’s inputs from Vite. Keep the other variants’ bundle entries in [knip.json](knip.json). Review findings against Razor templates and browser globals before removing code.
 
 Build scripts use inline environment assignments such as `BUILD_TYPE=app vite build` and require a POSIX-compatible shell unless the scripts are made cross-platform. Vite selects each target through `BUILD_TYPE`, which targeted npm build scripts set explicitly. Direct Vite calls also use `BUILD_TYPE` and default to `app` when it is unset or empty.
+
+### HTMX navigation
+
+Same-origin swaps keep scripts only when their nonce matches the nonempty `HX-Nonce` response header, if supplied, and every CSP policy that restricts scripts. Each policy uses the first directive it defines from `script-src-elem`, `script-src`, and `default-src`, in that order. Without a header nonce, CSP must supply one. Cross-origin swaps strip all scripts. These rules also cover nested templates. If filtering fails, HTMX receives empty content.
+
+Swapped markup cannot disable `safe-nonce` through `hx-ext` or `data-hx-ext`.
+
+Fragment links such as `#section` preserve unsaved input. Back or Forward to a boosted history entry reloads the page and can discard a draft.
 
 ### Independently updating component behaviors
 
@@ -269,14 +279,23 @@ npm test
 npm run test:browser
 ```
 
-Run `npm run test:all` to run both suites in sequence. Browser tests run only when unit tests pass.
+Run `npm run test:all` for units followed by the browser suite. A unit failure stops the run. Use `npm run build:test:all` to build the assets first.
 
-Run `npm run build:test:all` to build all frontend assets, then run both test suites. Tests run only when the build succeeds.
+Add `--coverage` to print Node's coverage summary and write LCOV during the same unit run:
 
-Pull request, develop, master, stable release, and preview release workflows run frontend unit tests, build assets, then run browser tests against those assets. Analysis-only dependency setup skips building and testing.
+```bash
+npm run test:all -- --coverage
+npm run test:all -- --coverage --include 'buildwww/lib/**/*.ts' --exclude '**/*.d.ts' --report lib-coverage.info
+```
+
+`npm run test:coverage` collects unit coverage alone and accepts the same overrides. Each supplied filter replaces the corresponding default. Repeat `--include` or `--exclude` for multiple globs. The defaults include `buildwww/{app,lib}/**/*.{ts,tsx,js}`, exclude `**/*.d.ts`, and write `coverage-frontend.info` in the package directory. Node counts unloaded JS and TS files. The React unit tests execute TSX with source maps. Default coverage fails if any production TSX file lacks line data. Playwright runs separately from Node coverage.
+
+The GitHub Actions job summary shows covered lines, total lines, and the coverage percentage for all reported frontend sources, with a breakdown by file extension. The Sample’s React components appear in the `.tsx` row. Pull request and develop jobs publish this summary while backend validation runs in parallel. Master, stable release, and preview release jobs also submit the frontend LCOV and backend coverage in one Sonar scan. A missing report, a report without line data, or a failed quality gate blocks those workflows. Sonar configuration owns the thresholds. Release jobs verify the tag first and package the tested frontend assets.
+
+For multiple frontend packages, run the `frontend-build` action once per package in the same job before the Sonar scan. Set each step's `working-directory` to the package directory and `coverage-report` to `coverage-frontend.info`. Each package writes its own file. Pass the report paths relative to the analysis directory in one `frontend-lcov` input, for example `Sample.Hosted/coverage-frontend.info,Admin.Hosted/coverage-frontend.info`. If the workflow sets `sonar-typescript-tsconfig-paths`, include each package's TSConfig there too. Sonar imports all the reports in the same scan, as it does for the .NET unit, analyzer, and integration reports.
 
 The browser checks cover notification and form-error behavior without a running .NET app or database. `npm run test:browser` installs Playwright’s matching Chromium headless shell if needed. To install the shell ahead of time, run `npm run test:browser:install`. On Linux, run `npm exec --no --ignore-scripts -- playwright install-deps chromium` if system libraries are missing. CI installs those libraries before calling `test:browser`.
 
 The fixture suite scans the expanded notification dialog and the profile form after a validation error with axe. It also checks keyboard navigation and focus.
 
-For a full-page accessibility scan, [start Sample.Hosted](#run-locally), then run `npm run test:browser:hosted` from `Sample.Hosted/`. This separate suite opens the anonymous Razor home page at `http://localhost:5998/`, waits for the React island to render, and scans the entire page. Set `SAMPLE_HOSTED_URL` to use another running instance. Include the trailing slash when the application is hosted under a path prefix.
+For hosted browser tests, [start Sample.Hosted](#run-locally), then run `npm run test:browser:hosted` from `Sample.Hosted/`. The suite opens the anonymous Razor home page at `http://localhost:5998/`. It checks that rejecting optional cookies survives a reload and scans the full page for accessibility violations after the React island renders. Set `SAMPLE_HOSTED_URL` to use another running instance. Include the trailing slash when the application is hosted under a path prefix.

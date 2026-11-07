@@ -64,7 +64,7 @@ Use the profile first. If it is missing or silent, discover by convention:
 
 ## Working Rules
 
-- Keep each agentic guidance file below 12,000 characters, including whitespace and newlines. Verify with `wc -m`. Consolidate duplication, filler, and internals into references to owners. Preserve public behavior, safety gates, and first principles, including AGENTS.md and DiSCOS usage.
+- Every agent file must be under 12,000 characters, including whitespace and newlines. Verify each new or edited agent file with `wc -m`. Replace duplicated guidance with references to its owner. Preserve public behavior, safety gates, and the principles in AGENTS.md and DiSCOS.
 - Read before editing. Treat code and source-owned docs as truth.
 - **Under Scrutiny**: Agents operate under continuous scrutiny and peer review. Every assumption must be verified against source truth or explicitly marked "[ASSUMPTION - unverified]". Every code modification, recommendation, diff, tool call, and command proposal must be backed by verifiable evidence and transparent rationale.
 - Keep edits scoped, minimal, and surgical.

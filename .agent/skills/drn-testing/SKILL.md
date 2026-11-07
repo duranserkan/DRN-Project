@@ -1,41 +1,13 @@
 ---
 name: drn-testing
-description: "DRN.Framework.Testing - canonical DTT attribute/context matrix with DrnTestContext, DrnTestContextUnit, ContainerContext, ApplicationContext, DataInline/DataMember/DataSelf, MTP command guidance, AwesomeAssertions, AutoFixture, NSubstitute, Testcontainers, and xUnit v3. Keywords: testing, dtt, drntest-context, applicationcontext, testcontainers, mtp, xunit, data-attributes, unit-testing, integration-testing"
-last-updated: 2026-11-03
+description: "Choose DRN unit and integration data attributes, test contexts, fixtures, and MTP entry points."
+last-updated: 2026-11-07
 difficulty: intermediate
-tokens: ~1.7K
 ---
 
 # DRN.Framework.Testing
 
-> Canonical DTT (Duran's Testing Technique) guidance for choosing attributes, contexts, and test commands.
-
-For project classification catalogs, share schema fixtures between analyzer and runtime validation tests. Verify AdditionalFiles and EmbeddedResource registration, reference-assembly metadata, inherited catalogs, unrelated-assembly exclusion, and copy/publish boundaries. Keep one baseline catalog for browser and analyzer. Backend runtime cases must assert absence of name matching separately. Cover malformed sources, duplicate registration, concurrent compilation isolation, explicit snapshot classification, and code fixes. Use invalid replacement files to prove runtime revalidation rather than comparing values that no longer depend on catalog contents. Do not execute tests without the existing execution gate.
-
-Dictionary fixtures should use AddDictionary/SanitizeDictionary with explicit classifications. Exact-name comments acknowledge reviewed DRN0020 names but provide no runtime protection. Cover nested keys, mutation, scalar-only NonSensitive exemptions, positive-classification precedence, native copies, and absence of runtime name matching.
-
-Configured-path regressions must cover native and extension dictionary APIs, exact positive classifications, NonSensitive and unknown classifications, and protected descendants. Scope dictionary tests must accept safe constants while retaining diagnostics for unsafe subsequent writes and directly extracted classified properties.
-
-Diagnostic metadata regressions must cover interface-only positive classifications across declared, concrete, nested, generic and explicit-implementation captures. Keep unrelated same-named public properties visible. Verify lazy registration and warm positive/negative decisions without sharing mutable counters between parallel tests. Snapshot and byte-sizing changes require detached native-copy coverage, escaped Unicode fragment reconstruction, repeated writer reuse, serialization failure recovery and reentrant sizing. Warm lookup allocation tests do not prove allocation-free capture or export.
-
-DRN0019 schema-exemption tests must use real EF migration API references. Cover column definitions and composite constraint selectors, while retaining diagnostics for migration data objects, nested defaults, logging and lookalike APIs. Do not exclude migration folders or generated files.
-
-DRN0017/DRN0020 skip instance calls directly chained from NSubstitute Received/DidNotReceive and their WithAnyArgs variants. Ordinary calls on substitutes and model/anonymous declaration diagnostics remain checked. Keep verification calls directly chained rather than relying on aliases or wrappers.
-
-Logging analyzer tests use real Microsoft logging references. Cover templates, overloads, scope writes, inherited/interface classifications, lookalikes, and verification calls. Include inherited properties implementing interfaces introduced by the receiver type, with unrelated explicit implementations as counterexamples. For DRN0017/DRN0020/DRN0022 comments, assert exact-name and statement boundaries, malformed DRN0023 errors, and unused DRN0024 warnings. Preserve classified values, configured analyzer paths, declarations, and child checks. Unused attributes and reason/policy APIs must not warn. Pair compiler coverage with explicit runtime classification tests, including copies. See [SharedKernel guidance](../drn-sharedkernel/SKILL.md#attributes).
-
-SharedKernel classification errors also cover test models. Annotate fixture credentials and personal properties normally. Use direct `[Sensitive(false)]` only for deliberate operational false positives. Matching anonymous properties, including nested ones, require named annotated models under DRN0019. Keep intentional runtime-rejection fixtures under narrowly scoped, explained DRN0015 through DRN0019 suppressions. Do not exempt an entire test project. External-dependency launch logs must suppress credential getters and omit container graphs.
-
-Shared testing settings, container defaults, and docs-sync rules live in the [DRN Framework Maintenance Reference](../overview-drn-framework/SKILL.md#drn-framework-maintenance-reference).
-
-Resolve upstream links and local source through [Documentation And Source References](../overview-drn-framework/SKILL.md#documentation-and-source-references).
-
-## When to Apply
-
-- Selecting `[Fact]`, `DataInline*`, `DataMember*`, or `DataSelf*` patterns
-- Writing unit, integration, API, or database component tests
-- Using `DrnTestContext`, `DrnTestContextUnit`, `ContainerContext`, `ApplicationContext`, or `FlurlHttpTest`
-- Explaining how DRN test projects run under Microsoft Testing Platform (MTP)
+Use the installed `DRN.Framework.Testing` package README for provider APIs and project setup. [Locate the package](../overview-drn-framework/SKILL.md#documentation-and-source-references)
 
 ## DTT Attribute/Context Matrix
 
@@ -49,8 +21,6 @@ Resolve upstream links and local source through [Documentation And Source Refere
 | Integration member data | `[Theory]` + `[DataMember]` | optional `DrnTestContext` first | yes | complex data from static member |
 | Integration self-contained data | `[Theory]` + custom `DataSelfAttribute` | optional `DrnTestContext` first | yes | complex rows declared in an attribute class |
 
-Rules:
-
 - Request `DrnTestContext` / `DrnTestContextUnit` only when the test uses context services, configuration, data providers, containers, service validation, or app bootstrapping.
 - Use `DataInlineUnit` for pure logic and isolated services. Use `DataInline` when real dependencies make the signal more honest.
 - Never use `DrnTestContext` in unit-test projects. Use `DrnTestContextUnit` there and place full `DrnTestContext` coverage in integration-test projects discovered from the current repository.
@@ -58,79 +28,28 @@ Rules:
 - For one null inline value, use an explicit scalar cast such as `[DataInlineUnit((string?)null)]`. Bare `null` or `null!` can bind to the entire params array instead of a single data element.
 - Interface/abstract parameters auto-mocked by NSubstitute can replace matching `ServiceCollection` registrations. Use those substitutes for dependencies, not for concrete convenience methods whose implementation is the behavior under test.
 - Assertions use `AwesomeAssertions`.
-- Unit self-data derives from `DataSelfUnitAttribute`.
 - For coarse-precision temporal ID filters, cover inclusive/exclusive payload edges, equal and distinct endpoints, reversed ranges, and ordering transitions. Keep deterministic ID comparisons in unit tests; use database integration only when provider translation or query-plan behavior is under test.
 - **Environment Invariants & Test Flags**: Never bypass framework/app invariants by branching on environment checks (such as `IsDevelopment()`) for tests; configure explicit test/temporary flags (`TemporaryApplication`, `SkipValidation`) or dedicated test contexts instead.
 
-## Minimal Patterns
+## Regression fixtures
 
-Use fresh support processes for Source-Known startup acceptance/rejection, static first use, and historical freezing. Startup-only probes must inspect `SourceKnownGenerationTime.Policy` without freezing it themselves. Use isolated unit state for configuration, rounding, range, drift, retry, and concurrency cases; never reset production statics or change the machine clock. Verify that generation, decoding, and date filters share the configured epoch. See upstream [SourceKnownStartupProcessTests](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Test.Unit/Tests/Framework/Hosting/SourceKnownStartupProcessTests.cs) and [SourceKnownGenerationTimeTests](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Test.Unit/Tests/Framework/Utils/Ids/SourceKnownGenerationTimeTests.cs).
-
-Application types, service-registration methods, and endpoint accessors below are illustrative. Substitute the consuming repository's equivalents.
-
-```csharp
-[Fact]
-public void Trim_Should_Remove_Outer_Whitespace()
-{
-    "  Duran  ".Trim().Should().Be("Duran");
-}
-
-[Theory]
-[DataInlineUnit(2, 3, 5)]
-[DataInlineUnit(-1, -2, -3)]
-public void Add_Should_Return_Correct_Sum(int a, int b, int expected)
-{
-    (a + b).Should().Be(expected);
-}
-
-[Theory]
-[DataInlineUnit]
-public void Service_Should_Use_Mocked_Dependency(DrnTestContextUnit context, IDependency dependency)
-{
-    dependency.GetValue().Returns(42);
-    context.ServiceCollection.AddScoped<IDependency>(_ => dependency);
-    context.ServiceCollection.AddScoped<MyService>();
-
-    context.GetRequiredService<MyService>().Calculate().Should().Be(42);
-}
-
-public sealed class CategoryRows : DataSelfUnitAttribute
-{
-    public CategoryRows()
-    {
-        AddRow("dotnet");
-        AddRow("security");
-    }
-}
-```
+For an HTTP integration test, substitute the application's own host entry point and route:
 
 ```csharp
 [Theory]
-[DataInline]
-public async Task Repository_Should_Persist_Entity(DrnTestContext context)
+[DataInline("/health")]
+public async Task Health_endpoint_succeeds(DrnTestContext context, string route)
 {
-    context.ServiceCollection.AddExampleInfraServices();
-    await context.ContainerContext.Postgres.ApplyMigrationsAsync();
-
-    var repository = context.GetRequiredService<ICategoryRepository>();
-    var category = new Category("dotnet");
-
-    await repository.CreateAsync(category);
-
-    category.EntityId.Should().NotBe(Guid.Empty);
-}
-
-[Theory]
-[DataInline]
-public async Task Endpoint_Should_Return_Data(DrnTestContext context)
-{
-    var client = await context.ApplicationContext.CreateClientAsync<ExampleProgram>();
-    var result = await client.GetFromJsonAsync<WeatherForecast[]>(
-        Get.Endpoint.Api.WeatherForecast.Get.RoutePattern);
-
-    result.Should().NotBeEmpty();
+    using var client = await context.ApplicationContext.CreateClientAsync<AppProgram>();
+    using var response = await client.GetAsync(route);
+    response.EnsureSuccessStatusCode();
 }
 ```
+
+- For ID startup and first-use checks, use fresh support processes. Inspect `SourceKnownGenerationTime.Policy` without freezing it in the probe. Use isolated unit state for rounding, drift, retries and concurrency. Preserve production statics and the machine clock.
+- Register real logging and EF migration references for analyzer tests. Pair accepted schema expressions, constant keys and direct substitute verification calls with migration data, unsafe writes, lookalikes and ordinary calls. Cover exact comment names, statement boundaries, malformed and unused acknowledgements. Keep suppressions narrow and explained.
+- Use shared analyzer/browser catalog fixtures and separate backend cases for explicit classification. Exercise reference-assembly inheritance, isolation between compilations, malformed catalogs, copy/publish boundaries and code fixes. An invalid replacement file proves runtime revalidation. Annotate fixture properties and use named models for matching anonymous properties. See [classification rules](../drn-sharedkernel/SKILL.md#attributes).
+- Test native and extension dictionary APIs, dynamic keys, exact classifications, configured paths, protected descendants and detached copies. Include inherited and explicit interface implementations, unrelated same-named members, classified getters and ignored members. Keep positive/negative cache assertions independent across parallel tests. Verify escaped Unicode reconstruction, repeated and reentrant sizing, and recovery after serialization failure. Preserve credential suppression in external-dependency logs.
 
 ## Context Capabilities
 
@@ -170,41 +89,11 @@ When test helpers, assertion extensions, or mocks need access to private or inte
 
 For Razor rendering helpers, exercise a real `RazorView` with `_ViewStart` and a layout as well as a standalone page. These templates participate in activation but do not derive from Razor Pages' `Page` type. Keep scope-disposal coverage on both successful and failing renders.
 
-## MTP Commands
+## MTP commands and setup
 
-Repository rule: do not build or run tests unless the user explicitly allows it. When allowed, prefer commands from `.agent/repository-profile.md`; otherwise discover test project paths from the filesystem or CI. Use project commands only; never use `.slnx` for test execution.
+Find the test project and target framework in the application's project files, profile or CI. Follow its command approval rules. Run MTP projects individually. Unit tests precede integration tests, which need explicit permission. Benchmarks and load tests need an explicit request.
 
-```bash
-# Unit tests first
-dotnet run --project <unit-test-csproj>
-
-# Filter a unit class or method
-dotnet run --project <unit-test-csproj> -- --filter-class Fully.Qualified.TestClass
-dotnet run --project <unit-test-csproj> -- --filter-method Fully.Qualified.TestMethod
-
-# Integration tests only after unit tests pass
-dotnet run --project <integration-test-csproj>
-
-# Filter integration tests
-dotnet run --project <integration-test-csproj> -- --filter-class Fully.Qualified.IntegrationTestClass
-
-# Performance only on explicit request
-dotnet run -c Release --project <performance-test-csproj> -- --filter-method Fully.Qualified.PerformanceTestClass.Run_Benchmarks
-```
-
-## Test Project Essentials
-
-```xml
-<PropertyGroup>
-  <TargetFramework>net10.0</TargetFramework>
-  <OutputType>Exe</OutputType>
-  <IsPackable>false</IsPackable>
-  <IsTestProject>true</IsTestProject>
-  <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
-</PropertyGroup>
-```
-
-If a test uses `Settings/` or `Data/`, copy those files to output. Global usings should include `AwesomeAssertions`, `NSubstitute`, xUnit v3, `DRN.Framework.Testing.Contexts`, `DRN.Framework.Testing.Contexts.Application`, `DRN.Framework.Testing.DataAttributes`, and `Microsoft.Extensions.DependencyInjection`.
+Use an executable non-packable test project with `IsTestProject` and `UseMicrosoftTestingPlatformRunner` enabled. Copy fixture Settings and Data to the output when used. The Testing README owns the sample project and imports.
 
 ## Related Skills
 

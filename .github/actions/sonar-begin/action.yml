@@ -24,6 +24,9 @@ inputs:
     description: "Source-analysis exclusions; defaults to generated wwwroot, bin, and obj output to avoid scanning build artifacts as source."
     required: false
     default: "**/wwwroot/**,**/bin/**,**/obj/**"
+  frontend-lcov:
+    description: "Optional comma-separated frontend LCOV file paths relative to the analysis directory."
+    required: false
   sonar-typescript-tsconfig-paths:
     description: "Comma-separated TSConfig paths or patterns relative to working-directory. Empty uses Sonar discovery."
     required: false
@@ -59,6 +62,7 @@ runs:
         SONAR_HOST_URL: ${{ inputs.sonar-host-url }}
         SONAR_ORGANIZATION: ${{ inputs.sonar-organization }}
         SONAR_EXCLUSIONS: ${{ inputs.sonar-exclusions }}
+        FRONTEND_LCOV: ${{ inputs.frontend-lcov }}
         SONAR_TYPESCRIPT_TSCONFIG_PATHS: ${{ inputs.sonar-typescript-tsconfig-paths }}
         SONAR_SECRETS_EXCLUDED_FILE_SUFFIXES: ${{ inputs.sonar-secrets-excluded-file-suffixes }}
         SONAR_PROJECT_VERSION: ${{ inputs.version }}
@@ -81,6 +85,17 @@ runs:
           "/d:sonar.qualitygate.wait=true",
           "/d:sonar.qualitygate.timeout=600"
         )
+
+        if ($env:FRONTEND_LCOV) {
+          $reports = $env:FRONTEND_LCOV.Split(',', [StringSplitOptions]::TrimEntries)
+          foreach ($report in $reports) {
+            if (!$report) { throw "Empty path in frontend-lcov" }
+            if (!(Select-String -LiteralPath $report -Pattern '^DA:[1-9][0-9]*,[0-9]+(,.*)?$' -Quiet)) {
+              throw "Expected frontend line coverage in $report"
+            }
+          }
+          $scannerArgs += "/d:sonar.javascript.lcov.reportPaths=$($reports -join ',')"
+        }
 
         if (-not [string]::IsNullOrWhiteSpace($env:SONAR_EXCLUSIONS)) {
           $scannerArgs += "/d:sonar.exclusions=$env:SONAR_EXCLUSIONS"

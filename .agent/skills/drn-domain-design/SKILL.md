@@ -1,144 +1,32 @@
 ---
 name: drn-domain-design
-description: "Domain-Driven Design implementation patterns - Entity design with Source-Known IDs (SourceKnownEntity, AggregateRoot), repository contracts (ISourceKnownRepository), domain events, EF Core configuration, DTO mapping rules, and implementation templates. Essential for domain modeling and data access. Keywords: ddd, entity-design, aggregate-root, source-known-id, repository, domain-events, ef-core-configuration, dto-mapping, entity-type, identity"
-last-updated: 2026-10-29
+description: "Model DRN aggregates, repository boundaries, contract DTOs, mapping, and paginated APIs."
+last-updated: 2026-11-07
 difficulty: advanced
-tokens: ~2.9K
 ---
 
 # Domain Design Patterns
 
-> Entity design, repository implementation, and DDD patterns for DRN applications.
-
-`Example.*`, `ExampleDbContext`, and `ExampleEntityTypes` below are illustrative application names. Resolve actual project paths, namespaces, and types from the destination repository. `DefaultApp` demonstrates the framework's default partition. Preserve the application's declared `IAppId` or supported derived entity-type attribute when adapting examples.
-
-## When to Apply
-- Creating domain entities & aggregate roots
-- Implementing repositories
-- Working with Source-Known IDs
-- Configuring EF Core entity types
-- Mapping entities to DTOs
-
----
-
 ## Entity Design
 
-All entities inherit from `SourceKnownEntity`. See [drn-sharedkernel](../drn-sharedkernel/SKILL.md) for base class details and identity struct definitions.
+Use the consuming application's domain types and the API exposed by its installed SharedKernel and EntityFramework packages. [Resolve the package version](../overview-drn-framework/SKILL.md#documentation-and-source-references)
 
-### Creating an Entity
-
-```csharp
-[EntityType<DefaultApp>(1)]              // Unique byte within the application partition
-public class User : SourceKnownEntity    // or AggregateRoot
-{
-    private User() { }                   // EF constructor
-    public User(string username, string email) : base()
-    {
-        Username = username;
-        Email = email;
-    }
-
-    public string Username { get; private set; }
-    public string Email { get; private set; }
-    
-    public void UpdateEmail(string newEmail)
-    {
-        Email = newEmail;
-    }
-}
-```
-
-### Key Rules
-- `[EntityType<TApp>(byte)]` or a supported application-derived attribute is required. `TApp` implements `IAppId`.
-- Private parameterless constructor for EF Core materialization
-- Domain logic lives on the entity, not in services
-- Never expose setters publicly — use methods with domain validation
-
-### JSON Model Entities
-
-For entities with rich document models, use `AggregateRoot<TModel>`:
-
-```csharp
-[EntityType<DefaultApp>(3)]
-public class SystemSettings : AggregateRoot<SettingsModel> { }
-
-public class SettingsModel
-{
-    public string Theme { get; set; }
-    public int MaxRetries { get; set; }
-}
-// `.Model` is auto-mapped to jsonb column by DrnContext
-```
-
----
+Use `SourceKnownEntity` for an entity and `AggregateRoot` for a repository root. Select the domain's existing `IAppId` and a unique entity byte for that partition. Annotate the concrete entity with `[EntityType<TApp>(byte)]` or the application-derived attribute. Keep an EF materialization constructor and enforce invariants in the domain constructor and mutation methods. Restrict setters. Use `AggregateRoot<TModel>` for a document model whose `Model` property maps to PostgreSQL `jsonb`. [SharedKernel identity](../drn-sharedkernel/SKILL.md#entity-base-class)
 
 ## EF Core Configuration
 
-> [!TIP]
-> **Design Preference**: Prefer **Attribute-based configuration** over Fluent API when available. Use Fluent API only for **complex definitions** that cannot be elegantly expressed with attributes (e.g., composite keys, complex many-to-many relationships, or conditional mapping).
-
-DrnContext auto-discovers `IEntityTypeConfiguration<T>` from the context's namespace:
-
-```csharp
-public class UserConfiguration : IEntityTypeConfiguration<User>
-{
-    public void Configure(EntityTypeBuilder<User> builder)
-    {
-        builder.HasKey(u => u.Id);
-        builder.Property(u => u.Username).HasMaxLength(100);
-    }
-}
-```
-
-> [!CAUTION]
-> **Navigation Configuration Ordering**: Navigation-level configurations (e.g., `AutoInclude()`) must be placed **after** relationship definitions in Fluent API. Placing them before silently fails. See [dotnet/efcore#31380](https://github.com/dotnet/efcore/issues/31380).
->
-> ```csharp
-> // ✗ WRONG — AutoInclude silently ignored
-> builder.Navigation(x => x.Books).AutoInclude();
-> builder.HasMany(x => x.Books).WithMany();
->
-> // ✓ CORRECT — define relationship first, then configure navigation
-> builder.HasMany(x => x.Books).WithMany();
-> builder.Navigation(x => x.Books).AutoInclude();
-> ```
-
-### Conventions Applied by DrnContext
-- Auto ID generation via `IDrnSaveChangesInterceptor`
-- `EntityIdSource` initialization via `IDrnMaterializationInterceptor`
-- `EntityId` (Guid) and `EntityIdSource` are **not mapped** to DB columns
-- `IEntityWithModel<T>` auto-maps `.Model` to `jsonb`
-
-> [!TIP]
-> **Prototype Mode**: Set `UsePrototypeMode = true` on configuration attribute for ephemeral testcontainer-based development — auto-handles DB creation and migrations. See [drn-entityframework](../drn-entityframework/SKILL.md).
-
----
+Add a `DbSet<T>` and, when needed, an `IEntityTypeConfiguration<T>` in the context's assembly and namespace or a child namespace. Prefer attributes for simple mappings. Define relationships before navigation options such as `AutoInclude()`. Let DrnContext manage internal IDs, external identity, timestamps and lifecycle events. Keep computed external identity properties out of database columns. Follow the [prototype safeguards](../drn-entityframework/SKILL.md#prototype-mode) for ephemeral development databases.
 
 ## Repository Implementation
 
-Canonical contract in [drn-sharedkernel](../drn-sharedkernel/SKILL.md). Implementation in [drn-entityframework](../drn-entityframework/SKILL.md).
-
-### IEntityUtils
-
-`IEntityUtils` provides scoped utilities available in repositories via base class:
-
-| Property | Type | Purpose |
-|----------|------|---------|
-| `Id` | `ISourceKnownIdUtils` | Generate internal `long` IDs |
-| `EntityId` | `ISourceKnownEntityIdUtils` | Generate/parse/validate external GUIDs |
-| `Cancellation` | `ICancellationUtils` | Token management and merging |
-| `Pagination` | `IPaginationUtils` | Pagination logic helpers |
-| `DateTime` | `IEntityDateTimeUtils` | Time-aware entity filtering (CreatedAfter, CreatedBefore, etc.) |
-| `ScopedLog` | `IScopedLog` | Integrated logging |
-| `UtcNow` | `DateTimeOffset` | Current UTC timestamp from `IDateTimeProvider` |
-
-### Custom Repository with Behavior Override
+Define `ISourceKnownRepository<TAggregate>` interfaces in the domain. Implement them in Infrastructure with `SourceKnownRepository<TContext, TAggregate>` and the scoped DI attribute. Use the inherited scoped `IEntityUtils` for identity, pagination, date filtering, cancellation, time and logging. Start joins, includes and custom filters from `EntitiesWithAppliedSettings()` so callers retain their repository settings.
 
 ```csharp
 public interface IUserRepository : ISourceKnownRepository<User> { }
 
 [Scoped<IUserRepository>]
-public class UserRepository : SourceKnownRepository<ExampleDbContext, User>, IUserRepository
+public class UserRepository(ExampleDbContext context, IEntityUtils utils)
+    : SourceKnownRepository<ExampleDbContext, User>(context, utils), IUserRepository
 {
     protected override IQueryable<User> EntitiesWithAppliedSettings([CallerMemberName] string? caller = null) =>
         base.EntitiesWithAppliedSettings(caller)
@@ -147,190 +35,28 @@ public class UserRepository : SourceKnownRepository<ExampleDbContext, User>, IUs
 }
 ```
 
-> [!TIP]
-> Always use `EntitiesWithAppliedSettings()` when building custom queries (joins, complex filters) to ensure repository settings are respected.
-
-### ID Validation at Repository Boundary
-
-```csharp
-// Validate external GUID matches entity type
-var entityId = userRepository.GetEntityId(externalGuid);
-var user = await userRepository.GetAsync(entityId);
-```
-
----
+Validate external GUIDs against the entity type and application partition at the repository boundary. Let the parser enforce the selected format. [Repository contracts](../drn-sharedkernel/SKILL.md#repository-contract)
 
 ## Contract Layer
 
-> [!IMPORTANT]
-> The `*.Contract` project is the **shared boundary** between layers. It holds DTOs, shared enums, and value models — anything consumed across Domain, Application, Infrastructure, or Presentation.
-
-### Dependency Rule
-
-- Contract depends **only** on `DRN.Framework.SharedKernel`
-- Any project (including `*.Domain`) may reference `*.Contract`
-
-### What Belongs in Contract
-
-| Place Here | Never Place Here |
-|------------|------------------|
-| DTOs (`Dto` subclasses) | Entities |
-| Shared enums (source of truth for DTOs & entities) | Repository interfaces |
-| Value models (e.g., `TagValueModel`) | Domain services |
-| Shared constants / display types | Business logic |
-
-### Enum Placement Rule
-
-Enums that are **shared between DTOs and entities** (e.g., `TagType`) must be defined in the Contract project as the single source of truth — unless there is a **strong objection** (security exposure, validation coupling, or maintainability risk).
-
-Enums internal to the domain (e.g., `ExampleEntityTypes` used only for entity-type attributes) remain in `*.Domain`.
-
----
+Keep `*.Contract` dependent only on SharedKernel. Put DTOs, value models, shared constants and enums consumed by both entities and DTOs there. Keep entities, repository interfaces, domain services and internal entity-type enums in Domain. Review exposure and validation requirements before sharing an enum across that boundary.
 
 ## DTO Mapping Rules
 
-> [!IMPORTANT]
-> 1. All DTOs **must derive from `Dto` base class** and live in `*.Contract` project
-> 2. Primary constructor accepts `SourceKnownEntity?` (base type, **not** concrete entity)
-> 3. Entity-specific properties use `required` + `init` with default values
-> 4. Public APIs must **never** return/accept Entities — always DTOs
-> 5. Expose only `Guid` IDs, never `long Id` or `SourceKnownEntityId`
-> 6. Keep DTOs concise — no pagination results, no unnecessary properties
-
-### DTO Definition (in `*.Contract`)
+Expose GUIDs and DTOs at public API boundaries. Derive DTOs from `Dto` and pass the optional `SourceKnownEntity?` to the base constructor to map public identity and timestamps. Use `required` init properties with defaults for entity-specific data. Keep paging metadata on the result.
 
 ```csharp
-// Illustrative path: Example.Contract/Categories/CategoryDto.cs
-using DRN.Framework.SharedKernel.Domain;
-
-namespace Example.Contract.Categories;
-
+// Contract
 public class CategoryDto(SourceKnownEntity? entity = null) : Dto(entity)
 {
     public required string Name { get; init; } = string.Empty;
 }
-// Id, CreatedAt, ModifiedAt are auto-mapped by Dto base class
 ```
 
-> Constructor takes `SourceKnownEntity?` (not concrete entity) to keep Contract independent of Domain. Entity-specific mapping uses `ToDto()` in Domain layer.
-
-### Entity-to-DTO Mapping (in `*.Domain`)
-
-Map entity properties via `ToDto()` **instance method on the entity** using object initializers:
-
-```csharp
-// Illustrative path: Example.Domain/Categories/Category.cs
-using Example.Contract.Categories;
-
-[EntityType<DefaultApp>((byte)ExampleEntityTypes.Category)]
-public class Category : AggregateRoot
-{
-    // ... entity definition ...
-
-    public CategoryDto ToDto() => new(this)
-    {
-        Name = Name
-    };
-}
-```
-
-`new(this)` passes entity → base `Dto` constructor (maps `Id`, `CreatedAt`, `ModifiedAt`). Object initializer sets entity-specific `required` properties.
-
-### DTO-to-Entity Mapping (in `*.Domain`)
-
-Since Contract cannot reference Domain, DTO-to-Entity mapping uses **extension methods** defined in the Domain project:
-
-```csharp
-// Illustrative path: Example.Domain/Categories/CategoryMappingExtensions.cs
-using Example.Contract.Categories;
-
-namespace Example.Domain.Categories;
-
-public static class CategoryMappingExtensions
-{
-    public static Category ToEntity(this CategoryDto dto) => new(dto.Name);
-}
-```
-
-> [!TIP]
-> Extension methods must call the entity's **domain constructor** — never bypass invariant enforcement.
-
-### Mapper Convention Summary
-
-| Direction | Default Pattern | When Entity is Crowded |
-|-----------|----------------|------------------------|
-| Entity → DTO | Instance method `ToDto()` on entity | Extract to extension method |
-| DTO → Entity | Extension method `dto.ToEntity()` in Domain | Same |
-
-> Extract `ToDto()` to the extension class (e.g., `CategoryMappingExtensions`) when the entity grows crowded with mapping logic.
-
----
+In Domain, map out with `CategoryDto ToDto() => new(this) { Name = Name };` on the entity. Move mapping to a domain extension class if it crowds out domain behavior. Map back through a Domain extension that calls the entity's constructor, such as `new Category(dto.Name)`, so validation runs on every path.
 
 ## API Integration
 
-> [!WARNING]
-> **Never enumerate all entities unless explicitly requested.** Always use pagination to protect system performance.
+Use paged collection endpoints by default. Accept `PaginationRequest` from the query for the initial GET and `PaginationResultInfo` for subsequent GET-query or POST-body navigation. For an individual item accept a GUID and map the entity to its DTO. Map page items with `result.ToModel(entity => entity.ToDto())`. Enumerate the full dataset only when explicitly requested.
 
-### Controller Pagination Triad
-
-Implement these three endpoints for comprehensive pagination support:
-
-```csharp
-[HttpGet]
-public async Task<PaginationResultModel<UserDto>> GetAsync([FromQuery] PaginationRequest request)
-{
-    var result = await _userRepository.PaginateAsync(request);
-    return result.ToModel(user => user.ToDto());
-}
-
-// Also implement: GET "paginate" ([FromQuery] PaginationResultInfo?)
-//                 POST "paginate" ([FromBody] PaginationResultInfo?)
-
-[HttpGet("{id:guid}")]
-public async Task<UserDto> GetByIdAsync(Guid id)
-{
-    var entity = await _userRepository.GetAsync(id);
-    return entity.ToDto();
-}
-```
-
-> **Mapping Rule**: `PaginationResultModel` must always contain DTOs when returned from API. Use `.ToModel(entity => entity.ToDto())` to map.
-
-### EntityCreatedFilter
-
-Date-based filtering for pagination and queries:
-
-```csharp
-// Factory methods (all accept optional inclusive parameter, default true)
-EntityCreatedFilter.After(DateTimeOffset date)
-EntityCreatedFilter.Before(DateTimeOffset date)
-EntityCreatedFilter.Between(DateTimeOffset begin, DateTimeOffset end)
-EntityCreatedFilter.Outside(DateTimeOffset begin, DateTimeOffset end)
-
-// Usage
-var filter = EntityCreatedFilter.After(DateTimeOffset.UtcNow.AddDays(-7));
-var result = await repository.PaginateAsync(request, filter);
-```
-
----
-
-## Implementation Template
-
-New entity checklist:
-1. Create an entity with `[EntityType<TApp>(byte)]` or a supported application-derived attribute and a private parameterless constructor. Select the application's existing `IAppId` and an entity byte unique within that partition.
-2. Create DTO in `*.Contract` project with `Dto` base class and `required` + `init` properties
-3. Add `ToDto()` instance method on entity with object initializer
-4. Add `IEntityTypeConfiguration<T>` in infrastructure layer
-5. Add `DbSet<T>` to `DrnContext`
-6. Create repository interface (`IXxxRepository : ISourceKnownRepository<T>`)
-7. Implement repository with `[Scoped<IXxxRepository>]`
-8. Add migration: `dotnet ef migrations add AddXxx --context MyContext`
-
----
-
-## Related Skills
-
-- [drn-sharedkernel.md](../drn-sharedkernel/SKILL.md) - Entity base classes, repository contract, ID structs
-- [drn-entityframework.md](../drn-entityframework/SKILL.md) - DrnContext, migrations, repository implementation
-- [overview-ddd-architecture.md](../overview-ddd-architecture/SKILL.md) - Layer architecture
-- [drn-utils.md](../drn-utils/SKILL.md) - Attribute-based DI
+Use `EntityCreatedFilter.After`, `Before`, `Between` or `Outside` for creation dates. Boundaries default to inclusive. Keep date logic in the shared filter to preserve ID tick precision. Once mapping and registration are in place, follow the repository's migration and execution gates.

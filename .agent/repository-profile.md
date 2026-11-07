@@ -77,7 +77,7 @@ dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 - Runtime access: prefer `[UnsafeAccessor]` when target types are known and accessible at compile time. Reserve reflection for dynamically discovered types.
 - Logging: use `IScopedLog` for request/operation diagnostics. Direct `ILogger` is for bootstrap, scope flushing, or dedicated audit events. Do not duplicate full request logs in audit events. Dynamic classification is the application's responsibility; backend runtime capture has no name-based redaction fallback.
 - Testing: use `DrnTestContextUnit` in `DRN.Test.Unit`; full `DrnTestContext` belongs in integration tests. Reusable hosted test programs belong in `DRN.Test.Utils`, not MTP executables. `drn-testing` owns data attributes and fixture contracts. Do not weaken production invariants for tests.
-- Frontend: source is `Sample.Hosted/buildwww/`; output is `Sample.Hosted/wwwroot/`. Browser APIs use `window.DRN`. `DRN`, `Drn*`, and `DRN.Framework.*` are real framework names, not placeholders. Buildwww skills own mounting, React, nonce, and CSRF conventions.
+- Frontend: `Sample.Hosted/buildwww/` builds to `Sample.Hosted/wwwroot/`. See [browser support](../Sample.Hosted/README.md#frontend-assets). Browser APIs use `window.DRN`. Preserve the framework names `DRN`, `Drn*`, and `DRN.Framework.*`. Buildwww skills cover mounting, React, nonces, and CSRF.
 - Sample behaviors: `buildwww/app/ts/behaviors/{layout,home,test}/` feed separate `layoutBehaviors.ts`, `homeBehaviors.ts`, and `testBehaviors.ts` entries. Load layout globally and page entries through their owning Razor `Scripts` sections. Use declarative data and idempotent mounting. `Sample.Hosted/README.md`, Independently updating component behaviors, owns aggregate/selective commands, nonce-fixture exceptions, and deployment/restart rules.
 - Sample developer tools: completed MFA is required everywhere. Development allows signed-in users; other environments require `SystemAdmin` or boolean `SwaggerAccess`/`TestPagesAccess` claims set to `true`. The matching policies govern endpoints and visibility. Framework Swagger remains Development-only by default.
 - Sample/Nexus configure `/Api` for unmatched API routes. Sample opts into HTMX Problem Details through `DrnApiErrorOptions.HandleHtmxRequests`. Preserve browser account isolation and separate `requestId`/`clientErrorId` references.
@@ -90,7 +90,7 @@ dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 
 ## Frontend Test Scope
 
-Under `Sample.Hosted/buildwww/tests/`, `npm test` discovers `.test.js` and `.test.ts` recursively, including top-level suites and `unit/<module>/`. Playwright uses `browser/` for Vite fixtures and `hosted/` for a running Sample instance. `Sample.Hosted/README.md`, Frontend Tests, owns setup and commands. Execution requires explicit permission.
+Under `Sample.Hosted/buildwww/tests/`, Node discovers `.test.js` and `.test.ts` recursively. CI summarizes frontend and React TSX line coverage. Master and release scans require LCOV and enforce the Sonar quality gate. Playwright uses `browser/` for Vite fixtures and `hosted/` for a running Sample instance. `Sample.Hosted/README.md`, Frontend Tests, owns scope, setup, and commands. Execution requires explicit permission.
 
 ## DRN Framework Source Overlay
 
