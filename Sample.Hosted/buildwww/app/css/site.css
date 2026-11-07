@@ -25,18 +25,20 @@
 }
 
 .card.shadow:hover {
-    box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .1);
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
 }
 
 /* Consistent Panel Header Height — fixed height ensures headers with/without
    action buttons align when panels sit side-by-side in a grid row. */
-.card>.card-header {
+.card > .card-header {
     height: 3.5rem;
 }
 
 /* Nav-link Smooth Transition — background and color */
 .nav-link {
-    transition: background-color 0.15s ease, color 0.15s ease;
+    transition:
+        background-color 0.15s ease,
+        color 0.15s ease;
 }
 
 /* Switch outline button text and background together to preserve contrast during focus and hover. */
@@ -55,4 +57,10 @@
 
 .htmx-request .htmx-spin-indicator {
     animation: drn-spin 0.75s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .htmx-request .htmx-spin-indicator {
+        animation: none;
+    }
 }

@@ -6,6 +6,6 @@ export default defineConfig({
     forbidOnly: !!process.env.CI,
     use: {
         baseURL: process.env.SAMPLE_HOSTED_URL ?? 'http://localhost:5998/',
-        trace: 'retain-on-failure'
-    }
+        trace: 'retain-on-failure',
+    },
 });

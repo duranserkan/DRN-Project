@@ -1,0 +1,16 @@
+{
+  "extends": ["stylelint-config-recommended"],
+  "overrides": [
+    {
+      "files": ["**/*.scss"],
+      "extends": ["stylelint-config-recommended-scss"]
+    },
+    {
+      "files": ["buildwww/lib/react/**/*.css"],
+      "rules": {
+        "at-rule-no-unknown": [true, { "ignoreAtRules": ["apply", "reference"] }],
+        "at-rule-prelude-no-invalid": [true, { "ignoreAtRules": ["apply"] }]
+      }
+    }
+  ]
+}

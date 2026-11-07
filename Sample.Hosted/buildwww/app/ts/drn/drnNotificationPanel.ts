@@ -13,7 +13,7 @@ const SEVERITIES = {
     error: { label: 'Error', icon: 'bi-exclamation-triangle-fill', color: 'text-danger' },
     warning: { label: 'Warning', icon: 'bi-exclamation-circle-fill', color: 'text-warning' },
     info: { label: 'Information', icon: 'bi-info-circle-fill', color: 'text-primary' },
-    success: { label: 'Success', icon: 'bi-check-circle-fill', color: 'text-success' }
+    success: { label: 'Success', icon: 'bi-check-circle-fill', color: 'text-success' },
 };
 
 let installed = false;
@@ -26,17 +26,24 @@ let undoTimer: ReturnType<typeof setTimeout> | undefined;
 let detailsSequence = 0;
 
 function matchesSeverity(entry: DrnNotification, severity: string) {
-    return severity === 'all' || entry.type === severity ||
-        (severity === 'info' && entry.type === 'success');
+    return severity === 'all' || entry.type === severity || (severity === 'info' && entry.type === 'success');
 }
 
 export function filterNotifications(entries: DrnNotification[], severity = 'all', search = '') {
     const needle = search.trim().toLocaleLowerCase();
-    return entries.filter(entry => {
+    return entries.filter((entry) => {
         const severityMatches = matchesSeverity(entry, severity);
         if (!severityMatches || !needle) return severityMatches;
-        const searchable = [entry.title, entry.message, entry.operation, entry.requestId, entry.clientErrorId,
-            entry.clientErrorDetails].join('\n').toLocaleLowerCase();
+        const searchable = [
+            entry.title,
+            entry.message,
+            entry.operation,
+            entry.requestId,
+            entry.clientErrorId,
+            entry.clientErrorDetails,
+        ]
+            .join('\n')
+            .toLocaleLowerCase();
         return searchable.includes(needle);
     });
 }
@@ -45,8 +52,15 @@ export function groupNotifications(entries: DrnNotification[]) {
     const groups: NotificationGroup[] = [];
     const groupsByKey = new Map<string, NotificationGroup>();
     for (const entry of entries) {
-        const key = JSON.stringify([entry.type, entry.problemType, entry.status, entry.operation,
-            entry.target, entry.title, entry.message]);
+        const key = JSON.stringify([
+            entry.type,
+            entry.problemType,
+            entry.status,
+            entry.operation,
+            entry.target,
+            entry.title,
+            entry.message,
+        ]);
         let group = groupsByKey.get(key);
         if (!group) {
             group = { id: entry.id, entries: [] };
@@ -96,11 +110,14 @@ function renderDiagnosticDetails(details: string) {
     let inStack = false;
     for (const [index, line] of details.split('\n').entries()) {
         if (index) diagnostic.append('\n');
-        const label: RegExpMatchArray | null = inStack ? null : line.match(/^(Message|Source|Line|Page|Stack):/);
-        if (!label) { diagnostic.append(line); continue; }
+        const label: RegExpExecArray | null = inStack ? null : /^(Message|Source|Line|Page|Stack):/.exec(line);
+        if (!label) {
+            diagnostic.append(line);
+            continue;
+        }
         diagnostic.append(createElement('strong', '', label[0]));
         const value = line.slice(label[0].length);
-        const location = label[1] === 'Line' && value.match(/^( -?\d+, )(column:)( -?\d+)$/);
+        const location = label[1] === 'Line' && /^( -?\d+, )(column:)( -?\d+)$/.exec(value);
         if (location) diagnostic.append(location[1]!, createElement('strong', '', location[2]), location[3]!);
         else diagnostic.append(value);
         inStack = label[1] === 'Stack';
@@ -112,16 +129,28 @@ function renderOccurrence(entry: DrnNotification) {
     const row = createElement('li', 'border-top py-2');
     row.append(renderTime(entry.createdAt));
     if (entry.clientErrorId && entry.clientErrorDetails) {
-        row.append(createElement('h4', 'h6 mt-2', 'Client-side error details'),
-            renderDiagnosticDetails(entry.clientErrorDetails));
+        row.append(
+            createElement('h4', 'h6 mt-2', 'Client-side error details'),
+            renderDiagnosticDetails(entry.clientErrorDetails),
+        );
     }
-    for (const [label, id] of [['Request reference', entry.requestId], ['Client error reference', entry.clientErrorId]]) {
+    for (const [label, id] of [
+        ['Request reference', entry.requestId],
+        ['Client error reference', entry.clientErrorId],
+    ]) {
         if (!id) continue;
         const reference = createElement('div', 'small text-break user-select-text', `${label}: ${id}`);
         const copy = createActionButton('Copy reference', 'copy');
         copy.dataset.notificationReference = id;
-        row.append(reference, createElement('p', 'small text-body-secondary mb-2',
-            'Share this reference with support so they can investigate the error.'), copy);
+        row.append(
+            reference,
+            createElement(
+                'p',
+                'small text-body-secondary mb-2',
+                'Share this reference with support so they can investigate the error.',
+            ),
+            copy,
+        );
     }
     row.append(createActionButton('Dismiss occurrence', 'dismiss', [entry.id]));
     return row;
@@ -195,14 +224,20 @@ function renderGroup(group: NotificationGroup, expanded: ReadonlySet<string | un
     }
     if (entry.operation) row.append(createElement('p', 'small text-body-secondary mb-2', entry.operation));
     const summary = createElement('div', 'd-flex flex-wrap align-items-center gap-2 mb-2');
-    summary.append(renderTime(entry.createdAt), createActionButton(group.entries.length > 1 ? 'Dismiss group' : 'Dismiss',
-        'dismiss', group.entries.map(item => item.id)));
+    summary.append(
+        renderTime(entry.createdAt),
+        createActionButton(
+            group.entries.length > 1 ? 'Dismiss group' : 'Dismiss',
+            'dismiss',
+            group.entries.map((item) => item.id),
+        ),
+    );
     row.append(summary, renderOccurrences(group, expanded));
     return row;
 }
 
 function updateTriggers(entries: DrnNotification[]) {
-    const unseen = entries.filter(entry => !entry.seen);
+    const unseen = entries.filter((entry) => !entry.seen);
     for (const trigger of document.querySelectorAll('[data-notification-trigger]')) {
         const control = trigger.querySelector('[data-notification-open]');
         control?.setAttribute('aria-label', unseen.length ? `Notifications, ${unseen.length} unseen` : 'Notifications');
@@ -245,8 +280,12 @@ function refresh(force = false) {
     const filtered = filterNotifications(entries, filter, query);
     const groups = groupNotifications(filtered);
     const list = panel.querySelector<HTMLElement>('#drn-notification-list')!;
-    const expanded = new Set(Array.from(list.querySelectorAll<HTMLElement>('[data-notification-details][data-expanded="true"]'),
-        node => node.dataset.notificationDetails));
+    const expanded = new Set(
+        Array.from(
+            list.querySelectorAll<HTMLElement>('[data-notification-details][data-expanded="true"]'),
+            (node) => node.dataset.notificationDetails,
+        ),
+    );
     const focusedInList = list.contains(document.activeElement);
     const result = panel.querySelector<HTMLElement>('#drn-notification-result')!;
     if (entries.length === 0) result.textContent = 'No notifications.';
@@ -290,7 +329,7 @@ async function copyReference(reference: string) {
 function handleClick(event: Event) {
     if (!(event.target instanceof Element)) return;
     const control = event.target.closest('button');
-    if (!control || !panel || !panel.contains(control)) return;
+    if (!control || !panel?.contains(control)) return;
     if (Object.hasOwn(control.dataset, 'notificationFilter')) {
         filter = control.dataset.notificationFilter!;
         limit = PAGE_SIZE;
@@ -300,11 +339,14 @@ function handleClick(event: Event) {
         panel.querySelector<HTMLInputElement>('#drn-notification-search')!.focus();
         forgetUndo();
         undoEntries = store().clear();
-        undoTimer = setTimeout(() => { forgetUndo(); refresh(); }, 10_000);
+        undoTimer = setTimeout(() => {
+            forgetUndo();
+            refresh();
+        }, 10_000);
         announce('Notifications cleared. Undo is available for ten seconds.');
     } else if (Object.hasOwn(control.dataset, 'notificationClearFiltered')) {
         panel.querySelector<HTMLInputElement>('#drn-notification-search')!.focus();
-        store().dismiss(filterNotifications(store().list(), filter, query).map(entry => entry.id));
+        store().dismiss(filterNotifications(store().list(), filter, query).map((entry) => entry.id));
         announce('Filtered notifications dismissed.');
     } else if (Object.hasOwn(control.dataset, 'notificationUndo')) {
         const entries = undoEntries;
@@ -326,14 +368,15 @@ function handleClick(event: Event) {
 function hidePanel(node: HTMLElement, dispose = false) {
     const instance = window.bootstrap?.Offcanvas.getInstance(node);
     if (!instance) return;
-    const finish = () => { if (dispose) instance.dispose(); };
+    const finish = () => {
+        if (dispose) instance.dispose();
+    };
     if (node.matches('.show, .showing, .hiding')) {
         node.addEventListener('hidden.bs.offcanvas', finish, { once: true });
         // Let Bootstrap finish its own queued callbacks before disposing the instance.
         if (node.classList.contains('showing'))
             node.addEventListener('shown.bs.offcanvas', () => instance.hide(), { once: true });
-        else if (!node.classList.contains('hiding'))
-            instance.hide();
+        else if (!node.classList.contains('hiding')) instance.hide();
     } else {
         finish();
     }
@@ -351,25 +394,25 @@ function install() {
     installed = true;
     store().subscribe(() => refresh());
     document.addEventListener('click', handleClick);
-    document.addEventListener('input', event => {
+    document.addEventListener('input', (event) => {
         if (event.target instanceof HTMLInputElement && event.target.id === 'drn-notification-search') {
             query = event.target.value;
             limit = PAGE_SIZE;
             refresh();
         }
     });
-    document.addEventListener('shown.bs.offcanvas', event => {
+    document.addEventListener('shown.bs.offcanvas', (event) => {
         if ((event.target as Element | null)?.id !== PANEL_ID) return;
         store().markSeen();
     });
-    document.addEventListener('show.bs.offcanvas', event => {
+    document.addEventListener('show.bs.offcanvas', (event) => {
         if ((event.target as Element | null)?.id === PANEL_ID) refresh(true);
     });
-    document.addEventListener('hidden.bs.offcanvas', event => {
+    document.addEventListener('hidden.bs.offcanvas', (event) => {
         if ((event.target as Element | null)?.id !== PANEL_ID) return;
         refresh();
     });
-    document.addEventListener('focusout', event => {
+    document.addEventListener('focusout', (event) => {
         if (event.target instanceof Element && event.target.closest('#drn-notification-list'))
             setTimeout(() => refresh(), 0);
     });

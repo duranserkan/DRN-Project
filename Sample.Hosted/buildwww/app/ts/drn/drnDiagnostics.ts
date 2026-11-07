@@ -49,14 +49,25 @@ export function createDiagnosticSanitizer(): IDrnDiagnostics {
     let configurationFailed = false;
 
     function configure(options: Parameters<IDrnDiagnostics['configure']>[0] = {}) {
-        const additions = [options.sensitiveFields || [], options.sensitiveFieldPaths || [], options.sensitivePathSegments || []];
-        if (additions.some(items => !Array.isArray(items)) ||
-            additions.reduce((sum, items) => sum + items.length, fields.size + paths.size + segments.size) > MAX_RULE_COUNT ||
-            additions.some(items => items.some(value => typeof value !== 'string' || !value || value.length > MAX_RULE_LENGTH))) {
+        const additions = [
+            options.sensitiveFields || [],
+            options.sensitiveFieldPaths || [],
+            options.sensitivePathSegments || [],
+        ];
+        if (
+            additions.some((items) => !Array.isArray(items)) ||
+            additions.reduce((sum, items) => sum + items.length, fields.size + paths.size + segments.size) >
+                MAX_RULE_COUNT ||
+            additions.some((items) =>
+                items.some((value) => typeof value !== 'string' || !value || value.length > MAX_RULE_LENGTH),
+            )
+        ) {
             configurationFailed = true;
             return false;
         }
-        additions.forEach((items, index) => items.forEach(value => [fields, paths, segments][index]!.add(normalize(value))));
+        additions.forEach((items, index) =>
+            items.forEach((value) => [fields, paths, segments][index]!.add(normalize(value))),
+        );
         return true;
     }
 
@@ -72,10 +83,19 @@ export function createDiagnosticSanitizer(): IDrnDiagnostics {
         let ordinal = 0;
         let nodes = 0;
         const status = { redacted: false, limited: configurationFailed };
-        const redact = (marker = REDACTED) => { status.redacted = true; return marker; };
-        const limited = () => { status.limited = true; return LIMITED; };
+        const redact = (marker = REDACTED) => {
+            status.redacted = true;
+            return marker;
+        };
+        const limited = () => {
+            status.limited = true;
+            return LIMITED;
+        };
         const replacementKey = () => '_diagnostic_field_' + ++ordinal;
-        function tick(cost = 1) { work -= cost; if (work < 0) throw new Error('Diagnostic work limit'); }
+        function tick(cost = 1) {
+            work -= cost;
+            if (work < 0) throw new Error('Diagnostic work limit');
+        }
         function accept(value: unknown, max = MAX_FIELD_BYTES) {
             if (typeof value !== 'string' || value.length > max || configurationFailed) return false;
             const size = encoder.encode(value).byteLength;
@@ -83,8 +103,12 @@ export function createDiagnosticSanitizer(): IDrnDiagnostics {
             return size <= max && bytes <= MAX_CAPTURE_BYTES;
         }
         function guard<T>(action: () => T) {
-            try { return action(); }
-            catch { status.limited = true; return INVALID; }
+            try {
+                return action();
+            } catch {
+                status.limited = true;
+                return INVALID;
+            }
         }
         function safeKey(key: string) {
             // oxlint-disable-next-line no-control-regex -- Reject control characters in diagnostic keys.
@@ -93,15 +117,18 @@ export function createDiagnosticSanitizer(): IDrnDiagnostics {
             return key;
         }
         function pairs(value: string) {
-            return value.split('&', MAX_COLLECTION_ENTRIES + 1).map((part, index) => {
-                tick();
-                if (index === MAX_COLLECTION_ENTRIES) return '_diagnostic=' + encodeURIComponent(limited());
-                const separator = part.indexOf('=');
-                const key = decode((separator < 0 ? part : part.slice(0, separator)).replaceAll('+', ' '));
-                const raw = decode((separator < 0 ? '' : part.slice(separator + 1)).replaceAll('+', ' '));
-                const safe = isSensitive(key) ? redact(URL_REDACTED) : raw;
-                return encodeURIComponent(safeKey(key)) + '=' + encodeURIComponent(safe);
-            }).join('&');
+            return value
+                .split('&', MAX_COLLECTION_ENTRIES + 1)
+                .map((part, index) => {
+                    tick();
+                    if (index === MAX_COLLECTION_ENTRIES) return '_diagnostic=' + encodeURIComponent(limited());
+                    const separator = part.indexOf('=');
+                    const key = decode((separator < 0 ? part : part.slice(0, separator)).replaceAll('+', ' '));
+                    const raw = decode((separator < 0 ? '' : part.slice(separator + 1)).replaceAll('+', ' '));
+                    const safe = isSensitive(key) ? redact(URL_REDACTED) : raw;
+                    return encodeURIComponent(safeKey(key)) + '=' + encodeURIComponent(safe);
+                })
+                .join('&');
         }
         function urlCore(value: string) {
             tick(value.length);
@@ -112,19 +139,22 @@ export function createDiagnosticSanitizer(): IDrnDiagnostics {
             if (!['http:', 'https:', 'ftp:', 'file:', 'otpauth:'].includes(url.protocol)) return INVALID;
             if (url.username || url.password) redact();
             let redactNext = false;
-            const path = url.pathname.split('/').map(segment => {
-                tick();
-                const decoded = decode(segment);
-                const safe = redactNext ? redact(URL_REDACTED) : decoded;
-                redactNext = containsRule(normalize(decoded), segments);
-                return encodeURIComponent(safe);
-            }).join('/');
+            const path = url.pathname
+                .split('/')
+                .map((segment) => {
+                    tick();
+                    const decoded = decode(segment);
+                    const safe = redactNext ? redact(URL_REDACTED) : decoded;
+                    redactNext = containsRule(normalize(decoded), segments);
+                    return encodeURIComponent(safe);
+                })
+                .join('/');
             const query = url.search ? '?' + pairs(url.search.slice(1)) : '';
             const fragment = url.hash.includes('=') ? '#' + pairs(url.hash.slice(1)) : url.hash;
             return (relative ? '' : url.protocol + '//' + url.host) + path + query + fragment;
         }
-        const text = (value: string) => guard(() => accept(value) ? value : limited());
-        const url = (value: string) => guard(() => accept(value) ? urlCore(value) : limited());
+        const text = (value: string) => guard(() => (accept(value) ? value : limited()));
+        const url = (value: string) => guard(() => (accept(value) ? urlCore(value) : limited()));
         function stringValue(path: string, input: string) {
             if (!accept(input)) return limited();
             const name = normalize(path);
@@ -142,9 +172,15 @@ export function createDiagnosticSanitizer(): IDrnDiagnostics {
             if (input.length > length) output.push(limited());
             return output;
         }
-        function descriptorValue(path: string, descriptor: PropertyDescriptor | undefined, depth: number, ancestors: Set<object>): unknown {
+        function descriptorValue(
+            path: string,
+            descriptor: PropertyDescriptor | undefined,
+            depth: number,
+            ancestors: Set<object>,
+        ): unknown {
             return descriptor && 'value' in descriptor
-                ? value(path, descriptor.value, depth + 1, ancestors) : GETTER_UNAVAILABLE;
+                ? value(path, descriptor.value, depth + 1, ancestors)
+                : GETTER_UNAVAILABLE;
         }
         function objectValue(path: string, input: object, depth: number, ancestors: Set<object>): unknown {
             const output: Record<string, unknown> = Object.create(null);
@@ -155,10 +191,15 @@ export function createDiagnosticSanitizer(): IDrnDiagnostics {
                     output._diagnostic_limit = limited();
                     break;
                 }
-                if (key.length > MAX_KEY_BYTES) { output[replacementKey()] = limited(); continue; }
+                if (key.length > MAX_KEY_BYTES) {
+                    output[replacementKey()] = limited();
+                    continue;
+                }
                 const descriptor = Object.getOwnPropertyDescriptor(input, key);
                 const field = path + '.' + key;
-                output[safeKey(key)] = isSensitive(field) ? redact() : descriptorValue(field, descriptor, depth, ancestors);
+                output[safeKey(key)] = isSensitive(field)
+                    ? redact()
+                    : descriptorValue(field, descriptor, depth, ancestors);
             }
             return output;
         }
@@ -174,9 +215,12 @@ export function createDiagnosticSanitizer(): IDrnDiagnostics {
                 if (ancestors.has(input)) return '[diagnostic cycle]';
                 ancestors.add(input);
                 try {
-                    return Array.isArray(input) ? arrayValue(path, input, depth, ancestors)
+                    return Array.isArray(input)
+                        ? arrayValue(path, input, depth, ancestors)
                         : objectValue(path, input, depth, ancestors);
-                } finally { ancestors.delete(input); }
+                } finally {
+                    ancestors.delete(input);
+                }
             });
         }
         return { text, url, value, status };

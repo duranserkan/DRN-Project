@@ -61,7 +61,7 @@ Default `/documentation` scope:
 
 ## Commands
 
-Do not run or plan build/test commands without explicit user permission. When allowed, run unit and analyzer tests before integration tests. MTP test projects run individually, not through `.slnx`.
+Apply the AGENTS.md command gate to npm and dotnet. Plan builds and tests only with permission. Run unit and analyzer tests before integration tests. Run MTP projects individually.
 
 ```bash
 dotnet build DRN.slnx

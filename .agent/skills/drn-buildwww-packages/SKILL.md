@@ -27,7 +27,7 @@ Use that root's `package.json` as the source of truth for npm scripts, package n
 
 Do not copy package versions into this skill. Hardcoded versions drift when dependency maintenance commits update `package.json`.
 
-Pin the latest verified Node.js LTS release for CI and recommended local development. Use that version as the package engine minimum, allowing newer runtimes. Keep root lockfile metadata and setup docs aligned. Verify the local runtime meets the minimum. Keep version numbers in repository configuration, not skills.
+Pin the verified Node.js LTS release for CI and local development. Match the package engine and root lockfile metadata to the exact runtime pin. Keep setup docs aligned and verify the local runtime matches. Keep version numbers in repository configuration, not skills.
 
 Top-level `dependencies` and `devDependencies` must use exact versions, not caret or tilde ranges. This keeps the supply-chain policy in `package.json` true and makes `npm ci` reproducible.
 
@@ -65,15 +65,17 @@ node -e 'const fs=require("fs"); const dir=process.argv[1]; const p=JSON.parse(f
 - **react/react-dom**: Mounted island components for richer interactive surfaces.
 - **tailwindcss**: Utility styling for the React bundle.
 
-CI restores dependencies with `npm ci --ignore-scripts` before audit/build. Under `AGENTS.md`, package build/test commands are reference commands unless the user explicitly allows running them.
+CI restores dependencies with `npm ci --ignore-scripts` before audit/build. For local npm commands, including registry lookups and dry runs, follow the request and confirmation rule in AGENTS.md. Safe manifest and lockfile inspection may proceed.
 
 ### Build & Dev Tooling
 - **@axe-core/playwright**: Accessibility scans of rendered fixture states and the hosted Sample home page.
 - **vite**: Next Generation Frontend Tooling.
 - **sass**: CSS preprocessor.
 - **typescript**: Typed JavaScript superset.
+- **oxfmt**: Formats frontend sources and tool configs. The aggregate check verifies formatting before linting.
+- **stylelint**: Checks authored CSS and SCSS. The frontend package owns the presets and Tailwind directive exceptions.
+- **knip**: The aggregate check reports unused files, exports, and dependencies. The standalone `check:unused` command fails on findings. Keep entry points aligned with Vite variants and Razor-loaded bundles.
 - **oxlint** and **oxlint-tsgolint**: Type-aware JavaScript and TypeScript linting. The `lint` command fails on warnings and errors. See the frontend root's `.oxlintrc.json` for rules.
-- **globals**: Global variable definitions (often used for linting contexts).
 - **@tailwindcss/vite** and **@vitejs/plugin-react**: Vite plugins for Tailwind and React builds.
 
 ---

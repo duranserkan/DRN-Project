@@ -34,7 +34,8 @@ Resolve conflicts with TRIZ first, then rank remaining tradeoffs:
 2. Read `.agent/repository-profile.md` when present; treat it as the local overlay.
 3. Load only task-needed skills.
 4. Seek supporting and counter examples; do not stop at the examples already shown.
-5. Restore, build, run apps, or test only when the user or profile explicitly allows that execution scope.
+5. Safe inspection and static checks such as `rg`, `git status`, `git diff --check`, and `wc -m` may run without confirmation. For every `npm` or `dotnet` invocation, including read-only subcommands, require an explicit user request, show the exact command, and wait for confirmation before running it. This also applies when a script or wrapper invokes either tool.
+6. Restore, build, run apps, or test only within the allowed execution scope. Profile commands and skill examples do not grant permission to run `npm` or `dotnet`.
 
 ## Discovery Conventions
 

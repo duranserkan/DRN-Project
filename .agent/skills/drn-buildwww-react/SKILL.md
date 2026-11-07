@@ -96,6 +96,16 @@ Each island renders inside StrictMode, an `IslandErrorBoundary`, and the portal 
 
 `IslandPortal` renders overlays into shared `#drn-global-portals` Shadow DOM. Reuse the connected host and recreate it after htmx swaps detach it. Keep styles under `.drn-react-root`. Dispose the owning island so React removes its portal children. Never mount portals while htmx is removing old body children.
 
+Mounting an island supplies the portal container. A component in `buildwww/lib/react/components/` can render a notice there while it is visible.
+
+```tsx
+import { IslandPortal } from '../PortalContext.tsx';
+
+function SaveNotice({ visible }: { visible: boolean }) {
+    return visible ? <IslandPortal><p role="status">Changes saved.</p></IslandPortal> : null;
+}
+```
+
 ## Razor Page Integration
 
 Render declarative data and an external page bundle. Put registration in the domain behavior module, not an inline Razor script. Home references `homeBehaviors.ts` in its `Scripts` section. Full and htmx layouts must render that section.
@@ -110,16 +120,15 @@ Render declarative data and an external page bundle. Put registration in the dom
 }
 ```
 
-Here `pkg` is the server package-version provider. Convert JSON to string so Razor encodes attribute quotes. Never use raw HTML for data attributes. Read configuration from the mounted element instead of captured server values from an earlier navigation.
+Here `pkg` is the server package-version provider. Convert JSON to string so Razor encodes attribute quotes. Never use raw HTML for data attributes. Read configuration from the mounted element on each navigation. The home behavior’s `readVersions` parses JSON as `unknown`, checks the version strings, and falls back to component defaults for malformed data.
 
 ```typescript
 // behaviors/home/hello-react-island.ts, imported by homeBehaviors.ts
 DRN.Onmount.register('[data-js-hello-react-island]', function (options) {
     if (!(this instanceof HTMLElement)) return;
-    const versions = this.dataset.versions;
     const island = DRN.React.mount('HelloReact', this, {
         title: 'Hello',
-        versions: versions ? JSON.parse(versions) : undefined
+        versions: readVersions(this.dataset.versions)
     });
     if (!island) return false;
     options.disposable = island;

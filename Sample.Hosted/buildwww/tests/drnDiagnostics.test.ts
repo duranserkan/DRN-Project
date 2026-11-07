@@ -7,21 +7,26 @@ test('golden cases preserve browser name matching and capture conventions', () =
     for (const item of cases) {
         const capture = createDiagnosticSanitizer().createCapture();
         assert.ok(item.kind === 'field' || item.kind === 'text' || item.kind === 'url');
-        const actual = item.kind === 'field' ? capture.value(item.field!, item.value) : capture[item.kind](String(item.value));
+        const actual =
+            item.kind === 'field' ? capture.value(item.field!, item.value) : capture[item.kind](String(item.value));
         assert.deepEqual(actual, item.expected, JSON.stringify(item));
         if ('limited' in item) assert.equal(capture.status.limited, item.limited);
         if ('redacted' in item) assert.equal(capture.status.redacted, item.redacted);
-        if (item.kind === 'text') assert.equal(createDiagnosticSanitizer().createCapture().text(String(actual)), actual);
+        if (item.kind === 'text')
+            assert.equal(createDiagnosticSanitizer().createCapture().text(String(actual)), actual);
     }
 });
 
 test('configured rules match normalized substrings', () => {
     const policy = createDiagnosticSanitizer();
-    assert.equal(policy.configure({
-        sensitiveFields: ['opaque', '---'],
-        sensitiveFieldPaths: ['Checkout.Value'],
-        sensitivePathSegments: ['handoff']
-    }), true);
+    assert.equal(
+        policy.configure({
+            sensitiveFields: ['opaque', '---'],
+            sensitiveFieldPaths: ['Checkout.Value'],
+            sensitivePathSegments: ['handoff'],
+        }),
+        true,
+    );
     const capture = policy.createCapture();
     assert.equal(capture.value('CustomOpaqueSuffix', 'probe'), REDACTED);
     assert.equal(capture.value('Root.Checkout.ValueSuffix', 'probe'), REDACTED);
@@ -33,7 +38,10 @@ test('text content is preserved while explicit URL structure is redacted', () =>
     const policy = createDiagnosticSanitizer();
     const capture = policy.createCapture();
     assert.equal(capture.text('Failed opaque/probe at Service.Save'), 'Failed opaque/probe at Service.Save');
-    assert.equal(capture.url('/?returnUrl=https%3A%2F%2Fexample.test%2F%3Fpassword%3Dnested-probe').includes('nested-probe'), true);
+    assert.equal(
+        capture.url('/?returnUrl=https%3A%2F%2Fexample.test%2F%3Fpassword%3Dnested-probe').includes('nested-probe'),
+        true,
+    );
     assert.equal(capture.url('/?value=%GGsecret-probe').includes('secret-probe'), false);
     assert.equal(capture.url('/?value=opaque%2Fprobe'), '/?value=opaque%2Fprobe');
     assert.equal(capture.url('/token/opaque-probe?count=2'), '/token/redacted?count=2');
@@ -58,7 +66,7 @@ test('over-encoded sensitive names reject the URL without retaining associated v
     for (const url of [
         '/?%25252570assword=secret-probe',
         '/#%25252570assword=secret-probe',
-        '/%25252574oken/secret-probe'
+        '/%25252574oken/secret-probe',
     ]) {
         const capture = createDiagnosticSanitizer().createCapture();
         assert.equal(capture.url(url), '[diagnostic field unavailable]', url);
@@ -75,7 +83,7 @@ test('mixed URL escapes cannot hide sensitive keys or path segments', () => {
         '/#%2570assword%25=secret-probe',
         '/%2574oken%25/secret-probe',
         '/?%252570assword%2525=secret-probe',
-        '/?%2570assword%25FF=secret-probe'
+        '/?%2570assword%25FF=secret-probe',
     ]) {
         const capture = createDiagnosticSanitizer().createCapture();
         assert.equal(capture.url(url), '[diagnostic field unavailable]', url);
@@ -86,7 +94,12 @@ test('mixed URL escapes cannot hide sensitive keys or path segments', () => {
 test('structured data skips getters, bounds cycles and redacts matching substrings', () => {
     const capture = createDiagnosticSanitizer().createCapture();
     const input: Record<string, unknown> = { HasRecoveryCodes: true, EmailConfirmed: false, id: 42 };
-    Object.defineProperty(input, 'Password', { enumerable: true, get() { throw new Error('must not read'); } });
+    Object.defineProperty(input, 'Password', {
+        enumerable: true,
+        get() {
+            throw new Error('must not read');
+        },
+    });
     input.self = input;
     const result = capture.value('Input', input) as Record<string, unknown>;
     assert.equal(result.Password, REDACTED);
@@ -113,14 +126,16 @@ test('sparse arrays produce bounded serializable diagnostics without reading omi
     input[0] = { Password: 'private', Count: 2 };
     Object.defineProperty(input, 1000000, {
         enumerable: true,
-        get() { throw new Error('omitted getter must not run'); }
+        get() {
+            throw new Error('omitted getter must not run');
+        },
     });
 
     const result = capture.value('Input', input);
     assert.ok(Array.isArray(result));
     assert.equal(result.length, 257);
     assert.deepEqual(result[0], Object.assign(Object.create(null), { Password: REDACTED, Count: 2 }));
-    assert.ok(result.slice(1, 256).every(item => item === null));
+    assert.ok(result.slice(1, 256).every((item) => item === null));
     assert.equal(result[256], LIMITED);
     assert.equal(capture.status.limited, true);
     assert.equal(capture.status.redacted, true);
@@ -146,9 +161,18 @@ test('array capture preserves positions and skips own and inherited getters', ()
     // oxlint-disable-next-line unicorn/no-new-array -- Sparse slots allow inherited getters; Array.from creates own values.
     const input = new Array(3);
     const prototype = Object.create(Array.prototype);
-    Object.defineProperty(prototype, 0, { get() { throw new Error('inherited getter must not run'); } });
+    Object.defineProperty(prototype, 0, {
+        get() {
+            throw new Error('inherited getter must not run');
+        },
+    });
     Object.setPrototypeOf(input, prototype);
-    Object.defineProperty(input, 1, { enumerable: true, get() { throw new Error('own getter must not run'); } });
+    Object.defineProperty(input, 1, {
+        enumerable: true,
+        get() {
+            throw new Error('own getter must not run');
+        },
+    });
     input[2] = 'last';
 
     assert.deepEqual(capture.value('Input', input), [null, '[diagnostic getter unavailable]', 'last']);

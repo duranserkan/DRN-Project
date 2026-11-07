@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import handler from '../app/ts/drn/drnErrorHandler.ts';
 import { createNotificationStore } from '../app/ts/drn/drnNotifications.ts';
 
-test('action and global errors share safe notification references with bounded, resilient reporting', async t => {
+test('action and global errors share safe notification references with bounded, resilient reporting', async (t) => {
     const reports: { url: string; body: Blob }[] = [];
-    type Published = Required<Pick<Parameters<IDRN['Notifications']['publish']>[0], 'clientErrorId' | 'message' | 'clientErrorDetails'>>;
+    type Published = Required<
+        Pick<Parameters<IDRN['Notifications']['publish']>[0], 'clientErrorId' | 'message' | 'clientErrorDetails'>
+    >;
     const notifications: Published[] = [];
     const toasts: Parameters<IDRN['Toast']['show']>[0][] = [];
     type Listener = (event: Partial<ErrorEvent> & { reason?: unknown }) => void;
@@ -21,7 +23,9 @@ test('action and global errors share safe notification references with bounded, 
     t.mock.method(Date, 'now', () => timestamp);
     const window = {
         location: { href: 'https://sample.test/action' },
-        addEventListener: (name: keyof typeof listeners, listener: Listener) => { listeners[name] = listener; },
+        addEventListener: (name: keyof typeof listeners, listener: Listener) => {
+            listeners[name] = listener;
+        },
         DRN: {
             Notifications: {
                 isActive: () => active,
@@ -30,26 +34,36 @@ test('action and global errors share safe notification references with bounded, 
                     duringPublish?.();
                     notifications.push(value);
                     return value;
-                }
+                },
             },
-            Toast: { show: (value: Parameters<IDRN['Toast']['show']>[0]) => {
-                if (toastFails) throw new Error('Toast renderer failed');
-                toasts.push(value);
-            } }
-        }
+            Toast: {
+                show: (value: Parameters<IDRN['Toast']['show']>[0]) => {
+                    if (toastFails) throw new Error('Toast renderer failed');
+                    toasts.push(value);
+                },
+            },
+        },
     };
-    for (const [name, value] of Object.entries({ window,
-        document: { querySelector: (selector: string) => selector === '[data-notification-context]'
-            ? { dataset: { notificationOwner: reportOwner } } : { content: '/app/' } },
-        navigator: { userAgent: 'test', sendBeacon: (url: string, body: Blob) => {
-            if (transportFails) throw new Error('Offline');
-            if (!beaconAccepted) return false;
-            reports.push({ url, body });
-            return true;
-        } },
+    for (const [name, value] of Object.entries({
+        window,
+        document: {
+            querySelector: (selector: string) =>
+                selector === '[data-notification-context]'
+                    ? { dataset: { notificationOwner: reportOwner } }
+                    : { content: '/app/' },
+        },
+        navigator: {
+            userAgent: 'test',
+            sendBeacon: (url: string, body: Blob) => {
+                if (transportFails) throw new Error('Offline');
+                if (!beaconAccepted) return false;
+                reports.push({ url, body });
+                return true;
+            },
+        },
         fetch: async (url: string, options: { body: string }) => {
             reports.push({ url, body: new Blob([options.body]) });
-        }
+        },
     })) {
         const original = Object.getOwnPropertyDescriptor(globalThis, name);
         Object.defineProperty(globalThis, name, { configurable: true, value });
@@ -65,7 +79,7 @@ test('action and global errors share safe notification references with bounded, 
     assert.equal(reports.length, 2);
     assert.equal(notifications.length, 2);
     assert.equal(toasts.length, 2);
-    assert.ok(toasts.every(toast => toast.record === false && !toast.message.includes('Background')));
+    assert.ok(toasts.every((toast) => toast.record === false && !toast.message.includes('Background')));
     for (let index = 0; index < 2; index++) {
         const report = JSON.parse(await reports[index]!.body.text());
         assert.match(notifications[index]!.clientErrorId, /^[a-f0-9]{32}$/);
@@ -136,9 +150,15 @@ test('action and global errors share safe notification references with bounded, 
     assert.doesNotThrow(() => listeners.error({ message: 'Unavailable notification API' }));
     assert.equal(reports.length, 6);
     window.DRN.Notifications = notificationApi;
-    assert.doesNotThrow(() => listeners.unhandledrejection({ reason: {
-        toString() { throw new Error('Cannot stringify'); }
-    } }));
+    assert.doesNotThrow(() =>
+        listeners.unhandledrejection({
+            reason: {
+                toString() {
+                    throw new Error('Cannot stringify');
+                },
+            },
+        }),
+    );
     listeners.error({ message: 'Recovered after malformed rejection' });
     assert.equal(reports.length, 7);
     assert.equal(notifications.length, 7);
@@ -218,7 +238,9 @@ test('action and global errors share safe notification references with bounded, 
     timestamp += 60001;
     window.location.href = 'https://sample.test/action?token=url-probe#access_token=fragment-probe';
     Object.assign(globalThis.navigator, { userAgent: 'test' });
-    const sensitive = new Error('Save failed password=message-probe; RecoveryCodes=["first-probe","second-probe"]; retry');
+    const sensitive = new Error(
+        'Save failed password=message-probe; RecoveryCodes=["first-probe","second-probe"]; retry',
+    );
     sensitive.stack = 'Service.Save\n' + 's'.repeat(1980) + '\npassword=stack-probe';
     const safeRecord = handler.reportActionError(sensitive, { operation: 'Save' });
     assert.ok(safeRecord);
@@ -248,9 +270,9 @@ test('action and global errors share safe notification references with bounded, 
     // Verify the default persisted history and its reload, not only publication inputs.
     const cache = new Map<string, string>();
     const storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> = {
-        getItem: key => cache.get(key) ?? null,
+        getItem: (key) => cache.get(key) ?? null,
         setItem: (key, value) => cache.set(key, value),
-        removeItem: key => cache.delete(key)
+        removeItem: (key) => cache.delete(key),
     };
     const settings = { locks: null, storage: () => storage };
     const store = createNotificationStore(settings);
@@ -268,16 +290,26 @@ test('action and global errors share safe notification references with bounded, 
     const reloaded = createNotificationStore(settings);
     reloaded.configure({ app: '/app/', owner: 'account-a' });
     assert.deepEqual(reloaded.list(), store.list());
-    assert.ok(reloaded.list().every(record => record.clientErrorDetails.includes('Page: https://sample.test/action')));
+    assert.ok(
+        reloaded.list().every((record) => record.clientErrorDetails.includes('Page: https://sample.test/action')),
+    );
     window.DRN.Notifications = notificationApi;
     for (const mode of ['action', 'error', 'unhandledrejection']) {
         for (const [stack, hasFrames, displayedStack = stack] of [
             ['', false],
             ['Error: Stack capture probe', false, ''],
-            ['Error: Stack capture probe\n    at HTMLButtonElement.onClick (<anonymous>:5:23)', true,
-                '    at HTMLButtonElement.onClick (<anonymous>:5:23)'],
-            ['TypeError: Stack capture probe\r\n    at save (app.js:5:23)', true,
-                mode === 'error' ? 'TypeError: Stack capture probe\r\n    at save (app.js:5:23)' : '    at save (app.js:5:23)'],
+            [
+                'Error: Stack capture probe\n    at HTMLButtonElement.onClick (<anonymous>:5:23)',
+                true,
+                '    at HTMLButtonElement.onClick (<anonymous>:5:23)',
+            ],
+            [
+                'TypeError: Stack capture probe\r\n    at save (app.js:5:23)',
+                true,
+                mode === 'error'
+                    ? 'TypeError: Stack capture probe\r\n    at save (app.js:5:23)'
+                    : '    at save (app.js:5:23)',
+            ],
             ['Error: Different diagnostic\n    at save (app.js:5:23)', true],
             ['onClick@https://sample.test/app.js:5:23', true],
             ['@https://sample.test/app.js:5:23', true],
@@ -285,22 +317,34 @@ test('action and global errors share safe notification references with bounded, 
             ['@a:5', true],
             ['@:5', false, '@:5\nStack frames unavailable'],
             ['@'.repeat(1500), false, '@'.repeat(1500) + '\nStack frames unavailable'],
-            ['Error:\t  Stack capture probe\n    at save (app.js:5:23)', true,
-                mode === 'error' ? 'Error:\t  Stack capture probe\n    at save (app.js:5:23)' : '    at save (app.js:5:23)']
+            [
+                'Error:\t  Stack capture probe\n    at save (app.js:5:23)',
+                true,
+                mode === 'error'
+                    ? 'Error:\t  Stack capture probe\n    at save (app.js:5:23)'
+                    : '    at save (app.js:5:23)',
+            ],
         ] as const) {
             timestamp += 60001;
             const error = new Error('Stack capture probe');
             let reads = 0;
-            Object.defineProperty(error, 'stack', { get() {
-                if (++reads > 1) throw new Error('Stack must be captured once');
-                return stack;
-            } });
+            Object.defineProperty(error, 'stack', {
+                get() {
+                    if (++reads > 1) throw new Error('Stack must be captured once');
+                    return stack;
+                },
+            });
             const before: number = reports.length;
             const notificationsBefore: number = notifications.length;
             if (mode === 'action') handler.reportActionError(error, { operation: 'Save' });
-            else if (mode === 'error') listeners.error({
-                message: 'Uncaught Error: Stack capture probe', filename: 'app.js', lineno: 5, colno: 17, error
-            });
+            else if (mode === 'error')
+                listeners.error({
+                    message: 'Uncaught Error: Stack capture probe',
+                    filename: 'app.js',
+                    lineno: 5,
+                    colno: 17,
+                    error,
+                });
             else listeners.unhandledrejection({ reason: error });
 
             assert.equal(reads, 1, mode);

@@ -25,7 +25,7 @@ if (typeof window !== 'undefined' && !window.DRN?.ErrorHandler) {
         ErrorHandler: drnErrorHandler,
         Diagnostics: drnDiagnostics,
         // DRN.React.mount returns null until the optional React bundle installs its implementation.
-        React: window.DRN?.React ?? { mount: () => null }
+        React: window.DRN?.React ?? { mount: () => null },
     };
     window.DRN = Object.assign(window.DRN ?? {}, services);
 

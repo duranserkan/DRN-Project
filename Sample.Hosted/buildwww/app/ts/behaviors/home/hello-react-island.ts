@@ -1,18 +1,39 @@
+import type { HelloReactProps } from '@/lib/react/components/HelloReact';
+
+function readVersions(raw: string | undefined): NonNullable<HelloReactProps['versions']> {
+    if (!raw) return {};
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(raw);
+    } catch {
+        return {};
+    }
+    if (!DRN.Utils.isPlainObject(parsed)) return {};
+
+    const versions: NonNullable<HelloReactProps['versions']> = {};
+    for (const key of ['dotnet', 'react', 'bootstrap', 'tailwind', 'vite'] as const) {
+        const value = parsed[key];
+        if (value === undefined) continue;
+        if (typeof value !== 'string') return {};
+        versions[key] = value;
+    }
+    return versions;
+}
+
 DRN.Onmount.register('[data-js-hello-react-island]', function (options) {
     if (!(this instanceof HTMLElement)) return;
-    const versions = this.dataset.versions;
     let clickCount = 0;
     let titleIndex = 0;
     let transitionTimer: ReturnType<typeof setTimeout> | undefined;
     const titles = ['Build with Confidence', 'DDD & Mounted Islands Architecture', 'Micro-Frontends Planned'];
     const island = DRN.React.mount('HelloReact', this, {
         title: titles[titleIndex]!,
-        versions: versions ? JSON.parse(versions) : undefined,
+        versions: readVersions(this.dataset.versions),
         onReady: () => console.log('HelloReact component is ready'),
         onCardClick: () => {
             clickCount++;
             console.log(`Card clicked! Total clicks outside the component: ${clickCount}`);
-        }
+        },
     });
     if (!island) return false;
 
@@ -27,7 +48,7 @@ DRN.Onmount.register('[data-js-hello-react-island]', function (options) {
         badge?.classList.add('is-transitioning');
         transitionTimer = setTimeout(() => {
             titleIndex = (titleIndex + 1) % titles.length;
-            island.update({title: titles[titleIndex]!});
+            island.update({ title: titles[titleIndex]! });
             badge?.classList.remove('is-transitioning');
         }, fadeDuration);
     }, cycleInterval);
@@ -37,6 +58,6 @@ DRN.Onmount.register('[data-js-hello-react-island]', function (options) {
             clearInterval(interval);
             clearTimeout(transitionTimer);
             island.dispose();
-        }
+        },
     };
 });

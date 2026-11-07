@@ -8,7 +8,10 @@ const MAX_BODY_BYTES = MAX_BODY_LENGTH * 4;
 const MAX_MESSAGE_LENGTH = 500;
 const MAX_ERRORS = 100;
 const FRIENDLY_TITLES = new Map([
-    ['bad request', 'Please try again. If the problem continues, contact support and share the error details from Notifications.'],
+    [
+        'bad request',
+        'Please try again. If the problem continues, contact support and share the error details from Notifications.',
+    ],
     ['unauthorized', 'Please sign in to continue.'],
     ['forbidden', 'You do not have access to this action.'],
     ['not found', 'This item is no longer available.'],
@@ -20,7 +23,7 @@ const FRIENDLY_TITLES = new Map([
     ['internal server error', 'Something went wrong. Check the current state before trying again.'],
     ['bad gateway', 'The service is temporarily unavailable. Please try again later.'],
     ['service unavailable', 'The service is temporarily unavailable. Please try again later.'],
-    ['gateway timeout', 'The request took too long. Check the current state before trying again.']
+    ['gateway timeout', 'The request took too long. Check the current state before trying again.'],
 ]);
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -38,8 +41,19 @@ function identifier(value: unknown, maxLength: number) {
 
 /** Parse untrusted response text. The HTTP status takes precedence over the JSON status. */
 function parse(body: unknown, contentType: unknown, status: number): DrnProblem {
-    const problem: DrnProblem = { status, type: '', title: FALLBACK_TITLE, detail: '', requestId: '', errors: Object.create(null) };
-    if (mediaType(contentType) !== 'application/problem+json' || typeof body !== 'string' || body.length > MAX_BODY_LENGTH)
+    const problem: DrnProblem = {
+        status,
+        type: '',
+        title: FALLBACK_TITLE,
+        detail: '',
+        requestId: '',
+        errors: Object.create(null),
+    };
+    if (
+        mediaType(contentType) !== 'application/problem+json' ||
+        typeof body !== 'string' ||
+        body.length > MAX_BODY_LENGTH
+    )
         return problem;
 
     let value: unknown;
@@ -122,24 +136,32 @@ async function readBoundedBody(response: Response) {
 async function fromResponse(response: Response) {
     try {
         const contentType = response.headers.get('Content-Type');
-        if (mediaType(contentType) !== 'application/problem+json')
-            return parse('', '', response.status);
+        if (mediaType(contentType) !== 'application/problem+json') return parse('', '', response.status);
         return parse(await readBoundedBody(response.clone()), contentType, response.status);
     } catch {
         return parse('', '', response.status);
     }
 }
 
-const presentations = new WeakMap<HTMLElement, Pick<DrnProblemContext, 'operation' | 'target'> & {
-    summary: HTMLElement; fields: ReturnType<typeof renderValidationErrors>;
-}>();
+const presentations = new WeakMap<
+    HTMLElement,
+    {
+        operation: DrnProblemContext['operation'];
+        target: DrnProblemContext['target'];
+        summary: HTMLElement;
+        fields: ReturnType<typeof renderValidationErrors>;
+    }
+>();
 let messageSequence = 0;
 
 function regionFor(context: DrnProblemContext) {
     const element = context.element instanceof Element ? context.element : null;
     const target = context.target instanceof Element ? context.target : null;
-    return element?.closest<HTMLElement>('form, [data-problem-region]') || target?.closest<HTMLElement>('form, [data-problem-region]') ||
-        document.getElementById('drn-problem-summary');
+    return (
+        element?.closest<HTMLElement>('form, [data-problem-region]') ||
+        target?.closest<HTMLElement>('form, [data-problem-region]') ||
+        document.getElementById('drn-problem-summary')
+    );
 }
 
 /** Clear only errors owned by this presenter, leaving native validation and other forms intact. */
@@ -161,7 +183,9 @@ function clearRegion(region: HTMLElement | null) {
         region.classList.add('d-none');
     }
     for (const { field, message, invalid } of previous.fields) {
-        const references = (field.getAttribute('aria-describedby') || '').split(/\s+/).filter(id => id && id !== message.id);
+        const references = (field.getAttribute('aria-describedby') || '')
+            .split(/\s+/)
+            .filter((id) => id && id !== message.id);
         if (references.length) field.setAttribute('aria-describedby', references.join(' '));
         else field.removeAttribute('aria-describedby');
         if (invalid === null) field.removeAttribute('aria-invalid');
@@ -172,8 +196,7 @@ function clearRegion(region: HTMLElement | null) {
 }
 
 function clearAll() {
-    for (const summary of document.querySelectorAll('[data-drn-problem-summary]'))
-        clearRegion(summary.parentElement);
+    for (const summary of document.querySelectorAll('[data-drn-problem-summary]')) clearRegion(summary.parentElement);
 }
 
 function appendText<K extends keyof HTMLElementTagNameMap>(parent: HTMLElement, tag: K, value: string, className = '') {
@@ -190,9 +213,13 @@ function renderValidationErrors(region: HTMLElement, errorsByName: DrnProblem['e
     const form = region instanceof HTMLFormElement ? region : null;
     for (const [name, errors] of Object.entries(errorsByName)) {
         // Match names directly. Server field names are never interpreted as CSS selectors.
-        const matches = form ? Array.from(form.elements).filter(field => 'name' in field && field.name === name) : [];
-        const first = matches.find((field): field is HTMLElement => field instanceof HTMLElement &&
-            !('type' in field && field.type === 'hidden') && !('disabled' in field && field.disabled));
+        const matches = form ? Array.from(form.elements).filter((field) => 'name' in field && field.name === name) : [];
+        const first = matches.find(
+            (field): field is HTMLElement =>
+                field instanceof HTMLElement &&
+                !('type' in field && field.type === 'hidden') &&
+                !('disabled' in field && field.disabled),
+        );
         const item = appendText(list, 'li', '');
         const prefix = name ? `${name}: ` : '';
         const message = `${prefix}${errors.join(' ')}`;
@@ -231,8 +258,12 @@ function showValidation(problem: DrnProblem, context: DrnProblemContext, region:
         const details = document.createElement('details');
         appendText(details, 'summary', 'Details');
         appendText(details, 'p', `Request reference: ${problem.requestId}`, 'small user-select-all mb-0');
-        appendText(details, 'p', 'Share this reference with support so they can find the request.',
-            'small text-body-secondary mb-0');
+        appendText(
+            details,
+            'p',
+            'Share this reference with support so they can find the request.',
+            'small text-body-secondary mb-0',
+        );
         summary.appendChild(details);
     }
     region.prepend(summary);
@@ -254,11 +285,19 @@ function show(problem: DrnProblem, context: DrnProblemContext = {}) {
     const title = FRIENDLY_TITLES.get(problem.title.toLowerCase()) || problem.title;
     const region = regionFor(context);
     const record = window.DRN.Notifications.publish({
-        type: 'error', title, message: problem.detail,
-        problemType: problem.type, status: problem.status, requestId: problem.requestId,
+        type: 'error',
+        title,
+        message: problem.detail,
+        problemType: problem.type,
+        status: problem.status,
+        requestId: problem.requestId,
         operation: context.operation || '',
-        target: region?.id || (region ? `region-${Array.from(document.querySelectorAll('form, [data-problem-region]')).indexOf(region)}` : ''),
-        persist: context.persist !== false
+        target:
+            region?.id ||
+            (region
+                ? `region-${Array.from(document.querySelectorAll('form, [data-problem-region]')).indexOf(region)}`
+                : ''),
+        persist: context.persist !== false,
     });
     if (!region || Object.keys(problem.errors).length === 0) {
         clearRegion(region);

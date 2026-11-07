@@ -1,6 +1,6 @@
 import drnUtils from './drnUtils.ts';
 
-import type {DrnCookieOptions, DrnCookieReadOptions, IDrnCookieManager} from '@/types/drnCookieManager.types';
+import type { DrnCookieOptions, DrnCookieReadOptions, IDrnCookieManager } from '@/types/drnCookieManager.types';
 
 /**
  * DrnCookieManager
@@ -20,27 +20,27 @@ class DrnCookieManager implements IDrnCookieManager {
             path: '/',
             sameSite: 'Strict',
             secure: window.location.protocol === 'https:',
-            encoding: 'uri' // 'uri' | 'base64' | 'none'
+            encoding: 'uri', // 'uri' | 'base64' | 'none'
         };
     }
 
-    list(): Array<{name: string, value: string, raw: string}> {
+    list(): Array<{ name: string; value: string; raw: string }> {
         return document.cookie
             .split(';')
-            .map(c => c.trimStart())
+            .map((c) => c.trimStart())
             .filter(Boolean)
-            .map(raw => {
+            .map((raw) => {
                 const eqIndex = raw.indexOf('=');
                 return eqIndex > 0
-                    ? {name: raw.slice(0, eqIndex), value: raw.slice(eqIndex + 1), raw}
-                    : {name: raw, value: '', raw}; // malformed
+                    ? { name: raw.slice(0, eqIndex), value: raw.slice(eqIndex + 1), raw }
+                    : { name: raw, value: '', raw }; // malformed
             });
     }
 
     set(name: string, value: string | object, options: DrnCookieOptions = {}): void {
         if (!this._validateName(name)) return;
 
-        const config = {...this.defaults, ...options};
+        const config = { ...this.defaults, ...options };
         let stringValue: string;
 
         if (typeof value === 'object' && value != null) {
@@ -70,14 +70,14 @@ class DrnCookieManager implements IDrnCookieManager {
             cookieString += `; Max-Age=${config.maxAge}`;
         } else if (config.days) {
             const date = new Date();
-            date.setTime(date.getTime() + (config.days * 24 * 60 * 60 * 1000));
+            date.setTime(date.getTime() + config.days * 24 * 60 * 60 * 1000);
             cookieString += `; expires=${date.toUTCString()}`;
         }
 
         if (config.domain) cookieString += `; domain=${config.domain}`;
         if (config.path) cookieString += `; path=${config.path}`;
         if (config.secure) cookieString += `; Secure`;
-        if (config.sameSite) cookieString += `; SameSite=${config.sameSite}`
+        if (config.sameSite) cookieString += `; SameSite=${config.sameSite}`;
 
         document.cookie = cookieString;
     }
@@ -96,10 +96,8 @@ class DrnCookieManager implements IDrnCookieManager {
 
     _decodeCookieValue(value: string, encoding: DrnCookieOptions['encoding'], name: string): string | null {
         try {
-            if (encoding === 'uri')
-                return decodeURIComponent(value);
-            if (encoding === 'base64')
-                return drnUtils.urlSafeBase64Decode?.(value) ?? value;
+            if (encoding === 'uri') return decodeURIComponent(value);
+            if (encoding === 'base64') return drnUtils.urlSafeBase64Decode?.(value) ?? value;
             return value;
         } catch (e) {
             console.warn(`Cookie read error [${name}]:`, e);
@@ -132,12 +130,11 @@ class DrnCookieManager implements IDrnCookieManager {
     }
 
     remove(name: string, options: DrnCookieOptions = {}): void {
-        if (!this.exists(name))
-            console.warn(`DrnCookieManager: Attempted to remove non-existent cookie '${name}'`);
+        if (!this.exists(name)) console.warn(`DrnCookieManager: Attempted to remove non-existent cookie '${name}'`);
         // Proceed anyway (idempotent)
-        this.set(name, "", {...options, maxAge: 0});
+        this.set(name, '', { ...options, maxAge: 0 });
     }
-    
+
     exists(name: string): boolean {
         if (!this._validateName(name)) return false;
         return this._findRawCookieValue(name) !== null;
@@ -146,7 +143,7 @@ class DrnCookieManager implements IDrnCookieManager {
     // --- Internal Helpers ---
     _validateName(name: unknown): name is string {
         if (!name || typeof name !== 'string') {
-            console.error("DrnCookieManager: Cookie name must be a non-empty string.");
+            console.error('DrnCookieManager: Cookie name must be a non-empty string.');
             return false;
         }
         return true;

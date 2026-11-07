@@ -1,9 +1,9 @@
-import {defineConfig, mergeConfig} from 'vite';
-import type {UserConfig} from 'vite';
-import {resolve} from 'node:path'; // Import resolve for path management
+import { defineConfig, mergeConfig } from 'vite';
+import type { UserConfig } from 'vite';
+import { resolve } from 'node:path'; // Import resolve for path management
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import {iifeWrap, stripHtmxEval} from './vite.config.plugin.ts';
+import { iifeWrap, stripHtmxEval } from './vite.config.plugin.ts';
 
 const sharedConfig: UserConfig = {
     // Resolve generated asset URLs relative to each bundle under any Request.PathBase.
@@ -20,9 +20,9 @@ const sharedConfig: UserConfig = {
                 // Add hashes for cache busting
                 entryFileNames: `[name].[hash:16].js`,
                 chunkFileNames: `[name].[hash:16].js`,
-                assetFileNames: `[name].[hash:16].[ext]`
-            }
-        }
+                assetFileNames: `[name].[hash:16].[ext]`,
+            },
+        },
     },
     resolve: {
         alias: {
@@ -31,8 +31,8 @@ const sharedConfig: UserConfig = {
             '@lib': resolve(import.meta.dirname, 'buildwww/lib'),
             '@types': resolve(import.meta.dirname, 'buildwww/types'),
             '@plugins': resolve(import.meta.dirname, 'buildwww/plugins'),
-        }
-    }
+        },
+    },
 };
 
 // Scope isolation rule:
@@ -49,8 +49,8 @@ const builds: Record<string, UserConfig> = {
                 input: {
                     // Key is the output name (e.g., app), value is the input file path
                     app: resolve(import.meta.dirname, 'buildwww/app/css/app.css'),
-                    appPreload: resolve(import.meta.dirname, 'buildwww/app/ts/appPreload.ts')
-                }
+                    appPreload: resolve(import.meta.dirname, 'buildwww/app/ts/appPreload.ts'),
+                },
             },
         },
     },
@@ -62,8 +62,8 @@ const builds: Record<string, UserConfig> = {
             rolldownOptions: {
                 // Define entry points. These are the files Vite will bundle.
                 input: {
-                    appPostload: resolve(import.meta.dirname, 'buildwww/app/ts/appPostload.ts')
-                }
+                    appPostload: resolve(import.meta.dirname, 'buildwww/app/ts/appPostload.ts'),
+                },
             },
         },
     },
@@ -73,10 +73,10 @@ const builds: Record<string, UserConfig> = {
             outDir: 'wwwroot/behaviors/layout',
             rolldownOptions: {
                 input: {
-                    layoutBehaviors: resolve(import.meta.dirname, 'buildwww/app/ts/layoutBehaviors.ts')
-                }
-            }
-        }
+                    layoutBehaviors: resolve(import.meta.dirname, 'buildwww/app/ts/layoutBehaviors.ts'),
+                },
+            },
+        },
     },
     homeBehaviors: {
         plugins: [iifeWrap()],
@@ -84,10 +84,10 @@ const builds: Record<string, UserConfig> = {
             outDir: 'wwwroot/behaviors/home',
             rolldownOptions: {
                 input: {
-                    homeBehaviors: resolve(import.meta.dirname, 'buildwww/app/ts/homeBehaviors.ts')
-                }
-            }
-        }
+                    homeBehaviors: resolve(import.meta.dirname, 'buildwww/app/ts/homeBehaviors.ts'),
+                },
+            },
+        },
     },
     testBehaviors: {
         plugins: [iifeWrap()],
@@ -95,10 +95,10 @@ const builds: Record<string, UserConfig> = {
             outDir: 'wwwroot/behaviors/test',
             rolldownOptions: {
                 input: {
-                    testBehaviors: resolve(import.meta.dirname, 'buildwww/app/ts/testBehaviors.ts')
-                }
-            }
-        }
+                    testBehaviors: resolve(import.meta.dirname, 'buildwww/app/ts/testBehaviors.ts'),
+                },
+            },
+        },
     },
     htmx: {
         plugins: [iifeWrap(), stripHtmxEval()],
@@ -108,7 +108,7 @@ const builds: Record<string, UserConfig> = {
             rolldownOptions: {
                 input: {
                     htmxBundle: resolve(import.meta.dirname, 'buildwww/lib/htmx/htmxBundle.ts'),
-                }
+                },
             },
         },
     },
@@ -121,28 +121,23 @@ const builds: Record<string, UserConfig> = {
                 input: {
                     bootstrap: resolve(import.meta.dirname, 'buildwww/lib/bootstrap/bootstrap.scss'),
                     bootstrapBundle: resolve(import.meta.dirname, 'buildwww/lib/bootstrap/bootstrapBundle.ts'),
-                }
-            }
+                },
+            },
         },
         css: {
             preprocessorOptions: {
                 scss: {
                     // TODO: revisit when Bootstrap 6 removes legacy Sass APIs
                     // These are triggered by Bootstrap 5 source, not our custom SCSS
-                    silenceDeprecations: [
-                        'import',
-                        'color-functions',
-                        'global-builtin',
-                        'if-function',
-                    ]
-                }
-            }
-        }
+                    silenceDeprecations: ['import', 'color-functions', 'global-builtin', 'if-function'],
+                },
+            },
+        },
     },
     react: {
         plugins: [
             react(), // Enable JSX support specifically for this bundle
-            tailwindcss()
+            tailwindcss(),
         ],
         build: {
             outDir: 'wwwroot/lib/react',
@@ -155,16 +150,16 @@ const builds: Record<string, UserConfig> = {
                     // React is a single JS entry, so native IIFE output is valid here.
                     // Mixed-entry builds above use iifeWrap() instead.
                     format: 'iife',
-                    name: 'DrnReactMicroFrontend'
+                    name: 'DrnReactMicroFrontend',
                 },
                 // IIFE format does not support import.meta; React/ReactDOM internals may
                 // reference it for environment detection. Vite resolves these at build time,
                 // so the residual import.meta in IIFE output is inert. Suppress the warning.
                 transform: {
-                    define: {'import.meta': '{}'}
-                }
-            }
-        }
+                    define: { 'import.meta': '{}' },
+                },
+            },
+        },
     },
 };
 

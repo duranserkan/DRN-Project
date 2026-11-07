@@ -1,14 +1,14 @@
 import { useEffect, useRef } from 'react';
 
-export const DEFAULT_VERSIONS = {
+const DEFAULT_VERSIONS = {
     dotnet: '10',
     react: '19',
     bootstrap: '5.3',
     tailwind: '4.2',
-    vite: '8'
+    vite: '8',
 };
 
-export type AppVersions = Partial<typeof DEFAULT_VERSIONS>;
+type AppVersions = Partial<typeof DEFAULT_VERSIONS>;
 
 /**
  * Props for the HelloReact mounted island component.
@@ -25,8 +25,8 @@ export type AppVersions = Partial<typeof DEFAULT_VERSIONS>;
 export interface HelloReactProps {
     title: string;
     versions?: AppVersions;
-    onReady?: () => void;
-    onCardClick?: () => void;
+    onReady?: (() => void) | undefined;
+    onCardClick?: (() => void) | undefined;
 }
 
 export const HelloReact = ({ title, versions, onReady, onCardClick }: HelloReactProps) => {
@@ -51,10 +51,20 @@ export const HelloReact = ({ title, versions, onReady, onCardClick }: HelloReact
                 <span className="hello-react-badge">{title}</span>
                 <h2 className="hello-react-title">Build Better, Ship Faster</h2>
                 <ul className="hello-react-stack">
-                    <li><strong>.NET {v.dotnet}</strong> and <strong>Razor Pages</strong> for server-rendered content</li>
-                    <li><strong>React {v.react}</strong> mounted islands in isolated Shadow DOM (client-rendered, not hydrated)</li>
-                    <li><strong>Bootstrap {v.bootstrap}</strong> on the host page, <strong>Tailwind CSS {v.tailwind}</strong> inside Shadow DOM</li>
-                    <li><strong>Vite {v.vite}</strong> for fast and effective builds</li>
+                    <li>
+                        <strong>.NET {v.dotnet}</strong> and <strong>Razor Pages</strong> for server-rendered content
+                    </li>
+                    <li>
+                        <strong>React {v.react}</strong> mounted islands in isolated Shadow DOM (client-rendered, not
+                        hydrated)
+                    </li>
+                    <li>
+                        <strong>Bootstrap {v.bootstrap}</strong> on the host page,{' '}
+                        <strong>Tailwind CSS {v.tailwind}</strong> inside Shadow DOM
+                    </li>
+                    <li>
+                        <strong>Vite {v.vite}</strong> for fast and effective builds
+                    </li>
                 </ul>
             </div>
 
@@ -63,7 +73,8 @@ export const HelloReact = ({ title, versions, onReady, onCardClick }: HelloReact
                     <div className="hello-react-card-icon">⚡</div>
                     <h3 className="hello-react-card-title">Blazing Performance</h3>
                     <p className="hello-react-card-text">
-                        Server-rendered Razor Pages with targeted React {v.react} mounted islands for interactive components. No SPA overhead.
+                        Server-rendered Razor Pages with targeted React {v.react} mounted islands for interactive
+                        components. No SPA overhead.
                     </p>
                 </button>
 
@@ -71,8 +82,8 @@ export const HelloReact = ({ title, versions, onReady, onCardClick }: HelloReact
                     <div className="hello-react-card-icon">🎨</div>
                     <h3 className="hello-react-card-title">Dual Styling</h3>
                     <p className="hello-react-card-text">
-                        Bootstrap {v.bootstrap} drives the host layout while Tailwind CSS {v.tailwind} powers mounted islands, scoped via Shadow DOM
-                        with zero cascade leaks or class collisions.
+                        Bootstrap {v.bootstrap} drives the host layout while Tailwind CSS {v.tailwind} powers mounted
+                        islands, scoped via Shadow DOM with zero cascade leaks or class collisions.
                     </p>
                 </button>
 
@@ -88,19 +99,20 @@ export const HelloReact = ({ title, versions, onReady, onCardClick }: HelloReact
                     <div className="hello-react-card-icon">🧩</div>
                     <h3 className="hello-react-card-title">Islands & Micro-Frontends</h3>
                     <p className="hello-react-card-text">
-                        React {v.react} mounted islands render client-side inside Shadow DOM with adopted stylesheets, fully isolated
-                        from the Bootstrap {v.bootstrap} host. Micro-frontends support is planned...
+                        React {v.react} mounted islands render client-side inside Shadow DOM with adopted stylesheets,
+                        fully isolated from the Bootstrap {v.bootstrap} host. Micro-frontends support is planned...
                     </p>
                 </button>
             </div>
 
             <div className="hello-react-cta">
                 <p className="hello-react-cta-text">
-                    This component is styled with Tailwind CSS {v.tailwind} inside a Shadow DOM.
-                    The page around it uses Bootstrap {v.bootstrap}.
+                    This component is styled with Tailwind CSS {v.tailwind} inside a Shadow DOM. The page around it uses
+                    Bootstrap {v.bootstrap}.
                 </p>
                 <p className="hello-react-cta-text">
-                    .NET {v.dotnet} · React {v.react} · Vite {v.vite} · Bootstrap {v.bootstrap} · Tailwind CSS {v.tailwind}
+                    .NET {v.dotnet} · React {v.react} · Vite {v.vite} · Bootstrap {v.bootstrap} · Tailwind CSS{' '}
+                    {v.tailwind}
                 </p>
             </div>
         </div>

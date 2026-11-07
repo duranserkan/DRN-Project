@@ -212,7 +212,7 @@ Server handlers can use `SendToast` for immediate `HX-Trigger: showToast` feedba
 
 ## Frontend assets
 
-Node.js and npm are required for rebuilding frontend assets. [`.node-version`](../.node-version) pins the recommended LTS version and the version used by CI. [package.json](package.json) accepts that version or newer, enforced during dependency installation by `engine-strict=true`. Built assets are checked in, so this tooling is optional when simply running the sample.
+To rebuild frontend assets, use npm and the exact Node.js version pinned in [`.node-version`](../.node-version). CI uses the same version. During dependency installation, `engine-strict=true` enforces the matching requirement in [package.json](package.json). Built assets are checked in, so this tooling is optional when simply running the sample.
 
 After changing frontend sources in `Sample.Hosted/buildwww/`, rebuild the assets from `Sample.Hosted/`:
 
@@ -222,7 +222,9 @@ npm audit signatures
 npm run build
 ```
 
-Before generating assets, `npm run build` runs `npm run check`. Type-aware Oxlint runs first and fails on warnings or errors. TypeScript then checks the application and test projects. Run `npm run lint` or `npm run type-check` for either check alone. Targeted builds skip these checks. See the [lint configuration](.oxlintrc.json) for rule details.
+Before generating assets, `npm run build` runs `npm run check`. Oxfmt checks the frontend sources and Vite and Playwright configs. Type-aware Oxlint fails on warnings, errors, and unused disable directives. Stylelint checks all CSS and SCSS under `buildwww/` and fails on warnings or errors. Run it separately with `npm run lint:styles`. TypeScript then checks the application and test projects. Use `npm run format` to apply formatting or `npm run format:check` to check it. Targeted builds skip these checks. See the [Oxlint rules](.oxlintrc.json) and [Stylelint rules](.stylelintrc.json).
+
+`npm run check` ends with an advisory Knip report on unused files, dependencies, and exports. The full build prints this report in CI. Run `npm run check:unused` directly to get a failing exit code for findings. The script sets `BUILD_TYPE=app` so Knip discovers that variant’s inputs from Vite. Keep the other variants’ bundle entries in [knip.json](knip.json). Review findings against Razor templates and browser globals before removing code.
 
 Build scripts use inline environment assignments such as `BUILD_TYPE=app vite build` and require a POSIX-compatible shell unless the scripts are made cross-platform. Vite selects each target through `BUILD_TYPE`, which targeted npm build scripts set explicitly. Direct Vite calls also use `BUILD_TYPE` and default to `app` when it is unset or empty.
 
@@ -273,7 +275,7 @@ Run `npm run build:test:all` to build all frontend assets, then run both test su
 
 Pull request, develop, master, stable release, and preview release workflows run frontend unit tests, build assets, then run browser tests against those assets. Analysis-only dependency setup skips building and testing.
 
-The browser checks cover notification and form-error behavior without a running .NET app or database. `npm run test:browser` ensures Chromium headless shell is installed before running tests, reusing the cached installation when available. It does not depend on npm lifecycle hooks. On Linux, run `npm exec --no --ignore-scripts -- playwright install-deps chromium` if system libraries are missing. CI installs these system dependencies separately and uses the same browser test command.
+The browser checks cover notification and form-error behavior without a running .NET app or database. `npm run test:browser` installs Playwright’s matching Chromium headless shell if needed. To install the shell ahead of time, run `npm run test:browser:install`. On Linux, run `npm exec --no --ignore-scripts -- playwright install-deps chromium` if system libraries are missing. CI installs those libraries before calling `test:browser`.
 
 The fixture suite scans the expanded notification dialog and the profile form after a validation error with axe. It also checks keyboard navigation and focus.
 

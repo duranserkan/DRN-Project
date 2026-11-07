@@ -12,6 +12,10 @@ Read the selected skills in this order:
 
 For DRN buildwww:
 
+For changes to frontend code, tests, fixtures, or tooling configuration, apply the [source language policy](../skills/drn-buildwww-vite/references/type-ownership.md#source-language) and verify the justification for any JavaScript exception.
+
+For stylesheet changes, follow the [stylesheet conventions](../skills/drn-buildwww-vite/SKILL.md#stylesheet-conventions) for the affected bundle.
+
 1. Read prerequisite: `.agent/skills/overview-drn-framework/SKILL.md`
 2. Read relevant file: `.agent/skills/drn-buildwww-libraries/SKILL.md`
 3. Read relevant file: `.agent/skills/drn-buildwww-packages/SKILL.md`

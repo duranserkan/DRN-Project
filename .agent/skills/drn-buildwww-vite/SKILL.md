@@ -50,6 +50,12 @@ tokens: ~2K
 
 Follow [Package Imports](../drn-buildwww-packages/SKILL.md#package-imports) when choosing dependency paths. Verify stylesheet resolution before migrating existing Sass imports.
 
+### Stylesheet conventions
+
+- Use plain CSS for site styles, including overrides that target rendered Bootstrap components.
+- Use CSS for Tailwind styles in React islands. Keep `@reference` and `@apply` in the [React CSS pipeline](../drn-buildwww-react/SKILL.md#css-strategy).
+- Use SCSS to [customize the Bootstrap build](../drn-buildwww-libraries/SKILL.md#bootstrap-customization), such as setting Sass variables or selecting component imports.
+
 ### Multi-Build Setup
 
 The frontend root's `vite.config.ts` defines each target's entry points, plugins, and output directory. Targeted npm scripts set `BUILD_TYPE`. The default target is `app`.
@@ -60,9 +66,9 @@ For classic-script builds with mixed or multiple entries, use `iifeWrap()` to is
 
 ### Build Commands
 
-Repository rule: do not run build commands unless the user explicitly allows them.
+Builds require explicit permission. Apply the AGENTS.md npm command gate to linting, formatting, type checking, and builds invoked through npm.
 
-The full build runs `check`: Oxlint rejects warnings, then TypeScript checks types. Targeted builds skip this gate. The package manifest owns commands and lint scope.
+The full build runs `check` for formatting, script and stylesheet linting, type checking, and the advisory Knip report. Targeted builds skip this gate. The package manifest owns commands and lint scope.
 
 ```bash
 # Build all targets

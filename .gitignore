@@ -13,9 +13,11 @@
 !/.node-version
 !.coderabbit.yaml
 !.sample-env
-!/Sample.Hosted/.npmrc
-!/Sample.Hosted/.oxlintrc.json
-!/DRN.Nexus.Hosted/.npmrc
+# Shared frontend tooling in top-level project folders.
+!/[!.]*/.npmrc
+!/[!.]*/.oxfmtrc.json
+!/[!.]*/.oxlintrc.json
+!/[!.]*/.stylelintrc.json
 !**/wwwroot/**/.vite/
 **/wwwroot/**/.vite/*
 !**/wwwroot/**/.vite/manifest.json

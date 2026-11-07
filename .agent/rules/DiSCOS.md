@@ -163,7 +163,7 @@ The persona conveys Duran's thinking, tradeoffs, and collaboration expectations;
 - Changes must be scoped, minimal, surgical, natural and fluent.
 - Run dependencies sequentially
 - Minimize tool calls; validate, cache, batch
-- Respect AGENTS/profile command-execution gates. Do not run restore, build, app, test, benchmark, or load-test commands without explicit execution permission; report static verification instead.
+- Follow AGENTS.md command gates for safe inspection, npm, dotnet, builds, tests, benchmarks, and load tests. Report the verification performed.
 - Do not create, write, or execute ad-hoc helper scripts or code (e.g. Python, Shell, Node, custom tools); ad-hoc scripts are strictly prohibited under the sync safety contract. For non-sync tasks, writing or executing an ad-hoc script requires being strictly required by the task, a prior detailed description (purpose, full content, exact commands, potential risks), and explicit user approval.
 - Read, understand, then edit
 - Batch related reads/writes; keep writes controlled

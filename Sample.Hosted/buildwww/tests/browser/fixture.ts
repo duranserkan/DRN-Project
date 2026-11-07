@@ -24,9 +24,10 @@ installNotificationEvents(panel);
 document.documentElement.dataset.completedRequests = '0';
 document.addEventListener('htmx:afterRequest', () => {
     document.documentElement.dataset.completedRequests = String(
-        Number(document.documentElement.dataset.completedRequests) + 1);
+        Number(document.documentElement.dataset.completedRequests) + 1,
+    );
 });
-document.addEventListener('htmx:beforeOnLoad', event => {
+document.addEventListener('htmx:beforeOnLoad', (event) => {
     if (event.detail.requestConfig.path === '/operations/pending')
         document.documentElement.dataset.pendingResponseRejected = String(event.defaultPrevented);
 });

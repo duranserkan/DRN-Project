@@ -8,10 +8,9 @@ config.refreshOnHistoryMiss = true;
 config.historyCacheSize = 0;
 config.timeout = 30_000;
 
-document.addEventListener('htmx:beforeCleanupElement', event => {
+document.addEventListener('htmx:beforeCleanupElement', (event) => {
     const element = event.detail?.elt;
-    if (element instanceof Element)
-        htmx.trigger(element, 'htmx:abort');
+    if (element instanceof Element) htmx.trigger(element, 'htmx:abort');
 });
 
 export { htmx };

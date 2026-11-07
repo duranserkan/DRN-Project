@@ -8,7 +8,7 @@ export class IslandErrorBoundary extends Component<IslandErrorBoundaryProps, Isl
         super(props);
         this.state = {
             hasError: false,
-            prevResetKey: props.resetKey
+            prevResetKey: props.resetKey,
         };
     }
 
@@ -18,19 +18,19 @@ export class IslandErrorBoundary extends Component<IslandErrorBoundaryProps, Isl
 
     static getDerivedStateFromProps(
         props: IslandErrorBoundaryProps,
-        state: IslandErrorBoundaryState
+        state: IslandErrorBoundaryState,
     ): IslandErrorBoundaryState | null {
         if (props.resetKey !== undefined && state.prevResetKey !== props.resetKey) {
             return {
                 hasError: false,
-                prevResetKey: props.resetKey
+                prevResetKey: props.resetKey,
             };
         }
         return null;
     }
 
     override componentDidCatch(error: Error, info: ErrorInfo): void {
-        console.error("[DRN] Island crashed:", error, info);
+        console.error('[DRN] Island crashed:', error, info);
     }
 
     override render(): ReactNode {

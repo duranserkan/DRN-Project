@@ -1,5 +1,5 @@
 // Custom Vite/Rolldown plugins for CSP compliance and scope isolation.
-import type {Plugin} from 'vite';
+import type { Plugin } from 'vite';
 
 // Rolldown plugin: wraps every JS chunk in an IIFE for scope isolation.
 // This avoids minified-name collisions between independently bundled libraries
@@ -10,10 +10,10 @@ export function iifeWrap(): Plugin {
         name: 'iife-wrap',
         renderChunk(code, chunk) {
             if (chunk.fileName.endsWith('.js')) {
-                return {code: `(function(){"use strict";\n${code}\n})();`, map: null};
+                return { code: `(function(){"use strict";\n${code}\n})();`, map: null };
             }
             return null;
-        }
+        },
     };
 }
 
@@ -32,8 +32,8 @@ export function stripHtmxEval(): Plugin {
             if (!code.includes(target)) return null;
             return {
                 code: code.replace(target, 'return undefined'),
-                map: null
+                map: null,
             };
-        }
+        },
     };
 }

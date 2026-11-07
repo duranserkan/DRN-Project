@@ -26,13 +26,12 @@ function syncHistory() {
 }
 
 function isValidationFragment(xhr: XMLHttpRequest, contentType: string) {
-    return xhr.status === 422 && contentType === 'text/html' &&
-        xhr.getResponseHeader('X-DRN-Validation') === 'true';
+    return xhr.status === 422 && contentType === 'text/html' && xhr.getResponseHeader('X-DRN-Validation') === 'true';
 }
 
 function affectsUserAction(detail: ResponseDetail) {
     const element = detail?.requestConfig?.elt || detail?.elt;
-    const explicit = element?.closest?.<HTMLElement>('[data-notification-user-action]')?.dataset.notificationUserAction;
+    const explicit = element?.closest<HTMLElement>('[data-notification-user-action]')?.dataset.notificationUserAction;
     if (explicit !== undefined) return explicit === 'true';
     return detail?.requestConfig?.triggeringEvent?.isTrusted === true;
 }
@@ -43,12 +42,16 @@ function requestContext(detail: ResponseDetail) {
     try {
         const path = new URL(detail?.requestConfig?.path || location.pathname, location.href).pathname;
         operation = `${(detail?.requestConfig?.verb || 'GET').toUpperCase()} ${path}`;
-    } catch { /* Do not retain unparseable URLs or query strings. */ }
+    } catch {
+        /* Do not retain unparseable URLs or query strings. */
+    }
     return {
-        element, target: detail?.target,
-        operation: element?.closest?.<HTMLElement>('[data-notification-operation]')?.dataset.notificationOperation || operation,
-        persist: element?.closest?.<HTMLElement>('[data-notification-persist]')?.dataset.notificationPersist !== 'false',
-        focus: !!detail?.requestConfig?.triggeringEvent?.isTrusted
+        element,
+        target: detail?.target,
+        operation:
+            element?.closest<HTMLElement>('[data-notification-operation]')?.dataset.notificationOperation || operation,
+        persist: element?.closest<HTMLElement>('[data-notification-persist]')?.dataset.notificationPersist !== 'false',
+        focus: !!detail?.requestConfig?.triggeringEvent?.isTrusted,
     };
 }
 
@@ -60,8 +63,14 @@ export function importStatusMessages(root: ParentNode, store: IDRN['Notification
         const source = element.dataset.notificationStatus;
         const message = element.querySelector('[data-notification-status-message]')?.textContent?.trim();
         if (!/^[a-f0-9]{32}$/.test(source || '') || !message) continue;
-        const entry = store.publish({ type: 'success', title: 'Status', message, sourceId: `tempdata:${source}`,
-            persist: element.closest<HTMLElement>('[data-notification-persist]')?.dataset.notificationPersist !== 'false' });
+        const entry = store.publish({
+            type: 'success',
+            title: 'Status',
+            message,
+            sourceId: `tempdata:${source}`,
+            persist:
+                element.closest<HTMLElement>('[data-notification-persist]')?.dataset.notificationPersist !== 'false',
+        });
         // Keep dismissal effective when HTMX or pageshow processes this same DOM again.
         if (entry) element.dataset.notificationRecorded = 'true';
     }
@@ -80,13 +89,14 @@ export function installNotificationEvents(panel: typeof notificationPanel) {
     const requestEpochs = new WeakMap<XMLHttpRequest, number>();
 
     function stale(detail: ResponseDetail) {
-        return !DRN.Notifications.isActive() ||
-            (detail?.xhr && requestEpochs.has(detail.xhr) && requestEpochs.get(detail.xhr) !== epoch);
+        return (
+            !DRN.Notifications.isActive() ||
+            (detail?.xhr && requestEpochs.has(detail.xhr) && requestEpochs.get(detail.xhr) !== epoch)
+        );
     }
 
     function shouldClearProblem(detail: ResponseDetail) {
-        return detail?.xhr?.status >= 200 && detail.xhr.status < 300 &&
-            !handled.has(detail.xhr) && !stale(detail);
+        return detail?.xhr?.status >= 200 && detail.xhr.status < 300 && !handled.has(detail.xhr) && !stale(detail);
     }
 
     function showAccountChange() {
@@ -131,17 +141,18 @@ export function installNotificationEvents(panel: typeof notificationPanel) {
     }
 
     function ensureResources() {
-        if (expiryTimer === null)
-            expiryTimer = window.setInterval(() => DRN.Notifications.expire(), 60000);
+        expiryTimer ??= window.setInterval(() => DRN.Notifications.expire(), 60000);
         if (channel || !currentContext) return channel;
         try {
             channel = new BroadcastChannel(`drn.notifications:${currentContext.app}`);
-            channel.onmessage = event => {
+            channel.onmessage = (event) => {
                 if (event.data?.type === 'account' && event.data.owner !== currentContext?.owner) {
                     DRN.Notifications.suspend();
                 }
             };
-        } catch { channel = null; }
+        } catch {
+            channel = null;
+        }
         return channel;
     }
 
@@ -151,7 +162,10 @@ export function installNotificationEvents(panel: typeof notificationPanel) {
         handled.add(xhr);
         if (!affectsUserAction(detail)) return;
         if (title) {
-            DRN.ErrorHandler.reportActionError(new Error(title), { ...requestContext(detail), message });
+            DRN.ErrorHandler.reportActionError(new Error(title), {
+                ...requestContext(detail),
+                ...(message !== undefined && { message }),
+            });
             return;
         }
         const problem = DRN.Problem.fromXhr(xhr);
@@ -188,7 +202,7 @@ export function installNotificationEvents(panel: typeof notificationPanel) {
             showAccountChange();
         }
     });
-    window.addEventListener('storage', event => {
+    window.addEventListener('storage', (event) => {
         if (currentContext && (event.key === null || event.key === `drn.notifications.v1:${currentContext.app}`))
             syncHistory();
     });
@@ -199,7 +213,7 @@ export function installNotificationEvents(panel: typeof notificationPanel) {
         expiryTimer = null;
     });
 
-    document.addEventListener('htmx:beforeOnLoad', event => {
+    document.addEventListener('htmx:beforeOnLoad', (event) => {
         // HTMX processes navigation and trigger headers before beforeSwap.
         if (stale(event.detail)) {
             loadingDetail = null;
@@ -207,9 +221,11 @@ export function installNotificationEvents(panel: typeof notificationPanel) {
             return;
         }
         loadingDetail = event.detail;
-        queueMicrotask(() => { loadingDetail = null; });
+        queueMicrotask(() => {
+            loadingDetail = null;
+        });
     });
-    document.addEventListener('htmx:beforeRequest', event => {
+    document.addEventListener('htmx:beforeRequest', (event) => {
         if (!DRN.Notifications.isActive()) {
             event.preventDefault();
             return;
@@ -217,11 +233,15 @@ export function installNotificationEvents(panel: typeof notificationPanel) {
         if (event.detail?.xhr) requestEpochs.set(event.detail.xhr, epoch);
     });
 
-    document.addEventListener('htmx:beforeSwap', event => {
+    document.addEventListener('htmx:beforeSwap', (event) => {
         const detail = event.detail;
         const xhr = detail?.xhr;
         if (!xhr) return;
-        if (stale(detail)) { detail.shouldSwap = false; detail.isError = false; return; }
+        if (stale(detail)) {
+            detail.shouldSwap = false;
+            detail.isError = false;
+            return;
+        }
         const contentType = mediaType(xhr.getResponseHeader('Content-Type'));
         if (contentType === 'application/problem+json') {
             detail.shouldSwap = false;
@@ -233,18 +253,23 @@ export function installNotificationEvents(panel: typeof notificationPanel) {
             detail.isError = false;
         }
     });
-    document.addEventListener('htmx:responseError', event => showFailure(event.detail));
-    document.addEventListener('htmx:sendError', event => showFailure(event.detail,
-        'Connection lost', 'Check your connection. The operation may not have completed.'));
-    document.addEventListener('htmx:timeout', event => showFailure(event.detail,
-        'The request timed out', 'The outcome is unknown. Check the current state before trying again.'));
-    document.addEventListener('htmx:afterRequest', event => {
+    document.addEventListener('htmx:responseError', (event) => showFailure(event.detail));
+    document.addEventListener('htmx:sendError', (event) =>
+        showFailure(event.detail, 'Connection lost', 'Check your connection. The operation may not have completed.'),
+    );
+    document.addEventListener('htmx:timeout', (event) =>
+        showFailure(
+            event.detail,
+            'The request timed out',
+            'The outcome is unknown. Check the current state before trying again.',
+        ),
+    );
+    document.addEventListener('htmx:afterRequest', (event) => {
         const detail = event.detail;
-        if (shouldClearProblem(detail))
-            DRN.Problem.clear(requestContext(detail));
+        if (shouldClearProblem(detail)) DRN.Problem.clear(requestContext(detail));
     });
-    document.addEventListener('htmx:beforeCleanupElement', event => DRN.Toast.cleanup(event.detail?.elt));
-    document.addEventListener('showToast', event => {
+    document.addEventListener('htmx:beforeCleanupElement', (event) => DRN.Toast.cleanup(event.detail?.elt));
+    document.addEventListener('showToast', (event) => {
         const detail = event.detail;
         if (!detail || !loadingDetail || stale(loadingDetail)) return;
         if (typeof detail.message !== 'string' || !detail.message.trim()) return;
@@ -259,8 +284,13 @@ export function installNotificationEvents(panel: typeof notificationPanel) {
             if (!affectsUserAction(loadingDetail)) return;
         }
         const context = requestContext(loadingDetail);
-        DRN.Toast.show({ type: detail.type, message: detail.message, duration: detail.duration,
-            record: detail.record, persist: detail.persist !== false && context.persist,
-            operation: detail.operation || context.operation });
+        DRN.Toast.show({
+            ...(detail.type !== undefined && { type: detail.type }),
+            message: detail.message,
+            ...(detail.duration !== undefined && { duration: detail.duration }),
+            ...(detail.record !== undefined && { record: detail.record }),
+            persist: detail.persist !== false && context.persist,
+            operation: detail.operation || context.operation,
+        });
     });
 }

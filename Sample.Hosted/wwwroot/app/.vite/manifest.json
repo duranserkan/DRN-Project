@@ -1,6 +1,6 @@
 {
   "buildwww/app/css/app.css": {
-    "file": "app.ByLUp5uY_C6Uzet_.css",
+    "file": "app.CAxv6V1sva46mBeA.css",
     "name": "app",
     "names": [
       "app.css"
@@ -9,7 +9,7 @@
     "isEntry": true
   },
   "buildwww/app/ts/appPreload.ts": {
-    "file": "appPreload.mpwDjJ-SQG8hSMu3.js",
+    "file": "appPreload.DZriegv01NXv_itJ.js",
     "name": "appPreload",
     "src": "buildwww/app/ts/appPreload.ts",
     "isEntry": true
