@@ -38,6 +38,18 @@ function responseNonces(xhr: XMLHttpRequest) {
     return allowed ?? new Set<string>();
 }
 
+function removeSafeNonceOptOuts(root: ParentNode) {
+    for (const attribute of ['hx-ext', 'data-hx-ext']) {
+        for (const element of root.querySelectorAll(`[${attribute}]`)) {
+            // Named form controls can shadow both attribute methods.
+            const tokens = Element.prototype.getAttribute.call(element, attribute)!.split(',');
+            // HTMX ignores ASCII spaces in each extension name.
+            const kept = tokens.filter((token) => token.replaceAll(' ', '') !== 'ignore:safe-nonce');
+            if (kept.length !== tokens.length) Element.prototype.setAttribute.call(element, attribute, kept.join(','));
+        }
+    }
+}
+
 function filterResponse(doc: Document, nonces: Set<string>) {
     const roots: ParentNode[] = [doc];
     for (const root of roots) {
@@ -45,16 +57,7 @@ function filterResponse(doc: Document, nonces: Set<string>) {
             const nonce = script.getAttribute('nonce');
             if (!nonce?.trim() || !nonces.has(nonce)) script.remove();
         }
-        for (const attribute of ['hx-ext', 'data-hx-ext']) {
-            for (const element of root.querySelectorAll(`[${attribute}]`)) {
-                // Named form controls can shadow both attribute methods.
-                const tokens = Element.prototype.getAttribute.call(element, attribute)!.split(',');
-                // HTMX ignores ASCII spaces in each extension name.
-                const kept = tokens.filter((token) => token.replaceAll(' ', '') !== 'ignore:safe-nonce');
-                if (kept.length !== tokens.length)
-                    Element.prototype.setAttribute.call(element, attribute, kept.join(','));
-            }
-        }
+        removeSafeNonceOptOuts(root);
         // HTMX can activate scripts from template contents after the response is filtered.
         for (const template of root.querySelectorAll('template')) {
             if (template instanceof HTMLTemplateElement) roots.push(template.content);

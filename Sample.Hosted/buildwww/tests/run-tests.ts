@@ -27,8 +27,12 @@ if (values.coverage) {
     for (const glob of values.include ?? ['buildwww/{app,lib}/**/*.{ts,tsx,js}'])
         args.push(`--test-coverage-include=${glob}`);
     for (const glob of values.exclude ?? ['**/*.d.ts']) args.push(`--test-coverage-exclude=${glob}`);
-    args.push('--test-reporter=spec', '--test-reporter-destination=stdout', '--test-reporter=lcov');
-    args.push(`--test-reporter-destination=${report}`);
+    args.push(
+        '--test-reporter=spec',
+        '--test-reporter-destination=stdout',
+        '--test-reporter=lcov',
+        `--test-reporter-destination=${report}`,
+    );
 } else if (values.include || values.exclude || values.report) {
     throw new Error('Coverage options require --coverage.');
 }
