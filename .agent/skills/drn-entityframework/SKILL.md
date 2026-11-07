@@ -1,48 +1,28 @@
 ---
 name: drn-entityframework
-description: "DRN.Framework.EntityFramework - DrnContext, migrations, entity lifecycle tracking, Npgsql configuration, repositories, and repository cancellation groups. Keywords: drncontext, ef-core, migrations, database, postgresql, npgsql, repository-implementation, repository-cancellation, cancellation-scope, entity-tracking, dbcontext-configuration, prototype-mode, testcontainers"
-last-updated: 2026-10-29
+description: "Configure DRN PostgreSQL contexts, identity tracking, migrations, prototype safety, repositories and cancellation."
+last-updated: 2026-11-07
 difficulty: advanced
-tokens: ~2.5K
 ---
 
 # DRN.Framework.EntityFramework
 
-> Convention-based EF Core integration with automatic configuration and migrations.
-
-`Example*` types and namespaces below are illustrative. Resolve the actual context, program, project path, and connection-string key from the destination repository.
-
-## When to Apply
-- Creating new DbContexts
-- Setting up database migrations
-- Configuring development database connections
-- Understanding Source-Known entity lifecycle tracking
-- Working with Testcontainers for local development
-
----
+Read the installed `DRN.Framework.EntityFramework` package README for connection examples, attribute hooks and provider defaults. [Locate the package](../overview-drn-framework/SKILL.md#documentation-and-source-references)
 
 ## DrnContext Pattern
 
-```csharp
-public class ExampleDbContext : DrnContext<ExampleDbContext>
-{
-    public ExampleDbContext(DbContextOptions<ExampleDbContext> options) : base(options) { }
-    public ExampleDbContext() : base(null) { }  // Required for migrations
+Derive the context from `DrnContext<TContext>`. Provide the options constructor and parameterless constructor for migrations. Register via attribute scanning. Use the context type name for its connection-string key. Put entity configurations in the same assembly, in the context namespace or a child namespace.
 
-    public DbSet<User> Users { get; set; }
-    public DbSet<Question> Questions { get; set; }
+```csharp
+public class OrdersContext : DrnContext<OrdersContext>
+{
+    public OrdersContext(DbContextOptions<OrdersContext> options) : base(options) { }
+    public OrdersContext() : base(null) { }
+    public DbSet<Order> Orders => Set<Order>();
 }
 ```
 
-| Feature | Description |
-|---------|-------------|
-| **Auto-registration** | Via `AddServicesWithAttributes()` |
-| **Convention naming** | Connection-string key uses the context type name, such as `ConnectionStrings:ExampleDbContext` |
-| **Config discovery** | Auto-applies `IEntityTypeConfiguration` from the context assembly when the configuration namespace matches the context namespace or one of its child namespaces |
-| **Entity tracking** | Auto-marks entities as Created/Modified/Deleted with timestamps |
-| **Design-time** | Implements `IDesignTimeDbContextFactory` |
-
-> Configurations are auto-discovered from the context assembly when the configuration namespace matches the context namespace or one of its child namespaces. For example, `Example.Infra.Configurations` is a valid child of `Example.Infra`.
+Scan the application's context assembly with `builder.Services.AddServicesWithAttributes(typeof(OrdersContext).Assembly)`. The named connection is `ConnectionStrings:OrdersContext`. DRN Hosting runs startup validation. Standalone hosts must integrate the framework's startup validation lifecycle explicitly.
 
 ### Augmented Entity Behavior
 
@@ -59,192 +39,44 @@ DrnContext augments entities during `OnModelCreating` and runtime:
 | **Mapped Inheritance** | Configures SourceKnownEntity keys and shared properties on EF hierarchy roots for TPH/TPT/TPC; derived entities inherit the key and ID generator while retaining their own concrete entity-type metadata |
 | **Startup Validation** | Validates concrete, non-private SourceKnownEntity entities have valid, unique `(EntityType, AppId)` pairs while permitting the same entity byte in different application partitions; abstract bases and entities that are private or nested at any depth inside a private type are ignored in model and assembly discovery, matching analyzer eligibility |
 
----
-
 ## Connection String Conventions
 
-### Production/Staging
-Explicit connection strings required via `appSettings.GetRequiredConnectionString(contextName)`:
-```json
-{ "ConnectionStrings": { "ExampleDbContext": "Host=prod-db;Port=5432;Database=app;..." } }
-```
+| Environment | Connection source |
+|---|---|
+| Production or Staging | Explicit `ConnectionStrings:{ContextName}`. Development keys are ignored. |
+| Local Development with Testcontainers | Enable `LaunchExternalDependencies` and invoke the launch hook. `PostgresContainerSettings` supplies container settings. |
+| Containerized Development | `DrnContextDevelopmentConnection` builds the connection from `postgres-password` and `DrnContext_Dev*` settings. |
+| Integration tests | Bind `ContainerContext.Postgres` to the test application. Start RabbitMQ explicitly when needed. |
 
-### Local Dev with Testcontainers (`LaunchExternalDependencies`)
-
-When `DrnDevelopmentSettings:LaunchExternalDependencies = true`, the framework auto-starts PostgreSQL via Testcontainers.
-
-**Setup**: Add a Debug-only reference to `DRN.Framework.Testing`. For package consumers using central package management:
-```xml
-<ItemGroup Condition="'$(Configuration)' == 'Debug'">
-    <PackageReference Include="DRN.Framework.Testing" />
-</ItemGroup>
-```
-
-Use the version selected by the destination repository. Without central package management, set that version on `PackageReference`. In a framework source checkout, use `ProjectReference` only after discovering the actual project path.
-
-```csharp
-#if DEBUG
-public class ExampleProgramActions : DrnProgramActions
-{
-    public override async Task ApplicationBuilderCreatedAsync<TProgram>(
-        TProgram program, WebApplicationBuilder builder,
-        IAppSettings appSettings, IScopedLog scopedLog)
-    {
-        var launchOptions = new ExternalDependencyLaunchOptions
-        {
-            PostgresContainerSettings = new PostgresContainerSettings
-            {
-                Reuse = true,   // Keep container across restarts
-                HostPort = 6432 // Avoid port conflicts
-            }
-        };
-        await builder.LaunchExternalDependenciesAsync(scopedLog, appSettings, launchOptions);
-    }
-}
-#endif
-```
-
-### Containerized Development (Docker Compose)
-
-Set `postgres-password` env var to trigger auto-connection string generation:
-```
-Environment=Development, postgres-password=dev-password, DrnContext_DevHost=postgres
-```
-
-| Key | Default | Purpose |
-|-----|---------|---------|
-| `DrnContext_DevHost` | `drn` | Database host |
-| `DrnContext_DevPort` | `5432` | Database port |
-| `DrnContext_DevUsername` | `drn` | Database user |
-| `DrnContext_DevDatabase` | `drn` | Database name |
-| `postgres-password` | *(required)* | Triggers auto-connection string |
-
-> [!CAUTION]
-> `postgres-password` and `DrnContext_Dev*` keys are **ignored** in non-Development environments.
-
----
+In Development, an explicit named connection takes precedence. Without a named connection or the development password, resolution fails.
 
 ## Migrations
 
-DI-configured contexts compose attribute `SeedAsync` with EF `UseSeeding`/`UseAsyncSeeding` callbacks, after any custom callback. Eligible automatic startups call `MigrateAsync` even with no pending migrations so seeds run under the migration lock and failed seeds can be retried. Explicit DI migration/creation operations also seed; synchronous operations wait for the asynchronous hook. Design-time configuration without DI does not add attribute seeding. Seeds must be idempotent and use the same scoped context. Prototype creation callbacks do not provide migration-lock concurrency guarantees. Existing environment and pending-model guards still apply.
+Compose attribute `SeedAsync` after any custom EF seeding callback. Keep seeds idempotent and use the same scoped context. Eligible automatic startups call `MigrateAsync` even with zero pending migrations. Migration operations run seeds under the EF migration lock and a later startup may retry failed seeding. Explicit DI migration/creation calls seed too. Design-time contexts without DI omit attribute seeding. Prototype creation has no migration-lock guarantee.
 
-Reapplying context options preserves custom callbacks and replaces DRN seed wrappers using the latest supplied provider; it does not duplicate attribute seeding. Reconfiguration without a provider restores only custom callbacks.
-
-Resolve the context name and infrastructure project from the current repository before substituting these placeholders. Execute only when authorized:
-
-```bash
-dotnet ef migrations add MigrationName --context <context-name> --project <infrastructure-project>
-dotnet ef database update --context <context-name> --project <infrastructure-project>
-```
-
-> [!TIP]
-> Use the project containing `DrnContext` as startup project — it implements `IDesignTimeDbContextFactory`.
-
----
+Reapplying options replaces DRN wrappers with the latest provider and preserves custom callbacks. Without a provider only custom callbacks remain. Use the context project for design-time startup. Resolve migration commands from the profile and follow the exact-command approval gate.
 
 ## Prototype Mode
 
-Auto-recreates the local development database on pending model changes. **All conditions must be true**:
-1. `NpgsqlDbContextOptionsAttribute.UsePrototypeMode = true`
-2. `DrnDevelopmentSettings:Prototype = true`
-3. Application environment is Development
-4. `DrnDevelopmentSettings:AutoMigrateDevelopment = true`
-5. Pending model changes exist
-6. No migrations have been applied, or applied migrations exist and `UsePrototypeModeWhenMigrationExists = true`
+Prototype recreation drops the database. Allow it only in Development with all of the following:
 
-> [!WARNING]
-> Prototype mode **drops and recreates** the database. It is Development-only; `AutoMigrateStaging` applies migrations only and must not enable prototype recreation.
->
-> Canonical invariants: [Maintenance Reference: Migration And Prototype Invariants](../overview-drn-framework/SKILL.md#maintenance-reference-migration-and-prototype-invariants).
+- `AutoMigrateDevelopment`, `DrnDevelopmentSettings:Prototype`, and the context attribute's `UsePrototypeMode` are enabled.
+- Pending model changes exist.
+- No migrations have been applied, or the context explicitly enables `UsePrototypeModeWhenMigrationExists`.
 
----
+Staging can opt into migrations through `AutoMigrateStaging`. Production never auto-migrates. Neither environment permits prototype recreation.
 
 ## Entity Configuration
 
-Configurations are auto-discovered from the context's assembly namespace:
+Prefer attributes for ordinary mappings. Use Fluent API for complex relationships. Configure the relationship before navigation options such as `AutoInclude()`. [EF Core ordering example](https://github.com/dotnet/efcore/issues/31380)
 
-```csharp
-// In the context's namespace or one of its child namespaces.
-public class UserConfiguration : IEntityTypeConfiguration<User>
-{
-    public void Configure(EntityTypeBuilder<User> builder)
-    {
-        builder.HasKey(u => u.Id);
-        builder.Property(u => u.Username).HasMaxLength(100);
-    }
-}
-```
-
-> [!CAUTION]
-> **Navigation Configuration Ordering**: Navigation-level configurations (e.g., `AutoInclude()`) must be placed **after** relationship definitions in Fluent API. Placing them before silently fails. See [dotnet/efcore#31380](https://github.com/dotnet/efcore/issues/31380).
->
-> ```csharp
-> // ✗ WRONG — AutoInclude silently ignored
-> builder.Navigation(x => x.Books).AutoInclude();
-> builder.HasMany(x => x.Books).WithMany();
->
-> // ✓ CORRECT — define relationship first, then configure navigation
-> builder.HasMany(x => x.Books).WithMany();
-> builder.Navigation(x => x.Books).AutoInclude();
-> ```
-
----
-
-## DB Context Attributes
-
-| Attribute | Purpose |
-|-----------|---------|
-| `[NpgsqlDbContextOptions]` | Postgres options, UsePrototypeMode, SeedAsync |
-| `[DrnContextDefaults]` | Standard DRN conventions (naming, discovery) |
-| `[DrnContextPerformanceDefaults]` | Performance optimizations (see below) |
-
-#### NpgsqlDbContextOptions Configuration Hooks
-
-```csharp
-public virtual void ConfigureNpgsqlOptions<TContext>(NpgsqlDbContextOptionsBuilder builder, IServiceProvider? serviceProvider);
-public virtual void ConfigureNpgsqlDataSource<TContext>(NpgsqlDataSourceBuilder builder, IServiceProvider serviceProvider);
-public virtual void ConfigureDbContextOptions<TContext>(DbContextOptionsBuilder builder, IServiceProvider? serviceProvider);
-public virtual Task SeedAsync(IServiceProvider serviceProvider, IAppSettings appSettings); // See https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding
-```
-
-### Performance Defaults
-
-| Setting | Default | Purpose |
-|---------|---------|---------|
-| `MaxAutoPrepare` | `200` | Prepared statement cache size |
-| `AutoPrepareMinUsages` | `5` | Minimum usages before auto-prepare |
-| `MinPoolSize`/`MaxPoolSize` | `1`/`15` | Connection pool bounds |
-| `Read/WriteBufferSize` | `8192` | I/O buffers |
-| `CommandTimeout` | `30` | Command timeout in seconds |
-
-Custom performance attributes can inherit `NpgsqlPerformanceSettingsAttribute` to override defaults.
+Use `NpgsqlDbContextOptionsAttribute` for provider, data source, context and seed hooks. `DrnContextDefaults` applies DRN conventions. Consult the EntityFramework README before overriding pooling, buffers, timeouts and statement preparation through a performance settings attribute.
 
 ### RepositorySettings
 
-Repository GUID validation checks the declared `(EntityType, AppId)` of `TEntity` or `TOtherEntity`, including secondary partitions. Nullable inputs preserve null; `validate: false` skips validation.
+Build custom queries from `EntitiesWithAppliedSettings()` to preserve filters, tracking and auto-include policy. Use named filters for repository-wide conditions. Public CRUD, query and pagination methods are virtual. Protected pagination overloads are not.
 
-Repository GUID ID helpers and GUID-input GetAsync/GetOrDefaultAsync methods accept non-nullable `SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault`. The parser resolves ConfiguredDefault through immutable DefaultFormat; explicit Auto permits mixed-format GUID input. GUID DeleteAsync adds an `(ids, format)` collection overload and retains its params overload. Parsed-record reads/deletes and the protected static record-ID Filter have no format parameter: they check stored validity and entity type/application partition, accepting either parsed representation. Use trusted internal records; untrusted GUIDs require parsing. Entity-input operations have no format parameter. `validate: false` skips record validation. Undefined GUID formats reject even null inputs/empty batches; enumerable helpers defer parsing until enumeration. Update custom GUID signatures/overrides and rebuild consumers.
-
-Secure-only defaults block direct plaintext MAC guessing. Keep Plain/Auto overrides under application control; validate external GUIDs with the required format before conversion or record-input operations. Integration tests should cover explicit-format reads/deletes and verify that rejected mixed-format batches leave rows unchanged.
-
-Configure repository-wide query behavior:
-
-```csharp
-public class RepositorySettings<TEntity>
-{
-    public bool AsNoTracking { get; set; }
-    public bool IgnoreAutoIncludes { get; set; }
-    public CancellationScopeKey? ScopeKey { get; set; }
-    public IReadOnlyDictionary<string, Expression<Func<TEntity, bool>>> Filters { get; }
-    public void AddFilter(string name, Expression<Func<TEntity, bool>> filter);
-    public bool RemoveFilter(string name);
-    public void ClearFilters();
-}
-```
-
-> Override `EntitiesWithAppliedSettings` in custom repositories for global includes/filters. See [drn-domain-design](../drn-domain-design/SKILL.md) for examples.
-
-Public repository CRUD, query, and pagination methods are virtual; protected pagination overloads are not.
+GUID methods validate the declared entity type and partition, including secondary partitions. The configured default resolves in the parser. Keep Plain/Auto overrides under application control and accept parsed records only from trusted callers. Undefined GUID formats reject nulls and empty batches. Enumerable helpers validate when enumerated. Record and entity inputs have no format argument. Keep mixed-format batch deletes atomic on rejection. [SharedKernel validation](../drn-sharedkernel/SKILL.md#validation-approaches)
 
 ### Repository Cancellation
 
@@ -265,45 +97,4 @@ using var operationSource =
         operationToken);
 ```
 
----
-
-## Shared Defaults Reference
-
-Canonical `DrnDevelopmentSettings`, connection modes, prototype invariants, and container defaults live in the [DRN Framework Maintenance Reference](../overview-drn-framework/SKILL.md#drn-framework-maintenance-reference).
-
----
-
-## Testing Integration
-
-> See [drn-testing](../drn-testing/SKILL.md) for full `ContainerContext` details.
-
-```csharp
-[Theory]
-[DataInline]
-public async Task Test(DrnTestContext context)
-{
-    context.ServiceCollection.AddInfraServices();
-    await context.ContainerContext.Postgres.ApplyMigrationsAsync();
-    var dbContext = context.GetRequiredService<ExampleDbContext>(); // Ready to test
-}
-```
-
----
-
-## Related Skills
-
-- [drn-domain-design.md](../drn-domain-design/SKILL.md) - Domain & Repository patterns
-- [drn-sharedkernel.md](../drn-sharedkernel/SKILL.md) - Entity base classes
-- [drn-utils.md](../drn-utils/SKILL.md) - DI and configuration
-- [drn-testing.md](../drn-testing/SKILL.md) - ContainerContext
-- [overview-ddd-architecture.md](../overview-ddd-architecture/SKILL.md) - Domain modeling
-
----
-
-## Global Usings
-
-```csharp
-global using DRN.Framework.EntityFramework.Context;
-global using Microsoft.EntityFrameworkCore;
-global using DRN.Framework.Utils.DependencyInjection;
-```
+For one operation, dispose the local linked source after the work completes. For group ownership, see [scoped cancellation](../drn-utils/SKILL.md#scoped-cancellation).
