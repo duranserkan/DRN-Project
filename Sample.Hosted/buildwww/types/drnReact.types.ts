@@ -1,10 +1,10 @@
 import type React from 'react';
-import type {Root} from 'react-dom/client';
-import type {HelloReactProps} from "@/lib/react/components/HelloReact";
+import type { Root } from 'react-dom/client';
+import type { HelloReactProps } from '@/lib/react/components/HelloReact';
 
 // The registry matches string keys to Component Types
 export type ReactComponentRegistry = {
-    'HelloReact': React.ComponentType<HelloReactProps>;
+    HelloReact: React.ComponentType<HelloReactProps>;
 };
 
 export interface IDrnReact {
@@ -13,7 +13,7 @@ export interface IDrnReact {
         name: K,
         domElement: HTMLElement | null,
         props: React.ComponentProps<ReactComponentRegistry[K]>,
-        options?: ReactMountOptions
+        options?: ReactMountOptions,
     ) => ReactMountedIsland<React.ComponentProps<ReactComponentRegistry[K]>> | null;
 }
 
@@ -24,10 +24,14 @@ export type RootData<P = unknown> = {
     currentProps?: P;
 };
 
-export interface Disposable {
+interface Disposable {
     dispose: () => void;
 }
 
+/**
+ * Handle returned by DRN.React.mount for updating or disposing an island.
+ * @public
+ */
 export interface ReactMountedIsland<P> extends Disposable {
     update: (newProps: Partial<P>) => void;
     /** Returns a shallow copy of the current merged props, or `null` after `dispose()`. */

@@ -38,18 +38,17 @@ class DrnValidationService extends ValidationService {
         const elementUIDs = Array.isArray(indexes.elementUIDs) ? indexes.elementUIDs : [];
         const removedUIDs = new Set(
             elementUIDs
-                .filter(entry => entry?.node === removalRoot || removalRoot?.contains?.(entry?.node))
-                .map(entry => entry.uid)
+                .filter((entry) => entry?.node === removalRoot || removalRoot?.contains?.(entry?.node))
+                .map((entry) => entry.uid),
         );
 
         super.remove(removalRoot);
 
-        if (removedUIDs.size === 0)
-            return;
+        if (removedUIDs.size === 0) return;
 
         // Remove detached input UIDs from forms that remain outside the swapped subtree.
         for (const [formUID, inputUIDs] of Object.entries(indexes.formInputs || {})) {
-            const remainingInputUIDs = inputUIDs.filter(uid => !removedUIDs.has(uid));
+            const remainingInputUIDs = inputUIDs.filter((uid) => !removedUIDs.has(uid));
             if (remainingInputUIDs.length > 0) {
                 indexes.formInputs[formUID] = remainingInputUIDs;
                 continue;
@@ -74,7 +73,7 @@ class DrnValidationService extends ValidationService {
             delete indexes.elementByUID?.[uid];
         }
 
-        indexes.elementUIDs = elementUIDs.filter(entry => !removedUIDs.has(entry.uid));
+        indexes.elementUIDs = elementUIDs.filter((entry) => !removedUIDs.has(entry.uid));
     }
 }
 

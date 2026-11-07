@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/knip/schema.json",
+  "entry": [
+    "buildwww/app/ts/{appPostload,layoutBehaviors,homeBehaviors,testBehaviors}.ts",
+    "buildwww/lib/bootstrap/{bootstrap.scss,bootstrapBundle.ts}",
+    "buildwww/lib/htmx/htmxBundle.ts",
+    "buildwww/lib/react/reactBundle.tsx",
+    "buildwww/types/{global,onmount}.d.ts",
+    "buildwww/tests/**/*.test.{js,ts}"
+  ],
+  "project": ["buildwww/**/*.{js,ts,tsx,css,scss,sass}", "*.config.ts", "vite.config.plugin.ts"],
+  "vite": {
+    "config": ["vite.config.ts", "buildwww/tests/browser/vite.config.ts"]
+  },
+  "playwright": {
+    "config": ["playwright.config.ts", "buildwww/tests/hosted/playwright.config.ts"]
+  }
+}

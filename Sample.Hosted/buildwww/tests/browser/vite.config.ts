@@ -7,9 +7,11 @@ export default defineConfig({
         host: '127.0.0.1',
         port: 4175,
         strictPort: true,
-        fs: { allow: [
-            fileURLToPath(new URL('../../../', import.meta.url)),
-            fileURLToPath(new URL('../../../../DRN.Framework.Utils/Logging/Diagnostics/', import.meta.url))
-        ] }
-    }
+        fs: {
+            allow: [
+                fileURLToPath(new URL('../../../', import.meta.url)),
+                fileURLToPath(new URL('../../../../DRN.Framework.Utils/Logging/Diagnostics/', import.meta.url)),
+            ],
+        },
+    },
 });

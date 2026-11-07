@@ -17,7 +17,7 @@ const drnApp: IDrnApp = {
         return base.replace(/\/$/, '') + path.substring(1);
     },
     // Placeholder for application state management
-    State: {}
+    State: {},
 };
 
 // Export for potential use by other modules if needed via imports

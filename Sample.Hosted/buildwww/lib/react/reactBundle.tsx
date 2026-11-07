@@ -2,7 +2,7 @@ import bundleStyles from './reactBundle.css?inline';
 
 import React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import type { ReactComponentRegistry, RootData, ReactMountOptions } from "@/types/drnReact.types";
+import type { ReactComponentRegistry, RootData, ReactMountOptions } from '@/types/drnReact.types';
 import { HelloReact } from './components/HelloReact.tsx';
 import { IslandErrorBoundary } from './IslandErrorBoundary.tsx';
 import { getGlobalPortalContainer } from './portalHost.ts';
@@ -13,7 +13,7 @@ import { initSharedStyleSheet, ensureDocumentStyles, resolveMountContainer } fro
 const rootMap = new WeakMap<HTMLElement, RootData>();
 
 const COMPONENT_REGISTRY: ReactComponentRegistry = {
-    HelloReact
+    HelloReact,
 };
 
 // --- Namespace Verification & Initialization ---
@@ -32,7 +32,7 @@ function mount<K extends keyof ReactComponentRegistry>(
     name: K,
     domElement: HTMLElement | null,
     initialProps: React.ComponentProps<ReactComponentRegistry[K]>,
-    options: ReactMountOptions = {}
+    options: ReactMountOptions = {},
 ) {
     // Safety Checks
     if (!domElement) {
@@ -42,7 +42,9 @@ function mount<K extends keyof ReactComponentRegistry>(
 
     const Component = COMPONENT_REGISTRY[name];
     if (!Component) {
-        console.error(`[DRN] Component '${name}' not registered. Available: ${Object.keys(COMPONENT_REGISTRY).join(', ')}`);
+        console.error(
+            `[DRN] Component '${name}' not registered. Available: ${Object.keys(COMPONENT_REGISTRY).join(', ')}`,
+        );
         return null;
     }
 
@@ -74,9 +76,10 @@ function mount<K extends keyof ReactComponentRegistry>(
         rootMap.set(domElement, record);
     }
 
-    const portalContainer = typeof document !== 'undefined'
-        ? getGlobalPortalContainer(drnSharedSheet, bundleStyles, getInlineStyleNonce())
-        : null;
+    const portalContainer =
+        typeof document !== 'undefined'
+            ? getGlobalPortalContainer(drnSharedSheet, bundleStyles, getInlineStyleNonce())
+            : null;
 
     // React.createElement avoids TS2769 from JSX spreading generic indexed-access component types
     const renderApp = (props: Props) => (
@@ -107,7 +110,7 @@ function mount<K extends keyof ReactComponentRegistry>(
             if (rootMap.get(domElement) !== capturedRecord) return;
             capturedRecord.root.unmount();
             rootMap.delete(domElement);
-        }
+        },
     };
 }
 

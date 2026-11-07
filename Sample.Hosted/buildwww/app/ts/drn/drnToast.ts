@@ -25,7 +25,7 @@ const ICON_MAP = {
     success: 'bi-check-circle-fill text-success',
     error: 'bi-exclamation-triangle-fill text-danger',
     warning: 'bi-exclamation-circle-fill text-warning',
-    info: 'bi-info-circle-fill text-primary'
+    info: 'bi-info-circle-fill text-primary',
 };
 
 let container: HTMLDivElement | null = null;
@@ -64,7 +64,9 @@ function createToastElement(type: NotificationType, message: string, duration: n
         '  <strong class="me-auto">' + title + '</strong>',
         '  <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>',
         '</div>',
-        '<div class="toast-body text-break user-select-text" style="white-space: pre-line">' + drnUtils.escapeHtml(message) + '</div>'
+        '<div class="toast-body text-break user-select-text" style="white-space: pre-line">' +
+            drnUtils.escapeHtml(message) +
+            '</div>',
     ].join('\n');
 
     return el;
@@ -87,13 +89,16 @@ function show(options: Parameters<IDrnToast['show']>[0]) {
 
     const type = options.type && Object.hasOwn(ICON_MAP, options.type) ? options.type : 'info';
     const message = options.message.trim().slice(0, 2000);
-    const duration = typeof options.duration === 'number' && Number.isFinite(options.duration) ? Math.max(1000, Math.min(options.duration, 30000)) : DEFAULT_DURATION;
+    const duration =
+        typeof options.duration === 'number' && Number.isFinite(options.duration)
+            ? Math.max(1000, Math.min(options.duration, 30000))
+            : DEFAULT_DURATION;
     // The store owns notification-field validation and discards toast-only options.
     if (options.record !== false) window.DRN.Notifications.publish({ ...options, type, message });
 
     // Retain history, but do not queue a burst for later playback.
     const now = Date.now();
-    presentedAt = presentedAt.filter(time => now - time < TOAST_WINDOW_MS);
+    presentedAt = presentedAt.filter((time) => now - time < TOAST_WINDOW_MS);
     if (presentedAt.length >= MAX_TOASTS_PER_WINDOW) return;
     presentedAt.push(now);
 
@@ -133,10 +138,18 @@ const drnToast: IDrnToast = {
             }
         }
     },
-    success: function (message, duration) { show({ type: 'success', message: message, duration: duration }); },
-    error: function (message, duration) { show({ type: 'error', message: message, duration: duration }); },
-    warning: function (message, duration) { show({ type: 'warning', message: message, duration: duration }); },
-    info: function (message, duration) { show({ type: 'info', message: message, duration: duration }); }
+    success: function (message, duration = DEFAULT_DURATION) {
+        show({ type: 'success', message: message, duration: duration });
+    },
+    error: function (message, duration = DEFAULT_DURATION) {
+        show({ type: 'error', message: message, duration: duration });
+    },
+    warning: function (message, duration = DEFAULT_DURATION) {
+        show({ type: 'warning', message: message, duration: duration });
+    },
+    info: function (message, duration = DEFAULT_DURATION) {
+        show({ type: 'info', message: message, duration: duration });
+    },
 };
 
 export default drnToast;

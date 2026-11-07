@@ -3,7 +3,7 @@ let globalPortalContainer: HTMLElement | null = null;
 export function getGlobalPortalContainer(
     sharedSheet: CSSStyleSheet | null,
     fallbackStyles: string,
-    nonce: string
+    nonce: string,
 ): HTMLElement {
     // Re-verify that container is still connected to the active DOM (HTMX body swap guard)
     if (globalPortalContainer?.isConnected) {
@@ -19,7 +19,7 @@ export function getGlobalPortalContainer(
         document.body.appendChild(host);
     }
 
-    const shadow = host.shadowRoot || host.attachShadow({mode: 'open'});
+    const shadow = host.shadowRoot || host.attachShadow({ mode: 'open' });
 
     // Adopt shared stylesheet or fallback <style>
     if (sharedSheet && shadow.adoptedStyleSheets) {

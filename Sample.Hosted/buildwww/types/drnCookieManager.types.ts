@@ -50,7 +50,7 @@ export interface DrnCookieReadOptions {
 }
 
 export interface IDrnCookieManager {
-    list(): Array<{ name: string, value: string, raw: string }>;
+    list(): Array<{ name: string; value: string; raw: string }>;
 
     /** Serializes object values as JSON before encoding. */
     set(name: string, value: string | object, options?: DrnCookieOptions): void;

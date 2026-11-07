@@ -42,7 +42,7 @@ export const getInlineStyleNonce = (): string => {
     if (nonce) {
         cachedNonce = nonce;
         if (typeof window !== 'undefined') {
-            (window as any).__webpack_nonce__ = nonce;
+            window.__webpack_nonce__ = nonce;
         }
     }
 

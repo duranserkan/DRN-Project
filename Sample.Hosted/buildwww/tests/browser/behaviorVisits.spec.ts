@@ -7,7 +7,9 @@ import { createHash } from 'node:crypto';
 const webRoot = new URL('../../../wwwroot/', import.meta.url);
 type TimerAudit = { intervals: Set<number>; timeouts: Set<number>; ticks: number; transitions: number };
 declare global {
-    interface Window { behaviorRegistrations: number }
+    interface Window {
+        behaviorRegistrations: number;
+    }
     var homeTimers: TimerAudit;
 }
 
@@ -28,23 +30,24 @@ const runtime = [
     bundle('lib/bootstrap', 'buildwww/lib/bootstrap/bootstrapBundle.ts'),
     bundle('appPostload', 'buildwww/app/ts/appPostload.ts'),
     bundle('lib/react', 'buildwww/lib/react/reactBundle.tsx'),
-    bundle('behaviors/layout', 'buildwww/app/ts/layoutBehaviors.ts')
+    bundle('behaviors/layout', 'buildwww/app/ts/layoutBehaviors.ts'),
 ];
 const home = bundle('behaviors/home', 'buildwww/app/ts/homeBehaviors.ts');
 const demo = bundle('behaviors/test', 'buildwww/app/ts/testBehaviors.ts');
 const intentionalError = 'Intentional unhandled browser exception from the HTMX test page.';
 
 function documentFor(area: string, nonce: string, partial: boolean) {
-    const content = area === 'home'
-        ? '<div data-js-hello-react-island data-versions="{}"></div>'
-        : area === 'test'
-            ? '<button data-js-unhandled-browser-exception>Trigger browser exception</button>'
-            : '<p>No page behaviors needed</p>';
+    const content =
+        area === 'home'
+            ? '<div data-js-hello-react-island data-versions="{}"></div>'
+            : area === 'test'
+              ? '<button data-js-unhandled-browser-exception>Trigger browser exception</button>'
+              : '<p>No page behaviors needed</p>';
     const pageScript = area === 'home' ? home(nonce) : area === 'test' ? demo(nonce) : '';
     return `<!doctype html><html><head>
         <meta name="drn-app-base" content="/">
         <meta name="htmx-config" content='{"inlineScriptNonce":"${nonce}","inlineStyleNonce":"${nonce}","defaultSettleDelay":0}'>
-        ${partial ? '' : runtime.map(script => script(nonce)).join('\n')}
+        ${partial ? '' : runtime.map((script) => script(nonce)).join('\n')}
         </head><body hx-boost="true" hx-ext="safe-nonce" hx-history="false">
         <nav><a href="/behavior-pages/home">Home</a>
         <a href="/behavior-pages/test">Test</a>
@@ -53,12 +56,12 @@ function documentFor(area: string, nonce: string, partial: boolean) {
 }
 
 test.beforeEach(async ({ page }) => {
-    await page.route('**/behavior-assets/**', route => {
+    await page.route('**/behavior-assets/**', (route) => {
         const body = assets.get(new URL(route.request().url()).pathname);
         return route.fulfill({ status: body ? 200 : 404, contentType: 'text/javascript', body: body || '' });
     });
     let responseNumber = 0;
-    await page.route('**/behavior-pages/*', route => {
+    await page.route('**/behavior-pages/*', (route) => {
         const area = new URL(route.request().url()).pathname.split('/').at(-1)!;
         const nonce = `behavior-response-${++responseNumber}`;
         const partial = route.request().headers()['hx-request'] === 'true';
@@ -66,9 +69,9 @@ test.beforeEach(async ({ page }) => {
             contentType: 'text/html',
             headers: {
                 'HX-Nonce': nonce,
-                'Content-Security-Policy': `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'nonce-${nonce}'`
+                'Content-Security-Policy': `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'nonce-${nonce}'`,
             },
-            body: documentFor(area, nonce, partial)
+            body: documentFor(area, nonce, partial),
         });
     });
 });
@@ -82,7 +85,7 @@ async function visit(page: Page, area: 'home' | 'test' | 'away') {
 
 test('repeated test-page visits execute the bundle but attach only one disposable click handler', async ({ page }) => {
     const errors: string[] = [];
-    page.on('pageerror', error => errors.push(error.message));
+    page.on('pageerror', (error) => errors.push(error.message));
     await page.goto('/behavior-pages/away');
     await page.evaluate(() => {
         window.behaviorRegistrations = 0;
@@ -110,7 +113,7 @@ test('repeated test-page visits execute the bundle but attach only one disposabl
 
         await visit(page, 'away');
         // A retained detached node must no longer invoke its former handler.
-        await previousButton.evaluate(element => (element as HTMLElement).click());
+        await previousButton.evaluate((element) => (element as HTMLElement).click());
         expect(errors).toEqual(Array(visitNumber).fill(intentionalError));
         await previousButton.dispose();
     }
@@ -124,18 +127,21 @@ test('reloading preload preserves app state and services and reports each error 
     });
     const preload = page.locator('script[src*="/behavior-assets/app/"]');
     await page.addScriptTag({ url: (await preload.getAttribute('src'))! });
-    expect(await installed.evaluate(previous => ({
-        namespace: DRN === previous.namespace,
-        environment: DRN.App.Environment,
-        validation: typeof previous.validation?.addProvider === 'function' && DRN.Validation === previous.validation,
-        mount: DRN.React.mount === previous.mount
-    }))).toEqual({ namespace: true, environment: 'Staging', validation: true, mount: true });
+    expect(
+        await installed.evaluate((previous) => ({
+            namespace: DRN === previous.namespace,
+            environment: DRN.App.Environment,
+            validation:
+                typeof previous.validation?.addProvider === 'function' && DRN.Validation === previous.validation,
+            mount: DRN.React.mount === previous.mount,
+        })),
+    ).toEqual({ namespace: true, environment: 'Staging', validation: true, mount: true });
 
     const reports = await page.evaluate(() => {
         document.body.dataset.notificationContext = '';
         document.body.dataset.notificationOwner = 'reload-test-user';
         const endpoints: string[] = [];
-        navigator.sendBeacon = url => {
+        navigator.sendBeacon = (url) => {
             endpoints.push(String(url));
             return true;
         };
@@ -147,31 +153,60 @@ test('reloading preload preserves app state and services and reports each error 
 
 test('a home island can mount on the next poll after React becomes available', async ({ page }) => {
     const reactBundle = '**/behavior-assets/lib/react/*.js';
-    await page.route(reactBundle, route => route.abort(), { times: 1 });
+    await page.route(reactBundle, (route) => route.abort(), { times: 1 });
     await page.goto('/behavior-pages/home');
     const host = page.locator('[data-js-hello-react-island]');
-    expect(await host.evaluate(element => DRN.React.mount('HelloReact', element as HTMLElement, { title: 'Early mount' }))).toBeNull();
+    expect(
+        await host.evaluate((element) =>
+            DRN.React.mount('HelloReact', element as HTMLElement, { title: 'Early mount' }),
+        ),
+    ).toBeNull();
     const script = page.locator('script[src*="/behavior-assets/lib/react/"]');
     await page.addScriptTag({ url: (await script.getAttribute('src'))! });
     await page.evaluate(() => window.onmount());
     await expect(page.locator('[data-js-hello-react-island] .hello-react')).toBeVisible();
 });
 
+test('home islands validate version data before mounting', async ({ page }) => {
+    await page.goto('/behavior-pages/home');
+    for (const [raw, expected] of [
+        ['{', 'React 19'],
+        ['{"react":{"major":20}}', 'React 19'],
+        ['{"react":"20"}', 'React 20'],
+    ] as const) {
+        await page.evaluate((versions) => {
+            const host = document.createElement('div');
+            host.dataset.jsHelloReactIsland = '';
+            host.dataset.versions = versions;
+            document.body.appendChild(host);
+            window.onmount();
+        }, raw);
+        const island = page.locator('[data-js-hello-react-island]').last();
+        await expect(island.getByText(expected, { exact: true })).toBeVisible();
+    }
+});
+
 test('repeated home visits dispose React roots, intervals, and in-flight title timeouts', async ({ page }) => {
     const clicks: string[] = [];
     const errors: string[] = [];
-    page.on('console', message => {
+    page.on('console', (message) => {
         if (message.text().startsWith('Card clicked!')) clicks.push(message.text());
     });
-    page.on('pageerror', error => errors.push(error.message));
+    page.on('pageerror', (error) => errors.push(error.message));
     await page.goto('/behavior-pages/away');
     await page.clock.install();
     await page.clock.pauseAt(Date.now() + 1000);
     await page.evaluate(() => {
-        const audit: TimerAudit = window.homeTimers = { intervals: new Set(), timeouts: new Set(), ticks: 0, transitions: 0 };
+        const audit: TimerAudit = (window.homeTimers = {
+            intervals: new Set(),
+            timeouts: new Set(),
+            ticks: 0,
+            transitions: 0,
+        });
         // Observe actual timer allocation/cancellation; do not replace lifecycle callbacks.
         for (const [method, collection, counter] of [
-            ['setInterval', 'intervals', 'ticks'], ['setTimeout', 'timeouts', 'transitions']
+            ['setInterval', 'intervals', 'ticks'],
+            ['setTimeout', 'timeouts', 'transitions'],
         ] as const) {
             const original = window[method].bind(window);
             const trackTimer = (callback: TimerHandler, delay?: number, ...args: unknown[]) => {
@@ -209,14 +244,19 @@ test('repeated home visits dispose React roots, intervals, and in-flight title t
 
         // Leave during the fade, when both the recurring timer and a timeout exist.
         await page.clock.runFor(4000);
-        expect(await page.evaluate(() => ({
-            intervals: homeTimers.intervals.size, timeouts: homeTimers.timeouts.size,
-            ticks: homeTimers.ticks, transitions: homeTimers.transitions
-        }))).toEqual({ intervals: 1, timeouts: 1, ticks: visitNumber, transitions: 0 });
+        expect(
+            await page.evaluate(() => ({
+                intervals: homeTimers.intervals.size,
+                timeouts: homeTimers.timeouts.size,
+                ticks: homeTimers.ticks,
+                transitions: homeTimers.transitions,
+            })),
+        ).toEqual({ intervals: 1, timeouts: 1, ticks: visitNumber, transitions: 0 });
         await visit(page, 'away');
-        await expect.poll(() => page.evaluate(() => [homeTimers.intervals.size, homeTimers.timeouts.size]))
+        await expect
+            .poll(() => page.evaluate(() => [homeTimers.intervals.size, homeTimers.timeouts.size]))
             .toEqual([0, 0]);
-        expect(await oldIsland.evaluate(element => element.shadowRoot!.querySelector('.hello-react'))).toBeNull();
+        expect(await oldIsland.evaluate((element) => element.shadowRoot!.querySelector('.hello-react'))).toBeNull();
         await oldIsland.dispose();
 
         await page.clock.runFor(8000);

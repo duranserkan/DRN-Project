@@ -1,5 +1,11 @@
 # Type Ownership and Declaration Files
 
+## Source language
+
+Use TypeScript for new project-owned frontend source, tests, fixtures, and tooling configuration that accepts executable code. Use `.tsx` for JSX. Include new files in the appropriate compiler project.
+
+Use JavaScript only when a tool or runtime requires it, or when a fixture specifically exercises JavaScript behavior. Record the concrete reason in the change description. Apply the same rule when migrating existing JavaScript in the area under review. Generated bundles and vendored files are outside this policy.
+
 ## Local import paths
 
 | Reference | Convention | Example |
@@ -13,7 +19,6 @@ Apply the type path rules to `import type`, type-only re-exports, and type queri
 
 ## Type ownership
 
-- Write new frontend scripting in TypeScript whenever the tooling supports it. Migrate JavaScript as its owning area is reviewed, keeping exceptions where tooling requires JavaScript.
 - Prefer `buildwww/types/*.types.ts` for shared browser contracts. Small module-owned types may stay in the implementation file. Use `import type` for type-only consumers.
 - Keep the `I` prefix for service and browser API contracts, such as `IDrnProblem` and `IDrnReact`. Use plain names for data shapes and options, such as `DrnProblem` and `ReactMountOptions`, even when declared with `interface`.
 - Reserve `.d.ts` for ambient declarations and untyped JavaScript APIs. Generate declarations for published libraries.

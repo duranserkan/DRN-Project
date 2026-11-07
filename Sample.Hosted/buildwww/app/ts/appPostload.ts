@@ -11,7 +11,7 @@ if (typeof window.onmount === 'function') {
 }
 
 // Initialize onmount.js globally
-document.addEventListener('DOMContentLoaded', window.onmount, {once: true});
+document.addEventListener('DOMContentLoaded', window.onmount, { once: true });
 
 // Reinitialize onmount after HTMX partial updates
 document.addEventListener('htmx:load', window.onmount);

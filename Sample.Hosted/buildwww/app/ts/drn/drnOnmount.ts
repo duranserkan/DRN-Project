@@ -69,7 +69,9 @@ const drnOnmount: IDrnOnmount & { _isHtmxSwapping(): boolean } = {
 
         // Check for idempotency
         if (registrationKeys.has(selectorKey)) {
-            if (!drnOnmount._isHtmxSwapping()) { window.onmount(); }
+            if (!drnOnmount._isHtmxSwapping()) {
+                window.onmount();
+            }
             return;
         }
 
@@ -77,17 +79,16 @@ const drnOnmount: IDrnOnmount & { _isHtmxSwapping(): boolean } = {
 
         const executeRegistration = () => onmount(selector, registerCallback, unregisterCallback);
 
-
         // Handle execution timing
         let readyState = document.readyState;
 
-        if (readyState === 'interactive' || readyState === 'complete')
-            executeRegistration();
-        else
-            document.addEventListener('DOMContentLoaded', executeRegistration, { once: true });
+        if (readyState === 'interactive' || readyState === 'complete') executeRegistration();
+        else document.addEventListener('DOMContentLoaded', executeRegistration, { once: true });
 
-        if (!drnOnmount._isHtmxSwapping()) { onmount(); }
-    }
+        if (!drnOnmount._isHtmxSwapping()) {
+            onmount();
+        }
+    },
 };
 
 // Export the onmount object if needed by other modules

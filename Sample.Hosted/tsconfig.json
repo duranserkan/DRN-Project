@@ -14,8 +14,7 @@
     "strict": true, // Enable all strict type-checking options
     "noUncheckedIndexedAccess": true, // Stricter indexing
     "noImplicitOverride": true, // Enforce 'override' keyword
-    // Consider adding if your codebase is ready:
-    //"exactOptionalPropertyTypes": true, // Distinguish between undefined and missing properties
+    "exactOptionalPropertyTypes": true,
 
     "module": "ESNext", // Let bundler handle module format
     "moduleResolution": "bundler", // Aligns with modern bundlers like Vite

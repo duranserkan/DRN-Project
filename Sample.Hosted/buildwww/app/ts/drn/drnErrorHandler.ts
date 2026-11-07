@@ -52,7 +52,7 @@ let handlingUnhandledError = false;
 
 function createClientErrorId() {
     const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16));
-    return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 /** Reserves a report slot if rate limiting and deduplication allow it. */
@@ -70,7 +70,7 @@ function tryReserveReportSlot(key: string) {
 
     // Dedup
     const lastSeen = recentErrors.get(key);
-    if (lastSeen && (now - lastSeen) < DEDUP_WINDOW_MS) return false;
+    if (lastSeen && now - lastSeen < DEDUP_WINDOW_MS) return false;
 
     recentErrors.set(key, now);
     errorCount++;
@@ -88,7 +88,9 @@ function tryReserveReportSlot(key: string) {
 function sendReport(payload: Report) {
     try {
         dispatchReport(payload);
-    } catch { /* Reporting must not interrupt the failed action's feedback. */ }
+    } catch {
+        /* Reporting must not interrupt the failed action's feedback. */
+    }
 }
 
 function dispatchReport(payload: Report) {
@@ -109,11 +111,13 @@ function dispatchReport(payload: Report) {
     fetch(endpoint, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
         },
         body: json,
-        keepalive: true
-    }).catch(function () { /* silently ignore reporting failures */ });
+        keepalive: true,
+    }).catch(function () {
+        /* silently ignore reporting failures */
+    });
 }
 
 /** Explicit action boundary. Global errors cannot reliably identify user intent. */
@@ -126,25 +130,57 @@ function reportActionError(error: unknown, context: ActionContext = {}) {
     }
 }
 
+function actionErrorMessage(error: unknown): string {
+    if (error instanceof Error) return error.message || 'Action failed';
+    switch (typeof error) {
+        case 'object': {
+            if (!error) return 'Action failed';
+            // Preserve custom conversions without serializing arbitrary object properties.
+            if (
+                Symbol.toPrimitive in error ||
+                Symbol.toStringTag in error ||
+                error.toString !== Object.prototype.toString
+            ) {
+                return String(error as { toString(): string }) || 'Action failed';
+            }
+            return 'Action failed';
+        }
+        case 'undefined':
+            return 'Action failed';
+        case 'function':
+            return String(error) || 'Action failed';
+        case 'string':
+        case 'number':
+        case 'bigint':
+        case 'boolean':
+        case 'symbol':
+            return error ? String(error) : 'Action failed';
+    }
+}
+
 function reportActionErrorCore(error: unknown, context: ActionContext) {
     const notifications = window.DRN?.Notifications;
-    if (typeof context.operation !== 'string' || !context.operation.trim() ||
-        notifications?.isActive?.() !== true) return null;
+    if (typeof context.operation !== 'string' || !context.operation.trim() || notifications?.isActive?.() !== true)
+        return null;
 
-    // oxlint-disable-next-line typescript/no-base-to-string -- Preserve custom thrown values' diagnostic text without serializing their properties.
-    const message = (error instanceof Error ? error.message : String(error || 'Action failed')) || 'Action failed';
+    const message = actionErrorMessage(error);
     const stack = error instanceof Error ? error.stack : '';
     const payload = buildPayload(message, 'user-action', 0, 0, stack);
     // Each action occurrence needs its own reference. Keep the shared rate limit.
     if (tryReserveReportSlot(payload.clientErrorId)) sendReport(payload);
 
-    const publicMessage = typeof context.message === 'string' && context.message.trim()
-        ? context.message : 'The action could not be completed. Check the current state before trying again.';
+    const publicMessage =
+        typeof context.message === 'string' && context.message.trim()
+            ? context.message
+            : 'The action could not be completed. Check the current state before trying again.';
     const record = notifications.publish({
-        type: 'error', title: 'Action could not be completed', message: publicMessage,
+        type: 'error',
+        title: 'Action could not be completed',
+        message: publicMessage,
         clientErrorId: payload.clientErrorId,
         clientErrorDetails: notificationDetails(message, 'user-action', 0, 0, stack, payload.url),
-        operation: context.operation, persist: context.persist !== false
+        operation: context.operation,
+        persist: context.persist !== false,
     });
     if (record) window.DRN.Toast.show({ type: 'error', message: publicMessage, record: false });
     return record;
@@ -153,8 +189,10 @@ function reportActionErrorCore(error: unknown, context: ActionContext) {
 function isDuplicateErrorHeading(heading: string, message: string) {
     const errorHeading = /^[\w.$]+:(.*)$/.exec(heading);
     const displayedMessage = typeof message === 'string' ? message.replace(/^Uncaught(?: \(in promise\))?\s+/, '') : '';
-    return errorHeading !== null &&
-        (heading === displayedMessage || errorHeading[1]!.replace(/^[ \t]+/, '') === displayedMessage);
+    return (
+        errorHeading !== null &&
+        (heading === displayedMessage || errorHeading[1]!.replace(/^[ \t]+/, '') === displayedMessage)
+    );
 }
 
 function isStackFrame(line: string) {
@@ -164,7 +202,14 @@ function isStackFrame(line: string) {
     return separator >= 0 && /:\d/.test(line.slice(separator + 2));
 }
 
-function notificationDetails(message: string, source: string, line: number, column: number, stack: unknown, safePageUrl: string) {
+function notificationDetails(
+    message: string,
+    source: string,
+    line: number,
+    column: number,
+    stack: unknown,
+    safePageUrl: string,
+) {
     let clipped = false;
     function field(value: unknown, maximum: number) {
         const text = typeof value === 'string' ? value : '';
@@ -176,12 +221,15 @@ function notificationDetails(message: string, source: string, line: number, colu
     let stackText = field(stack, 2000);
     const firstLine = stackText.split('\n', 1)[0]!;
     const heading = firstLine.trimEnd();
-    if (isDuplicateErrorHeading(heading, message))
-        stackText = stackText.slice(firstLine.length + 1);
+    if (isDuplicateErrorHeading(heading, message)) stackText = stackText.slice(firstLine.length + 1);
     // Recognize browser frame lines without replacing or reconstructing the original stack.
     const hasFrames = stackText.split('\n').some(isStackFrame);
-    const fields = [`Message: ${field(message, 500)}`,
-        `Source: ${field(source, 200)}`, `Line: ${line}, column: ${column}`, `Page: ${field(safePageUrl, 500)}`];
+    const fields = [
+        `Message: ${field(message, 500)}`,
+        `Source: ${field(source, 200)}`,
+        `Line: ${line}, column: ${column}`,
+        `Page: ${field(safePageUrl, 500)}`,
+    ];
     if (clipped) fields.push('Diagnostic details were truncated.');
     fields.push(`Stack:\n${[stackText, hasFrames ? '' : 'Stack frames unavailable'].filter(Boolean).join('\n')}`);
     return fields.filter(Boolean).join('\n');
@@ -210,7 +258,7 @@ function buildPayload(message: string, source: string, line: number, column: num
         userAgent: field(navigator.userAgent, 300),
         timestamp: new Date().toISOString(),
         diagnosticRedacted: capture.status.redacted,
-        diagnosticLimited: clipped || capture.status.limited
+        diagnosticLimited: clipped || capture.status.limited,
     };
     return payload;
 }
@@ -235,28 +283,33 @@ function reportUnhandledError(...[event, isRejection]: [ErrorEvent, false] | [Pr
 
         const notifications = window.DRN?.Notifications;
         if (notifications?.isActive() !== true) return;
-        const messageForUser = 'A page encountered a problem. If you were completing an action, check its result before trying again.';
+        const messageForUser =
+            'A page encountered a problem. If you were completing an action, check its result before trying again.';
         const record = notifications.publish({
-            type: 'error', title: 'An unexpected error occurred',
+            type: 'error',
+            title: 'An unexpected error occurred',
             message: messageForUser,
             clientErrorId: payload.clientErrorId,
             clientErrorDetails: notificationDetails(message, source, line, column, stack, payload.url),
-            operation: 'Page error'
+            operation: 'Page error',
         });
         if (record) window.DRN.Toast?.show({ type: 'error', message: messageForUser, record: false });
-    } catch { /* A failing global handler must not generate another unhandled error. */ }
-    finally { handlingUnhandledError = false; }
+    } catch {
+        /* A failing global handler must not generate another unhandled error. */
+    } finally {
+        handlingUnhandledError = false;
+    }
 }
 
 /** Installs global handlers without suppressing the browser's default error reporting. */
 function install() {
-    window.addEventListener('error', event => reportUnhandledError(event, false));
-    window.addEventListener('unhandledrejection', event => reportUnhandledError(event, true));
+    window.addEventListener('error', (event) => reportUnhandledError(event, false));
+    window.addEventListener('unhandledrejection', (event) => reportUnhandledError(event, true));
 }
 
 const drnErrorHandler = {
     install: install,
-    reportActionError
+    reportActionError,
 };
 
 export default drnErrorHandler;

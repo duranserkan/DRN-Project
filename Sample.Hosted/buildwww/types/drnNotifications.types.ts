@@ -45,13 +45,15 @@ export interface IDrnNotifications {
 }
 
 export interface IDrnToast {
-    show(options: NotificationInput & {
-        message: string;
-        /** Toast display time in milliseconds, default 5000, clamped to 1000-30000. Does not expire history. */
-        duration?: number;
-        /** False shows only a toast. Otherwise history survives toast timeout, close, and UI cleanup. */
-        record?: boolean;
-    }): void;
+    show(
+        options: NotificationInput & {
+            message: string;
+            /** Toast display time in milliseconds, default 5000, clamped to 1000-30000. Does not expire history. */
+            duration?: number;
+            /** False shows only a toast. Otherwise history survives toast timeout, close, and UI cleanup. */
+            record?: boolean;
+        },
+    ): void;
     success(message: string, duration?: number): void;
     error(message: string, duration?: number): void;
     warning(message: string, duration?: number): void;

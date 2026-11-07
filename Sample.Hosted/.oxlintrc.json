@@ -11,6 +11,12 @@
   },
   "overrides": [
     {
+      "files": ["buildwww/app/**/*", "buildwww/lib/**/*"],
+      "rules": {
+        "typescript/no-explicit-any": "error"
+      }
+    },
+    {
       "files": ["buildwww/tests/**/*.test.{js,ts}"],
       "rules": {
         "typescript/no-floating-promises": ["error", {

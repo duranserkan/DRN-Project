@@ -3,11 +3,19 @@ import assert from 'node:assert/strict';
 import problem from '../app/ts/drn/drnProblem.ts';
 
 test('public fields and validation survive parsing while HTTP status wins', () => {
-    const result = problem.parse(JSON.stringify({
-        status: 500, type: 'urn:sample:problem:category-not-found', title: 'Not found',
-        detail: 'Choose another category.', requestId: 'request-1',
-        errors: { Name: ['Required'], Invalid: 'wrong shape' }, stack: 'private'
-    }), 'Application/Problem+JSON; charset=utf-8', 404);
+    const result = problem.parse(
+        JSON.stringify({
+            status: 500,
+            type: 'urn:sample:problem:category-not-found',
+            title: 'Not found',
+            detail: 'Choose another category.',
+            requestId: 'request-1',
+            errors: { Name: ['Required'], Invalid: 'wrong shape' },
+            stack: 'private',
+        }),
+        'Application/Problem+JSON; charset=utf-8',
+        404,
+    );
     assert.equal(result.status, 404);
     assert.equal(result.type, 'urn:sample:problem:category-not-found');
     assert.equal(result.detail, 'Choose another category.');
@@ -23,8 +31,11 @@ test('malformed bodies and incorrect field types have safe defaults', () => {
         assert.equal(problem.parse(body, 'application/problem+json', 500).title, fallback);
     }
     assert.equal(problem.parse('{"title":"private"}', 'text/html', 500).title, fallback);
-    const result = problem.parse('{"title":{},"detail":[],"type":12,"requestId":false,"errors":[]}',
-        'application/problem+json', 400);
+    const result = problem.parse(
+        '{"title":{},"detail":[],"type":12,"requestId":false,"errors":[]}',
+        'application/problem+json',
+        400,
+    );
     assert.equal(result.title, fallback);
     assert.equal(result.detail, '');
     assert.equal(result.type, '');
@@ -33,9 +44,16 @@ test('malformed bodies and incorrect field types have safe defaults', () => {
 });
 
 test('display fields and validation output are bounded without altering identifiers', () => {
-    const result = problem.parse(JSON.stringify({ title: 'x'.repeat(1000), requestId: 'r'.repeat(201),
-        type: 't'.repeat(2049), errors: { Name: Array(120).fill('error') }
-    }), 'application/problem+json', 400);
+    const result = problem.parse(
+        JSON.stringify({
+            title: 'x'.repeat(1000),
+            requestId: 'r'.repeat(201),
+            type: 't'.repeat(2049),
+            errors: { Name: Array(120).fill('error') },
+        }),
+        'application/problem+json',
+        400,
+    );
     assert.equal(result.title.length, 500);
     assert.equal(result.errors.Name!.length, 100);
     assert.equal(result.errors.Name![0], 'error');
@@ -47,8 +65,11 @@ test('display fields and validation output are bounded without altering identifi
 });
 
 test('field keys cannot mutate prototypes and unknown types remain usable identifiers', () => {
-    const result = problem.parse('{"type":"urn:other:unknown","errors":{"__proto__":["message"]}}',
-        'application/problem+json', 422);
+    const result = problem.parse(
+        '{"type":"urn:other:unknown","errors":{"__proto__":["message"]}}',
+        'application/problem+json',
+        422,
+    );
     assert.equal(Object.getPrototypeOf(result.errors), null);
     assert.deepEqual(result.errors.__proto__, ['message']);
     assert.equal(result.type, 'urn:other:unknown');
@@ -62,22 +83,44 @@ test('a problem records once and its fallback toast opts out of recording', () =
     let toast!: Parameters<IDRN['Toast']['show']>[0];
     Object.defineProperty(globalThis, 'Element', { configurable: true, writable: true, value: class {} });
     Object.assign(globalThis, { document: { getElementById: () => null } });
-    Object.assign(globalThis, { window: { DRN: {
-        Notifications: { publish: (value: typeof notification) => { notification = value; return value; } },
-        Toast: { show: (value: typeof toast) => { toast = value; } }
-    } } });
+    Object.assign(globalThis, {
+        window: {
+            DRN: {
+                Notifications: {
+                    publish: (value: typeof notification) => {
+                        notification = value;
+                        return value;
+                    },
+                },
+                Toast: {
+                    show: (value: typeof toast) => {
+                        toast = value;
+                    },
+                },
+            },
+        },
+    });
     try {
-        const result = problem.parse('{"title":"<img src=x onerror=alert(1)>","requestId":"reference"}',
-            'application/problem+json', 400);
+        const result = problem.parse(
+            '{"title":"<img src=x onerror=alert(1)>","requestId":"reference"}',
+            'application/problem+json',
+            400,
+        );
         problem.show(result);
         assert.equal(notification.title, '<img src=x onerror=alert(1)>');
         assert.equal(notification.requestId, 'reference');
         assert.equal(toast.record, false);
         assert.equal(toast.message, notification.title);
-        const badRequest = problem.parse('{"title":"Bad Request","requestId":"bad-request-1"}',
-            'application/problem+json', 400);
+        const badRequest = problem.parse(
+            '{"title":"Bad Request","requestId":"bad-request-1"}',
+            'application/problem+json',
+            400,
+        );
         problem.show(badRequest);
-        assert.equal(notification.title, 'Please try again. If the problem continues, contact support and share the error details from Notifications.');
+        assert.equal(
+            notification.title,
+            'Please try again. If the problem continues, contact support and share the error details from Notifications.',
+        );
         assert.equal(notification.status, 400);
         assert.equal(notification.requestId, 'bad-request-1');
         assert.equal(toast.message, notification.title);
@@ -111,12 +154,15 @@ test('XHR and Fetch share parsing and Fetch leaves the original body readable', 
 test('Fetch stops reading oversized streams without waiting for the original consumer', { timeout: 5000 }, async () => {
     const chunk = new TextEncoder().encode(' '.repeat(16384));
     let pulls = 0;
-    const response = new Response(new ReadableStream({
-        pull(controller) {
-            controller.enqueue(chunk);
-            if (++pulls === 64) controller.close();
-        }
-    }), { status: 503, headers: { 'Content-Type': 'application/problem+json', 'Content-Length': '1' } });
+    const response = new Response(
+        new ReadableStream({
+            pull(controller) {
+                controller.enqueue(chunk);
+                if (++pulls === 64) controller.close();
+            },
+        }),
+        { status: 503, headers: { 'Content-Type': 'application/problem+json', 'Content-Length': '1' } },
+    );
 
     const result = await problem.fromResponse(response);
     assert.equal(result.title, problem.parse('', '', 503).title);
@@ -135,13 +181,16 @@ test('Fetch preserves multibyte text split across chunks and accepts the charact
     assert.equal(body.length, 65536);
     const bytes = new TextEncoder().encode(body);
     const split = bytes.indexOf(0xc3) + 1;
-    const response = new Response(new ReadableStream({
-        start(controller) {
-            controller.enqueue(bytes.subarray(0, split));
-            controller.enqueue(bytes.subarray(split));
-            controller.close();
-        }
-    }), { status: 400, headers: { 'Content-Type': 'application/problem+json' } });
+    const response = new Response(
+        new ReadableStream({
+            start(controller) {
+                controller.enqueue(bytes.subarray(0, split));
+                controller.enqueue(bytes.subarray(split));
+                controller.close();
+            },
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+    );
 
     const result = await problem.fromResponse(response);
     assert.equal(result.title, 'ç😀');
@@ -150,8 +199,13 @@ test('Fetch preserves multibyte text split across chunks and accepts the charact
 });
 
 test('Fetch read failures return the generic problem', async () => {
-    const response = new Response(new ReadableStream({
-        start(controller) { controller.error(new Error('stream failed')); }
-    }), { status: 502, headers: { 'Content-Type': 'application/problem+json' } });
+    const response = new Response(
+        new ReadableStream({
+            start(controller) {
+                controller.error(new Error('stream failed'));
+            },
+        }),
+        { status: 502, headers: { 'Content-Type': 'application/problem+json' } },
+    );
     assert.deepEqual(await problem.fromResponse(response), problem.parse('', '', 502));
 });

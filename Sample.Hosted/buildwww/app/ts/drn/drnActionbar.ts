@@ -1,6 +1,9 @@
 function version(control: HTMLElement) {
-    return control.dataset.actionbarAttentionVersion ||
-        control.querySelector('[data-actionbar-count]')?.textContent?.trim() || '';
+    return (
+        control.dataset.actionbarAttentionVersion ||
+        control.querySelector('[data-actionbar-count]')?.textContent?.trim() ||
+        ''
+    );
 }
 
 /** Opening an action panel acknowledges its attention highlight, not its count. */
@@ -27,24 +30,40 @@ export function installActionbarEvents() {
             attended = new Map<string, string>();
             unsaved = new Map<string, string>();
         }
-        try {
-            const raw = localStorage.getItem(legacyKey);
-            const saved = raw && raw.length <= 65536 ? JSON.parse(raw) : null;
-            attended = new Map<string, string>();
-            if (saved?.owner === owner && Array.isArray(saved.entries))
-                attended = new Map(saved.entries.slice(0, 100).filter((entry: unknown) =>
-                    Array.isArray(entry) && entry.length === 2 && entry.every(value => typeof value === 'string')));
-        } catch { /* Blocked or invalid storage leaves attention state in memory. */ }
+        restoreLegacyAttendance();
         for (const control of document.querySelectorAll<HTMLElement>(selector)) {
             const target = control.dataset.bsTarget;
             if (!target) continue;
             try {
                 const raw = localStorage.getItem(storageKey + target);
                 if (raw !== null) attended.set(target, raw);
-            } catch { /* Keep the last known acknowledgment when storage is blocked. */ }
+            } catch {
+                /* Keep the last known acknowledgment when storage is blocked. */
+            }
             if (unsaved.has(target)) attended.set(target, unsaved.get(target)!);
         }
         return true;
+    }
+
+    function restoreLegacyAttendance() {
+        try {
+            const raw = localStorage.getItem(legacyKey);
+            const saved = raw && raw.length <= 65536 ? JSON.parse(raw) : null;
+            attended = new Map<string, string>();
+            if (saved?.owner === owner && Array.isArray(saved.entries))
+                attended = new Map(
+                    saved.entries
+                        .slice(0, 100)
+                        .filter(
+                            (entry: unknown) =>
+                                Array.isArray(entry) &&
+                                entry.length === 2 &&
+                                entry.every((value) => typeof value === 'string'),
+                        ),
+                );
+        } catch {
+            /* Blocked or invalid storage leaves attention state in memory. */
+        }
     }
 
     function save(target: string, current: string) {
@@ -52,19 +71,23 @@ export function installActionbarEvents() {
             // Separate keys make acknowledgments of different panels independent across tabs.
             localStorage.setItem(storageKey + target, current);
             unsaved.delete(target);
-        } catch { unsaved.set(target, current); }
+        } catch {
+            unsaved.set(target, current);
+        }
     }
 
     function refresh() {
         if (!configure()) return;
         for (const control of document.querySelectorAll<HTMLElement>(selector)) {
             const current = version(control);
-            control.classList.toggle('text-bg-warning', !!current && current !== '0' &&
-                attended.get(control.dataset.bsTarget ?? '') !== current);
+            control.classList.toggle(
+                'text-bg-warning',
+                !!current && current !== '0' && attended.get(control.dataset.bsTarget ?? '') !== current,
+            );
         }
     }
 
-    document.addEventListener('shown.bs.offcanvas', event => {
+    document.addEventListener('shown.bs.offcanvas', (event) => {
         const panelId = (event.target as Element | null)?.id;
         if (!panelId || !configure()) return;
         for (const control of document.querySelectorAll<HTMLElement>(selector)) {
@@ -79,8 +102,9 @@ export function installActionbarEvents() {
     document.addEventListener('htmx:load', refresh);
     document.addEventListener('drn:notification-context-changed', refresh);
     window.addEventListener('pageshow', refresh);
-    window.addEventListener('storage', event => {
-        if (event.key === legacyKey || (storageKey && event.key?.startsWith(storageKey)) || event.key === null) refresh();
+    window.addEventListener('storage', (event) => {
+        if (event.key === legacyKey || (storageKey && event.key?.startsWith(storageKey)) || event.key === null)
+            refresh();
     });
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', refresh, { once: true });
     else refresh();

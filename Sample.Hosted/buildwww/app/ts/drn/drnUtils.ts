@@ -12,11 +12,11 @@ const drnUtils: IDrnUtils = {
         try {
             const base64 = btoa(str);
             return base64
-                .replaceAll('+', '-')  // Replace '+' with '-'
-                .replaceAll('/', '_')  // Replace '/' with '_'
+                .replaceAll('+', '-') // Replace '+' with '-'
+                .replaceAll('/', '_') // Replace '/' with '_'
                 .replace(/={1,2}$/, '');
         } catch (e) {
-            console.error("urlSafeBase64Encode: Base64 encoding failed", e);
+            console.error('urlSafeBase64Encode: Base64 encoding failed', e);
             return str;
         }
     },
@@ -28,9 +28,9 @@ const drnUtils: IDrnUtils = {
         }
 
         const base64 = str
-            .replaceAll('-', '+')  // Replace '-' with '+'
-            .replaceAll('_', '/')  // Replace '_' with '/'
-            .padEnd(str.length + (4 - str.length % 4) % 4, '=');  // Add padding if necessary
+            .replaceAll('-', '+') // Replace '-' with '+'
+            .replaceAll('_', '/') // Replace '_' with '/'
+            .padEnd(str.length + ((4 - (str.length % 4)) % 4), '='); // Add padding if necessary
 
         return atob(base64);
     },
@@ -40,21 +40,20 @@ const drnUtils: IDrnUtils = {
         if (!(requestElement instanceof Element)) return 'Unknown Element';
 
         let selectorSuffix = '';
-        if (requestElement.id)
-            selectorSuffix += `#${requestElement.id}`;
-        if (requestElement.classList.length > 0)
-            selectorSuffix += `.${[...requestElement.classList].join('.')}`;
+        if (requestElement.id) selectorSuffix += `#${requestElement.id}`;
+        if (requestElement.classList.length > 0) selectorSuffix += `.${[...requestElement.classList].join('.')}`;
 
         Array.from(requestElement.attributes)
-            .filter(attr => attr.name.startsWith('data-'))
-            .forEach(dataAttr => {
+            .filter((attr) => attr.name.startsWith('data-'))
+            .forEach((dataAttr) => {
                 selectorSuffix += `[${dataAttr.name}="${dataAttr.value}"]`;
             });
 
         return requestElement.tagName + selectorSuffix;
     },
 
-    isPlainObject: (value: unknown): value is Record<string, unknown> => Object.prototype.toString.call(value) === '[object Object]',
+    isPlainObject: (value: unknown): value is Record<string, unknown> =>
+        Object.prototype.toString.call(value) === '[object Object]',
 
     /**
      * Deeply merges two objects, with override properties taking precedence over base.
@@ -79,16 +78,14 @@ const drnUtils: IDrnUtils = {
         const output: Record<string, unknown> = { ...base } as Record<string, unknown>;
 
         for (const key in overrides) {
-            if (key === '__proto__' || key === 'constructor' || key === 'prototype')
-                continue;
+            if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
             if (Object.hasOwn(overrides, key)) {
                 const overrideValue = overrides[key];
                 const baseValue = output[key];
 
                 if (drnUtils.isPlainObject(overrideValue) && drnUtils.isPlainObject(baseValue))
                     output[key] = drnUtils.deepMerge(baseValue, overrideValue);
-                else
-                    output[key] = overrideValue;
+                else output[key] = overrideValue;
             }
         }
 
@@ -100,7 +97,7 @@ const drnUtils: IDrnUtils = {
         const div = document.createElement('div');
         div.appendChild(document.createTextNode(str));
         return div.innerHTML;
-    }
+    },
 };
 
 // Export the utils object if needed by other modules

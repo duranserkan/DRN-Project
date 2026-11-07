@@ -1,10 +1,10 @@
-export interface MountOptions {
+interface MountOptions {
     id: string;
     selector: string;
     disposable?: { dispose?(): void; destroy?(): void };
 }
 
-export type MountCallback = (this: Element, options: MountOptions) => void | false;
+type MountCallback = (this: Element, options: MountOptions) => void | false;
 
 export interface OnMountStatic {
     (selectorOrEvent?: string | Event): void;
@@ -16,5 +16,10 @@ export interface IDrnOnmount {
     listRegistrationKeys(): string[];
     unregister: (this: Element, options?: Partial<MountOptions>) => void;
     register(selector: string, registerCallback: MountCallback, idempotencyKey?: string): void;
-    registerFull(selector: string, registerCallback: MountCallback, unregisterCallback?: MountCallback, idempotencyKey?: string): void;
+    registerFull(
+        selector: string,
+        registerCallback: MountCallback,
+        unregisterCallback?: MountCallback,
+        idempotencyKey?: string,
+    ): void;
 }

@@ -12,13 +12,9 @@ export function initSharedStyleSheet(bundleStyles: string): CSSStyleSheet | null
             drnSharedSheet.replaceSync(bundleStyles);
         } catch (e) {
             drnSharedSheet = null;
-            console.warn("[DRN] Constructable stylesheets not supported, falling back to <style> tags", e);
+            console.warn('[DRN] Constructable stylesheets not supported, falling back to <style> tags', e);
         }
     }
-    return drnSharedSheet;
-}
-
-export function getSharedStyleSheet(): CSSStyleSheet | null {
     return drnSharedSheet;
 }
 
@@ -52,7 +48,7 @@ export function ensureDocumentStyles(bundleStyles: string): void {
 /**
  * Sets up Shadow DOM container and attaches adopted or fallback stylesheets.
  */
-export function setupShadowDomContainer(domElement: HTMLElement, bundleStyles: string): HTMLElement {
+function setupShadowDomContainer(domElement: HTMLElement, bundleStyles: string): HTMLElement {
     const shadow = domElement.shadowRoot || domElement.attachShadow({ mode: 'open' });
     if (drnSharedSheet && shadow.adoptedStyleSheets) {
         if (!shadow.adoptedStyleSheets.includes(drnSharedSheet)) {

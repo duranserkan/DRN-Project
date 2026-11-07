@@ -5,17 +5,17 @@
 */
 /// <reference types="vite/client" />
 
-import type {ValidationService} from 'aspnet-client-validation';
-import type {BundledBootstrap} from '@lib/bootstrap/bootstrapBundle';
-import type {IDrnApp} from './drnApp.types';
-import type {IDrnReact} from './drnReact.types';
-import type {IDrnOnmount, OnMountStatic} from './drnOnmount.types';
-import type {IDrnUtils} from './drnUtils.types';
-import type {IDrnCookieManager} from './drnCookieManager.types';
-import type {IDrnProblem} from './drnProblem.types';
-import type {IDrnErrorHandler} from './drnErrorHandler.types';
-import type {IDrnDiagnostics} from './drnDiagnostics.types';
-import type {IDrnNotifications, IDrnToast} from './drnNotifications.types';
+import type { ValidationService } from 'aspnet-client-validation';
+import type { BundledBootstrap } from '@lib/bootstrap/bootstrapBundle';
+import type { IDrnApp } from './drnApp.types';
+import type { IDrnReact } from './drnReact.types';
+import type { IDrnOnmount, OnMountStatic } from './drnOnmount.types';
+import type { IDrnUtils } from './drnUtils.types';
+import type { IDrnCookieManager } from './drnCookieManager.types';
+import type { IDrnProblem } from './drnProblem.types';
+import type { IDrnErrorHandler } from './drnErrorHandler.types';
+import type { IDrnDiagnostics } from './drnDiagnostics.types';
+import type { IDrnNotifications, IDrnToast } from './drnNotifications.types';
 
 // The Main Global Augmentation
 declare global {
@@ -26,7 +26,8 @@ declare global {
         DRN: IDRN;
         htmx: typeof import('htmx.org').default;
         __globalDOMParser?: DOMParser;
-        CSSStyleSheet?: { new(): CSSStyleSheet; prototype: CSSStyleSheet };
+        __webpack_nonce__?: string;
+        CSSStyleSheet?: { new (): CSSStyleSheet; prototype: CSSStyleSheet };
         // Other globals (e.g. Google Analytics)
         //dataLayer?: any[];
     }
