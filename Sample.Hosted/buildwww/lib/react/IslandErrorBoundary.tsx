@@ -1,6 +1,5 @@
-// IslandErrorBoundary.tsx
 import React, { Component, type ReactNode, type ErrorInfo } from 'react';
-import type { IslandErrorBoundaryProps, IslandErrorBoundaryState } from '@/types/DrnReactTypes.ts';
+import type { IslandErrorBoundaryProps, IslandErrorBoundaryState } from '@/types/drnReact.types.ts';
 
 export type { IslandErrorBoundaryProps, IslandErrorBoundaryState };
 

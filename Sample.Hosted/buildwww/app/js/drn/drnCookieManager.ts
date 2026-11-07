@@ -1,4 +1,4 @@
-import drnUtils from './drnUtils.js';
+import drnUtils from './drnUtils.ts';
 
 import type {DrnCookieOptions, DrnCookieReadOptions, IDrnCookieManager} from '@/types/drnCookieManager.types';
 
@@ -24,10 +24,6 @@ class DrnCookieManager implements IDrnCookieManager {
         };
     }
 
-    /**
-     * Lists all cookies as { name, value, raw } objects.
-     * @returns {Array<{name: string, value: string, raw: string}>}
-     */
     list(): Array<{name: string, value: string, raw: string}> {
         return document.cookie
             .split(';')
@@ -41,19 +37,6 @@ class DrnCookieManager implements IDrnCookieManager {
             });
     }
 
-    /**
-     * Sets a cookie with the specified name, value, and options.
-     * @param {string} name - The name of the cookie.
-     * @param {string|object} value - The value to store. Objects are automatically stringified.
-     * @param {DrnCookieOptions} [options] - Configuration options.
-     * @param {number} [options.days] - Expiration in days.
-     * @param {number} [options.maxAge] - Expiration in seconds (takes precedence over days).
-     * @param {string} [options.path='/'] - The path scope (defaults to root).
-     * @param {string} [options.domain] - The domain scope.
-     * @param {boolean} [options.secure] - If true, cookie requires HTTPS. Defaults to location.protocol === 'https:'.
-     * @param {'Strict'|'Lax'|'None'} [options.sameSite='Strict'] - CSRF protection level
-     * @param {'uri'|'base64'|'none'} [options.encoding='uri'] - Encoding strategy.
-     */
     set(name: string, value: string | object, options: DrnCookieOptions = {}): void {
         if (!this._validateName(name)) return;
 
@@ -133,14 +116,6 @@ class DrnCookieManager implements IDrnCookieManager {
         }
     }
 
-    /**
-     * Retrieves a cookie value by name.
-     * @param {string} name - The name of the cookie.
-     * @param {object} [options] - Retrieval options.
-     * @param {boolean} [options.deserialize=true] - If true, attempts to JSON.parse.
-     * @param {'uri'|'base64'|'none'} [options.encoding='uri'] - Decoding strategy matching the set strategy.
-     * @returns {string|object|null} The value or null if not found.
-     */
     get<T = string>(name: string, options: DrnCookieReadOptions = {}): T | null {
         if (!this._validateName(name)) return null;
         const encoding = options.encoding || this.defaults.encoding;
@@ -156,12 +131,6 @@ class DrnCookieManager implements IDrnCookieManager {
         return this._parseCookieValue(decodedValue, deserialize) as T | null;
     }
 
-    /**
-     * Deletes a cookie.
-     * IMPORTANT: Path and Domain must match how the cookie was set.
-     * @param {string} name - The name of the cookie.
-     * @param {object} [options] - Must match path/domain of original cookie.
-     */
     remove(name: string, options: DrnCookieOptions = {}): void {
         if (!this.exists(name))
             console.warn(`DrnCookieManager: Attempted to remove non-existent cookie '${name}'`);
@@ -169,11 +138,6 @@ class DrnCookieManager implements IDrnCookieManager {
         this.set(name, "", {...options, maxAge: 0});
     }
     
-    /**
-     * Checks if a specific cookie exists.
-     * @param {string} name
-     * @returns {boolean}
-     */
     exists(name: string): boolean {
         if (!this._validateName(name)) return false;
         return this._findRawCookieValue(name) !== null;

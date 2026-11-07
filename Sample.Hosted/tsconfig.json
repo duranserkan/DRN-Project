@@ -48,6 +48,7 @@
     "jsx": "react-jsx"
   },
   "include": [
+    "playwright.config.ts",
     "vite.config.ts",
     "vite.config.plugin.ts",
     "buildwww/app/**/*",

@@ -1,7 +1,6 @@
-// PortalContext.tsx
 import React, { createContext, useContext, type FC } from 'react';
 import { createPortal } from 'react-dom';
-import type { IslandPortalProps } from '@/types/DrnReactTypes.ts';
+import type { IslandPortalProps } from '@/types/drnReact.types.ts';
 
 export const PortalContext = createContext<HTMLElement | null>(null);
 

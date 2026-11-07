@@ -17,15 +17,15 @@ function bundle(directory, source) {
 }
 
 const runtime = [
-    bundle('app', 'buildwww/app/js/appPreload.js'),
+    bundle('app', 'buildwww/app/js/appPreload.ts'),
     bundle('lib/htmx', 'buildwww/lib/htmx/htmxBundle.js'),
     bundle('lib/bootstrap', 'buildwww/lib/bootstrap/bootstrapBundle.js'),
-    bundle('appPostload', 'buildwww/app/js/appPostload.js'),
+    bundle('appPostload', 'buildwww/app/js/appPostload.ts'),
     bundle('lib/react', 'buildwww/lib/react/reactBundle.tsx'),
-    bundle('behaviors/layout', 'buildwww/app/js/layoutBehaviors.js')
+    bundle('behaviors/layout', 'buildwww/app/js/layoutBehaviors.ts')
 ];
-const home = bundle('behaviors/home', 'buildwww/app/js/homeBehaviors.js');
-const demo = bundle('behaviors/test', 'buildwww/app/js/testBehaviors.js');
+const home = bundle('behaviors/home', 'buildwww/app/js/homeBehaviors.ts');
+const demo = bundle('behaviors/test', 'buildwww/app/js/testBehaviors.ts');
 const intentionalError = 'Intentional unhandled browser exception from the HTMX test page.';
 
 function documentFor(area, nonce, partial) {
@@ -80,6 +80,7 @@ test('repeated test-page visits execute the bundle but attach only one disposabl
     await page.goto('/behavior-pages/away');
     await page.evaluate(() => {
         window.behaviorRegistrations = 0;
+        // oxlint-disable-next-line typescript/unbound-method -- The wrapper forwards its receiver with .apply().
         const register = DRN.Onmount.register;
         DRN.Onmount.register = function (...args) {
             if (args[0] === '[data-js-unhandled-browser-exception]') window.behaviorRegistrations++;
@@ -90,6 +91,12 @@ test('repeated test-page visits execute the bundle but attach only one disposabl
     for (let visitNumber = 1; visitNumber <= 4; visitNumber++) {
         await visit(page, 'test');
         await expect.poll(() => page.evaluate(() => window.behaviorRegistrations)).toBe(visitNumber);
+        const snapshot = await page.evaluate(() => {
+            const keys = DRN.Onmount.listRegistrationKeys();
+            return keys.splice(0);
+        });
+        expect(snapshot).toContain('[data-js-unhandled-browser-exception]_');
+        expect(await page.evaluate(() => DRN.Onmount.listRegistrationKeys())).toEqual(snapshot);
         const button = page.getByRole('button', { name: 'Trigger browser exception' });
         const previousButton = await button.elementHandle();
         await button.click();
@@ -101,6 +108,47 @@ test('repeated test-page visits execute the bundle but attach only one disposabl
         expect(errors).toEqual(Array(visitNumber).fill(intentionalError));
         await previousButton.dispose();
     }
+});
+
+test('reloading preload preserves app state and services and reports each error once', async ({ page }) => {
+    await page.goto('/behavior-pages/away');
+    const installed = await page.evaluateHandle(() => {
+        DRN.App.Environment = 'Staging';
+        return { namespace: DRN, validation: DRN.Validation, mount: DRN.React.mount };
+    });
+    const preload = page.locator('script[src*="/behavior-assets/app/"]');
+    await page.addScriptTag({ url: await preload.getAttribute('src') });
+    expect(await installed.evaluate(previous => ({
+        namespace: DRN === previous.namespace,
+        environment: DRN.App.Environment,
+        validation: typeof previous.validation?.addProvider === 'function' && DRN.Validation === previous.validation,
+        mount: DRN.React.mount === previous.mount
+    }))).toEqual({ namespace: true, environment: 'Staging', validation: true, mount: true });
+
+    const reports = await page.evaluate(() => {
+        document.body.dataset.notificationContext = '';
+        document.body.dataset.notificationOwner = 'reload-test-user';
+        const endpoints = [];
+        navigator.sendBeacon = url => {
+            endpoints.push(url);
+            return true;
+        };
+        window.dispatchEvent(new ErrorEvent('error', { message: 'Preload reload regression' }));
+        return endpoints;
+    });
+    expect(reports).toEqual(['/Api/Sample/ClientError/Report']);
+});
+
+test('a home island can mount on the next poll after React becomes available', async ({ page }) => {
+    const reactBundle = '**/behavior-assets/lib/react/*.js';
+    await page.route(reactBundle, route => route.abort(), { times: 1 });
+    await page.goto('/behavior-pages/home');
+    const host = page.locator('[data-js-hello-react-island]');
+    expect(await host.evaluate(element => DRN.React.mount('HelloReact', element, { title: 'Early mount' }))).toBeNull();
+    const script = page.locator('script[src*="/behavior-assets/lib/react/"]');
+    await page.addScriptTag({ url: await script.getAttribute('src') });
+    await page.evaluate(() => window.onmount());
+    await expect(page.locator('[data-js-hello-react-island] .hello-react')).toBeVisible();
 });
 
 test('repeated home visits dispose React roots, intervals, and in-flight title timeouts', async ({ page }) => {

@@ -25,8 +25,8 @@ tokens: ~2K
 │   ├── app/                 # Application code
 │   │   ├── js/              # JavaScript modules
 │   │   │   ├── drn/         # Application utilities
-│   │   │   ├── appPreload.js
-│   │   │   └── appPostload.js
+│   │   │   ├── appPreload.ts
+│   │   │   └── appPostload.ts
 │   │   └── css/             # Application CSS
 │   ├── lib/                 # Library code
 │   │   ├── htmx/            # htmx bundle
@@ -62,7 +62,7 @@ const builds = {
             rolldownOptions: {
                 input: {
                     app: resolve(__dirname, 'buildwww/app/css/app.css'),
-                    appPreload: resolve(__dirname, 'buildwww/app/js/appPreload.js')
+                    appPreload: resolve(__dirname, 'buildwww/app/js/appPreload.ts')
                 }
             }
         }
@@ -73,7 +73,7 @@ const builds = {
             outDir: 'wwwroot/appPostload',
             rolldownOptions: {
                 input: {
-                    appPostload: resolve(__dirname, 'buildwww/app/js/appPostload.js')
+                    appPostload: resolve(__dirname, 'buildwww/app/js/appPostload.ts')
                 }
             }
         }
@@ -204,9 +204,9 @@ Keep modules under `buildwww/app/js/behaviors/{layout,home,test}/`. Each entry i
 
 | Entry | Output directory | Loading |
 |---|---|---|
-| `layoutBehaviors.js` | `wwwroot/behaviors/layout` | Global shell after runtime bundles |
-| `homeBehaviors.js` | `wwwroot/behaviors/home` | HomeAnonymous page `Scripts` |
-| `testBehaviors.js` | `wwwroot/behaviors/test` | HTMX test page `Scripts` |
+| `layoutBehaviors.ts` | `wwwroot/behaviors/layout` | Global shell after runtime bundles |
+| `homeBehaviors.ts` | `wwwroot/behaviors/home` | HomeAnonymous page `Scripts` |
+| `testBehaviors.ts` | `wwwroot/behaviors/test` | HTMX test page `Scripts` |
 
 `build:behaviors` runs `build:behaviors:layout`, `build:behaviors:home`, and `build:behaviors:test` sequentially. Each script explicitly sets `BUILD_TYPE` to select its Vite target, writes a hashed entry and `.vite/manifest.json`, and cleans its own directory. The full build calls this aggregate. Unchanged inputs/tooling preserve unrelated bundle cache identities. Keep separate chunks and output roots.
 
@@ -221,13 +221,13 @@ Use a fresh callback so listener identity deduplication cannot reuse an earlier 
 
 Deploy changed assets and hidden manifests together. Restart the app to refresh manifest/SRI caches; fully reload existing pages for changed registrations. Retain old hashed assets for in-flight pages. The initial migration includes Razor/postload changes and removes the obsolete `appBehaviors` output from the active deployment set. See the profile-declared application guide for deployment details. Intentional inline nonce test fixtures remain in Razor.
 
-### appPreload.js
+### appPreload.ts
 Loaded early, before page content:
 - Critical initializations
 - Theme setup
 - Cookie consent checks
 
-### appPostload.js
+### appPostload.ts
 Loaded in the global shell's head. Installs application-wide event handlers and defers DOM-dependent work. Component registrations belong to their behavior domains.
 
 ---
@@ -265,14 +265,14 @@ wwwroot/
 ## Using Built Assets in Razor
 
 ```razor
-<script src="buildwww/app/js/appPreload.js"></script>
+<script src="buildwww/app/js/appPreload.ts"></script>
 <link href="buildwww/app/css/app.css" rel="stylesheet" />
 <link href="buildwww/lib/bootstrap/bootstrap.scss" rel="stylesheet" />
 <script src="buildwww/lib/htmx/htmxBundle.js"></script>
 <script src="buildwww/lib/bootstrap/bootstrapBundle.js"></script>
-<script src="buildwww/app/js/appPostload.js"></script>
+<script src="buildwww/app/js/appPostload.ts"></script>
 <script src="buildwww/lib/react/reactBundle.tsx"></script>
-<script src="buildwww/app/js/layoutBehaviors.js"></script>
+<script src="buildwww/app/js/layoutBehaviors.ts"></script>
 ```
 
 TagHelpers resolve these source paths through the per-output `.vite/manifest.json` files and emit content-hashed `wwwroot` paths with SRI where applicable.

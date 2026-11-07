@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { importStatusMessages, installNotificationEvents } from '../app/js/drn/drnNotificationEvents.js';
-import { createNotificationStore } from '../app/js/drn/drnNotifications.js';
-import problem from '../app/js/drn/drnProblem.js';
+import { importStatusMessages, installNotificationEvents } from '../app/js/drn/drnNotificationEvents.ts';
+import { createNotificationStore } from '../app/js/drn/drnNotifications.ts';
+import problem from '../app/js/drn/drnProblem.ts';
 
 function statusElement(id, message, persist = true) {
     return {

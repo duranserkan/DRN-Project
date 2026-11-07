@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import problem from '../app/js/drn/drnProblem.js';
+import problem from '../app/js/drn/drnProblem.ts';
 
 test('public fields and validation survive parsing while HTTP status wins', () => {
     const result = problem.parse(JSON.stringify({

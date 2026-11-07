@@ -100,7 +100,7 @@ HTMX failure notifications are limited to requests triggered by trusted user eve
 
 HTMX HTTP failures and server-sent toast headers use the existing Problem Details and notification paths. They do not submit another client-error report. HTMX connection failures and timeouts remain client-side failures and may submit a report under the [browser reporting limits](#browser-error-reporting).
 
-Fetch callers can use `DRN.Problem.fromResponse(response)` followed by `DRN.Problem.show(problem, context)`. Parsing leaves the original response body available. Context accepts `{ element, target, operation, persist, focus }`. Only `application/problem+json` is parsed, and the HTTP status takes precedence. Malformed, non-problem, or oversized responses use generic text. Limits are 65,536 response characters, 500 characters per display message, and 100 validation messages. Public messages render as text. See the [browser API declarations](buildwww/types/DrnProblem.d.ts) for all methods.
+Fetch callers can use `DRN.Problem.fromResponse(response)` followed by `DRN.Problem.show(problem, context)`. Parsing leaves the original response body available. Context accepts `{ element, target, operation, persist, focus }`. Only `application/problem+json` is parsed, and the HTTP status takes precedence. Malformed, non-problem, or oversized responses use generic text. Limits are 65,536 response characters, 500 characters per display message, and 100 validation messages. Public messages render as text. See the [browser API declarations](buildwww/types/drnProblem.types.ts) for all methods.
 
 The Fetch reader consumes a clone incrementally and stops when the character limit or a 262,144-byte guard is exceeded, without trusting `Content-Length`. Cancelling the clone does not wait for the caller to consume the original. XHR parsing applies the character limit to its already-buffered response text.
 
@@ -208,7 +208,7 @@ DRN.Toast.show({ type: 'warning', message: 'Review this operation.', persist: fa
 DRN.Notifications.publish({ type: 'info', title: 'Report ready', message: 'Open Reports to view it.' });
 ```
 
-Server handlers can use `SendToast` for immediate `HX-Trigger: showToast` feedback. A Problem Details body takes precedence over a toast header. Other error responses display a nonempty string toast message when supplied, or a generic error otherwise. Use `DRN.Toast.show` for client feedback. Delayed `showToast` DOM events are unsupported. See the [notification API declarations](buildwww/types/DrnNotifications.d.ts) for available options and history operations.
+Server handlers can use `SendToast` for immediate `HX-Trigger: showToast` feedback. A Problem Details body takes precedence over a toast header. Other error responses display a nonempty string toast message when supplied, or a generic error otherwise. Use `DRN.Toast.show` for client feedback. Delayed `showToast` DOM events are unsupported. See the [notification API declarations](buildwww/types/drnNotifications.types.ts) for available options and history operations.
 
 ## Frontend assets
 
@@ -222,7 +222,7 @@ npm audit signatures
 npm run build
 ```
 
-The full build runs `npm run check` before generating assets. This runs Oxlint, then TypeScript checking. Run `npm run lint` or `npm run type-check` independently when needed. Oxlint checks `buildwww/` and the root Vite and Playwright configuration files with its default rules. Warnings and errors both fail the check. Generated `wwwroot/` assets are outside the lint scope. Targeted `build:*` commands do not run these checks automatically.
+The full build runs `npm run check` before generating assets. This runs type-aware Oxlint, then both TypeScript project checks. Run `npm run lint` or `npm run type-check` independently when needed. Oxlint checks `buildwww/` and the root Vite and Playwright configuration files. The [lint configuration](.oxlintrc.json) enables promise handling, exhaustive switches, React Hooks and JSX accessibility checks. Node's test runner owns the promises returned by unit test registration. Other promise-returning calls in tests follow the usual rules. Warnings and errors both fail the check. Generated `wwwroot/` assets are outside the lint scope. Targeted `build:*` commands do not run these checks automatically.
 
 Build scripts use inline environment assignments such as `BUILD_TYPE=app vite build` and require a POSIX-compatible shell unless the scripts are made cross-platform. Vite selects each target through `BUILD_TYPE`, which targeted npm build scripts set explicitly. Direct Vite calls also use `BUILD_TYPE` and default to `app` when it is unset or empty.
 
@@ -232,11 +232,13 @@ RSJS component modules live in `buildwww/app/js/behaviors/`, grouped by UI area.
 
 | Entry | Modules | Loaded by | Output directory |
 |---|---|---|---|
-| `layoutBehaviors.js` | `behaviors/layout/`: footer and tooltips | Shared full-page layout | `wwwroot/behaviors/layout/` |
-| `homeBehaviors.js` | `behaviors/home/`: HelloReact island | `HomeAnonymous` page's `Scripts` section | `wwwroot/behaviors/home/` |
-| `testBehaviors.js` | `behaviors/test/`: browser exception demo | `Test/Htmx` page's `Scripts` section | `wwwroot/behaviors/test/` |
+| `layoutBehaviors.ts` | `behaviors/layout/`: footer and tooltips | Shared full-page layout | `wwwroot/behaviors/layout/` |
+| `homeBehaviors.ts` | `behaviors/home/`: HelloReact island | `HomeAnonymous` page's `Scripts` section | `wwwroot/behaviors/home/` |
+| `testBehaviors.ts` | `behaviors/test/`: browser exception demo | `Test/Htmx` page's `Scripts` section | `wwwroot/behaviors/test/` |
 
-The layout bundle loads after the shared runtimes. Page sections are forwarded through both full-page and HTMX layouts, so navigating to a page loads its entry when needed. Other pages do not reference the home or test entries. Shared runtimes, including React, remain global. Cached scripts can execute again during HTMX navigation; `DRN.Onmount` keeps registration idempotent and owns per-element cleanup. Page bundles must not install unguarded document-level listeners. Browser caching does not mean a script executes only once.
+The layout bundle loads after the shared runtimes. Page sections are forwarded through both full-page and HTMX layouts, so navigating to a page loads its entry when needed. Other pages do not reference the home or test entries. Shared runtimes, including React, remain global. Preload provides `DRN.React.mount`, which returns `null` until the React bundle loads. An onmount callback can return `false` to retry on the next poll. Cached scripts can execute again during HTMX navigation. `DRN.Onmount` keeps registration idempotent and owns per-element cleanup. Page bundles must not install unguarded document-level listeners. Browser caching does not mean a script executes only once.
+
+The HTMX bundle installs `DRN.Validation`. To register a custom validation provider, call its `addProvider` method after that bundle loads and before validation bootstraps.
 
 Pass component configuration through Razor-encoded data attributes. Register one behavior per source module and import only the area's modules from its entry. Keep runtime implementation imports out of these modules so behavior edits do not rebundle shared libraries.
 
@@ -254,7 +256,7 @@ The initial migration needs the updated Razor views, rebuilt `appPostload`, and 
 
 ## Frontend tests
 
-Unit tests are grouped by module under `buildwww/tests/unit/<module>/`, starting with `drn/drnCookieManager.test.ts`. `npm test` discovers `.test.js` and `.test.ts` files recursively under `buildwww/tests/`, including top-level suites. `npm run type-check` checks application code and the root `vite.config.ts` and `vite.config.plugin.ts` through `tsconfig.json`, then `playwright.config.ts` and TypeScript tests through `tsconfig.tests.json`. Browser tests remain under `buildwww/tests/browser/` and use `.spec.js` or `.spec.ts` names for the separate Playwright runner.
+Unit tests are grouped by module under `buildwww/tests/unit/<module>/`, starting with `drn/drnCookieManager.test.ts`. `npm test` discovers `.test.js` and `.test.ts` files recursively under `buildwww/tests/`, including top-level suites. `npm run type-check` checks application code and the root Vite and Playwright configurations through `tsconfig.json`, then checks the test project through `tsconfig.tests.json`. Oxlint discovers the test settings through `buildwww/tests/tsconfig.json`. Playwright fixture specs live in `buildwww/tests/browser/`. Hosted application specs live in `buildwww/tests/hosted/`.
 
 After installing and auditing dependencies as above, run frontend checks from `Sample.Hosted/`:
 
@@ -270,3 +272,7 @@ Run `npm run build:test:all` to build all frontend assets, then run both test su
 Pull request, develop, master, stable release, and preview release workflows run frontend unit tests, build assets, then run browser tests against those assets. Analysis-only dependency setup skips building and testing.
 
 The browser checks cover notification and form-error behavior without a running .NET app or database. `npm run test:browser` ensures Chromium headless shell is installed before running tests, reusing the cached installation when available. It does not depend on npm lifecycle hooks. On Linux, run `npm exec --no --ignore-scripts -- playwright install-deps chromium` if system libraries are missing. CI installs these system dependencies separately and uses the same browser test command.
+
+The fixture suite scans the expanded notification dialog and the profile form after a validation error with axe. It also checks keyboard navigation and focus.
+
+For a full-page accessibility scan, [start Sample.Hosted](#run-locally), then run `npm run test:browser:hosted` from `Sample.Hosted/`. This separate suite opens the anonymous Razor home page at `http://localhost:5998/`, waits for the React island to render, and scans the entire page. Set `SAMPLE_HOSTED_URL` to use another running instance. Include the trailing slash when the application is hosted under a path prefix.

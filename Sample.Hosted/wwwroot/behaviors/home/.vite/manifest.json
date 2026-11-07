@@ -1,8 +1,8 @@
 {
-  "buildwww/app/js/homeBehaviors.js": {
-    "file": "homeBehaviors.jdpZ1Q5yV8HOFDt1.js",
+  "buildwww/app/js/homeBehaviors.ts": {
+    "file": "homeBehaviors.Dwud71kxQe8LhAfA.js",
     "name": "homeBehaviors",
-    "src": "buildwww/app/js/homeBehaviors.js",
+    "src": "buildwww/app/js/homeBehaviors.ts",
     "isEntry": true
   }
 }

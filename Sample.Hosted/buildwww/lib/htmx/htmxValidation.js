@@ -69,7 +69,7 @@ class DrnValidationService extends ValidationService {
 const validationService = new DrnValidationService();
 
 // Expose hook for custom validation providers
-// Register providers BEFORE bootstrap() — call from appPostload.js or page scripts
+// Register providers BEFORE bootstrap() — call from appPostload.ts or page scripts
 window.DRN = window.DRN || {};
 window.DRN.Validation = validationService;
 

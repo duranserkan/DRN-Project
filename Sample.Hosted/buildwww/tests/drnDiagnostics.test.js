@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import cases from '../../../DRN.Test.Unit/Tests/Framework/Utils/Logging/diagnostic-golden-cases.json' with { type: 'json' };
-import { createDiagnosticSanitizer, REDACTED, LIMITED } from '../app/js/drn/drnDiagnostics.js';
+import { createDiagnosticSanitizer, REDACTED, LIMITED } from '../app/js/drn/drnDiagnostics.ts';
 
 test('golden cases preserve browser name matching and capture conventions', () => {
     for (const item of cases) {

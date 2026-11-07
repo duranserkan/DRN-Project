@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "options": { "typeAware": true },
+  "plugins": ["eslint", "typescript", "unicorn", "oxc", "react", "jsx-a11y"],
+  "rules": {
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/switch-exhaustiveness-check": "error",
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error"
+  },
+  "overrides": [
+    {
+      "files": ["buildwww/tests/**/*.test.{js,ts}"],
+      "rules": {
+        "typescript/no-floating-promises": ["error", {
+          "allowForKnownSafeCalls": [{ "from": "package", "package": "node", "name": "test" }]
+        }]
+      }
+    }
+  ]
+}

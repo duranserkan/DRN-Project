@@ -24,7 +24,7 @@ Follow [RSJS](https://github.com/rstacruz/rsjs): declarative HTML hooks and sepa
 
 ### Onmount Wrapper
 
-`DRN.Onmount.register(selector, callback, idempotencyKey)` uses default cleanup. `registerFull(selector, callback, unregisterCallback, idempotencyKey)` accepts custom cleanup. The key is optional. Registration is deduplicated by selector and key, so page bundles can execute again on htmx navigation.
+`DRN.Onmount.register(selector, callback, idempotencyKey)` uses default cleanup. `registerFull(selector, callback, unregisterCallback, idempotencyKey)` accepts custom cleanup. Both deduplicate by selector and optional key. Inspect a snapshot with `DRN.Onmount.listRegistrationKeys()`.
 
 - Mount callbacks receive `options`; `this` is the matching DOM element.
 - Set `options.disposable` to the owned resource. Default unregister calls its `dispose()` and `destroy()` methods when present.
@@ -41,14 +41,14 @@ Group modules under `buildwww/app/js/behaviors/{layout,home,test}/`. Domain entr
 
 | Entry | Components | Loading |
 |---|---|---|
-| `layoutBehaviors.js` | Footer, tooltips | Global shell after runtime bundles |
-| `homeBehaviors.js` | HelloReact island | HomeAnonymous page `Scripts` section |
-| `testBehaviors.js` | Browser exception demo | HTMX test page `Scripts` section |
+| `layoutBehaviors.ts` | Footer, tooltips | Global shell after runtime bundles |
+| `homeBehaviors.ts` | HelloReact island | HomeAnonymous page `Scripts` section |
+| `testBehaviors.ts` | Browser exception demo | HTMX test page `Scripts` section |
 
 Put component logic in modules and encoded data in Razor. Keep inline nonce-test fixtures as explicit test exceptions and early configuration before its consumers.
 
 ```javascript
-// behaviors/layout/tooltip.js
+// behaviors/layout/tooltip.ts
 DRN.Onmount.register('[data-bs-toggle="tooltip"]', function (options) {
     options.disposable = new bootstrap.Tooltip(this, {animation: false});
 });
@@ -100,7 +100,7 @@ The footer uses `DRN.Cookie.get`/`set` with base64 encoding and its element's se
 
 ## Script Loading Order
 
-The full shell loads preload, early `DRN.App` configuration, htmx, Bootstrap, postload, React, then layout behaviors. Preload initializes `window.DRN` and `DRN.React` before dependents. Postload installs application-wide listeners and deferred DOM work. Page `Scripts` sections load home/test behaviors after content. React stays a global runtime; splitting behavior bundles does not lazy-load React itself.
+The full shell loads preload, early `DRN.App` configuration, htmx, Bootstrap, postload, React, then layout behaviors. Preload provides `DRN.React.mount`, which returns `null` until React loads. Postload installs application-wide listeners and deferred DOM work. Page `Scripts` sections load home/test behaviors after content. React stays global across pages.
 
 ## htmx Integration
 
@@ -110,7 +110,7 @@ The shell's `htmx-config` configures script/style nonces. The `safe-nonce` exten
 
 ### Client Validation
 
-`htmxValidation.js` uses `aspnet-client-validation` with `watch: true` to scan swapped `data-val-*` content. Register custom providers before bootstrap. Keep this direct path and release detached input/form indexes with normal cleanup.
+The htmx bundle installs `DRN.Validation` (`ValidationService` from `aspnet-client-validation`). Register providers after installation and before bootstrap. Use `watch: true` for swapped `data-val-*` content and release detached input/form indexes during cleanup.
 
 ## Bootstrap Customization
 

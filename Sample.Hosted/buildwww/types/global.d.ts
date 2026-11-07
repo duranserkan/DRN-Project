@@ -1,5 +1,3 @@
-//global.d.ts
-
 /* The reference directive below automatically adds types for:
   - Importing .css, .module.css
   - Importing images (.png, .jpg, .svg)
@@ -7,19 +5,23 @@
 */
 /// <reference types="vite/client" />
 
-import type {IDrnApp} from './drnApp';
-import type {IDrnReact} from './DrnReact';
-import type {IDrnOnmount} from './DrnOnmount';
-import type {IDrnUtils} from './DrnUtils';
+import type {ValidationService} from 'aspnet-client-validation';
+import type {BundledBootstrap} from '../lib/bootstrap/bootstrapBundle.js';
+import type {IDrnApp} from './drnApp.types';
+import type {IDrnReact} from './drnReact.types';
+import type {IDrnOnmount, OnMountStatic} from './drnOnmount.types';
+import type {IDrnUtils} from './drnUtils.types';
 import type {IDrnCookieManager} from './drnCookieManager.types';
-import type {IDrnProblem} from './DrnProblem';
-import type {IDrnErrorHandler} from './DrnErrorHandler';
-import type {IDrnDiagnostics} from './DrnDiagnostics';
-import type {IDrnNotifications, IDrnToast} from './DrnNotifications';
+import type {IDrnProblem} from './drnProblem.types';
+import type {IDrnErrorHandler} from './drnErrorHandler.types';
+import type {IDrnDiagnostics} from './drnDiagnostics.types';
+import type {IDrnNotifications, IDrnToast} from './drnNotifications.types';
 
 // The Main Global Augmentation
 declare global {
-    // Extend the Window interface
+    var DRN: IDRN;
+    var onmount: OnMountStatic;
+    var bootstrap: Pick<typeof import('bootstrap'), keyof BundledBootstrap>;
     interface Window {
         DRN: IDRN;
         CSSStyleSheet?: { new(): CSSStyleSheet; prototype: CSSStyleSheet };
@@ -28,7 +30,6 @@ declare global {
     }
 
     // Define the shape of the global namespace object
-    // Validation still uses a runtime-owned interface.
     interface IDRN {
         App: IDrnApp;
         Onmount: IDrnOnmount;
@@ -40,7 +41,7 @@ declare global {
         Notifications: IDrnNotifications;
         ErrorHandler: IDrnErrorHandler;
         Diagnostics: IDrnDiagnostics;
-        Validation: any;
+        Validation?: ValidationService;
     }
 }
 

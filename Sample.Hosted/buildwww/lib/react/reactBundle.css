@@ -1,5 +1,5 @@
 /* Component styles — all scoped under .drn-react-root */
-@import "./components/HelloReactComponent.css";
+@import "./components/HelloReact.css";
 
 /* @reference loads Tailwind theme for @apply resolution without emitting
    :root CSS custom properties — all values compile inline, no global leaks.

@@ -105,7 +105,7 @@ reviews:
         Review as frontend source, not generated output.
         - Preserve window.DRN as shared browser API and keep DRN/Drn* names as framework surface.
         - Keep htmx safety defaults: nonce propagation, safe-nonce same-origin filtering, allowEval=false, selfRequestsOnly=true, and stripHtmxEval defense-in-depth.
-        - React island changes must update DrnReactTypes.ts, reactBundle.tsx registry, and reactBundle.css together; keep DrnReactMicroFrontend and .drn-react-root CSS scoping.
+        - React island changes must update drnReact.types.ts, reactBundle.tsx registry, and reactBundle.css together. Preserve DrnReactMicroFrontend and .drn-react-root CSS scoping.
         - Clean timers, listeners, and mounted roots before onmount unregister/dispose paths.
 
     - path: "Sample.Hosted/Pages/**"

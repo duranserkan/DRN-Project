@@ -15,7 +15,7 @@ import Tab from 'bootstrap/js/dist/tab'
 import Popover from 'bootstrap/js/dist/popover'
 import Offcanvas from 'bootstrap/js/dist/offcanvas'
 
-window.bootstrap = {
+const components = {
     Alert,
     Button,
     Modal,
@@ -27,3 +27,6 @@ window.bootstrap = {
     Popover,
     Offcanvas,
 };
+
+/** @typedef {typeof components} BundledBootstrap */
+window.bootstrap = components;

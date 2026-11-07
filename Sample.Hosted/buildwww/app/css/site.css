@@ -39,6 +39,11 @@
     transition: background-color 0.15s ease, color 0.15s ease;
 }
 
+/* Switch outline button text and background together to preserve contrast during focus and hover. */
+#offCanvasSidebarActionCanvasNotifications .btn-outline-secondary {
+    transition-property: box-shadow, border-color;
+}
+
 /* HTMX Spin Indicator — spin any .htmx-spin-indicator icon when an
    ancestor receives the htmx-request class during an HTMX request.
    Usage: add .htmx-spin-indicator to any icon inside an hx-indicator target. */

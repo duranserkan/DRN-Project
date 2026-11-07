@@ -14,6 +14,7 @@
 !.coderabbit.yaml
 !.sample-env
 !/Sample.Hosted/.npmrc
+!/Sample.Hosted/.oxlintrc.json
 !/DRN.Nexus.Hosted/.npmrc
 !**/wwwroot/**/.vite/
 **/wwwroot/**/.vite/*

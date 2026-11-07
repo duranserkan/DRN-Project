@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 
 test.beforeEach(async ({ page }) => {
     await page.goto('/');
@@ -384,6 +385,8 @@ test('prefixed field errors preserve input, render public text safely and clear 
     await expect(name).toHaveValue('My unsaved name');
     await expect(name).toHaveAttribute('aria-invalid', 'true');
     await expect(name).toHaveAccessibleDescription(`Choose a public display name. Existing validation hint ${message}`);
+    const scan = await new AxeBuilder({ page }).include('#profile').analyze();
+    expect(scan.violations).toEqual([]);
     await expect(profile.locator('img')).toHaveCount(0);
     const errorLink = summary.getByRole('button', { name: `Input.Name: ${message}`, exact: true });
     await errorLink.focus();
@@ -490,8 +493,8 @@ test('overlapping acknowledgments of different panels preserve both updates', as
     // Both handlers read the same snapshot, reproducing the lost-update interleaving deterministically.
     for (const tab of [page, other]) {
         await tab.evaluate(() => {
-            const getItem = Storage.prototype.getItem;
-            const setItem = Storage.prototype.setItem;
+            // oxlint-disable-next-line typescript/unbound-method -- The wrappers forward their receiver with .call().
+            const { getItem, setItem } = Storage.prototype;
             const snapshot = new Map(Object.keys(localStorage).map(key => [key, localStorage.getItem(key)]));
             Storage.prototype.getItem = function (key) {
                 return this === localStorage && key.startsWith('drn.actionbar.')
@@ -530,6 +533,7 @@ test('legacy attendance survives migration and failed writes remain acknowledged
     await expect(page.locator('html')).toHaveAttribute('data-fixture-ready', 'true');
     await expect(page.getByRole('button', { name: 'Messages', exact: true })).not.toHaveClass(/text-bg-warning/);
     await page.evaluate(() => {
+        // oxlint-disable-next-line typescript/unbound-method -- The wrapper forwards its receiver with .call().
         const setItem = Storage.prototype.setItem;
         Storage.prototype.setItem = function (key, value) {
             if (this === localStorage && key.startsWith('drn.actionbar.'))
@@ -648,9 +652,11 @@ test('keyboard pagination keeps focus on the first new occurrence, including the
     const summary = panel.getByRole('button', { name: 'Show details', exact: true });
     await summary.focus();
     await summary.press('Enter');
-    const rows = panel.locator('[data-notification-details][data-expanded="true"] > ul > li');
+    const rows = panel.locator('[data-notification-details][data-expanded="true"]').getByRole('listitem');
     await expect(rows).toHaveCount(50);
     await expect(panel.getByRole('button', { name: 'Hide details', exact: true })).toBeFocused();
+    const scan = await new AxeBuilder({ page }).include('#offCanvasSidebarActionCanvasNotifications').analyze();
+    expect(scan.violations).toEqual([]);
 
     const more = panel.getByRole('button', { name: 'Load more occurrences', exact: true });
     await more.focus();

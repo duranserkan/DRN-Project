@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createNotificationStore } from '../app/js/drn/drnNotifications.js';
-import { filterNotifications, groupNotifications } from '../app/js/drn/drnNotificationPanel.js';
+import { createNotificationStore } from '../app/js/drn/drnNotifications.ts';
+import { filterNotifications, groupNotifications } from '../app/js/drn/drnNotificationPanel.ts';
 
 function fixture(options = {}) {
     const cache = new Map();

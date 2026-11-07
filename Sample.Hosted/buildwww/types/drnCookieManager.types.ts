@@ -52,42 +52,15 @@ export interface DrnCookieReadOptions {
 export interface IDrnCookieManager {
     list(): Array<{ name: string, value: string, raw: string }>;
 
-    /**
-     * Sets a cookie with the specified name, value, and options.
-     * @param {string} name - The name of the cookie.
-     * @param {string|object} value - The value to store. Objects are automatically stringified.
-     * @param {DrnCookieOptions} [options] - Configuration options.
-     * @param {number} [options.days] - Expiration in days.
-     * @param {number} [options.maxAge] - Expiration in seconds (takes precedence over days).
-     * @param {string} [options.path='/'] - The path scope (defaults to root).
-     * @param {string} [options.domain] - The domain scope.
-     * @param {boolean} [options.secure] - If true, cookie requires HTTPS. Defaults to location.protocol === 'https:'.
-     * @param {'Strict'|'Lax'|'None'} [options.sameSite='Strict'] - CSRF protection level
-     * @param {'uri'|'base64'|'none'} [options.encoding='uri'] - Encoding strategy.
-     */
+    /** Serializes object values as JSON before encoding. */
     set(name: string, value: string | object, options?: DrnCookieOptions): void;
 
-    /**
-     * Retrieves a cookie value by name.
-     * @param {string} name - The name of the cookie.
-     * @param {object} [options] - Retrieval options.
-     * @param {boolean} [options.deserialize=true] - If true, attempts to JSON.parse.
-     * @param {'uri'|'base64'|'none'} [options.encoding='uri'] - Decoding strategy matching the set strategy.
-     * @returns {string|object|null} The value or null if not found.
-     */
+    /** Returns null if the cookie is missing or decoding fails. */
     get<T = string>(name: string, options?: DrnCookieReadOptions): T | null;
 
-    /**
-     * Deletes a cookie by setting its expiration to the past.
-     * IMPORTANT: You must provide the same Path and Domain used when setting it.
-     * @param name - The key of the cookie.
-     * @param options - Path and Domain configuration.
-     */
+    /** Use the same path and domain that were used to set the cookie. */
     remove(name: string, options?: DrnCookieOptions): void;
 
-    /**
-     * Checks cookie presence without decoding or deserializing its value.
-     * @param name - The key of the cookie.
-     */
+    /** Checks presence without decoding or deserializing the value. */
     exists(name: string): boolean;
 }

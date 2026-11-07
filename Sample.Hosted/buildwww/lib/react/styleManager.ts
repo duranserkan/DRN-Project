@@ -1,4 +1,3 @@
-// styleManager.ts
 import { getInlineStyleNonce } from './nonceHelper';
 
 let drnSharedSheet: CSSStyleSheet | null = null;

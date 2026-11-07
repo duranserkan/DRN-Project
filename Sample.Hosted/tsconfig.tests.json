@@ -3,5 +3,5 @@
   "compilerOptions": {
     "types": ["node"]
   },
-  "include": ["playwright.config.ts", "buildwww/tests/**/*.ts", "buildwww/types/**/*.d.ts"]
+  "include": ["playwright.config.ts", "buildwww/tests/**/*.ts", "buildwww/tests/**/*.js", "buildwww/types/**/*.d.ts"]
 }

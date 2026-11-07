@@ -29,7 +29,7 @@ async function fixture(t: TestContext, { protocol = 'https:', cookies = '' } = {
         manager,
         writes,
         // Only echo the name/value pair. Browser attribute enforcement is outside unit scope.
-        echoLastWrite() {
+        echoLastWrite(this: void) {
             const lastWrite = writes.at(-1);
             assert.ok(lastWrite);
             cookies = lastWrite.split(';')[0] ?? '';

@@ -28,7 +28,7 @@ Razor renders the host HTML. React renders client-side islands, without SSR or h
 
 ### Script Loading Prerequisites
 
-Preload must initialize `window.DRN.React` before `reactBundle.tsx`. The runtime exposes `DRN.React.mount`; page behavior bundles call it after the runtime loads. React stays global in the current shell. Only home mounting behavior is page-specific. See [loading order](../drn-buildwww-libraries/SKILL.md#script-loading-order).
+Preload provides `DRN.React.mount`. It returns `null` until the React bundle installs its implementation. React stays global in the current shell. Only home mounting behavior is page-specific. See [loading order](../drn-buildwww-libraries/SKILL.md#script-loading-order).
 
 `DRN`, `Drn*`, and `DRN.Framework.*` are shared framework names, not placeholders.
 
@@ -42,9 +42,9 @@ Preload must initialize `window.DRN.React` before `reactBundle.tsx`. The runtime
 | `IslandErrorBoundary.tsx` | Per-island render failure boundary |
 | `PortalContext.tsx`, `portalHost.ts` | Shared Shadow DOM portal host |
 | `styleManager.ts`, `nonceHelper.ts` | Stylesheets, containers, CSP nonce discovery |
-| `buildwww/types/DrnReactTypes.ts` | Registry, root, mount, and disposal types |
+| `buildwww/types/drnReact.types.ts` | React API, registry, root, mount, and disposal types |
 | `buildwww/app/js/behaviors/home/` | Page-specific island mounting |
-| `buildwww/app/js/drn/drnOnmount.js` | Lifecycle registration wrapper |
+| `buildwww/app/js/drn/drnOnmount.ts` | Lifecycle registration wrapper |
 
 HelloReact is the reference component. Resolve output paths from Vite's manifest, not copied hashes. Keep implementation details in these owners instead of duplicating them in skills.
 
@@ -98,7 +98,7 @@ Each island renders inside StrictMode, an `IslandErrorBoundary`, and the portal 
 
 ## Razor Page Integration
 
-Render declarative data and an external page bundle. Put registration in the domain behavior module, not an inline Razor script. Home references `homeBehaviors.js` in its `Scripts` section. Full and htmx layouts must render that section.
+Render declarative data and an external page bundle. Put registration in the domain behavior module, not an inline Razor script. Home references `homeBehaviors.ts` in its `Scripts` section. Full and htmx layouts must render that section.
 
 ```razor
 @{
@@ -106,19 +106,22 @@ Render declarative data and an external page bundle. Put registration in the dom
 }
 <div data-js-hello-react-island data-versions="@versions"></div>
 @section Scripts {
-    <script src="buildwww/app/js/homeBehaviors.js"></script>
+    <script src="buildwww/app/js/homeBehaviors.ts"></script>
 }
 ```
 
 Here `pkg` is the server package-version provider. Convert JSON to string so Razor encodes attribute quotes. Never use raw HTML for data attributes. Read configuration from the mounted element instead of captured server values from an earlier navigation.
 
-```javascript
-// behaviors/home/hello-react-island.js, imported by homeBehaviors.js
+```typescript
+// behaviors/home/hello-react-island.ts, imported by homeBehaviors.ts
 DRN.Onmount.register('[data-js-hello-react-island]', function (options) {
+    if (!(this instanceof HTMLElement)) return;
+    const versions = this.dataset.versions;
     const island = DRN.React.mount('HelloReact', this, {
         title: 'Hello',
-        versions: JSON.parse(this.dataset.versions)
+        versions: versions ? JSON.parse(versions) : undefined
     });
+    if (!island) return false;
     options.disposable = island;
 });
 ```
@@ -129,14 +132,16 @@ Access rendered Shadow DOM through `shadowRoot`. React rendering is asynchronous
 
 ## Adding a New Component
 
-1. Create typed TSX and optional scoped CSS under `buildwww/lib/react/components/`.
-2. Add its type to `ReactComponentRegistry` and implementation to `COMPONENT_REGISTRY`.
+1. Use the registry key as the component filename and named export, as in `components/HelloReact.tsx` exporting `HelloReact`. Give its optional scoped stylesheet the same basename.
+2. Add the key to `ReactComponentRegistry` and register the named export in `COMPONENT_REGISTRY` using property shorthand.
 3. Import its CSS from `reactBundle.css` when needed.
 4. Add mounting behavior to the owning domain and import it from the domain entry.
 5. Render its hook/configuration and page bundle reference. Preserve runtime dependency order.
 6. When execution is authorized, build changed runtime/behavior targets and verify full load, htmx entry, revisit, and unmount.
 
 ## Conventions
+
+Follow the shared [frontend type naming and ownership guidance](../drn-buildwww-vite/references/type-ownership.md) for React APIs, props, and options.
 
 Follow [UI accessibility guidance](../basic-code-review/SKILL.md#ui-accessibility). React event props do not need inline-script CSP permission; bundle/style nonce rules still apply.
 

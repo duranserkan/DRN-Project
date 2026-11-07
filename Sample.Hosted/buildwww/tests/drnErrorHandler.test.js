@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import handler from '../app/js/drn/drnErrorHandler.js';
-import { createNotificationStore } from '../app/js/drn/drnNotifications.js';
+import handler from '../app/js/drn/drnErrorHandler.ts';
+import { createNotificationStore } from '../app/js/drn/drnNotifications.ts';
 
 test('action and global errors share safe notification references with bounded, resilient reporting', async t => {
     const reports = [];
