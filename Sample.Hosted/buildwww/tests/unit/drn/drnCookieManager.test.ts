@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { TestContext } from 'node:test';
-import type { DrnCookieOptions } from '../../../types/drnCookieManager.types.ts';
+import type { DrnCookieOptions } from '@/types/drnCookieManager.types';
 
 let fixtureId = 0;
 
@@ -23,8 +23,8 @@ async function fixture(t: TestContext, { protocol = 'https:', cookies = '' } = {
         configurable: true, value: { location: { protocol } }
     });
     Object.defineProperty(globalThis, 'document', { configurable: true, value: document });
-    const { default: manager }: typeof import('../../../app/js/drn/drnCookieManager.ts') =
-        await import(`../../../app/js/drn/drnCookieManager.ts?fixture=${++fixtureId}`);
+    const { default: manager }: typeof import('@ts/drn/drnCookieManager') =
+        await import(`../../../app/ts/drn/drnCookieManager.ts?fixture=${++fixtureId}`);
     return {
         manager,
         writes,

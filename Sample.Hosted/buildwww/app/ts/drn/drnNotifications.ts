@@ -1,4 +1,4 @@
-import type { DrnNotification, IDrnNotifications, NotificationInput, NotificationType } from '../../../types/drnNotifications.types';
+import type { DrnNotification, IDrnNotifications, NotificationInput, NotificationType } from '@/types/drnNotifications.types';
 
 type Owner = Parameters<IDrnNotifications['configure']>[0];
 type Delta = {

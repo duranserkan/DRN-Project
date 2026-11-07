@@ -1,7 +1,6 @@
-import {defineConfig} from 'vite';
+import {defineConfig, mergeConfig} from 'vite';
 import type {UserConfig} from 'vite';
 import {resolve} from 'node:path'; // Import resolve for path management
-import drnUtils from './buildwww/app/js/drn/drnUtils.ts';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import {iifeWrap, stripHtmxEval} from './vite.config.plugin.ts';
@@ -28,7 +27,7 @@ const sharedConfig: UserConfig = {
     resolve: {
         alias: {
             '@css': resolve(import.meta.dirname, 'buildwww/app/css'),
-            '@js': resolve(import.meta.dirname, 'buildwww/app/js'),
+            '@ts': resolve(import.meta.dirname, 'buildwww/app/ts'),
             '@lib': resolve(import.meta.dirname, 'buildwww/lib'),
             '@types': resolve(import.meta.dirname, 'buildwww/types'),
             '@plugins': resolve(import.meta.dirname, 'buildwww/plugins'),
@@ -50,7 +49,7 @@ const builds: Record<string, UserConfig> = {
                 input: {
                     // Key is the output name (e.g., app), value is the input file path
                     app: resolve(import.meta.dirname, 'buildwww/app/css/app.css'),
-                    appPreload: resolve(import.meta.dirname, 'buildwww/app/js/appPreload.ts')
+                    appPreload: resolve(import.meta.dirname, 'buildwww/app/ts/appPreload.ts')
                 }
             },
         },
@@ -63,7 +62,7 @@ const builds: Record<string, UserConfig> = {
             rolldownOptions: {
                 // Define entry points. These are the files Vite will bundle.
                 input: {
-                    appPostload: resolve(import.meta.dirname, 'buildwww/app/js/appPostload.ts')
+                    appPostload: resolve(import.meta.dirname, 'buildwww/app/ts/appPostload.ts')
                 }
             },
         },
@@ -74,7 +73,7 @@ const builds: Record<string, UserConfig> = {
             outDir: 'wwwroot/behaviors/layout',
             rolldownOptions: {
                 input: {
-                    layoutBehaviors: resolve(import.meta.dirname, 'buildwww/app/js/layoutBehaviors.ts')
+                    layoutBehaviors: resolve(import.meta.dirname, 'buildwww/app/ts/layoutBehaviors.ts')
                 }
             }
         }
@@ -85,7 +84,7 @@ const builds: Record<string, UserConfig> = {
             outDir: 'wwwroot/behaviors/home',
             rolldownOptions: {
                 input: {
-                    homeBehaviors: resolve(import.meta.dirname, 'buildwww/app/js/homeBehaviors.ts')
+                    homeBehaviors: resolve(import.meta.dirname, 'buildwww/app/ts/homeBehaviors.ts')
                 }
             }
         }
@@ -96,7 +95,7 @@ const builds: Record<string, UserConfig> = {
             outDir: 'wwwroot/behaviors/test',
             rolldownOptions: {
                 input: {
-                    testBehaviors: resolve(import.meta.dirname, 'buildwww/app/js/testBehaviors.ts')
+                    testBehaviors: resolve(import.meta.dirname, 'buildwww/app/ts/testBehaviors.ts')
                 }
             }
         }
@@ -108,7 +107,7 @@ const builds: Record<string, UserConfig> = {
             outDir: 'wwwroot/lib/htmx',
             rolldownOptions: {
                 input: {
-                    htmxBundle: resolve(import.meta.dirname, 'buildwww/lib/htmx/htmxBundle.js'),
+                    htmxBundle: resolve(import.meta.dirname, 'buildwww/lib/htmx/htmxBundle.ts'),
                 }
             },
         },
@@ -121,7 +120,7 @@ const builds: Record<string, UserConfig> = {
                 preserveEntrySignatures: 'strict',
                 input: {
                     bootstrap: resolve(import.meta.dirname, 'buildwww/lib/bootstrap/bootstrap.scss'),
-                    bootstrapBundle: resolve(import.meta.dirname, 'buildwww/lib/bootstrap/bootstrapBundle.js'),
+                    bootstrapBundle: resolve(import.meta.dirname, 'buildwww/lib/bootstrap/bootstrapBundle.ts'),
                 }
             }
         },
@@ -173,4 +172,4 @@ const builds: Record<string, UserConfig> = {
 const buildType = process.env.BUILD_TYPE || 'app';
 
 // Merge shared config with build-specific config
-export default defineConfig(drnUtils.deepMerge(sharedConfig, builds[buildType] ?? {}) as UserConfig);
+export default defineConfig(mergeConfig(sharedConfig, builds[buildType] ?? {}));

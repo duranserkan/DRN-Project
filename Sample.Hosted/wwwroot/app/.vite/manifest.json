@@ -8,10 +8,10 @@
     "src": "buildwww/app/css/app.css",
     "isEntry": true
   },
-  "buildwww/app/js/appPreload.ts": {
+  "buildwww/app/ts/appPreload.ts": {
     "file": "appPreload.mpwDjJ-SQG8hSMu3.js",
     "name": "appPreload",
-    "src": "buildwww/app/js/appPreload.ts",
+    "src": "buildwww/app/ts/appPreload.ts",
     "isEntry": true
   }
 }

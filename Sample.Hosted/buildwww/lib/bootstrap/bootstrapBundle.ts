@@ -28,5 +28,5 @@ const components = {
     Offcanvas,
 };
 
-/** @typedef {typeof components} BundledBootstrap */
+export type BundledBootstrap = typeof components;
 window.bootstrap = components;

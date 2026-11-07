@@ -1,6 +1,6 @@
 import type React from 'react';
 import type {Root} from 'react-dom/client';
-import type {HelloReactProps} from "@/lib/react/components/HelloReact.tsx";
+import type {HelloReactProps} from "@/lib/react/components/HelloReact";
 
 // The registry matches string keys to Component Types
 export type ReactComponentRegistry = {

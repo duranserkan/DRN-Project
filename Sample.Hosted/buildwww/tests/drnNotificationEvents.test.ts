@@ -1,21 +1,21 @@
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
-import { importStatusMessages, installNotificationEvents } from '../app/js/drn/drnNotificationEvents.ts';
-import { createNotificationStore } from '../app/js/drn/drnNotifications.ts';
-import problem from '../app/js/drn/drnProblem.ts';
+import { importStatusMessages, installNotificationEvents } from '../app/ts/drn/drnNotificationEvents.ts';
+import { createNotificationStore } from '../app/ts/drn/drnNotifications.ts';
+import problem from '../app/ts/drn/drnProblem.ts';
 
-function statusElement(id, message, persist = true) {
+function statusElement(id: string, message: string, persist = true) {
     return {
-        dataset: { notificationStatus: id },
+        dataset: { notificationStatus: id } as DOMStringMap,
         querySelector: () => ({ textContent: message }),
         closest: () => persist ? null : { dataset: { notificationPersist: 'false' } }
     };
 }
 
-function response(status = 200, contentType = 'text/html', headers = {}) {
+function response(status = 200, contentType = 'text/html', headers: Record<string, string | undefined> = {}) {
     return {
         requestConfig: { triggeringEvent: { isTrusted: true } },
-        xhr: { status, responseText: '', getResponseHeader: name =>
+        xhr: { status, responseText: '', getResponseHeader: (name: string) =>
             name === 'Content-Type' ? contentType : headers[name] ?? null },
         shouldSwap: status < 400,
         isError: status >= 400
@@ -23,20 +23,23 @@ function response(status = 200, contentType = 'text/html', headers = {}) {
 }
 
 // Test our event policy with real EventTargets and store. Browser tests own DOM and HTMX integration.
-function fixture(t, { start = true, statuses = [] } = {}) {
-    const document = new EventTarget();
-    const window = new EventTarget();
+function fixture(t: TestContext, { start = true, statuses = [] }: { start?: boolean; statuses?: ReturnType<typeof statusElement>[] } = {}) {
     const marker = { dataset: { notificationApp: '/app/', notificationOwner: 'account-a' } };
-    document.readyState = 'loading';
-    document.querySelector = selector => selector === '[data-notification-context]' ? marker : null;
-    document.querySelectorAll = selector => selector === '[data-notification-status]' ? statuses : [];
-    document.getElementById = () => null;
-    document.body = {};
-    const timers = new Set();
-    const channels = new Set();
-    window.setInterval = () => { const id = Symbol(); timers.add(id); return id; };
-    window.clearInterval = id => timers.delete(id);
+    const document = Object.assign(new EventTarget(), {
+        readyState: 'loading',
+        querySelector: (selector: string) => selector === '[data-notification-context]' ? marker : null,
+        querySelectorAll: (selector: string) => selector === '[data-notification-status]' ? statuses : [],
+        getElementById: () => null,
+        body: {}
+    });
+    const timers = new Set<symbol>();
+    const channels = new Set<Channel>();
+    const window = Object.assign(new EventTarget(), {
+        setInterval() { const id = Symbol(); timers.add(id); return id; },
+        clearInterval: (id: symbol) => timers.delete(id)
+    });
     class Channel {
+        onmessage!: (event: { data: { type: string; owner: string } }) => void;
         constructor() { channels.add(this); }
         postMessage() {}
         close() { channels.delete(this); }
@@ -56,12 +59,11 @@ function fixture(t, { start = true, statuses = [] } = {}) {
         Object.defineProperty(globalThis, name, { configurable: true, writable: true, value });
         t.after(() => {
             if (original) Object.defineProperty(globalThis, name, original);
-            else delete globalThis[name];
+            else Reflect.deleteProperty(globalThis, name);
         });
     }
-    function emit(name, detail = {}) {
-        const event = new Event(name, { cancelable: true });
-        event.detail = detail;
+    function emit(name: string, detail: unknown = {}) {
+        const event = new CustomEvent(name, { cancelable: true, detail });
         document.dispatchEvent(event);
         return event;
     }
@@ -112,7 +114,7 @@ for (const invalidation of ['cross-tab account change', 'store suspension']) {
         const pending = response(500, 'application/problem+json');
         emit('htmx:beforeRequest', pending);
         if (invalidation === 'cross-tab account change')
-            channels.values().next().value.onmessage({ data: { type: 'account', owner: 'account-b' } });
+            channels.values().next().value!.onmessage({ data: { type: 'account', owner: 'account-b' } });
         else store.suspend();
         statuses.push(statusElement('a'.repeat(32), 'Stale status'));
         emit('htmx:load');
@@ -120,7 +122,7 @@ for (const invalidation of ['cross-tab account change', 'store suspension']) {
 
         assert.equal(store.isActive(), false);
         assert.deepEqual(store.list(), []);
-        assert.equal(statuses[0].dataset.notificationRecorded, undefined);
+        assert.equal(statuses[0]!.dataset.notificationRecorded, undefined);
         assert.equal(emit('htmx:beforeRequest', response()).defaultPrevented, true);
         for (const detail of [pending, response(500, 'application/problem+json')]) {
             assert.equal(emit('htmx:beforeOnLoad', detail).defaultPrevented, true);
@@ -163,7 +165,7 @@ test('Problem Details suppresses toast headers and presents one failure across H
     assert.equal(detail.shouldSwap, false);
     assert.equal(detail.isError, true);
     assert.equal(Problem.show.mock.callCount(), 1);
-    assert.equal(Problem.show.mock.calls[0].arguments[0].title, 'Category is in use');
+    assert.equal(Problem.show.mock.calls[0]!.arguments[0]!.title, 'Category is in use');
     assert.equal(ErrorHandler.reportActionError.mock.callCount(), 0);
     assert.equal(Problem.clear.mock.callCount(), 0);
     assert.equal(Toast.show.mock.callCount(), 0);
@@ -175,7 +177,7 @@ for (const [status, contentType, marker, allowed] of [
     [422, 'text/html', 'True', false],
     [422, 'text/plain', 'true', false],
     [500, 'text/html', 'true', false]
-]) {
+] as const) {
     test(`validation swap policy: ${status}, ${contentType}, marker ${marker}`, t => {
         const { emit } = fixture(t);
         const detail = response(status, contentType, { 'X-DRN-Validation': marker });
@@ -188,7 +190,7 @@ for (const [status, contentType, marker, allowed] of [
 for (const [event, title] of [
     ['htmx:sendError', 'Connection lost'],
     ['htmx:timeout', 'The request timed out']
-]) {
+] as const) {
     test(`${event} gives recovery guidance once`, t => {
         const { emit, Problem, ErrorHandler } = fixture(t);
         const detail = response(0, '');
@@ -196,7 +198,7 @@ for (const [event, title] of [
         emit('htmx:responseError', detail);
         assert.equal(Problem.show.mock.callCount(), 0);
         assert.equal(ErrorHandler.reportActionError.mock.callCount(), 1);
-        assert.equal(ErrorHandler.reportActionError.mock.calls[0].arguments[0].message, title);
+        assert.equal(ErrorHandler.reportActionError.mock.calls[0]!.arguments[0]!.message, title);
     });
 }
 
@@ -218,7 +220,7 @@ test('background request failures stay silent and explicit action opt-in gets a 
     assert.equal(Toast.show.mock.callCount(), 0);
 
     emit('htmx:sendError', { ...response(0), requestConfig: {
-        elt: { closest: selector => selector === '[data-notification-user-action]'
+        elt: { closest: (selector: string) => selector === '[data-notification-user-action]'
             ? { dataset: { notificationUserAction: 'true' } } : null }
     } });
     assert.equal(ErrorHandler.reportActionError.mock.callCount(), 1);
@@ -228,7 +230,7 @@ test('explicit background marking suppresses even a trusted action event', t => 
     const { emit, Problem, ErrorHandler } = fixture(t);
     const requestConfig = {
         triggeringEvent: { isTrusted: true },
-        elt: { closest: selector => selector === '[data-notification-user-action]'
+        elt: { closest: (selector: string) => selector === '[data-notification-user-action]'
             ? { dataset: { notificationUserAction: 'false' } } : null }
     };
     emit('htmx:responseError', { ...response(500), requestConfig });
@@ -240,7 +242,7 @@ test('explicit background marking suppresses even a trusted action event', t => 
 for (const contentType of ['application/json', 'text/html; charset=utf-8', 'text/plain']) {
     test(`a non-problem ${contentType} error toast owns feedback once and preserves request privacy`, t => {
         const { emit, Problem, Toast, ErrorHandler } = fixture(t);
-        const element = { closest: selector => selector === '[data-notification-persist]'
+        const element = { closest: (selector: string) => selector === '[data-notification-persist]'
             ? { dataset: { notificationPersist: 'false' } }
             : selector === '[data-notification-operation]'
                 ? { dataset: { notificationOperation: 'Remove category' } } : null };
@@ -253,7 +255,7 @@ for (const contentType of ['application/json', 'text/html; charset=utf-8', 'text
 
         assert.equal(Toast.show.mock.callCount(), 1);
         assert.equal(ErrorHandler.reportActionError.mock.callCount(), 0);
-        assert.deepEqual(Toast.show.mock.calls[0].arguments[0], {
+        assert.deepEqual(Toast.show.mock.calls[0]!.arguments[0], {
             type: 'error', message: 'Category is in use', duration: 9000,
             record: undefined, persist: false, operation: 'Remove category'
         });
@@ -287,16 +289,16 @@ test('request context retains the operation path without sensitive query paramet
     emit('htmx:responseError', { ...response(500), requestConfig: {
         verb: 'post', path: '/app/profile?token=private', triggeringEvent: { isTrusted: true }
     } });
-    assert.equal(Problem.show.mock.calls[0].arguments[1].operation, 'POST /app/profile');
+    assert.equal(Problem.show.mock.calls[0]!.arguments[1]!.operation, 'POST /app/profile');
 });
 
 test('status import survives stored history and does not resurrect dismissed messages or merge later actions', () => {
-    const cache = new Map();
+    const cache = new Map<string, string>();
     let sequence = 0;
     const options = {
         locks: null,
-        storage: () => ({ getItem: key => cache.get(key), setItem: (key, value) => cache.set(key, value),
-            removeItem: key => cache.delete(key) }),
+        storage: () => ({ getItem: (key: string) => cache.get(key) ?? null, setItem: (key: string, value: string) => cache.set(key, value),
+            removeItem: (key: string) => cache.delete(key) }),
         now: () => 100_000_000, newId: () => `status-${++sequence}`
     };
     const context = { app: '/app/', owner: 'account-a' };
@@ -304,8 +306,8 @@ test('status import survives stored history and does not resurrect dismissed mes
     first.configure(context);
     const message = '<strong>Profile updated</strong>';
     const original = statusElement('a'.repeat(32), message);
-    importStatusMessages({ querySelectorAll: () => [original] }, first);
-    const record = first.list()[0];
+    importStatusMessages({ querySelectorAll: () => [original] } as unknown as ParentNode, first);
+    const record = first.list()[0]!;
     assert.equal(record.message, message);
     assert.equal(record.type, 'success');
 
@@ -313,18 +315,18 @@ test('status import survives stored history and does not resurrect dismissed mes
     restored.configure(context);
     const copy = statusElement('a'.repeat(32), message);
     const root = { querySelectorAll: () => [copy] };
-    importStatusMessages(root, restored);
+    importStatusMessages(root as unknown as ParentNode, restored);
     assert.deepEqual(restored.list(), [record]);
     restored.dismiss([record.id]);
-    importStatusMessages(root, restored);
+    importStatusMessages(root as unknown as ParentNode, restored);
     assert.deepEqual(restored.list(), []);
 
     const later = statusElement('b'.repeat(32), message);
-    importStatusMessages({ querySelectorAll: () => [copy, later] }, restored);
+    importStatusMessages({ querySelectorAll: () => [copy, later] } as unknown as ParentNode, restored);
     assert.equal(restored.list().length, 1);
-    assert.notEqual(restored.list()[0].sourceId, record.sourceId);
+    assert.notEqual(restored.list()[0]!.sourceId, record.sourceId);
     restored.clear();
-    importStatusMessages(root, restored);
+    importStatusMessages(root as unknown as ParentNode, restored);
     assert.deepEqual(restored.list(), []);
 });
 
@@ -340,14 +342,14 @@ test('status import respects privacy, valid markup and suspended account state',
     const statuses = [statusElement('invalid', 'Invalid marker'), statusElement('d'.repeat(32), '  '), privateStatus];
     const root = { querySelectorAll: () => statuses };
     store.suspend();
-    importStatusMessages(root, store);
+    importStatusMessages(root as unknown as ParentNode, store);
     assert.deepEqual(store.list(), []);
     assert.equal(privateStatus.dataset.notificationRecorded, undefined);
     store.configure({ app: '/app/', owner: 'account-a' });
-    importStatusMessages(root, store);
+    importStatusMessages(root as unknown as ParentNode, store);
     assert.equal(store.list().length, 1);
-    assert.equal(store.list()[0].persist, false);
+    assert.equal(store.list()[0]!.persist, false);
     assert.ok(!saved.includes('Private feedback'));
-    assert.equal(statuses[0].dataset.notificationRecorded, undefined);
-    assert.equal(statuses[1].dataset.notificationRecorded, undefined);
+    assert.equal(statuses[0]!.dataset.notificationRecorded, undefined);
+    assert.equal(statuses[1]!.dataset.notificationRecorded, undefined);
 });

@@ -1,4 +1,4 @@
-import type { DrnNotification } from '../../../types/drnNotifications.types';
+import type { DrnNotification } from '@/types/drnNotifications.types';
 
 interface NotificationGroup {
     id: string;

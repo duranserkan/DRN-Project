@@ -2,15 +2,15 @@
 // Check _LayoutBase for the execution order
 //https://ricostacruz.com/rsjs/index.html#keep-the-global-namespace-clean
 
-import drnErrorHandler from './drn/drnErrorHandler';
-import drnDiagnostics from './drn/drnDiagnostics';
-import drnApp from './drn/drnApp';
-import drnOnmount from './drn/drnOnmount';
-import drnUtils from './drn/drnUtils';
-import drnCookieManager from './drn/drnCookieManager';
-import drnToast from './drn/drnToast';
-import drnProblem from './drn/drnProblem';
-import drnNotifications from './drn/drnNotifications';
+import drnErrorHandler from './drn/drnErrorHandler.ts';
+import drnDiagnostics from './drn/drnDiagnostics.ts';
+import drnApp from './drn/drnApp.ts';
+import drnOnmount from './drn/drnOnmount.ts';
+import drnUtils from './drn/drnUtils.ts';
+import drnCookieManager from './drn/drnCookieManager.ts';
+import drnToast from './drn/drnToast.ts';
+import drnProblem from './drn/drnProblem.ts';
+import drnNotifications from './drn/drnNotifications.ts';
 
 if (typeof window !== 'undefined' && !window.DRN?.ErrorHandler) {
     // Preload sets up core utilities and app state.

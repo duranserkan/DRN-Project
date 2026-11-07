@@ -222,13 +222,15 @@ npm audit signatures
 npm run build
 ```
 
-The full build runs `npm run check` before generating assets. This runs type-aware Oxlint, then both TypeScript project checks. Run `npm run lint` or `npm run type-check` independently when needed. Oxlint checks `buildwww/` and the root Vite and Playwright configuration files. The [lint configuration](.oxlintrc.json) enables promise handling, exhaustive switches, React Hooks and JSX accessibility checks. Node's test runner owns the promises returned by unit test registration. Other promise-returning calls in tests follow the usual rules. Warnings and errors both fail the check. Generated `wwwroot/` assets are outside the lint scope. Targeted `build:*` commands do not run these checks automatically.
+Before generating assets, `npm run build` runs `npm run check`. Type-aware Oxlint runs first and fails on warnings or errors. TypeScript then checks the application and test projects. Run `npm run lint` or `npm run type-check` for either check alone. Targeted builds skip these checks. See the [lint configuration](.oxlintrc.json) for rule details.
 
 Build scripts use inline environment assignments such as `BUILD_TYPE=app vite build` and require a POSIX-compatible shell unless the scripts are made cross-platform. Vite selects each target through `BUILD_TYPE`, which targeted npm build scripts set explicitly. Direct Vite calls also use `BUILD_TYPE` and default to `app` when it is unset or empty.
 
 ### Independently updating component behaviors
 
-RSJS component modules live in `buildwww/app/js/behaviors/`, grouped by UI area. Each area has a separate entry, hashed output, and manifest:
+Application TypeScript lives in `buildwww/app/ts/`. HTMX and Bootstrap adapters stay under `buildwww/lib/`. Vite emits browser JavaScript under `wwwroot/`.
+
+RSJS component modules live in `buildwww/app/ts/behaviors/`, grouped by UI area. Each area has a separate entry, hashed output, and manifest:
 
 | Entry | Modules | Loaded by | Output directory |
 |---|---|---|---|

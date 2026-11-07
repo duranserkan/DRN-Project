@@ -1,8 +1,8 @@
 {
-  "buildwww/app/js/appPostload.ts": {
+  "buildwww/app/ts/appPostload.ts": {
     "file": "appPostload.CGpNQICD4qNe1XEJ.js",
     "name": "appPostload",
-    "src": "buildwww/app/js/appPostload.ts",
+    "src": "buildwww/app/ts/appPostload.ts",
     "isEntry": true
   }
 }

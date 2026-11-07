@@ -3,7 +3,7 @@
 * Source codes under this file obtained and modified from https://github.com/MichaelWest22/htmx-extensions/blob/main/src/safe-nonce/safe-nonce.js
 */
 
-import {htmx} from './htmx.js'
+import {htmx} from './htmx.ts'
 
 htmx.defineExtension('safe-nonce', {
     transformResponse: function (text, xhr) {
@@ -15,7 +15,7 @@ htmx.defineExtension('safe-nonce', {
             const csp = xhr.getResponseHeader('content-security-policy')
             if (csp) {
                 const cspMatch = /(default|script)-src[^;]*'nonce-([^']*)'/i.exec(csp)
-                if (cspMatch)
+                if (cspMatch?.[2])
                     nonce = cspMatch[2]
             }
         }

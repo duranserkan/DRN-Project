@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import problem from '../app/js/drn/drnProblem.ts';
+import problem from '../app/ts/drn/drnProblem.ts';
 
 test('public fields and validation survive parsing while HTTP status wins', () => {
     const result = problem.parse(JSON.stringify({
@@ -14,7 +14,7 @@ test('public fields and validation survive parsing while HTTP status wins', () =
     assert.equal(result.requestId, 'request-1');
     assert.deepEqual(result.errors.Name, ['Required']);
     assert.equal(result.errors.Invalid, undefined);
-    assert.equal(result.stack, undefined);
+    assert.equal(Reflect.get(result, 'stack'), undefined);
 });
 
 test('malformed bodies and incorrect field types have safe defaults', () => {
@@ -37,8 +37,8 @@ test('display fields and validation output are bounded without altering identifi
         type: 't'.repeat(2049), errors: { Name: Array(120).fill('error') }
     }), 'application/problem+json', 400);
     assert.equal(result.title.length, 500);
-    assert.equal(result.errors.Name.length, 100);
-    assert.equal(result.errors.Name[0], 'error');
+    assert.equal(result.errors.Name!.length, 100);
+    assert.equal(result.errors.Name![0], 'error');
     assert.equal(result.requestId, '');
     assert.equal(result.type, '');
     const oversizedBody = JSON.stringify({ title: 'Oversized problem', detail: 'x'.repeat(65536) });
@@ -58,13 +58,14 @@ test('a problem records once and its fallback toast opts out of recording', () =
     const originalWindow = globalThis.window;
     const originalDocument = globalThis.document;
     const originalElement = globalThis.Element;
-    let notification, toast;
-    globalThis.Element = class {};
-    globalThis.document = { getElementById: () => null };
-    globalThis.window = { DRN: {
-        Notifications: { publish: value => { notification = value; return value; } },
-        Toast: { show: value => { toast = value; } }
-    } };
+    let notification!: Parameters<IDRN['Notifications']['publish']>[0];
+    let toast!: Parameters<IDRN['Toast']['show']>[0];
+    Object.defineProperty(globalThis, 'Element', { configurable: true, writable: true, value: class {} });
+    Object.assign(globalThis, { document: { getElementById: () => null } });
+    Object.assign(globalThis, { window: { DRN: {
+        Notifications: { publish: (value: typeof notification) => { notification = value; return value; } },
+        Toast: { show: (value: typeof toast) => { toast = value; } }
+    } } });
     try {
         const result = problem.parse('{"title":"<img src=x onerror=alert(1)>","requestId":"reference"}',
             'application/problem+json', 400);
@@ -86,11 +87,11 @@ test('a problem records once and its fallback toast opts out of recording', () =
         problem.show(badRequest);
         assert.equal(toast.message, badRequest.detail);
     } finally {
-        if (originalWindow === undefined) delete globalThis.window;
+        if (originalWindow === undefined) Reflect.deleteProperty(globalThis, 'window');
         else globalThis.window = originalWindow;
-        if (originalDocument === undefined) delete globalThis.document;
+        if (originalDocument === undefined) Reflect.deleteProperty(globalThis, 'document');
         else globalThis.document = originalDocument;
-        if (originalElement === undefined) delete globalThis.Element;
+        if (originalElement === undefined) Reflect.deleteProperty(globalThis, 'Element');
         else globalThis.Element = originalElement;
     }
 });
@@ -99,8 +100,9 @@ test('XHR and Fetch share parsing and Fetch leaves the original body readable', 
     const body = '{"title":"Invalid","requestId":"request-2"}';
     const xhr = { responseText: body, status: 400, getResponseHeader: () => 'application/problem+json' };
     const response = new Response(body, { status: 400, headers: { 'Content-Type': 'application/problem+json' } });
-    assert.deepEqual(await problem.fromResponse(response), problem.fromXhr(xhr));
+    assert.deepEqual(await problem.fromResponse(response), problem.fromXhr(xhr as unknown as XMLHttpRequest));
     assert.equal(await response.text(), body);
+    // @ts-expect-error Exercise the missing-XHR fallback.
     assert.equal(problem.fromXhr(null).status, 0);
     const html = new Response('<html>private</html>', { status: 500, headers: { 'Content-Type': 'text/html' } });
     assert.equal((await problem.fromResponse(html)).title, problem.parse('', '', 500).title);
@@ -121,7 +123,7 @@ test('Fetch stops reading oversized streams without waiting for the original con
     assert.equal(result.status, 503);
     assert.ok(pulls < 64, 'the oversized body must not be fully read');
     assert.equal(response.bodyUsed, false);
-    const reader = response.body.getReader();
+    const reader = response.body!.getReader();
     assert.deepEqual((await reader.read()).value, chunk);
     await reader.cancel();
     reader.releaseLock();

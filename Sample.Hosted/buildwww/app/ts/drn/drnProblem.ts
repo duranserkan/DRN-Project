@@ -1,6 +1,6 @@
 import { mediaType } from './drnHttp.ts';
 
-import type { DrnProblem, DrnProblemContext } from '../../../types/drnProblem.types';
+import type { DrnProblem, DrnProblemContext } from '@/types/drnProblem.types';
 
 const FALLBACK_TITLE = 'The request could not be completed.';
 const MAX_BODY_LENGTH = 65536;

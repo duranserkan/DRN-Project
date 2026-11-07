@@ -1,8 +1,8 @@
 {
-  "buildwww/app/js/layoutBehaviors.ts": {
+  "buildwww/app/ts/layoutBehaviors.ts": {
     "file": "layoutBehaviors.B20OtAKbnQsxo6qB.js",
     "name": "layoutBehaviors",
-    "src": "buildwww/app/js/layoutBehaviors.ts",
+    "src": "buildwww/app/ts/layoutBehaviors.ts",
     "isEntry": true
   }
 }

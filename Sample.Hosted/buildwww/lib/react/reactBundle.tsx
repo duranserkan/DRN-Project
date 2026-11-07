@@ -2,13 +2,13 @@ import bundleStyles from './reactBundle.css?inline';
 
 import React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import type { ReactComponentRegistry, RootData, ReactMountOptions } from "@/types/drnReact.types.ts";
-import { HelloReact } from './components/HelloReact';
-import { IslandErrorBoundary } from './IslandErrorBoundary';
-import { getGlobalPortalContainer } from './portalHost';
-import { PortalContext } from './PortalContext';
-import { getInlineStyleNonce } from './nonceHelper';
-import { initSharedStyleSheet, ensureDocumentStyles, resolveMountContainer } from './styleManager';
+import type { ReactComponentRegistry, RootData, ReactMountOptions } from "@/types/drnReact.types";
+import { HelloReact } from './components/HelloReact.tsx';
+import { IslandErrorBoundary } from './IslandErrorBoundary.tsx';
+import { getGlobalPortalContainer } from './portalHost.ts';
+import { PortalContext } from './PortalContext.tsx';
+import { getInlineStyleNonce } from './nonceHelper.ts';
+import { initSharedStyleSheet, ensureDocumentStyles, resolveMountContainer } from './styleManager.ts';
 
 const rootMap = new WeakMap<HTMLElement, RootData>();
 

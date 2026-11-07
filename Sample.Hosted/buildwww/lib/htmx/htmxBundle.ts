@@ -1,6 +1,6 @@
-import { htmx } from './htmx.js'
-import './htmxSafeNonce.js'
-import './htmxValidation.js'
+import { htmx } from './htmx.ts'
+import './htmxSafeNonce.ts'
+import './htmxValidation.ts'
 import onmount from 'onmount'
 
 // Make it globally available

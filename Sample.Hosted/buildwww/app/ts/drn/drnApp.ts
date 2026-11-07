@@ -1,4 +1,4 @@
-import type { IDrnApp } from '../../../types/drnApp.types';
+import type { IDrnApp } from '@/types/drnApp.types';
 
 /**
  * Core application object for managing state

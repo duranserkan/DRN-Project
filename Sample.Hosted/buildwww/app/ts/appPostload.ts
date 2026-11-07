@@ -1,6 +1,6 @@
-import notificationPanel from './drn/drnNotificationPanel';
-import { installNotificationEvents } from './drn/drnNotificationEvents';
-import { installActionbarEvents } from './drn/drnActionbar';
+import notificationPanel from './drn/drnNotificationPanel.ts';
+import { installNotificationEvents } from './drn/drnNotificationEvents.ts';
+import { installActionbarEvents } from './drn/drnActionbar.ts';
 
 installActionbarEvents();
 installNotificationEvents(notificationPanel);

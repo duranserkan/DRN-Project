@@ -6,7 +6,7 @@
 /// <reference types="vite/client" />
 
 import type {ValidationService} from 'aspnet-client-validation';
-import type {BundledBootstrap} from '../lib/bootstrap/bootstrapBundle.js';
+import type {BundledBootstrap} from '@lib/bootstrap/bootstrapBundle';
 import type {IDrnApp} from './drnApp.types';
 import type {IDrnReact} from './drnReact.types';
 import type {IDrnOnmount, OnMountStatic} from './drnOnmount.types';
@@ -24,6 +24,8 @@ declare global {
     var bootstrap: Pick<typeof import('bootstrap'), keyof BundledBootstrap>;
     interface Window {
         DRN: IDRN;
+        htmx: typeof import('htmx.org').default;
+        __globalDOMParser?: DOMParser;
         CSSStyleSheet?: { new(): CSSStyleSheet; prototype: CSSStyleSheet };
         // Other globals (e.g. Google Analytics)
         //dataLayer?: any[];

@@ -37,7 +37,7 @@ Follow [RSJS](https://github.com/rstacruz/rsjs): declarative HTML hooks and sepa
 
 ### Global and Page-Specific Components
 
-Group modules under `buildwww/app/js/behaviors/{layout,home,test}/`. Domain entry files import modules without importing runtime implementations. The [Vite skill](../drn-buildwww-vite/SKILL.md#entry-points) owns builds and outputs.
+Group modules under `buildwww/app/ts/behaviors/{layout,home,test}/`. Domain entry files import modules without importing runtime implementations. The [Vite skill](../drn-buildwww-vite/SKILL.md#entry-points) owns builds and outputs.
 
 | Entry | Components | Loading |
 |---|---|---|
@@ -58,7 +58,7 @@ See [React integration](../drn-buildwww-react/SKILL.md#razor-page-integration) f
 
 ## Application JavaScript Utilities
 
-Shared runtime modules live under `buildwww/app/js/drn/`. Use `DRN.App.url(applicationRoute)` for requests. Only `~/` receives the deployment prefix; external, fragment, relative, and resolved URLs stay unchanged. Render `<meta name="drn-app-base" content="@Url.Content("~/")"/>` before preload and preserve controller segments. Rebuild affected bundles only with execution permission.
+Shared runtime modules live under `buildwww/app/ts/drn/`. Use `DRN.App.url(applicationRoute)` for requests. Only `~/` receives the deployment prefix; external, fragment, relative, and resolved URLs stay unchanged. Render `<meta name="drn-app-base" content="@Url.Content("~/")"/>` before preload and preserve controller segments. Rebuild affected bundles only with execution permission.
 
 ### Problem Details Consumer
 
@@ -114,7 +114,7 @@ The htmx bundle installs `DRN.Validation` (`ValidationService` from `aspnet-clie
 
 ## Bootstrap Customization
 
-`buildwww/lib/bootstrap/bootstrap.scss` owns variable overrides, imports, and Bootstrap Icons. `bootstrapBundle.js` exposes selected plugins under `window.bootstrap`. Follow [package imports](../drn-buildwww-packages/SKILL.md#package-imports) for new imports. Do not migrate relative Sass imports without verifying resolution and an authorized build.
+`buildwww/lib/bootstrap/bootstrap.scss` owns variable overrides, imports, and Bootstrap Icons. `bootstrapBundle.ts` exposes selected plugins under `window.bootstrap`. Follow [package imports](../drn-buildwww-packages/SKILL.md#package-imports) for new imports. Do not migrate relative Sass imports without verifying resolution and an authorized build.
 
 ## Related Skills
 

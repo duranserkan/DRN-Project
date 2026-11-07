@@ -43,8 +43,8 @@ Preload provides `DRN.React.mount`. It returns `null` until the React bundle ins
 | `PortalContext.tsx`, `portalHost.ts` | Shared Shadow DOM portal host |
 | `styleManager.ts`, `nonceHelper.ts` | Stylesheets, containers, CSP nonce discovery |
 | `buildwww/types/drnReact.types.ts` | React API, registry, root, mount, and disposal types |
-| `buildwww/app/js/behaviors/home/` | Page-specific island mounting |
-| `buildwww/app/js/drn/drnOnmount.ts` | Lifecycle registration wrapper |
+| `buildwww/app/ts/behaviors/home/` | Page-specific island mounting |
+| `buildwww/app/ts/drn/drnOnmount.ts` | Lifecycle registration wrapper |
 
 HelloReact is the reference component. Resolve output paths from Vite's manifest, not copied hashes. Keep implementation details in these owners instead of duplicating them in skills.
 
@@ -106,7 +106,7 @@ Render declarative data and an external page bundle. Put registration in the dom
 }
 <div data-js-hello-react-island data-versions="@versions"></div>
 @section Scripts {
-    <script src="buildwww/app/js/homeBehaviors.ts"></script>
+    <script src="buildwww/app/ts/homeBehaviors.ts"></script>
 }
 ```
 

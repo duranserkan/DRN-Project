@@ -1,4 +1,4 @@
-// htmxValidation.js
+// htmxValidation.ts
 // Replaces jQuery + jQuery Validate + jQuery Validate Unobtrusive
 // with aspnet-client-validation (~4 KB gzipped, zero dependencies).
 //
@@ -21,9 +21,21 @@ import { ValidationService } from 'aspnet-client-validation';
  * subtree after its normal cleanup completes.
  */
 class DrnValidationService extends ValidationService {
-    remove(root) {
-        const removalRoot = root ?? this.options?.root ?? document.body;
-        const elementUIDs = Array.isArray(this.elementUIDs) ? this.elementUIDs : [];
+    override remove(root?: ParentNode) {
+        // aspnet-client-validation keeps these runtime indexes private in its declarations.
+        const indexes = this as unknown as {
+            options?: { root?: ParentNode };
+            elementUIDs: { node: Node; uid: string }[];
+            formInputs: Record<string, string[]>;
+            formEvents: Record<string, { remove(): void }>;
+            inputEvents: Record<string, { remove(): void }>;
+            messageFor: Record<string, unknown>;
+            validators: Record<string, unknown>;
+            summary: Record<string, unknown>;
+            elementByUID: Record<string, unknown>;
+        };
+        const removalRoot = root ?? indexes.options?.root ?? document.body;
+        const elementUIDs = Array.isArray(indexes.elementUIDs) ? indexes.elementUIDs : [];
         const removedUIDs = new Set(
             elementUIDs
                 .filter(entry => entry?.node === removalRoot || removalRoot?.contains?.(entry?.node))
@@ -36,33 +48,33 @@ class DrnValidationService extends ValidationService {
             return;
 
         // Remove detached input UIDs from forms that remain outside the swapped subtree.
-        for (const [formUID, inputUIDs] of Object.entries(this.formInputs || {})) {
+        for (const [formUID, inputUIDs] of Object.entries(indexes.formInputs || {})) {
             const remainingInputUIDs = inputUIDs.filter(uid => !removedUIDs.has(uid));
             if (remainingInputUIDs.length > 0) {
-                this.formInputs[formUID] = remainingInputUIDs;
+                indexes.formInputs[formUID] = remainingInputUIDs;
                 continue;
             }
 
-            this.formEvents?.[formUID]?.remove?.();
-            delete this.formEvents?.[formUID];
-            delete this.formInputs[formUID];
-            delete this.messageFor?.[formUID];
+            indexes.formEvents?.[formUID]?.remove?.();
+            delete indexes.formEvents?.[formUID];
+            delete indexes.formInputs[formUID];
+            delete indexes.messageFor?.[formUID];
             removedUIDs.add(formUID);
         }
 
         for (const uid of removedUIDs) {
-            this.formEvents?.[uid]?.remove?.();
-            this.inputEvents?.[uid]?.remove?.();
-            delete this.formEvents?.[uid];
-            delete this.formInputs?.[uid];
-            delete this.messageFor?.[uid];
-            delete this.inputEvents?.[uid];
-            delete this.validators?.[uid];
-            delete this.summary?.[uid];
-            delete this.elementByUID?.[uid];
+            indexes.formEvents?.[uid]?.remove?.();
+            indexes.inputEvents?.[uid]?.remove?.();
+            delete indexes.formEvents?.[uid];
+            delete indexes.formInputs?.[uid];
+            delete indexes.messageFor?.[uid];
+            delete indexes.inputEvents?.[uid];
+            delete indexes.validators?.[uid];
+            delete indexes.summary?.[uid];
+            delete indexes.elementByUID?.[uid];
         }
 
-        this.elementUIDs = elementUIDs.filter(entry => !removedUIDs.has(entry.uid));
+        indexes.elementUIDs = elementUIDs.filter(entry => !removedUIDs.has(entry.uid));
     }
 }
 

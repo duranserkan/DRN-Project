@@ -14,7 +14,7 @@ import drnUtils from './drnUtils.ts';
  *   Listener registered by drnNotificationEvents.ts.
  */
 
-import type { IDrnToast, NotificationType } from '../../../types/drnNotifications.types';
+import type { IDrnToast, NotificationType } from '@/types/drnNotifications.types';
 
 const MAX_VISIBLE = 3;
 const DEFAULT_DURATION = 5000;

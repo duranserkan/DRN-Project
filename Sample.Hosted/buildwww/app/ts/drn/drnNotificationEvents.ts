@@ -1,7 +1,7 @@
 import { mediaType } from './drnHttp.ts';
 
 import type { HtmxBeforeSwapDetails, HtmxResponseInfo } from 'htmx.org';
-import type notificationPanel from './drnNotificationPanel.ts';
+import type notificationPanel from './drnNotificationPanel';
 
 type ResponseDetail = HtmxResponseInfo & { elt: Element };
 type ResponseEvent = CustomEvent<ResponseDetail>;

@@ -1,5 +1,5 @@
 import React, { Component, type ReactNode, type ErrorInfo } from 'react';
-import type { IslandErrorBoundaryProps, IslandErrorBoundaryState } from '@/types/drnReact.types.ts';
+import type { IslandErrorBoundaryProps, IslandErrorBoundaryState } from '@/types/drnReact.types';
 
 export type { IslandErrorBoundaryProps, IslandErrorBoundaryState };
 

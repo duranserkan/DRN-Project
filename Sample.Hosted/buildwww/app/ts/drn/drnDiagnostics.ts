@@ -1,6 +1,6 @@
 import rules from '../../../../../DRN.Framework.Utils/Logging/Diagnostics/data-classification-rules.json' with { type: 'json' };
 
-import type { IDrnDiagnostics } from '../../../types/drnDiagnostics.types';
+import type { IDrnDiagnostics } from '@/types/drnDiagnostics.types';
 
 export const REDACTED = '[redacted]';
 const URL_REDACTED = 'redacted';

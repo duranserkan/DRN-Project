@@ -1,4 +1,4 @@
-import type { IDrnOnmount } from '../../../types/drnOnmount.types';
+import type { IDrnOnmount } from '@/types/drnOnmount.types';
 
 const registrationKeys = new Set<string>();
 

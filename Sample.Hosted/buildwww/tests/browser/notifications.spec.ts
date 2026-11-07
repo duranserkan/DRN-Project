@@ -1,5 +1,14 @@
 import { test, expect } from '@playwright/test';
+import type { Request } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+
+declare global {
+    interface Window {
+        notificationMarkupExecuted?: boolean;
+        notificationLock: Promise<void>;
+        releaseNotificationLock: () => void;
+    }
+}
 
 test.beforeEach(async ({ page }) => {
     await page.goto('/');
@@ -12,8 +21,9 @@ test('a browser action failure shares its copyable reference with the backend re
     const reportRequest = page.waitForRequest('**/Api/Sample/ClientError/Report');
     const entry = await page.evaluate(() => window.DRN.ErrorHandler.reportActionError(
         new Error('Private implementation detail'), { operation: 'Save profile', message: 'Could not save your profile.' }));
+    expect(entry).toBeTruthy();
     const report = (await reportRequest).postDataJSON();
-    expect(report.clientErrorId).toBe(entry.clientErrorId);
+    expect(report.clientErrorId).toBe(entry!.clientErrorId);
     await page.getByRole('button', { name: 'Notifications, 1 unseen', exact: true }).click();
     const panel = page.getByRole('dialog', { name: 'Notifications', exact: true });
     await expect(panel.locator('pre')).toHaveCount(0);
@@ -21,13 +31,13 @@ test('a browser action failure shares its copyable reference with the backend re
     await expect(details).toHaveAttribute('aria-expanded', 'false');
     await details.click();
     await expect(panel.getByRole('button', { name: 'Hide details', exact: true })).toHaveAttribute('aria-expanded', 'true');
-    await expect(panel).toContainText(`Client error reference: ${entry.clientErrorId}`);
+    await expect(panel).toContainText(`Client error reference: ${entry!.clientErrorId}`);
     await expect(panel).toContainText('Message: Private implementation detail');
     await expect(panel).toContainText('Stack:');
     await expect(panel.locator('pre strong')).toHaveText(['Message:', 'Source:', 'Line:', 'column:', 'Page:', 'Stack:']);
     await expect(page.locator('.toast-body')).toHaveText('Could not save your profile.');
     await panel.getByRole('button', { name: 'Copy reference', exact: true }).click();
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(entry.clientErrorId);
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(entry!.clientErrorId);
     await panel.getByRole('button', { name: 'Hide details', exact: true }).click();
     await expect(panel.locator('pre')).toBeHidden();
 });
@@ -144,13 +154,13 @@ for (const hosted of [true, false]) {
         await page.setViewportSize({ width: 480, height: 800 });
         await page.evaluate(hosted => {
             if (hosted) {
-                const main = document.getElementById('drn-main-content');
+                const main = document.getElementById('drn-main-content')!;
                 main.setAttribute('data-toast-host', '');
                 main.style.position = 'relative';
             }
             window.DRN.Toast.show({ type: 'error', message: 'Please try again.', duration: 30000 });
             bootstrap.Offcanvas.getOrCreateInstance(
-                document.getElementById('offCanvasSidebarActionCanvasNotifications')).show();
+                document.getElementById('offCanvasSidebarActionCanvasNotifications')!).show();
         }, hosted);
         const panel = page.getByRole('dialog', { name: 'Notifications', exact: true });
         await expect(panel).toBeVisible();
@@ -158,7 +168,7 @@ for (const hosted of [true, false]) {
         await expect.poll(() => page.evaluate(() => {
             const panel = document.getElementById('offCanvasSidebarActionCanvasNotifications');
             const toast = document.querySelector('.toast');
-            if (!toast) return false;
+            if (!toast || !panel) return false;
             const panelRect = panel.getBoundingClientRect();
             const toastRect = toast.getBoundingClientRect();
             const left = Math.max(panelRect.left, toastRect.left);
@@ -185,14 +195,14 @@ test('competing tabs retain publications and dismissals queued behind a real Web
     await expect.poll(() => other.evaluate(() => window.DRN.Notifications.list().length)).toBe(1);
 
     // The lock is held before either tab mutates, forcing both to use the same saved snapshot.
-    await page.evaluate(() => new Promise(resolve => {
-        window.notificationLock = navigator.locks.request('drn.notifications.v1:/', () => new Promise(release => {
+    await page.evaluate(() => new Promise<void>(resolve => {
+        window.notificationLock = navigator.locks.request('drn.notifications.v1:/', () => new Promise<void>(release => {
             window.releaseNotificationLock = release;
             resolve();
         }));
     }));
     try {
-        await page.evaluate(id => window.DRN.Notifications.dismiss([id]), old.id);
+        await page.evaluate(id => window.DRN.Notifications.dismiss([id]), old!.id);
         await Promise.all([
             page.evaluate(() => window.DRN.Notifications.publish({ message: 'First tab addition' })),
             other.evaluate(() => window.DRN.Notifications.publish({ message: 'Second tab addition' }))
@@ -220,11 +230,11 @@ for (const [header, value] of [
     ['HX-Refresh', 'true'],
     ['HX-Location', '/unexpected-navigation'],
     ['HX-Trigger', JSON.stringify({ showToast: { type: 'success', message: 'Old account feedback' } })]
-]) {
+] as const) {
     test(`an old account response cannot act through ${header}`, async ({ page }) => {
         await page.evaluate(() => window.DRN.Notifications.publish({ message: 'Account A feedback' }));
         await expect(page.getByRole('button', { name: 'Notifications, 1 unseen', exact: true })).toBeVisible();
-        const pending = Promise.withResolvers();
+        const pending = Promise.withResolvers<void>();
         await page.route('**/operations/pending', async route => {
             await pending.promise;
             await route.fulfill({ status: 200, contentType: 'text/html',
@@ -234,7 +244,7 @@ for (const [header, value] of [
             contentType: 'text/html',
             body: '<div data-notification-context data-notification-app="/" data-notification-owner="account-b"></div>'
         }));
-        const unexpectedRequests = [];
+        const unexpectedRequests: string[] = [];
         page.on('request', request => {
             if (request.isNavigationRequest() || new URL(request.url()).pathname === '/unexpected-navigation')
                 unexpectedRequests.push(request.url());
@@ -283,7 +293,7 @@ test('current account response feedback remains visible and is retained once', a
 
 test('toasts retain notification metadata and deduplicate history by source identity', async ({ page }) => {
     const input = {
-        type: 'error', title: 'Save failed', message: 'Choose another name.',
+        type: 'error' as const, title: 'Save failed', message: 'Choose another name.',
         sourceId: 'save-profile:one', problemType: 'urn:sample:problem:duplicate-name',
         status: 409, requestId: 'profile-1', operation: 'Save profile', target: 'profile', persist: false
     };
@@ -353,7 +363,7 @@ test('toast-only feedback and history-only notifications remain independent', as
 test('explicit history dismissal neither closes the toast nor gets undone by closing it', async ({ page }) => {
     await page.evaluate(() => {
         window.DRN.Toast.show({ message: 'Export completed', duration: 30_000 });
-        const entry = window.DRN.Notifications.list()[0];
+        const entry = window.DRN.Notifications.list()[0]!;
         window.DRN.Notifications.dismiss([entry.id]);
     });
     await expect(page.locator('.toast-body')).toHaveText('Export completed');
@@ -587,7 +597,7 @@ test('new and existing tabs share actionbar attendance and unseen notifications'
 });
 
 test('the bell stays visible and counts only unseen failures without a page banner', async ({ page }) => {
-    const clientReports = [];
+    const clientReports: Request[] = [];
     await page.route('**/Api/Sample/ClientError/Report', route => {
         clientReports.push(route.request());
         return route.fulfill({ status: 200, body: '' });
@@ -641,6 +651,8 @@ test('keyboard pagination keeps focus on the first new occurrence, including the
         const now = Date.now();
         window.DRN.Notifications.restore(Array.from({ length: 101 }, (_, index) => ({
             id: `entry-${index}`, type: 'error', title: 'Save failed',
+            message: '', seen: false, persist: true, clientErrorId: '', clientErrorDetails: '',
+            sourceId: '', problemType: '', status: 0, operation: '', target: '',
             createdAt: now - index, requestId: `reference-${index}`
         })));
     });

@@ -1,4 +1,4 @@
-import type { IDrnUtils } from '../../../types/drnUtils.types.ts';
+import type { IDrnUtils } from '@/types/drnUtils.types';
 
 /**
  * Provides common helper functions

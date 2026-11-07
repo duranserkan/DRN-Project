@@ -1,16 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import cases from '../../../DRN.Test.Unit/Tests/Framework/Utils/Logging/diagnostic-golden-cases.json' with { type: 'json' };
-import { createDiagnosticSanitizer, REDACTED, LIMITED } from '../app/js/drn/drnDiagnostics.ts';
+import { createDiagnosticSanitizer, REDACTED, LIMITED } from '../app/ts/drn/drnDiagnostics.ts';
 
 test('golden cases preserve browser name matching and capture conventions', () => {
     for (const item of cases) {
         const capture = createDiagnosticSanitizer().createCapture();
-        const actual = item.kind === 'field' ? capture.value(item.field, item.value) : capture[item.kind](item.value);
+        assert.ok(item.kind === 'field' || item.kind === 'text' || item.kind === 'url');
+        const actual = item.kind === 'field' ? capture.value(item.field!, item.value) : capture[item.kind](String(item.value));
         assert.deepEqual(actual, item.expected, JSON.stringify(item));
         if ('limited' in item) assert.equal(capture.status.limited, item.limited);
         if ('redacted' in item) assert.equal(capture.status.redacted, item.redacted);
-        if (item.kind === 'text') assert.equal(createDiagnosticSanitizer().createCapture().text(actual), actual);
+        if (item.kind === 'text') assert.equal(createDiagnosticSanitizer().createCapture().text(String(actual)), actual);
     }
 });
 
@@ -84,10 +85,10 @@ test('mixed URL escapes cannot hide sensitive keys or path segments', () => {
 
 test('structured data skips getters, bounds cycles and redacts matching substrings', () => {
     const capture = createDiagnosticSanitizer().createCapture();
-    const input = { HasRecoveryCodes: true, EmailConfirmed: false, id: 42 };
+    const input: Record<string, unknown> = { HasRecoveryCodes: true, EmailConfirmed: false, id: 42 };
     Object.defineProperty(input, 'Password', { enumerable: true, get() { throw new Error('must not read'); } });
     input.self = input;
-    const result = capture.value('Input', input);
+    const result = capture.value('Input', input) as Record<string, unknown>;
     assert.equal(result.Password, REDACTED);
     assert.equal(result.HasRecoveryCodes, REDACTED);
     assert.equal(result.EmailConfirmed, REDACTED);
@@ -99,7 +100,7 @@ test('structured data skips getters, bounds cycles and redacts matching substrin
 test('nested URL fields retain authentication context without changing safe fields', () => {
     const input = { report: { Url: '/User/ConfirmEmail?code=url-probe&id=42', Count: 2 } };
     const capture = createDiagnosticSanitizer().createCapture();
-    const safe = capture.value('', input);
+    const safe = capture.value('', input) as typeof input;
     assert.equal(safe.report.Url, '/User/ConfirmEmail?code=redacted&id=42');
     assert.equal(safe.report.Count, 2);
     assert.equal(capture.status.redacted, true);
@@ -116,6 +117,7 @@ test('sparse arrays produce bounded serializable diagnostics without reading omi
     });
 
     const result = capture.value('Input', input);
+    assert.ok(Array.isArray(result));
     assert.equal(result.length, 257);
     assert.deepEqual(result[0], Object.assign(Object.create(null), { Password: REDACTED, Count: 2 }));
     assert.ok(result.slice(1, 256).every(item => item === null));
@@ -132,7 +134,7 @@ test('array capture preserves dense boundaries and marks overflow', () => {
     for (const length of [0, 255, 256, 257]) {
         const capture = createDiagnosticSanitizer().createCapture();
         const input = Array.from({ length }, (_, index) => index);
-        const expected = input.slice(0, 256);
+        const expected: (number | string)[] = input.slice(0, 256);
         if (length > 256) expected.push(LIMITED);
         assert.deepEqual(capture.value('Input', input), expected);
         assert.equal(capture.status.limited, length > 256);
