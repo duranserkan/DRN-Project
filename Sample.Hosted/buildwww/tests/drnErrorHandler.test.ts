@@ -1,0 +1,323 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import handler from '../app/ts/drn/drnErrorHandler.ts';
+import { createNotificationStore } from '../app/ts/drn/drnNotifications.ts';
+
+test('action and global errors share safe notification references with bounded, resilient reporting', async t => {
+    const reports: { url: string; body: Blob }[] = [];
+    type Published = Required<Pick<Parameters<IDRN['Notifications']['publish']>[0], 'clientErrorId' | 'message' | 'clientErrorDetails'>>;
+    const notifications: Published[] = [];
+    const toasts: Parameters<IDRN['Toast']['show']>[0][] = [];
+    type Listener = (event: Partial<ErrorEvent> & { reason?: unknown }) => void;
+    const listeners = {} as Record<'error' | 'unhandledrejection', Listener>;
+    let active = true;
+    let transportFails = false;
+    let publishFails = false;
+    let toastFails = false;
+    let beaconAccepted = true;
+    let reportOwner = 'account-a';
+    let duringPublish: (() => void) | null = null;
+    let timestamp = Date.now();
+    t.mock.method(Date, 'now', () => timestamp);
+    const window = {
+        location: { href: 'https://sample.test/action' },
+        addEventListener: (name: keyof typeof listeners, listener: Listener) => { listeners[name] = listener; },
+        DRN: {
+            Notifications: {
+                isActive: () => active,
+                publish: (value: Published) => {
+                    if (publishFails) throw new Error('Notification renderer failed');
+                    duringPublish?.();
+                    notifications.push(value);
+                    return value;
+                }
+            },
+            Toast: { show: (value: Parameters<IDRN['Toast']['show']>[0]) => {
+                if (toastFails) throw new Error('Toast renderer failed');
+                toasts.push(value);
+            } }
+        }
+    };
+    for (const [name, value] of Object.entries({ window,
+        document: { querySelector: (selector: string) => selector === '[data-notification-context]'
+            ? { dataset: { notificationOwner: reportOwner } } : { content: '/app/' } },
+        navigator: { userAgent: 'test', sendBeacon: (url: string, body: Blob) => {
+            if (transportFails) throw new Error('Offline');
+            if (!beaconAccepted) return false;
+            reports.push({ url, body });
+            return true;
+        } },
+        fetch: async (url: string, options: { body: string }) => {
+            reports.push({ url, body: new Blob([options.body]) });
+        }
+    })) {
+        const original = Object.getOwnPropertyDescriptor(globalThis, name);
+        Object.defineProperty(globalThis, name, { configurable: true, value });
+        t.after(() => {
+            if (original) Object.defineProperty(globalThis, name, original);
+            else Reflect.deleteProperty(globalThis, name);
+        });
+    }
+
+    handler.install();
+    listeners.error({ message: 'Background failure', filename: 'background.js' });
+    listeners.unhandledrejection({ reason: new Error('Background rejection') });
+    assert.equal(reports.length, 2);
+    assert.equal(notifications.length, 2);
+    assert.equal(toasts.length, 2);
+    assert.ok(toasts.every(toast => toast.record === false && !toast.message.includes('Background')));
+    for (let index = 0; index < 2; index++) {
+        const report = JSON.parse(await reports[index]!.body.text());
+        assert.match(notifications[index]!.clientErrorId, /^[a-f0-9]{32}$/);
+        assert.equal(report.clientErrorId, notifications[index]!.clientErrorId);
+        assert.equal(notifications[index]!.message.includes('Background'), false);
+        assert.ok(notifications[index]!.clientErrorDetails.includes(report.message));
+        assert.ok(notifications[index]!.clientErrorDetails.includes(report.source));
+    }
+    listeners.error({ message: 'Background failure', filename: 'background.js' });
+    listeners.unhandledrejection({ reason: new Error('Background rejection') });
+    assert.equal(reports.length, 2);
+    assert.equal(notifications.length, 2);
+    assert.equal(handler.reportActionError(new Error('Private diagnostic')), null);
+    assert.equal(toasts.length, 2);
+
+    const entry = handler.reportActionError(new Error('Private diagnostic'), { operation: 'Save', persist: false });
+    assert.ok(entry);
+    assert.match(entry.clientErrorId, /^[a-f0-9]{32}$/);
+    const report = JSON.parse(await reports[2]!.body.text());
+    assert.equal(report.clientErrorId, entry.clientErrorId);
+    assert.equal(report.message, 'Private diagnostic');
+    assert.equal(reports[2]!.url, '/app/Api/Sample/ClientError/Report');
+    assert.equal(entry.message.includes('Private diagnostic'), false);
+    assert.ok(entry.clientErrorDetails.includes('Message: Private diagnostic'));
+    assert.ok(entry.clientErrorDetails.includes('Stack:'));
+    assert.equal(entry.persist, false);
+    assert.equal(toasts[0]!.record, false);
+
+    transportFails = true;
+    const offline = handler.reportActionError(new Error('Offline'), { operation: 'Save' });
+    assert.ok(offline);
+    assert.notEqual(offline.clientErrorId, entry.clientErrorId);
+    assert.equal(notifications.length, 4);
+    active = false;
+    assert.equal(handler.reportActionError(new Error('Stale account'), { operation: 'Save' }), null);
+    assert.equal(notifications.length, 4);
+
+    // A stale account must not send diagnostics under a potentially different session.
+    transportFails = false;
+    listeners.error({ message: 'Inactive account failure' });
+    assert.equal(reports.length, 3);
+    assert.equal(notifications.length, 4);
+    active = true;
+    listeners.error({ message: 'Over the shared rate limit' });
+    assert.equal(reports.length, 3);
+    assert.equal(notifications.length, 4);
+
+    timestamp += 60001;
+    transportFails = true;
+    listeners.unhandledrejection({ reason: 'Offline background failure' });
+    assert.equal(notifications.length, 5);
+    assert.equal(reports.length, 3);
+    assert.equal(toasts.length, 5);
+
+    transportFails = false;
+    publishFails = true;
+    assert.doesNotThrow(() => listeners.error({ message: 'Broken notification UI' }));
+    assert.equal(reports.length, 4);
+    publishFails = false;
+    duringPublish = () => listeners.error({ message: 'Reentrant error' });
+    listeners.error({ message: 'Outer error' });
+    assert.equal(reports.length, 5);
+    assert.equal(notifications.length, 6);
+    duringPublish = null;
+
+    const notificationApi = window.DRN.Notifications;
+    Reflect.deleteProperty(window.DRN, 'Notifications');
+    assert.doesNotThrow(() => listeners.error({ message: 'Unavailable notification API' }));
+    assert.equal(reports.length, 6);
+    window.DRN.Notifications = notificationApi;
+    assert.doesNotThrow(() => listeners.unhandledrejection({ reason: {
+        toString() { throw new Error('Cannot stringify'); }
+    } }));
+    listeners.error({ message: 'Recovered after malformed rejection' });
+    assert.equal(reports.length, 7);
+    assert.equal(notifications.length, 7);
+
+    // Exercise the real store lifecycle rather than only a publish stub.
+    for (const owner of ['account-a', 'anonymous', '']) {
+        timestamp += 60001;
+        const store = createNotificationStore({ locks: null, storage: () => null });
+        Object.assign(window.DRN, { Notifications: store });
+        listeners.error({ message: 'Startup error', filename: 'startup.js' });
+        const early = store.list()[0];
+        assert.ok(early);
+        const payload = JSON.parse(await reports.at(-1)!.body.text());
+        assert.equal(early.clientErrorId, payload.clientErrorId);
+        store.configure({ app: '/app/', owner });
+        assert.deepEqual(store.list(), owner ? [early] : []);
+        assert.equal(store.isActive(), !!owner);
+    }
+
+    window.DRN.Notifications = notificationApi;
+    for (const owner of ['anonymous', '']) {
+        reportOwner = owner;
+        timestamp += 60001;
+        const count: number = reports.length;
+        listeners.error({ message: 'Anonymous browser error' });
+        handler.reportActionError(new Error('Anonymous action'), { operation: 'Save' });
+        assert.equal(reports.length, count);
+    }
+    reportOwner = 'account-a';
+    timestamp += 60001;
+    publishFails = true;
+    assert.equal(handler.reportActionError(new Error('Original failure'), { operation: 'Save' }), null);
+    publishFails = false;
+    toastFails = true;
+    assert.equal(handler.reportActionError(new Error('Original failure'), { operation: 'Save' }), null);
+    assert.doesNotThrow(() => listeners.error({ message: 'Broken global toast' }));
+    toastFails = false;
+    Reflect.deleteProperty(window.DRN, 'Notifications');
+    assert.equal(handler.reportActionError(new Error('Original failure'), { operation: 'Save' }), null);
+    const drn = window.DRN;
+    Reflect.deleteProperty(window, 'DRN');
+    assert.equal(handler.reportActionError(new Error('Original failure'), { operation: 'Save' }), null);
+    window.DRN = drn;
+    window.DRN.Notifications = notificationApi;
+
+    // Include UTF-8 expansion and JSON escaping, using both transports and reporting paths.
+    for (const accepted of [true, false]) {
+        beaconAccepted = accepted;
+        for (const character of ['a', '界', '😀', '\u0001']) {
+            timestamp += 60001;
+            window.location.href = character.repeat(500);
+            Object.assign(globalThis.navigator, { userAgent: character.repeat(300) });
+            const error = new Error(character.repeat(500));
+            error.stack = character.repeat(2000);
+            const reportsBefore: number = reports.length;
+            const record = handler.reportActionError(error, { operation: 'Save' });
+            assert.ok(record);
+            assert.equal(reports.length, reportsBefore + 1);
+            const body = reports.at(-1)!.body;
+            assert.ok(body.size <= 3600);
+            const payload = JSON.parse(await body.text());
+            assert.equal(payload.clientErrorId, record.clientErrorId);
+            assert.ok(payload.message.length > 0);
+            assert.equal(typeof payload.diagnosticLimited, 'boolean');
+            if (character !== 'a') assert.equal(payload.diagnosticLimited, true);
+            if (character !== 'a') assert.ok(payload.stack.length < error.stack.length);
+
+            listeners.error({ message: error.message, filename: character.repeat(200), error });
+            assert.equal(reports.length, reportsBefore + 2);
+            const globalBody = reports.at(-1)!.body;
+            assert.ok(globalBody.size <= 3600);
+            const globalPayload = JSON.parse(await globalBody.text());
+            assert.equal(globalPayload.clientErrorId, notifications.at(-1)!.clientErrorId);
+        }
+    }
+
+    timestamp += 60001;
+    window.location.href = 'https://sample.test/action?token=url-probe#access_token=fragment-probe';
+    Object.assign(globalThis.navigator, { userAgent: 'test' });
+    const sensitive = new Error('Save failed password=message-probe; RecoveryCodes=["first-probe","second-probe"]; retry');
+    sensitive.stack = 'Service.Save\n' + 's'.repeat(1980) + '\npassword=stack-probe';
+    const safeRecord = handler.reportActionError(sensitive, { operation: 'Save' });
+    assert.ok(safeRecord);
+    const safeBody = reports.at(-1)!.body;
+    const safeJson = await safeBody.text();
+    const safePayload = JSON.parse(safeJson);
+    assert.ok(safeBody.size <= 3600);
+    assert.equal(safePayload.clientErrorId, safeRecord.clientErrorId);
+    assert.equal(safePayload.diagnosticRedacted, true);
+    assert.equal(safePayload.diagnosticLimited, true);
+    assert.equal(safeJson.includes('url-probe'), false);
+    assert.equal(safeJson.includes('fragment-probe'), false);
+    assert.ok(safeRecord.clientErrorDetails.includes(`Page: ${safePayload.url}`));
+    assert.equal(safeRecord.clientErrorDetails.includes('url-probe'), false);
+    assert.equal(safeRecord.clientErrorDetails.includes('fragment-probe'), false);
+    assert.equal(safeRecord.clientErrorDetails.includes('Some diagnostic values were redacted.'), false);
+    assert.ok(safeRecord.clientErrorDetails.includes('Diagnostic details were truncated.'));
+    assert.equal(safePayload.message, sensitive.message);
+    assert.ok(safePayload.message.endsWith('; retry'));
+    assert.ok(safePayload.stack.startsWith('Service.Save'));
+    listeners.error({ message: sensitive.message, filename: 'app.js', error: sensitive });
+    assert.ok(notifications.at(-1)!.clientErrorDetails.includes(`Page: ${safePayload.url}`));
+    assert.equal(notifications.at(-1)!.clientErrorDetails.includes('url-probe'), false);
+    assert.equal(notifications.at(-1)!.clientErrorDetails.includes('fragment-probe'), false);
+    assert.equal((await reports.at(-1)!.body.text()).includes('url-probe'), false);
+
+    // Verify the default persisted history and its reload, not only publication inputs.
+    const cache = new Map<string, string>();
+    const storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> = {
+        getItem: key => cache.get(key) ?? null,
+        setItem: (key, value) => cache.set(key, value),
+        removeItem: key => cache.delete(key)
+    };
+    const settings = { locks: null, storage: () => storage };
+    const store = createNotificationStore(settings);
+    store.configure({ app: '/app/', owner: 'account-a' });
+    Object.assign(window.DRN, { Notifications: store });
+    timestamp += 60001;
+    handler.reportActionError(new Error('Persisted action failure'), { operation: 'Save' });
+    listeners.error({ message: 'Persisted global failure', filename: 'app.js' });
+    listeners.unhandledrejection({ reason: new Error('Persisted rejection') });
+    assert.equal(store.list().length, 3);
+    const saved = cache.get('drn.notifications.v1:/app/')!;
+    assert.equal(JSON.parse(saved).entries.length, 3);
+    assert.equal(saved.includes('url-probe'), false);
+    assert.equal(saved.includes('fragment-probe'), false);
+    const reloaded = createNotificationStore(settings);
+    reloaded.configure({ app: '/app/', owner: 'account-a' });
+    assert.deepEqual(reloaded.list(), store.list());
+    assert.ok(reloaded.list().every(record => record.clientErrorDetails.includes('Page: https://sample.test/action')));
+    window.DRN.Notifications = notificationApi;
+    for (const mode of ['action', 'error', 'unhandledrejection']) {
+        for (const [stack, hasFrames, displayedStack = stack] of [
+            ['', false],
+            ['Error: Stack capture probe', false, ''],
+            ['Error: Stack capture probe\n    at HTMLButtonElement.onClick (<anonymous>:5:23)', true,
+                '    at HTMLButtonElement.onClick (<anonymous>:5:23)'],
+            ['TypeError: Stack capture probe\r\n    at save (app.js:5:23)', true,
+                mode === 'error' ? 'TypeError: Stack capture probe\r\n    at save (app.js:5:23)' : '    at save (app.js:5:23)'],
+            ['Error: Different diagnostic\n    at save (app.js:5:23)', true],
+            ['onClick@https://sample.test/app.js:5:23', true],
+            ['@https://sample.test/app.js:5:23', true],
+            ['onClick@https://user@sample.test/app.js:5:23', true],
+            ['@a:5', true],
+            ['@:5', false, '@:5\nStack frames unavailable'],
+            ['@'.repeat(1500), false, '@'.repeat(1500) + '\nStack frames unavailable'],
+            ['Error:\t  Stack capture probe\n    at save (app.js:5:23)', true,
+                mode === 'error' ? 'Error:\t  Stack capture probe\n    at save (app.js:5:23)' : '    at save (app.js:5:23)']
+        ] as const) {
+            timestamp += 60001;
+            const error = new Error('Stack capture probe');
+            let reads = 0;
+            Object.defineProperty(error, 'stack', { get() {
+                if (++reads > 1) throw new Error('Stack must be captured once');
+                return stack;
+            } });
+            const before: number = reports.length;
+            const notificationsBefore: number = notifications.length;
+            if (mode === 'action') handler.reportActionError(error, { operation: 'Save' });
+            else if (mode === 'error') listeners.error({
+                message: 'Uncaught Error: Stack capture probe', filename: 'app.js', lineno: 5, colno: 17, error
+            });
+            else listeners.unhandledrejection({ reason: error });
+
+            assert.equal(reads, 1, mode);
+            assert.equal(reports.length, before + 1, mode);
+            assert.equal(notifications.length, notificationsBefore + 1, mode);
+            const payload = JSON.parse(await reports.at(-1)!.body.text());
+            const details = notifications.at(-1)!.clientErrorDetails;
+            assert.equal(payload.stack, stack, mode);
+            if (displayedStack) {
+                assert.ok(details.endsWith(`Stack:\n${displayedStack}`), mode);
+            } else assert.ok(details.endsWith('Stack:\nStack frames unavailable'), mode);
+            assert.ok(details.indexOf('Page:') < details.indexOf('Stack:\n'), mode);
+            assert.equal(details.includes('Stack frames unavailable'), !hasFrames, mode);
+            if (mode === 'error') {
+                assert.ok(details.includes('Source: app.js'));
+                assert.ok(details.includes('Line: 5, column: 17'));
+            }
+        }
+    }
+});

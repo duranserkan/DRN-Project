@@ -11,6 +11,7 @@
     "test": "node --test \"buildwww/tests/**/*.test.js\" \"buildwww/tests/**/*.test.ts\"",
     "test:all": "npm test && npm run test:browser",
     "test:browser": "playwright install --only-shell chromium && playwright test",
+    "test:browser:hosted": "playwright install --only-shell chromium && playwright test --config buildwww/tests/hosted/playwright.config.ts",
     "test:browser:serve": "vite --config buildwww/tests/browser/vite.config.ts",
     "lint": "oxlint --deny-warnings buildwww vite.config.ts vite.config.plugin.ts playwright.config.ts",
     "type-check": "tsc --noEmit && tsc --project tsconfig.tests.json",
@@ -29,27 +30,30 @@
   },
   "type": "module",
   "dependencies": {
-    "@popperjs/core": "2.11.8",
+    "htmx.org": "2.0.11",
     "onmount": "2.0.0",
     "bootstrap": "5.3.8",
     "bootstrap-icons": "1.13.2",
-    "htmx.org": "2.0.11",
+    "@popperjs/core": "2.11.8",
     "aspnet-client-validation": "0.11.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "tailwindcss": "4.3.4"
+    "tailwindcss": "4.3.5"
   },
   "devDependencies": {
-    "@playwright/test": "1.64.1",
+    "oxlint": "1.92.0",
+    "oxlint-tsgolint": "7.0.2006",
     "globals": "17.14.0",
-    "oxlint": "1.91.0",
-    "sass-embedded": "1.107.1",
     "typescript": "7.0.2",
-    "vite": "8.3.5",
-    "@tailwindcss/vite": "4.3.4",
+    "sass-embedded": "1.107.1",
+    "vite": "8.3.6",
+    "@tailwindcss/vite": "4.3.5",
+    "@vitejs/plugin-react": "6.2.1",
     "@types/node": "26.6.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "@vitejs/plugin-react": "6.2.1"
+    "@types/bootstrap": "5.2.11",
+    "@playwright/test": "1.65.0",
+    "@axe-core/playwright": "4.14.0"
   }
 }

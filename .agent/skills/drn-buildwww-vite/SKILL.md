@@ -1,7 +1,7 @@
 ---
 name: drn-buildwww-vite
 description: "DRN Vite runtime and domain builds. Keywords: drn, buildwww, vite, typescript, bundles, manifest, cache"
-last-updated: 2026-11-06
+last-updated: 2026-11-07
 difficulty: intermediate
 tokens: ~2K
 ---
@@ -23,10 +23,10 @@ tokens: ~2K
 <frontend-package>/
 ├── buildwww/                # Source files (not served)
 │   ├── app/                 # Application code
-│   │   ├── js/              # JavaScript modules
+│   │   ├── ts/              # TypeScript modules
 │   │   │   ├── drn/         # Application utilities
-│   │   │   ├── appPreload.js
-│   │   │   └── appPostload.js
+│   │   │   ├── appPreload.ts
+│   │   │   └── appPostload.ts
 │   │   └── css/             # Application CSS
 │   ├── lib/                 # Library code
 │   │   ├── htmx/            # htmx bundle
@@ -52,72 +52,9 @@ Follow [Package Imports](../drn-buildwww-packages/SKILL.md#package-imports) when
 
 ### Multi-Build Setup
 
-```javascript
-// vite.config.ts uses rolldownOptions; verify installed Vite before changing options.
-const builds = {
-    app: {
-        plugins: [iifeWrap()],
-        build: {
-            outDir: 'wwwroot/app',
-            rolldownOptions: {
-                input: {
-                    app: resolve(__dirname, 'buildwww/app/css/app.css'),
-                    appPreload: resolve(__dirname, 'buildwww/app/js/appPreload.js')
-                }
-            }
-        }
-    },
-    appPostload: {
-        plugins: [iifeWrap()],
-        build: {
-            outDir: 'wwwroot/appPostload',
-            rolldownOptions: {
-                input: {
-                    appPostload: resolve(__dirname, 'buildwww/app/js/appPostload.js')
-                }
-            }
-        }
-    },
-    htmx: {
-        plugins: [iifeWrap(), stripHtmxEval()],
-        build: {
-            outDir: 'wwwroot/lib/htmx',
-            rolldownOptions: {
-                input: {
-                    htmxBundle: resolve(__dirname, 'buildwww/lib/htmx/htmxBundle.js')
-                }
-            }
-        }
-    },
-    bootstrap: {
-        build: {
-            outDir: 'wwwroot/lib/bootstrap',
-            rolldownOptions: {
-                input: {
-                    bootstrap: resolve(__dirname, 'buildwww/lib/bootstrap/bootstrap.scss'),
-                    bootstrapBundle: resolve(__dirname, 'buildwww/lib/bootstrap/bootstrapBundle.js')
-                }
-            }
-        },
-        plugins: [iifeWrap()]
-    },
-    react: {
-        plugins: [react(), tailwindcss()],
-        build: {
-            outDir: 'wwwroot/lib/react',
-            rolldownOptions: {
-                input: {
-                    reactBundle: resolve(__dirname, 'buildwww/lib/react/reactBundle.tsx')
-                },
-                output: { format: 'iife', name: 'DrnReactMicroFrontend' }
-            }
-        }
-    }
-};
+The frontend root's `vite.config.ts` defines each target's entry points, plugins, and output directory. Targeted npm scripts set `BUILD_TYPE`. The default target is `app`.
 
-// Vite selects targets through BUILD_TYPE. Targeted npm build scripts set it explicitly.
-const buildType = process.env.BUILD_TYPE || 'app';
-```
+For classic-script builds with mixed or multiple entries, use `iifeWrap()` to isolate each JavaScript chunk and prevent name collisions between bundles. A single named JavaScript entry such as React can use native IIFE output. Keep `stripHtmxEval()` on the HTMX target to remove its direct `eval` call from the shipped bundle.
 
 > See [drn-buildwww-react](../drn-buildwww-react/SKILL.md) for the full React build architecture (Shadow DOM, Tailwind 4, IIFE format rationale).
 
@@ -147,34 +84,6 @@ npm run build:behaviors:test
 
 ### Shared Configuration
 
-```javascript
-const sharedConfig = {
-    base: './',
-    build: {
-        emptyOutDir: true,
-        manifest: true,
-        rolldownOptions: {
-            output: {
-                entryFileNames: `[name].[hash:16].js`,
-                chunkFileNames: `[name].[hash:16].js`,
-                assetFileNames: `[name].[hash:16].[ext]`
-            }
-        }
-    },
-    resolve: {
-        alias: {
-            '@css': resolve(__dirname, 'buildwww/app/css'),
-            '@js': resolve(__dirname, 'buildwww/app/js'),
-            '@lib': resolve(__dirname, 'buildwww/lib'),
-            '@types': resolve(__dirname, 'buildwww/types'),
-            '@plugins': resolve(__dirname, 'buildwww/plugins')
-        }
-    }
-};
-// Per-build configs are deep-merged with sharedConfig
-export default defineConfig(drnUtils.deepMerge(sharedConfig, builds[buildType]));
-```
-
 Align aliases with `tsconfig.json` and buildwww. `@/*` maps to `buildwww/*` only through TypeScript `paths`; Vite does not resolve it. Keep `@/` imports type-only unless Vite has a matching `resolve.alias`. Discover paths rather than assuming root-level js/css folders.
 
 ---
@@ -183,7 +92,7 @@ Align aliases with `tsconfig.json` and buildwww. `@/*` maps to `buildwww/*` only
 
 `tsconfig.json` owns compiler options, source scope, declarations, and aliases. Include the root Vite config and plugin TypeScript files. Align resolution and aliases with Vite. Do not duplicate compiler configuration. Type checking, like builds, requires execution authorization.
 
-Follow [type ownership](references/type-ownership.md) and [test conventions](references/frontend-tests.md).
+Follow [imports and types](references/type-ownership.md) and [test conventions](references/frontend-tests.md).
 
 ---
 
@@ -200,13 +109,13 @@ Current builds are `app`, `appPostload`, `htmx`, `bootstrap`, `react`, `layoutBe
 
 ### Domain Behavior Entries
 
-Keep modules under `buildwww/app/js/behaviors/{layout,home,test}/`. Each entry imports only its domain modules and calls existing `window.DRN`/Bootstrap APIs rather than importing runtime implementations. Read configuration from encoded element data and keep mount state/cleanup local.
+Keep modules under `buildwww/app/ts/behaviors/{layout,home,test}/`. Each entry imports only its domain modules and calls existing `window.DRN`/Bootstrap APIs rather than importing runtime implementations. Read configuration from encoded element data and keep mount state/cleanup local.
 
 | Entry | Output directory | Loading |
 |---|---|---|
-| `layoutBehaviors.js` | `wwwroot/behaviors/layout` | Global shell after runtime bundles |
-| `homeBehaviors.js` | `wwwroot/behaviors/home` | HomeAnonymous page `Scripts` |
-| `testBehaviors.js` | `wwwroot/behaviors/test` | HTMX test page `Scripts` |
+| `layoutBehaviors.ts` | `wwwroot/behaviors/layout` | Global shell after runtime bundles |
+| `homeBehaviors.ts` | `wwwroot/behaviors/home` | HomeAnonymous page `Scripts` |
+| `testBehaviors.ts` | `wwwroot/behaviors/test` | HTMX test page `Scripts` |
 
 `build:behaviors` runs `build:behaviors:layout`, `build:behaviors:home`, and `build:behaviors:test` sequentially. Each script explicitly sets `BUILD_TYPE` to select its Vite target, writes a hashed entry and `.vite/manifest.json`, and cleans its own directory. The full build calls this aggregate. Unchanged inputs/tooling preserve unrelated bundle cache identities. Keep separate chunks and output roots.
 
@@ -221,13 +130,13 @@ Use a fresh callback so listener identity deduplication cannot reuse an earlier 
 
 Deploy changed assets and hidden manifests together. Restart the app to refresh manifest/SRI caches; fully reload existing pages for changed registrations. Retain old hashed assets for in-flight pages. The initial migration includes Razor/postload changes and removes the obsolete `appBehaviors` output from the active deployment set. See the profile-declared application guide for deployment details. Intentional inline nonce test fixtures remain in Razor.
 
-### appPreload.js
+### appPreload.ts
 Loaded early, before page content:
 - Critical initializations
 - Theme setup
 - Cookie consent checks
 
-### appPostload.js
+### appPostload.ts
 Loaded in the global shell's head. Installs application-wide event handlers and defers DOM-dependent work. Component registrations belong to their behavior domains.
 
 ---
@@ -265,14 +174,14 @@ wwwroot/
 ## Using Built Assets in Razor
 
 ```razor
-<script src="buildwww/app/js/appPreload.js"></script>
+<script src="buildwww/app/ts/appPreload.ts"></script>
 <link href="buildwww/app/css/app.css" rel="stylesheet" />
 <link href="buildwww/lib/bootstrap/bootstrap.scss" rel="stylesheet" />
-<script src="buildwww/lib/htmx/htmxBundle.js"></script>
-<script src="buildwww/lib/bootstrap/bootstrapBundle.js"></script>
-<script src="buildwww/app/js/appPostload.js"></script>
+<script src="buildwww/lib/htmx/htmxBundle.ts"></script>
+<script src="buildwww/lib/bootstrap/bootstrapBundle.ts"></script>
+<script src="buildwww/app/ts/appPostload.ts"></script>
 <script src="buildwww/lib/react/reactBundle.tsx"></script>
-<script src="buildwww/app/js/layoutBehaviors.js"></script>
+<script src="buildwww/app/ts/layoutBehaviors.ts"></script>
 ```
 
 TagHelpers resolve these source paths through the per-output `.vite/manifest.json` files and emit content-hashed `wwwroot` paths with SRI where applicable.

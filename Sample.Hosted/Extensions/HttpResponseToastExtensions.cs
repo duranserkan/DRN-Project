@@ -5,7 +5,7 @@ namespace Sample.Hosted.Extensions;
 
 /// <summary>
 /// Extension methods for sending toast notifications to the client via HTMX HX-Trigger headers.
-/// The client-side listener in appPostload.js handles the showToast event and delegates to DRN.Toast.
+/// The client-side listener in appPostload.ts handles the showToast event and delegates to DRN.Toast.
 /// </summary>
 public static class HttpResponseToastExtensions
 {

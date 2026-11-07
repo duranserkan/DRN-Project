@@ -1,4 +1,3 @@
-// portalHost.ts
 let globalPortalContainer: HTMLElement | null = null;
 
 export function getGlobalPortalContainer(

@@ -1,8 +1,8 @@
 {
-  "buildwww/app/js/testBehaviors.js": {
+  "buildwww/app/ts/testBehaviors.ts": {
     "file": "testBehaviors.BulLpkxSVXv78p73.js",
     "name": "testBehaviors",
-    "src": "buildwww/app/js/testBehaviors.js",
+    "src": "buildwww/app/ts/testBehaviors.ts",
     "isEntry": true
   }
 }

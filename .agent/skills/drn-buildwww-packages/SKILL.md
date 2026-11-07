@@ -68,10 +68,11 @@ node -e 'const fs=require("fs"); const dir=process.argv[1]; const p=JSON.parse(f
 CI restores dependencies with `npm ci --ignore-scripts` before audit/build. Under `AGENTS.md`, package build/test commands are reference commands unless the user explicitly allows running them.
 
 ### Build & Dev Tooling
+- **@axe-core/playwright**: Accessibility scans of rendered fixture states and the hosted Sample home page.
 - **vite**: Next Generation Frontend Tooling.
 - **sass**: CSS preprocessor.
 - **typescript**: Typed JavaScript superset.
-- **oxlint**: JavaScript and TypeScript linting. The `lint` command fails on warnings and errors.
+- **oxlint** and **oxlint-tsgolint**: Type-aware JavaScript and TypeScript linting. The `lint` command fails on warnings and errors. See the frontend root's `.oxlintrc.json` for rules.
 - **globals**: Global variable definitions (often used for linting contexts).
 - **@tailwindcss/vite** and **@vitejs/plugin-react**: Vite plugins for Tailwind and React builds.
 

@@ -24,7 +24,7 @@ Follow [RSJS](https://github.com/rstacruz/rsjs): declarative HTML hooks and sepa
 
 ### Onmount Wrapper
 
-`DRN.Onmount.register(selector, callback, idempotencyKey)` uses default cleanup. `registerFull(selector, callback, unregisterCallback, idempotencyKey)` accepts custom cleanup. The key is optional. Registration is deduplicated by selector and key, so page bundles can execute again on htmx navigation.
+`DRN.Onmount.register(selector, callback, idempotencyKey)` uses default cleanup. `registerFull(selector, callback, unregisterCallback, idempotencyKey)` accepts custom cleanup. Both deduplicate by selector and optional key. Inspect a snapshot with `DRN.Onmount.listRegistrationKeys()`.
 
 - Mount callbacks receive `options`; `this` is the matching DOM element.
 - Set `options.disposable` to the owned resource. Default unregister calls its `dispose()` and `destroy()` methods when present.
@@ -37,18 +37,18 @@ Follow [RSJS](https://github.com/rstacruz/rsjs): declarative HTML hooks and sepa
 
 ### Global and Page-Specific Components
 
-Group modules under `buildwww/app/js/behaviors/{layout,home,test}/`. Domain entry files import modules without importing runtime implementations. The [Vite skill](../drn-buildwww-vite/SKILL.md#entry-points) owns builds and outputs.
+Group modules under `buildwww/app/ts/behaviors/{layout,home,test}/`. Domain entry files import modules without importing runtime implementations. The [Vite skill](../drn-buildwww-vite/SKILL.md#entry-points) owns builds and outputs.
 
 | Entry | Components | Loading |
 |---|---|---|
-| `layoutBehaviors.js` | Footer, tooltips | Global shell after runtime bundles |
-| `homeBehaviors.js` | HelloReact island | HomeAnonymous page `Scripts` section |
-| `testBehaviors.js` | Browser exception demo | HTMX test page `Scripts` section |
+| `layoutBehaviors.ts` | Footer, tooltips | Global shell after runtime bundles |
+| `homeBehaviors.ts` | HelloReact island | HomeAnonymous page `Scripts` section |
+| `testBehaviors.ts` | Browser exception demo | HTMX test page `Scripts` section |
 
 Put component logic in modules and encoded data in Razor. Keep inline nonce-test fixtures as explicit test exceptions and early configuration before its consumers.
 
 ```javascript
-// behaviors/layout/tooltip.js
+// behaviors/layout/tooltip.ts
 DRN.Onmount.register('[data-bs-toggle="tooltip"]', function (options) {
     options.disposable = new bootstrap.Tooltip(this, {animation: false});
 });
@@ -58,7 +58,7 @@ See [React integration](../drn-buildwww-react/SKILL.md#razor-page-integration) f
 
 ## Application JavaScript Utilities
 
-Shared runtime modules live under `buildwww/app/js/drn/`. Use `DRN.App.url(applicationRoute)` for requests. Only `~/` receives the deployment prefix; external, fragment, relative, and resolved URLs stay unchanged. Render `<meta name="drn-app-base" content="@Url.Content("~/")"/>` before preload and preserve controller segments. Rebuild affected bundles only with execution permission.
+Shared runtime modules live under `buildwww/app/ts/drn/`. Use `DRN.App.url(applicationRoute)` for requests. Only `~/` receives the deployment prefix; external, fragment, relative, and resolved URLs stay unchanged. Render `<meta name="drn-app-base" content="@Url.Content("~/")"/>` before preload and preserve controller segments. Rebuild affected bundles only with execution permission.
 
 ### Problem Details Consumer
 
@@ -100,7 +100,7 @@ The footer uses `DRN.Cookie.get`/`set` with base64 encoding and its element's se
 
 ## Script Loading Order
 
-The full shell loads preload, early `DRN.App` configuration, htmx, Bootstrap, postload, React, then layout behaviors. Preload initializes `window.DRN` and `DRN.React` before dependents. Postload installs application-wide listeners and deferred DOM work. Page `Scripts` sections load home/test behaviors after content. React stays a global runtime; splitting behavior bundles does not lazy-load React itself.
+The full shell loads preload, early `DRN.App` configuration, htmx, Bootstrap, postload, React, then layout behaviors. Preload provides `DRN.React.mount`, which returns `null` until React loads. Postload installs application-wide listeners and deferred DOM work. Page `Scripts` sections load home/test behaviors after content. React stays global across pages.
 
 ## htmx Integration
 
@@ -110,11 +110,11 @@ The shell's `htmx-config` configures script/style nonces. The `safe-nonce` exten
 
 ### Client Validation
 
-`htmxValidation.js` uses `aspnet-client-validation` with `watch: true` to scan swapped `data-val-*` content. Register custom providers before bootstrap. Keep this direct path and release detached input/form indexes with normal cleanup.
+The htmx bundle installs `DRN.Validation` (`ValidationService` from `aspnet-client-validation`). Register providers after installation and before bootstrap. Use `watch: true` for swapped `data-val-*` content and release detached input/form indexes during cleanup.
 
 ## Bootstrap Customization
 
-`buildwww/lib/bootstrap/bootstrap.scss` owns variable overrides, imports, and Bootstrap Icons. `bootstrapBundle.js` exposes selected plugins under `window.bootstrap`. Follow [package imports](../drn-buildwww-packages/SKILL.md#package-imports) for new imports. Do not migrate relative Sass imports without verifying resolution and an authorized build.
+`buildwww/lib/bootstrap/bootstrap.scss` owns variable overrides, imports, and Bootstrap Icons. `bootstrapBundle.ts` exposes selected plugins under `window.bootstrap`. Follow [package imports](../drn-buildwww-packages/SKILL.md#package-imports) for new imports. Do not migrate relative Sass imports without verifying resolution and an authorized build.
 
 ## Related Skills
 

@@ -1,8 +1,8 @@
 {
-  "buildwww/lib/htmx/htmxBundle.js": {
-    "file": "htmxBundle.Cr1mjtyss8Zvi4qW.js",
+  "buildwww/lib/htmx/htmxBundle.ts": {
+    "file": "htmxBundle.BxzCQM6zL6LcqRvs.js",
     "name": "htmxBundle",
-    "src": "buildwww/lib/htmx/htmxBundle.js",
+    "src": "buildwww/lib/htmx/htmxBundle.ts",
     "isEntry": true
   }
 }

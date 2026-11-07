@@ -1,6 +1,6 @@
 {
   "buildwww/app/css/app.css": {
-    "file": "app.vvfPy4RuiSqlcbPz.css",
+    "file": "app.ByLUp5uY_C6Uzet_.css",
     "name": "app",
     "names": [
       "app.css"
@@ -8,10 +8,10 @@
     "src": "buildwww/app/css/app.css",
     "isEntry": true
   },
-  "buildwww/app/js/appPreload.js": {
-    "file": "appPreload.BtmnPmXriVaUacA6.js",
+  "buildwww/app/ts/appPreload.ts": {
+    "file": "appPreload.mpwDjJ-SQG8hSMu3.js",
     "name": "appPreload",
-    "src": "buildwww/app/js/appPreload.js",
+    "src": "buildwww/app/ts/appPreload.ts",
     "isEntry": true
   }
 }

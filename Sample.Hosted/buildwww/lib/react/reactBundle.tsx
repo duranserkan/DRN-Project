@@ -1,25 +1,24 @@
-//reactBundle.tsx
 import bundleStyles from './reactBundle.css?inline';
 
 import React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import type { ReactComponentRegistry, RootData, ReactMountOptions } from "@/types/DrnReactTypes.ts";
-import { HelloReactComponent } from './components/HelloReactComponent';
-import { IslandErrorBoundary } from './IslandErrorBoundary';
-import { getGlobalPortalContainer } from './portalHost';
-import { PortalContext } from './PortalContext';
-import { getInlineStyleNonce } from './nonceHelper';
-import { initSharedStyleSheet, ensureDocumentStyles, resolveMountContainer } from './styleManager';
+import type { ReactComponentRegistry, RootData, ReactMountOptions } from "@/types/drnReact.types";
+import { HelloReact } from './components/HelloReact.tsx';
+import { IslandErrorBoundary } from './IslandErrorBoundary.tsx';
+import { getGlobalPortalContainer } from './portalHost.ts';
+import { PortalContext } from './PortalContext.tsx';
+import { getInlineStyleNonce } from './nonceHelper.ts';
+import { initSharedStyleSheet, ensureDocumentStyles, resolveMountContainer } from './styleManager.ts';
 
 const rootMap = new WeakMap<HTMLElement, RootData>();
 
 const COMPONENT_REGISTRY: ReactComponentRegistry = {
-    'HelloReact': HelloReactComponent
+    HelloReact
 };
 
 // --- Namespace Verification & Initialization ---
 if (!window.DRN?.React) {
-    throw new Error("[DRN] Critical Error: 'appPreload.js' has not been loaded. DRN namespace is missing.");
+    throw new Error("[DRN] Critical Error: 'appPreload.ts' has not been loaded. DRN.React is missing.");
 }
 
 // --- Initialize Shared Stylesheet & Document Styles ---
@@ -29,12 +28,12 @@ if (typeof document !== 'undefined') {
 }
 
 // --- Mount API ---
-window.DRN.React.mount = <K extends keyof ReactComponentRegistry>(
+function mount<K extends keyof ReactComponentRegistry>(
     name: K,
     domElement: HTMLElement | null,
     initialProps: React.ComponentProps<ReactComponentRegistry[K]>,
     options: ReactMountOptions = {}
-) => {
+) {
     // Safety Checks
     if (!domElement) {
         console.warn(`DRN.React: DOM element is null for component '${name}'`);
@@ -110,4 +109,6 @@ window.DRN.React.mount = <K extends keyof ReactComponentRegistry>(
             rootMap.delete(domElement);
         }
     };
-};
+}
+
+window.DRN.React.mount = mount;

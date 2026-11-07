@@ -4,7 +4,7 @@
   "compilerOptions": {
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "target": "ES2023",
+    "target": "ES2025",
     "allowJs": true, // Allow importing .js files
     "resolveJsonModule": true,
     "moduleDetection": "force",
@@ -30,12 +30,12 @@
     "forceConsistentCasingInFileNames": true,
 
     /* Type Checking */
-    "lib": ["ES2023", "DOM", "DOM.Iterable"], // Include necessary libraries
+    "lib": ["ES2025", "DOM", "DOM.Iterable"], // Include necessary libraries
 
     /* Path Aliases (if you are using them) */
     "paths": {
       "@/*": ["./buildwww/*"],
-      "@js/*": ["./buildwww/app/js/*"],
+      "@ts/*": ["./buildwww/app/ts/*"],
       "@css/*": ["./buildwww/app/css/*"],
       "@lib/*": ["./buildwww/lib/*"],
       "@types/*": ["./buildwww/types/*"],
@@ -48,6 +48,7 @@
     "jsx": "react-jsx"
   },
   "include": [
+    "playwright.config.ts",
     "vite.config.ts",
     "vite.config.plugin.ts",
     "buildwww/app/**/*",

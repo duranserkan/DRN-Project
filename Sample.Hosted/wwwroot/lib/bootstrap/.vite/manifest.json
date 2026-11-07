@@ -11,10 +11,10 @@
       "bootstrap-icons.DJdhg9lHFABfkZuu.woff2"
     ]
   },
-  "buildwww/lib/bootstrap/bootstrapBundle.js": {
-    "file": "bootstrapBundle.BZr72rQY_dxAp4yh.js",
+  "buildwww/lib/bootstrap/bootstrapBundle.ts": {
+    "file": "bootstrapBundle.CHQvlmJku5yDb8aP.js",
     "name": "bootstrapBundle",
-    "src": "buildwww/lib/bootstrap/bootstrapBundle.js",
+    "src": "buildwww/lib/bootstrap/bootstrapBundle.ts",
     "isEntry": true
   },
   "node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff2": {

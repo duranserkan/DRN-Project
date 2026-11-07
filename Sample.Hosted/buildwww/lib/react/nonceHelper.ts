@@ -1,5 +1,3 @@
-// nonceHelper.ts
-
 let cachedNonce: string | null = null;
 
 const getNonceFromHtmxContent = (content: string): string => {
