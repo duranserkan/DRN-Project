@@ -95,6 +95,23 @@ function fixture(
     return { emit, window, marker, statuses, store, timers, channels, ...DRN };
 }
 
+test('storage refresh follows the configured application and malformed request URLs stay out of feedback', (t) => {
+    const { emit, window, store, Problem } = fixture(t);
+    const sync = t.mock.method(store, 'sync');
+    for (const [key, expectedCalls] of [
+        ['drn.notifications.v1:/other/', 0],
+        ['drn.notifications.v1:/app/', 1],
+        [null, 2],
+    ] as const) {
+        window.dispatchEvent(Object.assign(new Event('storage'), { key }));
+        assert.equal(sync.mock.callCount(), expectedCalls);
+    }
+    const detail = response(422, 'application/problem+json');
+    Object.assign(detail.requestConfig, { path: 'https://[?private=value' });
+    emit('htmx:beforeSwap', detail);
+    assert.equal(Problem.show.mock.calls[0]?.arguments[1].operation, 'Request');
+});
+
 test('initial account binding preserves requests started before DOMContentLoaded', (t) => {
     const { emit, Problem } = fixture(t, { start: false });
     const detail = response();

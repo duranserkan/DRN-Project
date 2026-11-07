@@ -31,9 +31,4 @@ if (typeof window !== 'undefined' && !window.DRN?.ErrorHandler) {
 
     // Install global error handler as early as possible
     drnErrorHandler.install();
-
-    // Handle back/forward navigation by forcing a fresh request
-    document.addEventListener('popstate', () => {
-        window.location.reload();
-    });
 }

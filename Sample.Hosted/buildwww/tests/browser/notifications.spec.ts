@@ -530,6 +530,36 @@ test('prefixed field errors preserve input, render public text safely and clear 
     await expect(page.getByRole('button', { name: 'Notifications, 2 unseen', exact: true })).toBeVisible();
 });
 
+test('clearing a stale operation preserves newer errors on the same form', async ({ page }) => {
+    const profile = page.getByRole('form', { name: 'Profile', exact: true });
+    const name = profile.getByRole('textbox', { name: 'Display name' });
+    const summary = profile.getByRole('region', { name: 'Request error' });
+
+    for (const operation of ['first', 'second']) {
+        await profile.evaluate((element, operation) => {
+            const problem = DRN.Problem.parse(
+                JSON.stringify({ errors: { 'Input.Name': [`Invalid name for ${operation} request`] } }),
+                'application/problem+json',
+                422,
+            );
+            DRN.Problem.show(problem, { element, operation });
+        }, operation);
+        await expect(summary).toContainText(`Invalid name for ${operation} request`);
+    }
+
+    await profile.evaluate((element) => DRN.Problem.clear({ element, operation: 'first' }));
+    await expect(summary).toContainText('Invalid name for second request');
+    await expect(name).toHaveAttribute('aria-invalid', 'true');
+    await expect(name).toHaveAccessibleDescription(
+        'Choose a public display name. Existing validation hint Invalid name for second request',
+    );
+
+    await profile.evaluate((element) => DRN.Problem.clear({ element, operation: 'second' }));
+    await expect(summary).toHaveCount(0);
+    await expect(name).toHaveAttribute('aria-invalid', 'false');
+    await expect(name).toHaveAttribute('aria-describedby', 'name-help native-validation');
+});
+
 for (const permitted of [true, false]) {
     test(`HTML validation ${permitted ? 'swaps with explicit permission' : 'does not swap without permission'}`, async ({
         page,

@@ -36,13 +36,18 @@ const home = bundle('behaviors/home', 'buildwww/app/ts/homeBehaviors.ts');
 const demo = bundle('behaviors/test', 'buildwww/app/ts/testBehaviors.ts');
 const intentionalError = 'Intentional unhandled browser exception from the HTMX test page.';
 
-function documentFor(area: string, nonce: string, partial: boolean) {
+function documentFor(
+    area: string,
+    nonce: string,
+    partial: boolean,
+    fallbackContent = '<p>No page behaviors needed</p>',
+) {
     const content =
         area === 'home'
             ? '<div data-js-hello-react-island data-versions="{}"></div>'
             : area === 'test'
               ? '<button data-js-unhandled-browser-exception>Trigger browser exception</button>'
-              : '<p>No page behaviors needed</p>';
+              : fallbackContent;
     const pageScript = area === 'home' ? home(nonce) : area === 'test' ? demo(nonce) : '';
     return `<!doctype html><html><head>
         <meta name="drn-app-base" content="/">
@@ -83,11 +88,112 @@ async function visit(page: Page, area: 'home' | 'test' | 'away') {
     await expect(page.locator('main')).toHaveAttribute('data-page', area);
 }
 
-for (const [scenario, scriptNonce, crossOrigin, accepted] of [
+test('partial field swaps retain sibling validation and submit the current form once', async ({ page }) => {
+    const field = (version: number) =>
+        `<input aria-label="Name" name="Name" data-val="true" data-val-required="Name ${version} is required">`;
+    const form = `<form hx-boost="false" action="/validation-result" target="result">
+        <div id="replace-field">${field(0)}</div><span data-valmsg-for="Name"></span>
+        <input aria-label="City" name="City" data-val="true" data-val-required="City is required">
+        <span data-valmsg-for="City"></span><button>Save</button></form><iframe name="result"></iframe>`;
+    await page.route('**/validation-page', (route) =>
+        route.fulfill({
+            contentType: 'text/html',
+            body: documentFor('validation', 'test-nonce', false, form),
+        }),
+    );
+    let version = 0;
+    await page.route('**/validation-field', (route) =>
+        route.fulfill({ contentType: 'text/html', body: field(++version) }),
+    );
+    await page.route('**/validation-result?*', (route) => route.fulfill({ contentType: 'text/html', body: 'Saved' }));
+    await page.goto('/validation-page');
+    const profileForm = page.locator('form');
+    await profileForm.evaluate((element) => {
+        element.dataset.submissions = '0';
+        element.addEventListener('formdata', () => {
+            element.dataset.submissions = String(Number(element.dataset.submissions) + 1);
+        });
+    });
+    const save = page.getByRole('button', { name: 'Save' });
+    const city = page.getByRole('textbox', { name: 'City' });
+    for (const round of [1, 2]) {
+        await page.evaluate(() => window.htmx.ajax('get', '/validation-field', { target: '#replace-field' }));
+        await city.fill('');
+        await save.click();
+        await expect(page.locator('[data-valmsg-for="Name"]')).toHaveText(`Name ${round} is required`);
+        await expect(page.locator('[data-valmsg-for="City"]')).toHaveText('City is required');
+        await expect(profileForm).toHaveAttribute('data-submissions', String(round - 1));
+
+        await page.getByRole('textbox', { name: 'Name' }).fill(`User ${round}`);
+        await city.fill('Ankara');
+        const saved = page.waitForResponse('**/validation-result?*');
+        await save.click();
+        expect(new URL((await saved).url()).searchParams.get('Name')).toBe(`User ${round}`);
+        await expect(profileForm).toHaveAttribute('data-submissions', String(round));
+    }
+});
+
+test('native fragment navigation preserves a draft', async ({ page }) => {
+    const content = '<a href="#section">Jump</a><section id="section"><input aria-label="Draft"></section>';
+    await page.route('**/fragment-page', (route) =>
+        route.fulfill({ contentType: 'text/html', body: documentFor('fragment', 'test-nonce', false, content) }),
+    );
+    await page.goto('/fragment-page');
+    const draft = page.getByRole('textbox', { name: 'Draft' });
+    await draft.fill('unsaved');
+    await page.getByRole('link', { name: 'Jump' }).click();
+    await expect(page).toHaveURL(/#section$/);
+    await expect(draft).toHaveValue('unsaved');
+    await page.goBack();
+    await expect(page).toHaveURL(/\/fragment-page$/);
+    await expect(draft).toHaveValue('unsaved');
+    await page.goForward();
+    await expect(page).toHaveURL(/#section$/);
+    await expect(draft).toHaveValue('unsaved');
+});
+
+test('Back and Forward reload boosted pages', async ({ page }) => {
+    await page.goto('/behavior-pages/home');
+    await visit(page, 'away');
+    await visit(page, 'test');
+
+    const documentResponse = (area: string) =>
+        page.waitForResponse(
+            (response) =>
+                response.url().endsWith(`/behavior-pages/${area}`) && response.request().isNavigationRequest(),
+        );
+    const back = documentResponse('away');
+    await page.goBack();
+    expect((await back).ok()).toBe(true);
+    await expect(page.locator('main')).toHaveAttribute('data-page', 'away');
+
+    const forward = documentResponse('test');
+    await page.goForward();
+    expect((await forward).ok()).toBe(true);
+    await expect(page.locator('main')).toHaveAttribute('data-page', 'test');
+});
+
+for (const [scenario, scriptNonce, crossOrigin, accepted, policy, sendHeader = !policy] of [
     ['matching nonce', 'response-nonce', false, true],
     ['missing nonce', '', false, false],
     ['mismatched nonce', 'wrong-nonce', false, false],
     ['matching nonce from another origin', 'response-nonce', true, false],
+    ['CSP nonce fallback', 'response-nonce', false, true, "script-src 'nonce-response-nonce'"],
+    [
+        'script policy overrides default',
+        'response-nonce',
+        false,
+        false,
+        "default-src 'nonce-response-nonce'; script-src 'none'",
+    ],
+    [
+        'header conflicts with second policy',
+        'response-nonce',
+        false,
+        false,
+        "script-src 'nonce-response-nonce', script-src-elem 'none'",
+        true,
+    ],
 ] as const) {
     test(`safe-nonce filters swapped scripts: ${scenario}`, async ({ page }) => {
         // Omit page CSP so it cannot mask a failure of the extension's script filter.
@@ -103,13 +209,15 @@ for (const [scenario, scriptNonce, crossOrigin, accepted] of [
                 'Access-Control-Allow-Origin': origin,
                 'Access-Control-Allow-Headers': '*',
                 'Access-Control-Expose-Headers': 'HX-Nonce',
-                'HX-Nonce': 'response-nonce',
+                ...(policy && { 'Content-Security-Policy': policy }),
+                ...(sendHeader && { 'HX-Nonce': 'response-nonce' }),
             };
             if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+            const content = `<p id="swapped">Swapped</p><script id="nonce-probe"${nonceAttribute}>document.body.dataset.probeRan = "yes";</script>`;
             return route.fulfill({
                 headers,
                 contentType: 'text/html',
-                body: `<p id="swapped">Swapped</p><script id="nonce-probe"${nonceAttribute}>document.body.dataset.probeRan = "yes";</script>`,
+                body: content,
             });
         });
 
@@ -131,12 +239,92 @@ for (const [scenario, scriptNonce, crossOrigin, accepted] of [
             },
             { endpoint, crossOrigin },
         );
-        expect(response).toEqual({ url: endpoint, nonce: 'response-nonce' });
+        expect(response).toEqual({ url: endpoint, nonce: sendHeader ? 'response-nonce' : null });
         await expect(page.locator('main #swapped')).toHaveText('Swapped');
         await expect(page.locator('main script#nonce-probe')).toHaveCount(accepted ? 1 : 0);
-        expect(await page.locator('body').getAttribute('data-probe-ran')).toBe(accepted ? 'yes' : null);
+        const body = page.locator('body');
+        if (accepted) await expect(body).toHaveAttribute('data-probe-ran', 'yes');
+        else await expect(body).not.toHaveAttribute('data-probe-ran');
     });
 }
+
+test('named form controls cannot bypass nonce filtering', async ({ page }) => {
+    await page.goto('/behavior-pages/away');
+    await page.route('**/nonce-form', (route) =>
+        route.fulfill({
+            contentType: 'text/html',
+            headers: { 'HX-Nonce': 'response-nonce' },
+            body: `<p>Swapped</p><template><form hx-ext="ignore:safe-nonce">
+                <input name="getAttribute"><input name="setAttribute">
+                </form></template>
+                <script>document.body.dataset.unauthorized = 'ran'</script>
+                <script nonce="response-nonce">document.body.dataset.authorized = 'ran'</script>`,
+        }),
+    );
+    await page.evaluate(() => window.htmx.ajax('get', '/nonce-form', { source: document.body, target: 'main' }));
+    await expect(page.locator('main p')).toHaveText('Swapped');
+    await expect(page.locator('body')).toHaveAttribute('data-authorized', 'ran');
+    await expect(page.locator('body')).not.toHaveAttribute('data-unauthorized');
+    await expect(page.locator('main script')).toHaveCount(1);
+});
+
+test('safe-nonce still filters a second swap requested by swapped markup', async ({ page }) => {
+    await page.goto('/behavior-pages/away');
+    await page.route('**/nonce-controls', (route) =>
+        route.fulfill({
+            contentType: 'text/html',
+            body: `<body><template hx type="partial" hx-target="main">
+                <div hx-ext="ignore:other,ignore: safe-nonce" hx-target="#nonce-output">
+                    <button data-hx-ext="ignore&#58;safe-nonce" hx-get="/nonce-result">Continue</button>
+                    <p>ignore:safe-nonce</p>
+                </div><section id="nonce-output"></section>
+            </template></body>`,
+        }),
+    );
+    await page.route('**/nonce-result', (route) =>
+        route.fulfill({
+            contentType: 'text/html',
+            headers: { 'HX-Nonce': 'response-nonce' },
+            body: `<p>Second swap</p>
+                <script>document.body.dataset.unauthorized = 'ran'</script>
+                <script nonce="response-nonce">document.body.dataset.authorized = 'ran'</script>`,
+        }),
+    );
+    await page.evaluate(() => window.htmx.ajax('get', '/nonce-controls', { source: document.body, target: 'main' }));
+    const controls = page.locator('main div[hx-ext]');
+    await controls.getByRole('button', { name: 'Continue' }).click();
+    await expect(page.locator('#nonce-output p')).toHaveText('Second swap');
+    await expect(page.locator('body')).toHaveAttribute('data-authorized', 'ran');
+    await expect(page.locator('body')).not.toHaveAttribute('data-unauthorized');
+    await expect(page.locator('main script')).toHaveCount(1);
+    await expect(controls).toHaveAttribute('hx-ext', 'ignore:other');
+    await expect(controls.locator('p')).toHaveText('ignore:safe-nonce');
+});
+
+test('safe-nonce filters scripts before HTMX activates nested partial templates', async ({ page }) => {
+    await page.goto('/behavior-pages/away');
+    await page.route('**/nonce-partials', (route) =>
+        route.fulfill({
+            contentType: 'text/html',
+            headers: { 'Content-Security-Policy': "script-src 'nonce-response-nonce'" },
+            // A leading template parses into the document head. HTMX swaps the response body.
+            body: `<body>
+                <template hx type="partial" hx-target="main">
+                    <template hx type="partial" hx-target="main">
+                        <p>Partial content</p>
+                        <script>document.body.dataset.unauthorized = 'ran'</script>
+                        <script nonce="response-nonce">document.body.dataset.authorized = 'ran'</script>
+                    </template>
+                </template>
+            </body>`,
+        }),
+    );
+    await page.evaluate(() => window.htmx.ajax('get', '/nonce-partials', { source: document.body, target: 'main' }));
+    await expect(page.locator('main p')).toHaveText('Partial content');
+    await expect(page.locator('main script')).toHaveCount(1);
+    await expect(page.locator('body')).toHaveAttribute('data-authorized', 'ran');
+    await expect(page.locator('body')).not.toHaveAttribute('data-unauthorized');
+});
 
 test('repeated test-page visits execute the bundle but attach only one disposable click handler', async ({ page }) => {
     const errors: string[] = [];

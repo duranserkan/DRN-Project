@@ -134,7 +134,7 @@ function actionErrorMessage(error: unknown): string {
     const value = error instanceof Error ? error.message : error;
     switch (typeof value) {
         case 'string':
-            return actionMessageOrFallback(value);
+            return value;
         case 'number':
         case 'boolean':
         case 'bigint':
@@ -172,7 +172,15 @@ function reportActionErrorCore(error: unknown, context: ActionContext) {
         title: 'Action could not be completed',
         message: publicMessage,
         clientErrorId: payload.clientErrorId,
-        clientErrorDetails: notificationDetails(message, 'user-action', 0, 0, stack, payload.url),
+        clientErrorDetails: notificationDetails(
+            message,
+            'user-action',
+            0,
+            0,
+            stack,
+            payload.url,
+            actionMessageOrFallback,
+        ),
         operation: context.operation,
         persist: context.persist !== false,
     });
@@ -203,6 +211,7 @@ function notificationDetails(
     column: number,
     stack: unknown,
     safePageUrl: string,
+    formatMessage?: (message: string) => string,
 ) {
     let clipped = false;
     function field(value: unknown, maximum: number) {
@@ -212,14 +221,16 @@ function notificationDetails(
         const end = /[\uD800-\uDBFF]/.test(text.charAt(maximum - 1)) ? maximum - 1 : maximum;
         return text.slice(0, end);
     }
+    const prefix = field(message, 500);
+    const displayMessage = formatMessage ? formatMessage(prefix) : prefix;
     let stackText = field(stack, 2000);
     const firstLine = stackText.split('\n', 1)[0]!;
     const heading = firstLine.trimEnd();
-    if (isDuplicateErrorHeading(heading, message)) stackText = stackText.slice(firstLine.length + 1);
+    if (isDuplicateErrorHeading(heading, displayMessage)) stackText = stackText.slice(firstLine.length + 1);
     // Recognize browser frame lines without replacing or reconstructing the original stack.
     const hasFrames = stackText.split('\n').some(isStackFrame);
     const fields = [
-        `Message: ${field(message, 500)}`,
+        `Message: ${displayMessage}`,
         `Source: ${field(source, 200)}`,
         `Line: ${line}, column: ${column}`,
         `Page: ${field(safePageUrl, 500)}`,

@@ -1,7 +1,7 @@
 ---
 name: drn-buildwww-libraries
 description: "DRN browser behaviors. Keywords: drn, buildwww, rsjs, onmount, htmx, csp"
-last-updated: 2026-11-05
+last-updated: 2026-11-07
 difficulty: intermediate
 ---
 
@@ -106,7 +106,7 @@ The full shell loads preload, early `DRN.App` configuration, htmx, Bootstrap, po
 
 ### Security with CSP Nonces
 
-The shell's `htmx-config` configures script/style nonces. The `safe-nonce` extension reads `HX-Nonce` or CSP headers and removes swapped scripts whose nonce does not match. Use normal Vite-backed script references. Preserve request verification tokens and never weaken CSP/CSRF to load a bundle.
+Preserve `htmx-config` nonces, Vite asset references, and CSRF tokens. The profile’s Sample guide owns the HTMX navigation rules.
 
 ### Client Validation
 

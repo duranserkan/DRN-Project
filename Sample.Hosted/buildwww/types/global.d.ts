@@ -25,7 +25,6 @@ declare global {
     interface Window {
         DRN: IDRN;
         htmx: typeof import('htmx.org').default;
-        __globalDOMParser?: DOMParser;
         __webpack_nonce__?: string;
         CSSStyleSheet?: { new (): CSSStyleSheet; prototype: CSSStyleSheet };
         // Other globals (e.g. Google Analytics)

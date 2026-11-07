@@ -108,7 +108,7 @@ For an application-owned HTML validation fragment, return status `422`, `Content
 
 ## Browser error reporting
 
-Expanded error details show the message, source, line and column, and page URL before the stack. Labels are bold. Values remain plain text, with stack indentation and line breaks preserved. The reporter reads the original stack once for both notification details and the server report. Display omits the first error heading only when it duplicates the message. The original stack remains unchanged for server reporting, subject to existing capture limits. If no browser frame lines are recognized, the stack section shows `Stack frames unavailable` while preserving other supplied stack text and source location. The reporter never generates a replacement stack. Existing saved details retain their original text order.
+Expanded error details show the message, source, line and column, and page URL before the stack. Labels are bold. Values remain plain text, with stack indentation and line breaks preserved. The reporter reads the original stack once for both notification details and the server report. Local details use the first 500 UTF-16 code units of the message, keeping surrogate pairs intact. Action errors use `Action failed` when that prefix is blank. The display omits a duplicate stack heading based on the displayed message. The original stack remains unchanged for server reporting, subject to existing capture limits. If no browser frame lines are recognized, the stack section shows `Stack frames unavailable` while preserving other supplied stack text and source location. The reporter never generates a replacement stack. Existing saved details retain their original text order.
 
 Browser URL sanitization uses `redacted` for matching path segments, query values, and named fragment values. Backend runtime does not match URL names. Explicit backend URL capture removes credentials and validates encoding; explicit value classifications use `[redacted]`.
 
@@ -212,6 +212,8 @@ Server handlers can use `SendToast` for immediate `HX-Trigger: showToast` feedba
 
 ## Frontend assets
 
+The Sample frontend targets recent browsers with native ES2025 support.
+
 To rebuild frontend assets, use npm and the exact Node.js version pinned in [`.node-version`](../.node-version). CI uses the same version. During dependency installation, `engine-strict=true` enforces the matching requirement in [package.json](package.json). Built assets are checked in, so this tooling is optional when simply running the sample.
 
 After changing frontend sources in `Sample.Hosted/buildwww/`, rebuild the assets from `Sample.Hosted/`:
@@ -227,6 +229,14 @@ Before generating assets, `npm run build` runs `npm run check`. Oxfmt checks the
 `npm run check` ends with an advisory Knip report on unused files, dependencies, and exports. The full build prints this report in CI. Run `npm run check:unused` directly to get a failing exit code for findings. The script sets `BUILD_TYPE=app` so Knip discovers that variant’s inputs from Vite. Keep the other variants’ bundle entries in [knip.json](knip.json). Review findings against Razor templates and browser globals before removing code.
 
 Build scripts use inline environment assignments such as `BUILD_TYPE=app vite build` and require a POSIX-compatible shell unless the scripts are made cross-platform. Vite selects each target through `BUILD_TYPE`, which targeted npm build scripts set explicitly. Direct Vite calls also use `BUILD_TYPE` and default to `app` when it is unset or empty.
+
+### HTMX navigation
+
+Same-origin swaps keep scripts only when their nonce matches the nonempty `HX-Nonce` response header, if supplied, and every CSP policy that restricts scripts. Each policy uses the first directive it defines from `script-src-elem`, `script-src`, and `default-src`, in that order. Without a header nonce, CSP must supply one. Cross-origin swaps strip all scripts. These rules also cover nested templates. If filtering fails, HTMX receives empty content.
+
+Swapped markup cannot disable `safe-nonce` through `hx-ext` or `data-hx-ext`.
+
+Fragment links such as `#section` preserve unsaved input. Back or Forward to a boosted history entry reloads the page and can discard a draft.
 
 ### Independently updating component behaviors
 
@@ -288,4 +298,4 @@ The browser checks cover notification and form-error behavior without a running 
 
 The fixture suite scans the expanded notification dialog and the profile form after a validation error with axe. It also checks keyboard navigation and focus.
 
-For a full-page accessibility scan, [start Sample.Hosted](#run-locally), then run `npm run test:browser:hosted` from `Sample.Hosted/`. This separate suite opens the anonymous Razor home page at `http://localhost:5998/`, waits for the React island to render, and scans the entire page. Set `SAMPLE_HOSTED_URL` to use another running instance. Include the trailing slash when the application is hosted under a path prefix.
+For hosted browser tests, [start Sample.Hosted](#run-locally), then run `npm run test:browser:hosted` from `Sample.Hosted/`. The suite opens the anonymous Razor home page at `http://localhost:5998/`. It checks that rejecting optional cookies survives a reload and scans the full page for accessibility violations after the React island renders. Set `SAMPLE_HOSTED_URL` to use another running instance. Include the trailing slash when the application is hosted under a path prefix.

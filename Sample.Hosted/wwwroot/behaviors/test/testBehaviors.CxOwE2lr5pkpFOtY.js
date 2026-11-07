@@ -1,0 +1,3 @@
+(function(){"use strict";
+DRN.Onmount.register(`[data-js-unhandled-browser-exception]`,function(e){let t=()=>{throw Error(`Intentional unhandled browser exception from the HTMX test page.`)};this.addEventListener(`click`,t),e.disposable={dispose:()=>this.removeEventListener(`click`,t)}}),document.readyState===`loading`&&document.addEventListener(`DOMContentLoaded`,()=>window.onmount(),{once:!0});
+})();
