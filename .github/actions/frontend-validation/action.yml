@@ -1,4 +1,4 @@
-name: Frontend Build
+name: Frontend Validation
 description: "Install and audit frontend dependencies, optionally testing and building Vite assets."
 inputs:
   repository-directory:
@@ -12,10 +12,10 @@ inputs:
     description: "Run frontend validation and build Vite assets after dependency installation and audit."
     required: false
     default: "true"
-  browser-tests:
-    description: "Run the focused Chromium suite against freshly built assets."
+  unit-tests-only:
+    description: "Run unit validation without rebuilding the frontend assets."
     required: false
-    default: "true"
+    default: "false"
   coverage-report:
     description: "Optional LCOV output path relative to the frontend package."
     required: false
@@ -28,7 +28,7 @@ runs:
         FRONTEND_DIRECTORY: ${{ inputs.working-directory }}
       run: |
         if [[ -z "$FRONTEND_DIRECTORY" ]]; then
-          echo "::error::frontend-build requires working-directory"
+          echo "::error::frontend-validation requires working-directory"
           exit 1
         fi
     # This nested action resolves from the trusted composite-action checkout in
@@ -59,12 +59,18 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: npm audit --audit-level=high --registry=https://registry.npmjs.org/
-    - name: Test frontend units
+    - name: Build Vite assets
+      if: ${{ inputs.build-assets != 'false' && inputs.unit-tests-only != 'true' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: npm run build
+    - name: Run frontend unit tests
       if: ${{ inputs.build-assets != 'false' }}
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
         REPORT: ${{ inputs.coverage-report }}
+        FRONTEND_ACTION_SUMMARIZES_COVERAGE: ${{ inputs.coverage-report != '' && 'true' || 'false' }}
       run: |
         if [[ -z "$REPORT" ]]; then
           npm test
@@ -80,45 +86,4 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       env:
         REPORT: ${{ inputs.coverage-report }}
-      run: |
-        awk -F '[:,]' '
-          /^SF:/ { source = substr($0, 4) }
-          /^DA:[1-9][0-9]*,[0-9]+(,.*)?$/ {
-            key = source SUBSEP $2
-            hits[key] += $3
-          }
-          END {
-            for (key in hits) {
-              total++
-              covered += hits[key] > 0
-              split(key, parts, SUBSEP)
-              if (match(parts[1], /\.[[:alnum:]]+$/)) {
-                ext = substr(parts[1], RSTART + 1)
-                lines[ext]++
-                coveredLines[ext] += hits[key] > 0
-              }
-            }
-            if (!total) { print "Missing frontend line coverage" > "/dev/stderr"; exit 1 }
-            print "### Frontend unit coverage\n"
-            print "| Scope | Covered lines | Total lines | Coverage |"
-            print "| --- | ---: | ---: | ---: |"
-            printf "| All frontend sources | %d | %d | %.1f%% |\n", covered, total, 100 * covered / total
-            for (ext in lines) {
-              printf "| .%s | %d | %d | %.1f%% |\n", ext, coveredLines[ext], lines[ext], 100 * coveredLines[ext] / lines[ext]
-            }
-          }' "$REPORT" >> "$GITHUB_STEP_SUMMARY"
-    - name: Build Vite assets
-      if: ${{ inputs.build-assets != 'false' }}
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: npm run build
-    - name: Install Chromium system dependencies
-      if: ${{ inputs.build-assets != 'false' && inputs.browser-tests == 'true' }}
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: npm exec --no --ignore-scripts -- playwright install-deps chromium
-    - name: Test frontend browser behavior
-      if: ${{ inputs.build-assets != 'false' && inputs.browser-tests == 'true' }}
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: npm run test:browser
+      run: node "$GITHUB_ACTION_PATH/coverage.mts" "$REPORT" >> "$GITHUB_STEP_SUMMARY"

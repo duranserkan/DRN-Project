@@ -1,9 +1,5 @@
 name: Release Version From Tag
 description: "Validate the release tag shape and expose the package/image version."
-inputs:
-  release-channel:
-    description: "Release channel to validate: stable or preview."
-    required: true
 outputs:
   version:
     description: "Release version extracted from the release tag."
@@ -15,8 +11,6 @@ runs:
       id: version
       shell: bash
       working-directory: ${{ github.workspace }}
-      env:
-        RELEASE_CHANNEL: ${{ inputs.release-channel }}
       run: |
         set -euo pipefail
 
@@ -25,21 +19,9 @@ runs:
           exit 1
         fi
 
-        case "$RELEASE_CHANNEL" in
-          stable)
-            tag_pattern='^release/v([0-9]+\.[0-9]+\.[0-9]+)$'
-            ;;
-          preview)
-            tag_pattern='^release/v([0-9]+\.[0-9]+\.[0-9]+-preview[0-9]{3})$'
-            ;;
-          *)
-            echo "Expected release-channel to be stable or preview, got: $RELEASE_CHANNEL"
-            exit 1
-            ;;
-        esac
-
+        tag_pattern='^release/v([0-9]+\.[0-9]+\.[0-9]+(-preview[0-9]{3})?)$'
         if [[ ! "$GITHUB_REF_NAME" =~ $tag_pattern ]]; then
-          echo "Expected ${RELEASE_CHANNEL} release tag, got: $GITHUB_REF_NAME"
+          echo "Invalid release tag: $GITHUB_REF_NAME"
           exit 1
         fi
 
