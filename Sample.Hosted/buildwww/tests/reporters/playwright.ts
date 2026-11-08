@@ -42,15 +42,11 @@ export default class PlaywrightSummary implements Reporter {
             } else if (outcome === 'expected') counts.passed++;
             else counts[outcome]++;
         }
+        const success = result.status === 'passed' && counts.passed + counts.flaky > 0;
         console.log(
-            testSummary(
-                'Frontend browser tests (Playwright)',
-                result.status === 'passed',
-                result.duration,
-                counts,
-                this.failures,
-            ),
+            testSummary('Frontend browser tests (Playwright)', success, result.duration, counts, this.failures),
         );
-        if (!printCoverageReport(process.env.PLAYWRIGHT_LCOV_REPORT)) return { status: 'failed' as const };
+        const coverageOk = printCoverageReport(process.env.PLAYWRIGHT_LCOV_REPORT);
+        if (!success || !coverageOk) return { status: 'failed' as const };
     }
 }

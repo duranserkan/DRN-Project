@@ -101,6 +101,12 @@ test('Playwright prints the run locally and includes only the requested coverage
     assert.match(coverage, /All frontend sources \| 1 \| 1 \| 100\.0%/);
     assert.ok(readFileSync(jobSummary, 'utf8').endsWith(coverage));
 
+    reporter.onBegin({} as FullConfig, { allTests: () => [tests[1]] } as unknown as Suite);
+    assert.deepEqual(await reporter.onEnd(result), { status: 'failed' });
+    assert.match(log.mock.calls.at(-2)?.arguments[0], /❌ .*0\/1 passed, 1 skipped/);
+    assert.equal(log.mock.calls.at(-1)?.arguments[0], coverage);
+
+    reporter.onBegin({} as FullConfig, { allTests: () => tests } as unknown as Suite);
     writeFileSync(report, '');
     assert.deepEqual(await reporter.onEnd(result), { status: 'failed' });
     assert.match(readFileSync(jobSummary, 'utf8'), /Missing frontend line coverage/);
