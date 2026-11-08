@@ -58,27 +58,9 @@ public abstract class IdentityManagementControllerBase<TUser> : ControllerBase
         if (!IdentityMfaPolicy.CanManage(User, isTwoFactorEnabled, enforced, mfaConfig))
             return TypedResults.StatusCode(StatusCodes.Status403Forbidden);
 
-        if (tfaRequest.Enable == true)
-        {
-            if (tfaRequest.ResetSharedKey)
-                return IdentityApiHelper.CreateValidationProblem("CannotResetSharedKeyAndEnable",
-                    "Resetting the 2fa shared key must disable 2fa until a 2fa token based on the new shared key is validated.");
-
-            if (string.IsNullOrEmpty(tfaRequest.TwoFactorCode))
-                return IdentityApiHelper.CreateValidationProblem("RequiresTwoFactor",
-                    "No 2fa token was provided by the request. A valid 2fa token is required to enable 2fa.");
-
-            if (!await userManager.VerifyTwoFactorTokenAsync(user, userManager.Options.Tokens.AuthenticatorTokenProvider, tfaRequest.TwoFactorCode))
-                return IdentityApiHelper.CreateValidationProblem("InvalidTwoFactorCode",
-                    "The 2fa token provided by the request was invalid. A valid 2fa token is required to enable 2fa.");
-
-            await userManager.SetTwoFactorEnabledAsync(user, true);
-        }
-        else if (tfaRequest.Enable == false || tfaRequest.ResetSharedKey)
-            await userManager.SetTwoFactorEnabledAsync(user, false);
-
-        if (tfaRequest.ResetSharedKey)
-            await userManager.ResetAuthenticatorKeyAsync(user);
+        var error = await UpdateTwoFactorSettingsAsync(userManager, user, tfaRequest);
+        if (error != null)
+            return error;
 
         // TODO(MFA-03): Define lost-factor and administrative recovery controls, attempt limits,
         // single-use recovery credentials, and out-of-band notifications for factor changes.
@@ -110,6 +92,33 @@ public abstract class IdentityManagementControllerBase<TUser> : ControllerBase
             IsTwoFactorEnabled = await userManager.GetTwoFactorEnabledAsync(user),
             IsMachineRemembered = await _signInManager.IsTwoFactorClientRememberedAsync(user)
         });
+    }
+
+    private static async Task<IResult?> UpdateTwoFactorSettingsAsync(UserManager<TUser> userManager, TUser user, TwoFactorRequest tfaRequest)
+    {
+        if (tfaRequest.Enable == true)
+        {
+            if (tfaRequest.ResetSharedKey)
+                return IdentityApiHelper.CreateValidationProblem("CannotResetSharedKeyAndEnable",
+                    "Resetting the 2fa shared key must disable 2fa until a 2fa token based on the new shared key is validated.");
+
+            if (string.IsNullOrEmpty(tfaRequest.TwoFactorCode))
+                return IdentityApiHelper.CreateValidationProblem("RequiresTwoFactor",
+                    "No 2fa token was provided by the request. A valid 2fa token is required to enable 2fa.");
+
+            if (!await userManager.VerifyTwoFactorTokenAsync(user, userManager.Options.Tokens.AuthenticatorTokenProvider, tfaRequest.TwoFactorCode))
+                return IdentityApiHelper.CreateValidationProblem("InvalidTwoFactorCode",
+                    "The 2fa token provided by the request was invalid. A valid 2fa token is required to enable 2fa.");
+
+            await userManager.SetTwoFactorEnabledAsync(user, true);
+        }
+        else if (tfaRequest.Enable == false || tfaRequest.ResetSharedKey)
+            await userManager.SetTwoFactorEnabledAsync(user, false);
+
+        if (tfaRequest.ResetSharedKey)
+            await userManager.ResetAuthenticatorKeyAsync(user);
+
+        return null;
     }
 
     [HttpGet(nameof(GetInfo))]

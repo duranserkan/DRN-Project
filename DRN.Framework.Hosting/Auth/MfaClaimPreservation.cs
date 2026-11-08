@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Security.Claims;
 using DRN.Framework.Utils.Auth;
@@ -53,6 +54,7 @@ internal static class MfaClaimPreservation
             candidate.Issuer == subject.Issuer);
     }
 
+    [SuppressMessage("SonarQube", "S3267", Justification = "Filtering claims in the loop avoids creating a Where iterator for each identity.")]
     private static void CopyMfaClaims(ClaimsIdentity[] identities, ClaimsIdentity target, MfaClaimConfig config)
     {
         foreach (var identity in identities)

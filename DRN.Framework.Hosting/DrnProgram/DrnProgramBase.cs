@@ -138,13 +138,12 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         var scopedLog = new ScopedLog(appSettings).WithLoggerName(typeof(TProgram).FullName);
         await using var bootstrapLoggerProvider = new NLogLoggerProvider(NLogOptions, CreateLogFactory(appSettings));
         var logger = bootstrapLoggerProvider.CreateLogger(typeof(TProgram).FullName!);
-        WebApplication? application = null;
-        var disposeApplication = false;
+        WebApplication? applicationToDispose = null;
 
         try
         {
             scopedLog.AddToActions("Creating Application");
-            application = await CreateApplicationAsync(args, appSettings, scopedLog);
+            var application = await CreateApplicationAsync(args, appSettings, scopedLog);
             logger = application.Services.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(TProgram).FullName!);
             scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.SkipValidation)}", appSettings.DevelopmentSettings.SkipValidation);
             scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.TemporaryApplication)}", appSettings.DevelopmentSettings.TemporaryApplication);
@@ -153,7 +152,9 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.AutoMigrateStaging)}", appSettings.DevelopmentSettings.AutoMigrateStaging);
             scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.LaunchExternalDependencies)}", appSettings.DevelopmentSettings.LaunchExternalDependencies);
             scopedLog.AddToActions("Running Application");
-            disposeApplication = !appSettings.DevelopmentSettings.TemporaryApplication;
+            if (!appSettings.DevelopmentSettings.TemporaryApplication)
+                applicationToDispose = application;
+
             logger.LogScoped(scopedLog, Microsoft.Extensions.Logging.LogLevel.Warning);
 
             if (appSettings.DevelopmentSettings.TemporaryApplication)
@@ -184,8 +185,8 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             }
             finally
             {
-                if (disposeApplication && application != null)
-                    await application.DisposeAsync();
+                if (applicationToDispose != null)
+                    await applicationToDispose.DisposeAsync();
             }
         }
     }

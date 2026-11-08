@@ -8,6 +8,7 @@
   },
   "//test": "The unit runner discovers .test.js and .test.ts files recursively. Playwright .spec.js/.spec.ts files run via test:browser. TypeScript execution does not type-check tests.",
   "scripts": {
+    "build:test:all": "npm run build && npm run test:all",
     "test": "node buildwww/tests/run-tests.ts --default-pattern \"buildwww/tests/**/*.test.{js,ts}\"",
     "test:all": "npm test -- --browser",
     "test:coverage": "npm test -- --coverage",
@@ -23,7 +24,6 @@
     "check": "npm run format:check && npm run lint && npm run lint:styles && npm run type-check && npm run check:unused -- --no-exit-code",
     "check:unused": "BUILD_TYPE=app knip",
     "build": "npm run check && npm run build:app && npm run build:appPostload && npm run build:htmx && npm run build:bootstrap && npm run build:react && npm run build:behaviors",
-    "build:test:all": "npm run build && npm run test:all",
     "build:app": "BUILD_TYPE=app vite build",
     "build:appPostload": "BUILD_TYPE=appPostload vite build",
     "build:behaviors": "npm run build:behaviors:layout && npm run build:behaviors:home && npm run build:behaviors:test",

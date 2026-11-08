@@ -1,5 +1,6 @@
 // This file is licensed to you under the MIT license.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
@@ -36,6 +37,7 @@ public class ExceptionDetailsProvider(IOptions<DeveloperExceptionPageOptions> op
         return stackFrames;
     }
 
+    [SuppressMessage("SonarQube", "S3267", Justification = "Iterating the loader exception array directly avoids a filter iterator during recursive exception traversal.")]
     private static List<Exception> FlattenAndReverseExceptionTree(Exception? ex)
     {
         // ReflectionTypeLoadException is special because the details are in
