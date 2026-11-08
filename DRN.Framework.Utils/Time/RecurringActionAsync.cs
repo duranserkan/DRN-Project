@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace DRN.Framework.Utils.Time;
 
 /// <summary>
@@ -146,6 +148,7 @@ public sealed class RecurringActionAsync : IAsyncDisposable
             ctsToCancel?.Cancel();
     }
 
+    [SuppressMessage("SonarQube", "S1854", Justification = "Clear the previous task reference held by this long-lived async state machine.")]
     private async Task RunLoopAsync(Task? previousLoop, CancellationToken cancellationToken)
     {
         // Avoid executing callback work inline in Start().
@@ -156,7 +159,6 @@ public sealed class RecurringActionAsync : IAsyncDisposable
         if (previousLoop != null)
         {
             await previousLoop.ConfigureAwait(false);
-            // Release the completed task from the long-lived async state machine.
             previousLoop = null;
         }
 

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Json;
 using Flurl.Http;
 using Flurl.Http.Configuration;
@@ -9,6 +10,7 @@ public static class UtilsConventionBuilder
     private static bool _triggered;
     private static readonly SemaphoreSlim StartupLock = new(1, 1);
 
+    [SuppressMessage("SonarQube", "S2589", Justification = "Another caller can finish building conventions while this caller waits for StartupLock.")]
     public static void BuildConvention()
     {
         if (_triggered) return;

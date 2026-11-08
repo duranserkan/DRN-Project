@@ -431,6 +431,7 @@ public abstract class SourceKnownRepository<TContext, TEntity>(TContext context,
     /// <remarks>
     /// When continuing pagination, jump distances beyond 10 pages in either direction are capped at 10.
     /// </remarks>
+    [SuppressMessage("SonarQube", "S107", Justification = "Preserve the protected pagination overload for derived repositories. It delegates to the request-based overload.")]
     protected async Task<PaginationResultModel<TEntity>> PaginateAsync(
         IQueryable<TEntity> query, PaginationResultInfo? resultInfo = null, long jumpTo = 1, int pageSize = -1, int maxSize = -1,
         PageSortDirection direction = PageSortDirection.None, long totalCount = -1, bool updateTotalCount = false)

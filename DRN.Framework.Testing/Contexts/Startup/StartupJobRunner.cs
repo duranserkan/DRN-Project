@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Settings;
@@ -13,6 +14,7 @@ public static class StartupJobRunner
 
     public static TestStartupResult Result { get; private set; } = null!;
 
+    [SuppressMessage("SonarQube", "S2589", Justification = "Another caller can finish running startup jobs while this caller waits for StartupLock.")]
     public static void TriggerStartupJobs(MethodInfo testMethod, Type type)
     {
         if (_triggered || type != typeof(DrnTestContext)) return;

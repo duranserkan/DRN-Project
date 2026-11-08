@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using DRN.Framework.SharedKernel.Attributes;
@@ -64,6 +65,7 @@ public class LoginWith2Fa(SignInManager<SampleUser> signInManager) : PageModel
         return Page();
     }
 
+    [SuppressMessage("SonarQube", "S2092", Justification = "UseCookiePolicy enforces Secure outside Development. Local HTTP development follows the request scheme.")]
     public int TrackInvalidCodeAttempt(HttpContext context)
     {
         var count = ReadInvalidCodeAttempts(context);

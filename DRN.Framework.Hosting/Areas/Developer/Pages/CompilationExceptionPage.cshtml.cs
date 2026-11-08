@@ -9,6 +9,6 @@ public class CompilationExceptionPage : PageModel
     
     public void OnGet()
     {
-        
+        // ExceptionPageContentProvider supplies ErrorModel before rendering this page.
     }
 }

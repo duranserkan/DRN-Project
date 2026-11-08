@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace DRN.Framework.Utils.Time;
 
 /// <summary>
@@ -7,6 +9,7 @@ namespace DRN.Framework.Utils.Time;
 /// </summary>
 public static class ApplicationLifetime
 {
+    [SuppressMessage("SonarQube", "S2223", Justification = "The hosting assembly installs the shutdown callback once it has resolved the host lifetime.")]
     internal static Action? ShutdownAction; // Hosting accesses via InternalsVisibleTo
 
     /// <summary>

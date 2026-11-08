@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.SharedKernel;
@@ -9,6 +10,7 @@ using Microsoft.AspNetCore.Routing;
 
 namespace DRN.Framework.Hosting.Endpoints;
 
+[SuppressMessage("SonarQube", "S2743", Justification = "Each hosted program initializes its own endpoint catalog under its own lock.")]
 public abstract class EndpointCollectionBase<TProgram>
     where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
 
@@ -27,6 +29,7 @@ public abstract class EndpointCollectionBase<TProgram>
     /// Assuming that all instances of the program will have the same endpoints so that we can initialize this once.
     /// There may be exceptions, but we consider it a bad practice and don't support it.
     /// </summary>
+    [SuppressMessage("SonarQube", "S2589", Justification = "Another caller can publish the endpoint catalog while this caller waits for StartupLock.")]
     internal static void SetEndpointDataSource(IEndpointHelper endpointHelper)
     {
         if (_triggered) return;

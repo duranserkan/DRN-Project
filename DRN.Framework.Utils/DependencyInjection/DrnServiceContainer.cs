@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Extensions;
@@ -183,6 +184,7 @@ public sealed class AttributeSpecifiedServiceModule(
         return ModuleAttribute.GetHashCode();
     }
 
+    [SuppressMessage("SonarQube", "S3875", Justification = "Module equality follows ModuleAttribute in Equals, GetHashCode and both operators.")]
     public static bool operator ==(AttributeSpecifiedServiceModule? left, AttributeSpecifiedServiceModule? right)
     {
         return Equals(left, right);

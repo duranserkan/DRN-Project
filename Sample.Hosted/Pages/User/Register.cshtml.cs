@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.ComponentModel.DataAnnotations;
 using DRN.Framework.SharedKernel.Attributes;
 using Microsoft.AspNetCore.Identity;
@@ -52,6 +53,7 @@ public class RegisterModel(UserManager<SampleUser> userManager, SignInManager<Sa
 
 public class RegisterInput
 {
+    [SuppressMessage("SonarQube", "S2068", Justification = "StringLength uses this text to format a validation error displayed to the user.")]
     private const string PasswordErrorMessage = "The {0} must be at least {2} and at max {1} characters long.";
     private const string PasswordConfirmationErrorMessage = "The password and confirmation password do not match.";
 

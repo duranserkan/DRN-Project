@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Utils.DependencyInjection;
@@ -159,6 +160,7 @@ public class ChainedNodeCController : ControllerBase
 {
     [HttpGet("leaf")]
     [AllowAnonymous]
+    [SuppressMessage("SonarQube", "S6968", Justification = "This routing fixture returns a string for inter-host assertions and exposes no production API contract.")]
     public IActionResult Leaf() => Ok("C");
 }
 
@@ -176,6 +178,7 @@ public class BidirectionalNode1Controller(IInternalRequest internalRequest) : Co
 
     [HttpGet("pong")]
     [AllowAnonymous]
+    [SuppressMessage("SonarQube", "S6968", Justification = "This routing fixture returns a string for inter-host assertions and exposes no production API contract.")]
     public IActionResult Pong() => Ok("1-pong");
 }
 
@@ -193,5 +196,6 @@ public class BidirectionalNode2Controller(IInternalRequest internalRequest) : Co
 
     [HttpGet("pong")]
     [AllowAnonymous]
+    [SuppressMessage("SonarQube", "S6968", Justification = "This routing fixture returns a string for inter-host assertions and exposes no production API contract.")]
     public IActionResult Pong() => Ok("2-pong");
 }
