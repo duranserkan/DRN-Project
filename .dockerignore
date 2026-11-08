@@ -68,7 +68,7 @@ LICENSE
 **/*.pfx
 **/*.[pP][eE][mM]
 **/id_*
-**/*.p12
+**/*.[pP]12
 
 # Research documentation
 paper/

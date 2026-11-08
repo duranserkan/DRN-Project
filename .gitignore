@@ -394,7 +394,7 @@ FodyWeavers.xsd
 *.ssh-key
 # Allow required id_* paths only by exact repository-relative path.
 id_*
-*.p12
+*.[pP]12
 
 # Allow required public PEM certificates only by exact repository-relative path.
 *.[pP][eE][mM]
