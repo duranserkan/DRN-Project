@@ -32,7 +32,7 @@ internal static class DrnCompressionConfigurator
             if (context.Context.Request.Path.StartsWithSegments(options.RequestPath, out var path) &&
                 path.Value is { } value && types.IsSidecar(value))
                 context.Context.Response.Headers.ContentEncoding = "br";
-            prepare(context);
+            prepare?.Invoke(context);
         };
     }
 
