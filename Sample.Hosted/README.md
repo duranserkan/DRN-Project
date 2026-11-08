@@ -240,6 +240,8 @@ Fragment links such as `#section` preserve unsaved input. Back or Forward to a b
 
 ### Independently updating component behaviors
 
+Full and targeted Vite builds emit a Brotli quality 11 `.br` file when it is smaller than the original bundle. Deploy both files with the manifest. Razor links Brotli-capable browsers directly to the available `.br` file under the current proxy prefix.
+
 Application TypeScript lives in `buildwww/app/ts/`. HTMX and Bootstrap adapters stay under `buildwww/lib/`. Vite emits browser JavaScript under `wwwroot/`.
 
 RSJS component modules live in `buildwww/app/ts/behaviors/`, grouped by UI area. Each area has a separate entry, hashed output, and manifest:

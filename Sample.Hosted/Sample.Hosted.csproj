@@ -4,6 +4,8 @@
         <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
+        <!-- Vite owns precompression for its output directories. -->
+        <CompressionExcludePatterns>$(CompressionExcludePatterns);app/**;appPostload/**;behaviors/**;lib/htmx/**;lib/bootstrap/**;lib/react/**</CompressionExcludePatterns>
         <DockerComposeProjectPath>../docker-compose.dcproj</DockerComposeProjectPath>
         <UserSecretsId>f84cc3f4-2a9b-44a2-ad30-68bb3facb9b8</UserSecretsId>
     </PropertyGroup>

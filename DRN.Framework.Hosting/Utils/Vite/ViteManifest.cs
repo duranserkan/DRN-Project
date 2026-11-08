@@ -14,7 +14,6 @@ namespace DRN.Framework.Hosting.Utils.Vite;
 public interface IViteManifest
 {
     string ManifestRootPath { get; }
-    ViteManifestWarmReport? WarmReport { get; }
     ViteManifestItem? GetManifestItem(string entryName);
     IReadOnlyCollection<ViteManifestItem> GetAllManifestItems();
 }
@@ -31,8 +30,6 @@ public class ViteManifest(IWebHostEnvironment environment) : IViteManifest
     private readonly Lock _lock = new();
 
     public string ManifestRootPath => ResolveManifestRootPath();
-
-    public ViteManifestWarmReport? WarmReport { get; internal set; }
 
     public ViteManifestItem? GetManifestItem(string entryName)
     {
@@ -160,7 +157,7 @@ public class ViteManifest(IWebHostEnvironment environment) : IViteManifest
 
             var hash = fullFilePath.HashOfFile(HashAlgorithm.Sha256, ByteEncoding.Base64);
 
-            cache[key] = value.FromCalculatedProperties(outputDir, hash);
+            cache[key] = value.FromCalculatedProperties(outputDir, hash, File.Exists(fullFilePath + ".br"));
         }
     }
 }

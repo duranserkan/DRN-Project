@@ -1,4 +1,3 @@
-using System.IO.Compression;
 using System.Security;
 using System.Security.Claims;
 using System.Text.Json;
@@ -6,11 +5,9 @@ using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Logging;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
-using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Options;
 using NetEscapades.AspNetCore.SecurityHeaders.Infrastructure;
 using NLog.Web;
@@ -23,7 +20,7 @@ public class DrnProgramBaseCompositionTests
     public void NLogOptions_Should_Isolate_Mutations_Between_Program_Types()
     {
         var first = DefaultsProgram.LoggingOptions;
-        var second = CompressionProgram.LoggingOptions;
+        var second = SecurityProgram.LoggingOptions;
         first.Should().NotBeSameAs(second);
         first.ReplaceLoggerFactory.Should().BeFalse();
         first.RemoveLoggerFactoryFilter.Should().BeFalse();
@@ -215,18 +212,6 @@ public class DrnProgramBaseCompositionTests
     }
 
     [Fact]
-    public void Compression_Should_Exclude_Dynamic_Https_And_Enable_Static_Https()
-    {
-        var dynamicOptions = new ResponseCompressionOptions { EnableForHttps = true };
-        var staticOptions = new StaticFileOptions { HttpsCompression = HttpsCompressionMode.DoNotCompress };
-
-        new DefaultsProgram().ConfigureCompression(dynamicOptions, staticOptions);
-
-        dynamicOptions.EnableForHttps.Should().BeFalse();
-        staticOptions.HttpsCompression.Should().Be(HttpsCompressionMode.Compress);
-    }
-
-    [Fact]
     public void Localization_Should_Replace_Providers_In_The_Configured_Order()
     {
         using var configuration = new ConfigurationManager();
@@ -257,29 +242,6 @@ public class DrnProgramBaseCompositionTests
 
     private static ClaimsIdentity Account(string subject, bool authenticated = true) =>
         new([new Claim(ClaimTypes.NameIdentifier, subject)], authenticated ? "test" : null);
-
-    [Fact]
-    public void CompressionProviders_Should_Evaluate_Each_Virtual_Level_When_Its_Options_Are_Resolved()
-    {
-        var program = new CompressionProgram();
-        var services = new ServiceCollection();
-
-        program.RegisterCompressionProviders(services);
-        using var provider = services.BuildServiceProvider();
-        program.Calls.Should().BeEmpty();
-
-        program.BrotliLevel = CompressionLevel.Fastest;
-        var brotli = provider.GetRequiredService<IOptions<BrotliCompressionProviderOptions>>().Value;
-
-        brotli.Level.Should().Be(CompressionLevel.Fastest);
-        program.Calls.Should().Equal("brotli");
-
-        program.GzipLevel = CompressionLevel.NoCompression;
-        var gzip = provider.GetRequiredService<IOptions<GzipCompressionProviderOptions>>().Value;
-
-        gzip.Level.Should().Be(CompressionLevel.NoCompression);
-        program.Calls.Should().Equal("brotli", "gzip");
-    }
 
     [Fact]
     public void SecurityPolicies_Should_Compose_Virtual_Header_And_Csp_Hooks_For_Every_Policy()
@@ -317,11 +279,6 @@ public class DrnProgramBaseCompositionTests
         public void ConfigureRenewal(SecurityStampValidatorOptions options) =>
             ConfigureSecurityStampValidatorOptions(options, _settings, AuthenticationClaimConfig.Default);
         public void ConfigureMvc(IMvcBuilder builder) => ConfigureMvcBuilder(builder, _settings);
-        public void ConfigureCompression(ResponseCompressionOptions dynamicOptions, StaticFileOptions staticOptions)
-        {
-            ConfigureResponseCompressionOptions(dynamicOptions);
-            ConfigureStaticFileOptions(_settings)(staticOptions);
-        }
         public void ConfigureLocalization(RequestLocalizationOptions options, IAppSettings settings) =>
             ConfigureRequestLocalizationOptions(settings)(options);
         protected override void ConfigureSecurityStampValidatorOptions(SecurityStampValidatorOptions options,
@@ -336,35 +293,9 @@ public class DrnProgramBaseCompositionTests
             Task.CompletedTask;
     }
 
-    private sealed class CompressionProgram : DrnProgramBase<CompressionProgram>, IDrnProgram
-    {
-        public static NLogAspNetCoreOptions LoggingOptions => NLogOptions;
-        public List<string> Calls { get; } = [];
-        public CompressionLevel BrotliLevel { get; set; } = CompressionLevel.SmallestSize;
-        public CompressionLevel GzipLevel { get; set; } = CompressionLevel.SmallestSize;
-
-        public static Task Main(string[] args) => Task.CompletedTask;
-
-        public void RegisterCompressionProviders(IServiceCollection services) => ConfigureCompressionProviders(services);
-
-        protected override CompressionLevel ConfigureBrotliCompressionLevel()
-        {
-            Calls.Add("brotli");
-            return BrotliLevel;
-        }
-
-        protected override CompressionLevel ConfigureGzipCompressionLevel()
-        {
-            Calls.Add("gzip");
-            return GzipLevel;
-        }
-
-        protected override Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings, IScopedLog scopedLog) =>
-            Task.CompletedTask;
-    }
-
     private sealed class SecurityProgram : DrnProgramBase<SecurityProgram>, IDrnProgram
     {
+        public static NLogAspNetCoreOptions LoggingOptions => NLogOptions;
         public List<string> Calls { get; } = [];
         public List<HeaderPolicyCollection> Policies { get; } = [];
 

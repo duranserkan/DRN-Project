@@ -103,7 +103,7 @@ Use these owners for public contracts. For implementation work, discover relevan
 | Identity, entities, repositories, analyzer diagnostics | `DRN.Framework.SharedKernel/README.md`, `DRN.Framework.EntityFramework/README.md` | `drn-sharedkernel`, `drn-entityframework` |
 | Configuration, data paths, cancellation, ID/time utilities, events | `DRN.Framework.Utils/README.md` | `drn-utils`, `overview-drn-framework` |
 | Classification, capture limits, exemptions, migration | `DRN.Framework.Utils/Logging/Diagnostics/README.md`; catalog `DRN.Framework.Utils/Logging/Diagnostics/data-classification-rules.json` | `drn-utils`, `drn-sharedkernel`, `drn-testing` |
-| Host hooks, MFA, rate limits, URLs, errors, Razor, Vite publish | `DRN.Framework.Hosting/README.md` | `drn-hosting`, relevant frontend skills |
+| Host hooks, MFA, rate limits, URLs, errors, Razor, Vite publish and compression | `DRN.Framework.Hosting/README.md` | `drn-hosting`, relevant frontend skills |
 | Test contexts, application factories, ownership | `DRN.Framework.Testing/README.md` | `drn-testing`, `overview-drn-testing` |
 | Browser errors, notifications, developer access | `Sample.Hosted/README.md`; `Sample.Hosted/buildwww/types/drnProblem.types.ts`, `drnNotifications.types.ts` | `drn-buildwww-libraries` |
 

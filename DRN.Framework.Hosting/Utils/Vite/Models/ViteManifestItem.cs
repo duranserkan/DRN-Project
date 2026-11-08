@@ -21,7 +21,11 @@ public class ViteManifestItem
         ShortHash = parts.Length >= 3 ? parts[^2] : HashNotFoundPlaceholder;
     }
 
-    internal ViteManifestItem FromCalculatedProperties(string outputDir, string hash) => new(File, Src, outputDir, hash);
+    internal ViteManifestItem FromCalculatedProperties(string outputDir, string hash, bool hasBrotli) =>
+        new(File, Src, outputDir, hash) { HasBrotli = hasBrotli };
+
+    private bool HasBrotli { get; init; }
+    internal string BrowserPath => HasBrotli ? Path + ".br" : Path;
 
     public string Path { get; }
     public string File { get; }
