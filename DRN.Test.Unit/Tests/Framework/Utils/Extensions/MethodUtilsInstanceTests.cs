@@ -1,5 +1,8 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace DRN.Test.Unit.Tests.Framework.Utils.Extensions;
 
+[SuppressMessage("Performance", "CA1822", Justification = "Tests discover and invoke this fixture's instance methods through reflection.")]
 public class MethodUtilsInstanceTests
 {
     private static readonly Type Type = typeof(MethodUtilsInstanceTests);

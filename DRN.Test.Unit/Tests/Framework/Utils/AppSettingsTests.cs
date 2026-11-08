@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using Blake3;
 using DRN.Framework.SharedKernel.Enums;
@@ -263,6 +264,7 @@ public class AppSettingsTests
         action.Should().ThrowExactly<ValidationException>();
     }
 
+    [SuppressMessage("Performance", "CA1859", Justification = "The anonymous configuration object cannot be named in a return type.")]
     private static object GetCustomSettings(byte appId, byte appInstanceId)
     {
         var custom = new { NexusAppSettings = new NexusAppSettings { AppId = appId, AppInstanceId = appInstanceId, MacType = NexusMacType.Blake3 } };

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Cancellation;
 using DRN.Framework.Utils.Cancellation;
 
@@ -454,6 +455,7 @@ public class CancellationUtilsTests
     }
 
     [Fact]
+    [SuppressMessage("Usage", "CA2263", Justification = "Compares key identity across the generic and runtime Type factories.")]
     public void CancellationScopeKey_Factories_Should_Use_Owner_Type_And_Ordinal_Name_Identity()
     {
         var genericOwner = CancellationScopeKey.For<FirstScope>();
@@ -492,6 +494,7 @@ public class CancellationUtilsTests
     }
 
     [Fact]
+    [SuppressMessage("Usage", "CA2263", Justification = "Verifies empty and whitespace names through each factory overload.")]
     public void CancellationScopeKey_Factories_Should_Accept_Empty_And_Whitespace_Names()
     {
         foreach (var name in new[] { string.Empty, "   " })
@@ -509,6 +512,7 @@ public class CancellationUtilsTests
     }
 
     [Fact]
+    [SuppressMessage("Usage", "CA2263", Justification = "Verifies the name length boundary through each factory overload.")]
     public void CancellationScopeKey_Factories_Should_Accept_Maximum_Name_And_Reject_Oversized_Name()
     {
         var maximumName = new string('a', 128);

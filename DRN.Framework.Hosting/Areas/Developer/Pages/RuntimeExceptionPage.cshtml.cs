@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Encodings.Web;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -18,6 +19,7 @@ public class RuntimeExceptionPage : PageModel
     protected HtmlEncoder HtmlEncoder { get; set; } = HtmlEncoder.Default;
     public DrnExceptionModel ErrorModel { get; set; } = null!;
 
+    [SuppressMessage("Performance", "CA1822", Justification = "Razor Pages discovers OnGet as an instance handler.")]
     public void OnGet()
     {
         // ExceptionPageContentProvider supplies ErrorModel before rendering this page.

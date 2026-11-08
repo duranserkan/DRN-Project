@@ -170,9 +170,11 @@ public class ScopedLogTests
     [SuppressMessage("ReSharper", "UnusedMember.Local")]
     private sealed class PropertyLogData
     {
+        [SuppressMessage("Performance", "CA1822", Justification = "Exercises capture of a public instance getter.")]
         public string Visible => "visible";
         public string Hidden { private get; set; } = "hidden";
         public static string Static => "static";
+        [SuppressMessage("Performance", "CA1822", Justification = "Verifies that ignoring an instance property by name skips its getter.")]
         public string Ignored => throw new InvalidOperationException("Ignored getters must not execute.");
     }
 
@@ -715,7 +717,9 @@ public class ScopedLogTests
 
     private sealed class AttributedLogData
     {
+        [SuppressMessage("Performance", "CA1822", Justification = "Exercises per-call exclusion of a cached instance property.")]
         public string Visible => "visible";
+        [SuppressMessage("Performance", "CA1822", Justification = "Verifies that IgnoreLog skips the instance getter on every capture.")]
         [SuppressMessage("DRN.Classification", "DRN0015", Justification = "Unclassified ignored property verifies runtime getter suppression independently of classification.")]
         [IgnoreLog] public string Secret => throw new InvalidOperationException("Ignored getters must not execute.");
     }
