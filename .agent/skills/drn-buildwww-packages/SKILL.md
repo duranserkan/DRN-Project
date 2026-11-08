@@ -1,7 +1,7 @@
 ---
 name: drn-buildwww-packages
 description: 'DRN buildwww package dependencies - npm packages for Bootstrap, htmx, ASP.NET validation, onmount, React, Tailwind, and Vite. Keywords: drn, buildwww, npm, packages, dependencies, bootstrap, htmx, aspnet-client-validation, onmount, react, tailwind'
-last-updated: 2026-11-05
+last-updated: 2026-11-08
 difficulty: basic
 tokens: ~0.5K
 ---
@@ -34,10 +34,10 @@ Top-level `dependencies` and `devDependencies` must use exact versions, not care
 When changing packages:
 
 1. Set `FRONTEND_PACKAGE_DIR` to the discovered package root.
-2. Edit `$FRONTEND_PACKAGE_DIR/package.json` or run npm with exact-save behavior.
-3. Refresh lock metadata with `npm install --prefix "$FRONTEND_PACKAGE_DIR" --package-lock-only --ignore-scripts`.
+2. Edit `$FRONTEND_PACKAGE_DIR/package.json` or use the safeguarded `--save-exact` install command in the contributor guide.
+3. Refresh lock metadata with `npm install --prefix "$FRONTEND_PACKAGE_DIR" --package-lock-only --ignore-scripts --engine-strict --registry=https://registry.npmjs.org/`.
 4. Verify the root lock metadata matches `package.json`.
-5. Run `npm ci --prefix "$FRONTEND_PACKAGE_DIR" --ignore-scripts --dry-run` to verify install consistency.
+5. Run `npm ci --prefix "$FRONTEND_PACKAGE_DIR" --ignore-scripts --engine-strict --registry=https://registry.npmjs.org/ --dry-run` to verify install consistency.
 
 ```bash
 node -e 'const fs=require("fs"); const dir=process.argv[1]; const p=JSON.parse(fs.readFileSync(`${dir}/package.json`,"utf8")); const l=JSON.parse(fs.readFileSync(`${dir}/package-lock.json`,"utf8")).packages[""]; let bad=[]; for (const kind of ["dependencies","devDependencies"]) for (const [k,v] of Object.entries(p[kind]||{})) { const lv=(l[kind]||{})[k]; if (v!==lv) bad.push(kind+" "+k+": package.json="+v+" lock="+lv); } if (bad.length) { console.log(bad.join("\n")); process.exit(1); }' "$FRONTEND_PACKAGE_DIR"

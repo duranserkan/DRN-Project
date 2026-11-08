@@ -38,6 +38,17 @@ runs:
       with:
         working-directory: ${{ inputs.repository-directory }}
 
+    # Keep the policy active for nested npm commands and later browser steps.
+    - name: Configure npm for this job
+      shell: bash
+      run: |
+        {
+          echo 'NPM_CONFIG_IGNORE_SCRIPTS=true'
+          echo 'NPM_CONFIG_ENGINE_STRICT=true'
+          echo 'NPM_CONFIG_SAVE_EXACT=true'
+          echo 'NPM_CONFIG_REGISTRY=https://registry.npmjs.org/'
+        } >> "$GITHUB_ENV"
+
     - name: Setup Node
       uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
       with:
@@ -50,7 +61,7 @@ runs:
       # Keep dependency restore deterministic and prevent dependency lifecycle
       # hooks from executing in CI. The explicit build step below runs the
       # project-owned scripts after audit.
-      run: npm ci --ignore-scripts --registry=https://registry.npmjs.org/
+      run: npm ci --ignore-scripts --engine-strict --registry=https://registry.npmjs.org/
     - name: Verify npm registry signatures and available provenance
       shell: bash
       working-directory: ${{ inputs.working-directory }}

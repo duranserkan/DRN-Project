@@ -214,13 +214,13 @@ Server handlers can use `SendToast` for immediate `HX-Trigger: showToast` feedba
 
 The Sample frontend targets recent browsers with native ES2025 support.
 
-To rebuild frontend assets, use npm and the exact Node.js version pinned in [`.node-version`](../.node-version). CI uses the same version. During dependency installation, `engine-strict=true` enforces the matching requirement in [package.json](package.json). Built assets are checked in, so this tooling is optional when simply running the sample.
+To rebuild frontend assets, use npm and the exact Node.js version pinned in [`.node-version`](../.node-version). The install command below and CI both disable install scripts, enforce the engine requirements in [package.json](package.json), and use the public npm registry. Use these flags on a fresh clone. Built assets are checked in, so this tooling is optional when simply running the sample.
 
 After changing frontend sources in `Sample.Hosted/buildwww/`, rebuild the assets from `Sample.Hosted/`:
 
 ```bash
-npm ci --ignore-scripts
-npm audit signatures
+npm ci --ignore-scripts --engine-strict --registry=https://registry.npmjs.org/
+npm audit signatures --registry=https://registry.npmjs.org/
 npm run build
 ```
 
