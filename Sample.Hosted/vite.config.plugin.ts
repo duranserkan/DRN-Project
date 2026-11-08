@@ -1,7 +1,33 @@
 import { createHash } from 'node:crypto';
 import { basename } from 'node:path';
 import { brotliCompressSync, constants } from 'node:zlib';
-import type { ManifestChunk, Plugin } from 'vite';
+import type { ManifestChunk, Plugin, Rolldown } from 'vite';
+
+function collectRequiredOriginals(
+    manifest: Record<string, ManifestChunk>,
+    razorEntries: readonly string[],
+): Set<string> {
+    const keepOriginal = new Set<string>();
+    for (const [key, entry] of Object.entries(manifest)) {
+        if (!entry.isEntry || !razorEntries.includes(key)) keepOriginal.add(entry.file);
+        for (const dependency of [...(entry.imports ?? []), ...(entry.dynamicImports ?? [])])
+            keepOriginal.add(manifest[dependency]!.file);
+        for (const file of [...(entry.assets ?? []), ...(entry.css ?? [])]) keepOriginal.add(file);
+    }
+    return keepOriginal;
+}
+
+function outputBytes(output: Rolldown.OutputBundle[string]): Buffer {
+    return Buffer.from(output.type === 'chunk' ? output.code : output.source);
+}
+
+function compressIfSmaller(file: string, original: Buffer): Buffer | undefined {
+    if (!/\.(?:js|css|svg|json|txt|xml|wasm|ttf|otf)$/i.test(file)) return undefined;
+    const compressed = brotliCompressSync(original, {
+        params: { [constants.BROTLI_PARAM_QUALITY]: constants.BROTLI_MAX_QUALITY },
+    });
+    return compressed.length < original.length ? compressed : undefined;
+}
 
 export function precompressAssets(razorEntries: readonly string[]): Plugin {
     return {
@@ -15,35 +41,22 @@ export function precompressAssets(razorEntries: readonly string[]): Plugin {
                 const manifest: Record<string, ManifestChunk & { hash?: string; brotliOnly?: boolean }> = JSON.parse(
                     Buffer.from(manifestAsset.source).toString('utf8'),
                 );
-                const keepOriginal = new Set<string>();
-                for (const [key, entry] of Object.entries(manifest)) {
-                    if (!entry.isEntry || !razorEntries.includes(key)) keepOriginal.add(entry.file);
-                    for (const dependency of [...(entry.imports ?? []), ...(entry.dynamicImports ?? [])])
-                        keepOriginal.add(manifest[dependency]!.file);
-                    for (const file of [...(entry.assets ?? []), ...(entry.css ?? [])]) keepOriginal.add(file);
-                }
+                const keepOriginal = collectRequiredOriginals(manifest, razorEntries);
                 // Literal URLs in HTML, CSS or scripts can also bypass the manifest.
                 const outputs = Object.values(bundle).filter((output) => output.fileName !== '.vite/manifest.json');
-                const bodies = outputs.map((output) =>
-                    Buffer.from(output.type === 'chunk' ? output.code : output.source),
-                );
+                const bodies = outputs.map(outputBytes);
                 for (const [file, entries] of Map.groupBy(Object.values(manifest), (entry) => entry.file)) {
                     const output = bundle[file];
                     if (!output) throw new Error(`Missing manifest output: ${file}`);
-                    const original = Buffer.from(output.type === 'chunk' ? output.code : output.source);
+                    const original = outputBytes(output);
                     const hash = createHash('sha256').update(original).digest('base64');
-                    let brotliOnly = false;
-                    if (/\.(?:js|css|svg|json|txt|xml|wasm|ttf|otf)$/i.test(file)) {
-                        const br = brotliCompressSync(original, {
-                            params: { [constants.BROTLI_PARAM_QUALITY]: constants.BROTLI_MAX_QUALITY },
-                        });
-                        if (br.length < original.length) {
-                            this.emitFile({ type: 'asset', fileName: file + '.br', source: br });
-                            brotliOnly =
-                                !keepOriginal.has(file) && !bodies.some((body) => body.includes(basename(file)));
-                            if (brotliOnly) delete bundle[file];
-                        }
-                    }
+                    const br = compressIfSmaller(file, original);
+                    if (br) this.emitFile({ type: 'asset', fileName: file + '.br', source: br });
+                    const brotliOnly =
+                        br !== undefined &&
+                        !keepOriginal.has(file) &&
+                        !bodies.some((body) => body.includes(basename(file)));
+                    if (brotliOnly) delete bundle[file];
                     for (const entry of entries) {
                         entry.hash = hash;
                         if (brotliOnly) entry.brotliOnly = true;
