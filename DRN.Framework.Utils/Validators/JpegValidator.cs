@@ -74,7 +74,7 @@ public static class JpegValidator
 
         var index = 2;
         var hasScan = false;
-        byte frameComponentCount = 0;
+        byte? frameComponentCount = null;
 
         while (TryReadMarker(imageData, ref index, out var marker))
         {
@@ -100,7 +100,7 @@ public static class JpegValidator
     private static byte[] NormalizeImageData(byte[] imageData, int imageLength)
         => imageLength == imageData.Length ? imageData : imageData[..imageLength];
 
-    private static bool TryReadImageSegment(ReadOnlySpan<byte> imageData, ref int index, byte marker, ref byte frameComponentCount)
+    private static bool TryReadImageSegment(ReadOnlySpan<byte> imageData, ref int index, byte marker, ref byte? frameComponentCount)
     {
         if (IsStandaloneMarker(marker))
             return true;
@@ -109,12 +109,18 @@ public static class JpegValidator
             return false;
 
         if (IsStartOfFrame(marker))
-            return TryReadFrameComponentCount(segment, out frameComponentCount);
+        {
+            if (!TryReadFrameComponentCount(segment, out var count))
+                return false;
+
+            frameComponentCount = count;
+            return true;
+        }
 
         if (marker != StartOfScan)
             return true;
 
-        return HasValidScanHeader(segment, frameComponentCount) && TrySkipScanData(imageData, ref index);
+        return frameComponentCount is { } components && HasValidScanHeader(segment, components) && TrySkipScanData(imageData, ref index);
     }
 
     private static bool TryReadMarker(ReadOnlySpan<byte> imageData, ref int index, out byte marker)
