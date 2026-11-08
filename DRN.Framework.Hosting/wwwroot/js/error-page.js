@@ -158,14 +158,6 @@ http://localhost:5998/_content/DRN.Framework.Hosting/js/error-page.js
         }
     }
 
-    function tab(el) {
-        var unselected = ns("#header .selected").removeClass("selected").attr("id");
-        var selected = ns("#" + el.id).addClass("selected").attr("id");
-
-        ns("#" + unselected + "page").hide();
-        ns("#" + selected + "page").show();
-    }
-
     ns(".rawExceptionDetails").hide();
     ns(".collapsible").hide();
     ns(".page").hide();
@@ -181,15 +173,13 @@ http://localhost:5998/_content/DRN.Framework.Hosting/js/error-page.js
             }
         });
 
-    ns("#header li")
-        .click(function () {
-            tab(this);
-        })
-        .keypress(function (e) {
-            if (e.which === 13) {
-                tab(this);
-            }
-        });
+    ns("#header button").click(function () {
+        var previous = document.querySelector('#header button[aria-pressed="true"]');
+        ns("#" + previous.getAttribute("aria-controls")).hide();
+        previous.setAttribute("aria-pressed", "false");
+        ns("#" + this.getAttribute("aria-controls")).show();
+        this.setAttribute("aria-pressed", "true");
+    });
 
     ns(".showRawException")
         .click(function () {

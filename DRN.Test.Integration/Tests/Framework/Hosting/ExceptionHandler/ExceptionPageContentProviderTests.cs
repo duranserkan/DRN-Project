@@ -30,6 +30,7 @@ public class ExceptionPageContentProviderTests
 
         result.ContentType.Should().Be("text/html; charset=utf-8");
         result.Content.Should().Contain($"href=\"{pathBase}/_content/DRN.Framework.Hosting/css/error-page.css\"")
+            .And.Contain($"href=\"{pathBase}/_content/DRN.Framework.Hosting/error-page-icon.svg\"")
             .And.Contain($"src=\"{pathBase}/_content/DRN.Framework.Hosting/js/error-page.js\"")
             .And.Contain("Nonce=\"error-page-test-nonce\"")
             .And.NotContain("~/_content/");

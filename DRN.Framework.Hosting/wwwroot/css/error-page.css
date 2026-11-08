@@ -113,12 +113,17 @@ body .location {
 }
 #header li {
     display: inline;
+}
+#header button {
+    font: inherit;
+    border: 0;
+    background: transparent;
     margin: 5px;
     padding: 5px;
     color: var(--color-tab-link);
     cursor: pointer;
 }
-#header .selected {
+#header button[aria-pressed="true"] {
     color: var(--color-tab-selected);
     background: var(--color-tab-selected-background);
 }

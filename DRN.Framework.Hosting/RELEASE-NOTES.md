@@ -34,11 +34,13 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Bug Fixes
 
+*   **Developer Exception Pages**: Panel controls follow document focus order, support Enter and Space, and announce the active panel to assistive technology. Exception pages include a favicon.
+
 *   **Exception Details Serialization**: Prevent exception handling from failing during initialization after shared JSON options have already been used for serialization.
 
 *   **Started Response Exceptions**: `HttpScopeMiddleware` now logs and rethrows the original exception when `context.Response.HasStarted`, instead of failing while assigning the response status code.
 *   **Page Rendering**: `IPageUtils.RenderPageAsync` now supports standard `_ViewStart` files, layouts, and endpoint-generated links even for unmatched requests. Rendering also awaits scoped-service cleanup on success or failure.
-*   **Developer JSON Viewer**: Updated bundled JSONEditor to 10.4.3 and corrected dark-theme search highlighting. Fixed Ace and color-picker styles blocked by the default CSP on runtime exception pages.
+*   **Developer JSON Viewer**: Updated bundled JSONEditor to 10.4.3 and corrected dark-theme search highlighting. Fixed Ace and color-picker styles blocked by the default CSP on runtime exception pages. The read-only log viewer omits the Repair JSON action and skips the validation worker.
 
 *   **Redirects**: Fixed errors when converting started redirects to HTTP 303 and corrected the logged response status.
 *   **Deployment Prefixes**: Swagger URLs, developer error-page assets, active navigation, login/MFA redirects, and Vite assets now support deployment prefixes. Swagger uses processed request values rather than raw forwarded headers. Unauthorized redirects preserve the public return path and query string. Active href links support custom routes and exclude external URLs and paths outside the deployment prefix. Use `asp-page` for page-identity matching.
