@@ -33,8 +33,8 @@ Top-level `dependencies` and `devDependencies` must use exact versions, not care
 
 When changing packages:
 
-1. Set `FRONTEND_PACKAGE_DIR` to the discovered package root.
-2. Edit `$FRONTEND_PACKAGE_DIR/package.json` or use the safeguarded `--save-exact` install command in the contributor guide.
+1. Set `FRONTEND_PACKAGE_DIR` to the absolute path of the discovered package root before changing directories.
+2. Edit `$FRONTEND_PACKAGE_DIR/package.json` or run the contributor guide's safeguarded `--save-exact` install command from `"$FRONTEND_PACKAGE_DIR"`.
 3. Refresh lock metadata with `npm install --prefix "$FRONTEND_PACKAGE_DIR" --package-lock-only --ignore-scripts --engine-strict --registry=https://registry.npmjs.org/`.
 4. Verify the root lock metadata matches `package.json`.
 5. Run `npm ci --prefix "$FRONTEND_PACKAGE_DIR" --ignore-scripts --engine-strict --registry=https://registry.npmjs.org/ --dry-run` to verify install consistency.
