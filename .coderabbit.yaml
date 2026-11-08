@@ -20,6 +20,14 @@ reviews:
     - "!**/wwwroot/**"
     - "!Sample.Hosted/package-lock.json"
   path_instructions:
+    - path: "**/*"
+      instructions: |
+        Apply the CLI and redirect lessons in AGENTS.LessonsLearned.md when a change handles caller-controlled arguments or navigation destinations.
+        - For a path restricted to a directory, check whether traversal, an absolute path, or a symlink can escape it on read or write.
+        - For a filename forwarded to another program, check how that program parses a leading dash. Quoting and shell-free argument arrays still permit option parsing.
+        - Trace return URLs through sign-in, redirects, and browser navigation. Check the final destination with the framework's local-URL API or an explicit external allowlist. Consider scheme-relative URLs, backslashes, and lookalike hosts.
+        - Report a finding with the input, the operation it reaches, and the observable effect. Account for validation already performed by the caller or callee.
+
     - path: "**/*.cs"
       instructions: |
         Review diagnostic usefulness and safe capture with concrete evidence from the changed code and its callers.
