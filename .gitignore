@@ -14,7 +14,6 @@
 !.coderabbit.yaml
 !.sample-env
 # Shared frontend tooling in top-level project folders.
-!/[!.]*/.npmrc
 !/[!.]*/.oxfmtrc.json
 !/[!.]*/.oxlintrc.json
 !/[!.]*/.stylelintrc.json
