@@ -240,7 +240,7 @@ Fragment links such as `#section` preserve unsaved input. Back or Forward to a b
 
 ### Independently updating component behaviors
 
-Full and targeted Vite builds emit a Brotli quality 11 `.br` file when it is smaller than the original bundle. Deploy both files with the manifest. Razor links Brotli-capable browsers directly to the available `.br` file under the current proxy prefix.
+Full and targeted Vite builds record the Base64 SHA-256 hash of each manifest asset's uncompressed bytes. They emit a Brotli quality 11 `.br` file when it is smaller. Entries listed in `precompressAssets` must be requested through the Razor tag helpers. The build omits their originals when no bundled output references the original URL and marks them `brotliOnly` in the manifest. Keep entries with external or dynamically constructed original URLs off that list. Deploy the emitted files and manifest together. Razor links directly to the available Brotli file under the current proxy prefix.
 
 Application TypeScript lives in `buildwww/app/ts/`. HTMX and Bootstrap adapters stay under `buildwww/lib/`. Vite emits browser JavaScript under `wwwroot/`.
 
@@ -264,9 +264,9 @@ After dependency setup, build all three outputs with one command from `Sample.Ho
 npm run build:behaviors
 ```
 
-For a targeted build, use `npm run build:behaviors:layout`, `npm run build:behaviors:home`, or `npm run build:behaviors:test`. The full `npm run build` includes the aggregate command. Each target writes `<entry>.[hash].js` and `.vite/manifest.json` and cleans only its own directory. These are independent builds, so they do not share generated chunks. With unchanged inputs and tooling, unchanged outputs retain their cache identities.
+For a targeted build, use `npm run build:behaviors:layout`, `npm run build:behaviors:home`, or `npm run build:behaviors:test`. The full `npm run build` includes the aggregate command. Each target cleans its own output directory and writes `.vite/manifest.json` there. These are independent builds, so they do not share generated chunks. With unchanged inputs and tooling, unchanged outputs retain their cache identities.
 
-Deploy each changed area's generated asset and manifest together, including the hidden `.vite` directory. Restart the application because it caches manifest paths and integrity hashes for the process lifetime. Preserve previously deployed hashed files until in-flight pages no longer reference them. Fresh pages use the new behavior URL; unchanged bundles retain their URLs and browser caches. Already-open pages need a full reload to adopt new behavior code.
+Deploy each changed area's hidden `.vite/manifest.json` with its emitted assets. For a `brotliOnly` entry, deploy `<entry>.[hash].js.br`. Otherwise, deploy `<entry>.[hash].js` and any emitted `.br` sidecar. Restart the application because it caches manifest paths and integrity hashes for the process lifetime. Preserve previously deployed hashed files until in-flight pages no longer reference them. Fresh pages use the new behavior URL. Unchanged bundles retain their URLs and browser caches. Already-open pages need a full reload to adopt new behavior code.
 
 The initial migration needs the updated Razor views, rebuilt `appPostload`, and all three behavior outputs. Exclude the retired `wwwroot/appBehaviors/.vite/manifest.json` from the new deployment; the new targets do not clean that old directory. Retain old hashed assets separately while in-flight pages may still reference them. Later changes confined to one area's modules need only that area's output and manifest. Changes to runtime code, shared configuration, dependencies, or markup can require a broader deployment. The HTMX page retains inline scripts specifically for its nonce acceptance/rejection demonstration; early application configuration remains in the layout.
 

@@ -3,6 +3,8 @@
     "file": "homeBehaviors.BXVlNiKYbbbNK_6h.js",
     "name": "homeBehaviors",
     "src": "buildwww/app/ts/homeBehaviors.ts",
-    "isEntry": true
+    "isEntry": true,
+    "hash": "IguciOaQuh8ILN3vuNamUSn7/pjYdM0ww8lLaMhJ8+k=",
+    "brotliOnly": true
   }
 }

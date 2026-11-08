@@ -6,12 +6,16 @@
       "app.css"
     ],
     "src": "buildwww/app/css/app.css",
-    "isEntry": true
+    "isEntry": true,
+    "hash": "Njin01i7h6rI5u3s5IQy96Sdnx9cex2w45oFsn2otBU=",
+    "brotliOnly": true
   },
   "buildwww/app/ts/appPreload.ts": {
     "file": "appPreload.GhM0zVvc5BR1z5la.js",
     "name": "appPreload",
     "src": "buildwww/app/ts/appPreload.ts",
-    "isEntry": true
+    "isEntry": true,
+    "hash": "elF84SCOu/EM2I8diz/7ixT0qaHxmI5l/T0oiEF8xDU=",
+    "brotliOnly": true
   }
 }

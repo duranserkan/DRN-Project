@@ -137,7 +137,7 @@ See README **Razor TagHelpers** for Vite/SRI, CSP nonces, HTMX CSRF, active link
 <button type="button" policy-only="EditDocument" policy-resource="@Model.Document">Edit</button>
 ```
 
-Publish Vite manifests, originals and Brotli sidecars together. DRN serves the prepared bytes directly. See README **Static Asset Compression**.
+Publish Vite manifests with their emitted assets. See README **Static Asset Compression** for build-time integrity hashes and Brotli-only entries.
 
 ## Related Skills
 

@@ -6,7 +6,21 @@ import tailwindcss from '@tailwindcss/vite';
 import { iifeWrap, precompressAssets, stripHtmxEval } from './vite.config.plugin.ts';
 
 const sharedConfig: UserConfig = {
-    plugins: [precompressAssets()],
+    // These entries are requested through Razor's manifest-aware tag helpers.
+    plugins: [
+        precompressAssets([
+            'buildwww/app/css/app.css',
+            'buildwww/app/ts/appPreload.ts',
+            'buildwww/app/ts/appPostload.ts',
+            'buildwww/app/ts/layoutBehaviors.ts',
+            'buildwww/app/ts/homeBehaviors.ts',
+            'buildwww/app/ts/testBehaviors.ts',
+            'buildwww/lib/bootstrap/bootstrap.scss',
+            'buildwww/lib/bootstrap/bootstrapBundle.ts',
+            'buildwww/lib/htmx/htmxBundle.ts',
+            'buildwww/lib/react/reactBundle.tsx',
+        ]),
+    ],
     // Resolve generated asset URLs relative to each bundle under any Request.PathBase.
     base: './',
     build: {

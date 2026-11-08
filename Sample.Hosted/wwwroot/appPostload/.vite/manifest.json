@@ -3,6 +3,8 @@
     "file": "appPostload.DwRjPcT_lr4Tju6R.js",
     "name": "appPostload",
     "src": "buildwww/app/ts/appPostload.ts",
-    "isEntry": true
+    "isEntry": true,
+    "hash": "ZcXVaInZOfTNZSz10a0kkTvibuN7GFdHlYxNzvMpRSk=",
+    "brotliOnly": true
   }
 }

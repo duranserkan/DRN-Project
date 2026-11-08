@@ -3,6 +3,8 @@
     "file": "testBehaviors.CxOwE2lr5pkpFOtY.js",
     "name": "testBehaviors",
     "src": "buildwww/app/ts/testBehaviors.ts",
-    "isEntry": true
+    "isEntry": true,
+    "hash": "+axbXVq0K1tGTUS6nN9YiiPSPVl05KTFSnlHtFnX09c=",
+    "brotliOnly": true
   }
 }

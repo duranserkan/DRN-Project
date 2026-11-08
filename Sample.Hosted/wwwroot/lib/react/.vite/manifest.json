@@ -3,6 +3,8 @@
     "file": "reactBundle.xlUynURzSrUzR_DS.js",
     "name": "reactBundle",
     "src": "buildwww/lib/react/reactBundle.tsx",
-    "isEntry": true
+    "isEntry": true,
+    "hash": "wAFbf7Fsfk6o0estRbMX9GcuBITnDsBveAA+HUSGc/U=",
+    "brotliOnly": true
   }
 }

@@ -3,8 +3,6 @@ using System.Text.Json;
 using DRN.Framework.Hosting.Utils.Vite.Models;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Extensions;
-using DRN.Framework.Utils.Data.Encodings;
-using DRN.Framework.Utils.Data.Hashing;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Extensions;
 using Microsoft.AspNetCore.Hosting;
@@ -124,11 +122,7 @@ public class ViteManifest(IWebHostEnvironment environment) : IViteManifest
 
     private static void AddManifestFile(Dictionary<string, ViteManifestItem> cache, string manifestRoot, string manifestFile)
     {
-        var canonicalManifestRoot = Path.GetFullPath(manifestRoot);
-        var canonicalManifestFile = Path.GetFullPath(manifestFile);
-
-        if (!canonicalManifestRoot.IsPathWithinDirectory(canonicalManifestFile))
-            throw new ConfigurationException($"Vite manifest file is outside manifest root: {canonicalManifestFile}");
+        var canonicalManifestFile = manifestRoot.GetPathWithinDirectory(manifestFile);
 
         using var stream = File.OpenRead(canonicalManifestFile);
         var manifest = JsonSerializer.Deserialize<Dictionary<string, ViteManifestItem>>(stream);
@@ -143,21 +137,34 @@ public class ViteManifest(IWebHostEnvironment environment) : IViteManifest
             .Replace(Path.AltDirectorySeparatorChar, '/')
             .Trim('/');
         var outputDir = string.IsNullOrWhiteSpace(relativeDir) || relativeDir == "." ? "/" : $"/{relativeDir}/";
-        var canonicalScriptDir = Path.GetFullPath(scriptDir);
 
+        Span<byte> digest = stackalloc byte[32];
         foreach (var (key, value) in manifest)
         {
-            var fullFilePath = Path.GetFullPath(Path.Combine(scriptDir, value.File));
+            var originalPath = ResolveAssetPath(value.File);
+            var sidecarPath = ResolveAssetPath(value.File + ".br");
+            var deployedFile = value.BrotliOnly ? value.File + ".br" : value.File;
+            var deployedPath = value.BrotliOnly ? sidecarPath : originalPath;
 
-            if (!canonicalScriptDir.IsPathWithinDirectory(fullFilePath))
-                throw new ConfigurationException($"Vite manifest at {manifestFile} references file outside its output directory: {value.File}");
+            if (!File.Exists(deployedPath))
+                throw new ConfigurationException($"Vite manifest at {manifestFile} references missing file: {deployedFile} (resolved path: {deployedPath})");
 
-            if (!File.Exists(fullFilePath))
-                throw new ConfigurationException($"Vite manifest at {manifestFile} references missing file: {value.File} (resolved path: {fullFilePath})");
+            if (value.Hash is not { Length: 44 } || !Convert.TryFromBase64String(value.Hash, digest, out var written) || written != digest.Length)
+                throw new ConfigurationException($"Vite manifest at {manifestFile} requires a base64 SHA-256 hash for {value.File}. Configure the frontend build to hash the uncompressed bytes and regenerate the manifest.");
 
-            var hash = fullFilePath.HashOfFile(HashAlgorithm.Sha256, ByteEncoding.Base64);
+            cache[key] = value.WithOutputDirectory(outputDir, value.BrotliOnly || File.Exists(sidecarPath));
+        }
 
-            cache[key] = value.FromCalculatedProperties(outputDir, hash, File.Exists(fullFilePath + ".br"));
+        string ResolveAssetPath(string file)
+        {
+            try
+            {
+                return scriptDir.GetPathWithinDirectory(file);
+            }
+            catch (ArgumentException e)
+            {
+                throw new ConfigurationException($"Vite manifest at {manifestFile} references file outside its output directory: {file}", e);
+            }
         }
     }
 }

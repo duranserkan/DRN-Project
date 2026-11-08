@@ -21,8 +21,7 @@ public class CompressionCachingTests
         home.StatusCode.Should().Be(HttpStatusCode.OK);
         home.Content.Headers.ContentEncoding.Should().BeEmpty();
 
-        var asset = context.GetRequiredService<IViteManifest>().GetManifestItem("buildwww/app/ts/appPreload.ts")!;
-        using var original = await client.GetAsync(asset.Path);
+        using var original = await client.GetAsync("/lib/onmount/onmount.tS6D5Yzw.js");
         original.StatusCode.Should().Be(HttpStatusCode.OK);
         original.Content.Headers.ContentEncoding.Should().BeEmpty();
     }
@@ -43,8 +42,7 @@ public class CompressionCachingTests
             var item = manifest.GetManifestItem("buildwww/app/ts/appPreload.ts")!;
             var path = Path.Combine(root.FullName, item.Path.TrimStart('/'));
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            var original = await File.ReadAllBytesAsync(Path.Combine(manifest.ManifestRootPath, item.Path.TrimStart('/')));
-            await File.WriteAllBytesAsync(path, original);
+            var original = "A static JavaScript test fixture."u8.ToArray();
             // An explicit mid-stream flush distinguishes this valid sidecar from runtime compression.
             using var buffer = new MemoryStream();
             using (var writer = new BrotliStream(buffer, CompressionLevel.Fastest, leaveOpen: true))

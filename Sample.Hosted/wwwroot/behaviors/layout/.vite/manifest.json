@@ -3,6 +3,8 @@
     "file": "layoutBehaviors.MEOfOYtCsOVosuEx.js",
     "name": "layoutBehaviors",
     "src": "buildwww/app/ts/layoutBehaviors.ts",
-    "isEntry": true
+    "isEntry": true,
+    "hash": "Sy08xhxLQUiJSN5PjgCSA/9IrwsKY/fjT/JTAZt+vjg=",
+    "brotliOnly": true
   }
 }

@@ -1,6 +1,7 @@
 {
   "test-asset.txt": {
     "file": "test-asset.txt",
+    "hash": "1NVXzfSuJNRNtBDa7nGdcQMIPCr0f7f4i5zoLNzdJ/c=",
     "src": "test-asset.txt",
     "isEntry": true
   }

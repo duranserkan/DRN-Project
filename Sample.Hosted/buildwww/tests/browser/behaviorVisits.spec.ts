@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { createHash } from 'node:crypto';
+import { brotliDecompressSync } from 'node:zlib';
 
 // Exercise the shipped classic scripts: ES-module fixtures would execute imports only once.
 // Rebuild affected frontend assets before running this suite after source changes.
@@ -16,11 +16,13 @@ declare global {
 const assets = new Map<string, Buffer>();
 function bundle(directory: string, source: string) {
     const manifest = JSON.parse(readFileSync(new URL(`${directory}/.vite/manifest.json`, webRoot), 'utf8'));
-    const file = manifest[source].file;
-    const body = readFileSync(new URL(`${directory}/${file}`, webRoot));
+    const entry = manifest[source];
+    const file = entry.brotliOnly ? entry.file + '.br' : entry.file;
+    const bytes = readFileSync(new URL(`${directory}/${file}`, webRoot));
+    const body = entry.brotliOnly ? brotliDecompressSync(bytes) : bytes;
     const url = `/behavior-assets/${directory}/${file}`;
     assets.set(url, body);
-    const integrity = `sha256-${createHash('sha256').update(body).digest('base64')}`;
+    const integrity = `sha256-${entry.hash}`;
     return (nonce: string) => `<script nonce="${nonce}" src="${url}" integrity="${integrity}"></script>`;
 }
 
@@ -395,7 +397,7 @@ test('reloading preload preserves app state and services and reports each error 
 });
 
 test('a home island can mount on the next poll after React becomes available', async ({ page }) => {
-    const reactBundle = '**/behavior-assets/lib/react/*.js';
+    const reactBundle = /\/behavior-assets\/lib\/react\/[^/]+\.js(?:\.br)?$/;
     await page.route(reactBundle, (route) => route.abort(), { times: 1 });
     await page.goto('/behavior-pages/home');
     const host = page.locator('[data-js-hello-react-island]');

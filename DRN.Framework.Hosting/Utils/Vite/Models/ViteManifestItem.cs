@@ -8,10 +8,11 @@ public class ViteManifestItem
     private const string HashNotFoundPlaceholder = "HashNotFound";
 
     [JsonConstructor]
-    private ViteManifestItem(string file, string src, string outputDir = "/", string hash = "")
+    private ViteManifestItem(string file, string src, string outputDir = "/", string hash = "", bool brotliOnly = false)
     {
         Path = $"{outputDir}{file}";
         File = file;
+        BrotliOnly = brotliOnly;
         Src = src;
         OutputDir = outputDir;
         Hash = hash;
@@ -21,14 +22,15 @@ public class ViteManifestItem
         ShortHash = parts.Length >= 3 ? parts[^2] : HashNotFoundPlaceholder;
     }
 
-    internal ViteManifestItem FromCalculatedProperties(string outputDir, string hash, bool hasBrotli) =>
-        new(File, Src, outputDir, hash) { HasBrotli = hasBrotli };
+    internal ViteManifestItem WithOutputDirectory(string outputDir, bool hasBrotli) =>
+        new(File, Src, outputDir, Hash, BrotliOnly) { HasBrotli = hasBrotli };
 
     private bool HasBrotli { get; init; }
-    internal string BrowserPath => HasBrotli ? Path + ".br" : Path;
+    public string BrowserPath => HasBrotli ? Path + ".br" : Path;
 
     public string Path { get; }
     public string File { get; }
+    public bool BrotliOnly { get; }
     public string Src { get; }
     public string OutputDir { get; }
     public string Hash { get; }

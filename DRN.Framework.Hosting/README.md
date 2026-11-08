@@ -843,7 +843,11 @@ Vite manifests under `wwwroot/**/.vite/manifest.json` are included automatically
 
 When publishing with a custom web root, build targets do not automatically capture manifests outside `wwwroot/**`; applications must separately include manifests and referenced assets in publish items.
 
-During loading, `ViteManifest` rejects manifests outside the resolved root and assets outside their output directory or missing from disk with `ConfigurationException`. Normal startup loads manifests during pipeline configuration; temporary hosts and `SkipValidation` skip that eager check. Asset hashes populate `Integrity` as base64 SHA-256 (`sha256-...`) for `ViteScriptTagHelper` and `ViteLinkTagHelper`.
+Before upgrading, add a hashing step to your Vite build. Stock Vite omits the `hash` field that DRN tag helpers use for subresource integrity. For every manifest entry, hash the final uncompressed bytes of its `file` with SHA-256 and write the digest as standard Base64 in `hash`. This applies even when deploying only original files. Rebuild and deploy the updated manifests together with their assets. See the [Sample Vite plugin](../Sample.Hosted/vite.config.plugin.ts) and its [build configuration](../Sample.Hosted/vite.config.ts).
+
+If using the Sample plugin, `precompressAssets([])` keeps every original and emits a Brotli sidecar when compression reduces its size. For a Brotli-only deployment, set `brotliOnly` to `true` on each entry whose original you omit and deploy `<file>.br`. Other entries require the original `file`.
+
+During loading, `ViteManifest` rejects manifests outside the resolved root and assets outside their output directory or missing from disk with `ConfigurationException`. Deploy manifests, originals, and sidecars as regular files. Their paths below the web root must be free of symbolic links and reparse points. Normal startup loads manifests during pipeline configuration. Temporary hosts and `SkipValidation` skip that eager check.
 
 Keep manifests and referenced assets under the application's web root, and verify CSS and JavaScript loading after publish.
 
@@ -1066,7 +1070,7 @@ Scoped HTTP diagnostics, startup reports, and developer-page copies use the [cen
 
 ## Static Asset Compression
 
-Deploy Vite manifest assets with their available `.br` files. Script, stylesheet and preload TagHelpers link directly to the Brotli file when present at manifest load, or to the original otherwise. Direct Brotli URLs require a Brotli-capable browser. The URL includes the request path base, and subresource integrity uses the decoded original bytes. ASP.NET Core static files serve the compressed bytes with `Content-Encoding: br` and the original media type.
+Deploy the files declared by each Vite manifest. Use `ViteManifestItem.BrowserPath` for the deployed URL and `Path` for the logical original path. Script, stylesheet and preload TagHelpers link directly to the Brotli file when present at manifest load, or to the original otherwise. Direct Brotli URLs require a Brotli-capable browser. The URL includes the request path base, and subresource integrity uses the build-time hash of the decoded bytes. ASP.NET Core static files serve the compressed bytes with `Content-Encoding: br` and the original media type.
 
 The Sample Vite build uses Brotli quality 11. DRN serves original assets, Razor HTML and API JSON without runtime compression on HTTP and HTTPS. Original and Brotli assets have separate URLs and can be cached independently.
 
