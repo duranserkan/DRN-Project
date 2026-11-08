@@ -24,7 +24,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Bug Fixes
 
-*   **Path containment**. `GetPathWithinDirectory()` accepts missing child files and directories while checking existing ancestors for symbolic links.
+*   **Path containment**: `GetPathWithinDirectory()` accepts missing child files and directories while checking existing ancestors for symbolic links.
 
 *   **Entity Attribute Analyzer**: Incomplete primary-constructor base lists no longer cause analyzer exceptions while editing derived entity attributes.
 
