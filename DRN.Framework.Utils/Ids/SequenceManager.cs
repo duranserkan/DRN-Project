@@ -12,11 +12,12 @@ namespace DRN.Framework.Utils.Ids;
 /// </remarks>
 [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
 [SuppressMessage("SonarQube", "S2326", Justification = "TEntity gives each entity type its own sequence counter and lock.")]
-[SuppressMessage("SonarQube", "S2743", Justification = "Each entity type owns its timestamp scope, sequence and the lock protecting them.")]
 public static class SequenceManager<TEntity> where TEntity : class
 {
     // ReSharper disable once StaticMemberInGenericType
+    [SuppressMessage("SonarQube", "S2743", Justification = "Each entity type owns its timestamp scope, sequence and the lock protecting them.")]
     private static volatile SequenceTimeScope _timeScope = new(-1);
+    [SuppressMessage("SonarQube", "S2743", Justification = "Each entity type owns its timestamp scope, sequence and the lock protecting them.")]
     private static readonly Lock ScopeLock = new();
 
     /// <summary>
