@@ -51,7 +51,10 @@ const defaultPatterns = values['default-pattern'];
 const unitFiles = globSync('buildwww/tests/**/*.test.{js,ts}').filter(
     (file) => !defaultPatterns || defaultPatterns.some((pattern) => matchesGlob(file, pattern)),
 );
-if (!unitFiles.length) throw new Error('No matching frontend unit tests found');
+if (!unitFiles.length) {
+    const filter = defaultPatterns?.length ? ` for ${defaultPatterns.join(', ')}` : '';
+    throw new Error(`No matching frontend unit tests found${filter}`);
+}
 const selectedFiles = new Set<string>();
 for (const selector of testFiles) {
     const pattern = normalize(selector);

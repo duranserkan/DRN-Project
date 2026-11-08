@@ -8,7 +8,13 @@ function row(scope: string, hits: number, count: number) {
 export function coverageReportPath(report: string) {
     const root = realpathSync('.');
     const path = resolve(root, report);
-    const target = join(realpathSync(dirname(path)), basename(path));
+    let directory: string;
+    try {
+        directory = realpathSync(dirname(path));
+    } catch {
+        throw new Error('Expected an accessible coverage report directory inside the package directory');
+    }
+    const target = join(directory, basename(path));
     const fromRoot = relative(root, target);
     if (isAbsolute(fromRoot) || fromRoot.startsWith(`..${sep}`) || !/\.(?:info|lcov)$/i.test(target)) {
         throw new Error('Expected an .info or .lcov report inside the package directory');

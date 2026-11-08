@@ -88,8 +88,10 @@ runs:
         else
           npm test -- --coverage --report "$REPORT"
           # Node emits package-relative source paths. Sonar scans the repository root.
-          report_path="$(realpath -e -- "$REPORT")"
-          [[ "$report_path" == "$(pwd -P)/"* && -f "$report_path" && ! -L "$REPORT" ]]
+          if ! report_path="$(realpath -e -- "$REPORT")" || [[ "$report_path" != "$(pwd -P)/"* || ! -f "$report_path" || -L "$REPORT" ]]; then
+            echo "::error::Expected a regular coverage report inside the package directory. The report must not be a symlink."
+            exit 1
+          fi
           temporary="$(mktemp -- "${report_path}.XXXXXX")"
           trap 'rm -f -- "$temporary"' EXIT
           awk -v prefix="$(git rev-parse --show-prefix)" '/^SF:/ { $0 = "SF:" prefix substr($0, 4) } { print }' "$report_path" > "$temporary"
