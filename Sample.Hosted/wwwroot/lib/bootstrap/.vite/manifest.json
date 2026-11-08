@@ -9,16 +9,21 @@
     "isEntry": true,
     "assets": [
       "bootstrap-icons.DJdhg9lHFABfkZuu.woff2"
-    ]
+    ],
+    "hash": "1q5ew3frgne+sheGXXBLp+frL4AJ3ZZUzBw7q/tyKuE=",
+    "brotliOnly": true
   },
   "buildwww/lib/bootstrap/bootstrapBundle.ts": {
     "file": "bootstrapBundle.vowjQB1R_DoYxZBi.js",
     "name": "bootstrapBundle",
     "src": "buildwww/lib/bootstrap/bootstrapBundle.ts",
-    "isEntry": true
+    "isEntry": true,
+    "hash": "uRJR3DuNCkqixr2HcOx51UhrWcyy1LBpn92MyySj6A0=",
+    "brotliOnly": true
   },
   "node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff2": {
     "file": "bootstrap-icons.DJdhg9lHFABfkZuu.woff2",
-    "src": "node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff2"
+    "src": "node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff2",
+    "hash": "K3aJdG+H4L7q4lM4vAId0lFcL28APz09Bk2HjTgLIVA="
   }
 }

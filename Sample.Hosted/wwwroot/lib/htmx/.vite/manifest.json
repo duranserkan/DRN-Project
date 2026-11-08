@@ -3,6 +3,8 @@
     "file": "htmxBundle.CrTSNQCYDWgVLrdO.js",
     "name": "htmxBundle",
     "src": "buildwww/lib/htmx/htmxBundle.ts",
-    "isEntry": true
+    "isEntry": true,
+    "hash": "EgFM61rlXAQs7Nunn5o6agLjFx0g0x9HXTU61SqhEcg=",
+    "brotliOnly": true
   }
 }

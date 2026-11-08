@@ -20,6 +20,7 @@ Source codes under this file is derived from https://github.com/dotnet/aspnetcor
 <head>
     <meta charset="utf-8"/>
     <title>@Model.ErrorModel.Title</title>
+    <link rel="icon" type="image/svg+xml" href="~/_content/DRN.Framework.Hosting/error-page-icon.svg"/>
     <link rel="stylesheet" href="~/_content/DRN.Framework.Hosting/css/error-page.css"/>
     <link rel="stylesheet" href="~/_content/DRN.Framework.Hosting/jsoneditor/json-editor.css"/>
     <link rel="stylesheet" href="~/_content/DRN.Framework.Hosting/jsoneditor/json-editor-darktheme.css"/>
@@ -77,30 +78,14 @@ Source codes under this file is derived from https://github.com/dotnet/aspnetcor
     }
 }
 <ul id="header">
-    <li id="stack" tabindex="1" class="selected">
-        Stack Frames
-    </li>
-    <li id="log" tabindex="2">
-        Logs
-    </li>
-    <li id="routing" tabindex="3">
-        Routing
-    </li>
-    <li id="cookies" tabindex="4">
-        Cookies
-    </li>
-    <li id="headers" tabindex="5">
-        Headers
-    </li>
-    <li id="querystring" tabindex="6">
-        Query String
-    </li>
-    <li id="requestbody" tabindex="7">
-        Request Body
-    </li>
-    <li id="configuration" tabindex="8">
-        App Configuration
-    </li>
+    <li><button type="button" id="stack" aria-controls="stackpage" aria-pressed="true">Stack Frames</button></li>
+    <li><button type="button" id="log" aria-controls="logpage" aria-pressed="false">Logs</button></li>
+    <li><button type="button" id="routing" aria-controls="routingpage" aria-pressed="false">Routing</button></li>
+    <li><button type="button" id="cookies" aria-controls="cookiespage" aria-pressed="false">Cookies</button></li>
+    <li><button type="button" id="headers" aria-controls="headerspage" aria-pressed="false">Headers</button></li>
+    <li><button type="button" id="querystring" aria-controls="querystringpage" aria-pressed="false">Query String</button></li>
+    <li><button type="button" id="requestbody" aria-controls="requestbodypage" aria-pressed="false">Request Body</button></li>
+    <li><button type="button" id="configuration" aria-controls="configurationpage" aria-pressed="false">App Configuration</button></li>
 </ul>
 
 <div id="stackpage" class="page">
@@ -470,9 +455,12 @@ Source codes under this file is derived from https://github.com/dotnet/aspnetcor
                 }
             }
         }
+        // Read-only server logs do not need Ace's background JSON validation.
+        JSONEditor.ace.config.setDefaultValue('session', 'useWorker', false)
         const editor = new JSONEditor(container, options)
         const initialJson = @Json.Serialize(errorModel.Logs);
         editor.set(initialJson)
+        container.querySelector('button.jsoneditor-repair')?.remove()
     </script>
 }
 

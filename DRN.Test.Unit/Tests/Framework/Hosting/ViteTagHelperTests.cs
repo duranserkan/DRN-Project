@@ -135,7 +135,7 @@ public class ViteTagHelperTests
         JsonSerializer.Deserialize<ViteManifestItem>(JsonSerializer.Serialize(new
         {
             File = file, Src = source, OutputDir = "/app/", Hash = "dGVzdA=="
-        }))!.FromCalculatedProperties("/app/", "dGVzdA==", hasBrotli);
+        }))!.WithOutputDirectory("/app/", hasBrotli);
 
     private static ViewContext CreateViewContext(string pathBase)
     {

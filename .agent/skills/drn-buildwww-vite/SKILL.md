@@ -90,7 +90,7 @@ npm run build:behaviors:test
 
 ### Shared Configuration
 
-Full and targeted builds emit a Brotli quality 11 variant when it is smaller. Deploy the originals, `.br` files and hidden manifests together. Razor emits direct sidecar URLs for Brotli-capable browsers and retains SRI over the original bytes.
+Full and targeted builds record a Base64 SHA-256 hash of decoded bytes for each manifest entry. They emit a Brotli quality 11 variant when smaller. List only verified Razor-managed entries for original removal. Bundled references retain the original. Deploy all emitted assets with the hidden manifests. A `brotliOnly` entry requires its `.br` file.
 
 Align aliases with `tsconfig.json` and buildwww. `@/*` maps to `buildwww/*` only through TypeScript `paths`; Vite does not resolve it. Keep `@/` imports type-only unless Vite has a matching `resolve.alias`. Discover paths rather than assuming root-level js/css folders.
 

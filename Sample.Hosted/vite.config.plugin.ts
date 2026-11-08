@@ -1,25 +1,55 @@
+import { createHash } from 'node:crypto';
+import { basename } from 'node:path';
 import { brotliCompressSync, constants } from 'node:zlib';
-import type { Plugin } from 'vite';
+import type { ManifestChunk, Plugin } from 'vite';
 
-export function precompressAssets(): Plugin {
+export function precompressAssets(razorEntries: readonly string[]): Plugin {
     return {
         name: 'precompress-assets',
         apply: 'build',
         generateBundle: {
             order: 'post',
             handler(_options, bundle) {
-                for (const output of Object.values(bundle)) {
-                    if (!/\.(?:js|css|svg|json|txt|xml|wasm|ttf|otf)$/i.test(output.fileName)) continue;
-                    if (output.fileName.startsWith('.vite/')) continue;
-
-                    const source = output.type === 'chunk' ? output.code : output.source;
-                    const original = typeof source === 'string' ? Buffer.from(source) : source;
-                    const br = brotliCompressSync(original, {
-                        params: { [constants.BROTLI_PARAM_QUALITY]: constants.BROTLI_MAX_QUALITY },
-                    });
-                    if (br.length < original.length)
-                        this.emitFile({ type: 'asset', fileName: output.fileName + '.br', source: br });
+                const manifestAsset = bundle['.vite/manifest.json'];
+                if (manifestAsset?.type !== 'asset') throw new Error('Expected the Vite build manifest');
+                const manifest: Record<string, ManifestChunk & { hash?: string; brotliOnly?: boolean }> = JSON.parse(
+                    Buffer.from(manifestAsset.source).toString('utf8'),
+                );
+                const keepOriginal = new Set<string>();
+                for (const [key, entry] of Object.entries(manifest)) {
+                    if (!entry.isEntry || !razorEntries.includes(key)) keepOriginal.add(entry.file);
+                    for (const dependency of [...(entry.imports ?? []), ...(entry.dynamicImports ?? [])])
+                        keepOriginal.add(manifest[dependency]!.file);
+                    for (const file of [...(entry.assets ?? []), ...(entry.css ?? [])]) keepOriginal.add(file);
                 }
+                // Literal URLs in HTML, CSS or scripts can also bypass the manifest.
+                const outputs = Object.values(bundle).filter((output) => output.fileName !== '.vite/manifest.json');
+                const bodies = outputs.map((output) =>
+                    Buffer.from(output.type === 'chunk' ? output.code : output.source),
+                );
+                for (const [file, entries] of Map.groupBy(Object.values(manifest), (entry) => entry.file)) {
+                    const output = bundle[file];
+                    if (!output) throw new Error(`Missing manifest output: ${file}`);
+                    const original = Buffer.from(output.type === 'chunk' ? output.code : output.source);
+                    const hash = createHash('sha256').update(original).digest('base64');
+                    let brotliOnly = false;
+                    if (/\.(?:js|css|svg|json|txt|xml|wasm|ttf|otf)$/i.test(file)) {
+                        const br = brotliCompressSync(original, {
+                            params: { [constants.BROTLI_PARAM_QUALITY]: constants.BROTLI_MAX_QUALITY },
+                        });
+                        if (br.length < original.length) {
+                            this.emitFile({ type: 'asset', fileName: file + '.br', source: br });
+                            brotliOnly =
+                                !keepOriginal.has(file) && !bodies.some((body) => body.includes(basename(file)));
+                            if (brotliOnly) delete bundle[file];
+                        }
+                    }
+                    for (const entry of entries) {
+                        entry.hash = hash;
+                        if (brotliOnly) entry.brotliOnly = true;
+                    }
+                }
+                manifestAsset.source = JSON.stringify(manifest, null, 2) + '\n';
             },
         },
     };

@@ -38,6 +38,14 @@ public class PathExtensionTests
 
     [Theory]
     [DataInlineUnit]
+    public void GetPathWithinDirectory_WithMissingChild_ShouldReturnResolvedPath(DrnTestContextUnit context)
+    {
+        var root = context.GetTempPath();
+        root.GetPathWithinDirectory("missing", "file.txt").Should().Be(Path.Combine(root, "missing", "file.txt"));
+    }
+
+    [Theory]
+    [DataInlineUnit]
     public void GetPathWithinDirectory_WithDirectorySymlinkTraversal_ShouldThrowArgumentException(DrnTestContextUnit context)
     {
         var tempRoot = context.GetTempPath();

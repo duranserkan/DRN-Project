@@ -102,6 +102,9 @@ public sealed class MfaEnforcingAuthorizationMiddlewareResultHandler(
         }
 
         scopedLog.WithEvent(new ScopeEvent(eventId, outcome, reason));
+        if (!logger.IsEnabled(LogLevel.Information))
+            return;
+
         var traceId = scopedLog.TraceId;
         var correlationId = scopedLog.CorrelationId;
         logger.LogInformation(eventId, "Authorization decision {EventOutcome} ({EventReason}); trace {TraceId}; correlation {CorrelationId}",
