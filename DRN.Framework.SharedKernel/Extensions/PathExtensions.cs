@@ -110,10 +110,7 @@ public static class PathExtensions
     {
         try
         {
-            var attributes = Directory.Exists(path)
-                ? new DirectoryInfo(path).Attributes
-                : new FileInfo(path).Attributes;
-
+            var attributes = File.GetAttributes(path);
             return (attributes & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint;
         }
         catch (DirectoryNotFoundException)
