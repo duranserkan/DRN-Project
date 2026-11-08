@@ -111,7 +111,6 @@ internal static class ApplicationContextHelper
 internal sealed class EmptyViteManifest : IViteManifest
 {
     public string ManifestRootPath => string.Empty;
-    public ViteManifestWarmReport? WarmReport => null;
     public ViteManifestItem? GetManifestItem(string entryName) => null;
     public IReadOnlyCollection<ViteManifestItem> GetAllManifestItems() => [];
 }

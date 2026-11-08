@@ -39,7 +39,7 @@ public class ViteScriptTagHelper(IViteManifest viteManifest) : TagHelper
             return;
         }
 
-        var path = new UrlHelper(ViewContext).Content($"~{manifestItem.Path}");
+        var path = new UrlHelper(ViewContext).Content($"~{manifestItem.BrowserPath}");
         output.Attributes.Insert(0, new TagHelperAttribute(SrcAttributeName, path));
         output.Attributes.Add(IntegrityAttributeName, manifestItem.Integrity);
     }

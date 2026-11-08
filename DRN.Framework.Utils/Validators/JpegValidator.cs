@@ -73,46 +73,25 @@ public static class JpegValidator
             return false;
 
         var index = 2;
-        var hasFrame = false;
         var hasScan = false;
-        byte frameComponentCount = 0;
+        byte? frameComponentCount = null;
 
-        while (index < imageData.Length)
+        while (TryReadMarker(imageData, ref index, out var marker))
         {
-            if (!TryReadMarker(imageData, ref index, out var marker))
-                return false;
-
             if (marker == EndOfImage)
             {
-                if (!hasFrame || !hasScan)
+                if (!hasScan)
                     return false;
 
                 imageLength = index;
                 return true;
             }
 
-            if (IsStandaloneMarker(marker))
-                continue;
-
-            if (!TryReadSegment(imageData, ref index, out var segment))
+            if (!TryReadImageSegment(imageData, ref index, marker, ref frameComponentCount))
                 return false;
 
-            if (IsStartOfFrame(marker))
-            {
-                if (!TryReadFrameComponentCount(segment, out frameComponentCount))
-                    return false;
-
-                hasFrame = true;
-            }
-            else if (marker == StartOfScan)
-            {
-                if (!hasFrame || !HasValidScanHeader(segment, frameComponentCount))
-                    return false;
-
+            if (marker == StartOfScan)
                 hasScan = true;
-                if (!TrySkipScanData(imageData, ref index))
-                    return false;
-            }
         }
 
         return false;
@@ -120,6 +99,29 @@ public static class JpegValidator
 
     private static byte[] NormalizeImageData(byte[] imageData, int imageLength)
         => imageLength == imageData.Length ? imageData : imageData[..imageLength];
+
+    private static bool TryReadImageSegment(ReadOnlySpan<byte> imageData, ref int index, byte marker, ref byte? frameComponentCount)
+    {
+        if (IsStandaloneMarker(marker))
+            return true;
+
+        if (!TryReadSegment(imageData, ref index, out var segment))
+            return false;
+
+        if (IsStartOfFrame(marker))
+        {
+            if (!TryReadFrameComponentCount(segment, out var count))
+                return false;
+
+            frameComponentCount = count;
+            return true;
+        }
+
+        if (marker != StartOfScan)
+            return true;
+
+        return frameComponentCount is { } components && HasValidScanHeader(segment, components) && TrySkipScanData(imageData, ref index);
+    }
 
     private static bool TryReadMarker(ReadOnlySpan<byte> imageData, ref int index, out byte marker)
     {

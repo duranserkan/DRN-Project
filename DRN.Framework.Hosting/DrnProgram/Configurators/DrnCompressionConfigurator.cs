@@ -1,9 +1,8 @@
-using System.IO.Compression;
+using System.Collections.Frozen;
+using DRN.Framework.Hosting.Utils.Vite;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.ResponseCaching;
-using Microsoft.AspNetCore.ResponseCompression;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.StaticFiles;
 
 namespace DRN.Framework.Hosting.DrnProgram.Configurators;
 
@@ -15,38 +14,36 @@ internal static class DrnCompressionConfigurator
         options.UseCaseSensitivePaths = false;
     }
 
-    internal static void ConfigureResponseCompressionOptions(ResponseCompressionOptions options)
-    {
-        // Dynamic HTTPS responses remain excluded for BREACH prevention; static files opt in separately.
-        options.EnableForHttps = false;
-        options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
-        [
-            // Raw/uncompressed fonts only; WOFF and WOFF2 are already compressed.
-            "font/ttf",
-            "application/x-font-ttf",
-            "font/otf",
-            "font/opentype"
-        ]);
-        options.Providers.Add<BrotliCompressionProvider>();
-        options.Providers.Add<GzipCompressionProvider>();
-    }
-
-    internal static void ConfigureCompressionProviders(IServiceCollection services,
-        Func<CompressionLevel> configureBrotliCompressionLevel, Func<CompressionLevel> configureGzipCompressionLevel)
-    {
-        // Evaluate virtual hooks when options are configured, not when providers are registered.
-        services.Configure<BrotliCompressionProviderOptions>(options => options.Level = configureBrotliCompressionLevel());
-        services.Configure<GzipCompressionProviderOptions>(options => options.Level = configureGzipCompressionLevel());
-    }
-
     internal static void ConfigureStaticFileOptions(StaticFileOptions options)
     {
-        options.HttpsCompression = HttpsCompressionMode.Compress;
         options.OnPrepareResponse = context =>
         {
-            // Allows the preceding response cache to store static bytes separately for each encoding.
             context.Context.Response.Headers.CacheControl = "public,max-age=31536000"; // 1 year
-            context.Context.Response.Headers.Vary = "Accept-Encoding";
         };
+    }
+
+    internal static void ConfigureViteSidecars(StaticFileOptions options, IViteManifest manifest)
+    {
+        var types = new ViteContentTypeProvider(options.ContentTypeProvider ?? new FileExtensionContentTypeProvider(), manifest);
+        options.ContentTypeProvider = types;
+        var prepare = options.OnPrepareResponse;
+        options.OnPrepareResponse = context =>
+        {
+            if (context.Context.Request.Path.StartsWithSegments(options.RequestPath, out var path) &&
+                path.Value is { } value && types.IsSidecar(value))
+                context.Context.Response.Headers.ContentEncoding = "br";
+            prepare?.Invoke(context);
+        };
+    }
+
+    private sealed class ViteContentTypeProvider(IContentTypeProvider original, IViteManifest manifest) : IContentTypeProvider
+    {
+        private readonly Lazy<FrozenSet<string>> _assets = new(() =>
+            manifest.GetAllManifestItems().Select(item => item.Path + ".br").ToFrozenSet(StringComparer.Ordinal));
+
+        public bool IsSidecar(string path) => path.EndsWith(".br", StringComparison.Ordinal) && _assets.Value.Contains(path);
+
+        public bool TryGetContentType(string subpath, out string contentType) =>
+            original.TryGetContentType(IsSidecar(subpath) ? subpath[..^3] : subpath, out contentType!);
     }
 }

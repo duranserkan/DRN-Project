@@ -65,9 +65,7 @@ internal sealed class DrnPipelineConfigurator
 
     internal static void ConfigurePreScopeStart(WebApplication application)
     {
-        // Cache compressed bytes and include static files in both caching and compression.
         application.UseResponseCaching();
-        application.UseResponseCompression();
         application.UseStaticFiles();
     }
 

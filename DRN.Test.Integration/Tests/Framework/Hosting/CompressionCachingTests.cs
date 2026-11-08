@@ -1,155 +1,84 @@
+using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
-using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Hosting.Utils.Vite;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.FileProviders;
 using Sample.Hosted;
 
 namespace DRN.Test.Integration.Tests.Framework.Hosting;
 
-/// <summary>
-/// Verifies that ResponseCaching middleware caches compressed static assets server-side.
-/// Cache hits are proven by the Age header (not byte equality — compression is deterministic).
-/// <list type="bullet">
-///   <item><see href="https://learn.microsoft.com/en-us/aspnet/core/performance/caching/middleware">Response Caching Middleware</see></item>
-///   <item><see href="https://learn.microsoft.com/en-us/aspnet/core/performance/response-compression">Response Compression</see></item>
-/// </list>
-/// </summary>
-public class CompressionCachingTests(ITestOutputHelper outputHelper)
+public class CompressionCachingTests
 {
-    public static readonly string[] Encodings = ["br", "gzip", ""];
-    
-    /// <summary>
-    /// For each encoding (br, gzip, identity):
-    ///   1. First request → cache miss (no Age), correct Content-Encoding
-    ///   2. Second request → cache hit (Age present), identical bytes
-    /// Also verifies Cache-Control: public and Vary: Accept-Encoding on compressed responses,
-    /// and that different encodings produce distinct bytes (separate Vary keys).
-    /// </summary>
+    [Theory]
+    [DataInline(false)]
+    [DataInline(true)]
+    public async Task Home_And_Original_Assets_Should_Be_Served_Without_Runtime_Compression(DrnTestContext context, bool https)
+    {
+        using var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(https: https);
+        client.DefaultRequestHeaders.AcceptEncoding.ParseAdd("br, gzip");
+        using var home = await client.GetAsync("/Home");
+        home.StatusCode.Should().Be(HttpStatusCode.OK);
+        home.Content.Headers.ContentEncoding.Should().BeEmpty();
+
+        var asset = context.GetRequiredService<IViteManifest>().GetManifestItem("buildwww/app/ts/appPreload.ts")!;
+        using var original = await client.GetAsync(asset.Path);
+        original.StatusCode.Should().Be(HttpStatusCode.OK);
+        original.Content.Headers.ContentEncoding.Should().BeEmpty();
+    }
+
     [Theory]
     [DataInline]
-    public async Task StaticAsset_CompressedResponses_Should_Be_Cached_Per_Encoding(DrnTestContext context)
+    public async Task First_Get_Should_Serve_Exact_Brotli_File_Only_On_An_Allowed_Host(DrnTestContext context)
     {
-        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
-        var manifest = context.GetRequiredService<IViteManifest>();
-        var manifestItem = manifest.GetAllManifestItems().First();
-        
-        var firstResponses = new Dictionary<string, CacheResult>();
-        var cachedResponses = new Dictionary<string, CacheResult>();
-
-        // --- Phase 1: First request per encoding → cache miss ---
-        foreach (var encoding in Encodings)
+        var root = Directory.CreateTempSubdirectory();
+        try
         {
-            var result = await RequestAndCapture(client, manifestItem.Path, encoding);
-            firstResponses[encoding] = result;
-
-            result.StatusCode.Should().Be(HttpStatusCode.OK);
-            result.Age.Should().BeNull($"first '{Label(encoding)}' request should be a cache miss");
-            result.IsPublic.Should().BeTrue("static assets must have Cache-Control: public");
-            result.ContentLength.Should().BePositive();
-
-            if (encoding.Length > 0)
+            using var files = new PhysicalFileProvider(root.FullName);
+            context.ServiceCollection.PostConfigure<StaticFileOptions>(options => options.FileProvider = files);
+            context.AddToConfiguration("AllowedHosts", "assets.example");
+            using var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>(
+                clientOptions: new() { BaseAddress = new Uri("https://assets.example"), AllowAutoRedirect = false });
+            var manifest = context.GetRequiredService<IViteManifest>();
+            var item = manifest.GetManifestItem("buildwww/app/ts/appPreload.ts")!;
+            var path = Path.Combine(root.FullName, item.Path.TrimStart('/'));
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            var original = await File.ReadAllBytesAsync(Path.Combine(manifest.ManifestRootPath, item.Path.TrimStart('/')));
+            await File.WriteAllBytesAsync(path, original);
+            // An explicit mid-stream flush distinguishes this valid sidecar from runtime compression.
+            using var buffer = new MemoryStream();
+            using (var writer = new BrotliStream(buffer, CompressionLevel.Fastest, leaveOpen: true))
             {
-                result.ContentEncoding.Should().Contain(encoding);
-                result.Vary.Should().Contain("Accept-Encoding",
-                    "Vary header must include Accept-Encoding for correct cache keying");
+                var split = original.Length / 2;
+                writer.Write(original.AsSpan(0, split));
+                writer.Flush();
+                writer.Write(original.AsSpan(split));
             }
-            else
-            {
-                result.ContentEncoding.Should().BeEmpty();
-                result.Vary.Should().Contain("Accept-Encoding",
-                    "Vary must be present even for identity responses to ensure correct cache keying");
-            }
+            var expected = buffer.ToArray();
+            await File.WriteAllBytesAsync(path + ".br", expected);
+
+            var sidecarUrl = item.Path + ".br";
+            using var allowed = await client.GetAsync(sidecarUrl);
+            allowed.StatusCode.Should().Be(HttpStatusCode.OK);
+            allowed.Headers.Age.Should().BeNull();
+            allowed.Content.Headers.ContentEncoding.Should().ContainSingle().Which.Should().Be("br");
+            allowed.Content.Headers.ContentType!.MediaType.Should().BeOneOf("application/javascript", "text/javascript");
+            (await allowed.Content.ReadAsByteArrayAsync()).Should().Equal(expected);
+
+            using var cached = await client.GetAsync(sidecarUrl);
+            cached.Headers.Age.Should().NotBeNull();
+            cached.Content.Headers.ContentEncoding.Should().Equal("br");
+            (await cached.Content.ReadAsByteArrayAsync()).Should().Equal(expected);
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, sidecarUrl);
+            request.Headers.Host = "unlisted.example";
+            request.Headers.AcceptEncoding.Add(new StringWithQualityHeaderValue("br"));
+            using var denied = await client.SendAsync(request);
+            denied.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         }
-
-        // --- Phase 2: Second request per encoding → cache hit ---
-        foreach (var encoding in Encodings)
+        finally
         {
-            var result = await RequestAndCapture(client, manifestItem.Path, encoding);
-            cachedResponses[encoding] = result;
-
-            result.StatusCode.Should().Be(HttpStatusCode.OK);
-            result.Age.Should().NotBeNull($"second '{Label(encoding)}' request should be a cache hit");
-            result.ContentEncoding.Should().BeEquivalentTo(firstResponses[encoding].ContentEncoding,
-                $"cached '{Label(encoding)}' response must preserve Content-Encoding");
-            result.Bytes.Should().BeEquivalentTo(firstResponses[encoding].Bytes);
-        }
-
-        firstResponses.Count.Should().Be(cachedResponses.Count);
-        // --- Phase 3: Distinct bytes per encoding (separate Vary cache keys) ---
-        firstResponses["br"].Bytes.Should().NotBeEquivalentTo(firstResponses["gzip"].Bytes,
-            "brotli and gzip must produce different bytes (separate Vary cache keys)");
-        firstResponses["br"].Bytes.Should().NotBeEquivalentTo(firstResponses[""].Bytes,
-            "brotli bytes must differ from uncompressed identity bytes");
-        firstResponses["gzip"].Bytes.Should().NotBeEquivalentTo(firstResponses[""].Bytes,
-            "gzip bytes must differ from uncompressed identity bytes");
-    }
-
-    /// <summary>
-    /// Verifies cache poisoning risk: if an identity request (no Accept-Encoding) caches first
-    /// without Vary header, a subsequent brotli request may receive uncompressed content
-    /// because ResponseCachingMiddleware treats it as the same cache key.
-    /// </summary>
-    [Theory]
-    [DataInline]
-    public async Task IdentityRequestFirst_Should_Not_Poison_Cache_For_Compressed_Requests(DrnTestContext context)
-    {
-        var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
-        var manifest = context.GetRequiredService<IViteManifest>();
-        var manifestItem = manifest.GetAllManifestItems().First();
-        
-        // Identity request first — even with Vary header, verify no cross-encoding cache poisoning
-        var identity = await RequestAndCapture(client, manifestItem.Path, "");
-        identity.StatusCode.Should().Be(HttpStatusCode.OK);
-        identity.ContentEncoding.Should().BeEmpty();
-
-        // Brotli request — does it get the identity cached response or a fresh compressed one?
-        var brotli = await RequestAndCapture(client, manifestItem.Path, "br");
-        brotli.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        if (brotli.Age.HasValue)
-        {
-            // Cache hit — identity response was served to brotli request (cache poisoning)
-            outputHelper.WriteLine("CACHE POISONING DETECTED: brotli request received cached identity response");
-            brotli.ContentEncoding.Should().BeEmpty("poisoned cache serves uncompressed content");
-            brotli.Bytes.Should().BeEquivalentTo(identity.Bytes, "poisoned response returns identity bytes");
-            Assert.Fail("Cache poisoning detected: brotli request received cached identity response");
-        }
-        else
-        {
-            // Cache miss — ResponseCachingMiddleware correctly differentiated the requests
-            outputHelper.WriteLine("NO POISONING: brotli request was a cache miss (correctly keyed)");
-            brotli.ContentEncoding.Should().Contain("br");
-            brotli.Bytes.Should().NotBeEquivalentTo(identity.Bytes);
+            root.Delete(true);
         }
     }
-
-    private static async Task<CacheResult> RequestAndCapture(HttpClient client, string path, string encoding)
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, path);
-        if (encoding.Length > 0)
-            request.Headers.AcceptEncoding.Add(new StringWithQualityHeaderValue(encoding));
-
-        var response = await client.SendAsync(request);
-        var bytes = await response.Content.ReadAsByteArrayAsync();
-
-        return new CacheResult(
-            StatusCode: response.StatusCode,
-            Age: response.Headers.Age,
-            ContentEncoding: response.Content.Headers.ContentEncoding,
-            Vary: response.Headers.Vary,
-            IsPublic: response.Headers.CacheControl?.Public ?? false,
-            ContentLength: bytes.Length,
-            Bytes: bytes);
-    }
-
-    private static string Label(string encoding) => encoding.Length > 0 ? encoding : "identity";
 }
-
-public record CacheResult(
-    [property: Sensitive(false, Justification = "HTTP response status, not a secret code.")] HttpStatusCode StatusCode,
-    TimeSpan? Age,
-    ICollection<string> ContentEncoding,
-    ICollection<string> Vary,
-    bool IsPublic,
-    long ContentLength,
-    byte[] Bytes);

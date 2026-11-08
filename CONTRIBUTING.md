@@ -84,7 +84,13 @@ CI restores in locked mode and rejects missing or stale lock files. Frontend dep
 
 ```bash
 cd Sample.Hosted
-npm install --package-lock-only --ignore-scripts
+npm install --package-lock-only --ignore-scripts --engine-strict --registry=https://registry.npmjs.org/
+```
+
+When adding or upgrading a package with npm, keep the same install safeguards and save the exact version. Replace `package-name@1.2.3` with the package and version you verified.
+
+```bash
+npm install --save-exact --ignore-scripts --engine-strict --registry=https://registry.npmjs.org/ package-name@1.2.3
 ```
 
 ### Testing

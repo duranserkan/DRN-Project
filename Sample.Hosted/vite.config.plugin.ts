@@ -1,5 +1,29 @@
-// Custom Vite/Rolldown plugins for CSP compliance and scope isolation.
+import { brotliCompressSync, constants } from 'node:zlib';
 import type { Plugin } from 'vite';
+
+export function precompressAssets(): Plugin {
+    return {
+        name: 'precompress-assets',
+        apply: 'build',
+        generateBundle: {
+            order: 'post',
+            handler(_options, bundle) {
+                for (const output of Object.values(bundle)) {
+                    if (!/\.(?:js|css|svg|json|txt|xml|wasm|ttf|otf)$/i.test(output.fileName)) continue;
+                    if (output.fileName.startsWith('.vite/')) continue;
+
+                    const source = output.type === 'chunk' ? output.code : output.source;
+                    const original = typeof source === 'string' ? Buffer.from(source) : source;
+                    const br = brotliCompressSync(original, {
+                        params: { [constants.BROTLI_PARAM_QUALITY]: constants.BROTLI_MAX_QUALITY },
+                    });
+                    if (br.length < original.length)
+                        this.emitFile({ type: 'asset', fileName: output.fileName + '.br', source: br });
+                }
+            },
+        },
+    };
+}
 
 // Rolldown plugin: wraps every JS chunk in an IIFE for scope isolation.
 // This avoids minified-name collisions between independently bundled libraries

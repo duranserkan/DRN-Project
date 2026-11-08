@@ -17,7 +17,7 @@ inputs:
     required: false
     default: "false"
   coverage-report:
-    description: "Optional LCOV output path relative to the frontend package."
+    description: "Optional .info or .lcov report path inside the frontend package."
     required: false
 runs:
   using: "composite"
@@ -38,6 +38,17 @@ runs:
       with:
         working-directory: ${{ inputs.repository-directory }}
 
+    # Keep the policy active for nested npm commands and later browser steps.
+    - name: Configure npm for this job
+      shell: bash
+      run: |
+        {
+          echo 'NPM_CONFIG_IGNORE_SCRIPTS=true'
+          echo 'NPM_CONFIG_ENGINE_STRICT=true'
+          echo 'NPM_CONFIG_SAVE_EXACT=true'
+          echo 'NPM_CONFIG_REGISTRY=https://registry.npmjs.org/'
+        } >> "$GITHUB_ENV"
+
     - name: Setup Node
       uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
       with:
@@ -50,7 +61,7 @@ runs:
       # Keep dependency restore deterministic and prevent dependency lifecycle
       # hooks from executing in CI. The explicit build step below runs the
       # project-owned scripts after audit.
-      run: npm ci --ignore-scripts --registry=https://registry.npmjs.org/
+      run: npm ci --ignore-scripts --engine-strict --registry=https://registry.npmjs.org/
     - name: Verify npm registry signatures and available provenance
       shell: bash
       working-directory: ${{ inputs.working-directory }}
@@ -77,8 +88,14 @@ runs:
         else
           npm test -- --coverage --report "$REPORT"
           # Node emits package-relative source paths. Sonar scans the repository root.
-          awk -v prefix="$(git rev-parse --show-prefix)" '/^SF:/ { $0 = "SF:" prefix substr($0, 4) } { print }' "$REPORT" > "$REPORT.tmp"
-          mv "$REPORT.tmp" "$REPORT"
+          if ! report_path="$(realpath -e -- "$REPORT")" || [[ "$report_path" != "$(pwd -P)/"* || ! -f "$report_path" || -L "$REPORT" ]]; then
+            echo "::error::Expected a regular coverage report inside the package directory. The report must not be a symlink."
+            exit 1
+          fi
+          temporary="$(mktemp -- "${report_path}.XXXXXX")"
+          trap 'rm -f -- "$temporary"' EXIT
+          awk -v prefix="$(git rev-parse --show-prefix)" '/^SF:/ { $0 = "SF:" prefix substr($0, 4) } { print }' "$report_path" > "$temporary"
+          mv -T -- "$temporary" "$report_path"
         fi
     - name: Summarize frontend line coverage
       if: ${{ inputs.build-assets != 'false' && inputs.coverage-report != '' }}

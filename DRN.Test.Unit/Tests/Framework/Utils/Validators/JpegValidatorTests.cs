@@ -147,6 +147,19 @@ public class JpegValidatorTests
     }
 
     [Fact]
+    public void Validate_Should_Reject_Scan_Before_Start_Of_Frame()
+    {
+        byte[] jpeg = [
+            0xFF, 0xD8,                                     // SOI
+            0xFF, 0xDA, 0x00, 0x08, 1, 1, 0, 0, 63, 0,    // One-component scan header
+            0x42,                                           // Entropy data
+            0xFF, 0xD9                                      // EOI
+        ];
+
+        JpegValidator.Validate(jpeg).ErrorReason.Should().Be(JpegValidationErrorReason.InvalidJpeg);
+    }
+
+    [Fact]
     public void IsValid_Should_Reject_MarkerOnly_Jpeg_Payload()
     {
         var markerOnlyJpeg = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0xFF, 0xD9 };

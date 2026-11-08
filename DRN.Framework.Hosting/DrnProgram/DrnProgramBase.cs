@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.IO.Compression;
 using System.Reflection;
 using System.Threading.RateLimiting;
 using DRN.Framework.Hosting.Auth.Policies;
@@ -8,6 +7,7 @@ using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Hosting.RateLimiting;
+using DRN.Framework.Hosting.Utils.Vite;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection;
@@ -25,7 +25,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCaching;
-using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -73,7 +72,7 @@ public interface IDrnProgram
 //todo: add cookie manager
 //todo: add csp manager
 //todo: review page for and endpoint for
-//todo: unify reports - startup, middleware, StaticAssetWarm, endpoint list etc
+//todo: unify startup, middleware and endpoint reports
 //todo: add support for minimal apis (MapMinimalEndpoints, HttpJsonOptions, DrnEndpointSource discovery)
 /// <summary>
 /// Derive from this class to compose an application's services, security policies, and request pipeline
@@ -139,13 +138,12 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         var scopedLog = new ScopedLog(appSettings).WithLoggerName(typeof(TProgram).FullName);
         await using var bootstrapLoggerProvider = new NLogLoggerProvider(NLogOptions, CreateLogFactory(appSettings));
         var logger = bootstrapLoggerProvider.CreateLogger(typeof(TProgram).FullName!);
-        WebApplication? application = null;
-        var disposeApplication = false;
+        WebApplication? applicationToDispose = null;
 
         try
         {
             scopedLog.AddToActions("Creating Application");
-            application = await CreateApplicationAsync(args, appSettings, scopedLog);
+            var application = await CreateApplicationAsync(args, appSettings, scopedLog);
             logger = application.Services.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(TProgram).FullName!);
             scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.SkipValidation)}", appSettings.DevelopmentSettings.SkipValidation);
             scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.TemporaryApplication)}", appSettings.DevelopmentSettings.TemporaryApplication);
@@ -154,7 +152,9 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.AutoMigrateStaging)}", appSettings.DevelopmentSettings.AutoMigrateStaging);
             scopedLog.Add($"DrnDevelopmentSettings_{nameof(DrnDevelopmentSettings.LaunchExternalDependencies)}", appSettings.DevelopmentSettings.LaunchExternalDependencies);
             scopedLog.AddToActions("Running Application");
-            disposeApplication = !appSettings.DevelopmentSettings.TemporaryApplication;
+            if (!appSettings.DevelopmentSettings.TemporaryApplication)
+                applicationToDispose = application;
+
             logger.LogScoped(scopedLog, Microsoft.Extensions.Logging.LogLevel.Warning);
 
             if (appSettings.DevelopmentSettings.TemporaryApplication)
@@ -185,8 +185,8 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
             }
             finally
             {
-                if (disposeApplication && application != null)
-                    await application.DisposeAsync();
+                if (applicationToDispose != null)
+                    await applicationToDispose.DisposeAsync();
             }
         }
     }
@@ -288,8 +288,6 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         });
 
         services.AddResponseCaching(ConfigureResponseCachingOptions);
-        services.AddResponseCompression(ConfigureResponseCompressionOptions);
-        ConfigureCompressionProviders(services);
         var mvcBuilder = services.AddMvc(ConfigureMvcOptions);
         ConfigureMvcBuilder(mvcBuilder, appSettings);
 
@@ -308,6 +306,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         services.Configure<CookiePolicyOptions>(options => ConfigureCookiePolicy(options, appSettings));
         services.Configure<CookieTempDataProviderOptions>(options => ConfigureCookieTempDataProvider(options, appSettings));
         services.Configure(ConfigureStaticFileOptions(appSettings));
+        services.AddOptions<StaticFileOptions>().PostConfigure<IViteManifest>(DrnCompressionConfigurator.ConfigureViteSidecars);
         services.Configure(ConfigureForwardedHeadersOptions(appSettings));
         ConfigureIdentityRenewal(services, appSettings);
         if (appSettings.Localization.Enabled)
@@ -479,12 +478,11 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// </summary>
     /// <remarks>
     /// Return a delegate that invokes the base delegate before applying targeted changes. It runs during options resolution.
-    /// Base enables HTTPS compression and one-year public caching; only expose files suitable for anonymous public access
+    /// Base enables one-year public caching. Only expose files suitable for anonymous public access
     /// because this middleware runs before authentication and authorization. Replacing OnPrepareResponse replaces its cache headers.
     /// <para>References:</para>
     /// <list type="bullet">
     /// <item><description><a href="https://learn.microsoft.com/en-us/aspnet/core/fundamentals/static-files">Static files in ASP.NET Core</a></description></item>
-    /// <item><description><a href="https://learn.microsoft.com/en-us/aspnet/core/performance/response-compression#compression-with-https">Compression with HTTPS</a></description></item>
     /// </list>
     /// </remarks>
     protected virtual Action<StaticFileOptions> ConfigureStaticFileOptions(IAppSettings appSettings) =>
@@ -551,7 +549,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// Override to serve public responses that can bypass the DRN request scope, such as additional static assets.
     /// </summary>
     /// <remarks>
-    /// Base registers response caching, compression, and static files. Middleware added after base will not see requests
+    /// Base registers response caching and static files. Middleware added after base will not see requests
     /// already served by static files. Responses completed here bypass scoped logging, rate limiting, authentication, and authorization.
     /// </remarks>
     protected virtual void ConfigureApplicationPreScopeStart(WebApplication application, IAppSettings appSettings) =>
@@ -742,51 +740,6 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// </remarks>
     protected virtual void ConfigureResponseCachingOptions(ResponseCachingOptions options) =>
         DrnCompressionConfigurator.ConfigureResponseCachingOptions(options);
-
-    /// <summary>
-    /// Override to customize compressible MIME types or compression providers for the application's response formats.
-    /// </summary>
-    /// <remarks>
-    /// Call base to retain Brotli/Gzip registration and the exclusion of dynamic HTTPS responses for BREACH mitigation.
-    /// Public static files opt into HTTPS compression separately through <see cref="ConfigureStaticFileOptions"/>.
-    /// Prefer the compression-level hooks for CPU versus transfer-size tuning.
-    /// <para>References:</para>
-    /// <list type="bullet">
-    /// <item><description><a href="https://learn.microsoft.com/en-us/aspnet/core/performance/response-compression">Response compression in ASP.NET Core</a></description></item>
-    /// <item><description><a href="https://learn.microsoft.com/en-us/aspnet/core/performance/response-compression#compression-with-https">Compression with HTTPS (BREACH/CRIME)</a></description></item>
-    /// <item><description><a href="https://learn.microsoft.com/en-us/aspnet/core/performance/caching/middleware">Response Caching Middleware</a></description></item>
-    /// <item><description><a href="https://en.wikipedia.org/wiki/BREACH">BREACH attack</a></description></item>
-    /// </list>
-    /// </remarks>
-    protected virtual void ConfigureResponseCompressionOptions(ResponseCompressionOptions options) =>
-        DrnCompressionConfigurator.ConfigureResponseCompressionOptions(options);
-
-    /// <summary>
-    /// Override when compression providers need additional service or options registration.
-    /// Override <see cref="ConfigureBrotliCompressionLevel"/> or <see cref="ConfigureGzipCompressionLevel"/>
-    /// to customize compression levels for specific workloads.
-    /// </summary>
-    /// <remarks>Call base to retain deferred Brotli and Gzip level callbacks; they run when their options are resolved.</remarks>
-    protected virtual void ConfigureCompressionProviders(IServiceCollection services) =>
-        DrnCompressionConfigurator.ConfigureCompressionProviders(services, ConfigureBrotliCompressionLevel, ConfigureGzipCompressionLevel);
-
-    /// <summary>
-    /// Override to trade Brotli compression CPU and response latency against transfer size for the application's workload.
-    /// </summary>
-    /// <remarks>
-    /// Defaults to <see cref="CompressionLevel.SmallestSize"/> and is evaluated when provider options are resolved.
-    /// Cache hits can avoid compression work, but cache misses and eviction still incur it; choose a level using workload measurements.
-    /// </remarks>
-    protected virtual CompressionLevel ConfigureBrotliCompressionLevel() => CompressionLevel.SmallestSize;
-
-    /// <summary>
-    /// Override to tune compression cost for clients negotiating Gzip independently of the Brotli setting.
-    /// </summary>
-    /// <remarks>
-    /// Defaults to <see cref="CompressionLevel.SmallestSize"/> and is evaluated when provider options are resolved.
-    /// Consider latency and CPU on uncached responses as well as transfer size.
-    /// </remarks>
-    protected virtual CompressionLevel ConfigureGzipCompressionLevel() => CompressionLevel.SmallestSize;
 
     /// <summary>
     /// Override to add global MVC filters, model-binding rules, formatters, or validation conventions.

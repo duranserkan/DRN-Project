@@ -184,13 +184,15 @@ jobs:
           CODEQL_RESULT: ${{ needs.codeql.result }}
           DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
         run: |
-          if [ "$PLAYWRIGHT_RESULT" != "success" ] || [ "$FRONTEND_RESULT" != "success" ] || [ "$BACKEND_RESULT" != "success" ] || [ "$CODEQL_RESULT" != "success" ] || [ "$DEPENDENCY_REVIEW_RESULT" != "success" ]; then
-            echo "One or more required checks failed."
-            echo "playwright: $PLAYWRIGHT_RESULT"
-            echo "frontend: $FRONTEND_RESULT"
-            echo "backend: $BACKEND_RESULT"
-            echo "codeql: $CODEQL_RESULT"
-            echo "dependency-review: $DEPENDENCY_REVIEW_RESULT"
-            exit 1
-          fi
+          for result in "$PLAYWRIGHT_RESULT" "$FRONTEND_RESULT" "$BACKEND_RESULT" "$CODEQL_RESULT" "$DEPENDENCY_REVIEW_RESULT"; do
+            if [ "$result" != "success" ]; then
+              echo "One or more required checks failed."
+              echo "playwright: $PLAYWRIGHT_RESULT"
+              echo "frontend: $FRONTEND_RESULT"
+              echo "backend: $BACKEND_RESULT"
+              echo "codeql: $CODEQL_RESULT"
+              echo "dependency-review: $DEPENDENCY_REVIEW_RESULT"
+              exit 1
+            fi
+          done
           echo "Required jobs passed successfully."

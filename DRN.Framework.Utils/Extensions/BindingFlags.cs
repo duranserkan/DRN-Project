@@ -1,7 +1,9 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
 namespace DRN.Framework.Utils.Extensions;
 
+[SuppressMessage("SonarQube", "S3011", Justification = "These constants describe lookup scopes. Member selection and access occur at their call sites.")]
 public static class BindingFlag
 {
     public const BindingFlags Static = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;

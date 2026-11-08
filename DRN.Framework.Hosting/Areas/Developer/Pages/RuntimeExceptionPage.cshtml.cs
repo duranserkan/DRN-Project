@@ -20,6 +20,7 @@ public class RuntimeExceptionPage : PageModel
 
     public void OnGet()
     {
+        // ExceptionPageContentProvider supplies ErrorModel before rendering this page.
     }
 
     public string HtmlEncodeAndReplaceLineBreaks(string input)

@@ -1,12 +1,15 @@
 import { spawn } from 'node:child_process';
 import { globSync } from 'node:fs';
+import { matchesGlob, normalize } from 'node:path';
 import { parseArgs } from 'node:util';
+import { coverageReportPath } from '../../../.github/actions/frontend-validation/coverage.mts';
 import { printCoverageReport } from './reporters/summary.ts';
 
 const { values, positionals: testFiles } = parseArgs({
     allowPositionals: true,
     options: {
         browser: { type: 'boolean' },
+        'default-pattern': { type: 'string', multiple: true },
         coverage: { type: 'boolean' },
         include: { type: 'string', multiple: true },
         exclude: { type: 'string', multiple: true },
@@ -32,7 +35,7 @@ const args = [
     '--test-reporter=./buildwww/tests/reporters/node.ts',
     '--test-reporter-destination=stdout',
 ];
-const report = values.report ?? 'coverage-frontend.info';
+const report = values.coverage ? coverageReportPath(values.report ?? 'coverage-frontend.info') : undefined;
 if (values.coverage) {
     args.push('--enable-source-maps', '--experimental-test-coverage', '--test-coverage-include-all');
     for (const glob of values.include ?? ['buildwww/{app,lib}/**/*.{ts,tsx,js}'])
@@ -43,8 +46,25 @@ if (values.coverage) {
     throw new Error('Coverage options require --coverage.');
 }
 
+// Only discovered unit tests can become Node operands. CLI selectors never become Node options.
+const defaultPatterns = values['default-pattern'];
+const unitFiles = globSync('buildwww/tests/**/*.test.{js,ts}').filter(
+    (file) => !defaultPatterns || defaultPatterns.some((pattern) => matchesGlob(file, pattern)),
+);
+if (!unitFiles.length) {
+    const filter = defaultPatterns?.length ? ` for ${defaultPatterns.join(', ')}` : '';
+    throw new Error(`No matching frontend unit tests found${filter}`);
+}
+const selectedFiles = new Set<string>();
+for (const selector of testFiles) {
+    const pattern = normalize(selector);
+    const matches = unitFiles.filter((file) => matchesGlob(file, pattern));
+    if (!matches.length) throw new Error(`No matching frontend unit tests found for ${selector}`);
+    for (const file of matches) selectedFiles.add(file);
+}
+const files = testFiles.length ? selectedFiles : unitFiles;
 const [unitStatus, browserStatus] = await Promise.all([
-    runNode([...args, ...testFiles]),
+    runNode([...args, '--', ...files]),
     values.browser ? runNode(['--run', 'test:browser']) : 0,
 ]);
 process.exitCode = unitStatus || browserStatus;

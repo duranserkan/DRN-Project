@@ -138,24 +138,25 @@ internal static class TypeNameHelper
         builder.Append(type.Name, 0, genericPartIndex);
 
         if (options.IncludeGenericParameters)
-        {
-            builder.Append('<');
-            for (var i = offset; i < length; i++)
-            {
-                ProcessType(builder, genericArguments[i], options);
-                if (i + 1 == length)
-                {
-                    continue;
-                }
+            AppendGenericArguments(builder, genericArguments.AsSpan(offset, length - offset), options);
+    }
 
+    private static void AppendGenericArguments(StringBuilder builder, ReadOnlySpan<Type> arguments, in DisplayNameOptions options)
+    {
+        builder.Append('<');
+        for (var i = 0; i < arguments.Length; i++)
+        {
+            var argument = arguments[i];
+            if (i > 0)
+            {
                 builder.Append(',');
-                if (options.IncludeGenericParameterNames || !genericArguments[i + 1].IsGenericParameter)
-                {
+                if (options.IncludeGenericParameterNames || !argument.IsGenericParameter)
                     builder.Append(' ');
-                }
             }
-            builder.Append('>');
+
+            ProcessType(builder, argument, options);
         }
+        builder.Append('>');
     }
 
     private readonly struct DisplayNameOptions

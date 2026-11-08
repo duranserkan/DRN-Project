@@ -93,7 +93,7 @@ public class ErrorPageTests
             .GetManifestItem("buildwww/lib/bootstrap/bootstrap.scss");
         bootstrap.Should().NotBeNull();
         bootstrap.Path.Should().NotBeNullOrEmpty();
-        var stylesheetPath = pathBase + bootstrap.Path;
+        var stylesheetPath = pathBase + bootstrap.BrowserPath;
 
         foreach (var (path, status, message) in new[]
                  {

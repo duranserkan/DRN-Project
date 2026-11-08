@@ -15,15 +15,15 @@ namespace DRN.Test.Unit.Tests.Framework.Hosting;
 public class ViteTagHelperTests
 {
     [Theory]
-    [DataInlineUnit("", "/app/app.abc123.css")]
-    [DataInlineUnit("/", "/app/app.abc123.css")]
-    [DataInlineUnit("/api", "/api/app/app.abc123.css")]
-    [DataInlineUnit("/api/", "/api/app/app.abc123.css")]
-    [DataInlineUnit("/gateway/api", "/gateway/api/app/app.abc123.css")]
-    public void Links_Should_Respect_PathBase_And_Preserve_Integrity(string pathBase, string expected)
+    [DataInlineUnit("", false, "/app/app.abc123.css")]
+    [DataInlineUnit("/", false, "/app/app.abc123.css")]
+    [DataInlineUnit("/api", true, "/api/app/app.abc123.css.br")]
+    [DataInlineUnit("/api/", false, "/api/app/app.abc123.css")]
+    [DataInlineUnit("/gateway/api", true, "/gateway/api/app/app.abc123.css.br")]
+    public void Links_Should_Respect_PathBase_And_Preserve_Integrity(string pathBase, bool hasBrotli, string expected)
     {
         const string source = "buildwww/app/css/app.css";
-        var item = CreateItem("app.abc123.css", source);
+        var item = CreateItem("app.abc123.css", source, hasBrotli);
         var manifest = Substitute.For<IViteManifest>();
         manifest.GetManifestItem(source).Returns(item);
         var viewContext = CreateViewContext(pathBase);
@@ -46,13 +46,13 @@ public class ViteTagHelperTests
     }
 
     [Theory]
-    [DataInlineUnit("", "/app/app.abc123.js")]
-    [DataInlineUnit("/api", "/api/app/app.abc123.js")]
-    [DataInlineUnit("/api/", "/api/app/app.abc123.js")]
-    public void Scripts_Should_Resolve_Per_Request_Without_Changing_Shared_Manifest(string pathBase, string expected)
+    [DataInlineUnit("", false, "/app/app.abc123.js")]
+    [DataInlineUnit("/api", true, "/api/app/app.abc123.js.br")]
+    [DataInlineUnit("/api/", false, "/api/app/app.abc123.js")]
+    public void Scripts_Should_Resolve_Per_Request_Without_Changing_Shared_Manifest(string pathBase, bool hasBrotli, string expected)
     {
         const string source = "buildwww/app/js/app.js";
-        var item = CreateItem("app.abc123.js", source);
+        var item = CreateItem("app.abc123.js", source, hasBrotli);
         var manifest = Substitute.For<IViteManifest>();
         manifest.GetManifestItem(source).Returns(item);
         var viewContext = CreateViewContext(pathBase);
@@ -77,7 +77,7 @@ public class ViteTagHelperTests
         viewContext.HttpContext.Request.PathBase = "/other";
         var otherOutput = CreateOutput("script");
         helper.Process(CreateContext(), otherOutput);
-        otherOutput.Attributes["src"].Value.Should().Be("/other/app/app.abc123.js");
+        otherOutput.Attributes["src"].Value.Should().Be("/other" + item.BrowserPath);
         item.Path.Should().Be("/app/app.abc123.js");
     }
 
@@ -131,11 +131,11 @@ public class ViteTagHelperTests
         manifest.ReceivedCalls().Should().BeEmpty();
     }
 
-    private static ViteManifestItem CreateItem(string file, string source) =>
+    private static ViteManifestItem CreateItem(string file, string source, bool hasBrotli) =>
         JsonSerializer.Deserialize<ViteManifestItem>(JsonSerializer.Serialize(new
         {
             File = file, Src = source, OutputDir = "/app/", Hash = "dGVzdA=="
-        }))!;
+        }))!.FromCalculatedProperties("/app/", "dGVzdA==", hasBrotli);
 
     private static ViewContext CreateViewContext(string pathBase)
     {

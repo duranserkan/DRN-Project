@@ -17,6 +17,7 @@ public class DebuggerOnlyAttributeTests
     [FactDebuggerOnly]
     public void DebuggerOnlyFact()
     {
+        Assert.True(Debugger.IsAttached);
     }
 
     [TheoryDebuggerOnly]
@@ -24,5 +25,6 @@ public class DebuggerOnlyAttributeTests
     [SuppressMessage("Usage", "xUnit1006", Justification = "Parameterless theory intentionally verifies debugger-only execution without data dependencies.")]
     public void DebuggerOnlyTheory()
     {
+        Assert.True(Debugger.IsAttached);
     }
 }

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Settings;
@@ -12,6 +13,7 @@ public class ConfigurationDebugView
     {
     }
 
+    [SuppressMessage("SonarQube", "S4158", Justification = "RecurseChildren fills the same list exposed by Entries before it is grouped.")]
     public ConfigurationDebugView(IAppSettings appSettings, bool includeRawValues)
     {
         Environment = appSettings.Environment;

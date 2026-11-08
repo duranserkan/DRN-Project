@@ -4,7 +4,7 @@ import { printCoverageReport, testSummary, type Failure } from './summary.ts';
 export default class PlaywrightSummary implements Reporter {
     private readonly listMode: boolean;
     private suite?: Suite;
-    private failures: Failure[] = [];
+    private readonly failures: Failure[] = [];
 
     constructor(options: { _mode?: string } = {}) {
         this.listMode = options._mode === 'list';

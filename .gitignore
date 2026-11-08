@@ -14,7 +14,8 @@
 !.coderabbit.yaml
 !.sample-env
 # Shared frontend tooling in top-level project folders.
-!/[!.]*/.npmrc
+!/Sample.Hosted/.npmrc
+!/DRN.Nexus.Hosted/.npmrc
 !/[!.]*/.oxfmtrc.json
 !/[!.]*/.oxlintrc.json
 !/[!.]*/.stylelintrc.json
@@ -391,6 +392,12 @@ FodyWeavers.xsd
 *.key.json
 *.ssh
 *.ssh-key
+# Allow required id_* paths only by exact repository-relative path.
+id_*
+*.[pP]12
+
+# Allow required public PEM certificates only by exact repository-relative path.
+*.[pP][eE][mM]
 
 # CMake generated files
 cmake*.*

@@ -128,7 +128,7 @@ Activate in the applicable `_ViewImports.cshtml`:
 @addTagHelper *, DRN.Framework.Hosting
 ```
 
-Helpers resolve Vite assets/SRI, add CSP nonces and CSRF tokens to `hx-post/put/delete/patch`, and mark active links. README **Razor TagHelpers** owns targets, opt-outs, and script defaults; buildwww skills own asset layout.
+See README **Razor TagHelpers** for Vite/SRI, CSP nonces, HTMX CSRF, active links, opt-outs, and script defaults. Buildwww skills own asset layout.
 
 `authorized-only`/`anonymous-only` are presence-only markers using `ScopeContext.Authenticated`; even `"false"` enables filtering. Omit the marker or use Razor conditions to disable it. They do not check completed MFA. `policy-only="PolicyName"` checks the current user with optional `policy-resource`; invalid policy names fail. Visibility never inspects linked endpoints or replaces endpoint authorization.
 
@@ -137,7 +137,7 @@ Helpers resolve Vite assets/SRI, add CSP nonces and CSRF tokens to `hx-post/put/
 <button type="button" policy-only="EditDocument" policy-resource="@Model.Document">Edit</button>
 ```
 
-Vite publish must retain `.vite/manifest.json`. See README **Vite Manifest Publish Support** and `drn-buildwww-vite`.
+Publish Vite manifests, originals and Brotli sidecars together. DRN serves the prepared bytes directly. See README **Static Asset Compression**.
 
 ## Related Skills
 

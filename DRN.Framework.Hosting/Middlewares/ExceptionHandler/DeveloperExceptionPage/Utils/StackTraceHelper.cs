@@ -64,14 +64,12 @@ static class StackTraceHelper
         var methodName = method.Name;
 
         string? subMethod = null;
+        // Resolve generated MoveNext frames back to the original method.
         if (type != null && type.IsDefined(typeof(CompilerGeneratedAttribute)) &&
-            (typeof(IAsyncStateMachine).IsAssignableFrom(type) || typeof(IEnumerator).IsAssignableFrom(type)))
+            (typeof(IAsyncStateMachine).IsAssignableFrom(type) || typeof(IEnumerator).IsAssignableFrom(type)) &&
+            TryResolveStateMachineMethod(ref method, out type))
         {
-            // Convert StateMachine methods to correct overload +MoveNext()
-            if (TryResolveStateMachineMethod(ref method, out type))
-            {
-                subMethod = methodName;
-            }
+            subMethod = methodName;
         }
 
         string? declaringTypeName = null;
@@ -167,6 +165,7 @@ static class StackTraceHelper
     }
 
     [UnconditionalSuppressMessage("Trimmer", "IL2075", Justification = "Unable to require a method has all information on it to resolve state machine.")]
+    [SuppressMessage("SonarQube", "S3011", Justification = "Stack traces include private async and iterator methods. Only their metadata is inspected.")]
     private static bool TryResolveStateMachineMethod(ref MethodBase method, out Type? declaringType)
     {
         Debug.Assert(method != null);

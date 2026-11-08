@@ -11,12 +11,13 @@ namespace DRN.Framework.Utils.Ids;
 /// Atomic sequences are scoped to cached timestamps relative to the frozen process epoch.
 /// </remarks>
 [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
+[SuppressMessage("SonarQube", "S2326", Justification = "TEntity gives each entity type its own sequence counter and lock.")]
 public static class SequenceManager<TEntity> where TEntity : class
 {
     // ReSharper disable once StaticMemberInGenericType
-    [SuppressMessage("SonarQube", "S2743", Justification = "Each entity type intentionally owns an independent timestamp scope and sequence.")]
+    [SuppressMessage("SonarQube", "S2743", Justification = "Each entity type owns its timestamp scope, sequence and the lock protecting them.")]
     private static volatile SequenceTimeScope _timeScope = new(-1);
-    [SuppressMessage("SonarQube", "S2743", Justification = "The lock must share the per-entity scope of the timestamp and sequence it protects.")]
+    [SuppressMessage("SonarQube", "S2743", Justification = "Each entity type owns its timestamp scope, sequence and the lock protecting them.")]
     private static readonly Lock ScopeLock = new();
 
     /// <summary>

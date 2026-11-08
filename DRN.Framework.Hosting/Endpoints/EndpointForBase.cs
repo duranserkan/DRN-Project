@@ -18,6 +18,7 @@ public interface IApiEndpointForBase
 }
 
 [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
+[SuppressMessage("SonarQube", "S2743", Justification = "Controller metadata is cached separately for each TController.")]
 public abstract class ControllerForBase<TController>
     : IApiEndpointForBase where TController : ControllerBase
 {

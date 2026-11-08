@@ -43,3 +43,7 @@ README.md
 !Directory.build.props
 !**/AnalyzerReleases.Shipped.md
 !**/AnalyzerReleases.Unshipped.md
+
+**/*.[pP][eE][mM]
+**/id_*
+**/*.[pP]12

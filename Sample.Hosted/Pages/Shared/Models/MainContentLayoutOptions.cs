@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Sample.Hosted.Pages.Shared.Models;
 
 public class LayoutOptionsFor
@@ -87,7 +89,9 @@ public static class BootstrapCssClassExtensions
     const string ColLg = "col-lg", ColXl = "col-xl", ColXxl = "col-xxl";
 
     const string One = "1", Two = "2", Three = "3", Four = "4", Five = "5", Six = "6", Seven = "7";
-    const string Eight = "8", Nine = "9", Ten = "10", Eleven = "11", Twelve = "12", Auto = "auto", None = "";
+    const string Eight = "8", Nine = "9", Ten = "10", Eleven = "11", Twelve = "12", Auto = "auto";
+    [SuppressMessage("SonarQube", "S1144", Justification = "The empty suffix documents BootstrapColumnSize.None alongside the numbered and auto size suffixes.")]
+    const string None = "";
 
     public static string CssTextAlignment(this MainContentLayoutOptions options) => options.TextAlignment switch
     {

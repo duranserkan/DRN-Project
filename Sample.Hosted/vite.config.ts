@@ -3,9 +3,10 @@ import type { UserConfig } from 'vite';
 import { resolve } from 'node:path'; // Import resolve for path management
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import { iifeWrap, stripHtmxEval } from './vite.config.plugin.ts';
+import { iifeWrap, precompressAssets, stripHtmxEval } from './vite.config.plugin.ts';
 
 const sharedConfig: UserConfig = {
+    plugins: [precompressAssets()],
     // Resolve generated asset URLs relative to each bundle under any Request.PathBase.
     base: './',
     build: {

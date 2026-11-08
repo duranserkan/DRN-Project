@@ -1,4 +1,6 @@
+using DRN.Framework.Hosting.DrnProgram.Configurators;
 using DRN.Framework.Hosting.Utils.Vite;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting;
@@ -27,6 +29,7 @@ public class ViteManifestTests
         var outputDir = Path.Combine(helper.Root, "app");
         Directory.CreateDirectory(outputDir);
         File.WriteAllText(Path.Combine(outputDir, "worker.js"), "worker");
+        File.WriteAllText(Path.Combine(outputDir, "worker.js.br"), "sidecar");
         File.WriteAllText(Path.Combine(outputDir, "url.js"), "url");
         helper.WriteManifest(outputDir, """
                                         {
@@ -48,11 +51,13 @@ public class ViteManifestTests
 
         worker.Should().NotBeNull();
         worker!.Path.Should().Be("/app/worker.js");
+        worker.BrowserPath.Should().Be("/app/worker.js.br");
         worker.Hash.Should().NotBeEmpty();
         worker.Integrity.Should().StartWith("sha256-");
 
         url.Should().NotBeNull();
         url!.Path.Should().Be("/app/url.js");
+        url.BrowserPath.Should().Be(url.Path);
         manifest.GetManifestItem("buildwww/app/js/app.js").Should().BeNull();
     }
 
@@ -136,6 +141,24 @@ public class ViteManifestTests
 
         act.Should().ThrowExactly<ConfigurationException>()
             .WithMessage("*Vite manifest at*manifest.json*outside its output directory: ../outside.js*");
+    }
+
+    [Theory]
+    [DataInlineUnit]
+    public void StaticFiles_Should_Map_Only_Listed_Brotli_Sidecars_To_The_Original_Mime_Type(DrnTestContextUnit context)
+    {
+        using var helper = new ViteManifestTestHelper(context);
+        var output = Directory.CreateDirectory(Path.Combine(helper.Root, "assets"));
+        foreach (var file in new[] { "app.css", "app.css.br", "unlisted.css", "unlisted.css.br" })
+            File.WriteAllText(Path.Combine(output.FullName, file), "fixture");
+        helper.WriteManifest(output.FullName, """{"style":{"file":"app.css","src":"style"}}""");
+        var options = new StaticFileOptions();
+        DrnCompressionConfigurator.ConfigureViteSidecars(options, helper.CreateManifest());
+
+        var types = options.ContentTypeProvider!;
+        types.TryGetContentType("/assets/app.css.br", out var type).Should().BeTrue();
+        type.Should().Be("text/css");
+        types.TryGetContentType("/assets/unlisted.css.br", out _).Should().BeFalse();
     }
 
     private sealed class ViteManifestTestHelper : IDisposable

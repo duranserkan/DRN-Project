@@ -62,12 +62,8 @@ runs:
           validate_npmrc "$npmrc"
         done < <(find . -path '*/node_modules' -prune -o -path '*/bin' -prune -o -path '*/obj' -prune -o -path '*/.git' -prune -o -name .npmrc -print0)
 
-        # Each npm project must opt into the approved policy and provide a
-        # deterministic lockfile before its dependencies are inspected.
         while IFS= read -r -d '' manifest; do
-          npmrc="$(dirname "$manifest")/.npmrc"
           lockfile="$(dirname "$manifest")/package-lock.json"
-          [[ -f "$npmrc" ]] || fail "$manifest has no sibling .npmrc"
           [[ -f "$lockfile" ]] || fail "$manifest has no sibling package-lock.json"
           validate_npm_manifest "$manifest"
           validate_npm_lock "$lockfile"

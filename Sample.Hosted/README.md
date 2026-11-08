@@ -214,13 +214,13 @@ Server handlers can use `SendToast` for immediate `HX-Trigger: showToast` feedba
 
 The Sample frontend targets recent browsers with native ES2025 support.
 
-To rebuild frontend assets, use npm and the exact Node.js version pinned in [`.node-version`](../.node-version). CI uses the same version. During dependency installation, `engine-strict=true` enforces the matching requirement in [package.json](package.json). Built assets are checked in, so this tooling is optional when simply running the sample.
+To rebuild frontend assets, use npm and the exact Node.js version pinned in [`.node-version`](../.node-version). The install command below and CI both disable install scripts, enforce the engine requirements in [package.json](package.json), and use the public npm registry. Use these flags on a fresh clone. Built assets are checked in, so this tooling is optional when simply running the sample.
 
 After changing frontend sources in `Sample.Hosted/buildwww/`, rebuild the assets from `Sample.Hosted/`:
 
 ```bash
-npm ci --ignore-scripts
-npm audit signatures
+npm ci --ignore-scripts --engine-strict --registry=https://registry.npmjs.org/
+npm audit signatures --registry=https://registry.npmjs.org/
 npm run build
 ```
 
@@ -239,6 +239,8 @@ Swapped markup cannot disable `safe-nonce` through `hx-ext` or `data-hx-ext`.
 Fragment links such as `#section` preserve unsaved input. Back or Forward to a boosted history entry reloads the page and can discard a draft.
 
 ### Independently updating component behaviors
+
+Full and targeted Vite builds emit a Brotli quality 11 `.br` file when it is smaller than the original bundle. Deploy both files with the manifest. Razor links Brotli-capable browsers directly to the available `.br` file under the current proxy prefix.
 
 Application TypeScript lives in `buildwww/app/ts/`. HTMX and Bootstrap adapters stay under `buildwww/lib/`. Vite emits browser JavaScript under `wwwroot/`.
 
@@ -294,7 +296,7 @@ CI builds the Sample web root once and uploads it with its Vite manifests. A sep
 
 Node and Playwright print one terminal line with the suite, number passed out of the total, and duration. Failed, skipped, flaky, and unrun counts appear when nonzero. GitHub Actions shows the full counts in a table with expandable failure details. Successful unit coverage runs also show covered lines, total lines, and coverage percentage for all frontend sources and each file extension, including `.tsx`. The `frontend-validation` action publishes one coverage table per package from its LCOV report. Master and release workflows submit frontend LCOV and backend coverage in one Sonar scan. A missing report, a report without line data, or a failed quality gate blocks those workflows. Sonar configuration owns the thresholds.
 
-To include an existing LCOV report in a local or CI Playwright summary, set `PLAYWRIGHT_LCOV_REPORT` to its path when running the browser tests. Relative paths resolve from the package working directory. Supplying a missing or empty report fails the run. To exercise both reporter adapters locally, run `node buildwww/tests/run-tests.ts buildwww/tests/coverageSummary.test.ts buildwww/tests/reporters/summary.test.ts` from `Sample.Hosted`.
+Both `--report` and `PLAYWRIGHT_LCOV_REPORT` accept an `.info` or `.lcov` file inside the package working directory. Use a regular file with an existing parent directory. To include an existing report in a Playwright summary, set `PLAYWRIGHT_LCOV_REPORT` to its path. A missing or empty report fails the run. To exercise both reporter adapters locally, run `node buildwww/tests/run-tests.ts buildwww/tests/coverageSummary.test.ts buildwww/tests/reporters/summary.test.ts` from `Sample.Hosted`.
 
 For multiple frontend packages, run the `frontend-validation` action once per package in the same job before the Sonar scan. Set each step's `working-directory` to the package directory and `coverage-report` to `coverage-frontend.info`. Each package writes its own file. Pass the report paths relative to the analysis directory in one `frontend-lcov` input, for example `Sample.Hosted/coverage-frontend.info,Admin.Hosted/coverage-frontend.info`. If the workflow sets `sonar-typescript-tsconfig-paths`, include each package's TSConfig there too. Sonar imports all the reports in the same scan, as it does for the .NET unit, analyzer, and integration reports.
 

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.AspNetCore.Authorization;
@@ -18,6 +19,7 @@ public class MfaEnforcingAuthorizationPolicyProvider(IOptions<AuthorizationOptio
     public Task<AuthorizationPolicy> GetDefaultPolicyAsync() => Task.FromResult(_options.DefaultPolicy);
     public Task<AuthorizationPolicy?> GetFallbackPolicyAsync() => _policyProvider.GetFallbackPolicyAsync();
 
+    [SuppressMessage("SonarQube", "S3267", Justification = "Checking membership in the loop avoids a filter delegate that captures the policy builder.")]
     public async Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
     {
         var policy = await _policyProvider.GetPolicyAsync(policyName);

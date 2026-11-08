@@ -34,7 +34,7 @@
 - [Developer Diagnostics](#developer-diagnostics)
 - [API Failure Responses](#api-failure-responses)
 - [Modern HTTP Standards](#modern-http-standards)
-- [Static Asset Pre-Warming](#static-asset-pre-warming)
+- [Static Asset Compression](#static-asset-compression)
 - [Local Development](#local-development-infrastructure)
 - [Hosting Utilities](#hosting-utilities)
 - [Global Usings](#global-usings)
@@ -174,14 +174,11 @@ These hooks register services or customize configuration. Options callbacks run 
 | **Cookies** | `ConfigureCookiePolicy` | Set GDPR consent logic and security attributes for all cookies. |
 | **Cookies** | `ConfigureCookieTempDataProvider` | Configure TempData cookie settings (HttpOnly, IsEssential). |
 | **Identity** | `ConfigureIdentityRenewal(IServiceCollection, IAppSettings)`; `ConfigureSecurityStampValidatorOptions(SecurityStampValidatorOptions, IAppSettings, AuthenticationClaimConfig)` | Register/customize Identity cookie renewal while retaining shared claim configuration. |
-| **Infras.** | `ConfigureStaticFileOptions` | Customize static-file serving, one-year public caching, and HTTPS compression. |
+| **Infras.** | `ConfigureStaticFileOptions` | Customize static-file serving and public cache headers. |
 | **Infras.** | `ConfigureForwardedHeadersOptions` | Configure proxy/load-balancer header forwarding. |
 | **Infras.** | `ConfigureRequestLocalizationOptions` | Configure culture providers and supported cultures. |
 | **Infras.** | `ConfigureHostFilteringOptions` | Configure allowed hosts for host header validation. |
 | **Infras.** | `ConfigureResponseCachingOptions` | Set cache limits; defaults to a 16 MiB maximum body size and case-insensitive paths. |
-| **Infras.** | `ConfigureResponseCompressionOptions` | Configure MIME types and HTTPS eligibility. See [compression defaults](#static-asset-pre-warming). |
-| **Infras.** | `ConfigureCompressionProviders` | Configure Brotli and Gzip provider options. |
-| **Infras.** | `ConfigureBrotliCompressionLevel`, `ConfigureGzipCompressionLevel` | Set provider levels; both default to `SmallestSize`. |
 | **Global** | `AddServicesAsync` | Required application service registration hook. |
 
 ### Razor Development
@@ -200,7 +197,7 @@ With `DrnDefaults`, `ConfigureApplication` installs the following sequence. Rows
 | Order | Hook or middleware | Default behavior |
 | :--- | :--- | :--- |
 | 1 | `ConfigureApplicationPipelineStart` | Forwarded headers, host filtering, cookie policy, security headers, and HSTS outside Development. |
-| 2 | `ConfigureApplicationPreScopeStart` | Response caching, response compression, then static files. Caching can store compressed variants. |
+| 2 | `ConfigureApplicationPreScopeStart` | Response caching followed by static-file serving, including prebuilt Brotli assets. |
 | 3 | `HttpScopeMiddleware` | Request scope, logging, buffering, exception handling, and response controls. |
 | 4 | `ConfigureApplicationPostScopeStart` | Empty hook for middleware needing the request scope before routing. |
 | 5 | `UseRouting` | Select the endpoint and its metadata. |
@@ -1067,20 +1064,11 @@ Scoped HTTP diagnostics, startup reports, and developer-page copies use the [cen
 -   **303 See Other**: Middleware converts `302 Found` to `303 See Other`. For example, a redirect after form submission uses GET for the destination. Use `307` or `308` when the destination must preserve the request method.
 -   **Secure Caching Default**: Dynamic responses that do not set their own `Cache-Control` receive `no-store, no-cache, must-revalidate`. Explicit response caching directives take precedence, while static assets opt into public caching.
 
-## Static Asset Pre-Warming
+## Static Asset Compression
 
-`StaticAssetWarmService` is a best-effort hosted service that requests Vite assets after the host starts so response caching can store Brotli and Gzip variants.
+Deploy Vite manifest assets with their available `.br` files. Script, stylesheet and preload TagHelpers link directly to the Brotli file when present at manifest load, or to the original otherwise. Direct Brotli URLs require a Brotli-capable browser. The URL includes the request path base, and subresource integrity uses the decoded original bytes. ASP.NET Core static files serve the compressed bytes with `Content-Encoding: br` and the original media type.
 
-Warm-up uses local server addresses only; non-loopback bindings are skipped.
-
-**Compression defaults**: Static assets allow HTTPS compression and caching of eligible variants. Dynamic HTTP responses can also be compressed. Dynamic HTTPS compression is disabled (`EnableForHttps = false`) to mitigate BREACH. MIME types extend ASP.NET Core defaults with raw TTF/OTF fonts; WOFF and WOFF2 are already compressed.
-
-| Provider | Default Level | Override Hook |
-|----------|--------------|---------------|
-| Brotli | `SmallestSize` | `ConfigureBrotliCompressionLevel()` |
-| Gzip | `SmallestSize` | `ConfigureGzipCompressionLevel()` |
-
-> After a successful warm-up, subsequent requests can use cached compressed variants. Warm-up runs after startup and is best effort, so early requests may perform compression themselves.
+The Sample Vite build uses Brotli quality 11. DRN serves original assets, Razor HTML and API JSON without runtime compression on HTTP and HTTPS. Original and Brotli assets have separate URLs and can be cached independently.
 
 ## Local Development Infrastructure
 
