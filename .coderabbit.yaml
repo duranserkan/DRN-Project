@@ -22,6 +22,12 @@ reviews:
   path_instructions:
     - path: "**/*"
       instructions: |
+        Prefer compile-time checks and build-time computation when all required inputs are known before deployment. When recommending a change, identify the runtime work it removes or the error it catches earlier. Weigh that benefit against build time, artifact size, and maintenance. Keep runtime validation for untrusted input and values that can change after the build.
+        - Use Roslyn analyzers for rules visible in C# source. For example, SourceKnownEntityTypeAnalyzer reports duplicate entity type values during compilation.
+        - Precompute reusable artifacts from final build outputs. For example, Vite compresses each eligible bundle once and emits a Brotli .br file only when it is smaller. Full and targeted builds regenerate the sidecar from the same bytes they ship.
+
+        When a change removes a suppression's justification or changes the code it covers, check whether the exception still applies. Request removal of obsolete suppressions and any matching restore directives. If the suppression is still needed, require a specific reason and limit it to the affected rule and code.
+
         Apply the CLI and redirect lessons in AGENTS.LessonsLearned.md when a change handles caller-controlled arguments or navigation destinations.
         - For a path restricted to a directory, check whether traversal, an absolute path, or a symlink can escape it on read or write.
         - For a filename forwarded to another program, check how that program parses a leading dash. Quoting and shell-free argument arrays still permit option parsing.
