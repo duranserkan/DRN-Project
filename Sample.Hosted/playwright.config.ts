@@ -4,10 +4,10 @@ export default defineConfig({
     testDir: './buildwww/tests/browser',
     testMatch: ['**/*.spec.js', '**/*.spec.ts'],
     forbidOnly: !!process.env.CI,
-    workers: 1,
+    fullyParallel: true,
     retries: 0,
     timeout: 30_000,
-    reporter: 'list',
+    reporter: [['list'], ['./buildwww/tests/reporters/playwright.ts']],
     use: {
         browserName: 'chromium',
         baseURL: 'http://127.0.0.1:4175',

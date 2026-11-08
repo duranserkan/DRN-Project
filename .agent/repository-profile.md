@@ -90,7 +90,7 @@ dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 
 ## Frontend Test Scope
 
-Under `Sample.Hosted/buildwww/tests/`, Node discovers `.test.js` and `.test.ts` recursively. CI summarizes frontend and React TSX line coverage. Master and release scans require LCOV and enforce the Sonar quality gate. Playwright uses `browser/` for Vite fixtures and `hosted/` for a running Sample instance. `Sample.Hosted/README.md`, Frontend Tests, owns scope, setup, and commands. Execution requires explicit permission.
+In `Sample.Hosted/buildwww/tests/`, Node discovers `.test.js` and `.test.ts` recursively. CI reports frontend and TSX coverage. Master and release require LCOV and the Sonar gate. Playwright runs `browser/` fixtures against the built assets in a separate required job. `hosted/` needs a running Sample. See `Sample.Hosted/README.md`, Frontend Tests. Execution requires explicit permission.
 
 ## DRN Framework Source Overlay
 

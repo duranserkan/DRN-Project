@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using System.Diagnostics;
 using System.Reflection;
 using System.Text;
 using DRN.Framework.SharedKernel.Attributes;
@@ -33,6 +32,7 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
     internal const string QueryLimitMarker = "_diagnostic=" + Limited;
     private const string FieldInputLimitStatus = "FieldInputLimit";
     private readonly Lock _gate = new();
+    private readonly TimeProvider _timeProvider;
     private readonly DiagnosticUrlSanitizer _urls;
     private readonly DiagnosticCaptureReader _reader;
     private readonly HashSet<string> _status = new(StringComparer.Ordinal);
@@ -49,10 +49,13 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
     // Accessed only inside Guard. Snapshot-only sanitizers do not need a projector.
     private DiagnosticValueProjector Projector => field ??= new DiagnosticValueProjector(this);
 
-    public DiagnosticSanitizer(DiagnosticLogOptions options) : this(options, true) { }
+    public DiagnosticSanitizer(DiagnosticLogOptions options) : this(options, TimeProvider.System) { }
 
-    private DiagnosticSanitizer(DiagnosticLogOptions options, bool redact)
+    internal DiagnosticSanitizer(DiagnosticLogOptions options, TimeProvider timeProvider) : this(options, timeProvider, true) { }
+
+    private DiagnosticSanitizer(DiagnosticLogOptions options, TimeProvider timeProvider, bool redact)
     {
+        _timeProvider = timeProvider;
         RedactionEnabled = redact;
         Validator.ValidateObject(options, new ValidationContext(options), true);
         options.ValidateRuleSources();
@@ -73,7 +76,7 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
         new(settings.Get<DiagnosticLogOptions>("DiagnosticLogging") ?? new DiagnosticLogOptions());
 
     internal static DiagnosticSanitizer ForDevelopmentDisplay(IAppSettings settings, DiagnosticLogOptions options) =>
-        new(options, redact: !settings.IsDevelopmentEnvironment);
+        new(options, TimeProvider.System, redact: !settings.IsDevelopmentEnvironment);
 
     // TODO: Evaluate diagnostic redaction support for ASP.NET Core Identity's [PersonalData] and [ProtectedPersonalData], including inherited attributes and getter suppression.
     internal static bool IsClassified(MemberInfo member) => DiagnosticTypeMetadata.IsClassified(member);
@@ -95,7 +98,7 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
     {
         lock (_gate)
         {
-            if (_operations++ == 0) _started = Stopwatch.GetTimestamp();
+            if (_operations++ == 0) _started = _timeProvider.GetTimestamp();
             try { return action(this, state); }
             catch (Exception)
             {
@@ -104,14 +107,14 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
             }
             finally
             {
-                if (--_operations == 0) _spentMilliseconds += Stopwatch.GetElapsedTime(_started).TotalMilliseconds;
+                if (--_operations == 0) _spentMilliseconds += _timeProvider.GetElapsedTime(_started).TotalMilliseconds;
             }
         }
     }
 
     internal bool WorkAvailable()
     {
-        if (_spentMilliseconds + Stopwatch.GetElapsedTime(_started).TotalMilliseconds <= Options.MaxProcessingMilliseconds &&
+        if (_spentMilliseconds + _timeProvider.GetElapsedTime(_started).TotalMilliseconds <= Options.MaxProcessingMilliseconds &&
             _nodes < Options.MaxNodes && _inputBytes <= Options.MaxInputBytes) return true;
         _status.Add("ScopeWorkLimit");
         return false;

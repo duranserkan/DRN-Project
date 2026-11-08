@@ -1,7 +1,7 @@
-import { spawnSync } from 'node:child_process';
-import { globSync, readFileSync } from 'node:fs';
-import { sep } from 'node:path';
+import { spawn } from 'node:child_process';
+import { globSync } from 'node:fs';
 import { parseArgs } from 'node:util';
+import { printCoverageReport } from './reporters/summary.ts';
 
 const { values, positionals: testFiles } = parseArgs({
     allowPositionals: true,
@@ -14,36 +14,41 @@ const { values, positionals: testFiles } = parseArgs({
     },
 });
 
-function runNode(args: string[]) {
-    const result = spawnSync(process.execPath, args, { stdio: 'inherit' });
-    if (result.error) throw result.error;
-    if (result.status !== 0) process.exit(result.status ?? 1);
+function runNode(args: string[]): Promise<number> {
+    const child = spawn(process.execPath, args, { stdio: 'inherit' });
+    return new Promise((resolve) => {
+        child.once('error', (error) => {
+            console.error(error);
+            resolve(1);
+        });
+        child.once('close', (code) => resolve(code ?? 1));
+    });
 }
 
-const args = ['--test'];
+const args = [
+    '--test',
+    '--test-reporter=spec',
+    '--test-reporter-destination=stdout',
+    '--test-reporter=./buildwww/tests/reporters/node.ts',
+    '--test-reporter-destination=stdout',
+];
 const report = values.report ?? 'coverage-frontend.info';
 if (values.coverage) {
     args.push('--enable-source-maps', '--experimental-test-coverage', '--test-coverage-include-all');
     for (const glob of values.include ?? ['buildwww/{app,lib}/**/*.{ts,tsx,js}'])
         args.push(`--test-coverage-include=${glob}`);
     for (const glob of values.exclude ?? ['**/*.d.ts']) args.push(`--test-coverage-exclude=${glob}`);
-    args.push('--test-reporter=spec', '--test-reporter-destination=stdout', '--test-reporter=lcov');
-    args.push(`--test-reporter-destination=${report}`);
+    args.push('--test-reporter=lcov', `--test-reporter-destination=${report}`);
 } else if (values.include || values.exclude || values.report) {
     throw new Error('Coverage options require --coverage.');
 }
 
-runNode([...args, ...testFiles]);
-if (values.coverage && !values.include && !values.exclude) {
-    // Node discovers unloaded JS and TS files. Every TSX module must be exercised by the suite.
-    const reported = new Set<string>();
-    let source = '';
-    for (const line of readFileSync(report, 'utf8').split(/\r?\n/)) {
-        if (line.startsWith('SF:')) source = line.slice(3).split(sep).join('/');
-        if (/^DA:[1-9]\d*,\d+$/.test(line)) reported.add(source);
-    }
-    for (const file of globSync('buildwww/{app,lib}/**/*.tsx')) {
-        if (!reported.has(file.split(sep).join('/'))) throw new Error(`Missing React line coverage for ${file}`);
-    }
+const [unitStatus, browserStatus] = await Promise.all([
+    runNode([...args, ...testFiles]),
+    values.browser ? runNode(['--run', 'test:browser']) : 0,
+]);
+process.exitCode = unitStatus || browserStatus;
+if (unitStatus === 0 && values.coverage) {
+    const requiredSources = values.include || values.exclude ? [] : globSync('buildwww/{app,lib}/**/*.tsx');
+    if (!printCoverageReport(report, requiredSources)) process.exitCode = 1;
 }
-if (values.browser) runNode(['--run', 'test:browser']);

@@ -20,6 +20,19 @@ env:
   TESTINGPLATFORM_TELEMETRY_OPTOUT: "1"
 
 jobs:
+  frontend-assets:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/frontend-browser-bundle.yml
+
+  playwright:
+    needs: frontend-assets
+    permissions:
+      contents: read
+    uses: ./.github/workflows/frontend-browser-tests.yml
+    with:
+      artifact-id: ${{ needs.frontend-assets.outputs.artifact-id }}
+
   frontend:
     permissions:
       contents: read
@@ -39,13 +52,13 @@ jobs:
           path: src
           persist-credentials: false
 
-      - name: Build and test Sample.Hosted frontend
-        uses: ./.github/actions/frontend-build
+      - name: Collect frontend unit coverage
+        uses: ./.github/actions/frontend-validation
         with:
           repository-directory: src
           working-directory: src/Sample.Hosted
+          unit-tests-only: "true"
           coverage-report: coverage-frontend.info
-          browser-tests: "true"
 
   backend:
     permissions:
@@ -157,6 +170,7 @@ jobs:
     # Keep this aggregate gate in sync with every required validation job.
     # Add new jobs to both `needs` and the result check below.
     needs:
+      - playwright
       - frontend
       - backend
       - codeql
@@ -164,13 +178,15 @@ jobs:
     steps:
       - name: Verify required jobs completed successfully
         env:
+          PLAYWRIGHT_RESULT: ${{ needs.playwright.result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           BACKEND_RESULT: ${{ needs.backend.result }}
           CODEQL_RESULT: ${{ needs.codeql.result }}
           DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
         run: |
-          if [ "$FRONTEND_RESULT" != "success" ] || [ "$BACKEND_RESULT" != "success" ] || [ "$CODEQL_RESULT" != "success" ] || [ "$DEPENDENCY_REVIEW_RESULT" != "success" ]; then
+          if [ "$PLAYWRIGHT_RESULT" != "success" ] || [ "$FRONTEND_RESULT" != "success" ] || [ "$BACKEND_RESULT" != "success" ] || [ "$CODEQL_RESULT" != "success" ] || [ "$DEPENDENCY_REVIEW_RESULT" != "success" ]; then
             echo "One or more required checks failed."
+            echo "playwright: $PLAYWRIGHT_RESULT"
             echo "frontend: $FRONTEND_RESULT"
             echo "backend: $BACKEND_RESULT"
             echo "codeql: $CODEQL_RESULT"

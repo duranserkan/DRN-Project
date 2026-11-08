@@ -1,0 +1,49 @@
+name: Frontend browser bundle
+
+on:
+  workflow_call:
+    outputs:
+      artifact-id:
+        description: "Artifact containing the complete built Sample web root."
+        value: ${{ jobs.build.outputs.artifact-id }}
+
+jobs:
+  build:
+    outputs:
+      artifact-id: ${{ steps.assets.outputs.artifact-id }}
+    permissions:
+      contents: read
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    env:
+      SOURCE: ${{ github.event_name == 'pull_request' && 'src' || '.' }}
+    steps:
+      - name: Checkout CI code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          persist-credentials: false
+      - name: Checkout PR source
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: src
+          persist-credentials: false
+      - name: Install audited frontend dependencies
+        uses: ./.github/actions/frontend-validation
+        with:
+          repository-directory: ${{ env.SOURCE }}
+          working-directory: ${{ env.SOURCE }}/Sample.Hosted
+          build-assets: "false"
+      - name: Build Vite assets
+        working-directory: ${{ env.SOURCE }}/Sample.Hosted
+        run: npm run build
+      - name: Upload built web root including Vite manifests
+        id: assets
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sample-frontend-assets
+          path: ${{ env.SOURCE }}/Sample.Hosted/wwwroot
+          include-hidden-files: true
+          if-no-files-found: error
+          overwrite: true

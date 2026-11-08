@@ -65,7 +65,7 @@ runs:
         # Attaches OCI-standard SLSA-format build provenance and SPDX SBOM attestations.
         # Unlike NuGet, OCI registries preserve content-addressable blobs and index manifests,
         # ensuring attestations remain verifiable directly from the registry without hash mutation.
-        sbom: generator=docker.io/docker/buildkit-syft-scanner:1.12.0@sha256:ae4f3b554449e7e25548e7d8ccc029d17357348e30c6e3df01b92bc93654d6a9
+        sbom: generator=docker.io/docker/buildkit-syft-scanner:1.12.1@sha256:873a7458c3c8ac8e32c7b796c10e1600b07b963d2aa000a72a2d97aaaa2d6315
         provenance: mode=max
     - name: Verify staged Docker image digest
       id: validate-image-digest
@@ -168,7 +168,7 @@ runs:
     - name: Docker Scout (linux/amd64)
       id: docker-scout-amd64
       if: ${{ steps.container-build-digest.outcome == 'success' && steps.validate-image-digest.outcome == 'success' }}
-      uses: docker/scout-action@221e7f4860634eeb1579e3bd7ca232e577bd1864 # v1.26.0
+      uses: docker/scout-action@e7e2a72bf1485d10a58f30696b6c513b261ce4fa # v1.29.0
       with:
         command: cves
         image: registry://${{ inputs.registry }}/${{ inputs.image-repository-prefix }}/${{ inputs.image-repository-name }}@${{ steps.container-build-digest.outputs.digest }}
@@ -181,7 +181,7 @@ runs:
     - name: Docker Scout (linux/arm64)
       id: docker-scout-arm64
       if: ${{ always() && steps.container-build-digest.outcome == 'success' && steps.validate-image-digest.outcome == 'success' }}
-      uses: docker/scout-action@221e7f4860634eeb1579e3bd7ca232e577bd1864 # v1.26.0
+      uses: docker/scout-action@e7e2a72bf1485d10a58f30696b6c513b261ce4fa # v1.29.0
       with:
         command: cves
         image: registry://${{ inputs.registry }}/${{ inputs.image-repository-prefix }}/${{ inputs.image-repository-name }}@${{ steps.container-build-digest.outputs.digest }}
@@ -194,14 +194,14 @@ runs:
     - name: Upload Docker Scout SARIF result (linux/amd64)
       id: upload-container-sarif-amd64
       if: ${{ always() && steps.docker-scout-amd64.outcome != 'skipped' }}
-      uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+      uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
       with:
         sarif_file: sarif.${{ inputs.image-repository-name }}.linux-amd64.output.json
         category: docker-scout-${{ inputs.image-repository-name }}-linux-amd64
     - name: Upload Docker Scout SARIF result (linux/arm64)
       id: upload-container-sarif-arm64
       if: ${{ always() && steps.docker-scout-arm64.outcome != 'skipped' }}
-      uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+      uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
       with:
         sarif_file: sarif.${{ inputs.image-repository-name }}.linux-arm64.output.json
         category: docker-scout-${{ inputs.image-repository-name }}-linux-arm64

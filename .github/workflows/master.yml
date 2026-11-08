@@ -17,7 +17,21 @@ env:
   TESTINGPLATFORM_TELEMETRY_OPTOUT: "1"
 
 jobs:
+  frontend-assets:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/frontend-browser-bundle.yml
+
+  playwright:
+    needs: frontend-assets
+    permissions:
+      contents: read
+    uses: ./.github/workflows/frontend-browser-tests.yml
+    with:
+      artifact-id: ${{ needs.frontend-assets.outputs.artifact-id }}
+
   sonar:
+    needs: frontend-assets
     permissions:
       contents: read
     runs-on: ubuntu-26.04
@@ -27,10 +41,19 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Build and test Sample.Hosted frontend with coverage
-        uses: $/.github/actions/frontend-build
+      - name: Set aside checked-in assets
+        run: mv Sample.Hosted/wwwroot "$RUNNER_TEMP/checkout-wwwroot"
+      - name: Download built frontend assets
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.frontend-assets.outputs.artifact-id }}
+          merge-multiple: true
+          path: Sample.Hosted/wwwroot
+      - name: Collect frontend unit coverage
+        uses: $/.github/actions/frontend-validation
         with:
           working-directory: Sample.Hosted
+          unit-tests-only: "true"
           coverage-report: coverage-frontend.info
       - name: Analyze frontend and backend coverage
         uses: $/.github/actions/dotnet-sonar-scan
@@ -76,16 +99,19 @@ jobs:
     # Keep this aggregate gate in sync with every required validation job.
     # Add new jobs to both `needs` and the result check below.
     needs:
+      - playwright
       - sonar
       - codeql
     steps:
       - name: Verify required jobs completed successfully
         env:
+          PLAYWRIGHT_RESULT: ${{ needs.playwright.result }}
           SONAR_RESULT: ${{ needs.sonar.result }}
           CODEQL_RESULT: ${{ needs.codeql.result }}
         run: |
-          if [ "$SONAR_RESULT" != "success" ] || [ "$CODEQL_RESULT" != "success" ]; then
+          if [ "$PLAYWRIGHT_RESULT" != "success" ] || [ "$SONAR_RESULT" != "success" ] || [ "$CODEQL_RESULT" != "success" ]; then
             echo "One or more required checks failed."
+            echo "playwright: $PLAYWRIGHT_RESULT"
             echo "sonar: $SONAR_RESULT"
             echo "codeql: $CODEQL_RESULT"
             exit 1

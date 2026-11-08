@@ -79,6 +79,7 @@ runs:
           "/o:$env:SONAR_ORGANIZATION",
           "/d:sonar.token=$env:SONAR_TOKEN",
           "/d:sonar.cs.vscoveragexml.reportsPaths=coverage-unit.xml,coverage-analyzer.xml,coverage-integration.xml",
+          "/d:sonar.jasmin.modules.all=true",
           "/d:sonar.host.url=$env:SONAR_HOST_URL",
           "/d:sonar.scanner.skipJreProvisioning=true",
           "/d:sonar.sourceEncoding=UTF-8",
@@ -88,13 +89,15 @@ runs:
 
         if ($env:FRONTEND_LCOV) {
           $reports = $env:FRONTEND_LCOV.Split(',', [StringSplitOptions]::TrimEntries)
-          foreach ($report in $reports) {
+          # The JS/TS sensor resolves relative report paths from each .NET module.
+          $resolvedReports = foreach ($report in $reports) {
             if (!$report) { throw "Empty path in frontend-lcov" }
             if (!(Select-String -LiteralPath $report -Pattern '^DA:[1-9][0-9]*,[0-9]+(,.*)?$' -Quiet)) {
               throw "Expected frontend line coverage in $report"
             }
+            (Resolve-Path -LiteralPath $report).ProviderPath
           }
-          $scannerArgs += "/d:sonar.javascript.lcov.reportPaths=$($reports -join ',')"
+          $scannerArgs += "/d:sonar.javascript.lcov.reportPaths=$($resolvedReports -join ',')"
         }
 
         if (-not [string]::IsNullOrWhiteSpace($env:SONAR_EXCLUSIONS)) {

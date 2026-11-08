@@ -1,0 +1,50 @@
+name: Playwright
+
+on:
+  workflow_call:
+    inputs:
+      artifact-id:
+        type: string
+        required: true
+
+jobs:
+  browser:
+    permissions:
+      contents: read
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    env:
+      SOURCE: ${{ github.event_name == 'pull_request' && 'src' || '.' }}
+    steps:
+      - name: Checkout CI code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          persist-credentials: false
+      - name: Checkout PR source
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: src
+          persist-credentials: false
+      - name: Install audited frontend dependencies
+        uses: ./.github/actions/frontend-validation
+        with:
+          repository-directory: ${{ env.SOURCE }}
+          working-directory: ${{ env.SOURCE }}/Sample.Hosted
+          build-assets: "false"
+      - name: Set aside checked-in assets
+        working-directory: ${{ env.SOURCE }}/Sample.Hosted
+        run: mv wwwroot "$RUNNER_TEMP/checkout-wwwroot"
+      - name: Download built frontend assets
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ inputs.artifact-id }}
+          merge-multiple: true
+          path: ${{ env.SOURCE }}/Sample.Hosted/wwwroot
+      - name: Install Chromium system dependencies
+        working-directory: ${{ env.SOURCE }}/Sample.Hosted
+        run: npm exec --no --ignore-scripts -- playwright install-deps chromium
+      - name: Run Playwright fixture tests
+        working-directory: ${{ env.SOURCE }}/Sample.Hosted
+        run: npm run test:browser

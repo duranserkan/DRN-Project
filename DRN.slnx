@@ -59,7 +59,9 @@
   </Folder>
   <Folder Name="/Items/.github/workflows/">
     <File Path=".github\workflows\develop.yml" />
+    <File Path=".github\workflows\frontend-browser-bundle.yml" />
     <File Path=".github\workflows\master.yml" />
+    <File Path=".github\workflows\frontend-browser-tests.yml" />
     <File Path=".github\workflows\release.yml" />
     <File Path=".github\workflows\pull-request.yml" />
     <File Path=".github\workflows\release-preview.yml" />
@@ -98,8 +100,8 @@
   <Folder Name="/Items/.github/actions/dotnet-validate/">
     <File Path=".github\actions\dotnet-validate\action.yml" />
   </Folder>
-  <Folder Name="/Items/.github/actions/frontend-build/">
-    <File Path=".github\actions\frontend-build\action.yml" />
+  <Folder Name="/Items/.github/actions/frontend-validation/">
+    <File Path=".github\actions\frontend-validation\action.yml" />
   </Folder>
   <Folder Name="/Items/.github/actions/nuget-pack-all/">
     <File Path=".github\actions\nuget-pack-all\action.yml" />
