@@ -4,7 +4,7 @@ import { printCoverageReport, testSummary, type Failure } from './summary.ts';
 export default class PlaywrightSummary implements Reporter {
     private readonly listMode: boolean;
     private suite?: Suite;
-    private failures: Failure[] = [];
+    private readonly failures: Failure[] = [];
 
     constructor(options: { _mode?: string } = {}) {
         this.listMode = options._mode === 'list';
@@ -18,7 +18,7 @@ export default class PlaywrightSummary implements Reporter {
         this.failures.push({ name: 'Playwright runner', message: error.stack ?? error.message ?? String(error.value) });
     }
 
-    async onEnd(result: FullResult) {
+    onEnd(result: FullResult) {
         if (this.listMode) return;
         const counts = { passed: 0, failed: 0, skipped: 0, flaky: 0, didNotRun: 0 };
         for (const test of this.suite?.allTests() ?? []) {
@@ -47,6 +47,6 @@ export default class PlaywrightSummary implements Reporter {
             testSummary('Frontend browser tests (Playwright)', success, result.duration, counts, this.failures),
         );
         const coverageOk = printCoverageReport(process.env.PLAYWRIGHT_LCOV_REPORT);
-        if (!success || !coverageOk) return { status: 'failed' as const };
+        if (!success || !coverageOk) return Promise.resolve({ status: 'failed' as const });
     }
 }

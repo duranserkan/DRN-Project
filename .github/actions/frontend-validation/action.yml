@@ -17,7 +17,7 @@ inputs:
     required: false
     default: "false"
   coverage-report:
-    description: "Optional LCOV output path relative to the frontend package."
+    description: "Optional .info or .lcov report path inside the frontend package."
     required: false
 runs:
   using: "composite"
@@ -88,8 +88,12 @@ runs:
         else
           npm test -- --coverage --report "$REPORT"
           # Node emits package-relative source paths. Sonar scans the repository root.
-          awk -v prefix="$(git rev-parse --show-prefix)" '/^SF:/ { $0 = "SF:" prefix substr($0, 4) } { print }' "$REPORT" > "$REPORT.tmp"
-          mv "$REPORT.tmp" "$REPORT"
+          report_path="$(realpath -e -- "$REPORT")"
+          [[ "$report_path" == "$(pwd -P)/"* && -f "$report_path" && ! -L "$REPORT" ]]
+          temporary="$(mktemp -- "${report_path}.XXXXXX")"
+          trap 'rm -f -- "$temporary"' EXIT
+          awk -v prefix="$(git rev-parse --show-prefix)" '/^SF:/ { $0 = "SF:" prefix substr($0, 4) } { print }' "$report_path" > "$temporary"
+          mv -T -- "$temporary" "$report_path"
         fi
     - name: Summarize frontend line coverage
       if: ${{ inputs.build-assets != 'false' && inputs.coverage-report != '' }}

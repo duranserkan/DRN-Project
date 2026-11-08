@@ -72,7 +72,7 @@ test('Node reports aggregate counts and escapes failure details in the GitHub su
 });
 
 test('Playwright prints the run locally and includes only the requested coverage in the job summary', async (t) => {
-    using directory = mkdtempDisposableSync(join(tmpdir(), 'frontend-reporter-'));
+    using directory = mkdtempDisposableSync(join(process.cwd(), '.frontend-reporter-'));
     const jobSummary = join(directory.path, 'summary.md');
     const report = join(directory.path, 'coverage.info');
     writeFileSync(report, 'SF:app.ts\nDA:1,1\nend_of_record\n');

@@ -1,5 +1,24 @@
-import { readFileSync } from 'node:fs';
-import { extname, sep } from 'node:path';
+import { lstatSync, readFileSync, realpathSync } from 'node:fs';
+import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+
+function row(scope: string, hits: number, count: number) {
+    return `| ${scope} | ${hits} | ${count} | ${((100 * hits) / count).toFixed(1)}% |`;
+}
+
+export function coverageReportPath(report: string) {
+    const root = realpathSync('.');
+    const path = resolve(root, report);
+    const target = join(realpathSync(dirname(path)), basename(path));
+    const fromRoot = relative(root, target);
+    if (isAbsolute(fromRoot) || fromRoot.startsWith(`..${sep}`) || !/\.(?:info|lcov)$/i.test(target)) {
+        throw new Error('Expected an .info or .lcov report inside the package directory');
+    }
+    const existing = lstatSync(target, { throwIfNoEntry: false });
+    if (existing && (!existing.isFile() || existing.nlink !== 1)) {
+        throw new Error('Expected a regular, unlinked coverage report file');
+    }
+    return target;
+}
 
 export function coverageSummary(lcov: string, requiredSources: readonly string[] = []) {
     const files = new Map<string, Map<string, boolean>>();
@@ -32,24 +51,20 @@ export function coverageSummary(lcov: string, requiredSources: readonly string[]
         counts.total += lines.size;
         extensions.set(ext, counts);
     }
-    function row(scope: string, hits: number, count: number) {
-        return `| ${scope} | ${hits} | ${count} | ${((100 * hits) / count).toFixed(1)}% |`;
-    }
     return [
         '### Frontend unit coverage',
         '',
         '| Scope | Covered lines | Total lines | Coverage |',
         '| --- | ---: | ---: | ---: |',
         row('All frontend sources', covered, total),
-        ...[...extensions.keys()].sort().map((ext) => {
-            const counts = extensions.get(ext)!;
-            return row(ext, counts.covered, counts.total);
-        }),
+        ...[...extensions]
+            .sort(([left], [right]) => left.localeCompare(right, 'en'))
+            .map(([ext, counts]) => row(ext, counts.covered, counts.total)),
     ].join('\n');
 }
 
 export function readCoverageSummary(report: string, requiredSources: readonly string[] = []) {
-    return coverageSummary(readFileSync(report, 'utf8'), requiredSources);
+    return coverageSummary(readFileSync(coverageReportPath(report), 'utf8'), requiredSources);
 }
 
 if (import.meta.main) {
