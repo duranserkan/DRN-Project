@@ -66,6 +66,9 @@ LICENSE
 **/*.ssh
 **/*.ssh-key
 **/*.pfx
+**/*.[pP][eE][mM]
+**/id_*
+**/*.p12
 
 # Research documentation
 paper/
