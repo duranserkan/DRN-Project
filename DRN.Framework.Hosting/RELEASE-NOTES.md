@@ -1,6 +1,6 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
-## Version 0.10.1
+## Version 0.11.0
 
 ### Changed
 
@@ -15,6 +15,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **Rate Limit Diagnostics**: Rejection logs include the rule action, distinguishing limiter rejections from explicit deny rules and unattributed rejections, consistent with rate-limit metrics.
 
 ### Breaking Changes
+
+*   **Target framework**: Requires .NET 11 and ASP.NET Core 11.
 
 *   **Swagger UI defaults**: The browser-tab title defaults to the API name and OpenAPI version. Set `Title` or the UI callback's `DocumentTitle` to override it. UI prefixes accept only nonempty ASCII letter, digit, hyphen or underscore segments.
 *   **OpenAPI documents**: Swagger now serves OpenAPI 3.2 by default. Hosts with tooling that requires 3.1 can set `OpenApiVersion` to `OpenApiSpecVersion.OpenApi3_1` in `ConfigureSwaggerEndpointOptionsAction`.
