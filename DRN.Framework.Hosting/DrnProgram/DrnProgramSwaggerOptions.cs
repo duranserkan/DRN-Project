@@ -1,3 +1,4 @@
+using System.Globalization;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Hosting.Middlewares.ApiErrors;
@@ -66,6 +67,8 @@ public class DrnProgramSwaggerOptions
     {
         ConfigureOpenApiInfo?.Invoke(OpenApiInfo);
         options.SwaggerDoc(OpenApiInfo.Version, OpenApiInfo);
+        // Swashbuckle unwraps Nullable<T> for type mappings and adds null at the usage site.
+        options.MapType<long>(CreateInt64Schema);
         options.OperationFilter<DrnApiErrorOperationFilter>();
 
         if (AddBearerTokenSecurityRequirement)
@@ -73,6 +76,24 @@ public class DrnProgramSwaggerOptions
 
         ConfigureSwaggerGenOptionsAction?.Invoke(options);
     }
+
+    private static OpenApiSchema CreateInt64Schema() => new()
+    {
+        Description = "Accepts a signed 64-bit integer as a JSON number or decimal string. Responses use numbers within the JavaScript safe integer range and decimal strings outside it.",
+        OneOf =
+        [
+            new OpenApiSchema
+            {
+                Type = JsonSchemaType.Integer, Format = "int64",
+                Minimum = long.MinValue.ToString(CultureInfo.InvariantCulture),
+                Maximum = long.MaxValue.ToString(CultureInfo.InvariantCulture)
+            },
+            new OpenApiSchema
+            {
+                Type = JsonSchemaType.String, Format = "int64"
+            }
+        ]
+    };
 
     private static void BearerTokenSecurityRequirement(SwaggerGenOptions options)
     {

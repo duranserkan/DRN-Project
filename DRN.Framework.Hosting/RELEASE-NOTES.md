@@ -4,6 +4,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Changed
 
+*   **OpenAPI 64-bit integers**: Generated schemas describe both JSON numbers and decimal strings for `long` values, including null for nullable values. Clients can preserve precision when reading large integers.
 *   **Request Diagnostics**: Request values use bounded capture. `Request_IpAddress` is recorded as an empty string when no remote address is available. Empty `l5d-client-id` headers are omitted.
 
 *   **Development Exception Pages**: Display unredacted scoped logs and request details within capture limits and `[IgnoreLog]` exclusions. Emitted logs and views outside Development remain redacted.
