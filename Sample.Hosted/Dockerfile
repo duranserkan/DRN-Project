@@ -4,10 +4,10 @@
 #from solution root: docker build -f Sample.Hosted/Dockerfile -t drn/sample.hosted:localbuild .
 ARG PROJECT=Sample.Hosted
 ARG DOTNET_RUNTIME_VERSION=10.0.14
-ARG DOTNET_SDK_VERSION=10.0.403
+ARG DOTNET_SDK_VERSION=11.0.100
 ARG DOTNET_DISTRO=resolute
 ARG DOTNET_RUNTIME_DIGEST=sha256:41db8302b4b08401ccf2bf139b02b37460da8872179d793899782ec0ef90933a
-ARG DOTNET_SDK_DIGEST=sha256:667f3cee6f24afb202d3e32c7941e3800bbac57dd70bb68f89e52a6245aff88f
+ARG DOTNET_SDK_DIGEST=sha256:65f3c7c6a25a239ab3e6719f2896147e7b68242ff2d8818dd70498bde6ef8bea
 ARG APP_VERSION=0.0.1
 
 #https://www.mytechramblings.com/posts/testing-chiseled-ubuntu-containers-with-dotnet/

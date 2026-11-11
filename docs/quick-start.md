@@ -15,7 +15,8 @@ See the [Sample application guide](../Sample.Hosted/README.md) for local startup
 
 ## Prerequisites
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download) 10.0.403 or a later compatible SDK selected by [global.json](../global.json)
+- [.NET 11 SDK](https://dotnet.microsoft.com/download) 11.0.100 or a later compatible SDK selected by [global.json](../global.json)
+- [ASP.NET Core Runtime 10.0](https://dotnet.microsoft.com/download/dotnet/10.0) to run the apps and tests locally
 - [Docker](https://www.docker.com/) with the daemon running (for the sample app and integration tests with Testcontainers)
 - Optional Sample frontend tooling is covered in the [frontend build guide](../Sample.Hosted/README.md#frontend-assets).
 

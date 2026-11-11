@@ -4,6 +4,8 @@ This guide covers local containers, Docker Compose stacks, existing data volumes
 
 ## Container updates
 
+2026-11-10: Sample and Nexus use .NET SDK 11.0.100 for container builds and ASP.NET Core 10.0.14 for the final runtime image.
+
 2026-10-27: Sample and Nexus images now use ASP.NET Core runtime 10.0.14 and SDK 10.0.403, incorporating the [.NET 10.0.14 security release](https://github.com/dotnet/core/blob/main/release-notes/10.0/10.0.14/10.0.14.md). Both retain Ubuntu Resolute, with the chiseled-extra runtime, and pin verified Microsoft Container Registry multi-platform manifest digests. Rebuild and redeploy the application images to apply the update.
 
 ## Local development

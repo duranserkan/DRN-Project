@@ -60,7 +60,7 @@ Wait for maintainer discussion and approval on the issue before beginning work.
 
 ### Prerequisites
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download)
+- [.NET SDK and runtime prerequisites](docs/quick-start.md#prerequisites)
 - [Docker](https://www.docker.com/) (required for Testcontainers in integration tests)
 - [Node.js](https://nodejs.org/) (for frontend/Vite build, if modifying UI)
 
