@@ -229,6 +229,8 @@ For MFA hooks and examples, see [MFA](#mfa).
 | `DrnProgramSwaggerOptions` | (Object) | Toggles Swagger generation. Defaults to `IsDevelopmentEnvironment`. |
 | `NLogOptions` | (Object) | Controls NLog bootstrapping (e.g., replace logger factory). |
 
+Swagger serves OpenAPI 3.2 documents by default. If a client generator or validator requires 3.1, set `options.ConfigureSwaggerEndpointOptionsAction = endpoint => endpoint.OpenApiVersion = Microsoft.OpenApi.OpenApiSpecVersion.OpenApi3_1;` in `ConfigureSwaggerOptions`.
+
 Swagger accepts the full signed 64-bit range as JSON integers or decimal strings, including quoted small values such as `"42"`. DRN writes a number within JavaScript's safe integer range (inclusive) and a string outside it. Nullable values also allow JSON null.
 
 `DrnProgramBase` also automatically registers the public `IEndpointAccessor` dependency-injection contract as a singleton. Consumers can inject `IEndpointAccessor` to query the endpoint collections (`Endpoints`, `ApiEndpoints`, `PageEndpoints`, and `PageEndpointByPaths`) populated by `ValidateEndpoints` before service validation (`ValidateServicesAsync`) runs.

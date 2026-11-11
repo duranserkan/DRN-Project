@@ -58,7 +58,7 @@ public class DrnProgramSwaggerOptions
         if (ApplyTargetServerForwardedHeadersCorrection)
             options.PreSerializeFilters.Add(SwaggerProxyPathFilter);
 
-        options.OpenApiVersion = OpenApiSpecVersion.OpenApi3_1;
+        options.OpenApiVersion = OpenApiSpecVersion.OpenApi3_2;
 
         ConfigureSwaggerEndpointOptionsAction?.Invoke(options);
     }

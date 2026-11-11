@@ -54,9 +54,9 @@ public sealed class DrnApiErrorOperationFilter : IOperationFilter
                 "statuses use Problem Details with the actual HTTP status and requestId. Validation includes errors. " +
                 "Explicit custom response bodies are preserved.";
 
-        response.Content = new Dictionary<string, OpenApiMediaType>
+        response.Content = new Dictionary<string, IOpenApiMediaType>
         {
-            ["application/problem+json"] = new()
+            ["application/problem+json"] = new OpenApiMediaType
             {
                 Schema = CreateSchema(context, type == null || type == typeof(void) ? typeof(ProblemDetails) : type)
             }
