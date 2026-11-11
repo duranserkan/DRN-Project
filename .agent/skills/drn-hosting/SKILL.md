@@ -53,9 +53,9 @@ README **MFA** owns assurance, renewal, revocation, audit events, and replacing 
 
 ### Swagger And Developer Tool Authorization
 
-Swagger is Development-only by default. To enable elsewhere, call base in `ConfigureSwaggerOptions`, set `AddSwagger = true`, and assign a named `AuthorizationPolicy`. It protects UI, assets, and JSON/YAML documents, including custom document routes. MFA still applies. Null preserves existing authorization behavior; blank policy names are invalid.
+Swagger is Development-only by default. To enable elsewhere, call base in `ConfigureSwaggerOptions`, set `AddSwagger = true`, and assign a named `AuthorizationPolicy`. It protects UI, assets, and JSON/YAML documents, including custom document routes. MFA still applies. Null uses fallback authorization; blank policy names are invalid.
 
-Enabled Swagger requires a nonempty slash-trimmed `SwaggerUIOptions.RoutePrefix`, e.g. `api-docs`. Root mounts are rejected. Reserve that subtree for Swagger CSP and put ordinary pages elsewhere. Disabled Swagger retains application policies. Customize `ConfigureSecurityHeaderPolicyBuilder` while retaining base behavior. See README **Route-specific security headers**.
+Swagger UI prefixes use nonempty ASCII letter, digit, hyphen or underscore segments. Root mounts are rejected. Reserve the UI subtree for Swagger CSP. Disabled UI retains application policies. Retain base behavior in `ConfigureSecurityHeaderPolicyBuilder`. The [Hosting README][hosting] owns `AddSwaggerUI`, metadata, document URLs, title defaults, upstream caching and `DrnPageOptions.FaviconUrl`.
 
 ## Page & Endpoint Management
 
@@ -99,7 +99,7 @@ API statuses 400-599 use Problem Details in every environment with `JsonConventi
 
 `HandleHtmxRequests` defaults false. Opt in for HTMX Problem Details, including Razor handlers. Preserve redirects, auth, opt-outs, and custom non-problem bodies. Razor `Page()` selects HTML; `ObjectResult` containing `ValidationProblemDetails(ModelState)` selects JSON at 400/422. Use safe messages, exact posted field names, and an empty key for form-level errors. Preserve existing API keys. See README **API Failure Responses**, **HTMX Partial Requests**, and [browser handling](../drn-buildwww-libraries/SKILL.md#problem-details-consumer).
 
-`DrnErrorPageOptions` configures browser 400/404/5xx pages. Keep them anonymous, non-cacheable, and independent of application data. Preserve status, request reference, deployment prefixes, redaction, existing bodies, Development diagnostics, and unmatched-route fallback authorization. Supported API exceptions bypass `WriteProductionErrorResponseAsync` unless opted out.
+`DrnPageOptions` configures browser 400/404/5xx pages. Keep them anonymous, non-cacheable, and independent of application data. Preserve status, request reference, deployment prefixes, redaction, existing bodies, Development diagnostics, and unmatched-route fallback authorization. Supported API exceptions bypass `WriteProductionErrorResponseAsync` unless opted out.
 
 For access-denied references, use `AccessDeniedPageModel` and `PreserveAccessDeniedRequestId()`. Follow README **Custom Error Pages** for cookie-event ordering, callback preservation, single-use TempData, and `EventsType` setup.
 

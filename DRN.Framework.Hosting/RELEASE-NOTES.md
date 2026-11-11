@@ -4,6 +4,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Changed
 
+*   **Swagger configuration**: Swagger UI resolves its default document URL from the configured OpenAPI route, including deployment prefixes. Explicit UI document URLs remain supported. API metadata is configured once before UI defaults are captured.
 *   **OpenAPI 64-bit integers**: Generated schemas describe both JSON numbers and decimal strings for `long` values, including null for nullable values. Clients can preserve precision when reading large integers.
 *   **Request Diagnostics**: Request values use bounded capture. `Request_IpAddress` is recorded as an empty string when no remote address is available. Empty `l5d-client-id` headers are omitted.
 
@@ -15,7 +16,9 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
+*   **Swagger UI defaults**: The browser-tab title defaults to the API name and OpenAPI version. Set `Title` or the UI callback's `DocumentTitle` to override it. UI prefixes accept only nonempty ASCII letter, digit, hyphen or underscore segments.
 *   **OpenAPI documents**: Swagger now serves OpenAPI 3.2 by default. Hosts with tooling that requires 3.1 can set `OpenApiVersion` to `OpenApiSpecVersion.OpenApi3_1` in `ConfigureSwaggerEndpointOptionsAction`.
+*   **Swagger UI authorization**: Without a named `AuthorizationPolicy`, Swagger UI now uses the application's fallback authorization policy. Anonymous catch-all routes no longer grant access to Swagger UI.
 *   **Runtime response compression removed**: DRN serves dynamic responses and original assets uncompressed on HTTP and HTTPS. Remove overrides of `ConfigureResponseCompressionOptions`, `ConfigureCompressionProviders`, `ConfigureBrotliCompressionLevel` and `ConfigureGzipCompressionLevel`. Configure asset compression in the frontend build.
 *   **Vite manifests and compression**: Before upgrading, add a build step that writes the Base64 SHA-256 `hash` of each entry's uncompressed bytes, then rebuild all manifests. Original-only deployments also require hashes. Entries marked `brotliOnly` require only their `.br` file. Other entries require the original asset. Deploy manifests and assets on paths without symbolic links below the web root. Razor links to a deployed Brotli variant when available. These URLs require native HTTP Brotli decoding (`Content-Encoding: br`) and a browser version that still receives vendor security updates. Startup pre-warming and its public proxy, factory, and report types, including `IViteManifest.WarmReport`, have been removed.
 *   **Identity Management API**: `IdentityManagementControllerBase` now uses API controller behavior. Derived controllers must use attribute routes. Invalid request models return validation Problem Details before the action runs, and cookie authentication failures return 401 or 403 instead of redirects.
@@ -24,12 +27,13 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### New Features
 
+*   **Swagger UI options**: Set `AddSwaggerUI = false` to retain the OpenAPI document without the UI. Set `DrnPageOptions.FaviconUrl` to supply a local browser-tab icon that respects deployment prefixes.
 *   **Pagination schemas**: Swagger documents optional page size and cursor fields for `[FromQuery] PaginationRequest` and omits calculated fields. JSON body schemas preserve their required fields and validation. Both forms describe how to supply cursor IDs from the previous page.
 *   **HTMX Error Responses**: Enable `DrnApiErrorOptions.HandleHtmxRequests` to use the API Problem Details contract for failed HTMX requests, including Razor handlers. Disabled by default. Authentication, normal navigation, endpoint opt-outs, and custom non-problem bodies retain their existing behavior.
 *   **Scoped Problem Details**: API errors accept public defaults from `ScopeContext.Problem`, preserving existing response values. `instance` defaults to the request path including deployment prefixes and excluding query strings. Exception messages remain private.
 *   **API Error Opt-Out**: Apply `[DisableDrnProblemDetails]` to a controller or action to retain native or application-owned error responses and skip automatic Swagger error metadata. Authentication and authorization are unchanged.
 *   **API Error Metadata**: Swagger adds one representative 400 Problem Details response with required `requestId` and a description covering all 4xx and 5xx statuses. Other declared statuses, validation schemas, and custom response types are preserved.
-*   **Custom Browser Error Pages**: `DrnErrorPageOptions` supports application-owned Razor pages for 5xx, 404, and 400 errors. Pages preserve status codes, expose `RequestId`, and have a redacted fallback. Custom pages are disabled by default. See [custom error pages](README.md#custom-error-pages) for setup and other browser response customizations.
+*   **Custom Browser Error Pages**: `DrnPageOptions` in `DRN.Framework.Hosting` configures application-owned Razor pages for 5xx, 404, and 400 errors. Pages preserve status codes, expose `RequestId`, and have a redacted fallback. Custom pages are disabled by default. See [custom error pages](README.md#custom-error-pages) for setup.
 *   **Access-Denied Request References**: Use `AccessDeniedPageModel` with `CookieAuthenticationEvents.PreserveAccessDeniedRequestId()` to retain the original request reference across cookie redirects. Access-denied pages support anonymous access and are not cached.
 *   **Swagger Authorization**: Added `DrnProgramSwaggerOptions.AuthorizationPolicy` to protect Swagger UI, its assets, and OpenAPI documents with an application-owned named policy. Applications can enable Swagger in Staging and Production while retaining role and MFA requirements. Development-only enablement remains the framework default.
 *   **Endpoint URL Generation**: Added `Url.Endpoint(ApiEndpoint, values)` to generate request-aware MVC URLs from endpoint accessors. It preserves deployment prefixes, uses effective MVC action names and destination areas, and reports uninitialized or ambiguous metadata and failed URL generation explicitly. Existing `Path(...)` APIs remain compatible.

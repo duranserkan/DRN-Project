@@ -5,6 +5,10 @@ using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Http;
+using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace DRN.Framework.Hosting.DrnProgram.Configurators;
 
@@ -79,17 +83,37 @@ internal sealed class DrnPipelineConfigurator
     {
         if (!options.AddSwagger) return;
 
-        if (options.AuthorizationPolicy is { } policy)
-        {
+        // Finalize document metadata and generator overrides before the UI captures its defaults.
+        _ = application.Services.GetRequiredService<IOptions<SwaggerGenOptions>>().Value;
+        var pageOptions = application.Services.GetRequiredService<IOptions<DrnPageOptions>>().Value;
+
+        var policy = options.AuthorizationPolicy;
+        if (policy is not null)
             ArgumentException.ThrowIfNullOrWhiteSpace(policy);
-            application.MapSwagger(options.DefaultRouteTemplate, options.ConfigureSwaggerEndpointOptions)
-                .RequireAuthorization(policy);
-            application.MapSwaggerUI(setupAction: options.ConfigureSwaggerUI).RequireAuthorization(policy);
-        }
-        else
+
+        var document = application.MapSwagger(options.DefaultRouteTemplate, options.ConfigureSwaggerEndpointOptions)
+            .WithName(OpenApiDocumentEndpoints.DocumentEndpointName);
+        if (policy is not null)
+            document.RequireAuthorization(policy);
+
+        if (options.AddSwaggerUI)
         {
-            application.MapSwagger(options.DefaultRouteTemplate, options.ConfigureSwaggerEndpointOptions);
-            application.UseSwaggerUI(options.ConfigureSwaggerUI);
+            var defaultDocumentUrl = false;
+            var ui = application.MapSwaggerUI(setupAction: uiOptions =>
+            {
+                options.ConfigureSwaggerUI(uiOptions, pageOptions);
+                defaultDocumentUrl = OpenApiDocumentEndpoints.ConfigureSwaggerDocumentUrl(uiOptions, options);
+            });
+            if (policy is not null)
+                ui.RequireAuthorization(policy);
+            if (defaultDocumentUrl)
+            {
+                var redirect = application.MapGet(options.SwaggerUIPathPrefix!.Value.Add("/openapi-document.json").Value!,
+                    (HttpContext context) => Results.LocalRedirect(OpenApiDocumentEndpoints.GetDocumentUrl(context, options)))
+                    .ExcludeFromDescription();
+                if (policy is not null)
+                    redirect.RequireAuthorization(policy);
+            }
         }
     }
 

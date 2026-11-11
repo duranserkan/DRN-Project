@@ -15,23 +15,45 @@ namespace DRN.Framework.Hosting.DrnProgram;
 public class DrnProgramSwaggerOptions
 {
     internal PathString? SwaggerUIPathPrefix { get; private set; }
+    private bool _metadataConfigured;
 
-    internal void ConfigureSwaggerUI(SwaggerUIOptions options)
+    internal void ConfigureMetadata()
     {
-        ConfigureSwaggerUIOptionsAction?.Invoke(options);
-        var prefix = options.RoutePrefix?.Trim('/');
-        if (string.IsNullOrEmpty(prefix))
-            throw new ConfigurationException("Swagger UI RoutePrefix must be nonempty after trimming slashes. Root mounts are not supported.");
+        if (_metadataConfigured) return;
+        ConfigureOpenApiInfo?.Invoke(OpenApiInfo);
+        _metadataConfigured = true;
+    }
 
-        options.RoutePrefix = prefix;
-        SwaggerUIPathPrefix = new PathString("/" + prefix);
+    internal void ConfigureSwaggerUI(SwaggerUIOptions options, DrnPageOptions? pageOptions = null)
+    {
+        ConfigureMetadata();
+        options.DocumentTitle = Title;
+        ConfigureSwaggerUIOptionsAction?.Invoke(options);
+        options.RoutePrefix = ValidateRoutePrefix(options.RoutePrefix, "Swagger UI");
+        SwaggerUIPathPrefix = new PathString("/" + options.RoutePrefix);
+        options.HeadContent += pageOptions?.GetFaviconHeadContent(options.RoutePrefix);
     }
 
     public bool AddSwagger { get; set; }
 
+    /// <summary>Enables Swagger UI when AddSwagger is enabled.</summary>
+    public bool AddSwaggerUI { get; set; } = true;
+
+    private static string ValidateRoutePrefix(string? routePrefix, string ui)
+    {
+        var prefix = routePrefix?.Trim('/');
+        if (string.IsNullOrEmpty(prefix))
+            throw new ConfigurationException($"{ui} RoutePrefix must be nonempty after trimming slashes. Root mounts are not supported.");
+        if (prefix.Split('/').Any(segment =>
+                segment.Length == 0 || segment.Any(c => !char.IsAsciiLetterOrDigit(c) && c is not '-' and not '_')))
+            throw new ConfigurationException($"{ui} RoutePrefix must contain nonempty path segments using letters, digits, hyphens or underscores.");
+
+        return prefix;
+    }
+
     /// <summary>
     /// Optional named policy required by the Swagger UI, its assets, and OpenAPI documents.
-    /// Null preserves the application's existing authorization behavior.
+    /// Null uses the application's fallback authorization policy.
     /// </summary>
     [Sensitive(false, Justification = "Authorization policy name, not a credential.")]
     public string? AuthorizationPolicy { get; set; }
@@ -44,7 +66,14 @@ public class DrnProgramSwaggerOptions
     [Sensitive(false, Justification = "OpenAPI security configuration flag.")]
     public bool AddBearerTokenSecurityRequirement { get; set; } = true;
 
-    public string Title { get; set; } = AppConstants.EntryAssemblyName;
+    private string? _title;
+
+    /// <summary>Browser-tab title. Defaults to the API title (application name) and OpenAPI version.</summary>
+    public string Title
+    {
+        get => _title ?? $"{OpenApiInfo.Title ?? AppConstants.EntryAssemblyName} ({OpenApiInfo.Version})";
+        set => _title = value;
+    }
     public string DefaultRouteTemplate { get; set; } = "/swagger/{documentName}/swagger.{extension:regex(^(json|ya?ml)$)}";
     public OpenApiInfo OpenApiInfo { get; set; } = new() { Version = "v1" };
 
@@ -65,7 +94,7 @@ public class DrnProgramSwaggerOptions
 
     internal void ConfigureSwaggerGenOptions(SwaggerGenOptions options)
     {
-        ConfigureOpenApiInfo?.Invoke(OpenApiInfo);
+        ConfigureMetadata();
         options.SwaggerDoc(OpenApiInfo.Version, OpenApiInfo);
         // Swashbuckle unwraps Nullable<T> for type mappings and adds null at the usage site.
         options.MapType<long>(CreateInt64Schema);
