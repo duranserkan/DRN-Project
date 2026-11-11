@@ -24,14 +24,7 @@ internal sealed class PaginationSchemaFilter : ISchemaFilter
     internal static string? GetDescription(Type? owner, string? member)
     {
         if (owner == typeof(PageCursor))
-            return member switch
-            {
-                nameof(PageCursor.FirstId) => "First item ID from the previous page result. " + CursorUsage,
-                nameof(PageCursor.LastId) => "Last item ID from the previous page result. " + CursorUsage,
-                nameof(PageCursor.PageNumber) => "Page number of the previous result supplying the cursor IDs. Defaults to 1.",
-                nameof(PageCursor.SortDirection) => "Ascending or Descending ID order. None is normalized to Ascending.",
-                _ => null
-            };
+            return GetCursorDescription(member);
 
         if (owner is not null && typeof(PaginationResultBase).IsAssignableFrom(owner))
             return member switch
@@ -78,4 +71,13 @@ internal sealed class PaginationSchemaFilter : ISchemaFilter
 
         return null;
     }
+
+    private static string? GetCursorDescription(string? member) => member switch
+    {
+        nameof(PageCursor.FirstId) => "First item ID from the previous page result. " + CursorUsage,
+        nameof(PageCursor.LastId) => "Last item ID from the previous page result. " + CursorUsage,
+        nameof(PageCursor.PageNumber) => "Page number of the previous result supplying the cursor IDs. Defaults to 1.",
+        nameof(PageCursor.SortDirection) => "Ascending or Descending ID order. None is normalized to Ascending.",
+        _ => null
+    };
 }

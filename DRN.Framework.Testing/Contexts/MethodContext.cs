@@ -8,7 +8,7 @@ namespace DRN.Framework.Testing.Contexts;
 
 public class MethodContext(MethodInfo testMethod)
 {
-    private readonly object _tempPathLock = new();
+    private readonly Lock _tempPathLock = new();
     private volatile string? _tempPath;
     private volatile bool _isDeleted;
 
