@@ -42,6 +42,49 @@ public class SwaggerUiIntegrationTests
         using var json = JsonDocument.Parse(await document.Content.ReadAsStringAsync());
         json.RootElement.GetProperty("info").GetProperty("title").GetString().Should().Be("Generator API");
 
+        var apiPaths = json.RootElement.GetProperty("paths");
+        var queryRequestDescription = apiPaths.GetProperty("/swagger-pagination/query-request").GetProperty("get")
+            .GetProperty("description").GetString();
+        queryRequestDescription.Should().Contain("flattened query fields").And.Contain("cursor's previous-page number")
+            .And.NotContain("10 pages").And.NotContain("ceiling of 100");
+        apiPaths.GetProperty("/swagger-pagination/post-query-request").GetProperty("post")
+            .GetProperty("description").GetString().Should().Be(queryRequestDescription);
+        var queryInfo = apiPaths.GetProperty("/swagger-pagination/query-info").GetProperty("get");
+        queryInfo.GetProperty("description").GetString().Should().Contain("previous page's pagination metadata")
+            .And.Contain("outer first and last IDs").And.NotContain("10 pages");
+        queryInfo.GetProperty("parameters").EnumerateArray().Select(parameter => parameter.GetProperty("name").GetString())
+            .Should().Contain("previous.FirstId");
+        var bodyInfoDescription = apiPaths.GetProperty("/swagger-pagination/body-info").GetProperty("post")
+            .GetProperty("description").GetString();
+        bodyInfoDescription.Should().StartWith("Application continuation policy.")
+            .And.Contain("metadata object as the request body").And.Contain("`destination` in the query string")
+            .And.NotContain("jumpTo").And.NotContain("10 pages");
+        apiPaths.GetProperty("/swagger-pagination/body-request").GetProperty("post")
+            .GetProperty("description").GetString().Should().Contain("pagination settings as the request body")
+            .And.Contain("required fields");
+        apiPaths.GetProperty("/swagger-pagination/result").GetProperty("get")
+            .GetProperty("description").GetString().Should().Contain("response contains page items and pagination metadata")
+            .And.Contain("outer boundary IDs");
+        apiPaths.GetProperty("/swagger-pagination/unrelated").GetProperty("get")
+            .GetProperty("description").GetString().Should().Be("Unrelated operation.");
+
+        foreach (var (route, allowsNull) in new[] { ("nullable", true), ("required", false), ("required-nullable", false) })
+        {
+            var endpoint = "/swagger-int64/" + route;
+            var alternatives = apiPaths.GetProperty(endpoint).GetProperty("post").GetProperty("requestBody")
+                .GetProperty("content").GetProperty("application/json").GetProperty("schema").GetProperty("oneOf");
+            alternatives.EnumerateArray().Any(schema => schema.GetProperty("type").GetString() == "null")
+                .Should().Be(allowsNull);
+            using var body = new StringContent("null", System.Text.Encoding.UTF8, "application/json");
+            using var result = await client.PostAsync(pathBase + endpoint, body);
+            result.StatusCode.Should().Be(allowsNull ? HttpStatusCode.OK : HttpStatusCode.BadRequest);
+
+            using var validBody = new StringContent("42", System.Text.Encoding.UTF8, "application/json");
+            using var validResult = await client.PostAsync(pathBase + endpoint, validBody);
+            validResult.StatusCode.Should().Be(HttpStatusCode.OK);
+            (await validResult.Content.ReadAsStringAsync()).Should().Be("42");
+        }
+
         var page = new Uri(client.BaseAddress!, pathBase + paths[0]);
         using var ui = await client.GetAsync(page);
         ui.EnsureSuccessStatusCode();

@@ -6,6 +6,7 @@ This guide covers local startup, developer tools, error handling, notifications,
 
 - [Run locally](#run-locally)
 - [Swagger and test pages](#swagger-and-test-pages)
+- [Pagination APIs](#pagination-apis)
 - [Error pages and API failures](#error-pages-and-api-failures)
 - [Error handling conventions](#error-handling-conventions)
 - [HTMX errors](#htmx-errors)
@@ -35,6 +36,23 @@ Developer View is an explicit diagnostics preview. Ordinary Staging and Producti
 `SampleDrnExceptionFilter` is an opt-in demonstration, registered explicitly by its integration test. It is not registered in the normal application, so its empty post-creation callback does not force diagnostic model collection for ordinary errors.
 
 The HTMX test page has separate **Trigger server exception** and **Trigger browser exception** buttons. The server test sends a CSRF-protected HTMX POST and throws an unhandled exception, producing a toast and a history entry with a request reference. The browser test throws an uncaught JavaScript error, producing a generic error toast and one history entry with a client error reference. Open notification history to inspect each result. See [Browser error reporting](#browser-error-reporting) for reporting limits.
+
+## Pagination APIs
+
+Hosting supplies the shared Swagger guidance for pagination inputs and responses. QA controller descriptions add endpoint-specific ceilings, ignored settings and jump rules.
+
+Pagination responses contain `items` and `info`. The outer `info.firstId` and `info.lastId` identify the returned page. `info.request.pageCursor` describes the preceding page. Counts and page totals use `-1` when unspecified. Set `updateTotalCount=true` to refresh totals.
+
+| Endpoint | Request and continuation |
+|---|---|
+| `GET /Api/QA/Category` | Flattened `PaginationRequest` query fields. Defaults to page 1 and size 10. The server fixes the ceiling at 100 and ignores supplied `PageSize.MaxSize`, `TotalCount`, and `MarkAsHasNextOnRefresh`. |
+| `GET /Api/QA/Tag/Paginate` | Initial page. Query defaults: `pageSize=10`, `maxSize=100`, `totalCount=-1`, `updateTotalCount=false`, `direction=Ascending`. Maximum `maxSize` is 1000. |
+| `GET /Api/QA/Tag/PaginateWithQuery` | Flatten the previous response's `info` into query fields, including `Request.PageNumber`, `FirstId`, `LastId`, and `Total.Count`. Supply `jumpTo` separately. |
+| `POST /Api/QA/Tag/PaginateWithBody` | Send the previous response's complete `info` object as JSON. Keep `jumpTo` and `updateTotalCount` in the query string. Preserve the required JSON fields. |
+
+Tag continuation defaults `jumpTo` to 1 and clamps the target to at least 1 and within ten pages of the previous page. To advance from page 1 to page 2, POST the returned `info` object to `/Api/QA/Tag/PaginateWithBody?jumpTo=2`. Do not send the complete response or only `info.request`.
+
+For Category continuation, set `PageNumber` to the desired page, `PageCursor.PageNumber` to the previous `info.request.pageNumber`, and both cursor IDs to the previous outer `info.firstId` and `info.lastId`. Pagination failures use the API Problem Details contract below. Swagger supplies a representative 400 response rather than enumerating every possible failure status.
 
 ## Error pages and API failures
 

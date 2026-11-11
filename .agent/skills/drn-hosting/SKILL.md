@@ -57,6 +57,8 @@ Swagger is Development-only by default. To enable elsewhere, call base in `Confi
 
 Swagger UI prefixes use nonempty ASCII letter, digit, hyphen or underscore segments. Root mounts are rejected. Reserve the UI subtree for Swagger CSP. Disabled UI retains application policies. Retain base behavior in `ConfigureSecurityHeaderPolicyBuilder`. The [Hosting README][hosting] owns `AddSwaggerUI`, metadata, document URLs, title defaults, upstream caching and `DrnPageOptions.FaviconUrl`.
 
+README owns shared pagination guidance.
+
 ## Page & Endpoint Management
 
 Static accessors use `PageCollectionBase<ExamplePageFor>.PageCollection` and `(ExampleEndpointFor)EndpointCollectionBase<ExampleProgram>.EndpointCollection!`. Pages self-initialize; API metadata requires endpoint initialization. Never retain request-specific URLs or authorization results statically.

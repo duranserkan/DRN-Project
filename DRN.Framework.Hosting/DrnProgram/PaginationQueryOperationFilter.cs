@@ -14,7 +14,9 @@ internal sealed class PaginationQueryOperationFilter : IOperationFilter
 
         foreach (var description in context.ApiDescription.ParameterDescriptions)
         {
-            if (description.Source != BindingSource.Query || description.ParameterDescriptor?.ParameterType != typeof(PaginationRequest))
+            var parameterType = description.ParameterDescriptor?.ParameterType;
+            var isResultInfo = parameterType == typeof(PaginationResultInfo);
+            if (description.Source != BindingSource.Query || (parameterType != typeof(PaginationRequest) && !isResultInfo))
                 continue;
 
             var query = parameters.OfType<OpenApiParameter>().FirstOrDefault(p =>
@@ -24,9 +26,23 @@ internal sealed class PaginationQueryOperationFilter : IOperationFilter
 
             var metadata = description.ModelMetadata;
             var container = metadata?.ContainerType;
-            if (container == typeof(PaginationTotal) || metadata?.IsReadOnly == true)
+            var isCalculatedTotal = container == typeof(PaginationTotal) &&
+                (!isResultInfo || description.Name.Contains("Request.Total.", StringComparison.OrdinalIgnoreCase));
+            if (isCalculatedTotal || metadata?.IsReadOnly == true)
+            {
                 parameters.Remove(query);
-            else if (container == typeof(PageSize) || container == typeof(PageCursor))
+                continue;
+            }
+
+            var fieldDescription = PaginationSchemaFilter.GetDescription(container, metadata?.PropertyName);
+            if (fieldDescription is not null)
+                query.Description = fieldDescription;
+
+            var isResultValue = isResultInfo && container is not null &&
+                typeof(PaginationResultBase).IsAssignableFrom(container) && metadata?.ModelType.IsValueType == true;
+            var hasQueryDefault = container == typeof(PageSize) || container == typeof(PageCursor) ||
+                (isResultInfo && container == typeof(PaginationTotal)) || isResultValue;
+            if (hasQueryDefault)
             {
                 query.Required = false;
                 if (container == typeof(PageCursor) && metadata?.PropertyName is nameof(PageCursor.FirstId) or nameof(PageCursor.LastId))

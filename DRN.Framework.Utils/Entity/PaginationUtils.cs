@@ -31,7 +31,7 @@ public class PaginationUtils(ISourceKnownEntityIdUtils utils) : IPaginationUtils
             var lastEntityId = utils.Parse(request.PageCursor.LastId);
 
             if (!firstEntityId.Valid)
-                throw new ValidationException($"Invalid PaginationRequest.PageCursor.FirstId: {request.PageCursor.LastId}");
+                throw new ValidationException($"Invalid PaginationRequest.PageCursor.FirstId: {request.PageCursor.FirstId}");
             if (!lastEntityId.Valid)
                 throw new ValidationException($"Invalid PaginationRequest.PageCursor.LastId: {request.PageCursor.LastId}");
 

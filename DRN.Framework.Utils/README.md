@@ -989,6 +989,8 @@ public class OrderService(IPaginationUtils pagination, OrderDbContext dbContext)
 
 The query must support EF Core asynchronous execution. `GetResultAsync` accepts an optional cancellation token, handles next/previous/refresh navigation, and fetches one extra item for page metadata. Explicit page jumps use `Skip`; ordinary cursor navigation uses ID comparisons. A total-count query runs only when `UpdateTotalCount` is requested. See [PaginationUtils.cs](Entity/PaginationUtils.cs).
 
+Use the returned page's outer `FirstId` and `LastId` for the next cursor. Its `Request.PageCursor` describes the preceding page. Invalid cursor diagnostics identify the failing field and its supplied ID. When continuing through `PaginationRequest.From(resultInfo, jumpTo)`, the requested target is clamped to at least page 1 and within ten pages of the previous page. Direct `PaginationRequest` construction does not apply that jump clamp.
+
 ## Bit Packing
 
 For scenarios requiring custom ID generation or compact binary data structures, use `NumberBuilder` and `NumberParser`. `NumberBuilder<TNumber>` is a `ref struct`; `NumberParser` is a value-type parser for low-allocation bit manipulation.

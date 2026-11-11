@@ -10,6 +10,8 @@ Dependencies upgraded to dotnet 10.0.14
 
 ### Bug Fixes
 
+*   **Pagination diagnostics**: Invalid first-cursor errors report the supplied first ID instead of the last ID.
+
 *   **AES concurrency**: Concurrent portable encryption and decryption on one `Aes256` instance no longer fail with a cryptographic concurrency exception on .NET 11.
 
 ### New Features
