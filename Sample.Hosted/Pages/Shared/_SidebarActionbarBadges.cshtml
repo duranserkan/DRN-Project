@@ -15,7 +15,7 @@
 
 @if (Get.Role.System.Admin)
 {
-    <li class="nav-item">
+    <li class="nav-item"> <!-- //NOSONAR: The parent partial supplies ul#ActionBarBadgeList. -->
         <output class="d-block" title="@nameof(Get.Role.System.Admin)" data-bs-toggle="tooltip" data-bs-placement="left">
                 <span class="btn btn-light nav-link d-flex align-items-center py-2 rounded-0" type="button">
                     <i class="bi bi-person-workspace text-primary" style="font-size: 1.25em;" aria-hidden="true"></i>
@@ -26,7 +26,7 @@
 
 @if (Model.HasPendingChanges)
 {
-    <li class="nav-item">
+    <li class="nav-item"> <!-- //NOSONAR: The parent partial supplies ul#ActionBarBadgeList. -->
         <output class="d-block" title="Has Pending Changes" data-bs-toggle="tooltip" data-bs-placement="left">
                 <span class="btn btn-light nav-link d-flex align-items-center py-2 rounded-0" type="button">
                     <i class="bi bi-plus-circle-dotted text-primary" style="font-size: 1.25em;" aria-hidden="true"></i>
@@ -37,7 +37,7 @@
 
 @if (ScopeContext.Settings.DevelopmentSettings.Prototype)
 {
-    <li class="nav-item">
+    <li class="nav-item"> <!-- //NOSONAR: The parent partial supplies ul#ActionBarBadgeList. -->
         <output class="d-block" title="@prototypeTitle" data-bs-toggle="tooltip" data-bs-placement="left">
                 <span class="btn btn-light nav-link d-flex align-items-center py-2 rounded-0" type="button">
                     <i class="bi bi-wrench-adjustable text-primary" style="font-size: 1.25em;" aria-hidden="true"></i>
@@ -48,7 +48,7 @@
 
 @if (ScopeContext.Settings.DevelopmentSettings.AutoMigrateDevelopment)
 {
-    <li class="nav-item">
+    <li class="nav-item"> <!-- //NOSONAR: The parent partial supplies ul#ActionBarBadgeList. -->
         <output class="d-block" title="Auto Migration Enabled" data-bs-toggle="tooltip" data-bs-placement="left">
                 <span class="btn btn-light nav-link d-flex align-items-center py-2 rounded-0" type="button">
                     <i class="bi bi-robot text-primary" style="font-size: 1.25em;" aria-hidden="true"></i>
@@ -59,7 +59,7 @@
 
 @if (ScopeContext.Settings.DevelopmentSettings.LaunchExternalDependencies)
 {
-    <li class="nav-item">
+    <li class="nav-item"> <!-- //NOSONAR: The parent partial supplies ul#ActionBarBadgeList. -->
         <output class="d-block" title="External Dependencies Launched" data-bs-toggle="tooltip" data-bs-placement="left">
                 
                 <span class="btn btn-light nav-link d-flex align-items-center py-2 rounded-0" type="button">
@@ -69,7 +69,7 @@
     </li>
 }
 
-<li class="nav-item">
+<li class="nav-item"> <!-- //NOSONAR: The parent partial supplies ul#ActionBarBadgeList. -->
     <output class="d-block" title="@environment" data-bs-toggle="tooltip" data-bs-placement="left">
         <span class="btn btn-light nav-link d-flex align-items-center py-2 rounded-0">
             <i class="bi bi-exclamation-triangle text-primary" style="font-size: 1.25em;" aria-hidden="true"></i>
