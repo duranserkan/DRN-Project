@@ -11,7 +11,7 @@ namespace DRN.Framework.Utils.Data.Encryption;
 /// AES-256 for one 128-bit ECB block with runtime-intrinsic, portable, and automatic fallback paths.
 /// </summary>
 /// <remarks>
-/// Concurrent encryption and decryption were verified against the .NET 10.0.10 runtime implementations.
+/// Supports concurrent encryption and decryption. Portable provider operations are serialized per instance.
 /// Dispose only after all callers finish.
 /// This primitive is deterministic and provides no authentication; do not compose it into multi-block ECB encryption.
 /// </remarks>
@@ -20,6 +20,7 @@ public sealed class Aes256 : IDisposable
     private InlineArray15<Vector128<byte>> _decryptionRoundKeys;
     private InlineArray15<Vector128<byte>> _encryptionRoundKeys;
     private readonly Aes _portableAes;
+    private readonly Lock _portableAesLock = new();
     private int _disposed;
 
     public Aes256(ReadOnlySpan<byte> key)
@@ -106,24 +107,8 @@ public sealed class Aes256 : IDisposable
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>Thread-safety verification for .NET 10.0.10:</b>
-    /// Although the general .NET documentation states that instance members of <see cref="Aes"/> are not
-    /// guaranteed to be thread-safe, the .NET 10.0.10 span-based one-shot <c>EncryptEcb</c> and <c>DecryptEcb</c>
-    /// implementations create per-call cipher state and do not mutate the configured key after construction.
-    /// Therefore, this wrapper does not serialize portable operations with a framework-level lock.
-    /// </para>
-    /// <para>
-    /// Platform-specific .NET 10.0.10 implementation details:
-    /// <list type="bullet">
-    /// <item><description><b>Windows (CNG):</b> Uses a per-call BCrypt-backed cipher over the native CNG key handle.</description></item>
-    /// <item><description><b>macOS (Apple CommonCrypto):</b> Uses a per-call cryptor backed by the stateless <c>CCCrypt</c> function.</description></item>
-    /// <item><description><b>Linux (OpenSSL):</b> Uses a per-call cipher with its own <c>SafeEvpCipherCtxHandle</c>.</description></item>
-    /// </list>
-    /// </para>
-    /// <para>
-    /// Concurrent use is covered directly by <c>Aes256_Should_Support_Parallel_Use_Of_One_Instance</c> and
-    /// transitively by <c>SourceKnownEntityIdUtils_Should_Generate_Ids_For_3_Seconds</c>, which generates and
-    /// parses 786,429 secure identifiers across eight parallel workers.
+    /// Portable encryption and decryption share one lock because the underlying <see cref="Aes"/>
+    /// instance does not support concurrent operations. Runtime-intrinsic operations do not acquire this lock.
     /// </para>
     /// <para>
     /// For one 128-bit block, ECB is mathematically identical to CBC with a zero IV
@@ -133,8 +118,7 @@ public sealed class Aes256 : IDisposable
     /// primitive remains deterministic and unauthenticated.
     /// </para>
     /// <para>
-    /// Do not dispose the instance while an encryption or decryption operation is active. Reverify these
-    /// implementation assumptions when changing the target runtime.
+    /// Do not dispose the instance while an encryption or decryption operation is active.
     /// </para>
     /// </remarks>
     public Vector128<byte> EncryptWithFramework(Vector128<byte> block)
@@ -147,7 +131,7 @@ public sealed class Aes256 : IDisposable
     /// Decrypts one block with the portable .NET AES provider.
     /// </summary>
     /// <remarks>
-    /// The thread-safety verification, platform details, and single-block rationale are documented on
+    /// The concurrency contract and single-block rationale are documented on
     /// <see cref="EncryptWithFramework"/>.
     /// </remarks>
     public Vector128<byte> DecryptWithFramework(Vector128<byte> block)
@@ -185,7 +169,8 @@ public sealed class Aes256 : IDisposable
         Span<byte> input = stackalloc byte[Vector128<byte>.Count];
         Span<byte> output = stackalloc byte[Vector128<byte>.Count];
         block.StoreUnsafe(ref MemoryMarshal.GetReference(input));
-        _portableAes.EncryptEcb(input, output, PaddingMode.None);
+        lock (_portableAesLock)
+            _portableAes.EncryptEcb(input, output, PaddingMode.None);
         return Vector128.LoadUnsafe(ref MemoryMarshal.GetReference(output));
     }
 
@@ -194,7 +179,8 @@ public sealed class Aes256 : IDisposable
         Span<byte> input = stackalloc byte[Vector128<byte>.Count];
         Span<byte> output = stackalloc byte[Vector128<byte>.Count];
         block.StoreUnsafe(ref MemoryMarshal.GetReference(input));
-        _portableAes.DecryptEcb(input, output, PaddingMode.None);
+        lock (_portableAesLock)
+            _portableAes.DecryptEcb(input, output, PaddingMode.None);
         return Vector128.LoadUnsafe(ref MemoryMarshal.GetReference(output));
     }
 

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Security.Claims;
+using System.Text.Json;
 using DRN.Framework.Utils.Auth.MFA;
 using DRN.Test.Integration.Helpers;
 using DRN.Test.Integration.Tests.Sample.Pages.Helpers;
@@ -141,6 +142,16 @@ public class DeveloperToolsAuthorizationTests
             // Identity's default cookie/bearer composite forwards forbid responses to the bearer handler.
             response.StatusCode.Should().Be(allowed ? HttpStatusCode.OK : HttpStatusCode.Forbidden,
                 $"the {environment} policy should enforce the user's permission for {path}");
+            if (allowed && path == "/swagger/v1/swagger.json")
+            {
+                using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+                document.RootElement.GetProperty("security")[0].GetProperty("bearer").GetArrayLength().Should().Be(0);
+                var paths = document.RootElement.GetProperty("paths");
+                foreach (var anonymousPath in new[] { "/Api/Sample/Private/anonymous", "/Api/Sample/WeatherForecast/Nexus" })
+                    paths.GetProperty(anonymousPath).GetProperty("get").GetProperty("security").GetArrayLength().Should().Be(0);
+                paths.GetProperty("/Api/Sample/Private").GetProperty("get")
+                    .TryGetProperty("security", out _).Should().BeFalse();
+            }
             if (allowed) continue;
 
             response.Headers.Location.Should().BeNull();

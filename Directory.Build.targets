@@ -1,4 +1,8 @@
 <Project>
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net11.0'">
+    <Features>$(Features);runtime-async=on</Features>
+  </PropertyGroup>
+
   <!-- Package metadata contains one release and the mandatory signature; Markdown retains the full history. -->
   <Target Name="_PrepareCurrentPackageReleaseNotes">
     <PropertyGroup>

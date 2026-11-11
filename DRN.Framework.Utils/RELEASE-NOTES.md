@@ -1,8 +1,18 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
-## Version 0.10.1
+## Version 0.11.0
 
-Dependencies upgraded to dotnet 10.0.14
+Targets .NET 11 with Microsoft.Extensions and System dependencies upgraded to 11.0.0.
+
+### Breaking Changes
+
+*   **Target framework**: Requires .NET 11.
+
+### Bug Fixes
+
+*   **Pagination diagnostics**: Invalid first-cursor errors report the supplied first ID instead of the last ID.
+
+*   **AES concurrency**: Concurrent portable encryption and decryption on one `Aes256` instance no longer fail with a cryptographic concurrency exception on .NET 11.
 
 ### New Features
 

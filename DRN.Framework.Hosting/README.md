@@ -44,7 +44,7 @@
 
 ## QuickStart: Beginner
 
-Use a .NET 10 web project with a `DRN.Framework.Hosting` package reference. Inherit from `DrnProgramBase<TProgram>` and register application services. Configure `Environment`, `NexusAppSettings:AppId`, `NexusAppSettings:AppInstanceId`, and `NLog` before calling `RunAsync`; see [Configuration](#configuration).
+Use a .NET 11 web project with a `DRN.Framework.Hosting` package reference. Inherit from `DrnProgramBase<TProgram>` and register application services. Configure `Environment`, `NexusAppSettings:AppId`, `NexusAppSettings:AppInstanceId`, and `NLog` before calling `RunAsync`; see [Configuration](#configuration).
 
 ```csharp
 using DRN.Framework.Hosting.DrnProgram;
@@ -229,13 +229,31 @@ For MFA hooks and examples, see [MFA](#mfa).
 | `DrnProgramSwaggerOptions` | (Object) | Toggles Swagger generation. Defaults to `IsDevelopmentEnvironment`. |
 | `NLogOptions` | (Object) | Controls NLog bootstrapping (e.g., replace logger factory). |
 
+Swagger serves OpenAPI 3.2 documents by default. If a client generator or validator requires 3.1, set `options.ConfigureSwaggerEndpointOptionsAction = endpoint => endpoint.OpenApiVersion = Microsoft.OpenApi.OpenApiSpecVersion.OpenApi3_1;` in `ConfigureSwaggerOptions`.
+
+When `AddSwagger` is enabled, set `AddSwaggerUI = false` to expose only the OpenAPI document. `AddSwagger = false` disables both.
+
+Swagger UI resolves its default document URL from the configured OpenAPI route and preserves deployment prefixes. An explicit URL list supplied through `ConfigureSwaggerUIOptionsAction` takes precedence.
+
+The browser-tab title defaults to the API title and version, for example `DRN Sample (v1)`. Set `Title` to override it. Swagger UI preserves Swashbuckle's default caching behavior. `ConfigureSwaggerUIOptionsAction` can override `DocumentTitle`, `CacheLifetime` and the route prefix. Set `CacheLifetime = null` in that callback to disable UI caching explicitly. Prefixes accept nonempty segments of ASCII letters, digits, hyphens and underscores. Surrounding slashes are trimmed. Root mounts are rejected.
+
+Set `DrnPageOptions.FaviconUrl` to a host-served application-root-relative image path, such as `/images/icon.svg`, to customize the Swagger UI tab icon. Deployment prefixes and nested UI routes are preserved. Remote URLs, query strings and traversal segments are rejected. Null keeps the default icon.
+
+For controller actions that accept `[FromQuery] PaginationRequest` or `[FromQuery] PaginationResultInfo`, Swagger omits calculated fields and marks defaulted page size and cursor inputs as optional. Continuation requests retain their outer total-count fields. Both cursor ID descriptions explain when to supply the first and last IDs from the previous page. JSON bodies preserve required members. Result descriptions distinguish the returned page's outer IDs from the previous-page cursor in its request.
+
+Hosting adds generic operation guidance for query and body pagination inputs and `PaginationResultModel<T>` responses. Query fields retain explicit prefixes, such as `previous.FirstId`. Body guidance uses the actual names of any query parameters, including renamed parameters. Existing endpoint descriptions are preserved before the shared guidance. Keep application-specific ceilings, ignored settings and jump limits in the controller's `EndpointDescription`. Hosting does not infer those policies from a parameter type or HTTP method.
+
+DRN JSON APIs accept the full signed 64-bit range as JSON integers or decimal strings, including quoted small values such as `"42"`. DRN writes a number within JavaScript's safe integer range (inclusive) and a string outside it. Nullable values also allow JSON null, including controller parameters declared as `[FromBody] long?` in the generated request schema. Required validation metadata, such as `[Required]`, excludes null from those body schemas.
+
+The default bearer security requirement excludes operations marked with `[AllowAnonymous]` on the action or controller.
+
 `DrnProgramBase` also automatically registers the public `IEndpointAccessor` dependency-injection contract as a singleton. Consumers can inject `IEndpointAccessor` to query the endpoint collections (`Endpoints`, `ApiEndpoints`, `PageEndpoints`, and `PageEndpointByPaths`) populated by `ValidateEndpoints` before service validation (`ValidateServicesAsync`) runs.
 
 ### Swagger Access Outside Development
 
 Override `ConfigureSwaggerOptions`, call base, then set `AddSwagger = true` and `AuthorizationPolicy` to an application-owned named policy. Register that policy with `RequireAuthenticatedUser()` and the appropriate administrative role. The default MFA enforcement also applies.
 
-`AuthorizationPolicy` protects Swagger UI, its assets, and JSON/YAML documents, including a document route outside the UI prefix. A null policy preserves existing authorization behavior. Empty or whitespace policy names are rejected. The framework still enables Swagger only in Development by default.
+`AuthorizationPolicy` protects Swagger UI, its assets, and JSON/YAML documents, including a document route outside the UI prefix. When null, all documentation endpoints use the application's fallback authorization policy. Empty or whitespace policy names are rejected. The framework still enables Swagger only in Development by default.
 
 
 ## Configuration
@@ -995,10 +1013,10 @@ The framework includes built-in Razor Pages for developer-time exception handlin
 
 Production responses and eligible API/HTMX Problem Details skip diagnostic model collection when no post-creation exception filter needs the model. Pre-creation filters still run before response selection. Registered post-creation filters retain the populated model and their existing order, unless a pre-filter sets `SkipPostCreationFilter`. Development HTML diagnostics and explicit `GetExceptionPageModel` calls still create the model.
 
-Configure application-owned error pages with Hosting's `DrnErrorPageOptions`:
+Configure application-owned error pages with Hosting's `DrnPageOptions`:
 
 ```csharp
-services.Configure<DrnErrorPageOptions>(options =>
+services.Configure<DrnPageOptions>(options =>
 {
     options.ServerErrorPage = Get.Page.Root.SomethingWentWrong;
     options.NotFoundPage = Get.Page.Root.NotFound;
@@ -1006,7 +1024,7 @@ services.Configure<DrnErrorPageOptions>(options =>
 });
 ```
 
-The types are in `DRN.Framework.Hosting.Middlewares.ExceptionHandler`. Use Razor page names under `Pages`, without `.cshtml`. Each option defaults to `null`, independently disabling that custom page. Invalid page-name syntax fails options validation at startup.
+`DrnPageOptions` is in `DRN.Framework.Hosting`. Error page models are in `DRN.Framework.Hosting.Middlewares.ExceptionHandler`. Use Razor page names under `Pages`, without `.cshtml`. Each error page option defaults to `null`, independently disabling that custom page. Invalid page-name syntax fails options validation at startup.
 
 The application's Razor page uses `@model DRN.Framework.Hosting.Middlewares.ExceptionHandler.ServerErrorPageModel`. This anonymous, non-cacheable model exposes only `RequestId` and returns HTTP 500 on direct GET requests. Keep its content generic and use a layout that does not require authentication or depend on application data.
 
@@ -1030,7 +1048,7 @@ services.ConfigureApplicationCookie(options =>
 });
 ```
 
-`PreserveAccessDeniedRequestId()` is in the same namespace and requires MVC TempData services. It preserves the existing callback and stores the reference only for 302 redirects, leaving API 401/403 responses unchanged. `AccessDeniedPageModel` returns 403 on GET and consumes the stored reference once; direct visits otherwise use their own `HttpContext.TraceIdentifier`. This is separate from `DrnErrorPageOptions` status-page rendering. If the cookie scheme uses `EventsType`, call the extension on that events instance instead of `options.Events`.
+`PreserveAccessDeniedRequestId()` is in the same namespace and requires MVC TempData services. It preserves the existing callback and stores the reference only for 302 redirects, leaving API 401/403 responses unchanged. `AccessDeniedPageModel` returns 403 on GET and consumes the stored reference once; direct visits otherwise use their own `HttpContext.TraceIdentifier`. This is separate from `DrnPageOptions` status-page rendering. If the cookie scheme uses `EventsType`, call the extension on that events instance instead of `options.Events`.
 
 ### Request Body Buffering
 

@@ -61,7 +61,7 @@ public class PaginationUtilsTests
             var paginate = () => paginationUtils.GetResultAsync(query, mismatchedRequest);
 
             await paginate.Should().ThrowAsync<ValidationException>()
-                .WithMessage($"Invalid PaginationRequest.PageCursor.{(replaceFirst ? "FirstId" : "LastId")}:*");
+                .WithMessage($"Invalid PaginationRequest.PageCursor.{(replaceFirst ? "FirstId" : "LastId")}: {(replaceFirst ? cursor.FirstId : cursor.LastId)}");
         }
     }
 

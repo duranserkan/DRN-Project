@@ -11,6 +11,7 @@ namespace Sample.Hosted.Controllers.QA;
 public class TagController(ITagRepository repository) : ControllerBase
 {
     [HttpGet("Paginate")]
+    [EndpointDescription("Fetch the first page. totalCount defaults to -1 (unknown). maxSize is capped at 1000. Use a continuation endpoint to request another page.")]
     public async Task<PaginationResultModel<TagDto>> PaginateAsync(
         [FromQuery] int pageSize = PageSize.SizeDefault,
         [FromQuery] int maxSize = PageSize.MaxSizeDefault,
@@ -25,6 +26,7 @@ public class TagController(ITagRepository repository) : ControllerBase
     }
 
     [HttpGet("PaginateWithQuery")]
+    [EndpointDescription("jumpTo defaults to 1. The target is clamped to at least 1 and within 10 pages of the previous page. updateTotalCount defaults to false.")]
     public async Task<PaginationResultModel<TagDto>> PaginateWithQueryAsync([FromQuery] PaginationResultInfo? resultInfo,
         [FromQuery] int jumpTo = 1, [FromQuery] bool updateTotalCount = false)
     {
@@ -34,6 +36,7 @@ public class TagController(ITagRepository repository) : ControllerBase
     }
 
     [HttpPost("PaginateWithBody")]
+    [EndpointDescription("jumpTo defaults to 1. The target is clamped to at least 1 and within 10 pages of the previous page. updateTotalCount defaults to false.")]
     public async Task<PaginationResultModel<TagDto>> PaginateWithBodyAsync([FromBody] PaginationResultInfo? resultInfo,
         [FromQuery] int jumpTo = 1,
         [FromQuery] bool updateTotalCount = false)

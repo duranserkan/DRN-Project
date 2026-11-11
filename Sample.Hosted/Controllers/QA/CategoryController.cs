@@ -14,6 +14,7 @@ namespace Sample.Hosted.Controllers.QA;
 public class CategoryController(QAContext context, IPaginationUtils pagination, ICategoryService categories) : ControllerBase
 {
     [HttpGet]
+    [EndpointDescription("The server always uses a page-size ceiling of 100 and ignores PageSize.MaxSize, TotalCount and MarkAsHasNextOnRefresh supplied by callers.")]
     public async Task<PaginationResultModel<CategoryDto>> PaginateAsync(
         [FromQuery] PaginationRequest? request = null, CancellationToken cancellationToken = default)
     {

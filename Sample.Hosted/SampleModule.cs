@@ -1,4 +1,5 @@
 using DRN.Framework.SharedKernel.Extensions;
+using DRN.Framework.Hosting;
 using DRN.Framework.Hosting.Identity;
 using DRN.Framework.Hosting.Middlewares.ApiErrors;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
@@ -37,8 +38,9 @@ public static class SampleModule
             options.PathPrefixes = ["/Api"];
             options.HandleHtmxRequests = true;
         });
-        services.Configure<DrnErrorPageOptions>(options =>
+        services.Configure<DrnPageOptions>(options =>
         {
+            options.FaviconUrl = "/images/100.jpeg";
             options.ServerErrorPage = Get.Page.Root.SomethingWentWrong;
             options.NotFoundPage = Get.Page.Root.NotFound;
             options.BadRequestPage = Get.Page.Root.BadRequest;

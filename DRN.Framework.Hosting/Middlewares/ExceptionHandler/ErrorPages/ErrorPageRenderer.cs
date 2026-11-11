@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 namespace DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 
 [Transient<ErrorPageRenderer>]
-public class ErrorPageRenderer(IPageUtils pageUtils, IOptions<DrnErrorPageOptions> options)
+public class ErrorPageRenderer(IPageUtils pageUtils, IOptions<DrnPageOptions> options)
 {
     public bool CanRender(HttpContext context) =>
         GetPageName(context.Response.StatusCode) != null && WantsHtml(context);

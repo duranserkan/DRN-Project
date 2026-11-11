@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
+        <TargetFramework>net11.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <Authors>Duran Serkan KILIÇ</Authors>
@@ -20,7 +20,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Compliance.Abstractions" Version="10.11.0" />
+        <PackageReference Include="Microsoft.Extensions.Compliance.Abstractions" Version="11.0.0" />
         <EmbeddedResource Include="../DRN.Framework.Utils/Logging/Diagnostics/data-classification-rules.json" LogicalName="DRN.DiagnosticRules.json" />
     </ItemGroup>
 
@@ -49,9 +49,9 @@
 
     <Target Name="_PackSharedKernelAnalyzers">
         <ItemGroup>
-            <TfmSpecificPackageFile Include="..\DRN.Framework.SharedKernel.Analyzers\bin\$(Configuration)\net10.0\DRN.Framework.SharedKernel.Analyzers.dll"
+            <TfmSpecificPackageFile Include="..\DRN.Framework.SharedKernel.Analyzers\bin\$(Configuration)\net11.0\DRN.Framework.SharedKernel.Analyzers.dll"
                                     PackagePath="analyzers/dotnet/cs" />
-            <TfmSpecificPackageFile Include="..\DRN.Framework.SharedKernel.CodeFixes\bin\$(Configuration)\net10.0\DRN.Framework.SharedKernel.CodeFixes.dll"
+            <TfmSpecificPackageFile Include="..\DRN.Framework.SharedKernel.CodeFixes\bin\$(Configuration)\net11.0\DRN.Framework.SharedKernel.CodeFixes.dll"
                                     PackagePath="analyzers/dotnet/cs" />
         </ItemGroup>
     </Target>

@@ -1,13 +1,56 @@
+using System.Globalization;
+using System.Text.Json;
 using DRN.Framework.Hosting.DrnProgram;
+using DRN.Framework.SharedKernel.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.Swagger;
+using Swashbuckle.AspNetCore.SwaggerGen;
 using Swashbuckle.AspNetCore.SwaggerUI;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting.DrnProgram;
 
 public class DrnProgramSwaggerOptionsTests
 {
+    private sealed record Int64Response(long Value, long? OptionalValue);
+
+    [Theory]
+    [DataInlineUnit(42L, JsonValueKind.Number)]
+    [DataInlineUnit(IntegerSafeIntervalForJs.Min, JsonValueKind.Number)]
+    [DataInlineUnit(IntegerSafeIntervalForJs.Max, JsonValueKind.Number)]
+    [DataInlineUnit(IntegerSafeIntervalForJs.Min - 1, JsonValueKind.String)]
+    [DataInlineUnit(IntegerSafeIntervalForJs.Max + 1, JsonValueKind.String)]
+    [DataInlineUnit(long.MinValue, JsonValueKind.String)]
+    [DataInlineUnit(long.MaxValue, JsonValueKind.String)]
+    public void Swagger_Int64_Properties_Should_Describe_Drn_Json(long value, JsonValueKind expectedKind)
+    {
+        var options = new SwaggerGenOptions();
+        new DrnProgramSwaggerOptions().ConfigureSwaggerGenOptions(options);
+        var generator = new SchemaGenerator(options.SchemaGeneratorOptions, new JsonSerializerDataContractResolver(JsonConventions.DefaultOptions));
+        var repository = new SchemaRepository();
+        generator.GenerateSchema(typeof(Int64Response), repository);
+        var schema = repository.Schemas[nameof(Int64Response)];
+        var json = JsonSerializer.SerializeToElement(new Int64Response(value, value), JsonConventions.DefaultOptions);
+
+        foreach (var name in new[] { "value", "optionalValue" })
+        {
+            var alternatives = schema.Properties![name].OneOf!;
+            var token = json.GetProperty(name);
+            token.ValueKind.Should().Be(expectedKind);
+            var numeric = alternatives.Single(s => s.Type == JsonSchemaType.Integer);
+            numeric.Minimum.Should().Be(long.MinValue.ToString(CultureInfo.InvariantCulture));
+            numeric.Maximum.Should().Be(long.MaxValue.ToString(CultureInfo.InvariantCulture));
+            var quoted = alternatives.Single(s => s.Type == JsonSchemaType.String);
+            quoted.Format.Should().Be("int64");
+            if (quoted.Pattern is { } pattern)
+                value.ToString(CultureInfo.InvariantCulture).Should().MatchRegex(pattern);
+            alternatives.Any(s => s.Type == JsonSchemaType.Null).Should().Be(name == "optionalValue");
+        }
+
+        JsonSerializer.SerializeToElement(new Int64Response(value, null), JsonConventions.DefaultOptions)
+            .GetProperty("optionalValue").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
     [Theory]
     [DataInlineUnit("", "https://public.example:8443/")]
     [DataInlineUnit("/api", "https://public.example:8443/api")]

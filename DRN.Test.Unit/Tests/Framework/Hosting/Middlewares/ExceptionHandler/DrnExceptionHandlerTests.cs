@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using DRN.Framework.Hosting;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Middlewares.ApiErrors;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
@@ -21,7 +22,7 @@ public class DrnExceptionHandlerTests
     {
         var pageUtils = Substitute.For<IPageUtils>();
         var renderer = new ErrorPageRenderer(pageUtils,
-            Options.Create(new DrnErrorPageOptions { ServerErrorPage = page }));
+            Options.Create(new DrnPageOptions { ServerErrorPage = page }));
         using var services = new ServiceCollection().AddSingleton(renderer).BuildServiceProvider();
         await using var body = new MemoryStream();
         var context = new DefaultHttpContext

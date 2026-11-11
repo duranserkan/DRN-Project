@@ -3,6 +3,8 @@ using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
+using DRN.Test.Utils.Hosting.Auth;
+using Microsoft.AspNetCore.Authentication;
 using NetEscapades.AspNetCore.SecurityHeaders.Infrastructure;
 
 namespace DRN.Test.Utils.Hosting;
@@ -17,7 +19,8 @@ public sealed class CspTestProgram : DrnProgramBase<CspTestProgram>, IDrnProgram
 
     protected override Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings, IScopedLog scopedLog)
     {
-        builder.Services.AddAuthentication().AddCookie();
+        builder.Services.AddAuthentication(NonDefaultExemptValues.DefaultCookieScheme)
+            .AddScheme<AuthenticationSchemeOptions, NonDefaultCookieAuthHandler>(NonDefaultExemptValues.DefaultCookieScheme, _ => { });
         return Task.CompletedTask;
     }
 
@@ -60,12 +63,14 @@ public sealed class CspTestProgram : DrnProgramBase<CspTestProgram>, IDrnProgram
     protected override void MapApplicationEndpoints(WebApplication application, IAppSettings appSettings)
     {
         base.MapApplicationEndpoints(application, appSettings);
-        // Anonymous metadata also lets Swagger middleware serve its document through the normal pipeline.
-        application.MapGet("/{**path}", (HttpContext context) =>
+        application.MapGet("/{**path}", Probe).AllowAnonymous();
+        application.MapGet("/swagger/policy-probe", Probe).AllowAnonymous();
+
+        static IResult Probe(HttpContext context)
         {
             if (context.Request.Query.TryGetValue("policy", out var policy))
                 context.Items[CspFor.CspPolicyName] = policy.ToString();
             return Results.Content("<html></html>", "text/html");
-        }).AllowAnonymous();
+        }
     }
 }

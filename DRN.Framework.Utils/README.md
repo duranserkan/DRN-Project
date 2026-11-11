@@ -143,7 +143,7 @@ public class PaymentService(IAppSettings settings, IScopedLog log, PaymentSettin
 > [!NOTE]
 > If you are using `DRN.Framework.Hosting` (inheriting from `DrnProgramBase`), this package is **automatically registered and validated**.
 
-The package targets .NET 10. Add it to a consumer project with:
+The package targets .NET 11. Add it to a consumer project with:
 
 ```bash
 dotnet add package DRN.Framework.Utils
@@ -860,7 +860,7 @@ var decoded = Base32Encoding.Decode(unpadded);
 | `EncryptRuntimeIntrinsics` / `DecryptRuntimeIntrinsics` | Explicit x86 AES-NI or ARM AES intrinsics |
 | `EncryptWithFramework` / `DecryptWithFramework` | Explicit cross-platform .NET AES provider |
 
-A live instance supports concurrent calls. Dispose it only after all callers finish. Calls after disposal are unsupported.
+A live instance supports concurrent calls. Portable encryption and decryption are serialized per instance. Runtime-intrinsic calls remain independent. Dispose it only after all callers finish. Calls after disposal are unsupported.
 
 > [!WARNING]
 > `Aes256` is a deterministic, single-block ECB primitive with no authentication. Do not compose it into multi-block ECB encryption.
@@ -988,6 +988,8 @@ public class OrderService(IPaginationUtils pagination, OrderDbContext dbContext)
 ```
 
 The query must support EF Core asynchronous execution. `GetResultAsync` accepts an optional cancellation token, handles next/previous/refresh navigation, and fetches one extra item for page metadata. Explicit page jumps use `Skip`; ordinary cursor navigation uses ID comparisons. A total-count query runs only when `UpdateTotalCount` is requested. See [PaginationUtils.cs](Entity/PaginationUtils.cs).
+
+Use the returned page's outer `FirstId` and `LastId` for the next cursor. Its `Request.PageCursor` describes the preceding page. Invalid cursor diagnostics identify the failing field and its supplied ID. When continuing through `PaginationRequest.From(resultInfo, jumpTo)`, the requested target is clamped to at least page 1 and within ten pages of the previous page. Direct `PaginationRequest` construction does not apply that jump clamp.
 
 ## Bit Packing
 

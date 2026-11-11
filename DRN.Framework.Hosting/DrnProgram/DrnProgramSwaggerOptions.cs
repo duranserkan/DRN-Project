@@ -1,3 +1,4 @@
+using System.Globalization;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Hosting.Middlewares.ApiErrors;
@@ -14,23 +15,45 @@ namespace DRN.Framework.Hosting.DrnProgram;
 public class DrnProgramSwaggerOptions
 {
     internal PathString? SwaggerUIPathPrefix { get; private set; }
+    private bool _metadataConfigured;
 
-    internal void ConfigureSwaggerUI(SwaggerUIOptions options)
+    internal void ConfigureMetadata()
     {
-        ConfigureSwaggerUIOptionsAction?.Invoke(options);
-        var prefix = options.RoutePrefix?.Trim('/');
-        if (string.IsNullOrEmpty(prefix))
-            throw new ConfigurationException("Swagger UI RoutePrefix must be nonempty after trimming slashes. Root mounts are not supported.");
+        if (_metadataConfigured) return;
+        ConfigureOpenApiInfo?.Invoke(OpenApiInfo);
+        _metadataConfigured = true;
+    }
 
-        options.RoutePrefix = prefix;
-        SwaggerUIPathPrefix = new PathString("/" + prefix);
+    internal void ConfigureSwaggerUI(SwaggerUIOptions options, DrnPageOptions? pageOptions = null)
+    {
+        ConfigureMetadata();
+        options.DocumentTitle = Title;
+        ConfigureSwaggerUIOptionsAction?.Invoke(options);
+        options.RoutePrefix = ValidateRoutePrefix(options.RoutePrefix, "Swagger UI");
+        SwaggerUIPathPrefix = new PathString("/" + options.RoutePrefix);
+        options.HeadContent += pageOptions?.GetFaviconHeadContent(options.RoutePrefix);
     }
 
     public bool AddSwagger { get; set; }
 
+    /// <summary>Enables Swagger UI when AddSwagger is enabled.</summary>
+    public bool AddSwaggerUI { get; set; } = true;
+
+    private static string ValidateRoutePrefix(string? routePrefix, string ui)
+    {
+        var prefix = routePrefix?.Trim('/');
+        if (string.IsNullOrEmpty(prefix))
+            throw new ConfigurationException($"{ui} RoutePrefix must be nonempty after trimming slashes. Root mounts are not supported.");
+        if (prefix.Split('/').Any(segment =>
+                segment.Length == 0 || segment.Any(c => !char.IsAsciiLetterOrDigit(c) && c is not '-' and not '_')))
+            throw new ConfigurationException($"{ui} RoutePrefix must contain nonempty path segments using letters, digits, hyphens or underscores.");
+
+        return prefix;
+    }
+
     /// <summary>
     /// Optional named policy required by the Swagger UI, its assets, and OpenAPI documents.
-    /// Null preserves the application's existing authorization behavior.
+    /// Null uses the application's fallback authorization policy.
     /// </summary>
     [Sensitive(false, Justification = "Authorization policy name, not a credential.")]
     public string? AuthorizationPolicy { get; set; }
@@ -43,7 +66,14 @@ public class DrnProgramSwaggerOptions
     [Sensitive(false, Justification = "OpenAPI security configuration flag.")]
     public bool AddBearerTokenSecurityRequirement { get; set; } = true;
 
-    public string Title { get; set; } = AppConstants.EntryAssemblyName;
+    private string? _title;
+
+    /// <summary>Browser-tab title. Defaults to the API title (application name) and OpenAPI version.</summary>
+    public string Title
+    {
+        get => _title ?? $"{OpenApiInfo.Title ?? AppConstants.EntryAssemblyName} ({OpenApiInfo.Version})";
+        set => _title = value;
+    }
     public string DefaultRouteTemplate { get; set; } = "/swagger/{documentName}/swagger.{extension:regex(^(json|ya?ml)$)}";
     public OpenApiInfo OpenApiInfo { get; set; } = new() { Version = "v1" };
 
@@ -57,16 +87,22 @@ public class DrnProgramSwaggerOptions
         if (ApplyTargetServerForwardedHeadersCorrection)
             options.PreSerializeFilters.Add(SwaggerProxyPathFilter);
 
-        options.OpenApiVersion = OpenApiSpecVersion.OpenApi3_1;
+        options.OpenApiVersion = OpenApiSpecVersion.OpenApi3_2;
 
         ConfigureSwaggerEndpointOptionsAction?.Invoke(options);
     }
 
     internal void ConfigureSwaggerGenOptions(SwaggerGenOptions options)
     {
-        ConfigureOpenApiInfo?.Invoke(OpenApiInfo);
+        ConfigureMetadata();
         options.SwaggerDoc(OpenApiInfo.Version, OpenApiInfo);
+        // Swashbuckle adds property nullability. Controller body parameters need their own filter.
+        options.MapType<long>(CreateInt64Schema);
+        options.RequestBodyFilter<NullableInt64RequestBodyFilter>();
+        options.SchemaFilter<PaginationSchemaFilter>();
         options.OperationFilter<DrnApiErrorOperationFilter>();
+        options.OperationFilter<PaginationQueryOperationFilter>();
+        options.OperationFilter<PaginationOperationDescriptionFilter>();
 
         if (AddBearerTokenSecurityRequirement)
             BearerTokenSecurityRequirement(options);
@@ -74,8 +110,27 @@ public class DrnProgramSwaggerOptions
         ConfigureSwaggerGenOptionsAction?.Invoke(options);
     }
 
+    private static OpenApiSchema CreateInt64Schema() => new()
+    {
+        Description = "Accepts a signed 64-bit integer as a JSON number or decimal string. Responses use numbers within the JavaScript safe integer range and decimal strings outside it.",
+        OneOf =
+        [
+            new OpenApiSchema
+            {
+                Type = JsonSchemaType.Integer, Format = "int64",
+                Minimum = long.MinValue.ToString(CultureInfo.InvariantCulture),
+                Maximum = long.MaxValue.ToString(CultureInfo.InvariantCulture)
+            },
+            new OpenApiSchema
+            {
+                Type = JsonSchemaType.String, Format = "int64"
+            }
+        ]
+    };
+
     private static void BearerTokenSecurityRequirement(SwaggerGenOptions options)
     {
+        options.OperationFilter<AnonymousOperationSecurityFilter>();
         options.AddSecurityDefinition("bearer", new OpenApiSecurityScheme
         {
             Type = SecuritySchemeType.Http,

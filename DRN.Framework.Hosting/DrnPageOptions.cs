@@ -1,7 +1,26 @@
-namespace DRN.Framework.Hosting.Middlewares.ExceptionHandler;
+using DRN.Framework.SharedKernel;
 
-public class DrnErrorPageOptions
+namespace DRN.Framework.Hosting;
+
+public class DrnPageOptions
 {
+    /// <summary>Host-provided application-root-relative browser-tab icon. Null preserves each page's default.</summary>
+    public string? FaviconUrl { get; set; }
+
+    internal static bool IsValidFaviconUrl(string? url) => url is null ||
+        (url.StartsWith('/') && url.Length > 1 &&
+         url.Split('/').Skip(1).All(segment => segment.Length > 0 && segment is not "." and not ".." &&
+             segment.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' or '.')));
+
+    internal string GetFaviconHeadContent(string routePrefix)
+    {
+        if (!IsValidFaviconUrl(FaviconUrl))
+            throw new ConfigurationException("FaviconUrl must be an application-root-relative asset path, such as /images/icon.svg.");
+        if (FaviconUrl is null) return string.Empty;
+        var parents = string.Concat(Enumerable.Repeat("../", routePrefix.Split('/').Length));
+        return $"<link rel=\"icon\" href=\"{parents}{FaviconUrl.TrimStart('/')}\">";
+    }
+
     /// <summary>
     /// Razor page name under Pages, without the .cshtml extension.
     /// The page must use BadRequestPageModel. Null disables custom bad-request pages.

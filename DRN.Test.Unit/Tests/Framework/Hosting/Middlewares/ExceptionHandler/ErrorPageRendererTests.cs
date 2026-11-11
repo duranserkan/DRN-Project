@@ -1,3 +1,4 @@
+using DRN.Framework.Hosting;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using Microsoft.AspNetCore.Http;
@@ -15,7 +16,7 @@ public class ErrorPageRendererTests
     public async Task Server_Error_Page_Should_Use_Configured_Page_And_Preserve_Status(int status)
     {
         var pageUtils = Substitute.For<IPageUtils>();
-        var options = Options.Create(new DrnErrorPageOptions { ServerErrorPage = "/Errors/Server" });
+        var options = Options.Create(new DrnPageOptions { ServerErrorPage = "/Errors/Server" });
         var renderer = new ErrorPageRenderer(pageUtils, options);
         await using var body = new MemoryStream();
         var context = new DefaultHttpContext
@@ -66,7 +67,7 @@ public class ErrorPageRendererTests
     public void Rendering_Should_Be_Opt_In_And_Only_For_Server_Errors(string? page, int status, bool expected)
     {
         var renderer = new ErrorPageRenderer(Substitute.For<IPageUtils>(),
-            Options.Create(new DrnErrorPageOptions { ServerErrorPage = page }));
+            Options.Create(new DrnPageOptions { ServerErrorPage = page }));
         var context = new DefaultHttpContext();
         context.Response.StatusCode = status;
         context.Request.Headers.Accept = "text/html";
@@ -87,7 +88,7 @@ public class ErrorPageRendererTests
         int status, string? page, string accept, bool api, bool expected)
     {
         var renderer = new ErrorPageRenderer(Substitute.For<IPageUtils>(),
-            Options.Create(new DrnErrorPageOptions
+            Options.Create(new DrnPageOptions
             {
                 BadRequestPage = status == 400 ? page : null,
                 NotFoundPage = status == 404 ? page : null
@@ -106,7 +107,7 @@ public class ErrorPageRendererTests
     {
         var pageUtils = Substitute.For<IPageUtils>();
         var renderer = new ErrorPageRenderer(pageUtils,
-            Options.Create(new DrnErrorPageOptions { NotFoundPage = "/Errors/Missing" }));
+            Options.Create(new DrnPageOptions { NotFoundPage = "/Errors/Missing" }));
         await using var body = new MemoryStream();
         var context = new DefaultHttpContext
         {

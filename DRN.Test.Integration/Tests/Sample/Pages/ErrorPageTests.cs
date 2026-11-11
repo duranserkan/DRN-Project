@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using DRN.Framework.Hosting;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Hosting.Utils.Vite;
@@ -269,7 +270,7 @@ public class ErrorPageTests
             {
                 services.Configure<MvcOptions>(options => options.Filters.Add(new ErrorProbeFilter()));
                 if (missingPage)
-                    services.PostConfigure<DrnErrorPageOptions>(options =>
+                    services.PostConfigure<DrnPageOptions>(options =>
                     {
                         options.NotFoundPage = "/Errors/Missing";
                         options.BadRequestPage = "/Errors/Missing";

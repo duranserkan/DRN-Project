@@ -1,11 +1,34 @@
 using System.Net;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Test.Utils.Hosting;
+using DRN.Test.Utils.Hosting.Auth;
 
 namespace DRN.Test.Integration.Tests.Framework.Hosting;
 
 public class CspIntegrationTests
 {
+    [Theory]
+    [DataInline(null, HttpStatusCode.Unauthorized)]
+    [DataInline("password", HttpStatusCode.Forbidden)]
+    [DataInline("mfa", HttpStatusCode.OK)]
+    public async Task Swagger_UI_Should_Enforce_Fallback_Authorization_Despite_Anonymous_CatchAll(
+        DrnTestContext context, string? credential, HttpStatusCode expected)
+    {
+        context.AddToConfiguration("DrnDevelopmentSettings:SkipValidation", "true");
+        using var client = await context.ApplicationContext.CreateClientAsync<CspTestProgram>(
+            clientOptions: new() { AllowAutoRedirect = false });
+        if (credential is not null)
+            client.DefaultRequestHeaders.Add(NonDefaultExemptValues.CookieHeader, credential);
+
+        foreach (var path in new[] { "/swagger/index.html", "/swagger/swagger-ui-bundle.js", "/swagger/swagger-ui.css" })
+        {
+            using var response = await client.GetAsync(path);
+            response.StatusCode.Should().Be(expected);
+            response.Headers.GetValues("Content-Security-Policy").Single().Should()
+                .Contain("script-src 'self'").And.Contain("style-src 'self' 'unsafe-inline'");
+        }
+    }
+
     [Theory]
     [DataInline("/swagger/index.html", null, true)]
     [DataInline("/Swagger/index.html", null, true)]
@@ -24,6 +47,7 @@ public class CspIntegrationTests
         context.AddToConfiguration("DrnDevelopmentSettings:SkipValidation", "true");
         using var client = await context.ApplicationContext.CreateClientAsync<CspTestProgram>();
         var requestPath = policyName == null ? path : $"{path}?policy={policyName}";
+        client.DefaultRequestHeaders.Add(NonDefaultExemptValues.CookieHeader, "mfa");
         using var response = await client.GetAsync(requestPath);
         response.EnsureSuccessStatusCode();
         var csp = response.Headers.GetValues("Content-Security-Policy").Single();
@@ -57,6 +81,7 @@ public class CspIntegrationTests
         context.AddToConfiguration(CspTestProgram.ReplaceSwaggerPolicyKey, "true");
         using var client = await context.ApplicationContext.CreateClientAsync<CspTestProgram>();
 
+        client.DefaultRequestHeaders.Add(NonDefaultExemptValues.CookieHeader, "mfa");
         using var swagger = await client.GetAsync("/swagger/index.html");
         swagger.EnsureSuccessStatusCode();
         swagger.Headers.GetValues("Content-Security-Policy").Single()
@@ -88,6 +113,7 @@ public class CspIntegrationTests
         context.AddToConfiguration(CspTestProgram.SwaggerRoutePrefixKey, routePrefix);
         using var client = await context.ApplicationContext.CreateClientAsync<CspTestProgram>();
         var documentPath = $"/{routePrefix}/index.html";
+        client.DefaultRequestHeaders.Add(NonDefaultExemptValues.CookieHeader, "mfa");
         using var first = await client.GetAsync(documentPath);
         first.EnsureSuccessStatusCode();
         var html = await first.Content.ReadAsStringAsync();
@@ -138,6 +164,7 @@ public class CspIntegrationTests
         context.AddToConfiguration(CspTestProgram.SwaggerRoutePrefixKey, routePrefix);
         using var client = await context.ApplicationContext.CreateClientAsync<CspTestProgram>(
             clientOptions: new() { AllowAutoRedirect = false });
+        client.DefaultRequestHeaders.Add(NonDefaultExemptValues.CookieHeader, "mfa");
 
         using var redirect = await client.GetAsync(requestPath);
         redirect.StatusCode.Should().Be(HttpStatusCode.MovedPermanently);

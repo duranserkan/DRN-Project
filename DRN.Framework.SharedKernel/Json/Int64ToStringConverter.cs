@@ -10,18 +10,30 @@ namespace DRN.Framework.SharedKernel.Json;
 /// </summary>
 public class Int64ToStringConverter : JsonConverter<long>
 {
+    private const int StackBufferSize = 64;
+    private const string InvalidIntegerMessage = "Expected a signed 64-bit integer.";
+    private const string FormattingFailureMessage = "Unable to format a signed 64-bit integer.";
+
     public override long Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        if (reader.TokenType == JsonTokenType.Number)
-            return reader.GetInt64();
-        if (reader.TokenType != JsonTokenType.String)
-            throw new JsonException($"Unexpected token parsing Int64. Expected Number or String, got {reader.TokenType}.");
-
-        var stringValue = reader.GetString();
-        if (long.TryParse(stringValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out long result))
+        if (reader.TokenType == JsonTokenType.Number && reader.TryGetInt64(out var result))
             return result;
-        
-        throw new JsonException($"Cannot convert \"{stringValue}\" to Int64.");
+
+        if (reader.TokenType != JsonTokenType.String)
+            throw new JsonException(InvalidIntegerMessage);
+
+        var encodedLength = reader.HasValueSequence ? reader.ValueSequence.Length : reader.ValueSpan.Length;
+        if (encodedLength > StackBufferSize)
+            return long.TryParse(reader.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out result)
+                ? result
+                : throw new JsonException(InvalidIntegerMessage);
+
+        // The encoded byte length bounds the number of unescaped UTF-16 characters.
+        Span<char> buffer = stackalloc char[StackBufferSize];
+        var charsWritten = reader.CopyString(buffer);
+        return long.TryParse(buffer[..charsWritten], NumberStyles.Integer, CultureInfo.InvariantCulture, out result)
+            ? result
+            : throw new JsonException(InvalidIntegerMessage);
     }
 
     public override void Write(Utf8JsonWriter writer, long value, JsonSerializerOptions options)
@@ -29,9 +41,17 @@ public class Int64ToStringConverter : JsonConverter<long>
         // If outside JS safe range, serialize as string to avoid precision loss
         //https://spec.openapis.org/registry/format/int64
         //https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number
-        if (value > IntegerSafeIntervalForJs.Max || value < IntegerSafeIntervalForJs.Min)
-            writer.WriteStringValue(value.ToString(CultureInfo.InvariantCulture));
-        else
+        if (value is <= IntegerSafeIntervalForJs.Max and >= IntegerSafeIntervalForJs.Min)
+        {
             writer.WriteNumberValue(value);
+            return;
+        }
+
+        // The sign and 19 decimal digits of long.MinValue fit in 20 UTF-8 bytes.
+        Span<byte> buffer = stackalloc byte[20];
+        if (value.TryFormat(buffer, out var bytesWritten, provider: CultureInfo.InvariantCulture))
+            writer.WriteStringValue(buffer[..bytesWritten]);
+        else
+            throw new InvalidOperationException(FormattingFailureMessage);
     }
 }

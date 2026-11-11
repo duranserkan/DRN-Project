@@ -1,12 +1,14 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
-## Version 0.10.1
+## Version 0.11.0
 
-Dependencies upgraded to dotnet 10.0.14
+Targets .NET 11.
 
 * **Container Defaults**: Updated the default RabbitMQ image to digest-pinned `4.3.6-management-alpine`.
 
 ### Breaking Changes
+
+*   **Target framework**: Requires .NET 11.
 
 * **Diagnostic Classification**: Test credentials and container connection strings carry explicit classifications, including Personal for usernames. Diagnostics indicate whether a container username is configured without exposing it. Matching test-model properties require the same SharedKernel classification annotations as production models.
 
