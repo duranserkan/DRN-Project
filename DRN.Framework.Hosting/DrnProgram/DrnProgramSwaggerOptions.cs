@@ -69,7 +69,9 @@ public class DrnProgramSwaggerOptions
         options.SwaggerDoc(OpenApiInfo.Version, OpenApiInfo);
         // Swashbuckle unwraps Nullable<T> for type mappings and adds null at the usage site.
         options.MapType<long>(CreateInt64Schema);
+        options.SchemaFilter<PaginationSchemaFilter>();
         options.OperationFilter<DrnApiErrorOperationFilter>();
+        options.OperationFilter<PaginationQueryOperationFilter>();
 
         if (AddBearerTokenSecurityRequirement)
             BearerTokenSecurityRequirement(options);

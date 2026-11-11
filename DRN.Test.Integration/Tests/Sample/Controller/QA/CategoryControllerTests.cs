@@ -17,6 +17,7 @@ using Sample.Hosted;
 using Sample.Hosted.Controllers.QA;
 using Sample.Hosted.Helpers;
 using Sample.Infra.QA;
+using Swashbuckle.AspNetCore.Swagger;
 
 namespace DRN.Test.Integration.Tests.Sample.Controller.QA;
 
@@ -38,6 +39,14 @@ public class CategoryControllerTests
 
         var collectionPath = pathBase + "/" + Get.Endpoint.QA.Category.PaginateAsync.Path().TrimStart('/');
         collectionPath.Should().Be(pathBase + "/Api/QA/Category");
+        var document = application.Services.GetRequiredService<ISwaggerProvider>().GetSwagger("v1");
+        var parameters = document.Paths["/Api/QA/Category"].Operations![HttpMethod.Get].Parameters!;
+        parameters.Select(p => p.Name).Should().Contain(["PageSize.Size", "PageCursor.LastId"]);
+        parameters.Should().NotContain(p => p.Name != null && p.Name.StartsWith("Total."));
+        parameters.Where(p => p.In == Microsoft.OpenApi.ParameterLocation.Query).Should().OnlyContain(p => !p.Required);
+        foreach (var name in new[] { "PageCursor.FirstId", "PageCursor.LastId" })
+            parameters.Single(p => p.Name == name).Description.Should().Contain("PageCursor.PageNumber exceeds 1")
+                .And.Contain("PageCursor.LastId is a nonzero UUID").And.Contain("both IDs are required");
         using var unauthorized = await client.GetAsync(collectionPath);
         unauthorized.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         await AuthenticationHelper<SampleProgram>.AuthenticateClientAsync(client);
