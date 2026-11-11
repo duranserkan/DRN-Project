@@ -1,4 +1,6 @@
+using System.Buffers;
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using AwesomeAssertions;
@@ -87,6 +89,9 @@ public class Int64JsonConverterTests
     [DataInlineUnit("\"-9223372036854775808\"", long.MinValue)]
     [DataInlineUnit("\"9223372036854775807\"", long.MaxValue)]
     [DataInlineUnit("\"12345\"", 12345L)]
+    [DataInlineUnit("\" +42 \"", 42L)]
+    [DataInlineUnit("\"\\u0034\\u0032\"", 42L)]
+    [DataInlineUnit("\"\\t-42\\r\\n\"", -42L)]
     public void Read_Should_Deserialize_Numeric_And_Quoted_Integer_Tokens(string json, long expected)
     {
         var resultNonNullable = JsonSerializer.Deserialize<long>(json, NonNullableOptions);
@@ -94,6 +99,50 @@ public class Int64JsonConverterTests
 
         var resultNullable = JsonSerializer.Deserialize<long?>(json, NullableOptions);
         resultNullable.Should().Be(expected);
+    }
+
+    [Theory]
+    [DataInlineUnit(61)]
+    [DataInlineUnit(62)]
+    [DataInlineUnit(63)]
+    [DataInlineUnit(128)]
+    public void Read_Should_Preserve_Quoted_Integers_With_Long_Leading_Zeros(int leadingZeroCount)
+    {
+        var json = "\"" + new string('0', leadingZeroCount) + "42\"";
+
+        JsonSerializer.Deserialize<long>(json, NonNullableOptions).Should().Be(42L);
+        JsonSerializer.Deserialize<long?>(json, NullableOptions).Should().Be(42L);
+    }
+
+    [Theory]
+    [DataInlineUnit("\"42\"")]
+    [DataInlineUnit("\"\\u0034\\u0032\"")]
+    public void Read_Should_Preserve_Quoted_Integers_Across_Segments(string json)
+    {
+        var bytes = Encoding.UTF8.GetBytes(json);
+        for (var split = 1; split < bytes.Length; split++)
+        {
+            var first = new JsonSegment(bytes.AsMemory(0, split));
+            var last = new JsonSegment(bytes.AsMemory(split));
+            first.Append(last);
+            var sequence = new ReadOnlySequence<byte>(first, 0, last, last.Memory.Length);
+
+            var reader = new Utf8JsonReader(sequence);
+            JsonSerializer.Deserialize<long>(ref reader, NonNullableOptions).Should().Be(42L);
+            reader = new Utf8JsonReader(sequence);
+            JsonSerializer.Deserialize<long?>(ref reader, NullableOptions).Should().Be(42L);
+        }
+    }
+
+    private sealed class JsonSegment : ReadOnlySequenceSegment<byte>
+    {
+        public JsonSegment(ReadOnlyMemory<byte> memory) => Memory = memory;
+
+        public void Append(JsonSegment next)
+        {
+            next.RunningIndex = RunningIndex + Memory.Length;
+            Next = next;
+        }
     }
 
     [Theory]
@@ -137,6 +186,16 @@ public class Int64JsonConverterTests
 
         var actNullable = () => JsonSerializer.Deserialize<long?>(json, NullableOptions);
         actNullable.Should().Throw<JsonException>();
+    }
+
+    [Fact]
+    public void Invalid_Integer_Errors_Should_Omit_The_Submitted_Value()
+    {
+        const string json = "\"private-input\"";
+        var read = () => JsonSerializer.Deserialize<long>(json, NonNullableOptions);
+        var readNullable = () => JsonSerializer.Deserialize<long?>(json, NullableOptions);
+        read.Should().Throw<JsonException>().Which.Message.Should().NotContain("private-input");
+        readNullable.Should().Throw<JsonException>().Which.Message.Should().NotContain("private-input");
     }
 
     [Fact]

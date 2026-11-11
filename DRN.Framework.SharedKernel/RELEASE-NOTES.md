@@ -2,6 +2,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.10.1
 
+### Security
+
+*   **JSON integer errors**: Invalid `long` and `long?` values produce a conversion error that omits the submitted value.
+
 ### Breaking Changes
 
 *   **Model Capture Analysis**: DRN0025 rejects captures that exceed the compiler's model-analysis work limit. Capture a smaller model or explicitly classify sensitive subtrees so configured paths cannot silently escape analysis.
