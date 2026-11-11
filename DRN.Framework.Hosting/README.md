@@ -239,9 +239,11 @@ The browser-tab title defaults to the API title and version, for example `DRN Sa
 
 Set `DrnPageOptions.FaviconUrl` to a host-served application-root-relative image path, such as `/images/icon.svg`, to customize the Swagger UI tab icon. Deployment prefixes and nested UI routes are preserved. Remote URLs, query strings and traversal segments are rejected. Null keeps the default icon.
 
-For controller actions that accept `[FromQuery] PaginationRequest`, Swagger omits calculated fields and marks page size and cursor inputs as optional. Both cursor ID descriptions explain when to supply the first and last IDs from the previous page.
+For controller actions that accept `[FromQuery] PaginationRequest` or `[FromQuery] PaginationResultInfo`, Swagger omits calculated fields and marks defaulted page size and cursor inputs as optional. Continuation requests retain their outer total-count fields. Both cursor ID descriptions explain when to supply the first and last IDs from the previous page. JSON bodies preserve required members. Result descriptions distinguish the returned page's outer IDs from the previous-page cursor in its request.
 
-DRN JSON APIs accept the full signed 64-bit range as JSON integers or decimal strings, including quoted small values such as `"42"`. DRN writes a number within JavaScript's safe integer range (inclusive) and a string outside it. Nullable values also allow JSON null.
+Hosting adds generic operation guidance for query and body pagination inputs and `PaginationResultModel<T>` responses. Body guidance uses the actual names of any query parameters, including renamed parameters. Existing endpoint descriptions are preserved before the shared guidance. Keep application-specific ceilings, ignored settings and jump limits in the controller's `EndpointDescription`. Hosting does not infer those policies from a parameter type or HTTP method.
+
+DRN JSON APIs accept the full signed 64-bit range as JSON integers or decimal strings, including quoted small values such as `"42"`. DRN writes a number within JavaScript's safe integer range (inclusive) and a string outside it. Nullable values also allow JSON null, including controller parameters declared as `[FromBody] long?` in the generated request schema. Required validation metadata, such as `[Required]`, excludes null from those body schemas.
 
 The default bearer security requirement excludes operations marked with `[AllowAnonymous]` on the action or controller.
 

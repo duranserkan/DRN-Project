@@ -40,6 +40,8 @@ public class CategoryControllerTests
         var collectionPath = pathBase + "/" + Get.Endpoint.QA.Category.PaginateAsync.Path().TrimStart('/');
         collectionPath.Should().Be(pathBase + "/Api/QA/Category");
         var document = application.Services.GetRequiredService<ISwaggerProvider>().GetSwagger("v1");
+        document.Paths["/Api/QA/Category"].Operations![HttpMethod.Get].Description.Should()
+            .Contain("ceiling of 100").And.Contain("ignores PageSize.MaxSize");
         var parameters = document.Paths["/Api/QA/Category"].Operations![HttpMethod.Get].Parameters!;
         parameters.Select(p => p.Name).Should().Contain(["PageSize.Size", "PageCursor.LastId"]);
         parameters.Should().NotContain(p => p.Name != null && p.Name.StartsWith("Total."));
@@ -47,6 +49,32 @@ public class CategoryControllerTests
         foreach (var name in new[] { "PageCursor.FirstId", "PageCursor.LastId" })
             parameters.Single(p => p.Name == name).Description.Should().Contain("PageCursor.PageNumber exceeds 1")
                 .And.Contain("PageCursor.LastId is a nonzero UUID").And.Contain("both IDs are required");
+
+        var tagQuery = document.Paths["/Api/QA/Tag/PaginateWithQuery"].Operations![HttpMethod.Get];
+        tagQuery.Description.Should().StartWith("jumpTo defaults to 1.").And.Contain("within 10 pages");
+        var tagParameters = tagQuery.Parameters!;
+        tagParameters.Select(parameter => parameter.Name).Should().Contain(["FirstId", "LastId", "Total.Count", "Request.PageCursor.LastId"]);
+        tagParameters.Should().NotContain(parameter => parameter.Name != null &&
+            (parameter.Name.Contains("Request.Total.") || parameter.Name.EndsWith("CountSpecified") ||
+             parameter.Name.EndsWith("IsFirstRequest") || parameter.Name.EndsWith("PageDifference")));
+        foreach (var name in new[] { "FirstId", "LastId", "Total.Count", "Request.PageSize.Size", "Request.PageCursor.LastId" })
+            tagParameters.Single(parameter => parameter.Name == name).Required.Should().BeFalse();
+        tagParameters.Single(parameter => parameter.Name == "FirstId").Description.Should().Contain("this returned page");
+        var tagBody = document.Paths["/Api/QA/Tag/PaginateWithBody"].Operations![HttpMethod.Post];
+        tagBody.Description.Should().StartWith("jumpTo defaults to 1.").And.Contain("within 10 pages");
+        document.Paths["/Api/QA/Tag/Paginate"].Operations![HttpMethod.Get].Description.Should()
+            .StartWith("Fetch the first page.").And.Contain("maxSize is capped at 1000");
+        tagBody.RequestBody!.Content.Should().ContainKey("application/json");
+        tagBody.Parameters!.Select(parameter => parameter.Name).Should().Contain(["jumpTo", "updateTotalCount"]);
+        var resultInfoSchema = document.Components!.Schemas![nameof(PaginationResultInfo)];
+        resultInfoSchema.Required.Should().Contain(["request", "firstId", "lastId", "total"]);
+        resultInfoSchema.Properties!["firstId"].Description.Should().Contain("this returned page");
+        document.Components.Schemas[nameof(PageCursor)].Required.Should().Contain(["pageNumber", "firstId", "lastId", "sortDirection"]);
+        foreach (var operation in new[] { tagQuery, tagBody })
+        {
+            operation.Responses!["200"].Content.Should().ContainKey("application/json");
+            operation.Responses["400"].Content.Should().ContainKey("application/problem+json");
+        }
         using var unauthorized = await client.GetAsync(collectionPath);
         unauthorized.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         await AuthenticationHelper<SampleProgram>.AuthenticateClientAsync(client);

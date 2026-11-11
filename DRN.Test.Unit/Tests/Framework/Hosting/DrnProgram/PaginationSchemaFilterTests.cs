@@ -30,13 +30,15 @@ public class PaginationSchemaFilterTests
         var generator = provider.GetRequiredService<ISchemaGenerator>();
         var repository = new SchemaRepository();
         generator.GenerateSchema(typeof(PaginationRequest), repository);
+        generator.GenerateSchema(typeof(PaginationResultInfo), repository);
         generator.GenerateSchema(typeof(UnrelatedCursor), repository);
 
         var baseline = new SchemaRepository();
         var baselineGenerator = new SchemaGenerator(new SchemaGeneratorOptions(), new JsonSerializerDataContractResolver(jsonOptions));
         baselineGenerator.GenerateSchema(typeof(PaginationRequest), baseline);
+        baselineGenerator.GenerateSchema(typeof(PaginationResultInfo), baseline);
 
-        foreach (var type in new[] { typeof(PaginationRequest), typeof(PageSize), typeof(PageCursor) })
+        foreach (var type in new[] { typeof(PaginationRequest), typeof(PageSize), typeof(PageCursor), typeof(PaginationResultInfo), typeof(PaginationTotal) })
         {
             var schema = repository.Schemas[type.Name];
             schema.Required.Should().BeEquivalentTo(baseline.Schemas[type.Name].Required);
@@ -67,5 +69,16 @@ public class PaginationSchemaFilterTests
 
         cursor.Properties![PropertyName(nameof(PageCursor.FirstId))].Description.Should().StartWith("First item ID");
         cursor.Properties[PropertyName(nameof(PageCursor.LastId))].Description.Should().StartWith("Last item ID");
+
+        var info = repository.Schemas[nameof(PaginationResultInfo)];
+        info.Properties![PropertyName(nameof(PaginationResultInfo.Request))].Description.Should().Contain("previous page");
+        info.Properties[PropertyName(nameof(PaginationResultInfo.Total))].Description.Should().Contain("-1 when unspecified");
+        foreach (var name in new[] { nameof(PaginationResultInfo.FirstId), nameof(PaginationResultInfo.LastId) })
+        {
+            info.Required.Should().Contain(PropertyName(name));
+            info.Properties![PropertyName(name)].Description.Should().Contain("this returned page").And.Contain("outer ID");
+        }
+        repository.Schemas[nameof(PaginationTotal)].Properties![PropertyName(nameof(PaginationTotal.Count))]
+            .Description.Should().Contain("-1 when unspecified");
     }
 }

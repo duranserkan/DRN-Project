@@ -96,11 +96,13 @@ public class DrnProgramSwaggerOptions
     {
         ConfigureMetadata();
         options.SwaggerDoc(OpenApiInfo.Version, OpenApiInfo);
-        // Swashbuckle unwraps Nullable<T> for type mappings and adds null at the usage site.
+        // Swashbuckle adds property nullability. Controller body parameters need their own filter.
         options.MapType<long>(CreateInt64Schema);
+        options.RequestBodyFilter<NullableInt64RequestBodyFilter>();
         options.SchemaFilter<PaginationSchemaFilter>();
         options.OperationFilter<DrnApiErrorOperationFilter>();
         options.OperationFilter<PaginationQueryOperationFilter>();
+        options.OperationFilter<PaginationOperationDescriptionFilter>();
 
         if (AddBearerTokenSecurityRequirement)
             BearerTokenSecurityRequirement(options);
