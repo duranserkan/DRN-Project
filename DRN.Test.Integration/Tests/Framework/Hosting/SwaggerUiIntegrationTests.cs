@@ -35,7 +35,7 @@ public class SwaggerUiIntegrationTests
         client.DefaultRequestHeaders.Add(NonDefaultExemptValues.CookieHeader, "mfa");
 
         using var redirect = await client.GetAsync(pathBase + paths[1]);
-        redirect.StatusCode.Should().Be(HttpStatusCode.Found);
+        redirect.StatusCode.Should().Be(HttpStatusCode.SeeOther);
         redirect.Headers.Location!.OriginalString.Should().Be(pathBase + paths[2]);
         using var document = await client.GetAsync(redirect.Headers.Location);
         document.EnsureSuccessStatusCode();

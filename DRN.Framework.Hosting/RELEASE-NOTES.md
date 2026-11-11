@@ -4,7 +4,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Changed
 
-*   **Swagger configuration**: Swagger UI resolves its default document URL from the configured OpenAPI route, including deployment prefixes. Explicit UI document URLs remain supported. API metadata is configured once before UI defaults are captured.
+*   **Swagger configuration**: Swagger UI resolves its default document URL from the configured OpenAPI route, including deployment prefixes. Explicit UI document URLs remain supported.
 *   **OpenAPI 64-bit integers**: Generated schemas describe both JSON numbers and decimal strings for `long` values, including null for nullable values. Clients can preserve precision when reading large integers.
 *   **Request Diagnostics**: Request values use bounded capture. `Request_IpAddress` is recorded as an empty string when no remote address is available. Empty `l5d-client-id` headers are omitted.
 
@@ -40,6 +40,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **Application URLs**: Added `HttpRequest.ApplicationUrl` for application-owned route paths and `ApplicationUrlTagHelper` for `~/` HTML and HTMX URLs. Deployment prefixes are preserved without changing controller route prefixes or already-resolved URLs.
 
 ### Bug Fixes
+
+*   **Swagger security**: Anonymous operations no longer advertise the default bearer authentication requirement.
 
 *   **Developer Exception Pages**: Panel controls follow document focus order, support Enter and Space, and announce the active panel to assistive technology. Exception pages include a favicon.
 

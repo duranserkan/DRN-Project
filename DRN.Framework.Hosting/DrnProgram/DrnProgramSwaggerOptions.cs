@@ -128,6 +128,7 @@ public class DrnProgramSwaggerOptions
 
     private static void BearerTokenSecurityRequirement(SwaggerGenOptions options)
     {
+        options.OperationFilter<AnonymousOperationSecurityFilter>();
         options.AddSecurityDefinition("bearer", new OpenApiSecurityScheme
         {
             Type = SecuritySchemeType.Http,

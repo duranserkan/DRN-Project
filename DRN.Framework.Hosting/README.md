@@ -233,7 +233,7 @@ Swagger serves OpenAPI 3.2 documents by default. If a client generator or valida
 
 When `AddSwagger` is enabled, set `AddSwaggerUI = false` to expose only the OpenAPI document. `AddSwagger = false` disables both.
 
-Swagger UI resolves its default document URL from the configured OpenAPI route and preserves deployment prefixes. An explicit URL list supplied through `ConfigureSwaggerUIOptionsAction` takes precedence. `ConfigureOpenApiInfo` runs once before UI defaults are captured, and generator configuration is resolved before the UI is mapped.
+Swagger UI resolves its default document URL from the configured OpenAPI route and preserves deployment prefixes. An explicit URL list supplied through `ConfigureSwaggerUIOptionsAction` takes precedence.
 
 The browser-tab title defaults to the API title and version, for example `DRN Sample (v1)`. Set `Title` to override it. Swagger UI preserves Swashbuckle's default caching behavior. `ConfigureSwaggerUIOptionsAction` can override `DocumentTitle`, `CacheLifetime` and the route prefix. Set `CacheLifetime = null` in that callback to disable UI caching explicitly. Prefixes accept nonempty segments of ASCII letters, digits, hyphens and underscores. Surrounding slashes are trimmed. Root mounts are rejected.
 
@@ -241,7 +241,9 @@ Set `DrnPageOptions.FaviconUrl` to a host-served application-root-relative image
 
 For controller actions that accept `[FromQuery] PaginationRequest`, Swagger omits calculated fields and marks page size and cursor inputs as optional. Both cursor ID descriptions explain when to supply the first and last IDs from the previous page.
 
-Swagger accepts the full signed 64-bit range as JSON integers or decimal strings, including quoted small values such as `"42"`. DRN writes a number within JavaScript's safe integer range (inclusive) and a string outside it. Nullable values also allow JSON null.
+DRN JSON APIs accept the full signed 64-bit range as JSON integers or decimal strings, including quoted small values such as `"42"`. DRN writes a number within JavaScript's safe integer range (inclusive) and a string outside it. Nullable values also allow JSON null.
+
+The default bearer security requirement excludes operations marked with `[AllowAnonymous]` on the action or controller.
 
 `DrnProgramBase` also automatically registers the public `IEndpointAccessor` dependency-injection contract as a singleton. Consumers can inject `IEndpointAccessor` to query the endpoint collections (`Endpoints`, `ApiEndpoints`, `PageEndpoints`, and `PageEndpointByPaths`) populated by `ValidateEndpoints` before service validation (`ValidateServicesAsync`) runs.
 
