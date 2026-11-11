@@ -44,7 +44,7 @@ SharedKernel distributes these diagnostics transitively. Public readable instanc
 
 Company attributes may derive from Sensitive or Personal, including in referenced assemblies. Derived Sensitive attributes must remain positive. Runtime non-None Microsoft classifications still redact, but unrelated classification families do not satisfy compiler verification. A custom attribute returning None is not a supported exemption.
 
-Code fixes offer Personal and Sensitive with selected Fix All. Sensitive(false) and DRN0016's Use Sensitive(true) require individual selection. Generated/external declarations receive no direct-edit fix. Editor hosts must support the packaged .NET 10/Roslyn 5.9 analyzer and code-fix assemblies.
+Code fixes offer Personal and Sensitive with selected Fix All. Sensitive(false) and DRN0016's Use Sensitive(true) require individual selection. Generated/external declarations receive no direct-edit fix. Editor hosts must support the packaged .NET 11/Roslyn 5.9 analyzer and code-fix assemblies.
 
 ### Property false positives
 

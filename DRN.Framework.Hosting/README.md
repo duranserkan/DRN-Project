@@ -44,7 +44,7 @@
 
 ## QuickStart: Beginner
 
-Use a .NET 10 web project with a `DRN.Framework.Hosting` package reference. Inherit from `DrnProgramBase<TProgram>` and register application services. Configure `Environment`, `NexusAppSettings:AppId`, `NexusAppSettings:AppInstanceId`, and `NLog` before calling `RunAsync`; see [Configuration](#configuration).
+Use a .NET 11 web project with a `DRN.Framework.Hosting` package reference. Inherit from `DrnProgramBase<TProgram>` and register application services. Configure `Environment`, `NexusAppSettings:AppId`, `NexusAppSettings:AppInstanceId`, and `NLog` before calling `RunAsync`; see [Configuration](#configuration).
 
 ```csharp
 using DRN.Framework.Hosting.DrnProgram;

@@ -1,12 +1,14 @@
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.
 
-## Version 0.10.1
+## Version 0.11.0
 
 ### Security
 
 *   **JSON integer errors**: Invalid `long` and `long?` values produce a conversion error that omits the submitted value.
 
 ### Breaking Changes
+
+*   **Target framework**: Requires .NET 11. Analyzer and code-fix hosts must also support .NET 11.
 
 *   **Model Capture Analysis**: DRN0025 rejects captures that exceed the compiler's model-analysis work limit. Capture a smaller model or explicitly classify sensitive subtrees so configured paths cannot silently escape analysis.
 
