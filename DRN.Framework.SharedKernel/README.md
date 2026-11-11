@@ -16,7 +16,7 @@
 
 ## TL;DR
 
-- **No runtime package dependencies** - Targets .NET 10; includes build-time domain analyzers
+- **Target framework** - Targets .NET 11; includes build-time domain analyzers
 - **Domain primitives** - `SourceKnownEntity`, `AggregateRoot`, `DomainEvent` for DDD patterns
 - **Typed exceptions** - `ExceptionFor` creates exceptions with status codes consumed by DRN Hosting
 - **JSON conventions** - Global `System.Text.Json` defaults with camelCase, enums-as-strings

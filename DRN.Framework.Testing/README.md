@@ -969,12 +969,12 @@ See [Multi-Program Test Support Assemblies](#multi-program-test-support-assembli
 
 ## Example Test Project .csproj File
 
-This .NET 10 project consumes the testing package and xUnit MTP runner. It requires the .NET 10 SDK. Repository contributors may use the sibling project reference instead. Examples involving Sample or Nexus types also require references to those applications and their namespaces.
+This .NET 11 project consumes the testing package and xUnit MTP runner. It requires the .NET 11 SDK. Repository contributors may use the sibling project reference instead. Examples involving Sample or Nexus types also require references to those applications and their namespaces.
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
+        <TargetFramework>net11.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <IsPackable>false</IsPackable>

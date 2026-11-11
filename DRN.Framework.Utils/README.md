@@ -143,7 +143,7 @@ public class PaymentService(IAppSettings settings, IScopedLog log, PaymentSettin
 > [!NOTE]
 > If you are using `DRN.Framework.Hosting` (inheriting from `DrnProgramBase`), this package is **automatically registered and validated**.
 
-The package targets .NET 10. Add it to a consumer project with:
+The package targets .NET 11. Add it to a consumer project with:
 
 ```bash
 dotnet add package DRN.Framework.Utils

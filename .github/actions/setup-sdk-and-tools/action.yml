@@ -1,5 +1,5 @@
 name: Setup Sdk
-description: "Set up the .NET 11 SDK, .NET 10 runtimes and Eclipse Temurin JDK 27."
+description: "Set up the .NET 11 SDK and runtimes and Eclipse Temurin JDK 27."
 inputs:
   working-directory:
     description: "Repository directory containing global.json."
@@ -24,8 +24,6 @@ runs:
     - name: Setup .NET
       uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
       with:
-        # Install the .NET 10 runtimes for framework-dependent apps and tests.
-        dotnet-version: '10.0.x'
         global-json-file: ${{ inputs.working-directory }}/global.json
     - name: Verify .NET 11 SDK selection
       shell: bash

@@ -6,7 +6,7 @@
 
 | Aspect | Detail |
 |---|---|
-| Type | .NET 10 framework plus DDD reference app |
+| Type | .NET 11 framework plus DDD reference app |
 | Architecture | Domain -> Infrastructure/Application -> Hosted |
 | Frontend | Razor Pages, htmx, Bootstrap 5, Vite |
 | Testing | DTT; unit, analyzer, then integration |
