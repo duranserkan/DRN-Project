@@ -2,7 +2,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.11.0
 
-Dependencies upgraded to dotnet 10.0.14
+Targets .NET 11 with Microsoft.Extensions and System dependencies upgraded to 11.0.0.
 
 ### Breaking Changes
 

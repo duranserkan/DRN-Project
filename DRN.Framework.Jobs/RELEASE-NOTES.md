@@ -2,7 +2,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ## Version 0.11.0
 
-Aligned with DRN Framework 0.10.1.
+Aligned with DRN Framework 0.11.0.
 
 ### Breaking Changes
 
