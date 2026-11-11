@@ -8,6 +8,10 @@ Dependencies upgraded to dotnet 10.0.14
 
 *   **Target framework**: Requires .NET 11.
 
+### Bug Fixes
+
+*   **AES concurrency**: Concurrent portable encryption and decryption on one `Aes256` instance no longer fail with a cryptographic concurrency exception on .NET 11.
+
 ### New Features
 
 *   **Project Classification Rules**: Optional `DiagnosticLogging:RuleFile` and `RuleAssemblyName` settings validate file-based and embedded catalogs. Invalid or missing configured sources fail sanitizer creation. See the [diagnostic guide](Logging/Diagnostics/README.md) for configuration and migration guidance.
