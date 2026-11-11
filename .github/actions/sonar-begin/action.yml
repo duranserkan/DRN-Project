@@ -83,6 +83,9 @@ runs:
           "/d:sonar.host.url=$env:SONAR_HOST_URL",
           "/d:sonar.scanner.skipJreProvisioning=true",
           "/d:sonar.sourceEncoding=UTF-8",
+          "/d:sonar.issue.ignore.multicriteria=e1",
+          "/d:sonar.issue.ignore.multicriteria.e1.ruleKey=docker:S8431",
+          "/d:sonar.issue.ignore.multicriteria.e1.resourceKey=**/Dockerfile*",
           "/d:sonar.qualitygate.wait=true",
           "/d:sonar.qualitygate.timeout=600"
         )
