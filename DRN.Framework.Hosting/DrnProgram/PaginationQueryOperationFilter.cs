@@ -34,6 +34,12 @@ internal sealed class PaginationQueryOperationFilter : IOperationFilter
                 continue;
             }
 
+            // API Explorer can omit an explicit model prefix when flattening complex query parameters.
+            var prefix = description.ParameterDescriptor?.BindingInfo?.BinderModelName;
+            if (!string.IsNullOrEmpty(prefix) &&
+                !description.Name.StartsWith(prefix + ".", StringComparison.OrdinalIgnoreCase))
+                query.Name = ModelNames.CreatePropertyModelName(prefix, description.Name);
+
             var fieldDescription = PaginationSchemaFilter.GetDescription(container, metadata?.PropertyName);
             if (fieldDescription is not null)
                 query.Description = fieldDescription;

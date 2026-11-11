@@ -53,7 +53,8 @@ public class SwaggerUiIntegrationTests
         queryInfo.GetProperty("description").GetString().Should().Contain("previous page's pagination metadata")
             .And.Contain("outer first and last IDs").And.NotContain("10 pages");
         queryInfo.GetProperty("parameters").EnumerateArray().Select(parameter => parameter.GetProperty("name").GetString())
-            .Should().Contain("previous.FirstId");
+            .Should().Contain("previous.FirstId").And.Contain("previous.Request.PageNumber")
+            .And.NotContain("FirstId").And.NotContain("previous.previous.FirstId");
         var bodyInfoDescription = apiPaths.GetProperty("/swagger-pagination/body-info").GetProperty("post")
             .GetProperty("description").GetString();
         bodyInfoDescription.Should().StartWith("Application continuation policy.")
