@@ -1,4 +1,7 @@
 <Project>
+  <Import Project="$(MSBuildThisFileDirectory)../buildMultiTargeting/DRN.Framework.Hosting.targets"
+          Condition="Exists('$(MSBuildThisFileDirectory)../buildMultiTargeting/DRN.Framework.Hosting.targets')" />
+
   <PropertyGroup>
     <DrnHostingViteManifestPublishItemsEnabled Condition="'$(DrnHostingViteManifestPublishItemsEnabled)' == ''">true</DrnHostingViteManifestPublishItemsEnabled>
   </PropertyGroup>
