@@ -11,15 +11,25 @@ namespace Sample.Hosted.Controllers.QA;
 public class TagController(ITagRepository repository) : ControllerBase
 {
     [HttpGet("Paginate")]
-    [EndpointDescription("Fetch the first page. totalCount defaults to -1 (unknown). maxSize is capped at 1000. Use a continuation endpoint to request another page.")]
+    [EndpointDescription("Fetch the first page. The total is unknown unless updateTotalCount is true. maxSize is capped at 1000. Use a continuation endpoint to request another page.")]
     public async Task<PaginationResultModel<TagDto>> PaginateAsync(
         [FromQuery] int pageSize = PageSize.SizeDefault,
         [FromQuery] int maxSize = PageSize.MaxSizeDefault,
-        [FromQuery] long totalCount = -1,
         [FromQuery] bool updateTotalCount = false,
         [FromQuery] PageSortDirection direction = PageSortDirection.Ascending)
     {
-        var request = PaginationRequest.DefaultWith(pageSize, maxSize, direction: direction, totalCount: totalCount, updateTotalCount: updateTotalCount);
+        // A first-page total must come from the server, not the query string.
+        var request = PaginationRequest.DefaultWith(pageSize, maxSize, direction, updateTotalCount: updateTotalCount);
+        var result = await repository.PaginateAsync(request);
+
+        return result.ToModel(tag => tag.ToDto());
+    }
+
+    [HttpGet("PaginateWithOptions")]
+    [EndpointDescription("Fetch the first page using flat pagination options. Set updateTotalCount to count on the server.")]
+    public async Task<PaginationResultModel<TagDto>> PaginateWithOptionsAsync([FromQuery] PaginationOptions options)
+    {
+        var request = PaginationRequest.DefaultWith(options);
         var result = await repository.PaginateAsync(request);
 
         return result.ToModel(tag => tag.ToDto());

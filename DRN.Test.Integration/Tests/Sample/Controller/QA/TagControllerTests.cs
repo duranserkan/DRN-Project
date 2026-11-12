@@ -80,6 +80,29 @@ public class TagControllerTests
         tag4Expected.Should().NotBeNull();
         tag4Expected.Model.Other.Should().Be(4);
 
+        // A caller cannot supply a first-page total through the query string.
+        var untrustedCountEndpoint = Get.Endpoint.QA.Tag.PaginateAsync.Path()
+            .AppendQueryParam("totalCount", 1000000);
+        result = await client.GetAsync(untrustedCountEndpoint);
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+        var untrustedCountResult = await result.Content.ReadFromJsonAsync<PaginationResultModel<TagDto>>();
+        untrustedCountResult.Should().NotBeNull();
+        untrustedCountResult.Info.Request.TotalCount.Should().Be(-1);
+        untrustedCountResult.Info.Total.Count.Should().Be(-1);
+
+        // The options endpoint binds the same flat query fields.
+        var optionsEndpoint = Get.Endpoint.QA.Tag.PaginateWithOptionsAsync.Path()
+            .AppendQueryParam("pageSize", 1)
+            .AppendQueryParam("maxSize", 2)
+            .AppendQueryParam("totalCount", 1000000);
+        result = await client.GetAsync(optionsEndpoint);
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+        var optionsResult = await result.Content.ReadFromJsonAsync<PaginationResultModel<TagDto>>();
+        optionsResult.Should().NotBeNull();
+        optionsResult.Info.Request.PageSize.Size.Should().Be(1);
+        optionsResult.Info.Request.PageSize.MaxSize.Should().Be(2);
+        optionsResult.Info.Total.Count.Should().Be(-1);
+
         //Paginate
         var paginateEndpoint = Get.Endpoint.QA.Tag.PaginateAsync.Path()
             .AppendQueryParam(nameof(PaginationRequest.PageSize), 1)

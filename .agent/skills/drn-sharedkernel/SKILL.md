@@ -35,7 +35,7 @@ Use GUID overloads for external IDs. Generic repository methods validate the dec
 
 ### Pagination
 
-`PaginationRequest.From()` defaults to 10 items, maximum 100, ascending. Changing size, effective maximum or direction resets to page one with a fresh cursor. Omitted settings carry forward. Cap the maximum at 1,000 before comparing. Use the returned `PaginationResultInfo` to navigate with first/last ID cursors. Jumps advance at most ten pages in the requested direction. Use `PaginateAsync` for interactive reads and `PaginateAllAsync` for explicitly requested streaming. Map results with `ToModel(entity => entity.ToDto())`.
+`PaginationRequest.From()` defaults to 10 items, maximum 100, ascending. Bind flat first-page `PaginationOptions` from a query or JSON body and convert with `PaginationRequest.DefaultWith(options)`. Changing size, effective maximum or direction resets to page one with a fresh cursor. Omitted settings carry forward. Cap the maximum at 1,000 before comparing. Use the returned `PaginationResultInfo` to navigate with first/last ID cursors. Jumps advance at most ten pages in the requested direction. Use `PaginateAsync` for interactive reads and `PaginateAllAsync` for explicitly requested streaming. Map results with `ToModel(entity => entity.ToDto())`.
 
 ## Exceptions, JSON and paths
 

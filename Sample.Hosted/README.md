@@ -46,7 +46,8 @@ Pagination responses contain `items` and `info`. The outer `info.firstId` and `i
 | Endpoint | Request and continuation |
 |---|---|
 | `GET /Api/QA/Category` | Flattened `PaginationRequest` query fields. Defaults to page 1 and size 10. The server fixes the ceiling at 100 and ignores supplied `PageSize.MaxSize`, `TotalCount`, and `MarkAsHasNextOnRefresh`. |
-| `GET /Api/QA/Tag/Paginate` | Initial page. Query defaults: `pageSize=10`, `maxSize=100`, `totalCount=-1`, `updateTotalCount=false`, `direction=Ascending`. Maximum `maxSize` is 1000. |
+| `GET /Api/QA/Tag/Paginate` | Initial page using individual query parameters. Defaults: `pageSize=10`, `maxSize=100`, `updateTotalCount=false`, `direction=Ascending`. Maximum `maxSize` is 1000. |
+| `GET /Api/QA/Tag/PaginateWithOptions` | Initial page using the same query fields bound to `PaginationOptions`. Set `updateTotalCount` to count on the server. |
 | `GET /Api/QA/Tag/PaginateWithQuery` | Flatten the previous response's `info` into query fields, including `Request.PageNumber`, `FirstId`, `LastId`, and `Total.Count`. Supply `jumpTo` separately. |
 | `POST /Api/QA/Tag/PaginateWithBody` | Send the previous response's complete `info` object as JSON. Keep `jumpTo` and `updateTotalCount` in the query string. Preserve the required JSON fields. |
 

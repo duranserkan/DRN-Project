@@ -1,3 +1,4 @@
+using System.Text.Json;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.Testing.Extensions;
 
@@ -5,6 +6,56 @@ namespace DRN.Test.Unit.Tests.Framework.SharedKernel.Pagination;
 
 public class PaginationRequestTests
 {
+    [Fact]
+    public void PaginationOptions_Should_Deserialize_Partial_Json_With_Defaults()
+    {
+        var options = JsonSerializer.Deserialize<PaginationOptions>("{\"pageSize\":25,\"updateTotalCount\":true}",
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        options.Should().NotBeNull();
+        var request = PaginationRequest.DefaultWith(options!);
+        request.PageSize.Size.Should().Be(25);
+        request.PageSize.MaxSize.Should().Be(PageSize.MaxSizeDefault);
+        request.TotalCount.Should().Be(-1);
+        request.UpdateTotalCount.Should().BeTrue();
+        request.PageCursor.SortDirection.Should().Be(PageSortDirection.Ascending);
+    }
+
+    [Fact]
+    public void DefaultWith_Options_Should_Preserve_Defaults_And_Normalize_Values()
+    {
+        PaginationRequest.DefaultWith(new PaginationOptions()).Should().BeEquivalentTo(PaginationRequest.Default);
+
+        var options = new PaginationOptions
+        {
+            PageSize = 1500,
+            MaxSize = 2000,
+            UpdateTotalCount = true,
+            Direction = PageSortDirection.Descending
+        };
+
+        var request = PaginationRequest.DefaultWith(options);
+
+        request.PageNumber.Should().Be(1);
+        request.PageSize.Size.Should().Be(1000);
+        request.PageSize.MaxSize.Should().Be(1000);
+        request.PageCursor.Should().BeEquivalentTo(PageCursor.InitialWith(PageSortDirection.Descending));
+        request.TotalCount.Should().Be(-1);
+        request.UpdateTotalCount.Should().BeTrue();
+    }
+
+    [Fact]
+    public void PaginationOptions_Should_Ignore_Client_Supplied_TotalCount()
+    {
+        var options = JsonSerializer.Deserialize<PaginationOptions>("{\"totalCount\":1000000}",
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        var request = PaginationRequest.DefaultWith(options!);
+
+        request.TotalCount.Should().Be(-1);
+        request.UpdateTotalCount.Should().BeFalse();
+    }
+
     [Theory]
     [DataInlineUnit(1L, 1L, 10, 0)]
     [DataInlineUnit(1L, 2L, 10, 0)]
