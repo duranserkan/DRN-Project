@@ -498,6 +498,8 @@ The three-argument `PageSize` constructor can override the maximum threshold for
 
 ### API Integration
 
+For flat first-page input, bind `PaginationOptions` from a query or JSON body and convert it with `PaginationRequest.DefaultWith(options)`. Set `updateTotalCount` to request a server-side count. JSON enum values follow the application's serializer configuration. Use the returned metadata for continuation requests.
+
 `PaginationRequest` supports query-string model binding. This controller uses the quickstart's `User` and `UserDto`:
 
 ```csharp

@@ -22,6 +22,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### New Features
 
+*   **Pagination Options**: Bind flat first-page options from query strings or JSON bodies and convert them with `PaginationRequest.DefaultWith(options)`.
+
 *   **Logging Name Exemptions**: Adjacent `// DiagnosticNameExemption: ExactName | Nonempty justification` comments acknowledge DRN0017/DRN0020/DRN0022 name matches. They do not waive classified values, configured analyzer paths, declaration requirements, or child checks. DRN0023 reports malformed comments and DRN0024 warns about unused comments. Comments do not provide runtime redaction.
 
 *   **Project Classification Rules**: Register `data-classification-rules.json` as an EmbeddedResource or AdditionalFiles item to extend compiler classification checks. Rules also inherit from referenced SharedKernel consumers. The legacy filename `diagnostic-rules.json` remains accepted. DRN0021 reports invalid, unreadable, oversized, or ambiguous catalogs.

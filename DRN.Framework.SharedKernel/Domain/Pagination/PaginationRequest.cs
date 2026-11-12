@@ -41,6 +41,12 @@ public class PaginationRequest
         long totalCount = -1, bool updateTotalCount = false) =>
         new(1, new PageSize(size, maxSize), PageCursor.InitialWith(direction), totalCount, updateTotalCount: updateTotalCount);
 
+    public static PaginationRequest DefaultWith(PaginationOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        return DefaultWith(options.PageSize, options.MaxSize, options.Direction, updateTotalCount: options.UpdateTotalCount);
+    }
+
     public static PaginationRequest FromOffset(PaginationResultInfo? resultInfo = null, int skip = -1, int take = -1, int maxSize = -1,
         PageSortDirection direction = PageSortDirection.None, long totalCount = -1, bool updateTotalCount = false)
     {
