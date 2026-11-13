@@ -1,17 +1,13 @@
 ---
 name: frontend-razor-pages-shared
-description: "Razor Pages layout system - Layout hierarchy (_LayoutBase, _Layout), MainContentLayoutOptions for page configuration, HTMX integration for partial rendering, and Bootstrap grid integration. Foundation for consistent page structure and responsive layouts. Keywords: razor-pages, layout, html-shell, layout-options, htmx, partial-rendering, bootstrap, responsive-design, page-structure"
-last-updated: 2026-11-04
+description: "Configure Razor layout options, shared shells, and page scripts for full-page and HTMX navigation."
+last-updated: 2026-11-13
 difficulty: intermediate
-tokens: ~1K
 ---
 
 # Razor Pages Layout System
 
-> Core layout system and shared Razor structure for hosted Razor Pages applications using this convention.
-
-> [!NOTE]
-> Use the repository profile to identify the hosted web project that acts as the local reference implementation.
+Use the profile to find the reference web project. Confirm its application-owned layout names and options before adapting this convention.
 
 ## When to Apply
 - Modifying `_Layout.cshtml` structure
@@ -48,24 +44,12 @@ Pages/Shared/
 
 ## Layout Hierarchy
 
-1. **_LayoutBase.cshtml**: The outer HTML shell. Loads CSS, JS, and defines `<html>`, `<head>`, `<body>`.
-2. **_Layout.cshtml**: The application frame.
-   - Responsible for rendering the Sidebar, SubNavigation, and main content wrappers.
-   - Typically manages responsive behavior and authentication state visibility (e.g., showing menus only when MFA is completed).
-   - Wraps the body in a container with a flexible flexbox layout.
-   - Handles `TempData` status messages.
-3. **Page Content**: Injected into `@RenderBody()` within the `main` tag.
+1. `_LayoutBase.cshtml` supplies the HTML shell, styles, and scripts.
+2. `_Layout.cshtml` supplies navigation, responsive content wrappers, authentication-dependent visibility, and `TempData` messages.
+3. Page content renders through `@RenderBody()` inside `main`.
 
 ### HTMX Integration
-The system is designed to detect HTMX requests and serve partial content (`_LayoutBaseHtmx`) to avoid full page reloads, preserving the "Single Page App" feel while using server-side rendering.
-
-```razor
-// _Layout.cshtml
-@{
-    var isHtmxRequest = Context.Request.Headers["HX-Request"] == "true";
-    Layout = isHtmxRequest ? "_LayoutBaseHtmx" : "_LayoutBase";
-}
-```
+Use `_LayoutBaseHtmx` for partial HTMX responses and `_LayoutBase` for full navigation. Treat the HTMX request header as a rendering preference, never as authorization.
 
 ## Page-Specific Scripts
 
@@ -81,23 +65,7 @@ Registration must tolerate repeated script execution and late completion after t
 
 ## Layout Options
 
-Control how a page is rendered within the main content area using `MainContentLayoutOptions`. This pattern allows individual pages to dictate their container styling without duplicating layout code.
-
-```csharp
-public class MainContentLayoutOptions
-{
-    public string Title { get; set; } = string.Empty;
-    public bool CenterVertically { get; set; }
-    public bool CenterHorizontally { get; set; }
-
-    public MainContentType Type { get; set; } = MainContentType.CardBody;
-    public BootstrapColumnSize ColumnSize { get; set; } = BootstrapColumnSize.None;
-    public BootstrapGridTier GridTier { get; set; } = BootstrapGridTier.Md;
-    public BootstrapTextAlignment TextAlignment { get; set; } = BootstrapTextAlignment.TextStart;
-    
-    public SubNavigationCollection? SubNavigation { get; set; }
-}
-```
+Use `MainContentLayoutOptions` to configure the title, centering, container, text alignment, and optional tabs. Defaults are an empty title, no centering, `CardBody`, `ColumnSize.None`, `GridTier.Md`, `TextStart`, and no sub-navigation.
 
 ### MainContentType Enum
 - **None**: Renders content directly.
@@ -105,7 +73,7 @@ public class MainContentLayoutOptions
 - **CardBody**: Adds `.card-body` padding around content inside the card.
 
 ### Bootstrap Support
-- **GridTier**: `Xs`, `Sm`, `Md`, `Lg`, `Xl`, `Xxl`.
+- **GridTier**: `Xs`, `Sm`, `Md`, `Lg`, `Xl`, `Xxl`, `None`.
 - **ColumnSize**: `One` to `Twelve`, `Auto`, `None`.
 - **Helper Extensions**: `CssColumnSize()`, `CssTextAlignment()` generate the appropriate Bootstrap classes.
 
@@ -128,22 +96,7 @@ public void OnGet()
 
 ### LayoutOptionsFor
 
-Helper factory pattern for creating common layout configurations (e.g., accessed via `Get.LayoutOptions`).
-
-```csharp
-public class LayoutOptionsFor
-{
-    public MainContentLayoutOptions Full(string title) => new() { Title = title };
-
-    public MainContentLayoutOptions Centered(string title) => new() 
-    { 
-        Title = title, 
-        CenterVertically = true,
-        CenterHorizontally = true,
-        ColumnSize = BootstrapColumnSize.Six 
-    };
-}
-```
+Reuse local factories such as `Get.LayoutOptions` for common configurations. Check their actual defaults before relying on them.
 
 **Usage**:
 ```csharp

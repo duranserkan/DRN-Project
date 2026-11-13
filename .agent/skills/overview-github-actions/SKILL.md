@@ -1,9 +1,8 @@
 ---
 name: overview-github-actions
 description: Use when reviewing or modifying GitHub Actions workflows, composite actions, CI gates, release pipelines, Docker publishing, package publishing, or security scanning.
-last-updated: 2026-08-27
+last-updated: 2026-11-13
 difficulty: intermediate
-tokens: ~1.4K
 ---
 
 # GitHub Actions And Deployment
@@ -11,8 +10,6 @@ tokens: ~1.4K
 > Portable CI/CD guidance. Load the repository profile for exact workflow names, branches, tags, registries, and publish targets.
 
 ## Workflow Strategy
-
-Common workflow families:
 
 | Family | Purpose |
 |--------|---------|
@@ -29,15 +26,15 @@ Common workflow families:
 - For split-checkout PR workflows, checkout trusted CI/control-plane code at the immutable event base SHA and checkout PR-controlled source into a separate path.
 - Use `$/` for same-repository actions that should resolve at the running commit. Preserve workspace-relative `./` references when a split-checkout workflow or its shared composite actions intentionally load trusted code from the checked-out base SHA.
 - Set explicit `timeout-minutes` on jobs that run untrusted or expensive code, and keep aggregate gatekeeper jobs short.
-- Pin third-party actions according to repository policy using full immutable Git commit SHAs with version comments; verify both the SHA and the explanatory version comment from the official upstream repository; annotated tags require the dereferenced tag commit. Container base images must use verified registry content digests.
+- Pin third-party actions to full immutable Git commit SHAs with version comments. Verify tag-to-commit alignment from the official upstream repository. Dereference annotated tags. Container bases require verified registry content digests.
 - Protect `.github/workflows/**`, `.github/actions/**`, and `CODEOWNERS` with code-owner review.
 - Gate publishing credentials behind build/test/security-scan success.
-- Upload SARIF or code-scanning results when the repository uses supported scanners. If a custom SARIF verifier is used, missing, empty, malformed, or unparsable SARIF is a failed security gate; if platform code-scanning merge protection replaces it, require that protection in branch rulesets.
+- Upload scanner results when supported. A custom SARIF verifier must fail on missing, empty, malformed, or unparsable results. If platform code-scanning merge protection replaces it, require that protection in branch rulesets.
 - Feed global project guidelines to review tools through their guideline-file mechanism instead of duplicating portable rules into long path instructions.
 
 ## Composite Actions
 
-Composite actions reduce duplication, but they are part of the CI control plane. Review them like production code:
+Composite actions are part of the CI control plane. Review their contracts:
 
 - Inputs are validated and quoted.
 - Secrets are passed only to steps that need them.
@@ -50,9 +47,9 @@ Composite actions reduce duplication, but they are part of the CI control plane.
 
 - Version is derived from the repository's tag or package metadata.
 - Tag filters, version extraction guards, and package/image metadata rules agree on the same stable and preview tag shapes.
-- Branch ancestry checks resolve exact refs and use `git merge-base --is-ancestor`; do not rely on branch list output or substring matching.
+- Check branch ancestry with exact refs and `git merge-base --is-ancestor`. Branch lists and substring matches are insufficient.
 - Build artifacts used for packaging are the same artifacts that were scanned or tested.
-- When a package registry mutates published artifacts, preserve the exact attested build artifacts and direct consumers to verify those bytes. If the registry has a documented reversible signing mutation, verify the registry signature first, modify only a copy, and fail closed unless the reconstructed artifact matches the attested digest; never assume a content-equivalent repack has the original digest.
+- If a registry mutates published artifacts, preserve the attested build bytes for consumer verification. For a documented reversible signing mutation, verify the registry signature first. Modify only a copy and require its reconstructed digest to match the attestation. A content-equivalent repack does not prove byte equality.
 - Parallelize only when generated-file boundaries are explicit. If package build output, frontend assets, or Docker context files cross job boundaries, add artifact upload/download or keep dependent steps in one job.
 - Docker images are built with SBOM/provenance when supported.
 - For multi-platform images, bind each platform-specific SBOM to that platform's immutable image manifest digest. Bind an SBOM to the index digest only when the SBOM deliberately and verifiably covers the complete index.
@@ -66,13 +63,13 @@ When Docker publishing is in scope, verify:
 
 - Dockerfile paths and image names come from the repository profile or workflow files.
 - Multi-arch settings match the supported runtime targets.
-- Base images are pinned or governed by a documented update policy.
+- Base images use verified digests under the repository's update policy.
 - CVE gates match the repository's risk tolerance.
 - Promotion reuses scanned image digests when the pipeline supports it.
 - SBOM extraction uses the immutable image or platform digest, not a mutable tag that can move after validation.
 - Scanner inputs identify the exact image under review, preferably by repository plus staged digest, not runner-local defaults.
-- CVE severity filters are explicit; include `unspecified` only when unknown-severity findings are intentionally release-blocking.
-- Preview metadata must not overwrite stable tags such as `latest` or `major.minor`; derive Docker tags from the already-extracted release version.
+- CVE severity filters are explicit. Include `unspecified` only when unknown severity intentionally blocks release.
+- Preview metadata must not overwrite stable tags such as `latest` or `major.minor`. Derive Docker tags from the extracted release version.
 
 ## Required Secrets
 

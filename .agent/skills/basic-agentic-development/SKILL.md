@@ -1,9 +1,8 @@
 ---
 name: basic-agentic-development
-description: "Agentic development standards - Silent Partner Protocol, context economy, development loop (discovery, planning, execution, verification), and anti-patterns for efficient autonomous development. Keywords: agentic, ai-agent, development-loop, context-economy, autonomous, discovery, planning, execution, verification, anti-patterns, silent-partner"
-last-updated: 2026-11-04
+description: Use when planning, implementing, refactoring, or verifying work under repository autonomy and execution rules.
+last-updated: 2026-11-13
 difficulty: basic
-tokens: ~1.5K
 ---
 
 # Agentic Development
@@ -16,7 +15,9 @@ Act autonomously on routine work. Ask when ambiguity blocks progress or decision
 1. **Trivial** (formatting, imports, lint): Act immediately
 2. **Standard** (new files, tests, refactors): Act, then report
 3. **Significant** (architecture, schema, API breaking): Plan, seek approval, then act
-4. **Critical** (security, data migration, production, ad-hoc helper script writing or execution): Prohibited under the sync safety contract; for non-sync tasks, always provide a detailed description (purpose, full content, exact commands, potential risks) and obtain explicit user approval first
+4. **Critical** (security, data migration, production): Prohibited under the sync safety contract. For non-sync tasks, provide purpose, full content, exact commands, and risks before seeking explicit approval. Ad-hoc helpers follow the same gate under Execution.
+
+These tiers do not override workflow, command, or VCS gates.
 
 ### Scrutiny & Audit Posture
 
@@ -30,7 +31,7 @@ Act autonomously on routine work. Ask when ambiguity blocks progress or decision
 
 | Principle | Action |
 |-----------|--------|
-| Thin loading by default | Use existing source-owned guidance with the current workflow route and scoped loaders (`/load-skills-basic`, `/load-skills-drn`, `/load-skills-test`, `/load-skills-frontend`); reserve `/load-skills-all` for explicit broad context or `/update all` agent-configuration self-sync |
+| Thin loading by default | Use the current workflow and scoped loader. Reserve `/load-skills-all` for explicit broad context or `/update all` agent-configuration self-sync |
 | Summarize, don't echo | Summarize findings and cite relevant files instead of repeating file contents |
 | Batch reads | Read related files together |
 | Early exit | Stop reading when you have enough context |
@@ -43,10 +44,10 @@ Act autonomously on routine work. Ask when ambiguity blocks progress or decision
 
 ### 1. Discovery
 
-- Read `AGENTS.md` → workflow → relevant skills
+- Read `AGENTS.md`, DiSCOS, the repository profile, the workflow, then relevant skills
 - Inspect outline/symbols to understand structure before diving in when supported
 - Search text for exact identifiers and find files by name or glob before broad reads
-- **Stop when sufficient** — don't read every file
+- Stop when evidence is sufficient. Seek counterexamples before concluding.
 
 ### 2. Planning
 
@@ -65,7 +66,7 @@ Act autonomously on routine work. Ask when ambiguity blocks progress or decision
 - Follow existing patterns in the codebase
 - Avoid unnecessary allocations and repeated work. Simplify algorithms and choose data structures that fit access patterns, ordering, and lifetime needs. Use source evidence and explicit assumptions to justify changes. Measure uncertain tradeoffs, preserve correctness, and avoid complexity whose benefit is unproven.
 - Follow the repository profile's dependency-injection and configuration conventions
-- **No Unapproved Helper Scripts**: Do NOT create, write, or execute ad-hoc helper scripts or code (e.g. Python, Bash, Node, custom tools). Ad-hoc scripts are strictly prohibited under the sync safety contract. For non-sync tasks, writing or executing an ad-hoc script requires a prior detailed description (purpose, full content, exact commands, potential risks) and explicit user approval before writing or running it.
+- **No Unapproved Helper Scripts**: Ad-hoc helper scripts or code are prohibited under the sync safety contract. For non-sync tasks, first provide purpose, full content, exact commands, and risks. Obtain explicit approval before writing or executing them.
 
 #### Refactoring for Clarity
 
@@ -79,7 +80,7 @@ Act autonomously on routine work. Ask when ambiguity blocks progress or decision
 
 **Mandatory order when permitted**: Build → Test → Lint → Self-Correct
 - Resolve commands from the profile, manifests, or CI. Use the destination's test runner and package manager.
-- Under `AGENTS.md`, do not build or run tests unless explicitly allowed; use static verification and report skipped commands when permission is absent.
+- Follow `AGENTS.md` command gates. Without execution permission, use static verification and report skipped commands.
 - Fix warnings introduced by your changes (Boy Scout Rule)
 - Use relative paths in code/configs, not absolute paths
 
@@ -89,15 +90,7 @@ Act autonomously on routine work. Ask when ambiguity blocks progress or decision
 
 ### 5. Lessons Learned
 
-Capture only durable, generalizable insights discovered during the task into `AGENTS.LessonsLearned.md` (repo root - create if missing).
-
-**When**: reusable mistake, anti-pattern, non-obvious insight, correction, or pattern that can change future decisions across cases.
-
-**Exclude**: one-time findings, incident history, or case details that cannot be generalized. Move durable rules into the owning docs, skills, workflows, or source comments and remove stale lesson entries during cleanup.
-
-**Entry format**: `## N. Descriptive Title` -> `### Case`, `### General Rule`, `### Decision Boundary`, and `### Source To Update`. Keep the case specific enough to recognize the failure mode, but make the rule portable enough to apply beyond that case.
-
-**Before adding**: read existing entries - update rather than duplicate.
+Follow `AGENTS.md` Lessons Learned for the profile-resolved file, entry format, and deduplication. Capture reusable insights only. Move durable rules to their owning guidance and remove stale lessons during cleanup.
 
 ---
 
@@ -110,51 +103,28 @@ Capture only durable, generalizable insights discovered during the task into `AG
 | Skipping security considerations | Always check against security checklist |
 | Creating placeholder implementations | Deliver complete, runnable code |
 | Assuming names or namespaces | Verify against source, project metadata, `GlobalUsings.cs`, or symbol search |
-| Importing uninstalled libraries | Check `*.csproj`/`package.json` before using; ask user before adding |
+| Importing uninstalled libraries | Check package manifests before use. Ask before adding a dependency |
 | Choosing runtime-access mechanisms without repository context | Follow the repository profile's runtime-access conventions |
 | Weakening production invariants for tests | Follow the repository profile's environment conventions and use explicit test configuration |
-| Using obsolete or deprecated code | Never introduce deprecated or obsolete APIs, types, interfaces, or members (e.g. `[Obsolete]`, `ASPDEPR*`); always use modern, active framework primitives and never suppress deprecation diagnostics with `#pragma` or `[SuppressMessage]` |
+| Using obsolete or deprecated code | Use active framework APIs. Do not introduce obsolete types or members, or suppress deprecation diagnostics with `#pragma` or `[SuppressMessage]` |
 
 ---
 
 ## Autonomy Guide
 
-| Situation | Action |
-|-----------|--------|
-| Destructive/irreversible | Ask first |
-| Security-related | Ask first |
-| Reading/analysis | Proceed |
-| Staging, committing, or amending | Require explicit user authorization |
-| Testing your own work | Proceed only when current instructions allow build/test commands |
-| Ambiguous architecture | Ask first |
-| Ad-hoc helper scripts | Follow the prohibition and approval requirements under Execution |
-| Routine refactoring following patterns | Proceed |
+Apply the Silent Partner Protocol and active workflow gates. Reading and routine refactoring may proceed. Ask before destructive work, security changes, or unresolved architectural decisions. Execution and VCS actions retain their separate approval gates.
 
 ---
 
 ## Verification Checklist
 
-- [ ] Code compiles without errors, or build was not run because current instructions forbid it
-- [ ] Tests pass, or tests were not run because current instructions forbid them
-- [ ] No new warnings introduced
-- [ ] Follows existing codebase patterns
-- [ ] Security implications considered
-- [ ] Documentation updated (if needed)
-- [ ] Lessons captured (if a non-obvious insight was discovered)
+Report checks actually performed and any unverified build, test, or warning status. Confirm local patterns, security, public documentation impact, and reusable lessons.
 
 ---
 
 ## Portable Tool Selection Guide
 
-Use capability names in generic skills. Map them to the active platform tools at execution time.
-
-| Need | Portable capability |
-|------|------|
-| File exists, known location | Read file |
-| Understand file structure | Inspect outline/symbols when supported, then read focused sections |
-| Exact text search | Search text |
-| Find files by name/pattern | Find files |
-| Explore directory | List directory |
+Use capability names from the [operating model](../../workflows/_shared/workflow-operating-model.md#portable-tool-verbs). Read known files, search exact identifiers, and discover paths before broad exploration.
 
 ---
 

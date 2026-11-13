@@ -1,9 +1,8 @@
 ---
 name: basic-security-checklist
 description: Use when adding or reviewing endpoints, input handling, auth, authorization, CSP, CSRF, secrets, dependencies, security headers, infrastructure, or deployment changes.
-last-updated: 2026-08-09
+last-updated: 2026-11-13
 difficulty: intermediate
-tokens: ~1K
 ---
 
 # Security Development Checklist
@@ -23,13 +22,7 @@ tokens: ~1K
 
 ### Server-Side Always
 
-```csharp
-public class CreateItemRequest
-{
-    [Required, StringLength(500, MinimumLength = 3)]
-    public string Title { get; set; } = string.Empty;
-}
-```
+Validate required fields, types, lengths, and allowed values at the server boundary.
 
 ### Rules
 
@@ -38,12 +31,12 @@ public class CreateItemRequest
 - Validate at the boundary before business logic.
 - Use type-safe parsing and framework binders where possible.
 - Validate file type, size, storage path, and scanning requirements for uploads.
-- Treat deserialization as input handling; constrain types and payload size.
+- Constrain deserialization types and payload size.
 
 ## Authentication And Authorization
 
 - Apply authorization at the boundary: route, controller, page, handler, consumer, or job trigger.
-- Enforce least privilege; grant the minimum permission needed.
+- Grant only the permissions needed.
 - Keep internal identifiers, persistence models, and framework-only types out of external contracts.
 - Do not bypass MFA, tenant, or scope checks unless the repository profile explicitly defines a safe exception path.
 - Use secure cookie/session defaults from the framework or repository profile.
@@ -62,7 +55,7 @@ public class CreateItemRequest
 
 - Prefer repository-approved ORMs, query builders, or typed query APIs.
 - Use parameterized APIs for raw SQL and database commands.
-- Never concatenate or interpolate user-controlled values into SQL, filters, sort expressions, or command text.
+- Never embed user-controlled values in raw SQL, query expressions, or command strings. Bind values as parameters, including through parameterizing interpolation APIs. Verify the selected overload. See [EF Core SQL guidance](https://learn.microsoft.com/en-us/ef/core/querying/sql-queries).
 - Allowlist dynamic column names, sort directions, and filter fields before translating them into queries.
 - Review framework-specific raw query sinks, such as `FromSql`, `ExecuteSql`, command builders, or direct connection APIs.
 
@@ -73,7 +66,7 @@ public class CreateItemRequest
 - Follow the repository pinning policy for NuGet, npm, GitHub Actions, containers, and language-specific package managers.
 - Whenever container base images, Docker/Docker Compose services, or package versions are added or updated, verify their content digests against canonical registry manifests or package repository metadata before committing. Require third-party GitHub Actions to use full immutable Git commit SHAs, documenting tag-to-commit verification separately according to the repository profile.
 - Review transitive dependencies when adding security-sensitive packages.
-- Do not add dependency upgrades to release notes unless they create a breaking or user-facing behavior change.
+- Apply the profile's release rules and [documentation triggers](../basic-documentation/SKILL.md#release-notesmd), including security and published-artifact impact.
 
 ## Security Headers And Browser Protections
 

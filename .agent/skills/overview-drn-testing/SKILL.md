@@ -1,14 +1,13 @@
 ---
 name: overview-drn-testing
-description: "DTT (Duran's Testing Technique) philosophy - choosing unit, integration, API, or performance tests and routing to canonical DRN.Framework.Testing guidance. Keywords: testing-philosophy, dtt, test-strategy, unit-testing, integration-testing, performance-testing"
-last-updated: 2026-10-29
+description: "Choose unit, integration, API or performance tests with Duran's Testing Technique (DTT)."
+last-updated: 2026-11-13
 difficulty: basic
-tokens: ~0.7K
 ---
 
 # DRN Testing Overview
 
-> DTT favors honest feedback with the least necessary test machinery. The canonical attribute/context matrix lives in [drn-testing](../drn-testing/SKILL.md).
+DTT favors honest feedback with the least necessary test machinery. [drn-testing](../drn-testing/SKILL.md) owns data attributes and contexts.
 
 ## DTT Principles
 
@@ -24,7 +23,7 @@ tokens: ~0.7K
 
 | Change | Default test type | Why |
 |---|---|---|
-| Pure utility, domain invariant, deterministic branch logic | Unit | No container value; use `DataInlineUnit` when data/generation helps |
+| Pure utility, domain invariant, deterministic logic | Unit | Use `DataInlineUnit` when data/generation helps |
 | Attribute DI registration or isolated service behavior | Unit | `DrnTestContextUnit` validates wiring without Docker |
 | Repository, EF mapping, query, transaction, concurrency | Integration DB | Real PostgreSQL is the useful signal |
 | Controller, endpoint, auth, middleware, serialization | API integration | Full request pipeline via `ApplicationContext` |
@@ -41,12 +40,6 @@ Resolve project names and paths from the current repository profile or filesyste
 | Analyzer, when present | Roslyn analyzer regression tests |
 | Integration | Testcontainers, repositories, API/E2E |
 | Performance, when present | BenchmarkDotNet and K6 |
-
-Context names:
-
-- `DrnTestContextUnit`: unit context, no containers
-- `DrnTestContext`: integration context with `ContainerContext`, `ApplicationContext`, and `FlurlHttpTest`
-- `ApplicationContext`: WebApplicationFactory wrapper for app/API tests
 
 ## Routing
 

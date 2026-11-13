@@ -1,7 +1,7 @@
 ---
 name: drn-utils
 description: "DRN utilities for DI, configuration, scoped diagnostics, HTTP, Source-Known IDs, cancellation, and MFA."
-last-updated: 2026-11-07
+last-updated: 2026-11-13
 difficulty: intermediate
 ---
 
@@ -16,7 +16,7 @@ Scan the application's service assembly with `services.AddServicesWithAttributes
 - Register each module through its extension method and scan its assembly with `AddServicesWithAttributes()`. Use the scoped, singleton, transient, keyed, or hosted-service attributes. Their default `TryAdd` preserves existing registrations. Opt out when registering multiple implementations. Keep registration idempotent per service collection and validation scoped to the provider being validated.
 - `AddDrnUtils()` supplies HybridCache and the system TimeProvider. Register a distributed cache first if required. Use `[Config]` for a section and `[ConfigRoot]` for the root. Validate nested options explicitly.
 - Follow [configuration source precedence](../overview-drn-framework/SKILL.md#maintenance-reference-configuration-sources). Use double underscores for nested environment keys. Configuration debug views redact secret-looking values by default. Keep raw views restricted.
-- Configure `DrnAppDataSettings__TempPath` and `DrnAppDataSettings__DataPath` before loading DRN settings. Use `GetPath(...)` on the selected `IAppData` root for child paths. Preserve traversal and symlink checks. Keep the distinct BLAKE3 derivation contexts for application hash keys, encryption keys, discriminators and seeds.
+- Configure `DrnAppDataSettings__TempPath` and `DrnAppDataSettings__DataPath` before loading DRN settings. Use `GetPath(...)` on the selected `IAppData` root for child paths. Preserve traversal and symlink checks.
 
 ### Nexus Keys
 
@@ -28,7 +28,7 @@ Configure `NexusAppSettings:AppId` (0 through 127) and `AppInstanceId` (0 throug
 
 `ConfiguredDefault` selects Secure or Plain from `UseSecureSourceKnownIds`. Secure requires decryption and verification. Plain skips decryption. Auto tries plain then encrypted forms. Keep format overrides under application control. Authenticate an external GUID in the required format before conversion. Conversions revalidate using Auto. Undefined formats fail even for null IDs. Apply authorization and rate limits separately. See [SharedKernel validation](../drn-sharedkernel/SKILL.md#validation-approaches).
 
-Configure the epoch and minimum before first use. Generation, decoding and filtering must share an epoch across all users of a dataset. For each 250 ms tick, inclusive date boundaries admit its full 31-bit payload range and exclusive boundaries exclude it. Normalize reversed endpoints before deriving bounds and pass scalar long comparisons to the provider.
+Configure epoch and minimum before first use. Generation, decoding and filtering must share an epoch across a dataset. Use `EntityCreatedFilter` for date boundaries. Inclusive boundaries admit the whole 250 ms tick, exclusive boundaries exclude it, and reversed endpoints normalize. [Domain filtering](../drn-domain-design/SKILL.md#api-integration)
 
 ## Scoped logging and classification
 
@@ -39,7 +39,7 @@ Scope events bypass diagnostic sanitization and budgets. Supply safe event data.
 Classify dynamic backend values at capture. Compiler name/path checks and browser rules do not redact server values at runtime. Explicit URL capture removes credentials and validates encoding. Explicit Sensitive/Personal values redact as `[redacted]`. Free text keeps its contents within capture budgets. Check the installed package’s logging documentation for its capture limits and overflow behavior.
 
 - Use `AddDictionary` or `SanitizeDictionary` for exact key classifications. NonSensitive requires a reason and a supported scalar. Preserve positive classifications and configured analyzer paths. Native copies retain detached values and classification metadata within destination budgets. Custom sanitizers receive redacted snapshots.
-- Preserve inherited and mapped interface classifications, ignored members, single getter evaluation in scoped capture, and getter suppression in direct sanitization. Register redactors for Sensitive, Personal and their combination. Keep catalog validation and analyzer/browser fixtures even though server capture has no name fallback. See [analyzer exemptions](../drn-sharedkernel/SKILL.md#attributes).
+- Preserve inherited and mapped interface classifications, ignored members, single getter evaluation in scoped capture, and getter suppression in direct sanitization. Register redactors for Sensitive, Personal and their combination. See [catalog and analyzer rules](../drn-sharedkernel/SKILL.md#attributes).
 - Use typed diagnostic models or selected scalars for payload details. Unsupported nonempty body types, including JSON, receive the unsupported marker. Keep explicit URL capture separate from ordinary text and diagnostic JSON output.
 
 ## HTTP and ambient context
@@ -54,7 +54,7 @@ Use `ScopeContext` only after Hosting initializes a request or a test calls `Ini
 
 `ICancellationUtils.Root` affects all present and future children in the DI scope. Merging an external token or canceling a keyed child affects only that group. To cancel one operation, create and dispose a local linked token source after all consumers finish.
 
-Use a typed `CancellationScopeKey.For<T>()` for a component, optionally with a constant name. Ownerless keys share an ordinal, case-sensitive namespace. Names are non-null, at most 128 characters and may be empty. Never derive them from requests or instance IDs. The default key is invalid. Reusing a key returns the same scope and stable token. Canceled scopes stay canceled. The service owns children and their registrations. Preserve callback-safe disposal when cancellation is reentrant. See [repository cancellation](../drn-entityframework/SKILL.md#repository-cancellation).
+Use typed `CancellationScopeKey.For<T>()` for a component, optionally with a constant name. Ownerless keys share an ordinal, case-sensitive namespace. Names are non-null, at most 128 characters and may be empty. Never derive them from requests or instance IDs. The default key is invalid. Reusing a key returns the same scope and stable token. Canceled scopes stay canceled. The service owns child scopes. Disposal remains safe inside cancellation callbacks. See [repository cancellation](../drn-entityframework/SKILL.md#repository-cancellation).
 
 ## Authentication and other utilities
 

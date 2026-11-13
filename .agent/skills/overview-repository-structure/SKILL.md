@@ -1,21 +1,13 @@
 ---
 name: overview-repository-structure
 description: Use when navigating an unfamiliar repository, discovering solution organization, locating projects, mapping folders, identifying build/test commands, or updating repository structure docs.
-last-updated: 2026-06-12
+last-updated: 2026-11-13
 difficulty: basic
-tokens: ~1K
 ---
 
 # Repository Structure
 
 > Portable repository navigation guide. Read `.agent/repository-profile.md` first when present, then verify with filesystem discovery.
-
-## When to Apply
-
-- Navigating the codebase for the first time.
-- Understanding project relationships and dependencies.
-- Locating functionality across the repository.
-- Updating agent docs after project or folder changes.
 
 ## Discovery Order
 
@@ -46,7 +38,7 @@ rg --files .github .agent docs
 
 ## Build And Test Commands
 
-Use the repository profile first. If it is missing:
+Use the repository profile first. If it does not specify commands:
 
 - Inspect CI workflows for canonical build/test commands.
 - Prefer solution-level build commands when a solution file exists.

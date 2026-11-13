@@ -1,17 +1,13 @@
 ---
 name: frontend-razor-pages-navigation
-description: "Razor Pages navigation system - SidebarNavigationCollection for main navigation, SidebarSettingsCollection for user menu, SubNavigationCollection for tabs, and navigation data structures. Use for implementing and customizing application navigation UI. Keywords: razor-pages, navigation, sidebar, menu, sub-navigation, tabs, ui-components, navigation-collections, layout"
-last-updated: 2026-10-04
+description: "Configure Razor sidebar menus, action panels, and tabs using application-owned navigation collections."
+last-updated: 2026-11-13
 difficulty: intermediate
-tokens: ~1K
 ---
 
 # Razor Page Navigation
 
-> Standardized navigation data structures, sidebar configuration, and dynamic menu generation for hosted Razor Pages applications using this convention.
-
-> [!NOTE]
-> Use the repository profile to identify the hosted web project that acts as the local reference implementation.
+Use the profile to find the reference web project. These are application-owned conventions, not built-in ASP.NET types. Confirm its collection APIs before adapting the examples.
 
 ## When to Apply
 - Adding items to the Sidebar
@@ -23,49 +19,21 @@ tokens: ~1K
 
 Navigation is driven by collection classes registered in Dependency Injection (DI) or passed via `ViewData`.
 
-Use `ForPage(pageName, title, ...)` for Razor Page identifiers and `ForUrl(href, title, ...)` for URL entries. Shared views render page entries with `asp-page` so active state uses page identity. URL entries retain their href, including external URLs and fragments; Razor resolves explicit `~/` URL entries. Resolved root-relative href paths are compared with the public request path for active state. Existing constructors continue to create URL entries. Keep route accessors independent of deployment prefixes.
+Use `ForPage(pageName, title, ...)` for Razor Page identifiers and `ForUrl(href, title, ...)` for URLs. Page entries render with `asp-page` and use page identity for active state. URL entries retain external URLs and fragments. Razor resolves explicit `~/` entries. Compare resolved root-relative paths with the public request path for active state. Constructors also create URL entries. Keep accessors independent of deployment prefixes.
 
 ### SidebarNavigationCollection
 
-Defines the main scrollable vertical sidebar items. This pattern allows for dynamic generation and ordering of sidebar elements.
+Configure the main scrollable sidebar with page or URL entries:
 
 ```csharp
-public class SidebarNavigationCollection(IReadOnlyList<SidebarNavigationItem> items, bool ordered = true)
-{
-    // Example default items list
-    public static IReadOnlyList<SidebarNavigationItem> DefaultItems { get; } =
-        new List<SidebarNavigationItem>
-        {
-            SidebarNavigationItem.ForPage(Get.Page.Root.Home, nameof(Get.Page.Root.Home), "bi-house-door"),
-            new("#", "Dashboard", "bi-speedometer2"),
-            // ...
-        }.OrderBy(i => i.Order).ToArray();
-
-    public IReadOnlyList<SidebarNavigationItem> Items { get; } = ordered ? items : items.OrderBy(x => x.Order).ToArray();
-}
+var navigation = new SidebarNavigationCollection([
+    SidebarNavigationItem.ForPage(Get.Page.Root.Home, "Home", "bi-house-door"),
+    SidebarNavigationItem.ForUrl("~/Reports", "Reports", "bi-graph-up", order: 10)
+], ordered: false);
 ```
 
 #### Item Configuration
-Individual items are defined using a standardized class structure:
-
-```csharp
-public class SidebarNavigationItem(string href, string title, string icon, int order = 0)
-{
-    public static SidebarNavigationItem ForPage(string pageName, string title, string icon, int order = 0)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(pageName);
-        return new(pageName, title, icon, order) { PageName = pageName };
-    }
-    public static SidebarNavigationItem ForUrl(string href, string title, string icon, int order = 0) =>
-        new(href, title, icon, order);
-    public string? PageName { get; private init; }
-    public string Href { get; } = href;
-    public string Title { get; } = title;
-    public string Icon { get; } = icon;
-    public int Order { get; } = order;
-    public bool IsDefault { get; init; } = true;
-}
-```
+Items expose title, icon, order, and page or URL identity. `IsDefault` defaults to true. `ordered: true` preserves the supplied order. Use `ordered: false` to sort by `Order`. Empty page names are invalid.
 
 ### SidebarActionCollection
 
@@ -85,15 +53,7 @@ var sidebarSettingsCollection = ViewData[Get.ViewDataKeys.SidebarSettingsCollect
 
 ## SubNavigation
 
-Secondary horizontal navigation (tabs) displayed above the main content area. This is configured via `MainContentLayoutOptions` in the Page Model.
-
-```csharp
-public class SubNavigationCollection(IReadOnlyList<SubNavigationItem> items, bool justifyContentCenter = false)
-{
-    public IReadOnlyList<SubNavigationItem> Items { get; } = items;
-    public bool JustifyContentCenter { get; } = justifyContentCenter;
-}
-```
+Configure tabs above the main content through `MainContentLayoutOptions.SubNavigation`. `SubNavigationCollection` preserves supplied items and accepts `justifyContentCenter: true` for centered tabs.
 
 ### Usage
 In your Page Model or Controller:
@@ -111,15 +71,7 @@ ViewData[Get.ViewDataKeys.MainContentLayoutOptions] = new MainContentLayoutOptio
 
 ### SubNavigationFor
 
-Helper class pattern for defining reusable sub-navigation collections (e.g., accessed via `Get.SubNavigation`).
-
-```csharp
-public class SubNavigationFor
-{
-    public DefaultSubNavigationCollection DefaultSubNavigationCollection { get; } = new();
-    public ProfileSubNavigationCollection ProfileSubNavigationCollection { get; } = new();
-}
-```
+Reuse shared tab collections through the local accessor, such as `Get.SubNavigation`. Keep page-specific configuration on the page model.
 
 ---
 
@@ -128,25 +80,7 @@ public class SubNavigationFor
 ### _Sidebar.cshtml (Component)
 The Sidebar component renders the `SidebarNavigationCollection` as a scrollable list and `SidebarSettingsCollection` as a fixed bottom menu.
 
-Key responsibilities include:
-- **Slim UI Mode**: Adjusts icon spacing and hides text if a "Slim UI" claim/preference is active (e.g., `Get.Claim.Profile.SlimUi`).
-- **Active State**: Highlights the current page. This can be handled via CSS/JS or server-side logic matching the current URL.
-- **Tooltips**: Adds tooltips for collapsed/slim views to ensure usability.
-
-```razor
-@foreach (var navItem in sidebarNavigationCollection.Items)
-{
-    // ... rendering logic ...
-    @if (navItem.PageName is { } pageName)
-    {
-        <a asp-page="@pageName" class="...">@navItem.Title</a>
-    }
-    else
-    {
-        <a href="@navItem.Href" class="...">@navItem.Title</a>
-    }
-}
-```
+Preserve slim-mode spacing, active-state identity, and accessible labels or tooltips when text is hidden. Follow the [UI accessibility guidance](../basic-code-review/SKILL.md#ui-accessibility).
 
 
 ---

@@ -1,7 +1,7 @@
 ---
 name: drn-sharedkernel
 description: "DRN domain primitives, Source-Known identity and time, repository contracts, pagination, exceptions, and classification analyzers."
-last-updated: 2026-11-07
+last-updated: 2026-11-13
 difficulty: intermediate
 ---
 
@@ -11,9 +11,9 @@ Contract and Domain projects can reference `DRN.Framework.SharedKernel` directly
 
 ## Entity Base Class
 
-Derive an entity from `SourceKnownEntity` or an aggregate from `AggregateRoot`. Use `AggregateRoot<TModel>` for a JSON model. Expose domain operations that enforce invariants. Use the internal long ID for persistence and the Guid for external identity. EF assigns internal IDs during tracking, with a save-time fallback, and attaches ID operations during materialization or saving. Use injected ID utilities on fresh entities. An initialized ID or pending insert does not establish persistence. Created, modified and deleted domain events correspond to lifecycle transitions.
+Derive an entity from `SourceKnownEntity` or an aggregate from `AggregateRoot`. Use `AggregateRoot<TModel>` for a JSON model. Enforce invariants through domain operations. Use the internal long ID for persistence and the Guid externally. EF supplies identity operations on saved and queried entities. Use injected ID utilities on fresh entities. An assigned ID does not prove persistence. Created, modified and deleted domain events correspond to lifecycle transitions. [EF lifecycle](../drn-entityframework/SKILL.md#augmented-entity-behavior)
 
-Assign each concrete, effectively non-private entity a unique entity byte in its application partition using `[EntityType<TApp>(byte)]` or a supported derived attribute. Use a closed concrete descendant of a generic abstract base. Keep identity members visible and unshadowed. Use concrete types for metadata and repository bindings. Derived attributes take one byte or byte-backed enum forwarded unchanged to the framework constructor.
+Assign each concrete, effectively non-private entity a unique byte in its application partition with `[EntityType<TApp>(byte)]` or a supported derived attribute. Generic abstract bases need closed concrete descendants. Keep identity members visible and unshadowed. Bind metadata and repositories to concrete types. Derived attributes forward one byte or byte-backed enum unchanged.
 
 `IAppId` declares a constant-resolvable partition from 0 through 127. DefaultApp uses 0, NexusApp 126, and TestApp 127. Use `[TestEntityType(byte)]` for fixtures. The same entity byte can appear in different partitions. Check collisions across referenced assemblies, preserve test/aggregator opt-ins and treat abstract or effectively private types according to analyzer eligibility. Check the installed analyzer documentation for diagnostic IDs and exceptions.
 
@@ -23,9 +23,7 @@ Configure the epoch and minimum UTC before startup or the first ID/epoch operati
 
 ### Validation Approaches
 
-Validate an external GUID with `ids.Validate<Order>(externalGuid)` through the injected ID utility or `repository.GetEntityId(externalGuid)` through an `ISourceKnownRepository<Order>`. Use the application's entity type. Check the installed overload before passing a format argument.
-
-Validate externally supplied GUIDs through `ISourceKnownEntityIdOperations`. A parsed record can be constructed by application code. Its validation checks stored metadata only. Use `Validate<TEntity>()` or an explicit `EntityTypeId(entityType, appId)` to verify both components. `ValidateId()` checks validity alone. Supply both identity components even when one is zero.
+Validate external GUIDs through injected `ISourceKnownEntityIdOperations`, such as `ids.Validate<Order>(externalGuid)`, or `ISourceKnownRepository<Order>.GetEntityId(externalGuid)`. Use the application's entity type and check installed overloads. Parsed records are caller-constructible and validate stored metadata only. `Validate<TEntity>()` or `EntityTypeId(entityType, appId)` checks both identity components. Supply both even when one is zero. `ValidateId()` checks validity alone.
 
 GUID helpers default to `ConfiguredDefault`. Implementations expose an immutable Secure or Plain default. Explicit Auto accepts both forms. Conversions reauthenticate using Auto, so enforce the required input format before conversion. Unsupported formats reject null GUIDs and empty GUID batches too. Record reads, deletes and validation accept either parsed representation. Use records only within trusted code. [Utils ID formats](../drn-utils/SKILL.md#id-generation)
 
@@ -50,4 +48,4 @@ Use `[Sensitive]`, `[Personal]` or their derived attributes for protected member
 - Apply direct `[Sensitive(false)]` only to reviewed built-in name matches. It cannot override positive classification or explicit URL protection. Other Microsoft classifications can redact at runtime without satisfying the compiler's required classification family.
 - DRN0017, DRN0020 and DRN0022 support exact adjacent acknowledgements at the reported path or captured dictionary key. Preserve configured paths, declaration checks, classified values and child traversal. DRN0023 reports malformed comments and DRN0024 reports unused comments. Known safe scalar constants and direct NSubstitute verification chains have narrow exemptions. Ordinary substitute calls are checked.
 - DRN0019 exempts direct EF schema column definitions and constraint selectors. Migration data, logging and lookalike APIs still require classification. Keep suppressions local. Check the analyzer shipped with the installed package before introducing a suppression.
-- Register a project catalog once through EmbeddedResource or AdditionalFiles. Inherit additive reference-assembly metadata without executing dependency code. Invalid catalogs report DRN0021. Keep rules isolated per compilation. The browser and analyzer share a baseline. Backend runtime requires explicit classification of dynamic data.
+- Register a project catalog once through EmbeddedResource or AdditionalFiles. Referenced catalogs add rules without executing dependency code. Invalid catalogs report DRN0021. Rules stay isolated per compilation. Browser and analyzer share a baseline. Backend dynamic data requires explicit classification.

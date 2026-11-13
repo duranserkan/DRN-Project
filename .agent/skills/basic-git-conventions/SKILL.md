@@ -1,9 +1,8 @@
 ---
 name: basic-git-conventions
-description: "Git workflow conventions - GitFlow-inspired branching (integration→release→tag), commit message format, PR workflow (draft→review→squash), branch naming (feature/fix/chore/docs), repository-declared release tagging, and release notes management. Keywords: git, branching, commit-messages, pull-request, pr-workflow, release, tagging, versioning, gitflow, conventional-commits"
-last-updated: 2026-10-29
+description: Use when preparing authorized branches, commits, pull requests, release tags, or release notes.
+last-updated: 2026-11-13
 difficulty: basic
-tokens: ~1.5K
 ---
 
 # Git Conventions & Branching
@@ -22,19 +21,6 @@ tokens: ~1.5K
 
 ## Branching Model
 
-```
-  tag <release-tag>       tag <release-tag>
-          │                       │
-──────────┼───────────────────────┼──── <release-branch>
-          │            ↑          │
-          │          merge        │
-          │            │          │
-──────────┼────────────┼──────────┼──── <integration-branch>
-          │         ↑  ↑  ↑       │
-          │         │  │  │       │
-          │       feat fix chore  │
-```
-
 | Branch | Purpose | Merges Into |
 |--------|---------|-------------|
 | `<release-branch>` | Release-ready code | Tagged for release |
@@ -46,9 +32,9 @@ tokens: ~1.5K
 
 ### Rules
 - **Never push directly to the protected release branch** declared by the repository profile.
-- **The integration branch must always build** — broken builds block the team.
-- **Feature branches are short-lived** — merge or close within days
-- **Delete branches after merge** — keep the repository clean
+- Keep the integration branch buildable. This requirement does not authorize local execution.
+- Keep feature branches short-lived.
+- Delete merged branches only when authorized.
 
 ---
 
@@ -97,7 +83,7 @@ docs(skills): add security development checklist
 - **Subject line ≤ 72 characters**
 - **Start with lowercase** after the colon
 - **No period** at the end of the subject
-- **Imperative mood** — "add" not "added" or "adds"
+- **Imperative mood**: "add" not "added" or "adds"
 - **Body explains why**, not what (the diff shows what)
 
 ---
@@ -157,51 +143,14 @@ git push <publishing-remote> <preview-tag>
 
 ## Release Notes
 
-Each published module or package maintains its own release notes when the repository profile or package metadata declares it:
-
-```
-<module-or-package>/
-├── RELEASE-NOTES.md   # Per-package changelog
-└── README.md          # Package documentation
-```
+Use the module/package release-note owner declared by the repository profile or package metadata.
 
 ### When To Update
 
-Update only the affected module/package release notes when a change reaches consumers:
-
-| Trigger | Examples |
-|---------|----------|
-| Public contract | APIs, DTOs, endpoints, events, CLI options, generated package metadata |
-| Runtime behavior | Defaults, validation, security posture, auth, rate limits, errors, data/migration behavior |
-| Fixes | Observable bug fixes, compatibility fixes, performance changes with user-facing effect |
-| Dependencies or tooling | Breaking, security-relevant, runtime/container/default changes, or changed published artifacts |
-
-Do not create release-note noise for internal-only refactors, tests, comments, agent-only docs, or routine dependency-only updates with no consumer-visible effect unless the repository profile declares a stricter release rule.
-
-For version-aligned releases, leave unchanged module/package release notes untouched unless the repository profile explicitly requires an empty or consistency-only entry.
+Apply the profile and [documentation triggers](../basic-documentation/SKILL.md#release-notesmd). Update affected modules only. Record "not required" when no trigger applies.
 
 ### Format
-Use the repository profile or package metadata for the exact prefix, heading style, section names, and footer. If no local template is declared, use this portable default:
-
-```markdown
-## Version X.Y.Z
-
-### Breaking Changes
-
-- **Area**: Detail description.
-
-### New Features
-
-- **Feature Group**: Detail description.
-
-### Changed
-
-- **Area**: Detail description.
-
-### Bug Fixes
-
-- **Area**: Detail description.
-```
+Follow the local prefix, headings, sections, and footer. Without a local template, use a version heading and applicable Breaking Changes, New Features, Changed, or Bug Fixes sections.
 
 ---
 

@@ -1,14 +1,13 @@
 ---
 name: test-unit
 description: Use when adding or reviewing fast isolated tests for pure logic, deterministic branches, service wiring, validation, or regression coverage without external infrastructure.
-last-updated: 2026-11-04
+last-updated: 2026-11-13
 difficulty: basic
-tokens: ~0.7K
 ---
 
 # Unit Testing
 
-> Portable unit-test guidance. Load the repository profile first; if it declares custom test attributes or contexts, apply the relevant framework/profile testing skill before using this generic guide.
+Load the repository profile first. Apply its testing skill for custom attributes and contexts before this generic guide.
 
 ## Attribute Choice
 
@@ -16,16 +15,6 @@ tokens: ~0.7K
 - Use parameterized tests for repeated behavior with multiple rows.
 - Use member/class data when row setup is too large for inline attributes.
 - Request fixture/context parameters only when the test needs DI, configuration, data files, or service validation.
-
-```csharp
-[Theory]
-[InlineData(2, 3, 5)]
-[InlineData(-1, -2, -3)]
-public void Add_Should_Return_Correct_Sum(int a, int b, int expected)
-{
-    (a + b).Should().Be(expected);
-}
-```
 
 ## Unit Scope
 
@@ -45,17 +34,17 @@ Parameterize identical bodies with multiple rows. Extend an existing test class 
 
 ## Composed Decisions
 
-Use MC/DC for AND/OR logic whose conditions must independently affect the result. Between paired fixtures, change only the target condition and verify that the overall decision changes: keep the other conditions true for AND and false for OR. Include a positive full-expression fixture, validate the fixture truth table, and assert exact outputs or membership. Use this at authorization, validation, feature-gate, and other decision boundaries; add pairwise or exhaustive cases only for distinct condition interactions.
+Use modified condition/decision coverage (MC/DC) when each condition must independently affect a decision. Pair fixtures that change only the target condition and flip the result. For a simple AND, hold the other conditions true. For a simple OR, hold them false. For mixed expressions, verify each pair against the full expression. Keep a positive full-expression fixture and assert exact outputs or membership. Add broader combinations only for distinct interactions. Apply this to authorization, validation, feature gates, and query filters.
 
 ## Service Validation
 
-Use the repository's DI container and service validation helpers if they exist. Keep service-validation tests narrow: prove the graph composes and important scoped/singleton rules hold; do not turn them into broad behavior tests.
+Use the repository's DI container and validation helpers when available. Prove the graph composes and scoped/singleton rules hold. Keep behavior tests separate.
 
 ## Verification
 
 Follow the [diagnostic suppression guidance](../basic-code-review/SKILL.md#diagnostic-suppressions).
 
-Run unit tests only when the user and repository instructions allow test execution. Use the command from the repository profile; if absent, discover the narrowest unit-test project or package script.
+Run unit tests only when user and repository instructions allow execution. Use the profile command or discover the narrowest unit-test project or package script.
 
 ## Related
 

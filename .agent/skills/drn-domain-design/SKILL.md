@@ -1,7 +1,7 @@
 ---
 name: drn-domain-design
 description: "Model DRN aggregates, repository boundaries, contract DTOs, mapping, and paginated APIs."
-last-updated: 2026-11-07
+last-updated: 2026-11-13
 difficulty: advanced
 ---
 
@@ -9,7 +9,7 @@ difficulty: advanced
 
 ## Entity Design
 
-Use the consuming application's domain types and the API exposed by its installed SharedKernel and EntityFramework packages. [Resolve the package version](../overview-drn-framework/SKILL.md#documentation-and-source-references)
+Use application-owned types and installed SharedKernel/EntityFramework APIs. [Resolve the package version](../overview-drn-framework/SKILL.md#documentation-and-source-references)
 
 Use `SourceKnownEntity` for an entity and `AggregateRoot` for a repository root. Select the domain's existing `IAppId` and a unique entity byte for that partition. Annotate the concrete entity with `[EntityType<TApp>(byte)]` or the application-derived attribute. Keep an EF materialization constructor and enforce invariants in the domain constructor and mutation methods. Restrict setters. Use `AggregateRoot<TModel>` for a document model whose `Model` property maps to PostgreSQL `jsonb`. [SharedKernel identity](../drn-sharedkernel/SKILL.md#entity-base-class)
 
@@ -19,7 +19,7 @@ Add a `DbSet<T>` and, when needed, an `IEntityTypeConfiguration<T>` in the conte
 
 ## Repository Implementation
 
-Define `ISourceKnownRepository<TAggregate>` interfaces in the domain. Implement them in Infrastructure with `SourceKnownRepository<TContext, TAggregate>` and the scoped DI attribute. Use the inherited scoped `IEntityUtils` for identity, pagination, date filtering, cancellation, time and logging. Start joins, includes and custom filters from `EntitiesWithAppliedSettings()` so callers retain their repository settings.
+Define `ISourceKnownRepository<TAggregate>` interfaces in Domain. Implement them in Infrastructure with `SourceKnownRepository<TContext, TAggregate>` and scoped DI. Use inherited `IEntityUtils` for identity, pagination, dates, cancellation and logging. Start custom queries from `EntitiesWithAppliedSettings()` to retain caller settings.
 
 ```csharp
 public interface IUserRepository : ISourceKnownRepository<User> { }
@@ -43,7 +43,7 @@ Keep `*.Contract` dependent only on SharedKernel. Put DTOs, value models, shared
 
 ## DTO Mapping Rules
 
-Expose GUIDs and DTOs at public API boundaries. Derive DTOs from `Dto` and pass the optional `SourceKnownEntity?` to the base constructor to map public identity and timestamps. Use `required` init properties with defaults for entity-specific data. Keep paging metadata on the result.
+Expose GUIDs and DTOs at API boundaries. Derive from `Dto` and pass the optional entity to its constructor to map public identity and timestamps. Use `required` init properties with defaults for entity-specific data. Keep paging metadata on the result.
 
 ```csharp
 // Contract

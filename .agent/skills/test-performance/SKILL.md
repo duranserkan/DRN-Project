@@ -1,9 +1,8 @@
 ---
 name: test-performance
 description: Use when measuring or reviewing performance, benchmarks, load tests, stress tests, spike tests, performance regressions, or optimization claims.
-last-updated: 2026-06-12
+last-updated: 2026-11-13
 difficulty: intermediate
-tokens: ~0.5K
 ---
 
 # Performance Testing
@@ -19,31 +18,7 @@ tokens: ~0.5K
 
 ## BenchmarkDotNet
 
-Run benchmark commands only when the user explicitly allows build/test execution. Use the repository profile command when available; otherwise discover the benchmark project and set `PERFORMANCE_PROJECT`.
-
-```csharp
-[MemoryDiagnoser]
-public class MyBenchmark
-{
-    private readonly List<int> _data = Enumerable.Range(0, 1000).ToList();
-
-    [Benchmark(Baseline = true)]
-    public int ForLoop()
-    {
-        var sum = 0;
-        for (var i = 0; i < _data.Count; i++) sum += _data[i];
-        return sum;
-    }
-
-    [Benchmark]
-    public int LinqSum() => _data.Sum();
-}
-```
-
-```bash
-dotnet run -c Release --project "$PERFORMANCE_PROJECT"
-dotnet run -c Release --project "$PERFORMANCE_PROJECT" -- --filter-method Fully.Qualified.PerformanceTestClass.Run_Benchmarks
-```
+Discover the benchmark project and runner from the profile or manifests. Obtain explicit execution permission under `AGENTS.md`. A test permission does not automatically authorize benchmarks. Compare equivalent public behavior under representative inputs.
 
 | Attribute | Purpose |
 |-----------|---------|
@@ -54,13 +29,7 @@ dotnet run -c Release --project "$PERFORMANCE_PROJECT" -- --filter-method Fully.
 
 ## K6 Load Testing
 
-Run load-test commands only when the user explicitly allows load-test execution. Discover script paths from the repository profile or the `k6/` folder.
-
-```bash
-k6 run k6/scripts/api-load-test.js
-k6 run --vus 50 --duration 1m k6/scripts/api-load-test.js
-k6 run --out json=results.json k6/scripts/api-load-test.js
-```
+Discover existing load-test scripts from the profile or repository. Obtain explicit permission for the command, target environment, and load. Do not infer authorization to generate helpers or contact production.
 
 | Test Type | Purpose | Config |
 |-----------|---------|--------|
