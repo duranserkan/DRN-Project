@@ -837,7 +837,9 @@ Repository settings, raw identity conversion, expression predicates, staged Add/
 
 ## Endpoint Management
 
-DRN provides compile-time-typed accessor members for controller endpoints and Razor Page paths. Controller endpoint accessors are bound to mapped routes and validated at startup. Razor Page accessors are convention-generated path strings; keep them synchronized with page routes.
+DRN provides typed accessor members for controller endpoints and Razor Page identities. Controller endpoint accessors are bound to mapped routes and validated at startup. Razor Page accessors construct identity strings from member names and folders; keep them synchronized with page identities. A custom `@page` route does not change the page identity. For example, `/HomeAnonymous` can generate the URL `/`.
+
+`ApiEndpoint.EndpointName` is an accessor label, not a registered route name. Use named-route generation only when the application's routing metadata actually registers that name. An action may have several route selectors; `RouteEndpoints` and `RoutePatterns` retain them all, while `RoutePattern` exposes the first pattern. Missing accessor bindings fail startup with a diagnostic pointing to application-part registration, action names and `[NonAction]` exclusions.
 
 ### 1. Define Accessors
 
@@ -886,17 +888,19 @@ Use the typed accessor members with IDE completion:
 // Get the typed endpoint object
 ApiEndpoint endpoint = Get.Endpoint.User.Login;
 
-// Return the mapped controller route.
-string url = endpoint.Path();
+// Generate a URL in the current request, including deployment prefixes.
+string url = Url.Endpoint(endpoint);
 
-// For an action route containing {id:guid}
+// Supply route and query values to MVC, which applies routing constraints and encoding.
 Guid userId = Guid.NewGuid();
-string profileUrl = Get.Endpoint.User.Profile.Path(userId);
+string profileUrl = Url.Endpoint(Get.Endpoint.User.Profile, new { id = userId });
 ```
 
 ```razor
 <a asp-page="@Get.Page.User.Login">Log in</a>
 ```
+
+The legacy `Path(...)` overloads remain literal template formatters. `Path(id, "{userId:guid}")` replaces that exact placeholder, using the GUID's `N` format. These methods do not apply request prefixes, encode values, select among routes or validate constraints. Prefer `Url.Endpoint` for links. Static accessors must not retain generated request URLs, users, authorization results or scoped services.
 
 ## Razor TagHelpers
 

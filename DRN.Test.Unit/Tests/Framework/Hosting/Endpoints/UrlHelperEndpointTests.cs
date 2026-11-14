@@ -52,6 +52,51 @@ public class UrlHelperEndpointTests
     }
 
     [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public void Endpoint_Should_Generate_Unnamed_And_Explicitly_Named_Links_Independently(
+        DrnTestContextUnit context, bool named)
+    {
+        var action = new ControllerActionDescriptor { ActionName = "Read", ControllerName = "Items" };
+        var identity = new RouteValueDictionary { ["action"] = "Read", ["controller"] = "Items", ["area"] = "" };
+        var metadata = new List<object> { action };
+        if (named)
+        {
+            metadata.Add(new EndpointNameMetadata("Items.Read.Explicit"));
+            metadata.Add(new RouteNameMetadata("Items.Read.Explicit"));
+        }
+        var route = new RouteEndpoint(static _ => Task.CompletedTask,
+            RoutePatternFactory.Parse("/items/{id:guid}", identity, parameterPolicies: null, requiredValues: identity),
+            0, new EndpointMetadataCollection(metadata), "Read");
+        var endpoint = new ApiEndpoint(typeof(ItemsController), "ReadAsync");
+        var source = new DrnEndpointSource();
+        source.EndpointMap.Add(endpoint.GetEndpointKey(), [route]);
+        endpoint.SetEndPoint(source);
+        context.ServiceCollection.AddLogging();
+        context.ServiceCollection.AddRouting();
+        context.ServiceCollection.AddSingleton<EndpointDataSource>(new DefaultEndpointDataSource(route));
+        var http = new DefaultHttpContext { RequestServices = context };
+        http.Request.PathBase = "/gateway";
+        http.SetEndpoint(route);
+        var url = new UrlHelperFactory().GetUrlHelper(new ActionContext(http, new RouteData(), new ControllerActionDescriptor()));
+        var id = Guid.Parse("5ad30189-61f1-4b21-8fc5-97416c75bd64");
+        var values = new { id, q = "one&two" };
+        const string expected = "/gateway/items/5ad30189-61f1-4b21-8fc5-97416c75bd64?q=one%26two";
+
+        url.Endpoint(endpoint, values).Should().Be(expected);
+        if (named)
+            url.RouteUrl("Items.Read.Explicit", values).Should().Be(expected);
+        else
+            route.Metadata.GetMetadata<IEndpointNameMetadata>().Should().BeNull();
+        url.RouteUrl(endpoint.EndpointName, values).Should().BeNull();
+
+        Action missing = () => url.Endpoint(endpoint);
+        Action invalid = () => url.Endpoint(endpoint, new { id = "not-a-guid" });
+        missing.Should().Throw<InvalidOperationException>().WithMessage("*Could not generate a URL*");
+        invalid.Should().Throw<InvalidOperationException>().WithMessage("*Could not generate a URL*");
+    }
+
+    [Theory]
     [DataInlineUnit("")]
     [DataInlineUnit("Admin")]
     public void Endpoint_Should_Use_Mvc_Identity_And_Target_Area_Without_Mutating_Values(string area)

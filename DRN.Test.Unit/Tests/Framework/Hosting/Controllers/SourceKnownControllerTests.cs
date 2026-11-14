@@ -45,8 +45,11 @@ public class SourceKnownControllerTests
 
         var writeOnlyActions = actions.Where(action => action.ControllerTypeInfo.AsType() == typeof(WriteOnlyProbeController)).ToArray();
         writeOnlyActions.Select(action => action.MethodInfo.Name).Should().BeEquivalentTo(new[] { "PostAsync", "DeleteAsync" });
-        var writeOnlyDescriptions = provider.GetRequiredService<IApiDescriptionGroupCollectionProvider>().ApiDescriptionGroups.Items
+        var controllerDescriptions = provider.GetRequiredService<IApiDescriptionGroupCollectionProvider>().ApiDescriptionGroups.Items
             .SelectMany(group => group.Items)
+            .Where(description => description.ActionDescriptor is ControllerActionDescriptor)
+            .ToArray();
+        var writeOnlyDescriptions = controllerDescriptions
             .Where(description => ((ControllerActionDescriptor)description.ActionDescriptor).ControllerTypeInfo.AsType() == typeof(WriteOnlyProbeController))
             .ToArray();
         writeOnlyDescriptions.Select(description => description.HttpMethod).Should().BeEquivalentTo(new[] { "POST", "DELETE" });
@@ -58,8 +61,7 @@ public class SourceKnownControllerTests
         disabledActions.Should().Contain(action => action.MethodInfo.Name == "AnyAsync");
         disabledActions.Should().OnlyContain(action => action.AttributeRouteInfo != null);
 
-        var descriptions = provider.GetRequiredService<IApiDescriptionGroupCollectionProvider>().ApiDescriptionGroups.Items
-            .SelectMany(group => group.Items)
+        var descriptions = controllerDescriptions
             .Where(description => ((ControllerActionDescriptor)description.ActionDescriptor).ControllerTypeInfo.AsType() == typeof(DisabledProbeController))
             .ToArray();
         descriptions.Should().NotContain(description => ((ControllerActionDescriptor)description.ActionDescriptor).MethodInfo.Name == "CountAsync");
@@ -70,8 +72,7 @@ public class SourceKnownControllerTests
         disabledWrites.Should().HaveCount(8);
         disabledWrites.Should().NotContain(action => action.MethodInfo.Name == "DeleteAsync");
         disabledWrites.Should().Contain(action => action.MethodInfo.Name == "PostAsync");
-        provider.GetRequiredService<IApiDescriptionGroupCollectionProvider>().ApiDescriptionGroups.Items
-            .SelectMany(group => group.Items).Should().NotContain(description =>
+        controllerDescriptions.Should().NotContain(description =>
                 ((ControllerActionDescriptor)description.ActionDescriptor).ControllerTypeInfo.AsType() == typeof(DisabledWriteProbeController) &&
                 ((ControllerActionDescriptor)description.ActionDescriptor).MethodInfo.Name == "DeleteAsync");
     }

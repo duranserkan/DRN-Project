@@ -161,9 +161,12 @@ public class DrnEndpointSource
         EndpointDescriptorMap = Endpoints
             .OfType<RouteEndpoint>()
             .Where(endpoint => endpoint.Metadata.GetMetadata<ControllerActionDescriptor>() != null)
+            // An action descriptor can be shared by multiple route selectors.
+            // Keep the legacy single-route view while EndpointMap retains every selector.
+            .GroupBy(endpoint => endpoint.Metadata.GetRequiredMetadata<ControllerActionDescriptor>())
             .ToDictionary(
-                endpoint => endpoint.Metadata.GetRequiredMetadata<ControllerActionDescriptor>(),
-                endpoint => endpoint);
+                group => group.Key,
+                group => group.First());
     }
 
     public DrnEndpointSource()

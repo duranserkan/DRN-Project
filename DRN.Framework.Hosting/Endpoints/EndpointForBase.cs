@@ -75,7 +75,7 @@ public class ApiEndpoint
     public string Path() => RoutePattern ?? string.Empty;
 
     public string Path(Guid id, string template = "{id:guid}")
-        => RoutePattern?.Replace("{id:guid}", id.ToString("N")) ?? string.Empty;
+        => RoutePattern?.Replace(template, id.ToString("N")) ?? string.Empty;
 
     public string Path(Dictionary<string, string> parameters)
     {
@@ -98,8 +98,9 @@ public class ApiEndpoint
     internal void SetEndPoint(DrnEndpointSource source)
     {
         EndpointKey = this.GetEndpointKey();
-        var routeEndpoint = source.EndpointMap[EndpointKey];
-        RouteEndpoints = routeEndpoint ?? throw new ValidationException($"Endpoint not found for {EndpointKey}");
+        if (!source.EndpointMap.TryGetValue(EndpointKey, out var routeEndpoints) || routeEndpoints is not { Length: > 0 })
+            throw new ValidationException($"Endpoint '{EndpointKey}' was not discovered. Check the controller's application part, action name and NonAction exclusions.");
+        RouteEndpoints = routeEndpoints;
         RoutePatterns = RouteEndpoints.Select(route => route.RoutePattern.RawText!).Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
         RoutePattern = RoutePatterns.FirstOrDefault();
         ActionDescriptor = RouteEndpoints.SelectMany(route => route.Metadata.OfType<ControllerActionDescriptor>()).ToArray();

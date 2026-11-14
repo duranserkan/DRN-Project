@@ -46,6 +46,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Bug Fixes
 
+*   **Endpoint accessors**: `Path(Guid, template)` now honors the supplied placeholder. Missing endpoint bindings report discovery guidance. Multiple route selectors sharing an MVC action descriptor no longer fail catalog initialization; the endpoint accessor retains every route.
+
 *   **Swagger security**: Anonymous operations no longer advertise the default bearer authentication requirement.
 
 *   **Developer Exception Pages**: Panel controls follow document focus order, support Enter and Space, and announce the active panel to assistive technology. Exception pages include a favicon.

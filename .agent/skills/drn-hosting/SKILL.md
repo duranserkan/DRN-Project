@@ -48,7 +48,9 @@ Swagger UI prefixes use nonempty ASCII letter, digit, hyphen or underscore segme
 
 README **Source-Known Controllers** owns all variants. DRN0026 requires named policies. SPA APIs select bearer-only schemes; cookie APIs need application antiforgery. Keep resource checks in application code. Disable actions with `[NonAction]` and omit accessors. `IgnoreApi` only hides documentation.
 
-Static accessors use `PageCollectionBase<ExamplePageFor>.PageCollection` and `(ExampleEndpointFor)EndpointCollectionBase<ExampleProgram>.EndpointCollection!`. Pages self-initialize. API metadata requires endpoint initialization. Never retain request-specific URLs or authorization results statically.
+Use `PageCollectionBase<ExamplePageFor>.PageCollection` and `(ExampleEndpointFor)EndpointCollectionBase<ExampleProgram>.EndpointCollection!`. Pages self-initialize; APIs require endpoint initialization. Never cache request URLs or authorization results statically.
+
+`EndpointName` is a label, not a registered name. Inventory runtime names before assertions. `Path(...)` only formats templates; use `Url.Endpoint` for routing, constraints, encoding and request prefixes.
 
 ```csharp
 public class ExamplePageFor : PageCollectionBase<ExamplePageFor>
@@ -68,7 +70,7 @@ public class TagFor() : ControllerForBase<ExampleTagController>(ExampleApiFor.Co
 }
 ```
 
-README **Endpoint Management** covers endpoint collection grouping/initialization.
+README **Endpoint Management** owns grouping and initialization.
 
 Prefer MVC page/action routing or `Url.Endpoint(endpoint, values)` for initialized APIs. Use `~/` for application-relative HTML/HTMX URLs and `Url.Content` in C#. Reserve `Request.ApplicationUrl` for configured destinations such as MFA pages. Preserve validated return URLs. See README **Application URLs**.
 
