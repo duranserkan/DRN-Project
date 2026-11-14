@@ -142,7 +142,6 @@ public class HashBenchmarkSmallPayload
         return hashBytes[0];
     }
 
-    //todo KMAC, HMACSHA3_256, HMACSHA3_512(not available for macOS yet) performance benchmark
 
     //Not supported yet on macOS
     // [Benchmark]

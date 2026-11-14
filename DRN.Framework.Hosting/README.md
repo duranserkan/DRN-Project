@@ -29,6 +29,7 @@
 - [DrnProgramBase Deep Dive](#drnprogrambase-deep-dive)
 - [Configuration](#configuration)
 - [Security Features](#security-features)
+- [Source-Known Controllers](#source-known-controllers)
 - [Endpoint Management](#endpoint-management)
 - [Razor TagHelpers](#razor-taghelpers)
 - [Developer Diagnostics](#developer-diagnostics)
@@ -744,6 +745,95 @@ protected override void ConfigurePostAuthRateLimiterOptions(
 - [Redis token bucket rate limiter with .NET](https://redis.io/docs/latest/develop/use-cases/rate-limiter/dotnet/)
 - [RFC 6585 Section 4: 429 Too Many Requests](https://www.rfc-editor.org/rfc/rfc6585#section-4)
 - [RFC 9110: Retry-After header](https://www.rfc-editor.org/rfc/rfc9110#field.retry-after)
+
+## Source-Known Controllers
+
+Use `DRN.Framework.Hosting.Controllers` to expose a filtered `ISourceKnownRepository<TEntity>` through DTOs. Choose one of three abstract controller variants:
+
+| Base | Behavior |
+|---|---|
+| `SourceKnownController<TEntity, TDto, TCreateRequest>` | Combines **all read actions** with create/delete actions. |
+| `SourceKnownReadOnlyController<TEntity, TDto>` | Exposes only bounded read actions. |
+| `SourceKnownWriteOnlyController<TEntity, TDto, TCreateRequest>` | Exposes only create/delete HTTP actions. |
+
+All variants share `SourceKnownControllerBase<TEntity, TDto>`, which implements `ISourceKnownService<TEntity>` and provides repository access, protected DTO mapping and cancellation helpers without HTTP actions. The combined controller inherits the read-only controller and adds writes. The write-only controller inherits the combined controller and seals `[NonAction]` overrides for all reads. Those methods remain callable from C#, but are excluded from HTTP routing and API discovery.
+
+`TEntity` derives from `AggregateRoot`, `TDto` derives from `Dto`, and the create request is an application-owned class. Pass the repository to the constructor and implement `ToDto`. Concrete controllers supply `[Route]` and explicit named authorization policies. DRN0026 rejects exposed actions without a nonblank `[Authorize(Policy = "...")]` on the controller or action, including inherited policies. Bare `[Authorize]` and roles alone do not satisfy this rule. `[AllowAnonymous]` is rejected. DRN host MFA and rate-limiting policies still apply.
+
+Register each named policy with ASP.NET Core authorization. Roslyn checks declarations, while ASP.NET Core enforces policies for HTTP requests. The analyzer cannot verify policy registration or resource permissions. Direct C# action calls do not execute MVC authorization. Applications must enforce tenant/resource visibility through repository filters and application code, including for counts and existence checks.
+
+For custom attributes derived from `AuthorizeAttribute`, set the inherited `Policy` property explicitly. Constructor-inferred policies, hidden or remapped policy properties, and conditional attributes do not satisfy DRN0026. The rule also checks generated controllers. Use standard `[Authorize(Policy = "...")]` when a custom attribute cannot provide a statically verifiable declaration.
+
+### Read endpoints
+
+Routes below are relative to the concrete controller route.
+
+| Method | Route | Action | Result |
+|---|---|---|---|
+| GET | `{id:guid}` | `GetAsync` | One DTO. Missing records follow repository not-found behavior. |
+| POST | `Lookup` | `GetManyAsync` | DTO array for a nonempty JSON GUID array. Missing IDs and ordering follow repository behavior. |
+| GET | `Any` | `AnyAsync` | Whether any visible entity exists. |
+| GET | `Count` | `CountAsync` | Number of visible entities. |
+| GET | root | `PaginateAsync` | Page from query-bound `PaginationRequest`. Omit it for the first page. |
+| GET | `Paginate` | `PaginateWithOptionsAsync` | First page from flat `PaginationOptions`. |
+| POST | `Paginate` | `PaginateWithBodyAsync` | Page from a JSON `PaginationRequest`, including continuation cursors. |
+
+Pagination and batch sizes default to a server ceiling of 100. Override protected `MaxPageSize` and `MaxBatchSize` to change it within 1..1000. Callers cannot raise those ceilings. Pagination discards caller totals and refresh hints. `UpdateTotalCount` requests a server count. First requests start at page one, and continuation jumps are limited to ten pages from the supplied cursor. Use the returned `Info` navigation helpers to construct continuation requests. GUID operations retain the repository's configured format and validation. Every base action links request cancellation to the scoped repository before repository work.
+
+Refresh results derive next-page availability from an extra fetched row. JSON `null` page-size or cursor members use the pagination defaults before the controller applies its limits.
+
+### Disable inherited endpoints
+
+Every exposed action is virtual. Override it with MVC `[NonAction]` to remove it from routing and API discovery. For example, using the Sample application's tag types:
+
+```csharp
+using DRN.Framework.Hosting.Controllers;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Sample.Contract.QA.Tags;
+using Sample.Domain.QA.Tags;
+
+[Route("api/tags")]
+[Authorize(Policy = "Tags.Read")]
+public class ReadOnlyTagController(ITagRepository repository)
+    : SourceKnownReadOnlyController<Tag, TagDto>(repository)
+{
+    protected override TagDto ToDto(Tag entity) => entity.ToDto();
+
+    [NonAction]
+    public override Task<long> CountAsync(CancellationToken cancellationToken = default)
+        => base.CountAsync(cancellationToken);
+}
+```
+
+`[NonAction]` prevents HTTP invocation, not direct C# calls. `[ApiExplorerSettings(IgnoreApi = true)]` only hides documentation and does not disable routing. A public override cannot be changed to `internal`. When using DRN typed endpoint accessors, omit `ApiEndpoint` properties for disabled actions so startup validation does not look for missing routes.
+
+### Opt in to writes
+
+Derive from `SourceKnownController<TEntity, TDto, TCreateRequest>` to combine reads and writes, or `SourceKnownWriteOnlyController<TEntity, TDto, TCreateRequest>` for mutation endpoints alone. Implement protected `CreateEntityAsync(request, cancellationToken)` to construct the entity through application domain operations without saving it.
+
+Use controller policies for common permissions and action policies for additional write permissions. Inherited controller and action policies combine. For resource-specific checks, override the action and call an application authorization service before calling the base action. Pass the request cancellation token to that service. Reject forbidden access with `Forbid()` where the result type permits, or `ExceptionFor.Forbidden(...)`. Request-dependent creation checks may also live in application mapping/domain services. The framework does not supply mandatory authorization hooks.
+
+`PostAsync` calls the repository's `CreateAsync` and returns HTTP 201 with the DTO. It does not generate a Location header, so disabling `GetAsync` does not break creation. `DeleteAsync` calls the GUID delete overload and returns HTTP 204 even when no matching record exists. The default EF repository performs a direct delete with repository filters and does not invoke entity deletion lifecycle hooks.
+
+The base API actions do not require antiforgery tokens. For SPA APIs, explicitly select the application's registered bearer scheme in the named policies and require authentication. Do not add cookie or cookie/bearer composite schemes to their combined policies. The framework does not choose a handler name, and DRN0026 does not verify policy registration. For example, when using ASP.NET Core Identity bearer tokens:
+
+```csharp
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("Tags.Read", policy => policy
+        .AddAuthenticationSchemes(IdentityConstants.BearerScheme)
+        .RequireAuthenticatedUser())
+    .AddPolicy("Tags.Write", policy => policy
+        .AddAuthenticationSchemes(IdentityConstants.BearerScheme)
+        .RequireAuthenticatedUser()
+        .RequireClaim("permission", "tags.write"));
+```
+
+`IdentityConstants` is in `Microsoft.AspNetCore.Identity`; register the corresponding bearer handler in the application. Use the actual registered scheme for other bearer handlers. Send the token through the `Authorization` header. Cookie-authenticated Razor Pages and htmx requests retain antiforgery protection. If an application intentionally enables cookies for these API controllers, it must add antiforgery validation to mutations, for example with `[AutoValidateAntiforgeryToken]` on the concrete controller, and supply request tokens.
+
+Overrides inherit MVC attributes. An override that does not call the base must preserve mapping, cancellation and persistence rules itself. Use `[NonAction]` on either write action to remove it independently. `IgnoreApi` actions still require a named policy because they remain routable.
+
+Repository settings, raw identity conversion, expression predicates, staged Add/Remove, SaveChanges and cancellation-control methods are not HTTP endpoints. Unbounded `GetAllAsync` and `PaginateAllAsync` are not exposed. Updates and exports remain application-specific operations with their own domain and authorization rules.
 
 ## Endpoint Management
 

@@ -13,6 +13,7 @@ namespace Sample.Hosted.Settings;
 //IdentityConstants.BearerAndApplicationScheme; //ClaimsIdentity.DefaultIssuer; //ClaimTypes.Name;
 public static class IdentitySettings
 {
+    public const string QaApiPolicy = "QA.Api";
     public const string AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
     public const int MinPasswordLength = 8;
 

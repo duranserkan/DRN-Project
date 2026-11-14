@@ -18,7 +18,6 @@ public class TagFor()
     //By convention, Endpoint name should match Action name and property should have setter;
     public ApiEndpoint PaginateAsync { get; private set; } = null!;
     public ApiEndpoint PaginateWithOptionsAsync { get; private set; } = null!;
-    public ApiEndpoint PaginateWithQueryAsync { get; private set; } = null!;
     public ApiEndpoint PaginateWithBodyAsync { get; private set; } = null!;
     public ApiEndpoint GetAsync { get; private set; } = null!;
     public ApiEndpoint PostAsync { get; private set; } = null!;
@@ -30,6 +29,8 @@ public class CategoryFor()
 {
     //By convention, Endpoint name should match Action name and property should have setter;
     public ApiEndpoint PaginateAsync { get; private set; } = null!;
+    public ApiEndpoint PaginateWithOptionsAsync { get; private set; } = null!;
+    public ApiEndpoint PaginateWithBodyAsync { get; private set; } = null!;
     public ApiEndpoint GetAsync { get; private set; } = null!;
     public ApiEndpoint PostAsync { get; private set; } = null!;
 }

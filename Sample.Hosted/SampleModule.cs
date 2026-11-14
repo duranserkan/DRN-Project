@@ -46,6 +46,9 @@ public static class SampleModule
             options.BadRequestPage = Get.Page.Root.BadRequest;
         });
         services.AddAuthorizationBuilder()
+            .AddPolicy(IdentitySettings.QaApiPolicy, policy => policy
+                .AddAuthenticationSchemes(IdentityConstants.BearerScheme)
+                .RequireAuthenticatedUser())
             .AddPolicy(UserClaims.SwaggerAccess, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireAssertion(context => settings.IsDevelopmentEnvironment ||

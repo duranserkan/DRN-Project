@@ -1,7 +1,7 @@
 ---
 name: drn-sharedkernel
 description: "DRN domain primitives, Source-Known identity and time, repository contracts, pagination, exceptions, and classification analyzers."
-last-updated: 2026-11-13
+last-updated: 2026-11-14
 difficulty: intermediate
 ---
 
@@ -29,9 +29,14 @@ GUID helpers default to `ConfiguredDefault`. Implementations expose an immutable
 
 ## Repository Contract
 
+`ISourceKnownService<TEntity>` in `DRN.Framework.SharedKernel.Domain` exposes a read-only `ISourceKnownRepository<TEntity> Repository` property and requires `TEntity : AggregateRoot`.
+The abstract `SourceKnownService<TEntity>` base class implements this contract with a repository supplied through its constructor.
+
 Use GUID overloads for external IDs. Generic repository methods validate the declared entity type and partition. Expose DTOs deriving from `Dto` with GUID identifiers. Keep domain mapping and invariants in the domain layer. See [domain design](../drn-domain-design/SKILL.md) and [repository cancellation](../drn-entityframework/SKILL.md#repository-cancellation).
 
 ### Pagination
+
+Refresh detects another page from an extra fetched row without a total or caller hint. Null JSON page-size/cursor members use defaults. Test these through serialization and real result construction, not only mocked metadata.
 
 `PaginationRequest.From()` defaults to 10 items, maximum 100, ascending. Bind flat first-page `PaginationOptions` from a query or JSON body and convert with `PaginationRequest.DefaultWith(options)`. Changing size, effective maximum or direction resets to page one with a fresh cursor. Omitted settings carry forward. Cap the maximum at 1,000 before comparing. Use the returned `PaginationResultInfo` to navigate with first/last ID cursors. Jumps advance at most ten pages in the requested direction. Use `PaginateAsync` for interactive reads and `PaginateAllAsync` for explicitly requested streaming. Map results with `ToModel(entity => entity.ToDto())`.
 
@@ -42,6 +47,8 @@ Use the semantic `ExceptionFor` factories. A custom semantic subclass inherits i
 Use `JsonConventions.DefaultOptions` for framework serialization, including Web defaults, string enums and longs, camelCase, trailing commas and maximum depth 32. Use `GetPathWithinDirectory()` for manifests, uploads, and file serving to reject parent and symlink traversal. The [Utils skill](../drn-utils/SKILL.md) covers application data roots.
 
 ## Attributes
+
+DRN0026 requires explicit nonblank authorization policies on exposed SourceKnown controller actions, including inherited actions. Anonymous actions are rejected. `[NonAction]` is exempt, `IgnoreApi` is not. Hosting owns runtime policies and application resource checks.
 
 Use `[Sensitive]`, `[Personal]` or their derived attributes for protected members. Mapped interface classifications cover concrete and nested captures. Scoped logging reads classified getters once. Direct sanitization skips them. `[IgnoreLog]` excludes capture but leaves declaration analysis active. Apply these rules to fixtures too. Use named annotated models for matching anonymous properties, including nested and inferred members.
 

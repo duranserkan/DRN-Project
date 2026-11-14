@@ -1,7 +1,7 @@
 ---
 name: test-integration-api
 description: Use when testing web/API request pipelines, endpoints, routing, auth, middleware, serialization, typed HTTP clients, or outbound HTTP behavior.
-last-updated: 2026-11-13
+last-updated: 2026-11-14
 difficulty: intermediate
 ---
 
@@ -28,6 +28,8 @@ Configure transport failures through the repository fixture. Assert the applicat
 ### Route Validation
 
 Validate route metadata without starting the full app server only when route data is the behavior under test. Otherwise, prefer an actual request so middleware, filters, serialization, and auth participate.
+
+API discovery can mix controller and minimal endpoints. Type-check action descriptors before accessing controller-specific metadata. Do not cast the entire discovery collection to controller descriptors.
 
 ## Test Isolation
 
