@@ -1,3 +1,4 @@
+using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Net.Http.Headers;
 
@@ -62,6 +63,26 @@ public sealed class DrnStaticFileHeaderOptions
     public DrnStaticFileHeaderOptions() => Rules = _rules.AsReadOnly();
 
     public IReadOnlyList<DrnStaticFileHeaderRule> Rules { get; }
+
+    internal bool AreHeaderValuesEncodable(Func<string, Encoding?> encodingSelector)
+    {
+        foreach (var rule in _rules)
+        {
+            var encoding = (Encoding)(encodingSelector(rule.HeaderName) ?? Encoding.ASCII).Clone();
+            // Reject lossy replacement without changing the server's configured encoding.
+            encoding.EncoderFallback = EncoderFallback.ExceptionFallback;
+            try
+            {
+                _ = encoding.GetByteCount(rule.Value);
+            }
+            catch (EncoderFallbackException)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     /// <summary>Adds or replaces the rule with the same case-insensitive path and header name.</summary>
     public void Set(DrnStaticFileHeaderRule rule)

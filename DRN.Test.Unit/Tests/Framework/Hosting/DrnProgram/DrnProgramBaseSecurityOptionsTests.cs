@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Logging;
@@ -9,12 +11,52 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Options;
+using HeaderNames = Microsoft.Net.Http.Headers.HeaderNames;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting.DrnProgram;
 
 public class DrnProgramBaseSecurityOptionsTests
 {
+    [Theory]
+    [DataInlineUnit(null, "Content-Disposition", "attachment; filename=guide.txt", true)]
+    [DataInlineUnit(null, "Content-Disposition", "attachment; filename=résumé.txt", false)]
+    [DataInlineUnit("us-ascii", "Content-Disposition", "attachment; filename=résumé.txt", false)]
+    [DataInlineUnit("iso-8859-1", "Content-Disposition", "attachment; filename=résumé.txt", true)]
+    [DataInlineUnit("iso-8859-1", "Content-Disposition", "attachment; filename=文.txt", false)]
+    [DataInlineUnit("utf-8", "Content-Disposition", "attachment; filename=文.txt", true)]
+    [DataInlineUnit("utf-8", "Content-Disposition", "attachment; filename=résumé.txt", true)]
+    [DataInlineUnit("utf-8", "X-Unencoded", "résumé.txt", false)]
+    [SuppressMessage("ReSharper", "AccessToDisposedClosure")]
+    public async Task Static_File_Headers_Should_Validate_The_Configured_Encoding_At_Startup(
+        string? encodingName, string headerName, string value, bool valid)
+    {
+        using var appSettings = SettingsProvider.Development();
+        var builder = WebApplication.CreateEmptyBuilder(new WebApplicationOptions());
+        using var configuration = builder.Configuration;
+        new TestProgram().RegisterDefaults(builder, appSettings);
+        builder.Services.Configure<DrnStaticFileHeaderOptions>(options =>
+            options.Set(new("/downloads/guide.txt", headerName, value)));
+        var encoding = encodingName == null ? null : Encoding.GetEncoding(encodingName);
+        var fallback = encoding?.EncoderFallback;
+        if (encoding != null)
+            builder.Services.PostConfigure<KestrelServerOptions>(options =>
+                options.ResponseHeaderEncodingSelector = name =>
+                    string.Equals(name, HeaderNames.ContentDisposition, StringComparison.OrdinalIgnoreCase) ? encoding : null);
+        await using var provider = builder.Services.BuildServiceProvider();
+        var validate = () => provider.GetRequiredService<IAsyncStartupValidator>().ValidateAsync();
+
+        if (valid)
+            await validate.Should().NotThrowAsync();
+        else
+            await validate.Should().ThrowAsync<OptionsValidationException>()
+                .WithMessage("*Static-file header values must be representable*");
+
+        if (encoding != null)
+            encoding.EncoderFallback.Should().BeSameAs(fallback);
+    }
+
     [Fact]
     public async Task Builder_Should_Map_All_Identity_Claims_Without_Replacing_Unrelated_Options()
     {
@@ -141,7 +183,7 @@ public class DrnProgramBaseSecurityOptionsTests
         act.Should().Throw<ConfigurationException>()
             .WithMessage(expectedMessage);
     }
-    
+
     [Fact]
     public void ConfigureHostFilteringOptions_Should_Allow_Development_Fallback()
     {
@@ -153,7 +195,7 @@ public class DrnProgramBaseSecurityOptionsTests
 
         options.AllowedHosts.Should().Equal("*");
     }
-    
+
     [Fact]
     public void ConfigureHostFilteringOptions_Should_Use_Configured_Production_Hosts()
     {

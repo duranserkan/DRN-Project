@@ -25,6 +25,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCaching;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -307,7 +308,11 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         services.Configure<CookieTempDataProviderOptions>(options => ConfigureCookieTempDataProvider(options, appSettings));
         services.Configure(ConfigureStaticFileOptions(appSettings));
         services.AddOptions<StaticFileOptions>().PostConfigure<IViteManifest>(DrnStaticFileConfigurator.ConfigureViteSidecars);
-        services.AddOptions<DrnStaticFileHeaderOptions>();
+        services.AddOptions<DrnStaticFileHeaderOptions>()
+            .Validate<IOptions<KestrelServerOptions>>((options, serverOptions) =>
+                    options.AreHeaderValuesEncodable(serverOptions.Value.ResponseHeaderEncodingSelector),
+                "Static-file header values must be representable by the configured response-header encoding.")
+            .ValidateOnStart();
         services.AddOptions<StaticFileOptions>().PostConfigure<IOptions<DrnStaticFileHeaderOptions>>(DrnStaticFileConfigurator.ConfigureHeaderRules);
         services.Configure(ConfigureForwardedHeadersOptions(appSettings));
         ConfigureIdentityRenewal(services, appSettings);

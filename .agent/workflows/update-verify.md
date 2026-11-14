@@ -18,15 +18,16 @@ Accept only plan status `reviewed` or `verifying`. A `failed` or `correcting` pl
 
 Before initializing or resuming:
 
-1. Read the plan's Run ID, Requested Scope, effective Scope, and Semantic Plan SHA-256.
+1. Read the plan's Run ID, Requested Scope, effective Scope, and Semantic Plan SHA-256. Revalidate Baseline HEAD and material non-output inputs under the [baseline contract](./_shared/baseline-inputs-hash-spec.md), including its N/A guard. Confirmed drift returns to `/update` for a fresh plan. Missing or uncertain evidence blocks verification.
 2. Require the reviewed transition and latest apply/correction approval for the same Run ID, requested/effective scope, and semantic plan. Otherwise return to the owning review/preview gate.
 3. Resolve the exact bytewise-deduplicated Stage 1-5 `### Outputs` path set. Reject undeclared mutation, an in-scope mutating stage with `N/A`, absolute paths, or repository escapes.
 4. Persist the output status and checksum artifacts defined by [baseline-inputs-hash-spec.md](./_shared/baseline-inputs-hash-spec.md). For an empty output set, use its explicit empty-artifact contract.
 5. Hash `.agent/temp/update-verify-outputs.manifest` as Output Revision SHA-256 for every output set. For empty outputs, the manifest contains only the zero-byte status artifact under the shared contract. Record the manifest path as `Output Revision Manifest` and its lowercase SHA-256, never `N/A`.
-6. Bind progress to Run ID, requested/effective scopes, Semantic Plan SHA-256, the selected output-revision artifact path, and Output Revision SHA-256.
+6. Bind progress to Run ID, requested/effective scopes, Semantic Plan SHA-256, Baseline HEAD, Baseline Inputs Manifest and Hash, the selected output-revision artifact path, and Output Revision SHA-256.
 
 Initialize missing progress from the template. Otherwise:
 
+- Missing baseline fields block reuse. A Baseline HEAD, Baseline Inputs Manifest or Hash mismatch returns to `/update` for a fresh plan. Never refresh the baseline to preserve an old verdict.
 - A Run ID, requested/effective scope, or Semantic Plan SHA-256 mismatch supersedes progress. Reinitialize every verification stage without reusing pass/skipped states.
 - An Output Revision SHA-256 or exact selected-artifact mismatch resets every stage, including skipped stages, and Final to `pending`, clears checkpoints, and records the new binding before verification. Reevaluate skips under the new binding.
 - Matching bindings resume at the first actionable stage:
@@ -41,6 +42,7 @@ Initialize missing progress from the template. Otherwise:
 > Generated: <timestamp> | Run ID: <run-id> | Status: verifying | verified | failed
 > Plan: .agent/temp/update-plan.md | Requested Scope: <scope> | Scope: <effective scope>
 > Semantic Plan SHA-256: <sha256>
+> Baseline HEAD: <sha> | Baseline Inputs Manifest: <path or N/A> | Baseline Inputs Hash: <sha256 or N/A>
 > Output Revision Manifest: .agent/temp/update-verify-outputs.manifest | Output Revision SHA-256: <sha256>
 
 ## Stage 0: Structural Integrity
@@ -138,7 +140,7 @@ Success report:
 ```markdown
 ## Verification Complete
 All non-skipped stages passed. Skill content is aligned.
-Report the verified Run ID, requested/effective scopes, Semantic Plan SHA-256, and Output Revision SHA-256.
+Report the verified Run ID, requested/effective scopes, Semantic Plan SHA-256, Baseline HEAD, Baseline Inputs Hash, and Output Revision SHA-256.
 Warnings, if any, include evidence, impact, invariant, recommendation, confidence, and verification status in `.agent/temp/update-verify-progress.md`.
 Next steps:
 1. Review `.agent/temp/update-verify-progress.md` for warnings.
@@ -160,6 +162,6 @@ Drift detected. `/update-execute` owns source correction after `/update` produce
 ## 5. Design Properties
 
 - Source-read-only, lifecycle-mutating: verification does not edit repository source/configuration, but it writes the output path-state/manifest artifacts and updates `update-plan.md` and `update-verify-progress.md` statuses/findings. Cleanup requires request.
-- Revision-bound: no pass, skip, or final verdict survives a Run ID, scope, semantic-plan, output presence, supported type, path-set, or byte change. Canonical mode remains apply/resume safety evidence rather than Output Revision identity.
+- Revision-bound: no pass, skip, or final verdict survives a Run ID, scope, semantic-plan, baseline HEAD/input, output presence, supported type, path-set, or byte change. Canonical mode remains apply/resume safety evidence rather than Output Revision identity.
 - Fail-fast: Stage 0 blocks downstream checks.
 - Context-safe: checkpoint mid-stage for multi-window execution.

@@ -44,7 +44,7 @@ These tiers do not override workflow, command, or VCS gates.
 
 ### 1. Discovery
 
-- Read `AGENTS.md`, DiSCOS, the repository profile, the workflow, then relevant skills
+- Read `AGENTS.md`, DiSCOS when present, the repository profile when present, the workflow, then relevant skills
 - Inspect outline/symbols to understand structure before diving in when supported
 - Search text for exact identifiers and find files by name or glob before broad reads
 - Stop when evidence is sufficient. Seek counterexamples before concluding.

@@ -1105,7 +1105,7 @@ builder.Services.Configure<DrnStaticFileHeaderOptions>(options =>
 
 `Set` adds or updates a rule by path and header name. `Override` replaces the response header and is the default. `IfMissing` preserves an existing header. Use `Remove("/robots.txt", HeaderNames.CacheControl)` to remove the default exception and restore normal static-file caching.
 
-Paths match exactly and case-insensitively, excluding query strings, deployment prefixes, and `StaticFileOptions.RequestPath`. Wildcards are unsupported. Invalid paths and headers are rejected. Rules apply to public static files and do not change access control.
+Paths match exactly and case-insensitively, excluding query strings, deployment prefixes, and `StaticFileOptions.RequestPath`. Wildcards are unsupported. Invalid paths and headers are rejected. Header values are validated at startup against Kestrel's `ResponseHeaderEncodingSelector`, which defaults to ASCII. Custom encodings remain supported, but unrepresentable values are rejected instead of replaced. Rules apply to public static files and do not change access control.
 
 Deploy the files declared by each Vite manifest. Use `ViteManifestItem.BrowserPath` for the deployed URL and `Path` for the logical original path. Script, stylesheet and preload TagHelpers link directly to the Brotli file when present at manifest load, or to the original otherwise. Direct Brotli URLs require a Brotli-capable browser. The URL includes the request path base, and subresource integrity uses the build-time hash of the decoded bytes. ASP.NET Core static files serve the compressed bytes with `Content-Encoding: br` and the original media type.
 
