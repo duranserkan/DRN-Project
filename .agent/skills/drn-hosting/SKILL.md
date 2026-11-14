@@ -1,7 +1,7 @@
 ---
 name: drn-hosting
 description: "Configure DRN hosts, MFA, API errors, rate limits, Razor endpoints, CSP and TagHelpers."
-last-updated: 2026-11-13
+last-updated: 2026-11-14
 difficulty: advanced
 ---
 
@@ -45,6 +45,8 @@ Swagger is Development-only by default. To enable elsewhere, call base in `Confi
 Swagger UI prefixes use nonempty ASCII letter, digit, hyphen or underscore segments. Root mounts are rejected. Reserve the UI subtree for Swagger CSP. Disabled UI retains application policies. Retain base behavior in `ConfigureSecurityHeaderPolicyBuilder`. The [Hosting README][hosting] owns `AddSwaggerUI`, metadata, document URLs, title defaults, upstream caching and `DrnPageOptions.FaviconUrl`.
 
 ## Page & Endpoint Management
+
+README **Source-Known Controllers** owns all variants. DRN0026 requires named policies. SPA APIs select bearer-only schemes; cookie APIs need application antiforgery. Keep resource checks in application code. Disable actions with `[NonAction]` and omit accessors. `IgnoreApi` only hides documentation.
 
 Static accessors use `PageCollectionBase<ExamplePageFor>.PageCollection` and `(ExampleEndpointFor)EndpointCollectionBase<ExampleProgram>.EndpointCollection!`. Pages self-initialize. API metadata requires endpoint initialization. Never retain request-specific URLs or authorization results statically.
 

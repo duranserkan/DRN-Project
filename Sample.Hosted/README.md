@@ -50,21 +50,21 @@ The HTMX test page has separate **Trigger server exception** and **Trigger brows
 
 ## Pagination APIs
 
-Hosting supplies the shared Swagger guidance for pagination inputs and responses. QA controller descriptions add endpoint-specific ceilings, ignored settings and jump rules.
+Tag and Category use the shared SourceKnown controller contracts and Swagger guidance. Both require an Identity bearer token and completed MFA. Cookie-only authentication is not accepted. Razor Pages and htmx retain their CSRF protection.
 
 Pagination responses contain `items` and `info`. The outer `info.firstId` and `info.lastId` identify the returned page. `info.request.pageCursor` describes the preceding page. Counts and page totals use `-1` when unspecified. Set `updateTotalCount=true` to refresh totals.
 
 | Endpoint | Request and continuation |
 |---|---|
-| `GET /Api/QA/Category` | Flattened `PaginationRequest` query fields. Defaults to page 1 and size 10. The server fixes the ceiling at 100 and ignores supplied `PageSize.MaxSize`, `TotalCount`, and `MarkAsHasNextOnRefresh`. |
-| `GET /Api/QA/Tag/Paginate` | Initial page using individual query parameters. Defaults: `pageSize=10`, `maxSize=100`, `updateTotalCount=false`, `direction=Ascending`. Maximum `maxSize` is 1000. |
-| `GET /Api/QA/Tag/PaginateWithOptions` | Initial page using the same query fields bound to `PaginationOptions`. Set `updateTotalCount` to count on the server. |
-| `GET /Api/QA/Tag/PaginateWithQuery` | Flatten the previous response's `info` into query fields, including `Request.PageNumber`, `FirstId`, `LastId`, and `Total.Count`. Supply `jumpTo` separately. |
-| `POST /Api/QA/Tag/PaginateWithBody` | Send the previous response's complete `info` object as JSON. Keep `jumpTo` and `updateTotalCount` in the query string. Preserve the required JSON fields. |
+| `GET /Api/QA/{Tag or Category}` | Flattened `PaginationRequest` query fields. Defaults to page 1 and size 10. The server fixes the ceiling at 100 and discards supplied `TotalCount` and `MarkAsHasNextOnRefresh`. |
+| `GET /Api/QA/{Tag or Category}/Paginate` | Initial page using flat `PaginationOptions`: `pageSize`, `maxSize`, `updateTotalCount`, and `direction`. The server ceiling remains 100. |
+| `POST /Api/QA/{Tag or Category}/Paginate` | Send a `PaginationRequest` as JSON for first-page, continuation or refresh requests. |
 
-Tag continuation defaults `jumpTo` to 1 and clamps the target to at least 1 and within ten pages of the previous page. To advance from page 1 to page 2, POST the returned `info` object to `/Api/QA/Tag/PaginateWithBody?jumpTo=2`. Do not send the complete response or only `info.request`.
+Use the returned `Info.RequestNextPage()`, `RequestPreviousPage()`, `RequestPage(page)` or `RequestRefresh()` to construct a continuation request. Send that request as JSON to `POST Paginate`, or flatten it into query fields for the collection GET. Jumps are limited to ten pages from the supplied cursor. Counts are recomputed only when requested, and refresh derives next-page availability from fetched data.
 
-For Category continuation, set `PageNumber` to the desired page, `PageCursor.PageNumber` to the previous `info.request.pageNumber`, and both cursor IDs to the previous outer `info.firstId` and `info.lastId`. Pagination failures use the API Problem Details contract below. Swagger supplies a representative 400 response rather than enumerating every possible failure status.
+For non-.NET callers, set `pageNumber` to the desired page, `pageCursor.pageNumber` to the previous `info.request.pageNumber`, and both cursor IDs to the previous outer `info.firstId` and `info.lastId`. Preserve the page size and sort direction. Pagination failures use the API Problem Details contract below.
+
+Migration: the former Tag `PaginateWithOptions`, `PaginateWithQuery`, and `PaginateWithBody` routes are removed. The collection GET now accepts `PaginationRequest`; `GET Paginate` accepts flat options. Stop posting `PaginationResultInfo` or supplying `jumpTo`. Creation returns HTTP 201 with a DTO and no Location header; retrieve it using `GET /Api/QA/{Tag or Category}/{dto.id}`. Repository validation rejects malformed Source-Known IDs and wrong entity types with HTTP 400. Valid missing IDs return HTTP 404, including for Category, which no longer supplies a custom not-found title. Tag retains DELETE; Category DELETE and both controllers' Lookup, Any and Count endpoints are disabled.
 
 ## Error pages and API failures
 
@@ -98,7 +98,7 @@ ScopeContext.Problem.NotFound($"Category: {id}");
 
 This throws `NotFoundException` and returns HTTP 404 with the standard type and the public title above. The diagnostic message stays private. Use explicit stable types only for conditions clients must distinguish beyond HTTP status. See [Hosting mappings and overrides](../DRN.Framework.Hosting/README.md#api-failure-responses).
 
-Category lookup now uses the standard HTTP 404 problem type instead of `urn:sample:problem:category-not-found`. Clients matching that former Sample identifier should handle HTTP 404 for a missing category. The status, safe title, and request reference remain available.
+Category lookup uses repository validation and standard Problem Details. Clients matching the former `urn:sample:problem:category-not-found` identifier or custom title should use HTTP 404 for a valid missing category and HTTP 400 for an invalid ID. The request reference remains available.
 
 Field errors use the exact posted control name, including casing, property prefixes, and collection indices. Use `string.Empty` for form-level errors. Preserve existing API validation keys, including Identity error codes.
 
