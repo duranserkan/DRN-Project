@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.AspNetCore.Routing;
+using Sample.Contract.QA.Categories;
+using Sample.Contract.QA.Tags;
 using Sample.Hosted;
 using Sample.Hosted.Controllers.QA;
 using Sample.Hosted.Helpers;
@@ -74,15 +76,16 @@ public class SampleEndpointForTests
         if (namedRoutes.Length == 0)
             url.RouteUrl(confirmEmailEndpoint.EndpointName, values).Should().BeNull();
 
-        AssertSourceKnownActions<TagController>(routes, Get.Endpoint.QA.Tag.Endpoints,
+        AssertSourceKnownActions<TagController>(routes, Get.Endpoint.QA.Tag.Endpoints, typeof(TagPostRequest),
             "DeleteAsync", "GetAsync", "PaginateAsync", "PaginateWithBodyAsync", "PaginateWithOptionsAsync", "PostAsync");
-        AssertSourceKnownActions<CategoryController>(routes, Get.Endpoint.QA.Category.Endpoints,
+        AssertSourceKnownActions<CategoryController>(routes, Get.Endpoint.QA.Category.Endpoints, typeof(CategoryPostRequest),
             "GetAsync", "PaginateAsync", "PaginateWithBodyAsync", "PaginateWithOptionsAsync", "PostAsync");
     }
 
     private sealed record ConfirmationRouteValues(string userId, [property: Sensitive] string code);
 
-    private static void AssertSourceKnownActions<TController>(RouteEndpoint[] routes, ApiEndpoint[] accessors, params string[] expected)
+    private static void AssertSourceKnownActions<TController>(RouteEndpoint[] routes, ApiEndpoint[] accessors,
+        Type createRequest, params string[] expected)
     {
         var actions = routes.Select(route => route.Metadata.GetMetadata<ControllerActionDescriptor>())
             .Where(action => action?.ControllerTypeInfo.AsType() == typeof(TController))
@@ -90,5 +93,15 @@ public class SampleEndpointForTests
         actions.Should().Equal(expected);
         accessors.Select(endpoint => endpoint.ActionMethodName).Order(StringComparer.Ordinal).Should().Equal(expected);
         accessors.Should().OnlyContain(endpoint => endpoint.RouteEndpoints.Length > 0);
+        foreach (var endpoint in accessors)
+        {
+            endpoint.ActionDescriptor.Should().OnlyContain(action => action.ControllerTypeInfo.AsType() == typeof(TController));
+            endpoint.ActionDescriptor.Should().OnlyContain(action =>
+                action.MethodInfo.GetParameters().Last().ParameterType == typeof(CancellationToken));
+        }
+        var create = accessors.Single(endpoint => endpoint.ActionMethodName == "PostAsync");
+        create.ActionDescriptor.Should().OnlyContain(action => action.MethodInfo.GetParameters()[0].ParameterType == createRequest);
+        create.RouteEndpoints.Should().OnlyContain(route =>
+            route.Metadata.GetRequiredMetadata<IHttpMethodMetadata>().HttpMethods.SequenceEqual(new[] { "POST" }));
     }
 }

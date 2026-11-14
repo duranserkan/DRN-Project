@@ -9,7 +9,7 @@ public class SampleAccessorConventionTests
     {
         var endpoint = new SampleEndpointFor();
 
-        endpoint.QA.Should().BeOfType<QaApiFor>();
+        endpoint.QA.Should().BeOfType<QAApiFor>();
         endpoint.User.Identity.Should().BeOfType<UserIdentityFor>();
         endpoint.QA.Tag.Should().BeOfType<TagFor>().Which.ControllerRoute.Should().Be("/Api/QA/Tag");
         endpoint.QA.Category.Should().BeOfType<CategoryFor>().Which.ControllerRoute.Should().Be("/Api/QA/Category");
@@ -20,8 +20,8 @@ public class SampleAccessorConventionTests
         endpoint.User.Identity.LoginController.Should().BeOfType<UserIdentityLoginFor>().Which.ControllerRoute.Should().Be("/Api/User/SampleIdentityLogin");
         endpoint.User.Identity.PasswordController.Should().BeOfType<SampleIdentityPasswordFor>().Which.ControllerRoute.Should().Be("/Api/User/SampleIdentityPassword");
         endpoint.User.Identity.ManagementController.Should().BeOfType<SampleIdentityManagementFor>().Which.ControllerRoute.Should().Be("/Api/User/SampleIdentityManagement");
-        endpoint.User.PP.Should().BeOfType<ProfilePictureFor>().Which.ControllerRoute.Should().Be("/Api/User/ProfilePicture");
-        endpoint.Sample.ClientError.ControllerRoute.Should().BeEmpty();
-        endpoint.Sample.NexusStatus.ControllerRoute.Should().BeEmpty();
+        endpoint.User.Profile.ProfilePicture.Should().BeOfType<ProfilePictureFor>().Which.ControllerRoute.Should().Be("/Api/User/ProfilePicture");
+        endpoint.Sample.ClientError.ControllerRoute.Should().Be("/Api/Sample/ClientError");
+        endpoint.Sample.NexusStatus.ControllerRoute.Should().Be("/Api/Sample/NexusStatus");
     }
 }

@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <!-- Analyzer assets are private by default. buildTransitive must reach the host. -->
+    <PackageReference Include="DRN.Framework.Hosting" Version="$(DrnHostingPackageVersion)" PrivateAssets="analyzers;build;contentfiles" />
+  </ItemGroup>
+</Project>

@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Reflection;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Hosting.Extensions;
@@ -42,7 +39,6 @@ public abstract class ControllerForBase<TController>
         .GetPropertiesOfType<ApiEndpoint>(BindingFlag.InstancePublic)
         .Select(p =>
         {
-            //Endpoint name should match with Action name and property name
             var binding = p.GetCustomAttribute<EndpointActionAttribute>();
             var endpoint = binding == null
                 ? CreateEndpoint(p.Name)
@@ -53,6 +49,7 @@ public abstract class ControllerForBase<TController>
         }).ToArray();
 }
 
+[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class ApiEndpoint
 {
     private readonly Type? _bindingController;

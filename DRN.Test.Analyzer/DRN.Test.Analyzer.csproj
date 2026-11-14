@@ -12,6 +12,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Remove="Fixtures/HostedAccessorConsumers/**/*.cs" />
         <ProjectReference Include="..\DRN.Framework.Hosting.Generators\DRN.Framework.Hosting.Generators.csproj"
                           UndefineProperties="RuntimeIdentifier;TargetArchitecture;PlatformTarget;SelfContained;PublishReadyToRun" />
         <ProjectReference Include="..\DRN.Framework.Testing\DRN.Framework.Testing.csproj"/>

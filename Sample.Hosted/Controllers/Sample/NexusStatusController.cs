@@ -3,7 +3,7 @@ using DRN.Framework.Hosting.Nexus;
 namespace Sample.Hosted.Controllers.Sample;
 
 [ApiController]
-[Route("/Api/Sample/[controller]")]
+[Route(ControllerRoutes.Sample)]
 public class NexusStatusController(INexusClient client) : ControllerBase
 {
     [HttpGet]

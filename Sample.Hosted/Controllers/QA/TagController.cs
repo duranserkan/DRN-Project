@@ -5,7 +5,7 @@ using Sample.Hosted.Settings;
 
 namespace Sample.Hosted.Controllers.QA;
 
-[Route("/Api/QA/[controller]")]
+[Route(ControllerRoutes.QA)]
 [Authorize(Policy = IdentitySettings.QaApiPolicy)]
 public class TagController(ITagRepository repository)
     : SourceKnownController<Tag, TagDto, TagPostRequest>(repository)

@@ -1,7 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Hosting.Extensions;
-using DRN.Framework.SharedKernel;
 using DRN.Framework.Utils.Extensions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Controllers;
@@ -11,14 +10,12 @@ using Microsoft.AspNetCore.Routing;
 namespace DRN.Framework.Hosting.Endpoints;
 
 [SuppressMessage("SonarQube", "S2743", Justification = "Each hosted program initializes its own endpoint catalog under its own lock.")]
-public abstract class EndpointCollectionBase<TProgram>
+[SuppressMessage("ReSharper", "StaticMemberInGenericType")]
+internal static class EndpointCatalog<TProgram>
     where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
-
 {
     private static bool _triggered;
     private static readonly SemaphoreSlim StartupLock = new(1, 1);
-
-    public static EndpointCollectionBase<TProgram>? EndpointCollection { get; } = GetCollectionInstance();
 
     public static DrnEndpointSource EndpointSource { get; private set; } = new();
     public static IReadOnlyList<Endpoint> Endpoints { get; private set; } = [];
@@ -30,7 +27,7 @@ public abstract class EndpointCollectionBase<TProgram>
     /// There may be exceptions, but we consider it a bad practice and don't support it.
     /// </summary>
     [SuppressMessage("SonarQube", "S2589", Justification = "Another caller can publish the endpoint catalog while this caller waits for StartupLock.")]
-    internal static void SetEndpointDataSource(IEndpointHelper endpointHelper)
+    internal static void SetEndpointDataSource(IEndpointHelper endpointHelper, EndpointCollection<TProgram>? collection)
     {
         if (_triggered) return;
 
@@ -43,7 +40,7 @@ public abstract class EndpointCollectionBase<TProgram>
             EndpointSource = new DrnEndpointSource(endpointHelper.EndpointDataSource);
 
             PageEndpoints = InitializePageEndpoints();
-            ApiEndpoints = InitializeApiEndpoints();
+            ApiEndpoints = collection?.Bind(EndpointSource) ?? [];
             _triggered = true;
         }
         finally
@@ -55,7 +52,7 @@ public abstract class EndpointCollectionBase<TProgram>
     private static PageEndpoint[] InitializePageEndpoints()
     {
         var pageEndpoints = Endpoints
-            .Where(e => e is RouteEndpoint { RoutePattern.RawText: not null } 
+            .Where(e => e is RouteEndpoint { RoutePattern.RawText: not null }
                         && e.Metadata.GetMetadata<PageActionDescriptor>() is not null)
             .Cast<RouteEndpoint>()
             .GroupBy(e => e.Metadata.GetMetadata<PageActionDescriptor>()!.RelativePath)
@@ -63,16 +60,21 @@ public abstract class EndpointCollectionBase<TProgram>
 
         return pageEndpoints.ToArray();
     }
+}
 
-    private static ApiEndpoint[] InitializeApiEndpoints()
+/// <summary>A program-owned collection of controller accessors supplied to host initialization.</summary>
+public abstract class EndpointCollection<TProgram>
+    where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
+{
+    internal ApiEndpoint[] Bind(DrnEndpointSource source)
     {
-        var collectionType = GetCollectionType();
-        if (collectionType == null) return [];
-        if (EndpointCollection == null) return [];
-
+        var collectionType = GetType();
         var apiGroups = collectionType.GetProperties()
-            .Where(p => p.GetValue(EndpointCollection) != null)
-            .ToDictionary(property => property, property => property.GetValue(EndpointCollection)!);
+            // Do not traverse the singleton itself. Other static groups remain discoverable.
+            .Where(property => !(property is { Name: "EndpointCollection", GetMethod.IsStatic: true } &&
+                                 property.PropertyType == collectionType))
+            .Where(p => p.GetValue(this) != null)
+            .ToDictionary(property => property, property => property.GetValue(this)!);
 
         HashSet<ApiEndpoint> endpointList = [];
         var endpointBase = typeof(IApiEndpointForBase);
@@ -81,7 +83,7 @@ public abstract class EndpointCollectionBase<TProgram>
             if (endpointBase.IsInstanceOfType(apiGroup))
             {
                 var apiForBase = (IApiEndpointForBase)apiGroup;
-                SetEndpoint(apiForBase, endpointList);
+                SetEndpoint(apiForBase, endpointList, source);
             }
 
             var endPointContainers = apiGroup.GetGroupedPropertiesOfSubtype(endpointBase);
@@ -91,49 +93,36 @@ public abstract class EndpointCollectionBase<TProgram>
                 foreach (var propertyInfo in container.Value)
                 {
                     var apiForBase = (IApiEndpointForBase?)propertyInfo.GetValue(containerObject);
-                    SetEndpoint(apiForBase, endpointList);
+                    SetEndpoint(apiForBase, endpointList, source);
                 }
             }
         }
 
         return endpointList
-            .OrderBy(x => x.ControllerClassName)
-            .ThenBy(x => x.ActionMethodName).ToArray();
+            .OrderBy(x => x.ControllerClassName, StringComparer.Ordinal)
+            .ThenBy(x => x.ActionMethodName, StringComparer.Ordinal).ToArray();
     }
 
-    private static Type? GetCollectionType()
-    {
-        var collectionBaseType = typeof(EndpointCollectionBase<TProgram>);
-        return typeof(TProgram).Assembly.GetSubTypes(collectionBaseType).FirstOrDefault();
-    }
-
-    private static EndpointCollectionBase<TProgram>? GetCollectionInstance()
-    {
-        var collectionType = GetCollectionType();
-
-        if (collectionType == null)
-            return null;
-
-        try
-        {
-            return Activator.CreateInstance(collectionType) as EndpointCollectionBase<TProgram>;
-        }
-        catch (Exception e)
-        {
-            throw new ConfigurationException($"{collectionType.FullName} must have a parameterless constructor.", e);
-        }
-    }
-
-    private static void SetEndpoint(IApiEndpointForBase? apiForBase, HashSet<ApiEndpoint> endpointList)
+    private static void SetEndpoint(IApiEndpointForBase? apiForBase, HashSet<ApiEndpoint> endpointList, DrnEndpointSource source)
     {
         if (apiForBase == null) return;
 
         foreach (var apiEndpoint in apiForBase.Endpoints)
         {
-            apiEndpoint.SetEndPoint(EndpointSource);
+            apiEndpoint.SetEndPoint(source);
             endpointList.Add(apiEndpoint);
         }
     }
+}
+
+/// <summary>Creates one strongly typed endpoint collection for its program and collection type.</summary>
+[SuppressMessage("ReSharper", "StaticMemberInGenericType")]
+[SuppressMessage("SonarQube", "S2743", Justification = "Each collection type owns its typed singleton.")]
+public abstract class EndpointCollectionBase<TProgram, TCollection> : EndpointCollection<TProgram>
+    where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
+    where TCollection : EndpointCollectionBase<TProgram, TCollection>, new()
+{
+    public static TCollection EndpointCollection { get; } = new();
 }
 
 public class DrnEndpointSource

@@ -14,18 +14,35 @@ public sealed class HostedAccessorGenerator : IIncrementalGenerator
     private const string AttributeNamespace = "DRN.Framework.Hosting.Endpoints.";
     private static readonly DiagnosticDescriptor Invalid = new("DRNHG001", "Invalid hosted accessor declaration",
         "{0}", "Hosting", DiagnosticSeverity.Error, true);
+    private static readonly SymbolDisplayFormat BindingTypeFormat = SymbolDisplayFormat.FullyQualifiedFormat.WithMiscellaneousOptions(
+        SymbolDisplayFormat.FullyQualifiedFormat.MiscellaneousOptions & ~SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
+    private static readonly Regex RazorComments = new(@"@\*[\s\S]*?\*@", RegexOptions.NonBacktracking);
+    private static readonly Regex PageDirective = new(@"^[\t ]*@page(?:[\t ]|\r?$)", RegexOptions.Multiline | RegexOptions.NonBacktracking);
+    private static readonly PageInput DisabledPage = new(null, false);
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
+        var hostedProject = context.AnalyzerConfigOptionsProvider.Select((options, _) =>
+            options.GlobalOptions.TryGetValue("build_property.UsingMicrosoftNETSdkWeb", out var value) &&
+            string.Equals(value, "true", StringComparison.OrdinalIgnoreCase));
+        var pagesEnabled = context.CompilationProvider.Select((compilation, cancellation) =>
+        {
+            cancellation.ThrowIfCancellationRequested();
+            return Attributes(compilation.Assembly, "HostedAccessorsAttribute").Any();
+        }).Combine(hostedProject).Select((input, _) => input.Left && input.Right);
         var pages = context.AdditionalTextsProvider
             .Where(file => file.Path.EndsWith(".cshtml", StringComparison.OrdinalIgnoreCase))
             .Combine(context.AnalyzerConfigOptionsProvider)
+            .Combine(pagesEnabled)
             .Select((input, cancellation) =>
             {
-                var options = input.Right.GetOptions(input.Left);
+                if (!input.Right) return DisabledPage;
+                var file = input.Left.Left;
+                var configuration = input.Left.Right;
+                var options = configuration.GetOptions(file);
                 options.TryGetValue("build_metadata.AdditionalFiles.TargetPath", out var target);
-                input.Right.GlobalOptions.TryGetValue("build_property.MSBuildProjectDirectory", out var directory);
-                if (!string.IsNullOrEmpty(target))
+                configuration.GlobalOptions.TryGetValue("build_property.MSBuildProjectDirectory", out var directory);
+                if (!string.IsNullOrEmpty(target) && !target.EndsWith(".cshtml", StringComparison.OrdinalIgnoreCase))
                 {
                     try
                     {
@@ -34,21 +51,27 @@ public sealed class HostedAccessorGenerator : IIncrementalGenerator
                     }
                     catch (FormatException) { /* Plain TargetPath values are supported too. */ }
                 }
-                target ??= directory == null ? null : Path.GetRelativePath(directory, input.Left.Path);
-                return new PageInput(target?.Replace('\\', '/'), input.Left.GetText(cancellation)?.ToString() ?? "");
-            }).Collect();
-        var hostedProject = context.AnalyzerConfigOptionsProvider.Select((options, _) =>
-            options.GlobalOptions.TryGetValue("build_property.UsingMicrosoftNETSdkWeb", out var value) &&
-            string.Equals(value, "true", StringComparison.OrdinalIgnoreCase));
-        context.RegisterSourceOutput(context.CompilationProvider.Combine(pages).Combine(hostedProject), (output, input) =>
+                target ??= directory == null ? null : Path.GetRelativePath(directory, file.Path);
+                cancellation.ThrowIfCancellationRequested();
+                var content = RazorComments.Replace(file.GetText(cancellation)?.ToString() ?? "", "");
+                cancellation.ThrowIfCancellationRequested();
+                var isPage = PageDirective.IsMatch(content);
+                cancellation.ThrowIfCancellationRequested();
+                return new PageInput(target?.Replace('\\', '/'), isPage);
+            }).WithTrackingName("HostedAccessorPageIdentity").Collect();
+        var inputs = context.CompilationProvider.Combine(pages).Combine(hostedProject).WithTrackingName("HostedAccessorInputs");
+        context.RegisterSourceOutput(inputs, (output, input) =>
         {
             var compilation = input.Left.Left;
             var hosts = Attributes(compilation.Assembly, "HostedAccessorsAttribute")
                 .OrderBy(attribute => attribute.ConstructorArguments.FirstOrDefault().Value?.ToString(), StringComparer.Ordinal).ToArray();
+            if (hosts.Length == 0) return;
             var programs = new HashSet<string>(StringComparer.Ordinal);
             var generatedTypes = new HashSet<string>(StringComparer.Ordinal);
+            CompilationFacts? facts = null;
             foreach (var host in hosts)
             {
+                output.CancellationToken.ThrowIfCancellationRequested();
                 if (!input.Right)
                 {
                     Report(output, host, "HostedAccessors is supported only in SDK Web hosted projects. Remove the opt-in from this library.");
@@ -62,7 +85,8 @@ public sealed class HostedAccessorGenerator : IIncrementalGenerator
                 }
                 try
                 {
-                    new Emitter(compilation, output, program, host, input.Left.Right, generatedTypes).Emit();
+                    facts ??= new CompilationFacts(compilation, output.CancellationToken);
+                    new Emitter(compilation, facts, output, program, host, input.Left.Right, generatedTypes).Emit();
                 }
                 catch (AccessorException exception)
                 {
@@ -72,7 +96,7 @@ public sealed class HostedAccessorGenerator : IIncrementalGenerator
         });
     }
 
-    private sealed record PageInput(string? Path, string Content);
+    private sealed record PageInput(string? Path, bool IsPage);
     private sealed class AccessorException(string message) : Exception(message);
     private static IEnumerable<AttributeData> Attributes(ISymbol symbol, string name) =>
         symbol.GetAttributes().Where(attribute => attribute.AttributeClass?.ToDisplayString() == AttributeNamespace + name);
@@ -94,10 +118,137 @@ public sealed class HostedAccessorGenerator : IIncrementalGenerator
     private static bool CanUseIdentifier(string value) => SyntaxFacts.IsValidIdentifier(value) ||
         SyntaxFacts.GetKeywordKind(value) != SyntaxKind.None || SyntaxFacts.GetContextualKeywordKind(value) != SyntaxKind.None;
     private static string TypeName(ITypeSymbol type) => type.TypeKind == TypeKind.Dynamic ? "global::System.Object" :
-        type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat.WithMiscellaneousOptions(
-            SymbolDisplayFormat.FullyQualifiedFormat.MiscellaneousOptions & ~SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier));
+        type.ToDisplayString(BindingTypeFormat);
     private static void Report(SourceProductionContext output, AttributeData attribute, string message) =>
-        output.ReportDiagnostic(Diagnostic.Create(Invalid, attribute.ApplicationSyntaxReference?.GetSyntax().GetLocation() ?? Location.None, message));
+        output.ReportDiagnostic(Diagnostic.Create(Invalid, attribute.ApplicationSyntaxReference?.GetSyntax(output.CancellationToken).GetLocation() ?? Location.None, message));
+
+    private sealed class CompilationFacts
+    {
+        private static readonly string[] FrameworkNames =
+            ["ApiEndpoint", "EndpointAction", "EndpointActionAttribute", "ControllerForBase", "EndpointCollectionBase", "PageCollectionBase", "PageForBase"];
+        private readonly Compilation _compilation;
+        private readonly CancellationToken _cancellation;
+        private readonly HashSet<string> _nameConflicts = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, HashSet<string>> _namespaceConflicts = new(StringComparer.Ordinal);
+        private readonly Dictionary<ISymbol, Dictionary<string, List<AttributeData>>> _programAttributes = new(SymbolEqualityComparer.Default);
+
+        public CompilationFacts(Compilation compilation, CancellationToken cancellation)
+        {
+            _compilation = compilation;
+            _cancellation = cancellation;
+            cancellation.ThrowIfCancellationRequested();
+            LocalTypes = Types(compilation.Assembly.GlobalNamespace, cancellation).ToArray();
+            foreach (var attribute in compilation.Assembly.GetAttributes())
+            {
+                cancellation.ThrowIfCancellationRequested();
+                var name = attribute.AttributeClass?.Name;
+                if (name is not ("AccessorControllerAttribute" or "AccessorGroupAttribute" or "AccessorMemberAttribute") ||
+                    attribute.AttributeClass!.ToDisplayString() != AttributeNamespace + name ||
+                    attribute.ConstructorArguments.FirstOrDefault().Value is not INamedTypeSymbol program) continue;
+                if (!_programAttributes.TryGetValue(program, out var attributes))
+                    _programAttributes.Add(program, attributes = new(StringComparer.Ordinal));
+                if (!attributes.TryGetValue(name, out var declarations)) attributes.Add(name, declarations = []);
+                declarations.Add(attribute);
+                // Opted-in programs can share a generated namespace. Their aliases must not shadow each other's contracts.
+                if (name == "AccessorGroupAttribute" && attribute.ConstructorArguments.ElementAtOrDefault(2).Value is string groupName &&
+                    Array.IndexOf(FrameworkNames, groupName) >= 0)
+                    _nameConflicts.Add(groupName);
+                if (name == "AccessorControllerAttribute" && Text(attribute, "TypeName") is { } typeName && Array.IndexOf(FrameworkNames, typeName) >= 0)
+                    _nameConflicts.Add(typeName);
+            }
+            foreach (var name in FrameworkNames)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                if (compilation.GetSymbolsWithName(name, SymbolFilter.Type | SymbolFilter.Namespace, cancellation).Any()) _nameConflicts.Add(name);
+            }
+            foreach (var tree in compilation.SyntaxTrees)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                var root = (CompilationUnitSyntax)tree.GetRoot(cancellation);
+                SemanticModel? model = null;
+                // Valid global imports occur only at compilation-unit scope. Method bodies are irrelevant.
+                foreach (var directive in root.Usings)
+                {
+                    if (!directive.GlobalKeyword.IsKind(SyntaxKind.GlobalKeyword)) continue;
+                    cancellation.ThrowIfCancellationRequested();
+                    if (directive.Alias != null)
+                    {
+                        var alias = directive.Alias.Name.Identifier.ValueText;
+                        if (Array.IndexOf(FrameworkNames, alias) >= 0) _nameConflicts.Add(alias);
+                        continue;
+                    }
+                    if (directive.Name == null) continue;
+                    model ??= compilation.GetSemanticModel(tree);
+                    var imported = model.GetSymbolInfo(directive.Name, cancellation).Symbol;
+                    foreach (var name in FrameworkNames)
+                    {
+                        if (_nameConflicts.Contains(name)) continue;
+                        var frameworkName = name == "EndpointAction" ? "EndpointActionAttribute" : name;
+                        var conflict = imported switch
+                        {
+                            INamespaceSymbol importedNamespace => importedNamespace.GetMembers(name).Any(symbol =>
+                                symbol is not INamedTypeSymbol named || named.Name != frameworkName || named.ContainingNamespace.ToDisplayString() != AttributeNamespace[..^1]),
+                            INamedTypeSymbol importedType => importedType.GetTypeMembers(name).Length > 0,
+                            _ => false
+                        };
+                        if (conflict) _nameConflicts.Add(name);
+                    }
+                }
+            }
+        }
+
+        public INamedTypeSymbol[] LocalTypes { get; }
+
+        public IEnumerable<AttributeData> ForProgram(INamedTypeSymbol program, string name) =>
+            _programAttributes.TryGetValue(program, out var attributes) && attributes.TryGetValue(name, out var declarations) ? declarations : [];
+
+        public bool Conflicts(string ns, string name)
+        {
+            if (_nameConflicts.Contains(name)) return true;
+            if (!_namespaceConflicts.TryGetValue(ns, out var conflicts))
+            {
+                conflicts = new(StringComparer.Ordinal);
+                var scope = _compilation.GlobalNamespace;
+                AddConflicts(scope);
+                foreach (var segment in ns.Replace("@", "").Split('.'))
+                {
+                    _cancellation.ThrowIfCancellationRequested();
+                    var nested = scope.GetNamespaceMembers().FirstOrDefault(candidate => candidate.Name == segment);
+                    if (nested == null) break;
+                    scope = nested;
+                    AddConflicts(scope);
+                }
+                _namespaceConflicts.Add(ns, conflicts);
+
+                void AddConflicts(INamespaceSymbol current)
+                {
+                    foreach (var candidate in FrameworkNames)
+                        if (current.GetMembers(candidate).Any()) conflicts.Add(candidate);
+                }
+            }
+            return conflicts.Contains(name);
+        }
+    }
+
+    private static IEnumerable<INamedTypeSymbol> Types(INamespaceSymbol ns, CancellationToken cancellation)
+    {
+        cancellation.ThrowIfCancellationRequested();
+        foreach (var type in ns.GetTypeMembers())
+        {
+            cancellation.ThrowIfCancellationRequested();
+            yield return type;
+        }
+        foreach (var child in ns.GetNamespaceMembers())
+        foreach (var type in Types(child, cancellation)) yield return type;
+    }
+
+    private static IEnumerable<INamedTypeSymbol> SelfAndNestedTypes(INamedTypeSymbol type, CancellationToken cancellation)
+    {
+        cancellation.ThrowIfCancellationRequested();
+        yield return type;
+        foreach (var child in type.GetTypeMembers())
+        foreach (var nested in SelfAndNestedTypes(child, cancellation)) yield return nested;
+    }
 
     private sealed class Node(string path, string name)
     {
@@ -110,7 +261,7 @@ public sealed class HostedAccessorGenerator : IIncrementalGenerator
         public string? Area { get; set; }
     }
 
-    private sealed class Emitter(Compilation compilation, SourceProductionContext output, INamedTypeSymbol program,
+    private sealed class Emitter(Compilation compilation, CompilationFacts facts, SourceProductionContext output, INamedTypeSymbol program,
         AttributeData host, ImmutableArray<PageInput> pages, HashSet<string> generatedTypes)
     {
         private readonly Dictionary<string, AttributeData> _members = new(StringComparer.Ordinal);
@@ -137,17 +288,14 @@ public sealed class HostedAccessorGenerator : IIncrementalGenerator
                     throw new AccessorException("Duplicate AccessorGroup path. Remove or combine the declarations.");
 
             var endpoints = new Node("", stem + "EndpointFor");
-            if (Types(compilation.Assembly.GlobalNamespace).Any(type => type.ToDisplayString() != ns.Replace("@", "") + ".EndpointFor." + endpoints.Name &&
-                    Bases(type).Any(candidate => candidate.OriginalDefinition.ToDisplayString() == "DRN.Framework.Hosting.Endpoints.EndpointCollectionBase<TProgram>" &&
+            if (facts.LocalTypes.SelectMany(type => SelfAndNestedTypes(type, output.CancellationToken))
+                .Any(type => type.ToDisplayString() != ns.Replace("@", "") + ".EndpointFor." + endpoints.Name &&
+                    Bases(type).Any(candidate => candidate.OriginalDefinition.ToDisplayString() == "DRN.Framework.Hosting.Endpoints.EndpointCollection<TProgram>" &&
                         SymbolEqualityComparer.Default.Equals(candidate.TypeArguments[0], program))))
                 throw new AccessorException($"'{program}' already has another endpoint collection. Adopt that root explicitly instead of generating a second collection.");
             AddControllers(endpoints);
             var pageRoot = new Node("", stem + "PageFor");
-            if (Flag(host, "Pages"))
-            {
-                if (pages.Length == 0) throw new AccessorException("Pages=true requires Razor AdditionalFiles. Enable Razor compilation or disable page generation for a host without pages.");
-                AddPages(pageRoot);
-            }
+            AddPages(pageRoot);
             foreach (var path in _members.Keys.Except(_usedMembers).Order(StringComparer.Ordinal))
                 throw new AccessorException($"AccessorMember '{path}' does not identify an eligible action/page. Remove stale configuration.");
             foreach (var path in _groups.Keys.Except(_usedGroups).Order(StringComparer.Ordinal))
@@ -156,27 +304,30 @@ public sealed class HostedAccessorGenerator : IIncrementalGenerator
             // Validate the entire host before publishing any source for it.
             var sources = new SortedDictionary<string, string>(StringComparer.Ordinal);
             Render(endpoints, ns + ".EndpointFor", false, true, sources);
-            if (pageRoot.Children.Count > 0) Render(pageRoot, ns + ".PageFor", true, true, sources);
+            Render(pageRoot, ns + ".PageFor", true, true, sources);
             foreach (var source in sources)
                 if (!generatedTypes.Add(source.Key)) throw new AccessorException($"Generated type '{source.Key}' collides with another program's accessors.");
             foreach (var source in sources)
+            {
+                output.CancellationToken.ThrowIfCancellationRequested();
                 output.AddSource(source.Key + ".g.cs", SourceText.From(source.Value, Encoding.UTF8));
+            }
         }
 
-        private IEnumerable<AttributeData> ForProgram(string name) => Attributes(compilation.Assembly, name)
-            .Where(attribute => SymbolEqualityComparer.Default.Equals(attribute.ConstructorArguments.FirstOrDefault().Value as ITypeSymbol, program));
+        private IEnumerable<AttributeData> ForProgram(string name) => facts.ForProgram(program, name);
 
         private void AddControllers(Node root)
         {
             var mappings = new Dictionary<string, AttributeData>(StringComparer.Ordinal);
             foreach (var mapping in ForProgram("AccessorControllerAttribute"))
             {
+                output.CancellationToken.ThrowIfCancellationRequested();
                 var controller = mapping.ConstructorArguments.Length > 1 ? mapping.ConstructorArguments[1].Value as INamedTypeSymbol : null;
                 if (controller == null) throw new AccessorException("AccessorController requires a controller type.");
                 if (!mappings.TryAdd(controller.ToDisplayString(), mapping))
                     throw new AccessorException($"Controller '{controller}' has duplicate mappings for '{program}'.");
             }
-            var controllers = Types(compilation.Assembly.GlobalNamespace).Where(IsControllerCandidate)
+            var controllers = facts.LocalTypes.Where(IsControllerCandidate)
                 .Concat(mappings.Values.Select(mapping => (INamedTypeSymbol)mapping.ConstructorArguments[1].Value!))
                 .GroupBy(type => type.ToDisplayString(), StringComparer.Ordinal).Select(group => group.First())
                 .OrderBy(type => type.ToDisplayString(), StringComparer.Ordinal);
@@ -190,9 +341,11 @@ public sealed class HostedAccessorGenerator : IIncrementalGenerator
                 var prefix = program.ContainingNamespace + ".Controllers";
                 var controllerNamespace = controller.ContainingNamespace.ToDisplayString();
                 var group = controllerNamespace.StartsWith(prefix + ".", StringComparison.Ordinal) ? controllerNamespace[(prefix.Length + 1)..] : "";
-                var path = mapping == null ? (group.Length == 0 ? controllerName : group + "." + controllerName) : ArgumentText(mapping, 2);
+                var path = mapping == null || mapping.ConstructorArguments.Length == 2
+                    ? (group.Length == 0 ? controllerName : group + "." + controllerName)
+                    : ArgumentText(mapping, 2);
                 var parts = path.Split('.');
-                // EndpointCollectionBase starts at the first group and traverses at most five group levels.
+                // Endpoint collection binding starts at the first group and traverses at most five group levels.
                 if (parts.Length > 6)
                     throw new AccessorException($"Accessor '{path}' exceeds the runtime discovery limit of five groups. Supply a shorter controller alias.");
                 var parent = Group(root, parts[..^1], false);
@@ -201,7 +354,7 @@ public sealed class HostedAccessorGenerator : IIncrementalGenerator
                     Controller = controller, Route = Text(mapping, "RouteTemplate") ?? ControllerRouteTemplate(controller)
                 };
                 if (!parent.Children.TryAdd(parts[^1], leaf)) throw new AccessorException($"Accessor '{path}' collides. Supply a controller alias.");
-                foreach (var method in Actions(controller))
+                foreach (var method in Actions(controller, output.CancellationToken))
                 {
                     var member = MemberName("Endpoint." + path + "." + method.Name, method.Name);
                     if (member == null) continue;
@@ -226,8 +379,8 @@ public sealed class HostedAccessorGenerator : IIncrementalGenerator
         {
             foreach (var page in pages.OrderBy(page => page.Path, StringComparer.Ordinal))
             {
-                var content = Regex.Replace(page.Content, @"@\*[\s\S]*?\*@", "");
-                if (!Regex.IsMatch(content, @"(?m)^[\t ]*@page(?:[\t ]|\r?$)")) continue;
+                output.CancellationToken.ThrowIfCancellationRequested();
+                if (!page.IsPage) continue;
                 var path = page.Path?.TrimStart('/');
                 if (path == null || path.Split('/').Contains(".."))
                     throw new AccessorException("A Razor page has no valid logical TargetPath. Supply AdditionalFiles TargetPath metadata.");
@@ -278,12 +431,29 @@ public sealed class HostedAccessorGenerator : IIncrementalGenerator
 
         private void Render(Node node, string ns, bool page, bool root, SortedDictionary<string, string> sources)
         {
+            output.CancellationToken.ThrowIfCancellationRequested();
+            var frameworkTypes = new Dictionary<string, string>(StringComparer.Ordinal);
+            var usesFrameworkImport = false;
+            string FrameworkType(string typeName)
+            {
+                if (frameworkTypes.TryGetValue(typeName, out var resolved)) return resolved;
+                // Authored and generated names must not shadow imported framework contracts.
+                var shortName = typeName == "EndpointActionAttribute" ? "EndpointAction" : typeName;
+                bool Conflicts(string candidate) =>
+                    facts.Conflicts(ns, candidate) || node.Name == candidate || node.Members.ContainsKey(candidate) || node.Children.ContainsKey(candidate);
+                var collision = Conflicts(typeName) || shortName != typeName && Conflicts(shortName);
+                usesFrameworkImport |= !collision;
+                return frameworkTypes[typeName] = collision ? "global::" + AttributeNamespace + typeName : shortName;
+            }
+
             var name = Identifier(node.Name);
             var fullName = ns.Replace("@", "") + "." + node.Name;
             var existing = compilation.GetTypeByMetadataName(fullName);
             if (existing != null && (existing.DeclaringSyntaxReferences.Length == 0 || existing.DeclaringSyntaxReferences.Any(reference =>
-                    reference.GetSyntax() is not ClassDeclarationSyntax declaration || !declaration.Modifiers.Any(SyntaxKind.PartialKeyword))))
+                    reference.GetSyntax(output.CancellationToken) is not ClassDeclarationSyntax declaration || !declaration.Modifiers.Any(SyntaxKind.PartialKeyword))))
                 throw new AccessorException($"'{fullName}' already exists and must be a partial class to customize generated accessors.");
+            if (root && !page && existing?.GetMembers("EndpointCollection").Length > 0)
+                throw new AccessorException($"'{fullName}.EndpointCollection' is reserved for the inherited typed singleton. Remove or rename the authored member.");
             var members = new SortedDictionary<string, string>(node.Members, StringComparer.Ordinal);
             if (node.Area != null && (members.ContainsKey("Area") || existing?.GetMembers("Area").Length > 0))
                 throw new AccessorException($"'{fullName}.Area' is reserved for the destination area. Rename the page member.");
@@ -297,17 +467,24 @@ public sealed class HostedAccessorGenerator : IIncrementalGenerator
                     (node.Controller != null && member is "Endpoints" or "ControllerRoute" or "Controller" or "ControllerName" or "ControllerClassName"))
                     throw new AccessorException($"'{fullName}.{member}' collides with an authored member. Explicitly exclude the generated member or rename it.");
             var baseType = root
-                ? page ? $"PageCollectionBase<{name}>" : $"EndpointCollectionBase<{TypeName(program)}>"
-                : page ? "PageForBase" : node.Controller != null ? $"ControllerForBase<{TypeName(node.Controller)}>" : null;
-            var source = new StringBuilder("// <auto-generated/>\n#nullable enable\nnamespace " + ns + ";\n\npublic partial class " + name);
-            if (baseType != null) source.Append(" : global::DRN.Framework.Hosting.Endpoints.").Append(baseType);
+                ? page ? $"{FrameworkType("PageCollectionBase")}<{name}>" : $"{FrameworkType("EndpointCollectionBase")}<{TypeName(program)}, {name}>"
+                : page ? FrameworkType("PageForBase") : node.Controller != null ? $"{FrameworkType("ControllerForBase")}<{TypeName(node.Controller)}>" : null;
+            var declarations = members.Values.Select(member => node.Controller == null ? member : member
+                .Replace("[global::" + AttributeNamespace + "EndpointAction(", "[" + FrameworkType("EndpointActionAttribute") + "(", StringComparison.Ordinal)
+                .Replace("public global::" + AttributeNamespace + "ApiEndpoint ", "public " + FrameworkType("ApiEndpoint") + " ", StringComparison.Ordinal)).ToArray();
+            var source = new StringBuilder("// <auto-generated/>\n#nullable enable\n");
+            if (usesFrameworkImport) source.Append("using global::DRN.Framework.Hosting.Endpoints;\n\n");
+            source.Append("namespace ").Append(ns).Append(";\n\npublic partial class ").Append(name);
+            if (baseType != null) source.Append(" : ").Append(baseType);
             source.Append("\n{\n");
             if (node.Controller != null) source.Append("    public ").Append(name).Append("() : base(").Append(Literal(node.Route)).Append(") { }\n");
             if (page && !root) source.Append("    protected override string[] PathSegments { get; } = [];\n");
             if (node.Area != null) source.Append("    public const string Area = ").Append(Literal(node.Area)).Append(";\n");
-            foreach (var member in members.Values)
-                source.Append("    [global::DRN.Framework.SharedKernel.Attributes.Sensitive(false, Justification = \"Static accessor identity or metadata, not request data.\")]\n    ")
-                    .Append(member).Append('\n');
+            foreach (var declaration in declarations)
+            {
+                output.CancellationToken.ThrowIfCancellationRequested();
+                source.Append("    ").Append(declaration).Append('\n');
+            }
             source.Append("}\n");
             if (!sources.TryAdd(fullName, source.ToString())) throw new AccessorException($"Generated type '{fullName}' collides. Supply a TypeName or group alias.");
             foreach (var child in node.Children.Values) Render(child, ns, page, false, sources);
@@ -322,12 +499,13 @@ public sealed class HostedAccessorGenerator : IIncrementalGenerator
             !HasAttribute(type, "Microsoft.AspNetCore.Mvc.NonControllerAttribute") &&
             (type.Name.EndsWith("Controller", StringComparison.OrdinalIgnoreCase) || HasAttribute(type, "Microsoft.AspNetCore.Mvc.ControllerAttribute"));
 
-        private static IEnumerable<IMethodSymbol> Actions(INamedTypeSymbol type)
+        private static IEnumerable<IMethodSymbol> Actions(INamedTypeSymbol type, CancellationToken cancellation)
         {
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var current in Bases(type))
             foreach (var method in current.GetMembers().OfType<IMethodSymbol>().OrderBy(method => method.ToDisplayString(), StringComparer.Ordinal))
             {
+                cancellation.ThrowIfCancellationRequested();
                 if (method.MethodKind != MethodKind.Ordinary || method.DeclaredAccessibility != Accessibility.Public) continue;
                 var signature = method.Name + "`" + method.Arity + "(" + string.Join(",", method.Parameters.Select(parameter => parameter.RefKind + ":" + TypeName(parameter.Type))) + ")";
                 if (!seen.Add(signature) || method.IsStatic || method.IsGenericMethod || method.IsAbstract ||
@@ -365,7 +543,5 @@ public sealed class HostedAccessorGenerator : IIncrementalGenerator
         {
             for (var current = type; current != null; current = current.BaseType) yield return current;
         }
-        private static IEnumerable<INamedTypeSymbol> Types(INamespaceSymbol ns) => ns.GetTypeMembers()
-            .Concat(ns.GetNamespaceMembers().SelectMany(Types));
     }
 }

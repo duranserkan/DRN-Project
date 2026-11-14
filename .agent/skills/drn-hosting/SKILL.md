@@ -48,13 +48,13 @@ Swagger UI prefixes use nonempty ASCII letter, digit, hyphen or underscore segme
 
 README **Source-Known Controllers** owns all variants. DRN0026 requires named policies. SPA APIs select bearer-only schemes; cookie APIs need application antiforgery. Keep resource checks in application code. Disable actions with `[NonAction]` and omit accessors. `IgnoreApi` only hides documentation.
 
-Use `PageCollectionBase<ExamplePageFor>.PageCollection` and `(ExampleEndpointFor)EndpointCollectionBase<ExampleProgram>.EndpointCollection!`. Pages self-initialize; APIs require endpoint initialization. Never cache request URLs or authorization results statically.
+Use typed `PageCollection`/`EndpointCollection` singletons. Return the latter from `ConfigureEndpointCollection` for startup binding, including generated roots. README owns base-type migration. Never cache request URLs or authorization results statically.
 
 `EndpointName` is a label, not a registered name. Inventory runtime names before assertions. `Path(...)` only formats templates; use `Url.Endpoint` for routing, constraints, encoding and request prefixes.
 
 Typed links reject shared MVC addresses. See README.
 
-Hosting ships net10.0 generation via buildTransitive/shared targets. SDK Web opt-in: `[assembly: HostedAccessors(typeof(ExampleProgram))]`. Enable `Pages` for Razor. Keep `Get` handwritten. Prefer direct routes; retain shared contract constants. Legacy route metadata infers one standard template; overrides win. Runtime routing is authoritative. Parameter/constraint generation is TODO. README **Automatic hosted accessors** owns conventions and limits.
+Hosting ships net10.0 generation via buildTransitive/shared targets. SDK Web opt-in: `[assembly: HostedAccessors(typeof(ExampleProgram))]`. Razor detection is automatic. No pages means an empty root. Keep `Get` and route constants handwritten. Omit conventional override paths. Legacy route metadata infers one standard template; overrides win. Runtime routing is authoritative. Parameter/constraint generation is TODO. README **Automatic hosted accessors** owns conventions and limits.
 
 Prefer MVC page/action routing or `Url.Endpoint(endpoint, values)` for initialized APIs. Use `~/` for application-relative HTML/HTMX URLs and `Url.Content` in C#. Reserve `Request.ApplicationUrl` for configured destinations such as MFA pages. Preserve validated return URLs. See README **Application URLs**.
 

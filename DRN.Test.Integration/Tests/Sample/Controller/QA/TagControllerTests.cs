@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.Utils.Data.Serialization;
 using DRN.Test.Integration.Tests.Sample.Controller.Helpers;
@@ -31,16 +30,22 @@ public class TagControllerTests
         var createdTags = new List<TagDto>();
         for (var index = 0; index < 4; index++)
         {
-            var request = new TagPostRequest { Name = $"Standard tag {index}" };
-            request.Model.Other = index;
-            request.Model.StringValue = "Liberté";
-            request.Model.Type = TagType.User;
+            var request = new TagPostRequest
+            {
+                Name = $"Standard tag {index}",
+                Model =
+                {
+                    Other = index,
+                    StringValue = "Liberté",
+                    Type = TagType.User
+                }
+            };
             using var created = await client.PostAsJsonAsync(endpoints.PostAsync.Path(), request);
             created.StatusCode.Should().Be(HttpStatusCode.Created);
             created.Headers.Location.Should().BeNull();
             var dto = await created.Content.ReadFromJsonAsync<TagDto>();
             dto.Should().NotBeNull();
-            dto!.Id.Should().NotBeEmpty();
+            dto.Id.Should().NotBeEmpty();
             dto.Name.Should().Be(request.Name);
             dto.Model.Should().BeEquivalentTo(request.Model);
             createdTags.Add(dto);
@@ -58,7 +63,7 @@ public class TagControllerTests
             .AppendQueryParam("totalCount", 1000000);
         var options = await client.GetFromJsonAsync<PaginationResultModel<TagDto>>(optionsUrl);
         options.Should().NotBeNull();
-        options!.Items.Should().HaveCount(1);
+        options.Items.Should().HaveCount(1);
         options.Info.Request.PageSize.MaxSize.Should().Be(100);
         options.Info.Total.Count.Should().Be(-1);
 
@@ -66,7 +71,7 @@ public class TagControllerTests
         var firstUrl = endpoints.PaginateAsync.Path().AppendQueryParam(firstRequest.Serialize(SerializationMethod.QueryString));
         var first = await client.GetFromJsonAsync<PaginationResultModel<TagDto>>(firstUrl);
         first.Should().NotBeNull();
-        first!.Items.Should().HaveCount(1);
+        first.Items.Should().HaveCount(1);
         first.Info.Request.PageNumber.Should().Be(1);
         first.Info.Total.Count.Should().BeGreaterThanOrEqualTo(3);
         first.Info.HasNext.Should().BeTrue();
@@ -76,7 +81,7 @@ public class TagControllerTests
             .AppendQueryParam(first.Info.RequestNextPage().Serialize(SerializationMethod.QueryString));
         var second = await client.GetFromJsonAsync<PaginationResultModel<TagDto>>(nextUrl);
         second.Should().NotBeNull();
-        second!.Info.Request.PageNumber.Should().Be(2);
+        second.Info.Request.PageNumber.Should().Be(2);
         second.Items.Should().HaveCount(1);
         second.Items[0].Id.Should().NotBe(first.Items[0].Id);
         second.Info.Total.Count.Should().Be(-1);
@@ -86,7 +91,7 @@ public class TagControllerTests
         thirdResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var third = await thirdResponse.Content.ReadFromJsonAsync<PaginationResultModel<TagDto>>();
         third.Should().NotBeNull();
-        third!.Info.Request.PageNumber.Should().Be(3);
+        third.Info.Request.PageNumber.Should().Be(3);
         third.Info.TotalCountUpdated.Should().BeTrue();
         third.Items.Should().HaveCount(1);
 
@@ -94,7 +99,7 @@ public class TagControllerTests
         previousResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var previous = await previousResponse.Content.ReadFromJsonAsync<PaginationResultModel<TagDto>>();
         previous.Should().NotBeNull();
-        previous!.Info.Request.PageNumber.Should().Be(2);
+        previous.Info.Request.PageNumber.Should().Be(2);
         previous.Items.Select(item => item.Id).Should().Equal(second.Items.Select(item => item.Id));
         previous.Info.Request.PageSize.MaxSize.Should().Be(100);
         previous.Info.Total.Count.Should().Be(-1);

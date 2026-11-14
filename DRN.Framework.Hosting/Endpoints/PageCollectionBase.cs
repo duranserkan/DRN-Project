@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace DRN.Framework.Hosting.Endpoints;
 
+[SuppressMessage("ReSharper", "StaticMemberInGenericType")]
 public abstract class PageCollectionBase<TPageCollection>
     where TPageCollection : PageCollectionBase<TPageCollection>, new()
 {

@@ -6,7 +6,7 @@ namespace Sample.Hosted.Controllers.Sample;
 
 [AllowAnonymous]
 [ApiController]
-[Route("/Api/Sample/[controller]")]
+[Route(ControllerRoutes.Sample)]
 public class ExceptionController(IExceptionUtils exceptionUtils, IAppSettings appSettings) : ControllerBase
 {
     private const string ExceptionMessage = "DrnTest";

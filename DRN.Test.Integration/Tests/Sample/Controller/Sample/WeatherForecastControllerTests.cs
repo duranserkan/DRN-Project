@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
 using DRN.Framework.Hosting.Nexus;
 using DRN.Framework.Utils.Models.Sample;
 using DRN.Nexus.Hosted;

@@ -282,9 +282,9 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         services.AddSingleton<IEndpointAccessor>(sp =>
         {
             var endpointHelper = sp.GetRequiredService<IEndpointHelper>();
-            var endpoints = EndpointCollectionBase<TProgram>.Endpoints;
-            var pageEndpoints = EndpointCollectionBase<TProgram>.PageEndpoints;
-            var apiEndpoints = EndpointCollectionBase<TProgram>.ApiEndpoints;
+            var endpoints = EndpointCatalog<TProgram>.Endpoints;
+            var pageEndpoints = EndpointCatalog<TProgram>.PageEndpoints;
+            var apiEndpoints = EndpointCatalog<TProgram>.ApiEndpoints;
             return new EndpointAccessor(endpointHelper, endpoints, apiEndpoints, pageEndpoints, typeof(TProgram));
         });
 
@@ -605,7 +605,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     //todo: evaluate and add native support for Minimal APIs in DrnProgramBase:
     // - MapMinimalEndpoints(WebApplication application, IAppSettings appSettings) extension point
     // - Configure HttpJsonOptions with JsonConventions.SetHtmlSafeWebJsonDefaults
-    // - Extend EndpointCollectionBase<TProgram> and DrnEndpointSource to discover and index RouteEndpoints with MethodInfo/Delegate metadata
+    // - Extend endpoint collection binding and DrnEndpointSource to index RouteEndpoints with MethodInfo/Delegate metadata
     // - Ensure MFA requirements and authorization policies seamlessly evaluate minimal endpoint metadata
     /// <summary>
     /// Override to add application routes, such as health checks or minimal endpoints, alongside MVC and Razor Pages.
@@ -787,6 +787,9 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         options.AddSwagger = appSettings.IsDevelopmentEnvironment;
     }
 
+    /// <summary>Returns the program's typed singleton, or null when no controller accessors need binding.</summary>
+    protected virtual EndpointCollection<TProgram>? ConfigureEndpointCollection() => null;
+
     /// <summary>
     /// Override to validate mapped routes at startup, for example to reject missing endpoint metadata before serving requests.
     /// </summary>
@@ -801,7 +804,7 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         // We don't know if user code called UseEndpoints(), so we will call it just in case, UseEndpoints() will ignore duplicate DataSources
         application.UseEndpoints(_ => { });
         var helper = application.Services.GetRequiredService<IEndpointHelper>();
-        EndpointCollectionBase<TProgram>.SetEndpointDataSource(helper);
+        EndpointCatalog<TProgram>.SetEndpointDataSource(helper, ConfigureEndpointCollection());
     }
 
     /// <summary>

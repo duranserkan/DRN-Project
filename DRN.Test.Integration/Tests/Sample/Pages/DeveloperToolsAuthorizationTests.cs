@@ -129,7 +129,7 @@ public class DeveloperToolsAuthorizationTests
         var html = await landingResponse.Content.ReadAsStringAsync();
         html.Should().Contain($"name=\"drn-app-base\" content=\"{pathBase}/\"")
             .And.Contain($"href=\"{pathBase}{Get.Page.Root.Home}\"")
-            .And.Contain($"src=\"{pathBase}{Get.Endpoint.User.PP.ControllerRoute}/{user.Id}?v=")
+            .And.Contain($"src=\"{pathBase}{Get.Endpoint.User.Profile.ProfilePicture.ControllerRoute}/{user.Id}?v=")
             .And.NotContain("hx-post=\"~/");
         html.Contains($"href=\"{pathBase}{Get.Page.Root.Swagger}\"").Should().Be(swaggerAllowed);
         html.Contains($"href=\"{pathBase}{Get.Page.Test.DeveloperView}\"").Should().Be(testPagesAllowed);

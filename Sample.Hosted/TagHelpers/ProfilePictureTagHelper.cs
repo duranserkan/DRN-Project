@@ -25,7 +25,7 @@ public class ProfilePictureTagHelper(IUrlHelperFactory urlHelperFactory) : TagHe
         output.TagMode = TagMode.SelfClosing;
 
         // Include the user id so browser caches are partitioned by account even when PPVersion values match.
-        var src = urlHelperFactory.GetUrlHelper(ViewContext).Endpoint(Get.Endpoint.User.PP.Get,
+        var src = urlHelperFactory.GetUrlHelper(ViewContext).Endpoint(Get.Endpoint.User.Profile.ProfilePicture.Get,
             new { userId = ScopeContext.UserId, v = Get.Claim.Profile.PPVersion });
         output.Attributes.SetAttribute("src", src);
         output.Attributes.SetAttribute("alt", Alt ?? "Profile Picture");

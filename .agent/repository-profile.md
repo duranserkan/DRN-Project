@@ -13,7 +13,7 @@
 
 ## Layout
 
-Physical project folders are flat. `DRN.slnx` supplies logical groups. `docs/solution-structure.md` owns project roles and solution grouping. Resolve repository paths in this profile from the repository root.
+Folders are flat; `DRN.slnx` groups them. `docs/solution-structure.md` owns roles. Paths are repository-relative.
 
 | Area | Paths |
 |---|---|
@@ -77,6 +77,7 @@ dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 - DI/configuration: use DRN attributes. Do not manually register attribute-decorated services. Follow `overview-drn-framework` and `drn-utils`.
 - Identity: explicit `NexusAppSettings:AppId` and `AppInstanceId` in every environment; zero is valid. Use Source-Known IDs and entity metadata. DTOs derive from `Dto`, live in `*.Contract`, and expose `Guid` IDs, not entities. `drn-sharedkernel` and `drn-utils` own identity formats, time configuration, and lifecycle contracts.
 - Runtime access: prefer `[UnsafeAccessor]` when target types are known and accessible at compile time. Reserve reflection for dynamically discovered types.
+- `drn-hosting` owns typed roots, `ConfigureEndpointCollection`, and automatic Razor detection.
 - Logging: use `IScopedLog` for request/operation diagnostics. Direct `ILogger` is for bootstrap, scope flushing, or dedicated audit events. Do not duplicate full request logs in audit events. Dynamic classification is the application's responsibility; backend runtime capture has no name-based redaction fallback.
 - Testing: use `DrnTestContextUnit` in `DRN.Test.Unit`; full `DrnTestContext` belongs in integration tests. Reusable hosted test programs belong in `DRN.Test.Utils`, not MTP executables. `drn-testing` owns data attributes and fixture contracts. Do not weaken production invariants for tests.
 - Frontend: `Sample.Hosted/buildwww/` builds to `Sample.Hosted/wwwroot/`. See [assets](../Sample.Hosted/README.md#frontend-assets). Browser APIs use `window.DRN`. Preserve `DRN`, `Drn*`, and `DRN.Framework.*`. Hosting owns typed static-file header rules and robots.txt revalidation. See `drn-hosting`.

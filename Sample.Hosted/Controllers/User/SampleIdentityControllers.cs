@@ -5,20 +5,20 @@ using Sample.Domain.Users;
 
 namespace Sample.Hosted.Controllers.User;
 
-[Route("/Api/User/[controller]")]
+[Route(ControllerRoutes.User)]
 public class SampleIdentityLoginController : IdentityLoginControllerBase<SampleUser>;
 
-[Route("/Api/User/[controller]")]
+[Route(ControllerRoutes.User)]
 public class SampleIdentityPasswordController : IdentityPasswordControllerBase<SampleUser>;
 
-[Route("/Api/User/[controller]")]
+[Route(ControllerRoutes.User)]
 public class SampleIdentityManagementController : IdentityManagementControllerBase<SampleUser>
 {
     [Sensitive(false, Justification = "Email confirmation endpoint descriptor.")]
     public override ApiEndpoint EmailEndpoint => Get.Endpoint.User.Identity.RegisterController.ConfirmEmail;
 }
 
-[Route("/Api/User/[controller]")]
+[Route(ControllerRoutes.User)]
 public class SampleIdentityRegister : IdentityRegisterControllerBase<SampleUser>
 {
     [Sensitive(false, Justification = "Email confirmation endpoint descriptor.")]

@@ -17,6 +17,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
+*   **Typed endpoint collections**: Replace `EndpointCollectionBase<TProgram>` with `EndpointCollectionBase<TProgram, TCollection>` and return `TCollection.EndpointCollection` from the program's `ConfigureEndpointCollection` override. Collections are constructed directly instead of discovered through assembly scanning. Generated roots use the new base and also require the host hook. Use `IEndpointAccessor` for runtime endpoint lists instead of the removed base's static catalog properties. To replace `EndpointSource`, construct `DrnEndpointSource` from the accessor's endpoint helper data source.
+
 *   **Target framework**: Requires .NET 11 and ASP.NET Core 11.
 
 *   **Swagger UI defaults**: The browser-tab title defaults to the API name and OpenAPI version. Set `Title` or the UI callback's `DocumentTitle` to override it. UI prefixes accept only nonempty ASCII letter, digit, hyphen or underscore segments.
@@ -30,9 +32,9 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### New Features
 
-*   **Accessor route conventions**: Generated controller accessors infer legacy route metadata from a single distinct standard controller route template, including inherited declarations. Explicit `RouteTemplate` overrides, including empty values, take precedence. Multiple templates and custom route providers retain empty metadata. Runtime routing is unchanged.
+*   **Accessor route conventions**: Generated controller accessors infer legacy route metadata from a single distinct standard controller route template, including inherited declarations. Explicit `RouteTemplate` overrides, including empty values, take precedence. Controller overrides can omit the accessor path to retain the namespace convention. Multiple templates and custom route providers retain empty metadata. Runtime routing is unchanged.
 
-*   **Hosted accessor generation**: SDK Web hosts can opt into compiler-generated PageFor and EndpointFor collections. Hosting distributes the generator transitively through package build assets and the repository's shared project build targets. The generator targets net10.0 for IDE compiler-host compatibility while applications remain on net11.0. Libraries do not generate helpers. Host aliases and partial customization preserve existing access paths. Inherited Source-Known actions and `[NonAction]` exclusions are supported; runtime routing remains authoritative. Parameter/constraint generation remains deferred.
+*   **Hosted accessor generation**: SDK Web hosts can opt into compiler-generated PageFor and EndpointFor collections. Both roots are generated automatically. Razor `@page` inputs populate page members; hosts without page inputs receive an empty page collection. Hosting distributes the generator transitively through package build assets and the repository's shared project build targets. The generator targets net10.0 for IDE compiler-host compatibility while applications remain on net11.0. Libraries do not generate helpers. Host aliases and partial customization preserve existing access paths. Inherited Source-Known actions and `[NonAction]` exclusions are supported; runtime routing remains authoritative. Parameter/constraint generation remains deferred.
 
 *   **Source-Known Controllers**: Added `SourceKnownController` for combined reads and writes, plus `SourceKnownReadOnlyController` and `SourceKnownWriteOnlyController` for restricted endpoint sets. Reads provide bounded DTO lookup and pagination. DRN0026 requires explicit named authorization policies on exposed actions and rejects anonymous access. Writes require application mapping. API actions have no mandatory antiforgery filter; configure explicit bearer-only policies for SPA clients, or add antiforgery validation when enabling cookie authentication. Keep resource-specific authorization in application code. Override exposed actions with `[NonAction]` to remove their endpoints.
 

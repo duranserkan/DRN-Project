@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="../PackageBridge/PackageBridge.csproj" />
+    <Compile Include="../Shared/Program.cs" Link="Program.cs" />
+    <Content Include="../Shared/Index.cshtml" Link="Pages/Index.cshtml" />
+  </ItemGroup>
+</Project>

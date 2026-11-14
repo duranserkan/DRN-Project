@@ -11,7 +11,7 @@ namespace Sample.Hosted.Controllers.Sample;
 /// </summary>
 [ApiController]
 [Authorize]
-[Route("/Api/Sample/[controller]")]
+[Route(ControllerRoutes.Sample)]
 public class ClientErrorController(IScopedLog scopedLog, IDiagnosticSanitizer sanitizer) : ControllerBase
 {
     private static readonly DiagnosticCapturePolicy CapturePolicy = new(

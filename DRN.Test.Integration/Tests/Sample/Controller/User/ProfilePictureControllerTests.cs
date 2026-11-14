@@ -26,7 +26,7 @@ public class ProfilePictureControllerTests
         var user = await userManager.FindByEmailAsync(currentUser.Email);
         user.Should().NotBeNull();
 
-        var profilePicturePath = $"{Get.Endpoint.User.PP.ControllerRoute}/{user!.Id}";
+        var profilePicturePath = $"{Get.Endpoint.User.Profile.ProfilePicture.ControllerRoute}/{user.Id}";
 
         var ownResponse = await client.GetAsync(profilePicturePath);
         ownResponse.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -34,7 +34,7 @@ public class ProfilePictureControllerTests
         ownResponse.Headers.CacheControl!.Private.Should().BeTrue();
         ownResponse.Headers.CacheControl.MaxAge.Should().Be(TimeSpan.FromSeconds(31536000));
 
-        var noUserIdResponse = await client.GetAsync(Get.Endpoint.User.PP.ControllerRoute);
+        var noUserIdResponse = await client.GetAsync(Get.Endpoint.User.Profile.ProfilePicture.ControllerRoute);
         noUserIdResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 }

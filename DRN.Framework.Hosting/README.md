@@ -217,6 +217,7 @@ Static files served at step 2 bypass the request scope, authentication, authoriz
 
 | Hook | Purpose |
 | :--- | :--- |
+| `ConfigureEndpointCollection` | Returns the program's typed endpoint singleton for startup binding. Defaults to no typed controller accessors. |
 | `ValidateEndpoints` | Binds and validates controller endpoint accessors against mapped routes and records mapped page endpoints. |
 | `ValidateServicesAsync` | Scans the container for `[Attribute]` based registrations and ensures they are resolvable at startup via `ValidateServicesAddedByAttributesAsync`. |
 
@@ -853,10 +854,21 @@ Availability does not generate helpers in libraries. Generation requires SDK Web
 
 ```csharp
 using DRN.Framework.Hosting.Endpoints;
-[assembly: HostedAccessors(typeof(AppProgram), Pages = true)]
+[assembly: HostedAccessors(typeof(AppProgram))]
 ```
 
-The default namespace is the program namespace plus `.Helpers` (`Helpers` for a global-namespace program). Roots are `<ProgramStem>EndpointFor` and `<ProgramStem>PageFor`, under `.EndpointFor` and `.PageFor`. `Program` uses the stem `App`. Override `Namespace` or `Name` on the opt-in when needed. Leave `Pages` false for API-only hosts. Page generation uses Razor AdditionalFiles and logical TargetPath metadata; unavailable inputs produce `DRNHG001` rather than silently losing pages.
+Return the generated singleton from the program's startup hook:
+
+```csharp
+protected override EndpointCollection<AppProgram> ConfigureEndpointCollection()
+    => Helpers.EndpointFor.AppEndpointFor.EndpointCollection;
+```
+
+Generated endpoint roots inherit `EndpointCollectionBase<AppProgram, AppEndpointFor>`. Their inherited `EndpointCollection` property creates the typed singleton directly. Page roots expose their typed `PageCollection` property in the same way. Keep the endpoint hook configured so startup binds and validates the generated controller accessors.
+
+The default namespace is the program namespace plus `.Helpers` (`Helpers` for a global-namespace program). Roots are `<ProgramStem>EndpointFor` and `<ProgramStem>PageFor`, under `.EndpointFor` and `.PageFor`. `Program` uses the stem `App`. Override `Namespace` or `Name` on the opt-in when needed. Both roots are always generated. Razor Pages are detected automatically from `@page` directives in Razor AdditionalFiles using logical TargetPath metadata. Views, partials and Razor comments do not create page members. With no page inputs, the page root is empty and its `PageCollection.All` is empty. The `Pages` option has been removed.
+
+Discovery uses compiler inputs, not a filesystem scan. Keep Razor compilation and AdditionalFiles enabled for hosts with pages. Missing inputs yield an empty collection; invalid logical paths on supplied pages still report `DRNHG001`.
 
 Local controllers and their eligible inherited actions are discovered automatically. Source-Known generic read/write bases are supported. Most-derived `[NonAction]` overrides exclude actions; `IgnoreApi` does not. Action members keep CLR method names, including `Async`; runtime metadata supplies effective MVC action names, areas and routes. Generated bindings include the concrete controller and CLR parameter types, independently of member aliases. No default route names are registered.
 
@@ -864,14 +876,16 @@ Preserve host-specific groups with assembly declarations:
 
 ```csharp
 [assembly: AccessorGroup(typeof(AppProgram), "User.Identity", "UserIdentityFor")]
+[assembly: AccessorController(typeof(AppProgram), typeof(ExceptionController),
+    TypeName = "ExceptionControllerFor")]
 [assembly: AccessorController(typeof(AppProgram), typeof(RegisterController),
     "User.Identity.RegisterController", TypeName = "UserIdentityRegisterFor")]
 [assembly: AccessorMember(typeof(AppProgram), "Endpoint.User.Identity.RegisterController.ConfirmEmail", Name = "Confirm")]
 ```
 
-`AccessorController` also explicitly includes referenced controllers. Its optional `RouteTemplate` preserves the legacy `ControllerRoute` property; runtime MVC still owns actual routes. `Exclude = true` on controller/member declarations retains manual control. Member paths start with `Endpoint.` or `Page.`. Group mappings apply to endpoint groups. Unmapped controllers default to their relative Controllers namespace and a terminal `Controller` suffix is removed. Overloaded method names require exclusion and manual signature-bound accessors; unsupported declarations, collisions and stale configuration report `DRNHG001` with a remedy.
+`AccessorController` also explicitly includes referenced controllers. Omit its path when only a type name, route override or exclusion is needed. The path then follows the controller's relative Controllers namespace with a terminal `Controller` suffix removed. Explicit paths retain precedence. Its optional `RouteTemplate` preserves the legacy `ControllerRoute` property; runtime MVC still owns actual routes. `Exclude = true` on controller/member declarations retains manual control. Member paths start with `Endpoint.` or `Page.`. Group mappings apply to endpoint groups. Overloaded method names require exclusion and manual signature-bound accessors; unsupported declarations, collisions and stale configuration report `DRNHG001` with a remedy.
 
-When `RouteTemplate` is omitted, legacy `ControllerRoute` metadata uses one distinct standard MVC `[Route]` template from the controller or its base classes. Multiple distinct templates, custom route providers or no template produce empty metadata. An explicit override wins, including `RouteTemplate = ""`. Runtime routing remains authoritative. Prefer direct controller route values; shared contract constants can remain handwritten. Do not reference generator-produced constants from routing declarations.
+When `RouteTemplate` is omitted, legacy `ControllerRoute` metadata uses one distinct standard MVC `[Route]` template from the controller or its base classes. Multiple distinct templates, custom route providers or no template produce empty metadata. An explicit override wins, including `RouteTemplate = ""`. Runtime routing remains authoritative. Keep repeated route templates in handwritten controller-owned constants and retain shared contract constants. Do not reference generator-produced constants from routing declarations.
 
 Generated types are public partial classes. Keep custom members in authored partials. Explicitly exclude a generated member before replacing it manually. Keep `Get` handwritten to preserve other host helpers and initialization order. Generated code belongs to the compiler, not the physical Helpers directory. Optional compiler output belongs under `obj`; do not check it in.
 
@@ -886,7 +900,7 @@ Typed parameter/constraint generation remains a TODO. Continue passing route/que
 Create application-owned endpoint and page collections:
 
 ```csharp
-public sealed class AppEndpoints : EndpointCollectionBase<Program>
+public sealed class AppEndpoints : EndpointCollectionBase<Program, AppEndpoints>
 {
     public UserEndpoints User { get; } = new();
 }
@@ -913,12 +927,21 @@ public sealed class UserPages : PageForBase
 public static class Get
 {
     public static AppEndpoints Endpoint { get; } =
-        (AppEndpoints)EndpointCollectionBase<Program>.EndpointCollection!;
+        AppEndpoints.EndpointCollection;
 
     public static AppPages Page { get; } =
-        PageCollectionBase<AppPages>.PageCollection;
+        AppPages.PageCollection;
 }
 ```
+
+Override the host hook to bind the singleton during startup:
+
+```csharp
+protected override EndpointCollection<Program> ConfigureEndpointCollection()
+    => AppEndpoints.EndpointCollection;
+```
+
+The one-parameter `EndpointCollectionBase<TProgram>` has been removed. Migrate manual roots to `EndpointCollectionBase<TProgram, TCollection>` and return their singleton from `ConfigureEndpointCollection`. Collection construction no longer scans the host assembly. The hook accepts only a collection for the matching program. Leave it unconfigured for hosts without typed controller accessors. Access runtime endpoint lists through `IEndpointAccessor` instead of the removed base's static catalog properties. Code that used `EndpointSource` can construct `DrnEndpointSource` from `IEndpointAccessor.EndpointHelper.EndpointDataSource`.
 
 ### 2. Usage in Code
 

@@ -1,4 +1,5 @@
 using DRN.Framework.Hosting.DrnProgram;
+using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
@@ -10,6 +11,8 @@ namespace Sample.Hosted;
 public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
 {
     public static async Task Main(string[] args) => await RunAsync(args);
+
+    protected override EndpointCollection<SampleProgram> ConfigureEndpointCollection() => SampleEndpointFor.EndpointCollection;
 
     protected override Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings, IScopedLog scopedLog)
         => Task.FromResult(builder.Services.AddSampleHostedServices(appSettings));
