@@ -3,6 +3,7 @@
 using System.Text;
 using System.Text.Encodings.Web;
 using DRN.Framework.Hosting.Endpoints;
+using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -43,7 +44,7 @@ public class IdentityConfirmationService(IServiceProvider serviceProvider, LinkG
         if (isChange) // This is validated by the /confirmEmail endpoint on change.
             routeValues.Add("changedEmail", email);
 
-        var confirmEmailUrl = linkGenerator.GetUriByAction(context, emailEndpoint.ActionMethodName, emailEndpoint.ControllerName, routeValues)!;
+        var confirmEmailUrl = linkGenerator.GetUriByEndpoint(context, emailEndpoint, routeValues);
 
         await emailSender.SendConfirmationLinkAsync(user, email, HtmlEncoder.Default.Encode(confirmEmailUrl));
     }

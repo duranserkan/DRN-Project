@@ -1,12 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net11.0</TargetFramework>
+        <!-- IDE compiler hosts run independently of the application's target framework. -->
+        <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
         <IsPackable>false</IsPackable>
         <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+        <!-- The supported compiler host floor is .NET 10, not .NET Framework. -->
         <NoWarn>$(NoWarn);RS1041</NoWarn>
         <PlatformTarget>AnyCPU</PlatformTarget>
         <RuntimeIdentifier />

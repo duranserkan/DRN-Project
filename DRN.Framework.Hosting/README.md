@@ -841,7 +841,45 @@ DRN provides typed accessor members for controller endpoints and Razor Page iden
 
 `ApiEndpoint.EndpointName` is an accessor label, not a registered route name. Use named-route generation only when the application's routing metadata actually registers that name. An action may have several route selectors; `RouteEndpoints` and `RoutePatterns` retain them all, while `RoutePattern` exposes the first pattern. Missing accessor bindings fail startup with a diagnostic pointing to application-part registration, action names and `[NonAction]` exclusions.
 
-### 1. Define Accessors
+`Url.Endpoint` and `GetUriByEndpoint` reject MVC addresses shared by different controller types or CLR methods. A concrete signature binding does not make the controller/action/area address unique. Use distinct MVC names or areas, or generate links through explicitly registered route names. Multiple selectors for the same action remain supported, and link-suppressed routes do not introduce competing destinations.
+
+### Automatic hosted accessors
+
+SDK Web hosts can opt in to generated helpers. The generator is included with Hosting. Its `buildTransitive` target exposes it to direct and transitive package consumers. In this repository, the shared `Directory.Build.targets` import provides it to project-reference consumers, including transitive ones. Hosts do not need a separate generator reference. Source projects outside this shared build tree must import Hosting's build target once at their common build root, since MSBuild does not propagate analyzer items through project references.
+
+The generator targets `net10.0` because IDE compiler hosts can run on .NET 10 independently of a `net11.0` application. It requires a .NET 10 or newer compiler host with compatible Roslyn 5.12 APIs. This does not lower the application target or change the solution SDK. If Rider cannot resolve generated roots, inspect its Roslyn worker logs for assembly-load errors and its Dependencies / Source Generators output. After rebuilding the generator, reload the solution so the IDE can load the updated assembly.
+
+Availability does not generate helpers in libraries. Generation requires SDK Web, an explicit opt-in, and a public concrete DRN program declared in that same project:
+
+```csharp
+using DRN.Framework.Hosting.Endpoints;
+[assembly: HostedAccessors(typeof(AppProgram), Pages = true)]
+```
+
+The default namespace is the program namespace plus `.Helpers` (`Helpers` for a global-namespace program). Roots are `<ProgramStem>EndpointFor` and `<ProgramStem>PageFor`, under `.EndpointFor` and `.PageFor`. `Program` uses the stem `App`. Override `Namespace` or `Name` on the opt-in when needed. Leave `Pages` false for API-only hosts. Page generation uses Razor AdditionalFiles and logical TargetPath metadata; unavailable inputs produce `DRNHG001` rather than silently losing pages.
+
+Local controllers and their eligible inherited actions are discovered automatically. Source-Known generic read/write bases are supported. Most-derived `[NonAction]` overrides exclude actions; `IgnoreApi` does not. Action members keep CLR method names, including `Async`; runtime metadata supplies effective MVC action names, areas and routes. Generated bindings include the concrete controller and CLR parameter types, independently of member aliases. No default route names are registered.
+
+Preserve host-specific groups with assembly declarations:
+
+```csharp
+[assembly: AccessorGroup(typeof(AppProgram), "User.Identity", "UserIdentityFor")]
+[assembly: AccessorController(typeof(AppProgram), typeof(RegisterController),
+    "User.Identity.RegisterController", TypeName = "UserIdentityRegisterFor")]
+[assembly: AccessorMember(typeof(AppProgram), "Endpoint.User.Identity.RegisterController.ConfirmEmail", Name = "Confirm")]
+```
+
+`AccessorController` also explicitly includes referenced controllers. Its optional `RouteTemplate` preserves the legacy `ControllerRoute` property; runtime MVC still owns actual routes. `Exclude = true` on controller/member declarations retains manual control. Member paths start with `Endpoint.` or `Page.`. Group mappings apply to endpoint groups. Unmapped controllers default to their relative Controllers namespace and a terminal `Controller` suffix is removed. Overloaded method names require exclusion and manual signature-bound accessors; unsupported declarations, collisions and stale configuration report `DRNHG001` with a remedy.
+
+Generated types are public partial classes. Keep custom members and route constants in authored partials. Explicitly exclude a generated member before replacing it manually. Keep `Get` handwritten to preserve other host helpers and initialization order. Generated code belongs to the compiler, not the physical Helpers directory. Optional compiler output belongs under `obj`; do not check it in.
+
+Endpoint accessor paths support up to five group segments followed by the controller member, such as `A.B.C.D.E.Items`. Deeper paths report `DRNHG001`; use a shorter `AccessorController` alias. Pages in folders or areas that are not C# identifiers can be excluded using their original path, such as `Page.user-profile.Edit`, and handled manually. Exclusions in valid groups preserve those groups for handwritten partial replacements.
+
+Pages use file identities, not custom `@page` URLs. Root files group under `Root`; folders form nested groups. Area pages group under `Areas.<Area>` and the leaf group declares a static `Area` constant. Pass that area explicitly to `Url.Page` or tag helpers. Referenced Razor inputs must be explicitly supplied with their logical TargetPath. Generated page strings self-initialize; controller metadata binds during the existing per-program startup validation. Runtime-only MVC conventions remain usable through manual accessors and normal MVC routing. A generated action missing at runtime fails binding clearly.
+
+Typed parameter/constraint generation remains a TODO. Continue passing route/query values to `Url.Endpoint`; runtime constraints and encoding remain authoritative. For absolute identity links use `LinkGenerator.GetUriByEndpoint(HttpContext, endpoint, values)`, which shares effective-action and destination-area validation with `Url.Endpoint` and uses the processed request origin and PathBase.
+
+### 1. Define manual accessors
 
 Create application-owned endpoint and page collections:
 

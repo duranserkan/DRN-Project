@@ -25,7 +25,9 @@ Physical project folders are flat. `DRN.slnx` supplies logical groups. `docs/sol
 | Agent and CI | `.agent/`, `.github/workflows/`, `.github/actions/` |
 | Docs | `README.md`, `ROADMAP.md`, `SECURITY.md`, `NOTICE.md`, `docs/` |
 
-`docs/quick-start.md` owns prerequisites, installation, build/test commands, and setup. The root README links standalone guides under Documentation; its TOC links only to README sections. `Sample.Hosted/README.md` owns startup, developer access, browser behavior, and frontend commands. Package docs live in each module's `README.md` and `RELEASE-NOTES.md`.
+`docs/quick-start.md` owns setup and commands. Root README links standalone guides; its TOC links only its own sections. `Sample.Hosted/README.md` owns host/frontend usage. Module READMEs and RELEASE-NOTES own package docs.
+
+Tooling uses net10.0: Hosting.Generators, SharedKernel.Analyzers/CodeFixes. Apps use net11.0. See package READMEs. Maps: `Helpers/AccessorDeclarations.cs`.
 
 ## Skill Routing
 

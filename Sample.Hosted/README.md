@@ -18,6 +18,8 @@ This guide covers local startup, developer tools, error handling, notifications,
 
 ## Run locally
 
+Sample's PageFor and EndpointFor declarations are compiler-generated. `Helpers/AccessorDeclarations.cs` opts in and preserves controller aliases. Authored partials retain route constants and compatibility page destinations. `Get.Page` and `Get.Endpoint` keep their existing access patterns. Add ordinary local controllers or Razor pages without adding handwritten accessor leaves. See [automatic hosted accessors](../DRN.Framework.Hosting/README.md#automatic-hosted-accessors) for exclusions, diagnostics and output ownership.
+
 Install the [.NET SDK required by the repository](../docs/quick-start.md#prerequisites) and keep Docker running. From the repository root:
 
 ```bash

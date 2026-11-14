@@ -43,12 +43,16 @@ public class UrlHelperEndpointTests
         context.ServiceCollection.AddSingleton<EndpointDataSource>(new DefaultEndpointDataSource(routes));
         var http = new DefaultHttpContext { RequestServices = context };
         http.Request.PathBase = pathBase;
+        http.Request.Scheme = "https";
+        http.Request.Host = new HostString("example.test");
         http.SetEndpoint(target);
         var routeData = new RouteData();
         routeData.Values["area"] = ambientArea;
         var url = new UrlHelperFactory().GetUrlHelper(new ActionContext(http, routeData, new ControllerActionDescriptor()));
 
         url.Endpoint(endpoint, new { id = "a b", q = "one&two" }).Should().Be(expected);
+        context.GetRequiredService<LinkGenerator>().GetUriByEndpoint(http, endpoint, new { id = "a b", q = "one&two" })
+            .Should().Be("https://example.test" + expected);
     }
 
     [Theory]
@@ -94,6 +98,69 @@ public class UrlHelperEndpointTests
         Action invalid = () => url.Endpoint(endpoint, new { id = "not-a-guid" });
         missing.Should().Throw<InvalidOperationException>().WithMessage("*Could not generate a URL*");
         invalid.Should().Throw<InvalidOperationException>().WithMessage("*Could not generate a URL*");
+    }
+
+    [Theory]
+    [DataInlineUnit("controller", true)]
+    [DataInlineUnit("overload", true)]
+    [DataInlineUnit("selector", false)]
+    [DataInlineUnit("area", false)]
+    [DataInlineUnit("suppressed", false)]
+    public void Endpoint_Should_Reject_Competing_Mvc_Addresses_Without_Rejecting_Selectors_Or_Areas(
+        DrnTestContextUnit context, string scenario, bool ambiguous)
+    {
+        var target = new ControllerActionDescriptor
+        {
+            ActionName = "Read", ControllerName = "Items", ControllerTypeInfo = typeof(ItemsController).GetTypeInfo(),
+            MethodInfo = typeof(ItemsController).GetMethod(nameof(ItemsController.ReadAsync), Type.EmptyTypes)!
+        };
+        var competingType = scenario == "overload" || scenario == "selector" ? typeof(ItemsController) : typeof(OtherItemsController);
+        var competing = new ControllerActionDescriptor
+        {
+            ActionName = "Read", ControllerName = "Items", ControllerTypeInfo = competingType.GetTypeInfo(),
+            MethodInfo = competingType.GetMethod(nameof(ItemsController.ReadAsync), scenario == "overload" ? [typeof(string)] : Type.EmptyTypes)!
+        };
+        competing.RouteValues["area"] = scenario == "area" ? "Admin" : "";
+        var actions = new[] { target, competing };
+        var routes = actions.Select((action, index) =>
+        {
+            action.RouteValues.TryGetValue("area", out var area);
+            area ??= "";
+            var identity = new RouteValueDictionary { ["action"] = "Read", ["controller"] = "Items", ["area"] = area };
+            var metadata = new List<object> { action };
+            if (index == 1 && scenario == "suppressed") metadata.Add(new SuppressLinkGenerationMetadata());
+            return new RouteEndpoint(static _ => Task.CompletedTask,
+                RoutePatternFactory.Parse(index == 0 ? "/items/{id}" : "/alternative/{id}", identity, parameterPolicies: null, requiredValues: identity),
+                index, new EndpointMetadataCollection(metadata), $"Read-{index}");
+        }).ToArray();
+        var source = new DrnEndpointSource(new DefaultEndpointDataSource(routes));
+        var endpoint = new ApiEndpoint(typeof(ItemsController), nameof(ItemsController.ReadAsync), Type.EmptyTypes);
+        endpoint.SetEndPoint(source);
+        endpoint.RouteEndpoints.Should().HaveCount(scenario == "selector" ? 2 : 1);
+
+        context.ServiceCollection.AddLogging();
+        context.ServiceCollection.AddRouting();
+        context.ServiceCollection.AddSingleton<EndpointDataSource>(source.EndpointDataSource);
+        var http = new DefaultHttpContext { RequestServices = context };
+        http.Request.PathBase = "/gateway";
+        http.Request.Scheme = "https";
+        http.Request.Host = new HostString("example.test");
+        http.SetEndpoint(routes[0]);
+        var url = new UrlHelperFactory().GetUrlHelper(new ActionContext(http, new RouteData(), new ControllerActionDescriptor()));
+        var generator = context.GetRequiredService<LinkGenerator>();
+        var values = new { id = "a b", q = "one&two" };
+        if (ambiguous)
+        {
+            Action path = () => url.Endpoint(endpoint, values);
+            Action uri = () => generator.GetUriByEndpoint(http, endpoint, values);
+            path.Should().Throw<InvalidOperationException>().WithMessage("*shares its MVC address*explicitly named routing*");
+            uri.Should().Throw<InvalidOperationException>().WithMessage("*shares its MVC address*explicitly named routing*");
+        }
+        else
+        {
+            url.Endpoint(endpoint, values).Should().Be("/gateway/items/a%20b?q=one%26two");
+            generator.GetUriByEndpoint(http, endpoint, values).Should().Be("https://example.test/gateway/items/a%20b?q=one%26two");
+        }
     }
 
     [Theory]
@@ -174,5 +241,14 @@ public class UrlHelperEndpointTests
         return endpoint;
     }
 
-    private sealed class ItemsController : ControllerBase { }
+    private sealed class ItemsController : ControllerBase
+    {
+        public void ReadAsync() { }
+        public void ReadAsync(string id) { }
+    }
+
+    private sealed class OtherItemsController : ControllerBase
+    {
+        public void ReadAsync() { }
+    }
 }

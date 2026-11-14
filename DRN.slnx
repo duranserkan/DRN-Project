@@ -134,6 +134,7 @@
   <Folder Name="/Src/Framework/">
     <Project Path="DRN.Framework.EntityFramework\DRN.Framework.EntityFramework.csproj" />
     <Project Path="DRN.Framework.Hosting\DRN.Framework.Hosting.csproj" />
+    <Project Path="DRN.Framework.Hosting.Generators\DRN.Framework.Hosting.Generators.csproj" />
     <Project Path="DRN.Framework.Jobs\DRN.Framework.Jobs.csproj" />
     <Project Path="DRN.Framework.MassTransit\DRN.Framework.MassTransit.csproj" />
     <Project Path="DRN.Framework.SharedKernel\DRN.Framework.SharedKernel.csproj" />

@@ -1,5 +1,6 @@
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Extensions;
+using DRN.Framework.SharedKernel.Attributes;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
@@ -27,7 +28,7 @@ public class SampleEndpointForTests
             var action = route.Metadata.GetMetadata<ControllerActionDescriptor>();
             if (action == null) continue;
             action.RouteValues.TryGetValue("area", out var area);
-            Xunit.TestContext.Current.TestOutputHelper?.WriteLine(
+            TestContext.Current.TestOutputHelper?.WriteLine(
                 $"{action.ControllerTypeInfo.FullName}.{action.MethodInfo} | action={action.ActionName} | " +
                 $"area={area} | pattern={route.RoutePattern.RawText} | order={route.Order} | " +
                 $"methods={string.Join(',', route.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods ?? [])} | " +
@@ -42,13 +43,24 @@ public class SampleEndpointForTests
         var confirmationEndpoints = Get.Endpoint.User.Identity.RegisterController.Endpoints;
         confirmationEndpoints.Should().HaveCountGreaterThan(0);
 
-        var http = new DefaultHttpContext { RequestServices = application.Services };
-        http.Request.PathBase = "/gateway";
+        var http = new DefaultHttpContext
+        {
+            RequestServices = application.Services,
+            Request =
+            {
+                PathBase = "/gateway"
+            }
+        };
         http.SetEndpoint(confirmEmailEndpoint.RouteEndpoints[0]);
-        var ambient = new RouteData();
-        ambient.Values["area"] = "UnrelatedArea";
+        var ambient = new RouteData
+        {
+            Values =
+            {
+                ["area"] = "UnrelatedArea"
+            }
+        };
         var url = new UrlHelperFactory().GetUrlHelper(new ActionContext(http, ambient, new ControllerActionDescriptor()));
-        var values = new { userId = "test user", code = "one&two" };
+        var values = new ConfirmationRouteValues("test user", "one&two");
         var generated = url.Endpoint(confirmEmailEndpoint, values);
         generated.Should().Be("/gateway/Api/User/SampleIdentityRegister/ConfirmEmail?userId=test%20user&code=one%26two");
 
@@ -67,6 +79,8 @@ public class SampleEndpointForTests
         AssertSourceKnownActions<CategoryController>(routes, Get.Endpoint.QA.Category.Endpoints,
             "GetAsync", "PaginateAsync", "PaginateWithBodyAsync", "PaginateWithOptionsAsync", "PostAsync");
     }
+
+    private sealed record ConfirmationRouteValues(string userId, [property: Sensitive] string code);
 
     private static void AssertSourceKnownActions<TController>(RouteEndpoint[] routes, ApiEndpoint[] accessors, params string[] expected)
     {

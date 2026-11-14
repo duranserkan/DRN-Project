@@ -72,6 +72,38 @@ public class ApiEndpointTests
         new(static _ => Task.CompletedTask, RoutePatternFactory.Parse(pattern), 0,
             new EndpointMetadataCollection(descriptor), pattern);
 
+    [Fact]
+    public void Signature_Binding_Should_Use_Concrete_Controller_And_Clr_Method_Not_Mvc_Name()
+    {
+        var read = typeof(OverloadedController).GetMethod(nameof(OverloadedController.ReadAsync), [typeof(int)])!;
+        var other = typeof(OverloadedController).GetMethod(nameof(OverloadedController.ReadAsync), [typeof(string)])!;
+        var descriptor = new ControllerActionDescriptor
+        {
+            ControllerTypeInfo = typeof(OverloadedController).GetTypeInfo(), ControllerName = "ConventionName",
+            ActionName = "Renamed", MethodInfo = read
+        };
+        var second = new ControllerActionDescriptor
+        {
+            ControllerTypeInfo = typeof(OverloadedController).GetTypeInfo(), ControllerName = "ConventionName",
+            ActionName = "Other", MethodInfo = other
+        };
+        var source = new DrnEndpointSource(new DefaultEndpointDataSource(Route("/renamed/{id:int}", descriptor), Route("/other/{id}", second)));
+        var parameters = new[] { typeof(int) };
+        var endpoint = new ApiEndpoint(typeof(OverloadedController), "ReadAsync", parameters);
+        parameters[0] = typeof(string);
+
+        endpoint.SetEndPoint(source);
+
+        endpoint.ActionDescriptor.Should().Equal(descriptor);
+        endpoint.RoutePattern.Should().Be("/renamed/{id:int}");
+    }
+
+    private sealed class OverloadedController : ControllerBase
+    {
+        public void ReadAsync(int id) { }
+        public void ReadAsync(string id) { }
+    }
+
     private sealed class ItemsController : ControllerBase
     {
         public void Read() { }

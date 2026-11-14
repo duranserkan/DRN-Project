@@ -145,6 +145,8 @@ Entity and aggregate base constructors accept an optional internal `long id = 0`
 
 ### Compile-Time Roslyn Analyzers
 
+The analyzer and code-fix assemblies target `net10.0` for IDE compiler-host compatibility. Runtime and application projects remain on `net11.0`. Tooling requires a .NET 10 or newer host with compatible Roslyn 5.12 APIs. An IDE worker's runtime is independent of the application's target framework. After rebuilding changed tooling assemblies, reload the solution if the IDE still reports assembly-load failures.
+
 Register one project catalog as EmbeddedResource or AdditionalFiles. Build targets forward it to compiler analysis and publish metadata retained in reference assemblies. Analyzers inherit catalogs from referenced SharedKernel consumers without loading dependency code. Legacy diagnostic-rules.json is accepted. Identical files are deduplicated; distinct own catalogs are rejected. DRN0021 reports invalid catalogs. Rules are isolated per compilation. Backend runtime uses explicit classifications rather than catalog name matching. See [configuration and schema](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#project-classification-rules).
 
 The shared catalog includes `cvv`, `cvc`, `pincode`, `username`, `firstname`, `lastname`, `dateofbirth`, `birthdate`, and `iban`. Matching public readable properties require classification or a reviewed false-positive annotation, including case and separator variants.

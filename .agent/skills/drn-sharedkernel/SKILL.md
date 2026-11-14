@@ -48,6 +48,8 @@ Use `JsonConventions.DefaultOptions` for framework serialization, including Web 
 
 ## Attributes
 
+Analyzer/code-fix assemblies target net10.0 independently of net11.0 applications. The package README owns compiler-host requirements and reload guidance. Keep packaged DLL paths aligned with tooling targets.
+
 DRN0026 requires explicit nonblank authorization policies on exposed SourceKnown controller actions, including inherited actions. Anonymous actions are rejected. `[NonAction]` is exempt, `IgnoreApi` is not. Hosting owns runtime policies and application resource checks.
 
 Use `[Sensitive]`, `[Personal]` or their derived attributes for protected members. Mapped interface classifications cover concrete and nested captures. Scoped logging reads classified getters once. Direct sanitization skips them. `[IgnoreLog]` excludes capture but leaves declaration analysis active. Apply these rules to fixtures too. Use named annotated models for matching anonymous properties, including nested and inferred members.
