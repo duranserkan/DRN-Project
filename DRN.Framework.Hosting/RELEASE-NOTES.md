@@ -17,6 +17,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
+*   **Typed endpoint collections**: Replace `EndpointCollectionBase<TProgram>` with `EndpointCollectionBase<TProgram, TCollection>` and return `TCollection.EndpointCollection` from the program's `ConfigureEndpointCollection` override. Collections are constructed directly instead of discovered through assembly scanning. Generated roots use the new base and also require the host hook. Use `IEndpointAccessor` for runtime endpoint lists instead of the removed base's static catalog properties. To replace `EndpointSource`, construct `DrnEndpointSource` from the accessor's endpoint helper data source.
+
 *   **Target framework**: Requires .NET 11 and ASP.NET Core 11.
 
 *   **Swagger UI defaults**: The browser-tab title defaults to the API name and OpenAPI version. Set `Title` or the UI callback's `DocumentTitle` to override it. UI prefixes accept only nonempty ASCII letter, digit, hyphen or underscore segments.
@@ -30,6 +32,10 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### New Features
 
+*   **Accessor route conventions**: Generated controller accessors infer legacy route metadata from a single distinct standard controller route template, including inherited declarations. Explicit `RouteTemplate` overrides, including empty values, take precedence. Controller overrides can omit the accessor path to retain the namespace convention. Multiple templates and custom route providers retain empty metadata. Runtime routing is unchanged.
+
+*   **Hosted accessor generation**: SDK Web hosts can opt into compiler-generated PageFor and EndpointFor collections. Both roots are generated automatically. Razor `@page` inputs populate page members; hosts without page inputs receive an empty page collection. Hosting distributes the generator transitively through package build assets and the repository's shared project build targets. The generator targets net10.0 for IDE compiler-host compatibility while applications remain on net11.0. Libraries do not generate helpers. Host aliases and partial customization preserve existing access paths. Inherited Source-Known actions and `[NonAction]` exclusions are supported; runtime routing remains authoritative. Parameter/constraint generation remains deferred.
+
 *   **Source-Known Controllers**: Added `SourceKnownController` for combined reads and writes, plus `SourceKnownReadOnlyController` and `SourceKnownWriteOnlyController` for restricted endpoint sets. Reads provide bounded DTO lookup and pagination. DRN0026 requires explicit named authorization policies on exposed actions and rejects anonymous access. Writes require application mapping. API actions have no mandatory antiforgery filter; configure explicit bearer-only policies for SPA clients, or add antiforgery validation when enabling cookie authentication. Keep resource-specific authorization in application code. Override exposed actions with `[NonAction]` to remove their endpoints.
 
 *   **Swagger UI options**: Set `AddSwaggerUI = false` to retain the OpenAPI document without the UI. Set `DrnPageOptions.FaviconUrl` to supply a local browser-tab icon that respects deployment prefixes.
@@ -41,10 +47,12 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **Custom Browser Error Pages**: `DrnPageOptions` in `DRN.Framework.Hosting` configures application-owned Razor pages for 5xx, 404, and 400 errors. Pages preserve status codes, expose `RequestId`, and have a redacted fallback. Custom pages are disabled by default. See [custom error pages](README.md#custom-error-pages) for setup.
 *   **Access-Denied Request References**: Use `AccessDeniedPageModel` with `CookieAuthenticationEvents.PreserveAccessDeniedRequestId()` to retain the original request reference across cookie redirects. Access-denied pages support anonymous access and are not cached.
 *   **Swagger Authorization**: Added `DrnProgramSwaggerOptions.AuthorizationPolicy` to protect Swagger UI, its assets, and OpenAPI documents with an application-owned named policy. Applications can enable Swagger in Staging and Production while retaining role and MFA requirements. Development-only enablement remains the framework default.
-*   **Endpoint URL Generation**: Added `Url.Endpoint(ApiEndpoint, values)` to generate request-aware MVC URLs from endpoint accessors. It preserves deployment prefixes, uses effective MVC action names and destination areas, and reports uninitialized or ambiguous metadata and failed URL generation explicitly. Existing `Path(...)` APIs remain compatible.
+*   **Endpoint URL Generation**: Added `Url.Endpoint(ApiEndpoint, values)` and `LinkGenerator.GetUriByEndpoint(HttpContext, endpoint, values)` for request-aware MVC paths and absolute URIs. They preserve deployment prefixes, use effective MVC action names and destination areas, and report missing/ambiguous metadata and generation failures. Addresses shared by different CLR actions are rejected; use distinct MVC names/areas or explicitly named routing. Identity confirmation links use this metadata-aware generation. Existing `Path(...)` APIs remain compatible.
 *   **Application URLs**: Added `HttpRequest.ApplicationUrl` for application-owned route paths and `ApplicationUrlTagHelper` for `~/` HTML and HTMX URLs. Deployment prefixes are preserved without changing controller route prefixes or already-resolved URLs.
 
 ### Bug Fixes
+
+*   **Endpoint accessors**: `Path(Guid, template)` now honors the supplied placeholder. Missing endpoint bindings report discovery guidance. Multiple route selectors sharing an MVC action descriptor no longer fail catalog initialization; the endpoint accessor retains every route.
 
 *   **Swagger security**: Anonymous operations no longer advertise the default bearer authentication requirement.
 

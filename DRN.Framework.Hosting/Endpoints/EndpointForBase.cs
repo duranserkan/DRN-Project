@@ -1,7 +1,5 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
+using System.Reflection;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.SharedKernel;
@@ -41,16 +39,31 @@ public abstract class ControllerForBase<TController>
         .GetPropertiesOfType<ApiEndpoint>(BindingFlag.InstancePublic)
         .Select(p =>
         {
-            //Endpoint name should match with Action name and property name
-            var endpoint = CreateEndpoint(p.Name);
+            var binding = p.GetCustomAttribute<EndpointActionAttribute>();
+            var endpoint = binding == null
+                ? CreateEndpoint(p.Name)
+                : new ApiEndpoint(Controller, binding.MethodName, binding.ParameterTypes);
             p.SetValue(this, endpoint);
 
             return endpoint;
         }).ToArray();
 }
 
+[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class ApiEndpoint
 {
+    private readonly Type? _bindingController;
+    private readonly Type[]? _parameterTypes;
+
+    /// <summary>Binds a generated or explicitly customized member to a concrete controller and CLR signature.</summary>
+    public ApiEndpoint(Type controller, string actionMethodName, Type[] parameterTypes) : this(controller, actionMethodName)
+    {
+        ArgumentNullException.ThrowIfNull(controller);
+        ArgumentNullException.ThrowIfNull(parameterTypes);
+        _bindingController = controller;
+        _parameterTypes = (Type[])parameterTypes.Clone();
+    }
+
     public ApiEndpoint(Type controller, string actionMethodName)
     {
         ActionMethodName = actionMethodName;
@@ -68,6 +81,7 @@ public class ApiEndpoint
     public string[]? RoutePatterns { get; private set; }
     public RouteEndpoint[] RouteEndpoints { get; private set; } = null!;
     public ControllerActionDescriptor[] ActionDescriptor { get; private set; } = null!;
+    internal bool HasAmbiguousActionAddress { get; private set; }
     [Sensitive(false, Justification = "Endpoint lookup identifier.")]
     public string EndpointKey { get; private set; } = null!;
 
@@ -75,7 +89,7 @@ public class ApiEndpoint
     public string Path() => RoutePattern ?? string.Empty;
 
     public string Path(Guid id, string template = "{id:guid}")
-        => RoutePattern?.Replace("{id:guid}", id.ToString("N")) ?? string.Empty;
+        => RoutePattern?.Replace(template, id.ToString("N")) ?? string.Empty;
 
     public string Path(Dictionary<string, string> parameters)
     {
@@ -98,10 +112,23 @@ public class ApiEndpoint
     internal void SetEndPoint(DrnEndpointSource source)
     {
         EndpointKey = this.GetEndpointKey();
-        var routeEndpoint = source.EndpointMap[EndpointKey];
-        RouteEndpoints = routeEndpoint ?? throw new ValidationException($"Endpoint not found for {EndpointKey}");
+        RouteEndpoint[]? routeEndpoints;
+        if (_bindingController == null)
+            source.EndpointMap.TryGetValue(EndpointKey, out routeEndpoints);
+        else
+            routeEndpoints = source.Endpoints.OfType<RouteEndpoint>().Where(route =>
+            {
+                var action = route.Metadata.GetMetadata<ControllerActionDescriptor>();
+                return action?.ControllerTypeInfo.AsType() == _bindingController &&
+                       action.MethodInfo.Name == ActionMethodName &&
+                       action.MethodInfo.GetParameters().Select(parameter => parameter.ParameterType).SequenceEqual(_parameterTypes!);
+            }).ToArray();
+        if (routeEndpoints is not { Length: > 0 })
+            throw new ValidationException($"Endpoint '{EndpointKey}' was not discovered. Check the controller's application part, action name and NonAction exclusions.");
+        RouteEndpoints = routeEndpoints;
         RoutePatterns = RouteEndpoints.Select(route => route.RoutePattern.RawText!).Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
         RoutePattern = RoutePatterns.FirstOrDefault();
         ActionDescriptor = RouteEndpoints.SelectMany(route => route.Metadata.OfType<ControllerActionDescriptor>()).ToArray();
+        HasAmbiguousActionAddress = EndpointActionMetadata.HasAmbiguousAddress(ActionDescriptor, source.Endpoints.OfType<RouteEndpoint>());
     }
 }

@@ -918,6 +918,9 @@
           "Swashbuckle.AspNetCore": "[11.0.1, )"
         }
       },
+      "drn.framework.hosting.generators": {
+        "type": "Project"
+      },
       "drn.framework.sharedkernel": {
         "type": "Project",
         "dependencies": {

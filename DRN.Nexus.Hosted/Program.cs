@@ -1,4 +1,5 @@
 using DRN.Framework.Hosting.DrnProgram;
+using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
 using DRN.Nexus.Application;
@@ -8,6 +9,8 @@ namespace DRN.Nexus.Hosted;
 public class NexusProgram : DrnProgramBase<NexusProgram>, IDrnProgram
 {
     public static async Task Main(string[] args) => await RunAsync(args);
+
+    protected override EndpointCollection<NexusProgram> ConfigureEndpointCollection() => NexusEndpointFor.EndpointCollection;
 
     protected override Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings, IScopedLog scopedLog)
         => Task.FromResult(builder.Services.AddNexusHostedServices(appSettings));

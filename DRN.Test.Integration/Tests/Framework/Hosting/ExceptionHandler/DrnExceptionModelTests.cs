@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
 using Microsoft.AspNetCore.Http;
@@ -23,19 +22,19 @@ public class DrnExceptionModelTests
         errorModel.Should().NotBeNull();
         errorModel.RequestPath.Trim('/').Should().Be(Get.Endpoint.Sample.Exception.GetErrorPageModel.RoutePattern);
     }
-    
+
     [DataInline]
     [Theory]
     public async Task DrnExceptionFilter__Should_Be_Invoked_On_Exception(DrnTestContext context, IDrnExceptionFilter filter, ISampleDrnExceptionFilterDependency filterDependency)
     {
         context.ServiceCollection.AddScoped<IDrnExceptionFilter, SampleDrnExceptionFilter>();
         var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
-        
+
         filter.HandlePreExceptionModelCreationAsync(Arg.Any<HttpContext>(), Arg.Any<Exception>())
             .Returns(Task.FromResult(new DrnExceptionFilterResult()));
         filter.HandleExceptionAsync(Arg.Any<HttpContext>(), Arg.Any<Exception>(), Arg.Any<DrnExceptionModel>())
             .Returns(Task.FromResult(new DrnExceptionFilterResult()));
-        
+
         var response = await client.GetAsync(Get.Endpoint.Sample.Exception.ConflictException.RoutePattern);
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
 

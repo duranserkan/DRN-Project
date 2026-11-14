@@ -17,6 +17,8 @@
 
 The `DRN.Framework.*` projects provide reusable NuGet packages for compatible .NET applications. They are grouped under `/Src/Framework/` in the solution. Package-specific documentation lives in each module's README and release notes.
 
+`DRN.Framework.Hosting.Generators` is a nonpackable compiler assembly distributed by Hosting. The shared build targets expose it to project-reference consumers; package consumers inherit it through buildTransitive assets. It emits helpers only for opted-in SDK Web hosts with their own DRN program. `DRN.Test.Analyzer` owns generator compilation and diagnostic tests.
+
 ### Nexus
 
 The `DRN.Nexus.*` projects are grouped under `/Src/Nexus/`. Nexus is intended to connect services and APIs developed with DRN.Framework through a unified web application, API, and background services.

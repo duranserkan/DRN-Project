@@ -8,7 +8,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
-*   **Target framework**: Requires .NET 11. Analyzer and code-fix hosts must also support .NET 11.
+*   **Target framework**: Runtime applications require .NET 11. Analyzer and code-fix assemblies target .NET 10 for IDE compiler-host compatibility and require compatible Roslyn 5.12 APIs.
 
 *   **Source-Known Controller Policies**: DRN0026 requires explicit nonblank named policies on exposed SourceKnown controller actions, declared on the controller or action. Bare `[Authorize]`, roles alone and anonymous access do not satisfy the rule. Register policies with ASP.NET Core and retain resource-specific checks in application code. `[NonAction]` disables an endpoint and exempts it; hiding API documentation does not.
 

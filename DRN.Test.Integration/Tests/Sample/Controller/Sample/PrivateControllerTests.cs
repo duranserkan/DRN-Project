@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
 using DRN.Framework.Utils.Auth;
 using DRN.Test.Integration.Tests.Sample.Controller.Helpers;
 using Sample.Hosted;

@@ -18,6 +18,10 @@ This guide covers local startup, developer tools, error handling, notifications,
 
 ## Run locally
 
+Sample's PageFor and EndpointFor declarations are compiler-generated. `Helpers/AccessorDeclarations.cs` contains opt-in and compatibility overrides. Controllers reuse the handwritten templates in `Controllers/ControllerRoutes.cs`, including MVC's `[controller]` token. The generator infers legacy route metadata from those declarations. Authored partials retain compatibility page destinations. `Get.Page` and `Get.Endpoint` use the inherited typed singletons. `SampleProgram.ConfigureEndpointCollection` supplies the endpoint singleton for startup binding. Add ordinary local controllers or Razor pages without adding handwritten accessor leaves. See [automatic hosted accessors](../DRN.Framework.Hosting/README.md#automatic-hosted-accessors) for exclusions, diagnostics and output ownership.
+
+`Get.Endpoint.Sample.ClientError.ControllerRoute` and `Get.Endpoint.Sample.NexusStatus.ControllerRoute` now contain `/Api/Sample/ClientError` and `/Api/Sample/NexusStatus` instead of empty strings. Their runtime routes are unchanged. Use `Url.Endpoint` to generate request-aware URLs.
+
 Install the [.NET SDK required by the repository](../docs/quick-start.md#prerequisites) and keep Docker running. From the repository root:
 
 ```bash

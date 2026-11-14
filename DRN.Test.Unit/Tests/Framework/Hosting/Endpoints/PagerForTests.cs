@@ -14,7 +14,10 @@ public class PagerForTests
         pages.Should().Contain(Get.Page.User.Management.GetPages());
         pages.Should().Contain(Get.Page.System.GetPages());
 
-        Get.Page.User.Management.ShowRecoveryCodes.Should().Be("/User/Management/ShowRecoveryCodes");
         Get.Page.System.Setup.Should().Be("/System/Setup");
+        // HomeAnonymous uses @page "/", but MVC still addresses it by page identity.
+        Get.Page.Root.HomeAnonymous.Should().Be("/HomeAnonymous");
+        Get.Page.Root.Root.Should().Be("/");
+        Get.Page.Root.Swagger.Should().Be("/Swagger");
     }
 }

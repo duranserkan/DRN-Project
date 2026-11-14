@@ -5,7 +5,7 @@ using Sample.Hosted.Settings;
 
 namespace Sample.Hosted.Controllers.QA;
 
-[Route(QaApiFor.ControllerRouteTemplate)]
+[Route(ControllerRoutes.QA)]
 [Authorize(Policy = IdentitySettings.QaApiPolicy)]
 public class CategoryController(ICategoryRepository repository)
     : SourceKnownController<Category, CategoryDto, CategoryPostRequest>(repository)

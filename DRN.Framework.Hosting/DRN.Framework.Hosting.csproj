@@ -52,6 +52,16 @@
 
     <Target Name="PreparePackageReleaseNotes" BeforeTargets="GenerateNuspec" DependsOnTargets="_PrepareCurrentPackageReleaseNotes" />
 
+    <PropertyGroup>
+        <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);_PackHostingGenerator</TargetsForTfmSpecificContentInPackage>
+    </PropertyGroup>
+    <Target Name="_PackHostingGenerator">
+        <ItemGroup>
+            <TfmSpecificPackageFile Include="../DRN.Framework.Hosting.Generators/bin/$(Configuration)/net10.0/DRN.Framework.Hosting.Generators.dll"
+                                    PackagePath="analyzers/dotnet/cs" />
+        </ItemGroup>
+    </Target>
+
     <ItemGroup>
 
         <InternalsVisibleTo Include="DRN.Test.Unit"/>

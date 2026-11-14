@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="$(DrnSourceRoot)/DRN.Framework.Hosting/DRN.Framework.Hosting.csproj" />
+  </ItemGroup>
+</Project>

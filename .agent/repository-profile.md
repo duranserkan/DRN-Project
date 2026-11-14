@@ -13,7 +13,7 @@
 
 ## Layout
 
-Physical project folders are flat. `DRN.slnx` supplies logical groups. `docs/solution-structure.md` owns project roles and solution grouping. Resolve repository paths in this profile from the repository root.
+Folders are flat; `DRN.slnx` groups them. `docs/solution-structure.md` owns roles. Paths are repository-relative.
 
 | Area | Paths |
 |---|---|
@@ -25,7 +25,9 @@ Physical project folders are flat. `DRN.slnx` supplies logical groups. `docs/sol
 | Agent and CI | `.agent/`, `.github/workflows/`, `.github/actions/` |
 | Docs | `README.md`, `ROADMAP.md`, `SECURITY.md`, `NOTICE.md`, `docs/` |
 
-`docs/quick-start.md` owns prerequisites, installation, build/test commands, and setup. The root README links standalone guides under Documentation; its TOC links only to README sections. `Sample.Hosted/README.md` owns startup, developer access, browser behavior, and frontend commands. Package docs live in each module's `README.md` and `RELEASE-NOTES.md`.
+`docs/quick-start.md` owns setup and commands. Root README links standalone guides; its TOC links only its own sections. `Sample.Hosted/README.md` owns host/frontend usage. Module READMEs and RELEASE-NOTES own package docs.
+
+Tooling uses net10.0: Hosting.Generators, SharedKernel.Analyzers/CodeFixes. Apps use net11.0. See package READMEs. Maps: `Helpers/AccessorDeclarations.cs`.
 
 ## Skill Routing
 
@@ -75,6 +77,7 @@ dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 - DI/configuration: use DRN attributes. Do not manually register attribute-decorated services. Follow `overview-drn-framework` and `drn-utils`.
 - Identity: explicit `NexusAppSettings:AppId` and `AppInstanceId` in every environment; zero is valid. Use Source-Known IDs and entity metadata. DTOs derive from `Dto`, live in `*.Contract`, and expose `Guid` IDs, not entities. `drn-sharedkernel` and `drn-utils` own identity formats, time configuration, and lifecycle contracts.
 - Runtime access: prefer `[UnsafeAccessor]` when target types are known and accessible at compile time. Reserve reflection for dynamically discovered types.
+- `drn-hosting` owns typed roots, `ConfigureEndpointCollection`, and automatic Razor detection.
 - Logging: use `IScopedLog` for request/operation diagnostics. Direct `ILogger` is for bootstrap, scope flushing, or dedicated audit events. Do not duplicate full request logs in audit events. Dynamic classification is the application's responsibility; backend runtime capture has no name-based redaction fallback.
 - Testing: use `DrnTestContextUnit` in `DRN.Test.Unit`; full `DrnTestContext` belongs in integration tests. Reusable hosted test programs belong in `DRN.Test.Utils`, not MTP executables. `drn-testing` owns data attributes and fixture contracts. Do not weaken production invariants for tests.
 - Frontend: `Sample.Hosted/buildwww/` builds to `Sample.Hosted/wwwroot/`. See [assets](../Sample.Hosted/README.md#frontend-assets). Browser APIs use `window.DRN`. Preserve `DRN`, `Drn*`, and `DRN.Framework.*`. Hosting owns typed static-file header rules and robots.txt revalidation. See `drn-hosting`.

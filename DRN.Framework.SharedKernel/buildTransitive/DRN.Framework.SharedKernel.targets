@@ -46,6 +46,7 @@
   <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.csproj'
                         and '$(MSBuildProjectName)' != 'DRN.Framework.SharedKernel.Analyzers'
                         and '$(MSBuildProjectName)' != 'DRN.Framework.SharedKernel.CodeFixes'
+                        and '$(MSBuildProjectName)' != 'DRN.Framework.Hosting.Generators'
                         and '$(MSBuildProjectName)' != 'DRN.Framework.SharedKernel'
                         and '$(MSBuildProjectName)' != 'DRN.Test.Analyzer'
                         and Exists('$(MSBuildThisFileDirectory)../../DRN.Framework.SharedKernel.Analyzers/DRN.Framework.SharedKernel.Analyzers.csproj')">

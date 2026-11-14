@@ -6,8 +6,8 @@ namespace Sample.Hosted.Helpers;
 public static class Get
 {
     //PageFor and EndpointFor must be initialized first since they might be referenced from other helpers such as SubNavigationFor
-    public static SamplePageFor Page { get; } = PageCollectionBase<SamplePageFor>.PageCollection;
-    public static SampleEndpointFor Endpoint { get; } = (SampleEndpointFor)EndpointCollectionBase<SampleProgram>.EndpointCollection!;
+    public static SamplePageFor Page { get; } = SamplePageFor.PageCollection;
+    public static SampleEndpointFor Endpoint { get; } = SampleEndpointFor.EndpointCollection;
 
     public static CspFor Csp { get; } = new();
     public static RoleFor Role { get; } = new();

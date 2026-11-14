@@ -1,0 +1,11 @@
+<Project>
+  <!-- This is the common-root import documented for external source consumers. -->
+  <Import Project="$(DrnSourceRoot)/DRN.Framework.Hosting/buildTransitive/DRN.Framework.Hosting.targets"
+          Condition="'$(MSBuildProjectName)' == 'ExternalSource' and '$(DrnSourceRoot)' != ''" />
+  <Target Name="ValidateConsumerFixtureInputs" BeforeTargets="CollectPackageReferences;PrepareForBuild">
+    <Error Condition="('$(MSBuildProjectName)' == 'DirectPackage' or '$(MSBuildProjectName)' == 'PackageBridge') and '$(DrnHostingPackageVersion)' == ''"
+           Text="Set DrnHostingPackageVersion to the version of the locally produced Hosting package under test." />
+    <Error Condition="('$(MSBuildProjectName)' == 'ExternalSource' or '$(MSBuildProjectName)' == 'SourceBridge') and '$(DrnSourceRoot)' == ''"
+           Text="Set DrnSourceRoot to the absolute DRN source repository path." />
+  </Target>
+</Project>
