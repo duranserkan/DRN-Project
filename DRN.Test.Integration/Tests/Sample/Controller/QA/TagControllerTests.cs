@@ -4,8 +4,11 @@ using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.Utils.Data.Serialization;
 using DRN.Test.Integration.Tests.Sample.Controller.Helpers;
 using Flurl;
+using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Sample.Contract.QA.Tags;
 using Sample.Hosted;
+using Sample.Hosted.Controllers.QA;
 using Sample.Hosted.Helpers;
 
 namespace DRN.Test.Integration.Tests.Sample.Controller.QA;
@@ -102,6 +105,13 @@ public class TagControllerTests
             disabled.StatusCode.Should().Be(HttpStatusCode.NotFound);
         }
         using var lookup = await client.PostAsJsonAsync("/Api/QA/Tag/Lookup", new[] { createdTags[1].Id });
-        lookup.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        lookup.StatusCode.Should().Be(HttpStatusCode.MethodNotAllowed);
+
+        // HTTP method rejection does not prove that MVC removed the action.
+        using var scope = context.CreateScope();
+        var actions = scope.ServiceProvider.GetRequiredService<IActionDescriptorCollectionProvider>().ActionDescriptors.Items
+            .OfType<ControllerActionDescriptor>()
+            .Where(action => action.ControllerTypeInfo.AsType() == typeof(TagController));
+        actions.Should().NotContain(action => action.MethodInfo.Name == nameof(TagController.GetManyAsync));
     }
 }
