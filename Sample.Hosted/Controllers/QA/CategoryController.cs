@@ -1,57 +1,33 @@
-using DRN.Framework.Hosting.Extensions;
-using DRN.Framework.SharedKernel.Domain.Pagination;
-using DRN.Framework.Utils.Entity;
-using Microsoft.EntityFrameworkCore;
-using Sample.Application.Services;
+using DRN.Framework.Hosting.Controllers;
 using Sample.Contract.QA.Categories;
 using Sample.Domain.QA.Categories;
-using Sample.Infra.QA;
+using Sample.Hosted.Settings;
 
 namespace Sample.Hosted.Controllers.QA;
 
-[ApiController]
 [Route(QaApiFor.ControllerRouteTemplate)]
-public class CategoryController(QAContext context, IPaginationUtils pagination, ICategoryService categories) : ControllerBase
+[Authorize(Policy = IdentitySettings.QaApiPolicy)]
+public class CategoryController(ICategoryRepository repository)
+    : SourceKnownController<Category, CategoryDto, CategoryPostRequest>(repository)
 {
-    [HttpGet]
-    [EndpointDescription("The server always uses a page-size ceiling of 100 and ignores PageSize.MaxSize, TotalCount and MarkAsHasNextOnRefresh supplied by callers.")]
-    public async Task<PaginationResultModel<CategoryDto>> PaginateAsync(
-        [FromQuery] PaginationRequest? request = null, CancellationToken cancellationToken = default)
-    {
-        request ??= PaginationRequest.Default;
-        // The endpoint owns the ceiling, including when callers send cursor metadata.
-        var boundedRequest = new PaginationRequest(request.PageNumber,
-            new PageSize(request.PageSize.Size, PageSize.MaxSizeDefault), request.PageCursor,
-            updateTotalCount: request.UpdateTotalCount);
-        var result = await pagination.GetResultAsync(context.Categories.AsNoTracking(), boundedRequest, cancellationToken);
+    protected override CategoryDto ToDto(Category entity) => entity.ToDto();
 
-        return result.ToModel(category => category.ToDto());
-    }
+    protected override Task<Category> CreateEntityAsync(CategoryPostRequest request, CancellationToken cancellationToken)
+        => Task.FromResult(new Category(request.Name));
 
-    [HttpGet("{id:guid}")]
-    public async Task<CategoryDto> GetAsync([FromRoute] Guid id, CancellationToken cancellationToken = default)
-    {
-        var category = await categories.GetOrDefaultAsync(id, cancellationToken);
-        if (category == null)
-        {
-            ScopeContext.Problem.Title = "Category not found";
-            ScopeContext.Problem.NotFound($"Category: {id}");
-        }
+    [NonAction]
+    public override Task<NoContentResult> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+        => base.DeleteAsync(id, cancellationToken);
 
-        return category.ToDto();
-    }
+    [NonAction]
+    public override Task<CategoryDto[]> GetManyAsync(Guid[] ids, CancellationToken cancellationToken = default)
+        => base.GetManyAsync(ids, cancellationToken);
 
-    [HttpPost]
-    [ProducesResponseType(typeof(CategoryDto), StatusCodes.Status201Created)]
-    public async Task<ActionResult<CategoryDto>> PostAsync([FromBody] CategoryPostRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        var category = new Category(request.Name);
-        context.Categories.Add(category);
+    [NonAction]
+    public override Task<bool> AnyAsync(CancellationToken cancellationToken = default)
+        => base.AnyAsync(cancellationToken);
 
-        await context.SaveChangesAsync(cancellationToken);
-
-        var location = Url.Endpoint(Get.Endpoint.QA.Category.GetAsync, new { id = category.EntityId.ToString("N") });
-        return Created(location, category.ToDto());
-    }
+    [NonAction]
+    public override Task<long> CountAsync(CancellationToken cancellationToken = default)
+        => base.CountAsync(cancellationToken);
 }

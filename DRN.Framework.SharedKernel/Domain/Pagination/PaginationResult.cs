@@ -42,8 +42,7 @@ public class PaginationResult<TEntity> : PaginationResultBase where TEntity : So
         }
 
         HasPrevious = Request.PageNumber > 1;
-        HasNext = request.NavigationDirection == PageNavigationDirection.Previous ||
-                  (request.NavigationDirection == PageNavigationDirection.Next && hasExcessCount);
+        HasNext = request.NavigationDirection == PageNavigationDirection.Previous || hasExcessCount;
 
         ItemCount = Items.Count;
         Total = new PaginationTotal(totalCount, Request.PageSize.Size);

@@ -1,6 +1,7 @@
 using System.Collections.Frozen;
 using DRN.Framework.Hosting.Utils.Vite;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Options;
 
@@ -63,11 +64,15 @@ internal static class DrnStaticFileConfigurator
             else if (!path.Equals(rules[0].Path.Value.AsSpan(), StringComparison.OrdinalIgnoreCase))
                 return;
 
-            var headers = context.Context.Response.Headers;
-            foreach (var rule in matchingRules)
-                if (rule.Behavior == DrnStaticFileHeaderBehavior.Override || !headers.ContainsKey(rule.HeaderName))
-                    headers[rule.HeaderName] = rule.Value;
+            ApplyHeaderRules(context.Context.Response.Headers, matchingRules);
         };
+    }
+
+    private static void ApplyHeaderRules(IHeaderDictionary headers, DrnStaticFileHeaderRule[] rules)
+    {
+        foreach (var rule in rules)
+            if (rule.Behavior == DrnStaticFileHeaderBehavior.Override || !headers.ContainsKey(rule.HeaderName))
+                headers[rule.HeaderName] = rule.Value;
     }
 
     private sealed class ViteContentTypeProvider(IContentTypeProvider original, IViteManifest manifest) : IContentTypeProvider

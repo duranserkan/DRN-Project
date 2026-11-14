@@ -160,7 +160,6 @@ public class HashBenchmarkMediumPayload
     [Benchmark]
     public byte[] Hmac_Sha512() => HMACSHA512.HashData(_key, GetData());
 
-    //todo KMAC, HMACSHA3_256, HMACSHA3_512(not available for macos yet) performance benchmark
 
     //Not supported yet on macos
     // [Benchmark]

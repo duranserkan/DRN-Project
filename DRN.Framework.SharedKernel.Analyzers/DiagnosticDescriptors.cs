@@ -9,6 +9,11 @@ public static class DiagnosticDescriptors
     [SuppressMessage("SonarQube", "S1075", Justification = "Canonical public documentation URL for Roslyn diagnostic help links, not an environment-specific resource endpoint.")]
     public const string HelpLinkUri = "https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/README.md#compile-time-roslyn-analyzers";
 
+    public static readonly DiagnosticDescriptor SourceKnownControllerPolicyRequired = new(
+        "DRN0026", "Declare a named policy for Source-Known controller actions",
+        "Source-Known controller '{0}' action '{1}' requires an explicit named authorization policy: {2}",
+        "DRN.Security", DiagnosticSeverity.Error, true, helpLinkUri: HelpLinkUri);
+
     public static readonly DiagnosticDescriptor InvalidAppIdArgument = new(
         "DRN0009", "Invalid constant application partition",
         "AppId value '{0}' must be between 0 and 127", Category,

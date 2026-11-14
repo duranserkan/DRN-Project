@@ -185,6 +185,9 @@ Diagnostic classification also applies to all public readable instance non-index
 | **DRN0012** | Warning | Concrete generic entity | Concrete, effectively non-private entities must not introduce type parameters or be nested inside generic containers. Use abstract generic bases with separately attributed concrete descendants. |
 | **DRN0013** | Error | Concrete entity type required | Rejects known abstract entities in entity/utility/repository metadata calls, method groups, direct `typeof` lookups, and Source-Known repository bindings, including derived types, declarations, and aliases. |
 | **DRN0014** | Error | Entity ID operations are not initialized | Rejects `GetEntityId`, `ToSecure`, or `ToPlain` calls on provably fresh entities in straight-line code, including simple local aliases and constructor `this` calls. |
+| **DRN0026** | Error | SourceKnown action requires an explicit authorization policy | Exposed actions on concrete SourceKnown controllers require a nonblank named policy on the controller or action and must not allow anonymous access. |
+
+DRN0026 checks inherited and custom public actions, including actions hidden with `IgnoreApi`. `[NonAction]` methods are exempt. Inherited class and overridden-action policies count. Bare `[Authorize]`, roles-only declarations and blank policy names do not establish an explicit named policy. The analyzer checks declarations, not runtime policy registration or resource permissions. Register policies with ASP.NET Core and implement resource checks in application code. See [Source-Known Controllers](../DRN.Framework.Hosting/README.md#source-known-controllers).
 
 ```csharp
 var identity = new EntityTypeId(7, 200); // DRN0009
@@ -379,6 +382,10 @@ var plainFromUtility = sourceKnownEntityIdUtils.ToPlain(secureFromUtility);
 
 `ISourceKnownRepository<TEntity>` defines queries, mutations, identity conversion and pagination for `AggregateRoot` entities. EntityFramework supplies the default implementation. Subclasses own entity updates, additional filters and query includes.
 
+`ISourceKnownService<TEntity>` in `DRN.Framework.SharedKernel.Domain` exposes a read-only `ISourceKnownRepository<TEntity> Repository` property. Its entity type must derive from `AggregateRoot`.
+
+Derive from the abstract `SourceKnownService<TEntity>` base class to implement this contract with a repository supplied through its constructor.
+
 Contract from [SourceKnownRepository.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/Repository/SourceKnownRepository.cs), grouped by operation:
 
 ```csharp
@@ -481,6 +488,8 @@ See [EntityCreatedFilter.cs](https://github.com/duranserkan/DRN-Project/blob/mas
 ## Pagination
 
 Pagination uses first/last entity IDs as cursors for forward, backward and refresh requests. It does not provide a database snapshot across requests.
+
+Refresh results detect a next page from an extra fetched row even when the total count is unknown. JSON `null` values for `PaginationRequest.PageSize` and `PageCursor` use the default page size and initial cursor.
 
 | Setting or operation | Behavior |
 |---|---|

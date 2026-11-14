@@ -10,6 +10,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 *   **Target framework**: Requires .NET 11. Analyzer and code-fix hosts must also support .NET 11.
 
+*   **Source-Known Controller Policies**: DRN0026 requires explicit nonblank named policies on exposed SourceKnown controller actions, declared on the controller or action. Bare `[Authorize]`, roles alone and anonymous access do not satisfy the rule. Register policies with ASP.NET Core and retain resource-specific checks in application code. `[NonAction]` disables an endpoint and exempts it; hiding API documentation does not.
+
 *   **Model Capture Analysis**: DRN0025 rejects captures that exceed the compiler's model-analysis work limit. Capture a smaller model or explicitly classify sensitive subtrees so configured paths cannot silently escape analysis.
 
 *   **Diagnostic Field Coverage**: Classification requirements include CVV/CVC/PIN-code fields, usernames, first/last names, dates of birth, IBAN, client and IP-address patterns. Annotate matching model properties or explicitly mark reviewed false positives. Browser and compiler checks use the same baseline catalog.
@@ -22,6 +24,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### New Features
 
+*   **Source-Known Services**: Added `ISourceKnownService<TEntity>` with a read-only `Repository` property of type `ISourceKnownRepository<TEntity>` for `AggregateRoot` entities. The abstract `SourceKnownService<TEntity>` base class implements this contract with a constructor-supplied repository.
+
 *   **Pagination Options**: Bind flat first-page options from query strings or JSON bodies and convert them with `PaginationRequest.DefaultWith(options)`.
 
 *   **Logging Name Exemptions**: Adjacent `// DiagnosticNameExemption: ExactName | Nonempty justification` comments acknowledge DRN0017/DRN0020/DRN0022 name matches. They do not waive classified values, configured analyzer paths, declaration requirements, or child checks. DRN0023 reports malformed comments and DRN0024 warns about unused comments. Comments do not provide runtime redaction.
@@ -31,6 +35,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **Sensitive Data Classification**: Added inheritable `[Sensitive]` and `[Personal]` attributes and support for application-derived classifications. Use `[Sensitive(false)]` for reviewed property-name false positives. Positive classification overrides opt-outs. Editor fixes offer Personal, Sensitive, false-positive classification, and correction of invalid opt-outs. These attributes do not change business serialization or binding.
 
 ### Bug Fixes
+
+*   **Pagination Refresh and Input**: Refresh results detect another page from an extra fetched row without requiring a known total or caller hint. Null page-size and cursor JSON members now use defaults instead of throwing during deserialization.
 
 *   **Path containment**: `GetPathWithinDirectory()` accepts missing child files and directories while checking existing ancestors for symbolic links.
 

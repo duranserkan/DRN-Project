@@ -80,13 +80,13 @@ public class PaginationRequest
     public PageSize PageSize
     {
         get;
-        init => field = value.Valid() ? value : PageSize.Default;
+        init => field = value is not null && value.Valid() ? value : PageSize.Default;
     } = PageSize.Default;
 
     public PageCursor PageCursor
     {
         get;
-        init => field = value.Valid() ? value : PageCursor.Initial;
+        init => field = value is not null && value.Valid() ? value : PageCursor.Initial;
     } = PageCursor.Initial;
 
     public long TotalCount

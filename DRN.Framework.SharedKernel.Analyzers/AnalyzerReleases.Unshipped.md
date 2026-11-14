@@ -30,3 +30,4 @@
 | DRN0023 | DRN.Classification | Error | DiagnosticNameExemption comment requires an exact name and nonempty justification within documented bounds |
 | DRN0024 | DRN.Classification | Warning | DiagnosticNameExemption comment suppresses no name diagnostic |
 | DRN0025 | DRN.Classification | Error | Model capture exceeds the analysis work limit and may leave configured paths unchecked |
+| DRN0026 | DRN.Security | Error | Source-Known controller actions require explicit named policies and cannot permit anonymous access |

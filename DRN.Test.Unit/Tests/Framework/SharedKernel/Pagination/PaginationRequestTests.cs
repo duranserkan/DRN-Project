@@ -7,6 +7,21 @@ namespace DRN.Test.Unit.Tests.Framework.SharedKernel.Pagination;
 
 public class PaginationRequestTests
 {
+    [Theory]
+    [DataInlineUnit("{\"pageSize\":null}")]
+    [DataInlineUnit("{\"pageCursor\":null}")]
+    [DataInlineUnit("{\"pageSize\":null,\"pageCursor\":null}")]
+    public void Explicit_Json_Nulls_Should_Use_Pagination_Defaults(string json)
+    {
+        var request = JsonSerializer.Deserialize<PaginationRequest>(json, JsonConventions.DefaultOptions);
+
+        request.Should().NotBeNull();
+        request!.PageSize.Should().BeEquivalentTo(PageSize.Default);
+        request.PageCursor.Should().BeEquivalentTo(PageCursor.Initial);
+        request.PageNumber.Should().Be(1);
+        request.TotalCount.Should().Be(-1);
+    }
+
     [Fact]
     public void PaginationOptions_Should_Deserialize_Partial_Json_With_Defaults()
     {
