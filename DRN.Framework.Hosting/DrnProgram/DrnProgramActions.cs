@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Builder;
 
 namespace DRN.Framework.Hosting.DrnProgram;
 
-//todo: add tests
 /// <summary>
 /// Implementing class must have a public parameterless constructor. 
 /// Classes without parameterless constructors will be skipped during initialization.
