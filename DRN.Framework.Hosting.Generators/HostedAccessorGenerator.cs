@@ -198,7 +198,7 @@ public sealed class HostedAccessorGenerator : IIncrementalGenerator
                 var parent = Group(root, parts[..^1], false);
                 var leaf = new Node(path, Text(mapping, "TypeName") ?? controllerName + "For")
                 {
-                    Controller = controller, Route = Text(mapping, "RouteTemplate") ?? ""
+                    Controller = controller, Route = Text(mapping, "RouteTemplate") ?? ControllerRouteTemplate(controller)
                 };
                 if (!parent.Children.TryAdd(parts[^1], leaf)) throw new AccessorException($"Accessor '{path}' collides. Supply a controller alias.");
                 foreach (var method in Actions(controller))
@@ -347,6 +347,20 @@ public sealed class HostedAccessorGenerator : IIncrementalGenerator
                 if (current.GetAttributes().Any(attribute => attribute.AttributeClass != null && Bases(attribute.AttributeClass).Any(type => type.ToDisplayString() == name))) return true;
             return false;
         }
+        private static string ControllerRouteTemplate(INamedTypeSymbol controller)
+        {
+            var routes = Bases(controller).SelectMany(type => type.GetAttributes())
+                .Where(attribute => attribute.AttributeClass?.AllInterfaces.Any(type =>
+                    type.ToDisplayString() == "Microsoft.AspNetCore.Mvc.Routing.IRouteTemplateProvider") == true)
+                .ToArray();
+            // Custom providers and multiple templates require an explicit legacy metadata override.
+            if (routes.Any(attribute => attribute.AttributeClass!.ToDisplayString() != "Microsoft.AspNetCore.Mvc.RouteAttribute"))
+                return "";
+            var templates = routes.Select(attribute => attribute.ConstructorArguments.FirstOrDefault().Value as string)
+                .Distinct(StringComparer.Ordinal).ToArray();
+            return templates.Length == 1 ? templates[0] ?? "" : "";
+        }
+
         private static IEnumerable<INamedTypeSymbol> Bases(INamedTypeSymbol type)
         {
             for (var current = type; current != null; current = current.BaseType) yield return current;

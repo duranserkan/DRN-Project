@@ -27,6 +27,38 @@ public class HostedAccessorGeneratorTests
     }
 
     [Fact]
+    public void Generator_Should_Infer_Only_Unambiguous_Standard_Controller_Templates()
+    {
+        var source = """
+            using DRN.Framework.Hosting.Endpoints;
+            using Microsoft.AspNetCore.Mvc;
+            [assembly: HostedAccessors(typeof(TestProgram), Namespace = "Test.Helpers")]
+            [assembly: AccessorController(typeof(TestProgram), typeof(OverrideController), "Override", RouteTemplate = "/legacy")]
+            [assembly: AccessorController(typeof(TestProgram), typeof(EmptyController), "Empty", RouteTemplate = "")]
+            public static class Routes { public const string Template = "/api/[controller]"; }
+            [Route(Routes.Template)] public class DirectController : ControllerBase { }
+            [Route(Routes.Template)] public abstract class RoutedBase : ControllerBase { }
+            public class InheritedController : RoutedBase { }
+            [Route(Routes.Template)] public class RepeatedController : RoutedBase { }
+            [Route("/second")] public class MultipleController : RoutedBase { }
+            public class PlainController : ControllerBase { }
+            public class CustomRouteAttribute : RouteAttribute { public CustomRouteAttribute() : base("/custom") { } }
+            [Route(Routes.Template), CustomRoute] public class CustomController : ControllerBase { }
+            [Route(Routes.Template)] public class OverrideController : ControllerBase { }
+            [Route(Routes.Template)] public class EmptyController : ControllerBase { }
+            """ + ProgramSource;
+
+        // Generate also checks compilation of the resulting consumer and generated APIs.
+        var result = Generate(source);
+        result.Diagnostics.Should().BeEmpty();
+        foreach (var name in new[] { "Direct", "Inherited", "Repeated" })
+            Generated(result, name + "For.g.cs").Should().Contain("base(\"/api/[controller]\")");
+        foreach (var name in new[] { "Multiple", "Plain", "Custom", "Empty" })
+            Generated(result, name + "For.g.cs").Should().Contain("base(\"\")");
+        Generated(result, "OverrideFor.g.cs").Should().Contain("base(\"/legacy\")");
+    }
+
+    [Fact]
     public void Generator_Should_Not_Emit_Helpers_In_Libraries_Even_When_Opted_In()
     {
         var result = Generate("using DRN.Framework.Hosting.Endpoints; [assembly: HostedAccessors(typeof(TestProgram))]" + ProgramSource,

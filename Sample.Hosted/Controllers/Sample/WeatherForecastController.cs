@@ -5,7 +5,7 @@ using DRN.Framework.Utils.Models.Sample;
 namespace Sample.Hosted.Controllers.Sample;
 
 [AllowAnonymous]
-[Route(SampleApiFor.ControllerRouteTemplate)]
+[Route("/Api/Sample/[controller]")]
 public class WeatherForecastController(INexusClient nexusClient) : WeatherForecastControllerBase
 {
     [HttpGet("Nexus")]
