@@ -43,7 +43,7 @@ public sealed class DrnStaticFileHeaderRule
 
     private static bool IsValidPath(PathString path)
     {
-        if (!path.HasValue || path.Value!.StartsWith("//", StringComparison.Ordinal))
+        if (!path.HasValue || path.Value.StartsWith("//", StringComparison.Ordinal))
             return false;
 
         foreach (var c in path.Value.AsSpan())
