@@ -1,7 +1,7 @@
 ---
 name: drn-entityframework
 description: "Configure DRN PostgreSQL contexts, identity tracking, migrations, prototype safety, repositories and cancellation."
-last-updated: 2026-11-07
+last-updated: 2026-11-13
 difficulty: advanced
 ---
 
@@ -26,18 +26,16 @@ Scan the application's context assembly with `builder.Services.AddServicesWithAt
 
 ### Augmented Entity Behavior
 
-DrnContext augments entities during `OnModelCreating` and runtime:
+| Feature | Public behavior |
+|---|---|
+| Identity and lifecycle | Tracking assigns missing internal IDs. Saving initializes external identity, conversion operations, timestamps and lifecycle hooks. Queried entities support ID operations. An assigned ID does not prove persistence. |
+| ID conversion | Entity and repository `ToSecure` / `ToPlain` are idempotent. |
+| JSON models | `IEntityWithModel<T>.Model` maps to `jsonb`. |
+| Identity naming | ASP.NET Core Identity tables and columns use `snake_case`. |
+| Inheritance | TPH/TPT/TPC mappings share root keys and properties. Each concrete entity retains its own entity-type metadata. |
+| Validation | Concrete, effectively non-private entities need unique `(EntityType, AppId)` pairs. Abstract types and types enclosed by a private type are excluded. Different partitions may reuse an entity byte. |
 
-| Feature | Mechanism |
-|---------|-----------|
-| **Internal ID Generation** | `SourceKnownIdValueGenerator` assigns collision-free `long` IDs when EF begins tracking new entities; `IDrnSaveChangesInterceptor` provides a save-time fallback when `Id` remains zero |
-| **Save-Time Initialization** | `IDrnSaveChangesInterceptor` initializes `EntityIdSource` and `EntityIdOps`, sets `ModifiedAt`, and applies created lifecycle state before persistence |
-| **Materialization Init** | `IDrnMaterializationInterceptor` initializes `EntityIdSource` and injects `ISourceKnownEntityIdOperations` (`EntityIdOps`) for loaded entities |
-| **Secure ↔ Plain** | `ToSecure` / `ToPlain` on entity and repository for idempotent ID form conversion |
-| **JSON Models** | `IEntityWithModel<T>` auto-maps `.Model` to `jsonb` column |
-| **Identity Naming** | ASP.NET Core Identity tables/columns → `snake_case` for PostgreSQL |
-| **Mapped Inheritance** | Configures SourceKnownEntity keys and shared properties on EF hierarchy roots for TPH/TPT/TPC; derived entities inherit the key and ID generator while retaining their own concrete entity-type metadata |
-| **Startup Validation** | Validates concrete, non-private SourceKnownEntity entities have valid, unique `(EntityType, AppId)` pairs while permitting the same entity byte in different application partitions; abstract bases and entities that are private or nested at any depth inside a private type are ignored in model and assembly discovery, matching analyzer eligibility |
+Concurrent ID generators in the same partition need distinct instance IDs. Pending model changes fail startup validation even when auto-migration is disabled, unless prototype recreation handles them.
 
 ## Connection String Conventions
 
@@ -54,7 +52,7 @@ In Development, an explicit named connection takes precedence. Without a named c
 
 Compose attribute `SeedAsync` after any custom EF seeding callback. Keep seeds idempotent and use the same scoped context. Eligible automatic startups call `MigrateAsync` even with zero pending migrations. Migration operations run seeds under the EF migration lock and a later startup may retry failed seeding. Explicit DI migration/creation calls seed too. Design-time contexts without DI omit attribute seeding. Prototype creation has no migration-lock guarantee.
 
-Reapplying options replaces DRN wrappers with the latest provider and preserves custom callbacks. Without a provider only custom callbacks remain. Use the context project for design-time startup. Resolve migration commands from the profile and follow the exact-command approval gate.
+Use the context project for design-time startup. Resolve migration commands from the profile and follow the exact-command approval gate. The package README owns option-hook composition.
 
 ## Prototype Mode
 
@@ -80,13 +78,7 @@ GUID methods validate the declared entity type and partition, including secondar
 
 ### Repository Cancellation
 
-Repository cancellation scope is configured via `Settings.ScopeKey`:
-
-- When `Settings.ScopeKey` is `null` (default), repository cancellation uses `Utils.Cancellation.Root`. `CancelChanges()` cancels `Root`, affecting all scope-wide operations.
-- When `Settings.ScopeKey` is set to a `CancellationScopeKey`, operations use that child scope:
-  - `CancellationToken` returns the child scope token.
-  - `CancelWhen(token)` links a lifetime token to the repository group.
-  - `CancelChanges()` cancels only repositories sharing that scope key.
+`Settings.ScopeKey` selects the cancellation group. The default `null` uses `Utils.Cancellation.Root`, so `CancelChanges()` affects all scope-wide operations. A `CancellationScopeKey` selects a child shared by repositories with that key. `CancellationToken`, `CancelWhen(token)` and `CancelChanges()` use the selected group.
 
 ```csharp
 repository.Settings.ScopeKey = CancellationScopeKey.For<UserRepository>("shared-writes");

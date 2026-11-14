@@ -4,6 +4,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Changed
 
+*   **Static-file headers**: Configure exact-path response headers at startup with `DrnStaticFileHeaderOptions`. Rules support replacement, removal, and override or set-if-missing behavior. Static `/robots.txt` responses now require cache revalidation by default. Other static files retain their existing cache lifetime.
 *   **Swagger configuration**: Swagger UI resolves its default document URL from the configured OpenAPI route, including deployment prefixes. Explicit UI document URLs remain supported.
 *   **OpenAPI 64-bit integers**: Generated schemas describe both JSON numbers and decimal strings for `long` values, including null for nullable values. Clients can preserve precision when reading large integers.
 *   **Request Diagnostics**: Request values use bounded capture. `Request_IpAddress` is recorded as an empty string when no remote address is available. Empty `l5d-client-id` headers are omitted.

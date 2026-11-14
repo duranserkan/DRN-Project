@@ -1,28 +1,29 @@
 ---
 name: basic-documentation-diagrams
-description: "WCAG-compliant Mermaid diagram standards - Color palettes, contrast ratios, accessibility checklist, color blindness considerations, subgraph styling, decision node patterns, and anti-patterns. Load when creating or reviewing diagrams. Keywords: wcag, accessibility, mermaid, diagrams, color-contrast, color-blindness, material-design, styling, a11y"
-last-updated: 2026-02-15
+description: Use when creating or reviewing Mermaid diagrams for readable labels, contrast, and non-color cues.
+last-updated: 2026-11-13
 difficulty: intermediate
-tokens: ~1K
 ---
 
 # Diagram Accessibility & WCAG Compliance
 
-> WCAG 2.1 Level AA standards for Mermaid diagrams. Load this skill when creating or reviewing diagrams.
+Apply WCAG contrast criteria to the rendered diagram. A palette alone does not establish conformance.
 
-## Color Palette (Material Design, WCAG AA)
+## Color Palette
 
-| Purpose | Background | Border | Text | Contrast | Use Case |
-|---------|------------|--------|------|----------|----------|
-| **Production** | `#E8EAF6` | `#3F51B5` | `#1A237E` | 12.6:1 | Production, critical paths |
-| **Development** | `#E1F5FE` | `#0288D1` | `#01579B` | 10.8:1 | Dev flows, active processes |
-| **Testing** | `#E8F5E9` | `#43A047` | `#1B5E20` | 11.2:1 | Testing, validation |
-| **Error/Warning** | `#FFCDD2` | `#C62828` | `#B71C1C` | 9.4:1 | Error states, warnings |
-| **Decision** | `#FFE0B2` | `#E65100` | `#E65100` | 8.7:1 | Decision nodes, branching |
-| **Info** | `#E0F7FA` | `#00ACC1` | `#006064` | 10.2:1 | Informational content |
-| **Notes** | `#FFF9C4` | `#F57C00` | `#E65100` | 8.7:1 | Supplementary details |
+Use these colors as starting points. Adjust any pair that fails the checks below.
 
-**Contrast minimums**: Normal text 4.5:1, Large text 3:1, UI components 3:1. Aim for 7:1+.
+| Purpose | Background | Border | Text |
+|---------|------------|--------|------|
+| Production | `#E8EAF6` | `#3F51B5` | `#1A237E` |
+| Development | `#E1F5FE` | `#0288D1` | `#01579B` |
+| Testing | `#E8F5E9` | `#43A047` | `#1B5E20` |
+| Error/Warning | `#FFCDD2` | `#C62828` | `#B71C1C` |
+| Decision | `#FFE0B2` | `#E65100` | `#E65100` |
+| Info | `#E0F7FA` | `#00ACC1` | `#006064` |
+| Notes | `#FFF9C4` | `#F57C00` | `#E65100` |
+
+Check rendered text against its actual background: normal text needs 4.5:1 and large text 3:1. See [WCAG text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html). Essential graphical boundaries need 3:1 against adjacent colors under [non-text contrast](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast).
 
 ---
 
@@ -47,20 +48,20 @@ tokens: ~1K
 flowchart TD
     subgraph CONTAINER [" "]
         direction TB
-        START([Start]) --> ENV{Environment?}
+        START(["Start"]) --> ENV{"Environment?"}
         ENV -->|Production| PROD_FLOW
         subgraph PROD_FLOW ["Production Flow"]
             direction TB
             P1["Process Step"] --> P2["Validation"]
-            P2 --> P3([Complete])
+            P2 --> P3(["Complete"])
         end
         ENV -->|Development| DEV_FLOW
         subgraph DEV_FLOW ["Development Flow"]
             direction TB
-            D1["Setup"] --> D2{Check Config?}
+            D1["Setup"] --> D2{"Check Config?"}
             D2 -->|✓ Yes| D3["Execute"]
-            D2 -->|✗ No| ERR([Error])
-            D3 --> D4([Complete])
+            D2 -->|✗ No| ERR(["Error"])
+            D3 --> D4(["Complete"])
             D1 --- D_NOTE["Note: Requires .env"]
         end
     end
@@ -90,9 +91,7 @@ flowchart TD
 
 ## Anti-Patterns
 
-❌ Low contrast colors (`#f9f`, `#bdf`), color-only indicators, unquoted labels, default Mermaid colors, pale yellow for decisions, `classDef` for subgraphs, plain "Yes"/"No" without symbols
-
-✅ Material Design palette (8.7:1+), multiple visual cues, quoted labels, explicit styling with comments, ✓/✗ symbols, direct `style` for subgraphs, white nodes inside colored subgraphs, 3px decision diamonds
+Do not infer accessibility from a palette name, default theme, or color-blindness simulation alone. Check rendered contrast and preserve shape, text, and border cues.
 
 ---
 
@@ -104,10 +103,10 @@ flowchart TD
 
 ## Checklist
 
-- [ ] All text ≥ 4.5:1 contrast
+- [ ] Text and essential graphical boundaries meet the applicable contrast minimum
 - [ ] Info conveyed via shape + text + borders (not just color)
 - [ ] All labels quoted
-- [ ] Material Design palette used
+- [ ] Palette adjusted where measured contrast fails
 - [ ] 2px borders (3px for decisions)
 - [ ] Styling sections commented
 - [ ] Tested with color blindness simulator ([Coblis](https://www.color-blindness.com/coblis-color-blindness-simulator/))

@@ -3,11 +3,10 @@ description: Implement approved DEVELOP artifacts with repository guidance
 ---
 
 > **Pipeline**: `/clarify` -> `/answer` -> `/develop` (3/3) · [Lifecycle](./_shared/status-lifecycle.md) · [Operating Model](./_shared/workflow-operating-model.md)
-> **Estimated context: ~1.5K tokens**
 
 ## 1. Resolve And Validate
 
-Act concurrently as software-construction/design engineer grounded in *Code Complete, 2nd Edition*, PMP-caliber project/program leader, and forward-deployed engineer.
+Apply the shared CAD roles as software-construction/design engineer.
 
 Run the Startup Gate once and load only needed skills.
 
@@ -15,8 +14,8 @@ Run the Startup Gate once and load only needed skills.
 |---|---|
 | Explicit canonical `DEVELOP-*` | Use it. |
 | Explicit `CLARIFY-*` | Route through `/answer` Section 5, then rerun. |
-| None | Select one DEVELOP artifact; ask on multiple; route through CAD on none. |
-| Inline/generic plan | Stop; require current `DEVELOP-*`. |
+| None | Select one active, non-superseded DEVELOP artifact. Ask on multiple and route through CAD on none. |
+| Inline/generic plan | Stop and require current `DEVELOP-*`. |
 
 Never mutate source without a valid DEVELOP handoff.
 
@@ -24,9 +23,9 @@ Never mutate source without a valid DEVELOP handoff.
 |---|---|
 | `ready-to-develop` | Validate and continue. |
 | `implementing` | Revalidate and resume. |
-| `implemented-pending-approval` | Verify final state; wait for user approval. |
+| `implemented-pending-approval` | Verify final state and wait for final user approval. Explicitly authorized corrections re-enter `implementing` after all gates below pass. |
 | `clarified` | Run `/answer` handoff generation. |
-| `draft-self-reviewed` | Apply the skip gate below; never implement directly. |
+| `draft-self-reviewed` | Apply the skip gate below. Never implement directly. |
 | `draft`, `clarifying`, missing | Return to `/clarify` and `/answer`. |
 | `implemented` | Resume only on explicit confirmation. |
 
@@ -38,9 +37,9 @@ This gate authorizes only `/answer` handoff generation. Require testable criteri
 
 Verify DEVELOP `source`, `source_status`, `source_updated`, and `source_sha256` against the current non-superseded CLARIFY artifact.
 
-- Missing/newer/mismatched/superseded source: set/report `stale: true`; regenerate through `/answer`.
-- `needs_review: true`: run `/review`; clear only with no unresolved Critical or Major findings.
-- `approval_required: true`: obtain explicit approval unless the shared contract permits a workflow-tolerated record.
+- Missing/newer/mismatched/superseded source: set/report `stale: true` and regenerate through `/answer`.
+- `needs_review: true`: run `/review`. Clear only with no unresolved Critical or Major findings.
+- `approval_required: true`: apply [CAD scoped authorization](./_shared/status-lifecycle.md#cad-scoped-authorization), obtain explicit approval, or validate a permitted workflow-tolerated record. Always bind current reviewed content before edits.
 - Direct `/develop <path>` may approve the reviewed artifact, persisted preview/diff when applicable, bounded scope, and risk. Compute and record the complete shared approval envelope before edits.
 - A false approval flag without a current matching envelope blocks.
 
@@ -50,7 +49,7 @@ Security-sensitive, destructive, VCS, failed, unclear, or non-tolerable gates al
 
 Require:
 
-- Current source metadata; no stale, review, approval, `blocked_on_user: true`, or unverified-assumption blocker.
+- Current source metadata. No stale, review, approval, `blocked_on_user: true`, or unverified-assumption blocker.
 - Clear scope, requirements, PBIs, dependencies, and testable criteria.
 - Implementation Context with files, skills, command authorization, and static verification.
 - Lineage Notes when continuing prior work.
@@ -69,9 +68,9 @@ Read the operating model, skill index, `basic-agentic-development`, and only the
 | Frontend | Matching frontend subset |
 | Testing | Testing profile plus relevant test skills |
 | Infrastructure | Repository structure and GitHub Actions |
-| Docs | Documentation and diagram skills |
+| Docs | Documentation skill. Diagram skill only when diagrams need work. |
 
-With no filter, implement the full backlog; otherwise include dependencies and warn on omissions.
+With no filter, implement the full backlog. Otherwise include dependencies and warn on omissions.
 
 For each PBI:
 
@@ -81,7 +80,7 @@ For each PBI:
 4. Resolve conflicts with TRIZ, then Priority Stack.
 5. Preserve approved strategy unless evidence proves it stale, contradictory, unsafe, or impossible.
 
-Proceed after a concise summary for Trivial/Standard. Significant requires explicit or accepted workflow-tolerated approval; Critical/security-sensitive requires explicit approval. Track PBIs when count >=3.
+Proceed after a concise summary for Trivial/Standard. Significant requires explicit or accepted workflow-tolerated approval. Critical/security-sensitive requires explicit approval. Track PBIs when count >=3.
 
 VCS preflight: inspect branch, dirty state, and base. Create a branch, commit, push, or track `.agent/temp/` only when explicitly requested. Never let `/clarify` or `/answer` mutate VCS.
 
@@ -94,18 +93,18 @@ Per PBI:
 3. Apply Clean Code and repository conventions.
 4. Add/update required tests.
    For new classification rules or rule files, follow the profile's classification maintenance route. Include compiler registration, runtime loading, deployment items, and matching/nonmatching tests when those consumers exist.
-5. Run build/tests only when the Command Execution Authorization Gate permits; unit before integration.
-6. On failure, fix and reverify; stop after two failed attempts.
+5. Run build/tests only when the Command Execution Authorization Gate permits. Unit precedes integration.
+6. On failure, fix and reverify. Stop after two failed attempts unless the user explicitly authorizes further corrective iterations.
 
 After all PBIs:
 
-1. Use allowed commands; otherwise static verification and report `not run per repo rule`.
+1. Use allowed commands. Otherwise use static verification and report `not run per repo rule`.
 2. Run `/review` on implemented changes and resolve Critical and Major findings.
 3. Verify Priority Stack, Clean Code, compatibility, docs, and release-note impact.
 4. Run `git diff --check`.
 
 ## 4. Walkthrough And Completion
 
-Use the handoff's canonical `.agent/temp/WALKTHROUGH-<name>.md`; its basename must match `DEVELOP-<name>.md`. Record `develop_artifact` in walkthrough frontmatter. Stop on missing/mismatched metadata and never overwrite a walkthrough owned by another handoff.
+Use the handoff's canonical `.agent/temp/WALKTHROUGH-<name>.md`. Its basename must match `DEVELOP-<name>.md`. Record `develop_artifact` in walkthrough frontmatter. Stop on missing/mismatched metadata and never overwrite another handoff's walkthrough.
 
 Record implemented PBIs, PBI-to-file/test status, verification, Priority Stack, decisions, and deviations. Set `status: implemented-pending-approval` only after changes, verification, and walkthrough complete. Set `implemented` and its ISO 8601 timestamp only after user approval.

@@ -5,16 +5,15 @@ description: Update per-module README.md and RELEASE-NOTES.md from repository-pr
 
 > **Standalone documentation workflow**
 > See also: [Operating Model](./_shared/workflow-operating-model.md)
-> **Estimated context: ~1.2K tokens**
 
 ## 1. Mandate
 
 Act as Documentation Engineer.
 
 - Keep module `README.md` and `RELEASE-NOTES.md` in sync with code.
-- Use profile-declared documentation modules; exclude root docs unless declared.
+- Use profile-declared documentation modules. Exclude root docs unless declared.
 - Preserve human-written sections unless the user confirms changes.
-- Run the shared Startup Gate; load only needed documentation and source skills.
+- Run the shared Startup Gate. Load only needed documentation and source skills.
 
 ## 2. Resolve Scope
 
@@ -33,7 +32,7 @@ Use `.agent/repository-profile.md` `Documentation Modules`. If absent, find modu
 
 For each scoped module:
 
-```bash
+```text
 Read file: <Module>/README.md
 Read file: <Module>/RELEASE-NOTES.md
 Inspect outline: <Module>/<manifest-file>
@@ -100,17 +99,9 @@ minimal example
 
 ## 7. Update Release Notes
 
-Append a current version block above history. Never rewrite history.
+Apply the [documentation skill's release-note rules](../skills/basic-documentation/SKILL.md#release-notesmd) with the profile's baseline, triggers, and exclusions taking precedence. If no baseline is declared, identify the latest published version before deriving changes. Record `not required` when no trigger applies.
 
-Add or update a block only for:
-
-- Public API, contract, endpoint, event, DTO, configuration key, default, security posture, operational behavior, data/migration behavior, or observable bug fix.
-- Dependency, runtime, container, or build-output changes that are breaking, security-relevant, consumer-visible, or alter published package artifacts.
-- Published docs shipped as package metadata.
-
-Do not add entries for internal-only refactors, tests, comments, private/internal-only checks, agent-only docs, routine dependency-only changes, or unchanged version-aligned packages unless the profile requires them.
-
-Use only changes since the last documented version. Omit empty subsections. Include breaking changes. Keep inferred changes in the plan until source evidence or explicit approval resolves them; do not publish assumption markers unless requested.
+Add or update the current version block above history. Omit empty subsections. Include breaking changes. Keep inferred changes in the plan until source evidence or explicit approval resolves them. Do not publish assumption markers unless requested.
 
 Follow the local template from the profile, package metadata, or framework-owned skill, including required prefix or footer invariants. Otherwise use `## Version X.Y.Z` with `### Breaking Changes`, `### New Features`, `### Changed`, and `### Bug Fixes`.
 

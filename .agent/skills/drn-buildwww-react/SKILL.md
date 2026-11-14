@@ -1,7 +1,7 @@
 ---
 name: drn-buildwww-react
 description: "DRN React mounted islands. Keywords: drn, buildwww, react, shadow-dom, tailwind, typescript, onmount, mount-api, iife"
-last-updated: 2026-11-04
+last-updated: 2026-11-13
 difficulty: advanced
 ---
 
@@ -39,10 +39,8 @@ Preload provides `DRN.React.mount`. It returns `null` until the React bundle ins
 | `buildwww/lib/react/reactBundle.tsx` | Registry and mount API |
 | `reactBundle.css` | Tailwind references and component CSS imports |
 | `components/` | TSX and optional CSS file pairs |
-| `IslandErrorBoundary.tsx` | Per-island render failure boundary |
-| `PortalContext.tsx`, `portalHost.ts` | Shared Shadow DOM portal host |
-| `styleManager.ts`, `nonceHelper.ts` | Stylesheets, containers, CSP nonce discovery |
-| `buildwww/types/drnReact.types.ts` | React API, registry, root, mount, and disposal types |
+| `PortalContext.tsx` | `IslandPortal` component for overlays |
+| `buildwww/types/drnReact.types.ts` | Public mount options, registry, and island handle |
 | `buildwww/app/ts/behaviors/home/` | Page-specific island mounting |
 | `buildwww/app/ts/drn/drnOnmount.ts` | Lifecycle registration wrapper |
 
@@ -50,15 +48,13 @@ HelloReact is the reference component. Resolve output paths from Vite's manifest
 
 ## Type System
 
-`ReactComponentRegistry` maps names to component prop types. Keep it aligned with runtime `COMPONENT_REGISTRY`. `ReactMountOptions.useShadow` defaults to true. `ReactMountedIsland<P>` exposes `update(Partial<P>)`, `getProps(): P | null`, and `dispose()`.
-
-`RootData` tracks the root, name, shadow mode, and current props per DOM element. Component, error-boundary, and portal declarations live in shared types. Use these rather than parallel definitions.
+`ReactComponentRegistry` maps names to component types and their props. Keep it aligned with runtime `COMPONENT_REGISTRY`. Use the shared public types rather than parallel definitions. `ReactMountOptions.useShadow` defaults to true. See [Mount API](#mount-api) for the returned handle.
 
 ## Vite Build Configuration
 
 The dedicated `build:react` target uses React and Tailwind plugins. A single JavaScript entry permits native IIFE output named `DrnReactMicroFrontend`, independent of runtime/behavior builds. Preserve the existing `import.meta` transformation for classic-script output. Mixed-entry classic builds use [Vite isolation guidance](../drn-buildwww-vite/SKILL.md#vite-configuration).
 
-Building requires explicit execution permission. A home-behavior-only change uses `build:behaviors:home`; component, registry, or React CSS changes require the React build too. Markup/configuration changes also require deploying the Razor view.
+Building requires explicit execution permission. A home-behavior-only change uses `build:behaviors:home`. Component, registry, or React CSS changes require the React build too. Markup/configuration changes also require deploying the Razor view.
 
 ## CSS Strategy
 
@@ -70,19 +66,19 @@ Building requires explicit execution permission. A home-behavior-only change use
 
 Scope document-visible selectors under `.drn-react-root`, including resets. The shared sheet is also adopted into the document for light-DOM islands, so Shadow DOM alone does not isolate it. Reserve `:host` for Shadow DOM behavior. Avoid global `:root` and document-wide `*` resets.
 
-The shadow container receives `.drn-react-root`; light-DOM mounts apply it to the mount element. Component CSS works in island and shared-portal Shadow DOM roots.
+Both shadow and light-DOM mounts receive `.drn-react-root`. Component CSS must also work in the shared portal's Shadow DOM.
 
 ### Shadow DOM Style Injection
 
-Use the shared constructable sheet when supported. Fallback inserts nonce-bearing `<style>` in document, island, and portal roots. Reuse existing style/nonce helpers, which read htmx metadata or DOM. Never create unnonced fallbacks or replace other components' adopted sheets.
+Preserve styles in document, island, and portal roots. Reuse existing style/nonce helpers. Fallback `<style>` elements must carry the response nonce. Never replace another component's adopted sheets.
 
 ### CSS and JavaScript Timing
 
-CSS custom properties may own animation timing. HelloReact uses `--badge-fade-ms` and `--title-cycle-ms`; behavior reads them with `getComputedStyle`. Preserve fallbacks and clear every interval/pending timeout on unmount.
+CSS custom properties may own animation timing. Preserve fallback durations and clear every interval or pending timeout on unmount.
 
 ## The Component Registry
 
-Register components in both `ReactComponentRegistry` and runtime `COMPONENT_REGISTRY`. Unknown names log an error and return null. Tracking prevents duplicate roots and cleans up when component name or shadow mode changes. Weak references do not replace explicit disposal.
+Register components in both `ReactComponentRegistry` and runtime `COMPONENT_REGISTRY`. Unknown names log an error and return null. Repeated mounting must not duplicate roots. Changing the component or shadow mode replaces the previous island.
 
 ## Mount API
 
@@ -90,13 +86,11 @@ Register components in both `ReactComponentRegistry` and runtime `COMPONENT_REGI
 
 Returns an island handle or null for an invalid element/component. `update(partialProps)` merges props and rerenders, `getProps()` returns a shallow copy or null after disposal, and `dispose()` unmounts. Old handles cannot mutate/dispose a replacement root on the same element.
 
-Each island renders inside StrictMode, an `IslandErrorBoundary`, and the portal provider. Render failures remain local. Preserve the boundary's reset behavior when props change.
+Each island uses StrictMode. Render failures remain local and can recover when props change.
 
 ### Global Portal Host
 
-`IslandPortal` renders overlays into shared `#drn-global-portals` Shadow DOM. Reuse the connected host and recreate it after htmx swaps detach it. Keep styles under `.drn-react-root`. Dispose the owning island so React removes its portal children. Never mount portals while htmx is removing old body children.
-
-Mounting an island supplies the portal container. A component in `buildwww/lib/react/components/` can render a notice there while it is visible.
+`IslandPortal` renders overlays into shared Shadow DOM. Keep styles under `.drn-react-root`. New islands must have working portals after htmx navigation. Dispose the owning island to remove its overlays. Never mount portals while htmx removes old body children. A component can render a notice through the portal:
 
 ```tsx
 import { IslandPortal } from '../PortalContext.tsx';
@@ -135,9 +129,9 @@ DRN.Onmount.register('[data-js-hello-react-island]', function (options) {
 });
 ```
 
-Use `registerFull` for custom cleanup, or a composite disposable for timers/listeners plus the island. Dispose extra resources before the island. The wrapper deduplicates registrations across page-script executions. Initial polling must follow deferred registration; htmx polling and late script registration must both work. Revisits mount new elements without duplicate listeners.
+Use the [Onmount lifecycle](../drn-buildwww-libraries/SKILL.md#onmount-wrapper) for repeated registration, late loading, and cleanup. Return `false` when React is not ready so a later poll retries the mount. Dispose extra resources before the island.
 
-Access rendered Shadow DOM through `shadowRoot`. React rendering is asynchronous; descendants may not exist immediately after `mount()`. Use readiness callbacks when behavior requires rendered content.
+Access rendered Shadow DOM through `shadowRoot`. React rendering is asynchronous. Use readiness callbacks when behavior needs rendered descendants.
 
 ## Adding a New Component
 
@@ -152,7 +146,7 @@ Access rendered Shadow DOM through `shadowRoot`. React rendering is asynchronous
 
 Follow the shared [frontend type naming and ownership guidance](../drn-buildwww-vite/references/type-ownership.md) for React APIs, props, and options.
 
-Follow [UI accessibility guidance](../basic-code-review/SKILL.md#ui-accessibility). React event props do not need inline-script CSP permission; bundle/style nonce rules still apply.
+Follow [UI accessibility guidance](../basic-code-review/SKILL.md#ui-accessibility). React event props do not need inline-script CSP permission. Bundle/style nonce rules still apply.
 
 ### Callback Convention
 
@@ -164,11 +158,11 @@ Use `on`-prefixed function props, such as `onReady` and `onCardClick`. Callbacks
 - Assign the handle or composite object to `options.disposable`.
 - For custom unregister, release timers/listeners before `DRN.Onmount.unregister.call(this, options)`.
 - Use `island.dispose()`, not direct `root.unmount()` from host code.
-- Full reload adopts new code for existing registrations; cache reuse does not replace behavior registration.
+- Full reload adopts new code for existing registrations. Cache reuse does not replace registration.
 
 ### Evolution Triggers
 
-Consider an event bus when several islands need shared state, lazy registry imports when bundle size warrants them, alternate renderers for proven requirements, and micro-frontends for multiple frameworks or independent teams. Domain behavior bundles alone require no new runtimes or independent applications.
+Add shared-state or lazy-loading mechanisms only for a proven requirement. Domain behavior bundles alone do not require a new runtime or independent application.
 
 ## Related Skills
 

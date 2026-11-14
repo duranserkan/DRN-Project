@@ -7,7 +7,6 @@ using Sample.Domain.Identity;
 namespace Sample.Hosted;
 
 //todo: use TimeProvider
-//todo: robots.txt example usage
 //todo: add razor page login and logout UI integration tests as example
 //https://learn.microsoft.com/en-us/aspnet/core/security/
 public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram

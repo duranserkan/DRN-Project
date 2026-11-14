@@ -1,7 +1,7 @@
 ---
 name: overview-drn-framework
-description: "Route DRN framework work to version-matched package documentation and skills. Covers configuration, environment safety, and documentation ownership."
-last-updated: 2026-11-07
+description: "Route DRN work to version-matched package guidance, configuration and environment safeguards."
+last-updated: 2026-11-13
 difficulty: basic
 ---
 
@@ -31,7 +31,7 @@ In a framework source checkout, use the repository profile or discover the ownin
 
 ## DRN Framework Maintenance Reference
 
-Register modules through their service-collection extensions. Use DRN lifetime attributes and avoid duplicate manual registrations. Scoped validation belongs to the provider being validated. SharedKernel owns JSON conventions and exception semantics. Hosting owns the public HTTP response. Find the application's composition root to see which modules and startup hooks it uses.
+Register modules through their extensions and DRN lifetime attributes. Avoid duplicate manual registrations. Validate each provider's own scope. SharedKernel owns JSON and exception semantics. Hosting owns HTTP responses. Check the application's composition root for module and startup-hook usage.
 
 ### Maintenance Reference: Configuration Sources
 
@@ -47,12 +47,12 @@ Set `Environment` to Development, Staging or Production before loading environme
 
 ### Maintenance Reference: Migration And Prototype Invariants
 
-Production and Staging require explicit connection strings. Production never auto-migrates. Staging migrates only with `AutoMigrateStaging` and cannot recreate a prototype. Development defaults to automatic migration. The [EntityFramework skill](../drn-entityframework/SKILL.md#prototype-mode) owns every condition for prototype recreation, retryable seeding and the connection modes.
+Production and Staging require explicit connection strings. Production never auto-migrates. Staging migrates only with `AutoMigrateStaging` and cannot recreate a prototype. Development defaults to automatic migration. Follow [EntityFramework](../drn-entityframework/SKILL.md#prototype-mode) for prototype, seeding and connection safeguards.
 
-Use explicit `TemporaryApplication`, `SkipValidation` or a dedicated test context for test-specific behavior. Keep production invariants active. A temporary host builds the pipeline for discovery, skips endpoint validation/accessor population, performs service validation unless skipped and returns before startup.
+Use explicit `TemporaryApplication`, `SkipValidation` or a dedicated test context. Keep production invariants active. [Hosting](../drn-hosting/SKILL.md#drnprogrambase-pattern) owns temporary-host behavior.
 
 ### Testing and maintenance
 
-Follow the current repository's execution gates. `SettingsProvider` resolves settings locally or under `Settings/`. Read container defaults from the installed Testing package. PostgreSQL binding and RabbitMQ startup are separate operations.
+Follow repository execution gates and [Testing](../drn-testing/SKILL.md) for settings and container setup. PostgreSQL binding does not start RabbitMQ.
 
-For changes to public behavior, update the owning package documentation and affected skills. Search old names, defaults and examples for drift. Use the publisher's profile for release triggers, format, coordinated version alignment and packaging limits. A consuming repository follows its own release policy. Run `git diff --check` after documentation edits.
+Update owning package docs and affected skills when public behavior changes. Search old names, defaults and examples for drift. Follow the current repository profile for release and packaging rules. Run `git diff --check` after documentation edits.

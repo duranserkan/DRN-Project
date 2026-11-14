@@ -2,7 +2,6 @@
 description: Add tests for staged changes or a described task using repository conventions
 ---
 
-> **Estimated context: ~0.8K tokens** + testing skills.
 > See also: [Operating Model](./_shared/workflow-operating-model.md)
 > Do not run tests unless the user or profile explicitly allows that execution scope through the shared Command Execution Authorization Gate.
 
@@ -12,16 +11,17 @@ Run the shared Startup Gate once. Load only needed testing skills.
 
 ## 2. Scope
 
-- **No arguments**: inspect staged changes with `git diff --cached`; if empty, report and stop.
-- **Task/description**: map source files from keywords or git history; read minimal context.
+- **No arguments**: inspect staged changes with `git diff --cached`. If empty, report and stop.
+- **Task/description**: map source files from keywords or git history. Read minimal context.
 - **Mutation boundary**: add or update tests only. If source changes are required for meaningful tests, report why and wait for approval.
 
 ## 3. Guidance
 
 Load profile-specific rules before generic test skills:
 - Read `.agent/repository-profile.md`.
-- Load `.agent/workflows/load-skills-test.md` when repository testing conventions may apply.
-- For narrow tasks, load only classifier-relevant test skills after reading the profile.
+- Load the profile's testing set, then only classifier-relevant test skills for narrow tasks.
+- Apply the skill index's [Selection Rules](../skills/overview-skill-index/SKILL.md#selection-rules), including exclusions and missing guidance.
+- Use [load-skills-test](./load-skills-test.md) for broad testing coverage.
 - Load performance guidance only when the user asks for performance coverage.
 
 ## 4. Classify
@@ -49,7 +49,7 @@ Use framework attributes and contexts only when the profile or testing skills de
 ## 6. Write And Verify
 
 - Write tests by repository conventions.
-- If test execution is allowed by the shared gate, run unit tests first; discover commands from profile, CI, or files.
+- If test execution is allowed by the shared gate, run unit tests first. Discover commands from profile, CI, or files.
 - If tests are not allowed, perform static verification: reread touched test sections, confirm attributes/contexts match loaded guidance, and report build/test as `not run per repo rule`.
 - Run `git diff --check` after edits unless blocked.
 - For blocked or skipped verification, use the [Evidence Contract](./_shared/workflow-operating-model.md): Evidence, Impact, Invariant, Recommendation, Confidence, Verification.

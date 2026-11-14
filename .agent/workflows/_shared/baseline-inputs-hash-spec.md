@@ -4,16 +4,14 @@ description: Baseline and output hashing for /update staleness gates
 
 ## Shared Path-State Snapshot
 
-Resolve one exact path set in deterministic order. The plan and Semantic Plan
-SHA-256 bind that set; changing it invalidates the snapshot. For an empty set, never
-invoke `git status` or `git diff`: Approved Output Preimages and Output Revision create an explicit zero-byte status artifact and hash it. Baseline Inputs `N/A` Guard creates no artifacts.
+Resolve one exact path set in deterministic order. The plan and Semantic Plan SHA-256 bind that set. Changing it invalidates the snapshot. For an empty set, never invoke `git status` or `git diff`. Output Revision uses a manifest over a zero-byte status artifact. Baseline Inputs uses the `N/A` Guard. Approved Output Preimages uses only its canonical tuple list, including when empty.
 
 For a non-empty set, pass literal operands safely without globs or word splitting.
 For every path:
 - Require a UTF-8, repository-relative, control-character-free path. Reject CR, LF, NUL, absolute paths, and repository escapes during scope resolution.
 - Existing paths must be single-link regular files. Reject symlinks (`test -L`), directories used as file records, and special files.
 
-Approved output transitions record canonical mode as `100755` when executable bit is set and `100644` otherwise. Baseline Inputs Hash and Output Revision SHA-256 bind path presence and content, not mode; mode is an immediate apply/resume safety check.
+Approved output transitions record canonical mode as `100755` when executable bit is set and `100644` otherwise. Baseline Inputs Hash and Output Revision SHA-256 bind path presence and content, not mode. Mode is an immediate apply/resume safety check.
 
 Persist two artifacts per snapshot:
 1. Raw NUL-delimited status: `git status --porcelain=v1 -z --untracked-files=all`.
@@ -33,9 +31,7 @@ shasum -a 256 -b -- .agent/temp/update-baseline-status.z <existing-regular-input
 shasum -a 256 -b -- .agent/temp/update-baseline-inputs.manifest
 ```
 
-The final digest is `Baseline Inputs Hash`. Preserve `Baseline HEAD` as part of the binding. Revalidation recomputes status and verifies the manifest after repeating the no-follow path safety checks from Lines 11–16:
-
-Immediately before consuming the manifest, extend the revalidation flow around the Git status and `shasum` commands to independently verify each resolved input's presence, single-link regular-file type, and link count (failing closed on any missing path, symlink, directory, special file, or hard link):
+The final digest is `Baseline Inputs Hash`. Preserve `Baseline HEAD` as part of the binding. Immediately before consuming the manifest, repeat the [Shared Path-State Snapshot](#shared-path-state-snapshot) checks. Compare each input's presence with the bound path set and manifest. An input absent at baseline must remain absent. Every present input must remain a single-link regular file. Fail closed on changed presence, symlinks, directories, special files, or hard links. Then revalidate status and the manifest:
 
 ```bash
 git status --porcelain=v1 -z --untracked-files=all -- <input-pathspecs> > .agent/temp/update-baseline-status.current.z
@@ -44,7 +40,7 @@ shasum -a 256 -c .agent/temp/update-baseline-inputs.manifest
 shasum -a 256 -b -- .agent/temp/update-baseline-inputs.manifest
 ```
 
-Require the same `HEAD`, every command and path safety check to succeed independently, successful status comparison, and exact digest before and after manifest consumption. Fail closed on any mismatch before accepting the baseline; otherwise the plan is stale.
+Require the same `HEAD`, every command and path safety check to succeed independently, successful status comparison, and exact digest before and after manifest consumption. Any mismatch makes the plan stale. Fail closed before accepting the baseline.
 
 ## Approved Output Preimages
 
@@ -58,9 +54,9 @@ Require exactly one record per output path, reject duplicate paths, and sort rec
 
 Use `presence: 0`, `mode: "0"`, `sha256: "N/A"` for a missing side. A present side must have `presence: 1`, `mode: "100644"` or `"100755"`, and `<raw-byte-sha256>`. Apply this canonical serialization to the complete tuple list, recording every preimage and postimage even when a proposed diff exists.
 
-The canonical tuple list is the sole output-preimage binding; no separate output-preimage snapshot or manifest exists.
+The canonical tuple list is the sole output-preimage binding. No separate output-preimage snapshot or manifest exists.
 
-Immediately before the first write to each pending output, verify its exact approved preimage. On resume, an output matching its preimage is pending; one matching its postimage is completed.
+Immediately before the first write to each pending output, verify its exact approved preimage. On resume, an output matching its preimage is pending. One matching its postimage is completed.
 
 ## Output Revision Hash
 
@@ -70,7 +66,7 @@ After execution, create the shared snapshot with these paths:
 
 Generate the standard `shasum` manifest over the status artifact and existing regular output files. The final manifest digest is `Output Revision SHA-256`. Before using a cached result, revalidate status and require the recorded digest.
 
-For an empty output set, use `Output Revision SHA-256` calculated from the empty status artifact. Output Revision is never `N/A`.
+For an empty output set, create the zero-byte status artifact and hash a standard manifest containing only that artifact. Its manifest digest is `Output Revision SHA-256`, never `N/A` or the direct hash of the empty status artifact.
 
 ## N/A Guard
 

@@ -1,9 +1,8 @@
 ---
 name: overview-skill-index
 description: Choose task skills, map work to skill families, find related skills, and update routing after skills change.
-last-updated: 2026-11-04
+last-updated: 2026-11-13
 difficulty: basic
-tokens: ~2K
 ---
 
 # Skill Cross-Reference Index
@@ -12,13 +11,14 @@ tokens: ~2K
 
 ## Selection Rules
 
-1. Use existing source-owned guidance through the smallest set of skills that covers the task; do not create separate thin guidance forks.
+1. Load the smallest skill set that covers the task. Reuse the existing owner instead of creating another guidance file.
 2. Prefer generic `basic-*`, `overview-*`, and `test-*` skills for portable process guidance.
 3. Load framework-specific skills only when the repository profile, source code, or user request names that framework.
 4. Load generic `frontend-*` skills only when the repository profile or filesystem declares the matching frontend convention.
 5. Load DRN-scoped buildwww skills only when the repository profile or filesystem declares DRN `buildwww`.
 6. Load profile-declared custom workflows and skills before generic fallback when they match the task, route, layer, or slash-command flag.
-7. Skip profile `Excluded Skills` and missing skills. Report missing references; discover through conventions/profile. `/update` reconciles routes.
+7. Skip profile `Excluded Skills`. Report missing skills and use profile or convention discovery. `/update` reconciles routes.
+8. Follow a related-skill link only when its scope is needed. State which public contract or decision it supports. Verify changed claims against current source and report any unverified boundary.
 
 ## By Task
 
@@ -43,64 +43,11 @@ tokens: ~2K
 | Refresh local agent instructions/loaders from the current filesystem | `/update` workflow |
 | Port `.agent` into a new repository | `/update all` -> full new-repository self-sync -> `/update` verification |
 
-## Framework And Convention-Specific Families
-
-The following families are framework- or convention-scoped and should be used only when present and relevant:
-
-| Family | Trigger |
-|--------|---------|
-| `drn-*` | Repository uses DRN Framework or the user asks for DRN behavior |
-| `overview-drn-*` | Repository profile declares DRN overview/testing conventions |
-| `drn-buildwww-*` | Repository profile or filesystem declares DRN `buildwww` frontend convention |
-| `<custom>-*` | Repository profile, workflow, or task declares a custom local convention |
-
-## By Layer
-
-| Concern | Portable Skills | Framework/Profile Overlay |
-|---------|-----------------|----------------|
-| Domain / architecture | `overview-ddd-architecture` | Framework/domain skill from profile |
-| Hosting / API | `basic-security-checklist`, `test-integration-api` | Hosting skill from profile |
-| Persistence | `test-integration-db` | ORM/framework skill from profile |
-| Testing | `test-unit`, `test-integration`, `test-performance` | Framework/profile testing skill |
-| Frontend | Detected generic `frontend-*` convention skill | `drn-buildwww-*` or other framework/web skill from profile |
-| CI/CD | `overview-github-actions`, `basic-git-conventions` | Release/deployment profile |
-| Custom workflow route | Selected generic route | Profile-declared custom workflow or skill overlay |
-
-## Dependency Graph
-
-```mermaid
-flowchart TD
-    Profile[".agent/repository-profile.md"]
-    Index["overview-skill-index"]
-    Basic["basic-*"]
-    Overview["overview-*"]
-    DRN["drn-*"]
-    Test["test-*"]
-    Frontend["frontend-* / drn-buildwww-*"]
-    Custom["profile/custom workflows + skills"]
-    Sync["/sync sibling roots"]
-    Workflows["task workflows"]
-
-    Profile --> Index
-    Index --> Basic
-    Index --> Overview
-    Profile --> DRN
-    Profile --> Test
-    Profile --> Frontend
-    Profile --> Custom
-    Profile --> Sync
-    Index --> Sync
-    Overview --> DRN
-    DRN --> Test
-    Frontend --> Workflows
-    Custom --> Workflows
-    Basic --> Workflows
-    Basic --> Sync
-```
+For hosting/API work, combine the profile's hosting skill with `basic-security-checklist` and `test-integration-api`. For persistence, use the profile's ORM skill and `test-integration-db`. Apply `overview-drn-*` only when the profile declares DRN overview/testing conventions.
 
 ## Keyword Index
 
-Portable keywords should stay broad. Repository- or framework-specific terms belong in the profile-scoped index below and apply only when `.agent/repository-profile.md` declares the matching convention.
+Use broad portable keywords. Apply the profile-scoped terms below only for the matching convention.
 
 | Keyword | Skills |
 |---------|--------|

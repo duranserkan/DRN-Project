@@ -1,14 +1,11 @@
 ---
 name: drn-buildwww-packages
-description: 'DRN buildwww package dependencies - npm packages for Bootstrap, htmx, ASP.NET validation, onmount, React, Tailwind, and Vite. Keywords: drn, buildwww, npm, packages, dependencies, bootstrap, htmx, aspnet-client-validation, onmount, react, tailwind'
-last-updated: 2026-11-08
+description: "Select and update DRN frontend dependencies. Use for npm versions, lockfiles, package imports, and tooling."
+last-updated: 2026-11-13
 difficulty: basic
-tokens: ~0.5K
 ---
 
 # DRN buildwww npm Packages
-
-> Definitions of DRN buildwww frontend dependencies and their purposes.
 
 ## When to Apply
 - Adding new npm libraries
@@ -21,27 +18,19 @@ tokens: ~0.5K
 
 ## Source Of Truth
 
-Resolve the frontend package root from `.agent/repository-profile.md` when it declares one. Otherwise, discover it by searching for `package.json` and choosing the root that owns `vite.config.*`, `buildwww/`, `src/`, or frontend build scripts.
-
-Use that root's `package.json` as the source of truth for npm scripts, package names, and pinned top-level versions. Use the sibling lockfile as the source of truth for resolved dependency metadata.
-
-Do not copy package versions into this skill. Hardcoded versions drift when dependency maintenance commits update `package.json`.
+Resolve the frontend root from the repository profile. Otherwise, find the `package.json` that owns Vite, `buildwww/`, `src/`, or frontend scripts. Its manifest owns scripts and pinned top-level versions. Its lockfile owns resolved dependencies. Keep version numbers in those files.
 
 Pin the verified Node.js LTS release for CI and local development. Match the package engine and root lockfile metadata to the exact runtime pin. Keep setup docs aligned and verify the local runtime matches. Keep version numbers in repository configuration, not skills.
 
-Top-level `dependencies` and `devDependencies` must use exact versions, not caret or tilde ranges. This keeps the supply-chain policy in `package.json` true and makes `npm ci` reproducible.
+Use exact versions in `dependencies` and `devDependencies`. Verify provenance under the AGENTS.md version-update gate before committing.
 
-When changing packages:
+Inspect manifests safely. Every npm command below, including dry runs and registry lookups, requires the explicit request and confirmation in AGENTS.md. When changing packages:
 
 1. Set `FRONTEND_PACKAGE_DIR` to the absolute path of the discovered package root before changing directories.
 2. Edit `$FRONTEND_PACKAGE_DIR/package.json` or run the contributor guide's safeguarded `--save-exact` install command from `"$FRONTEND_PACKAGE_DIR"`.
 3. Refresh lock metadata with `npm install --prefix "$FRONTEND_PACKAGE_DIR" --package-lock-only --ignore-scripts --engine-strict --registry=https://registry.npmjs.org/`.
-4. Verify the root lock metadata matches `package.json`.
+4. Compare both dependency maps in `package.json` with the root lock entry. Preserve exact names and versions. Do not create or run an ad-hoc verifier without the required approval.
 5. Run `npm ci --prefix "$FRONTEND_PACKAGE_DIR" --ignore-scripts --engine-strict --registry=https://registry.npmjs.org/ --dry-run` to verify install consistency.
-
-```bash
-node -e 'const fs=require("fs"); const dir=process.argv[1]; const p=JSON.parse(fs.readFileSync(`${dir}/package.json`,"utf8")); const l=JSON.parse(fs.readFileSync(`${dir}/package-lock.json`,"utf8")).packages[""]; let bad=[]; for (const kind of ["dependencies","devDependencies"]) for (const [k,v] of Object.entries(p[kind]||{})) { const lv=(l[kind]||{})[k]; if (v!==lv) bad.push(kind+" "+k+": package.json="+v+" lock="+lv); } if (bad.length) { console.log(bad.join("\n")); process.exit(1); }' "$FRONTEND_PACKAGE_DIR"
-```
 
 ---
 
@@ -65,12 +54,12 @@ node -e 'const fs=require("fs"); const dir=process.argv[1]; const p=JSON.parse(f
 - **react/react-dom**: Mounted island components for richer interactive surfaces.
 - **tailwindcss**: Utility styling for the React bundle.
 
-CI restores dependencies with `npm ci --ignore-scripts` before audit/build. For local npm commands, including registry lookups and dry runs, follow the request and confirmation rule in AGENTS.md. Safe manifest and lockfile inspection may proceed.
+CI restores dependencies with install scripts disabled before audit/build.
 
 ### Build & Dev Tooling
 - **@axe-core/playwright**: Accessibility scans of rendered fixture states and the hosted Sample home page.
-- **vite**: Next Generation Frontend Tooling.
-- **sass**: CSS preprocessor.
+- **vite**: Frontend builds and development server.
+- **sass-embedded**: Sass compiler for SCSS.
 - **typescript**: Typed JavaScript superset.
 - **oxfmt**: Formats frontend sources and tool configs. The aggregate check verifies formatting before linting.
 - **stylelint**: Checks authored CSS and SCSS. The frontend package owns the presets and Tailwind directive exceptions.

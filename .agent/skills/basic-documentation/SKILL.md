@@ -1,9 +1,8 @@
 ---
 name: basic-documentation
-description: "Documentation standards - README structure, ROADMAP patterns, skill documentation format (YAML frontmatter), markdown conventions, security documentation, API docs, and best practices. Guidelines for creating and maintaining all project documentation. Keywords: documentation, readme, roadmap, markdown, documentation-standards, yaml-frontmatter, technical-writing, api-documentation, changelog"
-last-updated: 2026-10-29
+description: Use when writing or reviewing public documentation, READMEs, release notes, API guides, or agent skills.
+last-updated: 2026-11-14
 difficulty: basic
-tokens: ~1K
 ---
 
 # Documentation
@@ -14,16 +13,17 @@ Standards for creating and maintaining repository documentation.
 
 - **Security First**: Document security implications, auth requirements, sensitive data handling.
 - **Clarity**: Reader's context first. Define terms on first use.
-- **Conciseness**: Front-load key info. Tables for comparisons. Start with TL;DR.
-- **Certainty**: "will"/"must" over "maybe"/"might". Quantify uncertainty.
-- **Maintenance**: Documentation is code. Update with every significant change.
+- **Conciseness**: Lead with the outcome. Use short sentences and tables for comparisons. Avoid prose semicolons and em/en dashes.
+- **Evidence**: State verified facts directly. Identify uncertainty rather than converting it into a promise.
+- **Public behavior**: Document supported usage, contracts, configuration, and migration. Inspect internals only to verify those claims.
+- **Maintenance**: Update the owner when public behavior, usage requirements, or durable conventions change. Routine repairs to an unchanged contract belong in code and regression coverage, not repeated descriptions in agent files. Link to the owner instead of duplicating guidance. Assess release-note impact separately.
 - **Shared Defaults**: Cross-package defaults and docs-sync rules belong in the repository profile or the owning source documentation. Package READMEs must stay self-contained for important facts and may reference sibling package READMEs for related guidance.
 
 ## 2. README.md Standard
 
 ### Structure
 1. **Header**: Project Name & Badges (CI/CD, Quality Gate, License, Version)
-2. **TL;DR**: 3-5 key value propositions ("You can...")
+2. **Summary**: 3-5 key benefits ("You can...")
 3. **Navigation**: Quick links to major sections
 4. **About Project**: Problem Statement, Solution Overview, Key Characteristics
 5. **Solution Structure**: Folder breakdown, component descriptions
@@ -59,9 +59,7 @@ Update release notes when a change affects a published module's consumers or pac
 
 Do not add release-note entries for internal-only refactors, tests, comments, private/internal-only checks, agent-only docs, or routine dependency-only updates unless the repository profile declares a stricter rule.
 
-Skip private/internal-only checks unless needed to prove public behavior or docs accuracy.
-
-For version-aligned releases, do not add artificial version blocks to unchanged packages unless the repository profile explicitly requires them; record release notes as not required.
+For version-aligned releases, leave unchanged packages alone unless the profile requires entries. Record release notes as "not required" when no trigger applies.
 
 ### SemVer
 
@@ -71,13 +69,13 @@ For version-aligned releases, do not add artificial version blocks to unchanged 
 
 ## 4. Agent Skills Documentation
 
-Path: `.agent/skills/XX-skill-name/SKILL.md`
+Path: `.agent/skills/<skill-name>/SKILL.md`. Keep every agent file below 12,000 characters. Verify edited files with `wc -m`.
 
 ### Frontmatter (YAML)
 ```yaml
 ---
 name: skill-name
-description: "Concise description (<100 chars) with keywords. Keywords: keyword1, keyword2"
+description: Use when the task needs this skill's specific guidance.
 last-updated: YYYY-MM-DD
 difficulty: basic | intermediate | advanced
 ---
@@ -86,16 +84,18 @@ difficulty: basic | intermediate | advanced
 | Field | Required | Purpose |
 |-------|----------|---------|
 | `name` | Yes | Skill identifier (matches directory name) |
-| `description` | Yes | Concise summary with `Keywords:` suffix for semantic matching |
-| `last-updated` | Yes | Date of last meaningful content change — signals staleness |
+| `description` | Yes | Concise task trigger that distinguishes this skill from adjacent skills |
+| `last-updated` | Yes | Date of last meaningful content change |
 | `difficulty` | Yes | Triage hint: **basic** (orientation/reference), **intermediate** (domain context needed), **advanced** (deep framework knowledge) |
 
 ### Content Sections
 1. **Title**: `# Skill Name`
 2. **Overview**: Purpose and scope paragraph
-3. **Table of Contents**: Required for skills >100 lines
+3. **Navigation**: Add a table of contents when section discovery needs it. Avoid copying an existing index.
 4. **Sections**: Logical breakdown with tables, code blocks, examples
-5. **Code Blocks**: Runnable snippets with language specification
+5. **Code Blocks**: Follow Section 8. Prefer one verified example over repeated boilerplate.
+
+Keep one owner for each rule and link to it. Split only when separate loading helps a distinct task. Preserve entry points, incoming anchors, safety gates, and public edge cases when consolidating.
 
 ## 5. Security Documentation
 
@@ -122,25 +122,26 @@ Use XML documentation comments (`<summary>`, `<param>`, `<returns>`, `<exception
 - **Lists**: Hyphens (`-`) unordered, `1.` ordered
 - **Links**: Relative paths for files shipped together. Portable agent files must not link outside their bundle to repository-local docs or source. Use current-profile discovery for local files and canonical upstream URLs for external framework references. Check the installed version before applying upstream guidance.
 - **Code**: Always specify language
-- **Diagrams**: Mermaid for architecture/sequence/flow — see [basic-documentation-diagrams](../basic-documentation-diagrams/SKILL.md) for WCAG-compliant styling
+- **Diagrams**: Use [basic-documentation-diagrams](../basic-documentation-diagrams/SKILL.md) for Mermaid accessibility checks
 - **Tables**: Use for structured data, align columns
-- **TOC**: Required for documents >100 lines
+- **Navigation**: Add section links when they improve discovery
 
 ## 8. Code Block Best Practices
 
 - Always specify language (```csharp, ```json, ```bash)
 - Include necessary imports/usings
-- Code should work as-is or clearly indicate placeholders
+- Verify API names and supported usage. Label placeholders explicitly
+- Do not claim execution unless it was authorized and performed
 - Explain non-obvious logic with comments
 
 ## 9. Verification Checklist
 
 - [ ] Security implications documented?
 - [ ] Scannable in 30 seconds?
-- [ ] Code snippets tested and accurate?
+- [ ] Public claims and examples verified against current source?
 - [ ] All public APIs documented?
 - [ ] Alt text for images? Semantic structure?
 - [ ] Diagrams meet WCAG AA? (see [diagrams skill](../basic-documentation-diagrams/SKILL.md))
 - [ ] Relative links valid, and portable agent references usable without this repository's source/docs?
-- [ ] TOC present if >100 lines?
+- [ ] Navigation helps readers find the relevant section?
 - [ ] Concrete examples for complex concepts?

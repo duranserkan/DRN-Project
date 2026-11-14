@@ -1,9 +1,8 @@
 ---
 name: basic-code-review
 description: Use when reviewing code changes, pull requests, staged diffs, or self-reviewing work for security, correctness, clarity, simplicity, performance, breaking changes, and missing verification.
-last-updated: 2026-11-04
+last-updated: 2026-11-14
 difficulty: intermediate
-tokens: ~1.3K
 ---
 
 # Code Review Standards
@@ -23,7 +22,7 @@ Review diffs, commits, PRs, and agent output critically. Support claims with rep
 
 ## Priority Stack Review Gate
 
-Evaluate every change in order:
+Resolve contradictions with TRIZ first. Then evaluate every change in order:
 
 | Priority | Gate | Key Question |
 |:--------:|------|--------------|
@@ -40,7 +39,7 @@ Evaluate every change in order:
 - DTOs, API models, and persistence entities stay separated when the repository uses that boundary.
 - New abstractions remove real complexity or match an established local pattern.
 - Apply the [refactoring guidance](../basic-agentic-development/SKILL.md#refactoring-for-clarity): names should expose intent, and extraction must preserve behavior. Static inspection supports equivalence but does not establish runtime or visual correctness.
-- Check unnecessary allocations, repeated work, and whether algorithms and data structures fit usage. Require source evidence or measurements for claimed benefits, explicit assumptions, and preserved correctness.
+- Apply [allocation and lookup guidance](../basic-agentic-development/SKILL.md#allocations-and-stable-lookups). Require source evidence or measurements for claimed benefits, explicit assumptions, and preserved correctness.
 - Public behavior changes are documented and classified as breaking or non-breaking.
 - Follow the repository profile's runtime-access conventions.
 - Apply the [deprecated-code rule](../basic-agentic-development/SKILL.md#anti-patterns).
@@ -49,7 +48,7 @@ Evaluate every change in order:
 
 ## Diagnostic Suppressions
 
-Prefer suppression attributes over preprocessor directives whenever the diagnostic supports them. In C#, use `[SuppressMessage]` on the narrowest applicable member with the exact rule ID and a concrete `Justification`. For local-variable diagnostics, use the containing method. Avoid test-class suppressions when individual properties, fixture types, or methods can own the diagnostic. Use `#pragma warning disable` only when attributes cannot suppress the diagnostic or cannot target the required source location, explain why, and restore the warning immediately after the affected code. Preserve test intent, including instance getters used by reflection and interface dispatch coverage.
+Prefer suppression attributes when supported. In C#, apply `[SuppressMessage]` to the narrowest applicable member with the exact rule ID and a concrete `Justification`. Use the containing method for local-variable diagnostics. Avoid test-class suppressions when a property, fixture type, or method can own them. Use `#pragma warning disable` only when attributes cannot suppress the diagnostic at the required location. Explain why and restore it immediately afterward. Preserve instance getters used by reflection and interface dispatch coverage.
 
 ## UI Accessibility
 
@@ -63,7 +62,7 @@ Prefer suppression attributes over preprocessor directives whenever the diagnost
 - Singleton services do not capture mutable request/user state.
 - Scoped dependencies are not retained by longer-lived services.
 - New required configuration has defaults, validation, documentation, or clear deployment instructions.
-- Follow the repository profile's environment conventions. Do not weaken production invariants to accommodate tests; use explicit test configuration.
+- Follow the repository profile's environment conventions. Use explicit test configuration without weakening production invariants.
 - Secrets are not hardcoded, logged, committed, or documented as real values.
 
 ## Test Coverage Expectations
@@ -78,6 +77,8 @@ Prefer suppression attributes over preprocessor directives whenever the diagnost
 | Documentation-only change | Link/path validation, drift scan, or targeted review |
 
 Respect repository rules about running builds and tests. If execution is not allowed, report verification as not run instead of implying pass/fail.
+
+Trace boundary-case inputs through constructors, implicit conversions, and property setters before evaluating assertions. Verify dependency constraints against source or version-matched documentation. Use valid configuration for downstream behavior tests. If rejection is intended, assert it at the rejecting boundary. Never bypass validation to create an impossible runtime state. Distinguish fixture validity from unexecuted behavioral assertions.
 
 ## Breaking Change Detection
 
@@ -99,10 +100,7 @@ Respect repository rules about running builds and tests. If execution is not all
 - Operational docs and release notes mention user-facing behavior changes.
 
 ### Documentation And Release Notes
-- Published modules update release notes when changed behavior reaches consumers: public contracts, configuration/defaults, security or operational behavior, data/migration behavior, observable fixes, or package metadata shipped to users other than version-only alignment.
-- Dependency, runtime, container, and build-output changes appear in release notes only when they are breaking, security-relevant, consumer-visible, or alter published artifacts.
-- Internal-only refactors, tests, comments, and agent-only docs do not need release-note entries unless the repository profile declares a stricter rule.
-- Version-only alignment releases do not need artificial release-note entries for unchanged modules unless the repository profile declares a stricter rule.
+Apply the profile's release rules and [documentation triggers](../basic-documentation/SKILL.md#release-notesmd). Document consumer impact only. Record "not required" when no trigger applies.
 
 ## Security Review Triggers
 
@@ -115,7 +113,7 @@ Flag for extra scrutiny when changes touch:
 - Cryptography, token handling, secrets, or certificate validation.
 - User data storage, export, logging, or telemetry.
 - CI/CD, package restore, dependency provenance, Dockerfiles, or deploy scripts.
-- Container base images, runtime versions, environment defaults, or deployment config alignment with repository profile and project metadata.
+- Runtime versions, environment defaults, or deployment configuration. Check alignment with the profile and project metadata.
 
 ## Pre-Mortem
 
@@ -130,9 +128,7 @@ Before approving, ask: "If this causes an incident in 6 months, what was the roo
 | Data loss | Destructive migration, overwrite path, missing backup/rollback |
 | Broken contract | Removed member, changed response shape, renamed config key |
 | False confidence | Test asserts plumbing only, mock hides integration failure |
-| Supply-chain risk | New package, container image, or third-party GitHub action without immutable reference (full Git commit SHA for actions, verified registry digest for container base images), or provenance metadata |
-| Pinning policy drift | New or updated dependency, action, or base image that violates repository pinning policy |
-| Unverified digest drift | Container base image or package dependency version updated without verifying content digest against canonical registry manifests |
+| Supply-chain risk | Dependency, action, or image that fails the [dependency security checks](../basic-security-checklist/SKILL.md#dependency-security), including canonical digest/provenance verification and full immutable action SHAs |
 | Runtime drift | Container image/runtime version no longer matches repository profile or project metadata |
 
 ## Related Skills

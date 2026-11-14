@@ -2,14 +2,10 @@
 description: Load portable testing skills and framework-scoped testing skills declared by the profile
 ---
 
-> **Estimated context: ~5.6K tokens with profile-declared DRN testing skills** (~2.7K portable-only)
-
 Read profile and skills:
    - Read file: `.agent/repository-profile.md` (if present)
 
-*If declared by profile, load framework testing skills first:*
-   - Read file: `.agent/skills/drn-testing/SKILL.md`
-   - Read file: `.agent/skills/overview-drn-testing/SKILL.md`
+Read the profile-declared framework testing set first, in its declared order. Apply the skill index's [Selection Rules](../skills/overview-skill-index/SKILL.md#selection-rules) to exclusions and missing skills. Report missing guidance and resolve required context before dependent work.
 
 *Read portable testing skills:*
    - Read file: `.agent/skills/test-integration/SKILL.md`

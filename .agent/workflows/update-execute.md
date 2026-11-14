@@ -1,26 +1,25 @@
 ---
-description: Execution phase of /update — read update-plan.md, execute sync stages
+description: Execution phase of /update - read update-plan.md, execute sync stages
 ---
 
-> **Sub-workflow of `/update`**. Not invoked directly. Reads `Scope` and follows Stage Resumption Protocol.
+> **Sub-workflow of `/update`**. Reads reconciled scope and resumes approved stages.
 > See also: [Status Lifecycle](./_shared/status-lifecycle.md) · [Operating Model](./_shared/workflow-operating-model.md)
-> **Estimated context: ~2.5K tokens**
 
 ## 0. Pre-Execution Validation
 
-If invoked directly, run the shared Startup Gate; otherwise inherit `/update` context.
+On direct invocation, route through `/update` for scope reconciliation and delegation. Otherwise inherit its context. Normal execution accepts only `plan-reviewed` or `executing`. Correction Mode alone accepts `failed` or `correcting`. Reject other states before mutation.
 
 ### Staleness Guard
 
 1. Warn if plan age exceeds 24 hours.
-2. Abort if `Baseline HEAD` differs from current `HEAD`; revision changes require a fresh plan.
+2. Abort if `Baseline HEAD` differs from current `HEAD`. Revision changes require a fresh plan.
 3. Require a non-empty Run ID and exact Requested Scope/effective Scope match across the invocation, plan, preview, and any correction progress.
 4. Before the first execution mutation, recompute the Semantic Plan SHA-256, preview raw-byte SHA-256, optional proposed-diff SHA-256, and baseline manifest/hash. Abort unless those bindings match and the preview records every exact output preimage/postimage tuple, the current Run ID, requested/effective scope, and risk decision.
 5. Require a complete explicit record whose subject/preview digests and shared approval-envelope digest match `.agent/temp/update-apply-preview.md`, the optional `.agent/temp/update-proposed.diff`, Run ID, requested/effective scope, producer, timestamp, and risk decision.
-6. On resume, recompute the semantic-plan, preview, and optional diff hashes. Revalidate baseline `HEAD` and its complete shared path state. Classify every output only by its approved tuple: exact preimage is pending; exact postimage is completed after verification; any other state aborts.
+6. On resume, recompute the semantic-plan, preview, and optional diff hashes. Revalidate baseline `HEAD` and its complete shared path state. Classify outputs under Step 10.
 7. Before the first mutation, abort if material non-output inputs exist and any baseline status or manifest artifact is missing, malformed, `N/A`, or fails revalidation.
 8. Allow `Baseline Inputs Hash: N/A` only when `Baseline Inputs Manifest: N/A`, no baseline artifact exists, the plan contains exactly `Baseline Inputs Hash Justification: no-material-input-files`, and exact non-output input pathspecs still contain no material inputs.
-9. Abort if any in-scope tracked or untracked change is not represented in the plan. Resolve and bytewise-deduplicate the exact literal `<scope-paths>` operands first. If that set is empty, record explicit zero-dirt evidence and skip all three Git commands; never pass bare `--`. Otherwise parse NUL records directly, validate single-link regular files without following links, and reject symlinks, hard links, or special files:
+9. Abort if any in-scope tracked or untracked change is not represented in the plan. Resolve and bytewise-deduplicate `<scope-paths>` from the table plus every declared Stage 1-5 output, for every scope. Use exact literal operands. If empty, record zero-dirt evidence and skip all three Git commands. Never pass bare `--`. Otherwise parse NUL records directly, validate single-link regular files without following links, and reject symlinks, hard links, or special files:
 
    ```bash
    GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0 git -c core.pager=cat -c diff.external= -c diff.noprefix=false status --porcelain=v1 -z --untracked-files=all -- <scope-paths>
@@ -28,11 +27,11 @@ If invoked directly, run the shared Startup Gate; otherwise inherit `/update` co
    GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0 git -c core.pager=cat -c diff.external= -c diff.noprefix=false diff --cached --no-ext-diff --no-textconv -- <scope-paths>
    ```
 
-   Invoke commands separately; require each to succeed before continuing. These flags disable system config, terminal prompts, optional locks, external diff, and textconv. They do not isolate local/global config, filters, credential helpers, fsmonitor, or network access. Require a trusted isolated environment that blocks those execution/network paths before running; otherwise abort. Built-in command names cannot be replaced by Git aliases. Later success cannot mask failure.
+   Invoke commands separately. Require each to succeed before continuing. These flags disable system config, terminal prompts, optional locks, external diff, and textconv. They do not isolate local/global config, filters, credential helpers, fsmonitor, or network access. Require a trusted isolated environment that blocks those execution/network paths before running. Otherwise abort. Built-in command names cannot be replaced by Git aliases. Later success cannot mask failure.
 
    Scope dirt inspection never substitutes for the shared type/mode/content or approved-preimage guards.
 
-10. Require exactly one approved preimage-to-postimage transition per output. Immediately before an output's first write, reproduce its exact preimage through the shared non-following path-state contract. On resume: pending plus exact preimage may write; completed plus exact postimage continues; pending plus exact postimage is checkpointed as already applied only after exact verification; every other combination invalidates approval and aborts. A proposed diff never substitutes for tuple comparison.
+10. Require exactly one approved preimage-to-postimage transition per output. Immediately before its first write, reproduce its exact preimage through the shared non-following path-state contract. On resume, pending plus exact preimage may write. Completed plus exact postimage continues. Pending plus exact postimage is checkpointed as applied only after exact verification. Every other combination invalidates approval and aborts. A proposed diff never substitutes for tuple comparison.
 
 | Scope | `<scope-paths>` |
 |---|---|
@@ -41,12 +40,12 @@ If invoked directly, run the shared Startup Gate; otherwise inherit `/update` co
 | `<skill-dir>` | `.agent/skills/<skill-dir>/**` |
 | `skills` | `.agent/skills/**`, all `load-skills-*.md`, task workflows |
 | `agents` | `AGENTS.md`, profile, discovered manifests/build files, task/loader workflows, skill index |
-| `projects` | discovered manifests/build files, project-referencing skills, and exact Stage 3 output paths resolved in the plan |
+| `projects` | discovered manifests/build files and project-referencing skills |
 | `infra` | build config, CI/CD, Docker files, and exact discovered ecosystem manifest paths recorded in the plan |
-| `files: <paths>` | exact listed paths plus resolved stage output paths in the plan |
+| `files: <paths>` | exact listed paths |
 | `stage-<N>` | files touched by Stage N |
 
-If dirty, abort with: `"Plan is stale — run /update again to regenerate the plan"`.
+Unrepresented dirt or a failed binding aborts as stale. Represented dirt must satisfy baseline and approved tuple checks.
 
 ### Correction Mode
 
@@ -66,9 +65,11 @@ If dirty, abort with: `"Plan is stale — run /update again to regenerate the pl
    ```
 
 5. Set `correcting` before corrections. Apply only pending approved items, checkpoint each, and abort on binding/target changes.
-6. After all corrections, set correction progress and plan status to `done`. Require caller review before verification; never transition directly to `reviewed` or `verifying`.
+6. After all corrections, set correction progress and plan status to `done`. Require caller review before verification. Never transition directly to `reviewed` or `verifying`.
 
 ### Resumption And VCS
+
+After all guards pass, persist `executing` before normal source mutation. Checkpoint stage progress.
 
 Resume at the first incomplete stage. Git is read-only: no commit, push, stash, checkout, or ref mutation.
 
@@ -79,24 +80,22 @@ Resume at the first incomplete stage. Git is read-only: no commit, push, stash, 
 ### Group Loaders
 
 1. Preserve YAML frontmatter, descriptions, `// turbo` annotations, and skill order.
-2. Regenerate included file-read entries; preserve framework/profile conditions and append new skills at the end.
-3. Update token estimate: total skill bytes / 4, rounded to 0.1K.
-4. Create/update `.agent/workflows/load-skills-<custom>.md` for each custom prefix.
-5. Use `load-skills-custom.md` only for uncategorized skills.
-6. If a group is empty, remove its loader references from task workflows and `load-skills-all.md`; report the loader for manual deletion unless deletion was approved.
+2. Regenerate included file-read entries. Preserve framework/profile conditions and append new skills at the end.
+3. Retain token estimates only with a stated measurement basis. Otherwise omit them.
+4. Create custom loaders under the [planner's group rules](./update-plan.md#2-discover-skills-and-workflows).
+5. For an empty group, remove task/all-loader references. Report its loader for manual deletion unless deletion was approved.
 
 ### Task Workflows
 
-Discover task workflows in `.agent/workflows/*.md` except `load-skills-*.md`, including `documentation.md`, `commit-polish.md`, and `update*.md`.
+Discover `.agent/workflows/*.md` task/meta/sub-workflows, excluding `load-skills-*.md`.
 
-Use the plan's workflow classification and `Custom Workflows` header. Abort on an unplanned custom route or missing planned custom workflow: `"Plan is stale — run /update again to regenerate the plan"`.
+Use the plan's workflow classification and `Custom Workflows` header. An unplanned custom route or missing planned custom workflow makes the plan stale. Abort and return to `/update`.
 
 Sync only skill-loading or shared-workflow reference sections. Preserve all other instructions.
 
 ### Custom Group And Irrelevance Removal
 
-- Create/update custom loaders per the planner's Custom loader rule.
-- Persist approved `Skill | Reason` rows under profile `Excluded Skills`. Omit excluded skills from loaders, task loading, and index routes. Retain directories. Preserve exclusions across runs; changes require approval.
+- Persist approved `Skill | Reason` rows under profile `Excluded Skills`. Omit excluded skills from loaders, task loading, and index routes. Retain directories. Preserve exclusions across runs. Changes require approval.
 
 ---
 
@@ -105,9 +104,9 @@ Sync only skill-loading or shared-workflow reference sections. Preserve all othe
 Regenerate from all group loaders:
 
 1. Preserve YAML and `// turbo-all`.
-2. Emit included groups in Standard Load Order: Basic -> Overview -> DRN Framework -> Testing -> Frontend -> Custom. Preserve conditional loading; omit empty/excluded groups.
+2. Reference group loaders in Standard Load Order: Basic -> Overview -> Framework -> Testing -> Frontend -> Custom. Resolve framework groups from the profile. Do not duplicate skill lists. Preserve conditions and omit empty/excluded groups.
 3. In Custom, list per-prefix custom loaders alphabetically, then `load-skills-custom.md` if present.
-4. Update total token estimate. Include every custom loader with included skills.
+4. Include every custom loader with included skills. Load each skill once. Any estimate follows the group-loader measurement rule.
 
 ---
 
@@ -118,7 +117,7 @@ Keep `AGENTS.md` portable. Put project-specific facts in `.agent/repository-prof
 ### Profile Overview And Commands
 
 - Populate Type, Architecture, Frontend, and Testing from discovered projects.
-- Replace copied commands using destination manifests, scripts, build files, or CI and its runner/package manager. Flag unsupported commands; never invent them.
+- Replace copied commands using destination manifests, scripts, build files, or CI and its runner/package manager. Flag unsupported commands. Never invent them.
 - Preserve the repo rule: do not run build/test commands unless the user explicitly allows it.
 
 ### Skill Discovery And Custom Routes
@@ -127,16 +126,16 @@ Keep `AGENTS.md` portable. Put project-specific facts in `.agent/repository-prof
 2. `Custom Workflows: <route> -> <workflow>` governs Stages 3/5.
 3. Do not independently discover or reclassify a different custom route set during execution.
 4. Use the plan classification for non-custom skill-loading, task, sub-workflow, and meta routes.
-5. Update the `AGENTS.md` Workflows table from discovered task workflows; add new routes, remove stale routes, and preserve portable descriptions when the route already exists.
+5. Update the `AGENTS.md` Workflows table from discovered task workflows. Add new routes, remove stale routes, and preserve portable descriptions when the route already exists.
 6. Keep custom route details in the profile: route, workflow file, trigger/intent, and required custom loaders.
 7. Create/refresh custom skill load-set entries in the profile.
-8. Under affected profile load sets, record missing skills as `Skill | Expected Loader | Status | Resolution` with exact status `⚠️ Missing profile reference`; no placeholder rows. Exclude them from loaders/union checks, retaining profile entries. Restore when copied or remove/update entries after review. Owned by Stage 3, not Stage 6.
+8. Under affected profile load sets, record missing skills as `Skill | Expected Loader | Status | Resolution` with exact status `⚠️ Missing profile reference`. No placeholder rows. Exclude them from loaders/union checks, retaining profile entries. Restore when copied or remove/update entries after review. Owned by Stage 3, not Stage 6.
 
 ### Project Prefix Rename
 
 If a project prefix changed:
 
-1. Scan `.agent/repository-profile.md` and repository-owned overlay skills; exclude generic/framework-scoped skills.
+1. Scan `.agent/repository-profile.md` and repository-owned overlay skills. Exclude generic/framework-scoped skills.
 2. Present prefix mapping families for approval.
 3. Apply boundary-aware regex:
 
@@ -187,6 +186,6 @@ Set plan status to `done` only when every stage is terminal:
 - In-scope stages are `done`.
 - Out-of-scope stages are `skipped`.
 - Any `pending`, `executing`, `blocked`, `fail`, or unresolved `Requires Approval` item blocks completion.
-- Every actual Stage 1-5 source/configuration mutation matches an exact declared `### Outputs` path; otherwise the plan is stale.
+- Every actual Stage 1-5 source/configuration mutation matches an exact declared `### Outputs` path. Otherwise the plan is stale.
 
 `update-verify.md` owns content verification.

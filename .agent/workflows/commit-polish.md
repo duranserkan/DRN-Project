@@ -1,24 +1,23 @@
 ---
-description: Recommend and apply polished commit messages for single or multiple verified-unpublished commits after user approval; never push or rewrite published history
+description: Polish verified-unpublished commit messages after approval. Never push or rewrite published history.
 ---
 
 # Commit Polish
 
 > See also: [Operating Model](./_shared/workflow-operating-model.md)
-> **Estimated context: ~1.0K tokens**
 
 ## 1. Mandate
 
-Act as Commit Message Editor.
-
-- Commit staged changes only after confirmation; otherwise recommend messages for verified-unpublished commits using `basic-git-conventions`.
-- Reorganize mixed staged work into coherent commits. Reorganize history only when unpublished `HEAD` mixes concerns; never reorganize an earlier candidate.
+- Commit staged changes only after confirmation. Otherwise recommend messages for verified-unpublished commits using `basic-git-conventions`.
+- Reorganize mixed staged work into coherent commits. Reorganize history only when unpublished `HEAD` mixes concerns. Never reorganize an earlier candidate.
 - Preview messages and reorganization plans before mutation. Apply only explicitly approved changes.
 - Before reorganizing `HEAD`, snapshot it and prove final tree equality and an empty diff.
 - Never run `git push`, including `--force`.
 - Support `--amend`, atomic `commit-tree` chains, and `HEAD` reorganization. Run the Startup Gate and load `basic-git-conventions`.
 
 Refuse push requests. Stop before any rewrite that could touch published history.
+
+On any compare-and-swap (CAS) rollback failure, stop without further mutation. Never overwrite concurrent work. After successful rollback, verify restored `HEAD` and tree. Report residual worktree/index differences and stop. Use hook isolation for every ref mutation.
 
 ## 2. Commit Staged Changes
 
@@ -31,7 +30,7 @@ git diff --cached --stat
 - If nothing is staged, continue to non-pushed commit detection.
 - If changes are staged, inspect `git diff --cached --binary --full-index --no-ext-diff --no-textconv`. Persist `HEAD`, staged tree and paths, exact author/committer metadata, organization/order, message, and SHA-256 digests of the staged diff, plan, and raw `git status --porcelain=v1 -z --untracked-files=all`. Present the staged-diff and plan digests for approval.
 - Bind approval to one staged-diff and plan digest. When reorganizing staged work, prepare and approve each coherent commit after its exact changes are staged.
-- Treat each commit as a transaction. Create an empty hooks directory and exact message file. Recheck `HEAD`, status, index tree, paths, and diff/plan digests; abort on mismatch. With approved metadata, create the candidate without moving a ref via `git -c core.hooksPath="$empty_hooks_dir" commit-tree`. Recheck protected state and verify its raw tree, parent, message, author, and committer. Then atomically run `git update-ref HEAD "$candidate_sha" "$approved_head"`. Verify `HEAD` and planned status; CAS-rollback on mismatch. Clean up on every exit. Never use `git commit` here; any future path must isolate hooks and use `--no-verify --cleanup=verbatim`.
+- Treat each commit as a transaction. Create an empty hooks directory and exact message file. Recheck `HEAD`, status, index tree, paths, and diff/plan digests. Abort on mismatch. With approved metadata, create the candidate without moving a ref via `git -c core.hooksPath="$empty_hooks_dir" commit-tree`. Recheck protected state and verify its raw tree, parent, message, author, and committer. Then atomically run `git -c core.hooksPath="$empty_hooks_dir" update-ref HEAD "$candidate_sha" "$approved_head"`. Verify `HEAD` and planned status. CAS-rollback on mismatch. Clean up on every exit. Never use `git commit` here. Any future path must isolate hooks and use `--no-verify --cleanup=verbatim`.
 - If staged files span unrelated scopes, stage and separately approve each scope before committing it.
 
 ## 3. Select Rewrite Candidates
@@ -45,10 +44,10 @@ git diff --cached --stat
 Before treating commits as unpublished:
 
 1. Require a clean worktree and index (or commit staged changes first per Section 2).
-2. Resolve candidates oldest-to-newest. Require a non-empty, duplicate-free linear chain ending at recorded `HEAD`; reject gaps, side branches, merges, or another tip.
-3. Establish complete publication coverage for every configured publication remote. Require a successful `git ls-remote --heads --tags "$remote"` and an authorized complete fetch of all heads and tags; verify the fetched refs match that query. Abort when the remote set is unknown or coverage is missing, stale, or incomplete. Then record the exact remote-tracking and tag ref/object snapshot and its raw-byte SHA-256.
+2. Resolve candidates oldest-to-newest. Require a non-empty, duplicate-free linear chain ending at recorded `HEAD`. Reject gaps, side branches, merges, or another tip.
+3. Establish complete publication coverage for every configured publication remote. Require a successful `git ls-remote --heads --tags "$remote"` and an authorized complete fetch of all heads and tags. Verify the fetched refs match that query. Abort when the remote set is unknown or coverage is missing, stale, or incomplete. Then record the exact remote-tracking and tag ref/object snapshot and its raw-byte SHA-256.
 4. Record the worktree and index snapshots. Require `git rev-parse --is-shallow-repository` to output `false` and `git replace --list` to output nothing. Abort before ancestry or reachability checks otherwise.
-5. For **each** candidate, query reachability from all recorded remote-tracking refs and tags; any result blocks rewriting. Checking only `HEAD` is insufficient.
+5. For **each** candidate, query reachability from all recorded remote-tracking refs and tags. Any result blocks rewriting. Checking only `HEAD` is insufficient.
 6. Record each candidate's SHA, tree, parents, raw message, author metadata, and chain position. Reject `gpgsig`, `encoding`, or headers other than `tree`, `parent`, `author`, and `committer`.
 
 ```bash
@@ -77,7 +76,7 @@ git show "$commit_sha"
 
 Use the full diff only when the stat is insufficient.
 
-When changes mix unrelated concerns, recommend reorganizing them into coherent commits (`type(scope): description`). Section 2 owns staged work. Section 6.C supports only current unpublished `HEAD`; stop for an earlier candidate.
+When changes mix unrelated concerns, recommend reorganizing them into coherent commits (`type(scope): description`). Section 2 owns staged work. Section 6.C supports only current unpublished `HEAD`. Stop for an earlier candidate.
 
 Recommend each polished message or reorganized commit with its rationale.
 
@@ -94,10 +93,7 @@ Present message recommendations and reorganization plans, then wait for approval
 | 2b | `def5678` | `tests and docs` | `docs(Utils): document scanner configuration` | Reorganize 2/2 |
 ```
 
-Include clear notice:
-> **Notice**: No commit messages have been modified yet. These are recommendations for single or multiple commits. Please review and confirm to apply message changes.
-
-Do not rewrite until approval. For an earlier commit, disclose every descendant whose SHA changes through `HEAD`; approval must cover the complete chain. Approved replacement messages may cover a subset, but reconstruct each unchanged descendant with its raw message. Never silently rewrite collateral commits.
+State that no messages have changed yet. Wait for approval. For an earlier commit, disclose every descendant whose SHA changes through `HEAD`. Approval must cover the complete chain. Approved replacement messages may cover a subset, but reconstruct each unchanged descendant with its raw message. Never silently rewrite collateral commits.
 
 ## 6. Apply Approved Message Changes
 
@@ -122,11 +118,11 @@ Apply only approved updates. For all rewrites, use an empty temporary hooks dire
 
 ### B. Multi-Commit Rewrite (`N > 1` or range)
 
-Let $C_1 \dots C_k$ be the approved chain from the earliest change through validated `HEAD`, oldest-to-newest. Replace approved messages; retain every other raw message.
+Let $C_1 \dots C_k$ be the approved chain from the earliest change through validated `HEAD`, oldest-to-newest. Replace approved messages. Retain every other raw message.
 
 1. Repeat every Section 3 validation and require the recorded status and remote-ref snapshot to remain unchanged.
 2. Initialize `$parent_sha_i` to the sole original parent of $C_1$, or empty for a root commit. For each $C_i$:
-   - Write the approved replacement or recorded raw message to `$message_file_i`. Load the recorded tree and author metadata; use an unambiguous date such as `%aI`.
+   - Write the approved replacement or recorded raw message to `$message_file_i`. Load the recorded tree and author metadata. Use an unambiguous date such as `%aI`.
    - Create $C'_i$ with the assignments applied directly to the `git commit-tree` subprocess:
 
      ```bash
@@ -148,19 +144,19 @@ Let $C_1 \dots C_k$ be the approved chain from the earliest change through valid
    ```
 
 5. Verify `HEAD`, the full rewritten topology, every approved message and author, the top tree, and clean status.
-6. On post-update mismatch, CAS-restore `HEAD` to `$old_sha_k`, expecting `$new_sha_k`; verify and stop. If CAS fails, stop without further mutation.
-7. Clean up; retain any recovery ref needed after failed rollback.
+6. On post-update mismatch, CAS-restore `HEAD` to `$old_sha_k`, expecting `$new_sha_k`. Apply the rollback rules in Section 1.
+7. Clean up. Retain any recovery ref needed after failed rollback.
 
 ### C. Non-Destructive `HEAD` Reorganization
 
-Reorganize the current unpublished `HEAD` into $M$ coherent commits only with a clean worktree and index. Section 2 owns staged work; earlier candidates are unsupported.
+Reorganize the current unpublished `HEAD` into $M$ coherent commits only with a clean worktree and index. Section 2 owns staged work. Earlier candidates are unsupported.
 
-1. Bind approval to each commit's patch/tree digest, parent, author, and message. Create a unique snapshot at recorded `HEAD`; abort on collision:
+1. Bind approval to each commit's patch/tree digest, parent, author, and message. Create a unique snapshot at recorded `HEAD`. Abort on collision:
 
    ```bash
    old_head_sha="$(git rev-parse HEAD)"
    snapshot_branch="snapshot-commit-polish-${old_head_sha}"
-   git branch "$snapshot_branch" "$old_head_sha"
+   git -c core.hooksPath="$empty_hooks_dir" branch "$snapshot_branch" "$old_head_sha"
    snapshot_sha="$(git rev-parse "$snapshot_branch^{commit}")"
    test "$snapshot_sha" = "$old_head_sha"
    ```
@@ -171,7 +167,7 @@ Reorganize the current unpublished `HEAD` into $M$ coherent commits only with a 
    git -c core.hooksPath="$empty_hooks_dir" update-ref -m "commit-polish reorganize" HEAD "$new_sha_M" "$old_head_sha"
    ```
 
-3. Verify every patch/tree, parent, author, and message; require top-tree equality, an empty diff, and clean status:
+3. Verify every patch/tree, parent, author, and message. Require top-tree equality, an empty diff, and clean status:
 
    ```bash
    test "$(git rev-parse "$snapshot_sha^{tree}")" = "$(git rev-parse 'HEAD^{tree}')"
@@ -206,7 +202,7 @@ Recovery snapshot: <exact snapshot branch refname>
 Snapshot SHA: <current snapshot object ID>
 Expected original SHA: <old HEAD SHA>
 Recovery status: <retained and verified | retained but changed>
-Cleanup status: retained; user action required
+Cleanup status: retained. User action required
 ```
 
 ## Related

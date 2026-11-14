@@ -1,9 +1,8 @@
 ---
 name: drn-buildwww-vite
 description: "DRN Vite runtime and domain builds. Keywords: drn, buildwww, vite, typescript, bundles, manifest, cache"
-last-updated: 2026-11-07
+last-updated: 2026-11-13
 difficulty: intermediate
-tokens: ~2K
 ---
 
 # DRN buildwww & Vite
@@ -19,30 +18,16 @@ tokens: ~2K
 
 ## Directory Structure
 
-```
-<frontend-package>/
-├── buildwww/                # Source files (not served)
-│   ├── app/                 # Application code
-│   │   ├── ts/              # TypeScript modules
-│   │   │   ├── drn/         # Application utilities
-│   │   │   ├── appPreload.ts
-│   │   │   └── appPostload.ts
-│   │   └── css/             # Application CSS
-│   ├── lib/                 # Library code
-│   │   ├── htmx/            # htmx bundle
-│   │   ├── bootstrap/       # Bootstrap customization
-│   │   └── react/           # React mounted islands (Shadow DOM + Tailwind)
-│   ├── plugins/             # Vite plugins
-│   └── types/               # Shared type contracts and ambient declarations
-├── wwwroot/                 # Built output (served)
-│   ├── app/                 # Built app files
-│   └── lib/                 # Built library files
-├── vite.config.ts           # Vite configuration
-├── vite.config.plugin.ts    # Vite plugins
-├── tsconfig.json            # TypeScript configuration
-├── package.json             # npm dependencies
-└── package-lock.json
-```
+Resolve the frontend package root through the profile. Source lives under `buildwww/` and served output under `wwwroot/`.
+
+| Source | Purpose |
+|---|---|
+| `buildwww/app/ts/`, `buildwww/app/css/` | Application modules and styles |
+| `buildwww/lib/` | htmx, Bootstrap, and React adapters |
+| `buildwww/types/` | Shared contracts and ambient declarations |
+| `vite.config.ts`, `vite.config.plugin.ts` | Targets and plugins |
+| `tsconfig.json` | TypeScript scope and aliases |
+| `package.json`, `package-lock.json` | Commands and dependencies |
 
 ---
 
@@ -62,7 +47,7 @@ The frontend root's `vite.config.ts` defines each target's entry points, plugins
 
 For classic-script builds with mixed or multiple entries, use `iifeWrap()` to isolate each JavaScript chunk and prevent name collisions between bundles. A single named JavaScript entry such as React can use native IIFE output. Keep `stripHtmxEval()` on the HTMX target to remove its direct `eval` call from the shipped bundle.
 
-> See [drn-buildwww-react](../drn-buildwww-react/SKILL.md) for the full React build architecture (Shadow DOM, Tailwind 4, IIFE format rationale).
+See [React integration](../drn-buildwww-react/SKILL.md) for Shadow DOM, Tailwind, and island usage.
 
 ### Build Commands
 
@@ -70,29 +55,13 @@ Builds require explicit permission. Apply the AGENTS.md npm command gate to lint
 
 The full build runs `check` for formatting, script and stylesheet linting, type checking, and the advisory Knip report. Targeted builds skip this gate. The package manifest owns commands and lint scope.
 
-```bash
-# Build all targets
-npm run build
-
-# Or build individual targets
-npm run build:app
-npm run build:appPostload
-npm run build:htmx
-npm run build:bootstrap
-npm run build:react
-npm run build:behaviors
-# Or build one behavior domain
-npm run build:behaviors:layout
-npm run build:behaviors:home
-npm run build:behaviors:test
-```
-
+Select the full or targeted `build:*` script from `package.json`. The profile-declared application guide owns exact commands and setup requirements.
 
 ### Shared Configuration
 
 Full and targeted builds record a Base64 SHA-256 hash of decoded bytes for each manifest entry. They emit a Brotli quality 11 variant when smaller. List only verified Razor-managed entries for original removal. Bundled references retain the original. Deploy all emitted assets with the hidden manifests. A `brotliOnly` entry requires its `.br` file.
 
-Align aliases with `tsconfig.json` and buildwww. `@/*` maps to `buildwww/*` only through TypeScript `paths`; Vite does not resolve it. Keep `@/` imports type-only unless Vite has a matching `resolve.alias`. Discover paths rather than assuming root-level js/css folders.
+Align aliases with `tsconfig.json` and buildwww. `@/*` maps to `buildwww/*` through TypeScript `paths`. Vite needs a matching `resolve.alias` for runtime imports. Otherwise keep `@/` imports type-only.
 
 ---
 
@@ -134,9 +103,9 @@ if (document.readyState === 'loading')
     document.addEventListener('DOMContentLoaded', () => window.onmount(), {once: true});
 ```
 
-Use a fresh callback so listener identity deduplication cannot reuse an earlier poll from postload. Late script execution registers/polls through `DRN.Onmount`; existing htmx polling handles swaps. Page script execution may repeat, so registration must remain idempotent. Runtime bundles, including React, stay global.
+Use a fresh callback so listener deduplication cannot reuse an earlier poll from postload. Late script execution registers/polls through `DRN.Onmount`. Existing htmx polling handles swaps. Registration must tolerate repeated script execution. Runtime bundles, including React, stay global.
 
-Deploy changed assets and hidden manifests together. Restart the app to refresh manifest/SRI caches; fully reload existing pages for changed registrations. Retain old hashed assets for in-flight pages. The initial migration includes Razor/postload changes and removes the obsolete `appBehaviors` output from the active deployment set. See the profile-declared application guide for deployment details. Intentional inline nonce test fixtures remain in Razor.
+Deploy changed assets and hidden manifests together. Restart the app to refresh manifest/SRI caches. Fully reload existing pages for changed registrations. Retain old hashed assets for in-flight pages. The application guide owns migration and deployment details. Intentional inline nonce test fixtures remain in Razor.
 
 ### appPreload.ts
 Loaded early, before page content:
@@ -151,31 +120,7 @@ Loaded in the global shell's head. Installs application-wide event handlers and 
 
 ## Output Structure
 
-```
-wwwroot/
-├── app/
-│   ├── appPreload.[hash].js
-│   ├── app.[hash].css
-│   └── .vite/manifest.json
-├── appPostload/
-│   ├── appPostload.[hash].js
-│   └── .vite/manifest.json
-├── behaviors/
-│   ├── layout/               # layoutBehaviors.[hash].js + .vite/manifest.json
-│   ├── home/                 # homeBehaviors.[hash].js + .vite/manifest.json
-│   └── test/                 # testBehaviors.[hash].js + .vite/manifest.json
-├── lib/
-│   ├── htmx/
-│   │   ├── htmxBundle.[hash].js
-│   │   └── .vite/manifest.json
-│   ├── bootstrap/
-│   │   ├── bootstrap.[hash].css
-│   │   ├── bootstrapBundle.[hash].js
-│   │   └── .vite/manifest.json
-│   └── react/
-│       ├── reactBundle.[hash].js
-│       └── .vite/manifest.json
-```
+Each target emits hashed assets and `.vite/manifest.json` in its output root. Under `wwwroot/`, runtime roots are `app/`, `appPostload/`, and `lib/{htmx,bootstrap,react}/`. Behavior roots are listed under [Entry Points](#entry-points). Resolve filenames from manifests rather than copying hashes.
 
 ---
 
@@ -198,7 +143,7 @@ Home/test entries belong in their owning page's `Scripts` section, not the globa
 
 The emitted script and link URLs include `Request.PathBase`, including manifest-backed preload links. Use a shared relative `base: './'` so generated CSS asset references and Vite-managed imports/preloads resolve relative to their output files under any proxy prefix. Keep manually authored application assets application-relative with `@Url.Content("~/images/favicon.ico")`. Non-Vite URLs pass through the Vite helpers unchanged.
 
-Runtime manifest discovery is source-owned by `DRN.Framework.Hosting.Utils.Vite.ViteManifest`. DRN Hosting currently discovers Vite's default `.vite/manifest.json` files below the active web root, or `ContentRootPath/wwwroot` when the web root is empty. When changing environment defaults, publish behavior, or static-web-asset roots, verify that the running app can still see the Vite manifests; a rendered page can otherwise be missing CSS/JS even when server startup succeeds.
+DRN Hosting discovers `.vite/manifest.json` below the active web root, or `ContentRootPath/wwwroot` when the web root is empty. Preserve manifest visibility when changing environment defaults or publishing. Server startup alone does not prove that rendered pages can load CSS and JavaScript.
 
 ---
 

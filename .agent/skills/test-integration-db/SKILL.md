@@ -1,9 +1,8 @@
 ---
 name: test-integration-db
 description: Use when testing repositories, ORM mapping, SQL queries, migrations, transactions, concurrency, or persistence behavior with a real database or container.
-last-updated: 2026-07-29
+last-updated: 2026-11-13
 difficulty: intermediate
-tokens: ~0.6K
 ---
 
 # Database Component Testing
@@ -24,24 +23,7 @@ Use this when you do not need the full web/API stack: complicated queries, mappi
 
 ## Basic Repository Shape
 
-```csharp
-[Fact]
-public async Task Repository_Should_Persist_Entity()
-{
-    await using var fixture = await DatabaseFixture.StartAsync();
-    await fixture.ApplyMigrationsAsync();
-
-    await using var scope = fixture.CreateScope();
-    var repository = scope.GetRequiredService<IExampleRepository>();
-
-    var entity = ExampleEntity.Create("value");
-    await repository.AddAsync(entity);
-    await repository.SaveChangesAsync();
-
-    var loaded = await repository.GetAsync(entity.Id);
-    loaded.Name.Should().Be("value");
-}
-```
+Create an entity through its public contract, persist it, and read it through a separate context or scope. Assert the stored values. A read from the same tracked instance does not prove persistence.
 
 ## Concurrency
 
@@ -49,7 +31,7 @@ Verify optimistic concurrency by using separate scopes, contexts, sessions, or c
 
 ## Composed Query Predicates
 
-Use MC/DC for repository and database predicates whose conditions must independently affect membership. Paired rows must differ only in the target condition and flip inclusion: hold other conditions true for AND and false for OR. Retain a positive row for the full predicate, validate the fixture truth table before persistence, and assert exact returned membership. Add broader combinations only when provider translation or condition interactions create distinct behavior.
+Apply [MC/DC fixture rules](../test-unit/SKILL.md#composed-decisions) to predicates that determine membership. Validate row truth tables before persistence and assert exact returned membership. Cover distinct provider translation and condition interactions.
 
 ## Related
 
