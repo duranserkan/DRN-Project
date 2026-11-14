@@ -3,11 +3,10 @@ description: Approve CLARIFY artifacts and produce reviewed DEVELOP handoffs as 
 ---
 
 > **Pipeline**: `/clarify` -> `/answer` (2/3) -> `/develop` · [Lifecycle](./_shared/status-lifecycle.md) · [Operating Model](./_shared/workflow-operating-model.md)
-> **Estimated context: ~1.6K tokens**
 
 ## 1. Mandate
 
-Act concurrently as Technical Product Owner, PMP-caliber project/program leader, forward-deployed engineer, and *Code Complete, 2nd Edition*-grounded software-construction/design reviewer. Apply ROI, TRIZ, and Priority Stack; challenge scope creep. Run the Startup Gate once and load only needed skills. Never implement, branch, commit, or bypass the required `.agent/temp/DEVELOP-*` handoff.
+Apply the shared CAD roles as Technical Product Owner. Use ROI, TRIZ, and Priority Stack to challenge scope creep. Run the Startup Gate once. Never implement, branch, commit, or bypass the `.agent/temp/DEVELOP-*` handoff.
 
 ## 2. Resolve Input
 
@@ -15,8 +14,8 @@ Act concurrently as Technical Product Owner, PMP-caliber project/program leader,
 |---|---|
 | Explicit canonical `CLARIFY-*`, `draft-self-reviewed`, `needs_review: false` | Answer/approve it. |
 | Explicit canonical `CLARIFY-*`, `clarified`, current approval | Resume Section 5 without reopening strategy. |
-| Other path/status | Stop; route through `/clarify`. |
-| None | Select one active `draft-self-reviewed` artifact or approved `clarified` artifact lacking its handoff; stop on none and ask on multiple lineages. |
+| Other path/status | Stop and route through `/clarify`. |
+| None | Select one active `draft-self-reviewed` artifact or approved `clarified` artifact lacking its handoff. Stop on none and ask on multiple lineages. |
 
 Apply shared supersession rules before processing. Read the artifact fully, including raw input, enrichment, lineage, Q&A, and implementation evidence. Record its exact path as DEVELOP `source`.
 
@@ -24,24 +23,24 @@ Apply shared supersession rules before processing. Read the artifact fully, incl
 
 For each logical CLARIFY mutation:
 
-1. Before every subsequent mutation following an approval invalidation, require explicit approval or a complete current workflow-tolerated envelope for the current artifact, scope, and risk. For explicit approval, recompute all digests and record the complete current envelope; otherwise validate every field and digest in the tolerated envelope. Only then clear `approval_required` and `blocked_on_user`.
-2. Immediately before the scoped edit, set `needs_review: true`, `approval_required: true`, and `blocked_on_user: true`. Record the invalidation reason and time, and preserve the prior approval as superseded append-only history.
-3. Apply only the scoped edit and run `/review` on the complete artifact.
-4. Continue only with no unresolved Critical or Major findings; set `needs_review: false`. Do not perform another logical mutation until Step 1 passes again.
+1. Validate explicit authorization or a complete current workflow-tolerated envelope for the artifact, scope, and risk. Apply [CAD scoped authorization](./_shared/status-lifecycle.md#cad-scoped-authorization) to existing user permission.
+2. Before editing, invalidate the envelope. Set `needs_review: true` and `approval_required: true`. Record reason/time and preserve the superseded record outside the subject. Set `blocked_on_user: true` only when a user decision is needed.
+3. Apply only the authorized edit and run `/review` on the complete artifact. Clear `needs_review` only with no unresolved Critical or Major findings.
+4. For explicit authorization, recompute all shared digests and record current approval with `approval_preview_sha256: N/A` when no separate preview exists. Clear flags only if the authorization covers the reviewed content, scope, and risk. A tolerated record cannot authorize its own replacement. Require a fresh complete envelope from an allowed producer for the changed artifact, preserving its mapped preview. Otherwise present the artifact and stop for explicit approval.
 
-After the final mutation, validate the shared semantic-subject and approval-envelope digests. Reuse only a complete current workflow-tolerated record. Otherwise set `approval_required: true` and `blocked_on_user: true`, present the artifact, bounded scope, and risk decision, then stop for explicit approval. On confirmation, recompute all digests; record the complete approval envelope with `approval_preview_sha256: N/A`, clear both flags, and continue. Content or digest changes restart this gate.
+Repeat this gate after content or digest changes. Never reuse a stale envelope or advance with an unresolved gate.
 
 An unchanged `clarified` artifact with a current envelope may proceed directly to Section 5.
 
 ## 3. Enrich And Decide
 
-Research only gaps, conflicts, or stale evidence. Default budget is 20%; stale/current/security-sensitive correctness gaps may reach 40%. Beyond that, obtain approval or record `not searched`.
+Research only gaps, conflicts, or stale evidence. Default budget is 20%. Stale/current/security-sensitive correctness gaps may reach 40%. Beyond that, obtain approval or record `not searched`.
 
 Append sourced findings to the matching `## Enrichment Context` subsection. Refresh scope, Security/Privacy, compliance, performance, prior deviations, lifecycle implications, and assumptions.
 
 Run the shared [Expert Lens Pass](./_shared/workflow-operating-model.md#expert-lens-pass) after enrichment:
 
-- Always include Security/Privacy; add only evidence-relevant lenses.
+- Always include Security/Privacy. Add only evidence-relevant lenses.
 - Return major new scope to `/clarify`.
 - Block `[ASSUMPTION - unverified]`.
 - Accept a non-critical assumption only with source and mitigation in the Risk Register.
@@ -49,7 +48,7 @@ Run the shared [Expert Lens Pass](./_shared/workflow-operating-model.md#expert-l
 | Confidence | Action |
 |---|---|
 | >=76% | Decide with PO rationale, ROI, and fit. |
-| 61-75% | Present options, tradeoffs, and recommendation; user decides. |
+| 61-75% | Present options, tradeoffs, and recommendation for user decision. |
 | <=60% | Escalate context, options, lens tradeoff, and recommendation. |
 
 Write answers under `## Clarification Q&A` with `(by: user)`, `(by: /answer)`, or `(by: user via /answer)` provenance.
@@ -58,7 +57,7 @@ Write answers under `## Clarification Q&A` with `(by: user)`, `(by: /answer)`, o
 
 Require all:
 
-- Every question answered; no contradiction or unverified assumption.
+- Every question answered. No contradiction or unverified assumption.
 - Scope and testable criteria are complete.
 - Security and selected-lens concerns map to criteria, constraints, or risks.
 - Priority Stack and TRIZ conflicts are resolved.
@@ -72,8 +71,8 @@ On pass, set `status: clarified`, `clarified: <ISO 8601>`, and `blocked_on_user:
 Transform the clarified artifact into a collision-safe `.agent/temp/DEVELOP-<name>.md`:
 
 - Create the canonical path when absent.
-- For the same CLARIFY lineage, update only `ready-to-develop`; set `needs_review: true` and invalidate approval first.
-- Preserve another lineage or any handoff at/after `implementing`; use the first free `-iteration-N` suffix.
+- For the same CLARIFY lineage, update only `ready-to-develop`. Set `needs_review: true` and invalidate approval first.
+- Preserve another lineage or any handoff at/after `implementing`. Use the first free `-iteration-N` suffix.
 - Map `DEVELOP-<name>.md` to `.agent/temp/WALKTHROUGH-<name>.md`.
 
 Map source to target:
@@ -126,10 +125,10 @@ Required body:
 9. `Dependency Map` when backlog >4 or dependencies exist
 10. `Priority Stack Validation`
 
-Use the source columns and identifiers. Run `/review` on the exact resolved path. Clear `needs_review` only when no unresolved Critical or Major findings remain. Keep `approval_required: true` unless a complete workflow-tolerated envelope already binds this exact artifact, `/develop` scope, preview if any, producer, timestamp, and risk.
+Use the source columns and identifiers. Run `/review` on the exact path. Clear `needs_review` only with no unresolved Critical or Major findings. Clear `approval_required` only after recording a complete current explicit or permitted workflow-tolerated envelope for this handoff and `/develop` scope.
 
 ## 6. Handoff
 
-Present the exact DEVELOP path. Manual mode stops for `/develop <path>`. `/answer auto` shows the document and requires `yes` unless a valid workflow-tolerated approval applies. User content changes set `needs_review: true`; major scope returns to `/clarify`.
+Present the exact DEVELOP path. Continue only when the user already authorized the chain under CAD scoped authorization or a valid workflow-tolerated approval applies. Otherwise manual mode stops for `/develop <path>`, and `/answer auto` requests confirmation. User content changes set `needs_review: true`. Major scope returns to `/clarify`.
 
 The low-risk `/clarify auto -> /answer auto -> /develop` chain excludes security, data, schema, public API, dependency, CI/CD, and infrastructure changes and requires clear criteria, a small backlog, and no unverified assumption.

@@ -4,52 +4,19 @@ description: Load all portable skills plus framework-scoped or profile-declared 
 
 // turbo-all
 
-> **Estimated context: ~57.9K tokens** (30 skills plus repository profile)
+Use for explicit broad context or `/update all`. Otherwise use the smallest task loader.
 
-Read all skills:
+Read `.agent/repository-profile.md` when present. Apply the skill index's [Selection Rules](../skills/overview-skill-index/SKILL.md#selection-rules), including exclusions and missing-skill reporting. A missing required skill blocks dependent work until safe guidance is resolved. Loading never grants command or VCS authorization.
 
-**Repository Profile:**
-   - Read file: `.agent/repository-profile.md` when present.
+Read these group loaders in order. Preserve their conditions and skill order. Reuse already-read skills instead of loading duplicates.
 
-**Basic:**
-   - Read file: `.agent/skills/basic-agentic-development/SKILL.md`
-   - Read file: `.agent/skills/basic-documentation/SKILL.md`
-   - Read file: `.agent/skills/basic-documentation-diagrams/SKILL.md`
-   - Read file: `.agent/skills/basic-security-checklist/SKILL.md`
-   - Read file: `.agent/skills/basic-code-review/SKILL.md`
-   - Read file: `.agent/skills/basic-git-conventions/SKILL.md`
+| Order | Group and source |
+|---|---|
+| 1. Basic | [Basic loader](./load-skills-basic.md) |
+| 2. Overview | [Overview loader](./load-skills-overview.md) |
+| 3. Framework | Profile-declared full load set and its loader. Use the [DRN loader](./load-skills-drn.md) only when the profile or user declares DRN. |
+| 4. Testing | [Testing loader](./load-skills-test.md) |
+| 5. Frontend | Matching convention subsets in the [frontend loader](./load-skills-frontend.md) |
+| 6. Custom | Included profile/custom group loaders alphabetically, then `load-skills-custom.md` when present |
 
-**Overview (portable):**
-   - Read file: `.agent/skills/overview-repository-structure/SKILL.md`
-   - Read file: `.agent/skills/overview-ddd-architecture/SKILL.md`
-   - Read file: `.agent/skills/overview-github-actions/SKILL.md`
-   - Read file: `.agent/skills/overview-skill-index/SKILL.md`
-
-**Framework-scoped/profile-declared skills:**
-   - Read every skill listed in `.agent/repository-profile.md` under `Framework Skills`.
-   - Current DRN framework and buildwww load set:
-     - Read file: `.agent/skills/overview-drn-framework/SKILL.md`
-     - Read file: `.agent/skills/overview-drn-testing/SKILL.md`
-     - Read file: `.agent/skills/drn-sharedkernel/SKILL.md`
-     - Read file: `.agent/skills/drn-entityframework/SKILL.md`
-     - Read file: `.agent/skills/drn-domain-design/SKILL.md`
-     - Read file: `.agent/skills/drn-utils/SKILL.md`
-     - Read file: `.agent/skills/drn-hosting/SKILL.md`
-     - Read file: `.agent/skills/drn-testing/SKILL.md`
-     - Read file: `.agent/skills/drn-buildwww-libraries/SKILL.md`
-     - Read file: `.agent/skills/drn-buildwww-packages/SKILL.md`
-     - Read file: `.agent/skills/drn-buildwww-vite/SKILL.md`
-     - Read file: `.agent/skills/drn-buildwww-react/SKILL.md`
-   - Skip profile-declared skills that do not exist in this repository.
-
-**Testing:**
-   - Read file: `.agent/skills/test-integration/SKILL.md`
-   - Read file: `.agent/skills/test-integration-api/SKILL.md`
-   - Read file: `.agent/skills/test-integration-db/SKILL.md`
-   - Read file: `.agent/skills/test-performance/SKILL.md`
-   - Read file: `.agent/skills/test-unit/SKILL.md`
-
-**Frontend (generic Razor):**
-   - Read file: `.agent/skills/frontend-razor-pages-shared/SKILL.md`
-   - Read file: `.agent/skills/frontend-razor-pages-navigation/SKILL.md`
-   - Read file: `.agent/skills/frontend-razor-accessors/SKILL.md`
+The group loaders and profile own skill membership. `/update` reconciles this ordered composition and verifies its resolved union.

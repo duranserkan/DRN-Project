@@ -5,11 +5,10 @@ description: Detect changed files from the last N commits and delegate to /updat
 > **Trigger**: `/update-last <N>` where N is a commit count.
 > **Purpose**: Derive `/update` scope from recent Git history.
 > See also: [Operating Model](./_shared/workflow-operating-model.md)
-> **Estimated context: ~0.4K tokens**
 
 ## 1. Validate Input
 
-Run the shared Startup Gate: read `AGENTS.md`; read `.agent/rules/DiSCOS.md` and `.agent/repository-profile.md` when present; read this workflow and the operating model.
+Run the shared Startup Gate.
 
 Require N to be a positive integer. If missing or invalid, respond:
 
@@ -21,24 +20,16 @@ Usage: /update-last <N> -- N must be a positive integer.
 
 ## 2. Collect Changed Files
 
-Inspect the last N commits:
+Select up to N commits from `HEAD` along first-parent history. Report the actual count if history is shorter. Stop on unavailable `HEAD` or failed history inspection.
 
-```bash
-git diff --name-status HEAD~<N>..HEAD
-```
-
-If the range is unavailable, fall back to:
-
-```bash
-git log --name-status --pretty=format: -<N>
-```
+Collect each selected commit's name-status records against its first parent. Compare a root commit against the empty tree. Include merge commits' changes against their first parent. Use NUL-delimited records and retain both paths of rename/copy records. Do not replace this union with an endpoint tree diff, which omits changes reverted within the range.
 
 ---
 
 ## 3. Build Scope
 
-1. Keep change status (`A`, `M`, `D`, `R`).
-2. Filter, deduplicate, and sort paths.
+1. Keep each reported change status, including additions, modifications, deletions, renames, copies and type changes.
+2. Parse records without shell splitting or treating quoted display paths as literal names. Reject malformed records and paths containing commas or control characters before producing the comma-separated scope. Deduplicate and sort paths.
 3. Include deleted and renamed-from files so `/update` can detect removed skills, projects, or workflows.
 4. Stop if no files changed:
 
@@ -58,7 +49,7 @@ git log --name-status --pretty=format: -<N>
 
 ```markdown
 ## update-last: Detected Changes
-Commits inspected: <N> | Changed files: <count>
+Commits requested: <N> | First-parent commits inspected: <actual count> | Changed files: <count>
 | Status | File |
 |---|---|
 | M | <file1> |
@@ -70,5 +61,5 @@ Delegate by loading `.agent/workflows/update.md` and passing the `files: <comma-
 
 ## Operational Notes
 
-- Read-only: inspect history only; do not modify Git state.
+- Read-only: inspect history only. Do not modify Git state.
 - Fail-fast: stop on invalid input or empty changesets.

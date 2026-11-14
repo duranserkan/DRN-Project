@@ -5,13 +5,12 @@ description: Pursue a user goal through the fastest safe route using DiSCOS, AGE
 > **Goal Mode**: finish the user's real objective by the shallowest safe route.
 > Sources: `AGENTS.md`, `.agent/rules/DiSCOS.md`, `./_shared/workflow-operating-model.md`, `.agent/skills/basic-agentic-development/SKILL.md`, and routed workflows.
 > Do not duplicate source-owned rules.
-> **Estimated context: ~2.2K tokens** plus routed workflow/skills.
 
 ## 1. Start
 
 Run the shared Startup Gate and Repository Extension Gate once. Load only the selected route workflow and skills. Cache conclusions. Stop discovery when the next decision has enough evidence.
 
-Use the shared Workflow Composition Contract when chaining routes. Delegate task-specific gates to routed workflows; do not inline `/search`, `/clarify`, `/answer`, `/develop`, `/sync`, `/review`, `/optimize`, `/test`, `/documentation`, or profile/custom route rules.
+Use the shared Workflow Composition Contract when chaining routes. Routed workflows own their gates. Do not copy their rules here.
 
 ## 2. Contract
 
@@ -59,7 +58,7 @@ Choose the shallowest safe route.
 | Route | Use when |
 |---|---|
 | `direct` | Safe answer or simple scoped edit. |
-| `/search` | Context is missing; return after evidence. |
+| `/search` | Context is missing. Return after evidence. |
 | `/clarify` | Requirements or acceptance are ambiguous. |
 | `/answer` | Answers, assumptions, or approval must update CAD artifacts. |
 | `/develop` | Implementation-heavy work. |
@@ -74,7 +73,7 @@ Routed workflows own their gates, artifacts, and output format.
 
 ### Flags
 
-`auto`: Default when omitted. Apply profile/custom overlays, then choose the shallowest safe route. Run `/search` only when context is missing, ambiguity affects routing, or risk is `significant`/`critical`; then record whether evidence selects `cad`, `ro`, or a custom route.
+`auto`: Default when omitted. Apply profile/custom overlays, then choose the shallowest safe route. Run `/search` only when context is missing, ambiguity affects routing, or risk is `significant`/`critical`. Record whether evidence selects `cad`, `ro`, or a custom route.
 
 `cad`: Run `/search`, then `/clarify auto -> /answer auto -> /develop`. Apply matching profile/custom clarify, answer, develop, review, optimize, documentation, and test overlays. `/goal` may supply `ApprovalRecord=workflow-tolerated` to satisfy `/answer auto` and continue into `/develop` only when:
 
@@ -85,7 +84,7 @@ Routed workflows own their gates, artifacts, and output format.
 - `needs_review=false`.
 - The `/goal` Decision records a Priority Stack pass.
 
-Create and preserve `.agent/temp/CLARIFY-*.md` and `.agent/temp/DEVELOP-*.md` unless the route stops before their owning workflow can create them. Do not claim CAD completion if either required artifact is missing. For workflow or skill improvements, CAD may compose `/review` and `/optimize` as quality gates; it does not own their rules.
+Create and preserve `.agent/temp/CLARIFY-*.md` and `.agent/temp/DEVELOP-*.md` unless the route stops before their owners can create them. CAD completion also requires the matching WALKTHROUGH. CAD may compose `/review` and `/optimize` without replacing their gates.
 
 Stop when any routed workflow or custom overlay has a failed or unclear gate, unresolved user input, security-sensitive work, or approval that cannot be satisfied by an accepted shared record. Before completion or stop, resolve current files from `.agent/workflows/` and `.agent/temp/`, then report `CAD proof=[workflow files loaded; overlays used/skipped; CLARIFY path/status; DEVELOP path/status; /review or /optimize proof]`.
 
@@ -128,8 +127,8 @@ Completion gate follows the Priority Stack:
 ## 7. Verify And Report
 
 1. Run `git diff --check` after code, docs, workflow, or skill edits unless blocked.
-2. Never restore, build, run apps, or run tests in `/goal`; command catalogs are reference-only, so route/ask and report `not run per repo rule`.
-3. Decide docs, skills, release notes, and lessons using AGENTS.md, the profile, and routed workflows; report `not required` when no trigger applies.
+2. Never restore, build, run apps, or run tests in `/goal`. Command catalogs are reference-only. Route/ask and report `not run per repo rule`.
+3. Decide docs, skills, release notes, and lessons using AGENTS.md, the profile, and routed workflows. Report `not required` when no trigger applies.
 4. For workflow or skill optimization, report before/after token estimate when practical (`chars / 4`).
 5. On resume, answer the newest user message first. Restate the contract only when useful.
 

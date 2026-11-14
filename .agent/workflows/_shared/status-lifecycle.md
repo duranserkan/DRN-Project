@@ -4,7 +4,6 @@ description: Shared status, approval, lineage, and assumption contract for workf
 
 # Status Lifecycle
 
-> **Estimated context: ~1.5K tokens**
 > See [Workflow Operating Model](./workflow-operating-model.md) and [Sync Shared](./sync-shared.md).
 
 ## Lifecycle
@@ -33,6 +32,7 @@ SYNC SS : planned -> no-change
 | `ready-to-develop` -> `implementing` | `/develop` | Freshness, completeness, approval pass. |
 | `implementing` -> `implemented-pending-approval` | `/develop` | Changes, verification, walkthrough complete. |
 | `implemented-pending-approval` -> `implemented` | `/develop` | User approves final report. |
+| `implemented-pending-approval` -> `implementing` | `/develop` | Explicitly authorized corrections pass freshness, review and approval gates. |
 | `outlined` -> `planning` -> `ready` | `/update-plan` | Discovery and plan complete. |
 | `ready` -> `plan-reviewed` | `/update` from `/review` | `transition_allowed: plan-reviewed`. |
 | `plan-reviewed` -> `executing` -> `done` | `/update-execute` | Current apply approval, all stages terminal. |
@@ -41,29 +41,29 @@ SYNC SS : planned -> no-change
 | `failed` -> `correcting` -> `done` | `/update-execute` | Correction preview, approval, findings resolution. |
 | `discovering` -> `planned` -> `syncing` | `/sync` run | Physical parent/pair, scope, ordered subscopes bound. |
 | `planned` -> `no-change` | `/sync` subscope | Static evidence proves zero output. |
-| `planned` -> `ready-to-apply` | `/sync` subscope | Active drift, preview, preimages, rollback plan, and passing `/review` complete; awaiting Apply approval. |
-| `ready-to-apply` -> `applying` -> `applied` | `/sync` subscope | Explicit Apply approval granted; `/sync-execute` revalidates it, persists the pre-write marker, and actual outputs match manifest. |
-| `ready-to-apply`/pre-write `applying` -> `planned` | `/sync` subscope | Input/non-output changed before the pre-write marker; invalidate approval append-only. |
-| `applying` -> `rolling-back` -> `failed-*` | `/sync` subscope | Apply failed; safe rollback executed or partial failure logged. |
-| `failed-partial` -> `recovering` -> `failed-rolled-back`/`failed-partial` | `/sync` subscope | Explicit Recovery approval binds an exact recovery plan; verified rollback terminates safely, while residual uncertainty reblocks recovery. |
+| `planned` -> `ready-to-apply` | `/sync` subscope | Drift, preview, preimages, rollback plan, and review pass. Await Apply approval. |
+| `ready-to-apply` -> `applying` -> `applied` | `/sync` subscope | Executor revalidates explicit Apply approval, persists pre-write marker, and matches outputs to manifest. |
+| `ready-to-apply`/pre-write `applying` -> `planned` | `/sync` subscope | Input/non-output changed before pre-write marker. Invalidate approval append-only. |
+| `applying` -> `rolling-back` -> `failed-*` | `/sync` subscope | Apply failed. Safe rollback executed or partial failure logged. |
+| `failed-partial` -> `recovering` -> `failed-rolled-back`/`failed-partial` | `/sync` subscope | Explicit Recovery approval binds exact plan. Verified rollback terminates safely. Residual uncertainty reblocks. |
 | `applied` -> `awaiting-user-approval` | `/sync` subscope | Verification and postimage evidence pass `/review`. |
 | `awaiting-user-approval` -> `awaiting-user-commit` | `/sync` subscope | Postimage acceptance record current. |
 | `applied`/`awaiting-*` -> `planned` | `/sync` subscope | Pre-commit change invalidates approval before commit. |
 | `awaiting-user-commit` -> `committed` | `/sync` subscope | Single non-merge user commit matches accepted tree delta. |
-| `awaiting-user-commit` -> `partially-committed` | `/sync` subscope | Independent Git roots verified; passed roots immutable. |
+| `awaiting-user-commit` -> `partially-committed` | `/sync` subscope | Independent Git roots verified. Passed roots immutable. |
 | any mutating state -> `failed` | `/sync` subscope | Irrecoverable security/boundary failure stops unit. |
 | `discovering`/`planned`/`syncing` -> `failed` | `/sync` run | Topology mismatch, unit failure, or corrupt baseline stops run. |
-| `syncing` -> `verified` | `/sync` run | All units terminal (`committed`/`no-change`); baseline promoted. |
+| `syncing` -> `verified` | `/sync` run | All units terminal (`committed`/`no-change`). Baseline promoted. |
 
 `verified` is terminal only while its complete verification binding remains current.
 
-For `/update` artifacts, an output-only mismatch invalidates `/update` to `done` for review (`verified` -> `done`); a Run ID, requested/effective scope, or semantic-plan mismatch invalidates the plan completely and starts a fresh plan (`outlined`/`planning`), never reusing prior approval or verification state.
+For `/update`, output-only mismatch returns to `done` for review. Run ID, requested/effective scope, or semantic-plan mismatch starts a fresh `outlined`/`planning` plan without prior approval or verification state.
 
-For `/sync` run artifacts, `verified` is terminal while binding is current. Mismatched evidence transitions to `failed`; changed live state or invalid baseline/topology starts a fresh `discovering` run. Never reopen a verified SYNC run as `planned` or `syncing`.
+For `/sync`, mismatched evidence transitions to `failed`. Changed live state or invalid baseline/topology starts a fresh `discovering` run. Never reopen a verified run as `planned` or `syncing`.
 
 ## Metadata
 
-Lowercase YAML fields; never replace `status`.
+Use lowercase YAML fields. Never replace `status`.
 
 | Field | Meaning |
 |---|---|
@@ -78,18 +78,9 @@ For SYNC, set `blocked_on_user: true` while apply approval, acceptance, commit, 
 
 ## Approval Record
 
-Use explicit approval by default. Use `ApprovalRecord=workflow-tolerated` ONLY when BOTH this contract and the accepting/consuming workflow explicitly opt in and declare the exception for the exact bounded scope. `/sync` explicitly rejects `ApprovalRecord=workflow-tolerated` and requires explicit user approval for Apply, Acceptance, and Recovery records; rejected or non-explicit records MUST remain blocked (`blocked_on_user: true`) and MUST NEVER transition to `applying`, `awaiting-user-commit`, or `recovering`.
+Use explicit approval by default. `ApprovalRecord=workflow-tolerated` requires this contract and both producer and consumer to opt in for the exact bounded scope. It never satisfies security-sensitive, destructive, VCS, failed/unclear, unresolved-input, unverified-assumption, temp-artifact lifecycle-risk, or final user-approval gates, including `implemented` and final plan/output completion.
 
-`ApprovalRecord=workflow-tolerated` NEVER satisfies:
-- Workflows that have not explicitly opted in and accepted workflow-tolerated approval (including `/sync`, which strictly rejects it)
-- Security-sensitive gates
-- Destructive mutation gates
-- VCS gates (e.g., commit verification or acceptance)
-- Failed or unclear gates (e.g., failed test or review gates)
-- Unresolved-input gates
-- Unverified-assumption gates
-- Temp-artifact lifecycle-risk gates
-- Final user-approval gates (including `status: implemented` or final plan/output completion)
+`/sync` rejects tolerated approval. Apply, Acceptance, and Recovery require separate explicit user records. Rejected/non-explicit records remain `blocked_on_user: true` and cannot enter `applying`, `awaiting-user-commit`, or `recovering`.
 
 Required fields:
 - `approval_record`: `explicit approval recorded` or `ApprovalRecord=workflow-tolerated`
@@ -117,15 +108,23 @@ Calculate approval-envelope SHA-256 from the first eight fields above in listed 
 
 Retain the recorded envelope SHA-256 directly in the approval record. Never hash the containing approval record or history.
 
-The user approves the human-readable subject/preview, scope, and risk—not a digest. On confirmation, recompute every digest, record all fields, and set `approval_required: false`. Any envelope-input change invalidates it. Set `approval_required: true`, record reason/time, retain superseded records as append-only audit history, review changed semantic content, and obtain new approval.
+The user approves the readable subject/preview, scope, and risk, not a digest. Recompute digests, record all fields, then clear `approval_required`. Any envelope-input change invalidates the record. Set `approval_required: true`, record reason/time, retain superseded records append-only outside the subject, review changed content, and obtain current approval. External history avoids changing the semantic subject while recording invalidation.
 
 `/sync` requires separate Apply and Acceptance records per mutating subscope, and a Recovery record when applicable. Retain superseded records append-only.
+
+### CAD Scoped Authorization
+
+For `/clarify`, `/answer`, and `/develop`, an explicit user instruction may authorize a bounded chain and its corrective iterations upfront. Record its wording and provenance in the artifact. Reuse that authority only while scope, constraints, and risk remain covered and no later instruction revokes or conflicts with it. Do not request the same permission again.
+
+Content changes still invalidate the envelope. Review the current artifact and recompute every digest before advancing. Existing authority may authorize the new envelope only when it explicitly covers the derived content or corrections. Otherwise ask. Never relabel explicit authorization as workflow-tolerated.
+
+This rule does not grant execution, destructive, security-sensitive, or VCS permission, waive a failed gate, or approve final results. It does not replace exact-preview approval in `/optimize`, `/update`, or `/sync`. Continue an already authorized CAD chain after presenting its artifacts. Stop at an unapproved boundary.
 
 ## Lineage & Assumptions
 
 ### Lineage Metadata
 
-`CLARIFY-*` artifacts may use these keys when a new clarification loop starts from an earlier artifact. Use them for supersession and lineage tracking:
+For clarification loops, use these keys for lineage and supersession:
 
 | Key | Meaning |
 |---|---|
@@ -142,11 +141,11 @@ The user approves the human-readable subject/preview, scope, and risk—not a di
 Apply these shared lineage rules unless a workflow names a stricter local gate:
 
 - **Evidence & Selection**: Accept explicit name-versioned artifacts and commits/refs when supplied or unambiguous. Require hashes only when a listed `*_sha256` key drives freshness. Revalidate source hashes and freshness before mutation.
-- **Supersession & Branch Confirmation**: Same-lineage descendants supersede `previous_artifact` by higher `iteration`, then newer timestamp. Treat superseded artifacts as evidence or branch points only with explicit user confirmation.
+- **Supersession & Branch Confirmation**: Same-lineage descendants supersede `previous_artifact` by higher `iteration`, then newer timestamp. Historical inspection is evidence only. Resuming a superseded artifact as a branch point requires explicit user confirmation.
 - **Snapshot Boundary**: `### Enriched Lineage Snapshot` lets a new clarification iteration stand alone for `/answer`. It may summarize prior `CLARIFY-*`, matching `DEVELOP-*`, walkthrough, and commit evidence. It never replaces `source_*` freshness checks, approval records, `/review`, `/optimize`, or `/develop` gates.
 
 ### Assumptions & Re-entry
 
-`[ASSUMPTION - unverified]` blocks all mutating and terminal states across CAD, UPDATE, and SYNC lifecycles (including `draft-self-reviewed`, `clarified`, `ready-to-develop`, `implementing`, `implemented-pending-approval`, `plan-reviewed`, `executing`, `done`, `reviewed`, `verifying`, `ready-to-apply`, `applying`, `applied`, `awaiting-user-approval`, `awaiting-user-commit`, `committed`, and terminal `verified`). `[ASSUMPTION - accepted]` is allowed only in the Risk Register with explicit mitigation and source; it never bypasses Security, Correctness, testable acceptance criteria, or approval records.
+`[ASSUMPTION - unverified]` blocks all mutating, terminal, review-ready, verification, and approval/commit-waiting states across CAD, UPDATE, and SYNC. `[ASSUMPTION - accepted]` is allowed only in the Risk Register with explicit mitigation and source. It never bypasses Security, Correctness, testable acceptance criteria, or approval records.
 
 Resume from `status` and metadata flags. Revalidate source hashes, review state, approval envelope, and blockers before mutation.

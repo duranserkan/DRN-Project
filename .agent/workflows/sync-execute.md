@@ -17,7 +17,7 @@ Inspect run status and active-subscope marker:
 | Active `planned` | Return to `/sync` planning, review, and preview. |
 | Active `ready-to-apply` | Return to `/sync` and remain blocked pending explicit Apply approval. |
 | Active `applying`, no `apply-progress` record | Continue to [Revalidate Approval](#2-revalidate-approval). |
-| Active `applying`, `apply-progress` exists | Treat the write set as indeterminate; proceed to [Failure And Rollback](#4-failure-and-rollback). |
+| Active `applying`, `apply-progress` exists | Treat the write set as indeterminate. Proceed to [Failure And Rollback](#4-failure-and-rollback). |
 | Active `rolling-back` | Resume rollback proof in [Failure And Rollback](#4-failure-and-rollback). |
 | Active `failed-partial` | Continue to [Explicit Recovery](#5-explicit-recovery). |
 | Active `recovering` | Resume the approved plan in [Explicit Recovery](#5-explicit-recovery). |
@@ -54,9 +54,9 @@ Stop on any output deviation, failed command, observed drift, or secret exposure
 
 ## 4. Failure And Rollback
 
-On apply failure, persist `rolling-back` before executing the rollback plan. Use only the supported-path and standard-check capabilities from the shared contract; unavailable checks fail closed with evidence.
+On apply failure, persist `rolling-back` before executing the rollback plan. Use only the supported-path and standard-check capabilities from the shared contract. Unavailable checks fail closed with evidence.
 
-- Restore only a target whose exact recorded partial postimage still matches immediately before the write; skip unchanged preimages.
+- Restore only a target whose exact recorded partial postimage still matches immediately before the write. Skip unchanged preimages.
 - Verify every restored preimage and never overwrite unexplained state.
 
 If fully restored, set `failed-rolled-back` and fail run.

@@ -29,16 +29,16 @@ end
 Only this evidence format is supported. Never discover, migrate, or branch for legacy formats.
 
 Encoding rules:
-- Reject control characters; paths must be UTF-8. Endpoint names are common-parent-relative. Path/glob selectors and records keyed by `root-id` use endpoint-relative paths; `peer-path` uses `peer-root-id`. Commit records use owning-Git-root-relative paths. Only physical-identity fields (`physical-path`, `common-parent`, `physical-root` variants, `git-top-level`, and `admin-path`) may be absolute.
-- Integers: ASCII without leading zeros, except `sequence`: exactly 20 zero-padded ASCII decimal digits (`00000000000000000000` to `18446744073709551615`). Allocate monotonically; reject overflow and duplicates.
+- Reject control characters. Paths must be UTF-8. Endpoint names are common-parent-relative. Path/glob selectors and records keyed by `root-id` use endpoint-relative paths. `peer-path` uses `peer-root-id`. Commit records use owning-Git-root-relative paths. Only physical-identity fields (`physical-path`, `common-parent`, `physical-root` variants, `git-top-level`, and `admin-path`) may be absolute.
+- Integers: ASCII without leading zeros, except `sequence`: exactly 20 zero-padded ASCII decimal digits (`00000000000000000000` to `18446744073709551615`). Allocate monotonically. Reject overflow and duplicates.
 - Booleans: `0`/`1`. Hashes: lowercase hex. Missing values: `N/A`.
-- Fields emit in schema order; sort records bytewise by key; reject duplicates.
+- Fields emit in schema order. Sort records bytewise by key. Reject duplicates.
 - Hash each artifact with `shasum -a 256 -b -- <artifact>` and bind the digest into approval subjects.
 - Store preimages/patches by hash only when exclusions permit. Never store secrets.
 
 Endpoint IDs: `left`, `right`. Git-root IDs: `shared` (project mode) or `left`/`right` (repository mode).
 
-For Git operations and accepted/actual commit comparisons, prepend `endpoint-topology.physical-root` relative to its `owning-git-root-id`'s `topology-git.git-top-level` to endpoint-relative paths. This prefix is empty in repository mode; project example: `Pages/X` becomes `AppA.Hosted/Pages/X`. Validate containment; convert once. Baseline selectors stay endpoint-relative; named scopes stay symbolic. Reject retained evidence with ambiguous path bases.
+For Git operations and accepted/actual commit comparisons, prepend `endpoint-topology.physical-root` relative to its `owning-git-root-id`'s `topology-git.git-top-level` to endpoint-relative paths. This prefix is empty in repository mode. In project mode, `Pages/X` becomes `AppA.Hosted/Pages/X`. Validate containment. Convert once. Baseline selectors stay endpoint-relative. Named scopes stay symbolic. Reject retained evidence with ambiguous path bases.
 
 ## 2. Record Schemas
 
@@ -70,9 +70,9 @@ Field order is normative.
 
 `commit-changed-path` records exact path delta from accepted base to user commit. `commit-tree-entry` records resulting tree. Require actual/accepted tree SHA match before emitting `commit-verification`.
 
-Born branches require `parent-count=1` and `parent-sha=accepted-base-head`. `UNBORN` requires `parent-count=0` and `parent-sha=N/A`. Verify the exact transition: user commit SHA equals current post-commit HEAD and differs from accepted base; actual/accepted tree digests match; only accepted output enters the commit. Preserve unrelated pre-existing staged work in the index and unstaged work in worktree dirt. Accepted output must no longer be staged or dirty.
+Born branches require `parent-count=1` and `parent-sha=accepted-base-head`. `UNBORN` requires `parent-count=0` and `parent-sha=N/A`. Verify the exact transition. User commit SHA equals current post-commit HEAD and differs from accepted base. Actual/accepted tree digests match. Only accepted output enters the commit. Preserve unrelated pre-existing staged work in the index and unstaged work in worktree dirt. Accepted output must no longer be staged or dirty.
 
-`apply-progress` state is `started` or `completed`. Persist `started` atomically before the first output mutation; its existence makes a resumed `applying` unit indeterminate and routes it to rollback. Persist `completed` only after every actual output matches the manifest.
+`apply-progress` state is `started` or `completed`. Persist `started` atomically before the first output mutation. Its existence makes a resumed `applying` unit indeterminate and routes it to rollback. Persist `completed` only after every actual output matches the manifest.
 
 `recovery` outcomes: `pending`, `recovering`, `rolled-back`, `partial`, `terminated-partial`. Pending approval fields stay `N/A` until explicit Recovery approval. Records are append-only, following the 20-digit monotonic `sequence` rules.
 
@@ -114,4 +114,4 @@ variance_sha256="<lowercase-hex>"
 
 Select a baseline using the baseline key directory's valid `current` pointer. Only an absent directory means first comparison. Otherwise fail closed on `promotion.lock`, absent/malformed `current`, missing/digest-mismatched companions, or checkpoint evidence mismatching the normalized invocation.
 
-Promote only after `/sync-execute` proves full final scope. Acquire `promotion.lock` with a standard exclusive operation; abort if it exists. Write and `shasum`-verify companions; write and verify a temporary `current` in the same directory; then replace `current` with a same-directory `mv`. Revalidate the resulting pointer and companions before releasing the owned lock. Any failure, observed change, or leftover lock fails closed.
+Promote only after `/sync-execute` proves full final scope. Acquire `promotion.lock` with a standard exclusive operation. Abort if it exists. Write and `shasum`-verify companions. Write and verify a temporary `current` in the same directory. Then replace `current` with a same-directory `mv`. Revalidate the resulting pointer and companions before releasing the owned lock. Any failure, observed change, or leftover lock fails closed.
