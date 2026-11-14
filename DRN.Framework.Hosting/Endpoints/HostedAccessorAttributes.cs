@@ -1,51 +1,13 @@
 namespace DRN.Framework.Hosting.Endpoints;
 
-/// <summary>
-/// Generates typed controller and Razor Page accessor collections for a program in an SDK Web project.
-/// Apply once per program. Return the generated root's EndpointCollection from ConfigureEndpointCollection
-/// to bind and validate controller accessors during startup.
-/// </summary>
-/// <remarks>
-/// Roots follow {baseNamespace}.EndpointFor.{rootPrefix}EndpointFor and {baseNamespace}.PageFor.{rootPrefix}PageFor.
-/// {programNamespace} is the namespace declaring the type passed to the constructor, such as Sample.Hosted.
-/// {baseNamespace} defaults to {programNamespace}.Helpers, or Helpers when the type has no namespace.
-/// Set <see cref="Namespace"/> to replace this base namespace.
-/// {rootPrefix} defaults to the type name with a trailing Program removed. Program alone uses App.
-/// Names without that suffix stay unchanged. Set <see cref="Name"/> to replace this prefix.
-/// SampleProgram therefore yields SampleEndpointFor and SamplePageFor; Program yields AppEndpointFor and AppPageFor.
-/// Source folders do not affect these namespaces.
-/// Generated partial classes are compiler sources, not files written into application folders.
-/// Controller groups follow namespaces below the program's Controllers namespace. Razor @page paths define
-/// page groups: Pages/Home.cshtml becomes Root.Home, and Pages/User/Login.cshtml becomes User.Login.
-/// </remarks>
-/// <param name="program">The public, concrete, non-generic, top-level DRN program declared in the hosted project.</param>
-[AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
-public sealed class HostedAccessorsAttribute(Type program) : Attribute
-{
-    /// <summary>Gets the hosted program whose accessor collections are generated.</summary>
-    public Type Program { get; } = program;
-
-    /// <summary>
-    /// Gets or sets the base namespace for generated types, with EndpointFor and PageFor subnamespaces.
-    /// Defaults to the program namespace plus .Helpers, or Helpers for a global-namespace program.
-    /// </summary>
-    public string? Namespace { get; set; }
-
-    /// <summary>
-    /// Gets or sets the name prefix for the generated EndpointFor and PageFor roots.
-    /// Defaults to the program type name without its trailing Program suffix. Program itself uses App.
-    /// </summary>
-    public string? Name { get; set; }
-}
-
-/// <summary>Includes, aliases or excludes a controller for one opted-in program.</summary>
-/// <param name="program">The hosted program opted in through <see cref="HostedAccessorsAttribute"/>.</param>
+/// <summary>Includes, aliases or excludes a controller for one automatically discovered hosted program.</summary>
+/// <param name="program">The public, concrete, non-generic, top-level DRN program declared in the SDK Web project.</param>
 /// <param name="controller">The MVC controller type to include, customize or exclude.</param>
 [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
 public sealed class AccessorControllerAttribute(Type program, Type controller) : Attribute
 {
     /// <summary>Includes or customizes a controller at an explicit accessor path.</summary>
-    /// <param name="program">The hosted program opted in through <see cref="HostedAccessorsAttribute"/>.</param>
+    /// <param name="program">The automatically discovered hosted program whose accessors are customized.</param>
     /// <param name="controller">The MVC controller type to include or customize.</param>
     /// <param name="path">The dot-separated accessor path, including groups and the controller member. This is not a URL route.</param>
     public AccessorControllerAttribute(Type program, Type controller, string path) : this(program, controller)
@@ -77,7 +39,7 @@ public sealed class AccessorControllerAttribute(Type program, Type controller) :
 }
 
 /// <summary>Preserves a host-owned API group type name and its partial customization.</summary>
-/// <param name="program">The hosted program opted in through <see cref="HostedAccessorsAttribute"/>.</param>
+/// <param name="program">The automatically discovered hosted program whose accessors are customized.</param>
 /// <param name="path">The dot-separated path of an existing generated controller group, such as User.Identity.</param>
 /// <param name="typeName">The generated group type name to use instead of the conventional name.</param>
 [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
@@ -94,7 +56,7 @@ public sealed class AccessorGroupAttribute(Type program, string path, string typ
 }
 
 /// <summary>Aliases or excludes a generated action or page by its accessor path.</summary>
-/// <param name="program">The hosted program opted in through <see cref="HostedAccessorsAttribute"/>.</param>
+/// <param name="program">The automatically discovered hosted program whose accessors are customized.</param>
 /// <param name="path">The dot-separated accessor path prefixed with Endpoint or Page, such as Endpoint.User.Profile.Get or Page.Root.Index.</param>
 [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
 public sealed class AccessorMemberAttribute(Type program, string path) : Attribute

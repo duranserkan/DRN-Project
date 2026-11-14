@@ -4,8 +4,6 @@ using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Mvc;
 
-[assembly: HostedAccessors(typeof(Consumer.AppProgram))]
-
 namespace Consumer
 {
     public class AppProgram : DrnProgramBase<AppProgram>, IDrnProgram

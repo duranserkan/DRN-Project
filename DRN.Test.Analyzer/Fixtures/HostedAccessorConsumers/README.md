@@ -8,7 +8,7 @@ These compile-only consumers exercise distribution outside the repository's shar
 | TransitivePackage | PackageBridge references Hosting with private analyzer assets. Hosting's buildTransitive asset must still reach the Web host. |
 | ExternalSource | SourceBridge references Hosting source. The Web host receives the generator through the documented explicit common-root import. |
 
-Every Web consumer compiles the same ordinary controller, linked Razor page and references to both generated roots. Missing generator activation, missing page inputs or incorrect logical page paths must fail compilation. The bridge projects have no opt-in and must not emit accessor roots.
+Every Web consumer compiles the same ordinary controller, linked Razor page and references to both generated roots. `AppProgram` activates generation by convention without an assembly opt-in. Missing generator activation, missing page inputs or incorrect logical page paths must fail compilation. The bridge projects use the non-Web SDK and must not emit accessor roots.
 
 Package consumers require `DrnHostingPackageVersion` set to the locally produced package version under test. Supply a package source containing that Hosting package and its matching DRN dependency packages. Use an isolated package cache so an existing published package cannot substitute for the local artifact. The fixtures intentionally have no fallback version.
 

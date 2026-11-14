@@ -2,7 +2,6 @@ using DRN.Framework.Hosting.Endpoints;
 using DRN.Nexus.Hosted;
 using DRN.Nexus.Hosted.Controllers.User;
 
-[assembly: HostedAccessors(typeof(NexusProgram))]
 // Preserve the existing group type UserIdentityFor instead of UserIdentityApiFor.
 [assembly: AccessorGroup(typeof(NexusProgram), "User.Identity", "UserIdentityFor")]
 // Preserve the identity-group path and UserIdentityRegisterFor type instead of Nexus-prefixed defaults.

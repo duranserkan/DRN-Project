@@ -20,11 +20,158 @@ public class HostedAccessorGeneratorTests
         """;
 
     [Fact]
-    public void Generator_Should_Require_Explicit_OptIn()
+    public void Generator_Should_Discover_Programs_Without_An_OptIn()
     {
         var result = Generate(ProgramSource);
-        result.GeneratedTrees.Should().BeEmpty();
+        result.GeneratedTrees.Should().HaveCount(2);
         result.Diagnostics.Should().BeEmpty();
+        result.Results.Single().GeneratedSources.Select(source => source.HintName).Should().Equal(
+            "Helpers/EndpointFor/Helpers.EndpointFor.TestEndpointFor.g.cs",
+            "Helpers/PageFor/Helpers.PageFor.TestPageFor.g.cs");
+    }
+
+    [Fact]
+    public void Generator_Should_Resolve_Aliases_And_Deduplicate_Partial_Programs()
+    {
+        var source = "using ProgramBase = DRN.Framework.Hosting.DrnProgram.DrnProgramBase<TestProgram>;" +
+            ProgramSource.Replace("public class TestProgram", "public partial class TestProgram", StringComparison.Ordinal)
+                .Replace("DRN.Framework.Hosting.DrnProgram.DrnProgramBase<TestProgram>", "ProgramBase", StringComparison.Ordinal) +
+            "public partial class TestProgram : DRN.Framework.Hosting.DrnProgram.IDrnProgram {}";
+
+        var result = Generate(source);
+
+        result.Diagnostics.Should().BeEmpty();
+        result.GeneratedTrees.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void Generator_Should_Escape_Keyword_Namespaces_Without_Escaping_Hint_Paths()
+    {
+        var result = Generate("namespace @event {" + ProgramSource + "}");
+
+        result.Diagnostics.Should().BeEmpty();
+        Generated(result, "TestEndpointFor.g.cs").Should().Contain("namespace @event.Helpers.EndpointFor;");
+        Generated(result, "TestPageFor.g.cs").Should().Contain("namespace @event.Helpers.PageFor;");
+        result.Results.Single().GeneratedSources.Select(source => source.HintName).Should().Equal(
+            "Helpers/EndpointFor/event.Helpers.EndpointFor.TestEndpointFor.g.cs",
+            "Helpers/PageFor/event.Helpers.PageFor.TestPageFor.g.cs");
+    }
+
+    [Fact]
+    public void Generator_Should_Discover_Only_SelfTyped_Concrete_Programs_Through_Generic_Bases()
+    {
+        var source = """
+            using DRN.Framework.Hosting.DrnProgram;
+            public abstract class IntermediateProgram<TProgram> : DrnProgramBase<TProgram>
+                where TProgram : DrnProgramBase<TProgram>, IDrnProgram, new()
+            {
+                protected override System.Threading.Tasks.Task AddServicesAsync(Microsoft.AspNetCore.Builder.WebApplicationBuilder builder,
+                    DRN.Framework.Utils.Settings.IAppSettings settings, DRN.Framework.Utils.Logging.IScopedLog log)
+                    => System.Threading.Tasks.Task.CompletedTask;
+            }
+            public class IndirectProgram : IntermediateProgram<IndirectProgram>, IDrnProgram
+            {
+                public static System.Threading.Tasks.Task Main(string[] args) => System.Threading.Tasks.Task.CompletedTask;
+            }
+            public class DescendantProgram : IndirectProgram {}
+            """;
+
+        var result = Generate(source);
+
+        result.Diagnostics.Should().BeEmpty();
+        result.GeneratedTrees.Should().HaveCount(2);
+        Generated(result, "IndirectEndpointFor.g.cs").Should().Contain("EndpointCollectionBase<global::IndirectProgram, IndirectEndpointFor>");
+    }
+
+    [Theory]
+    [DataInlineUnit("internal")]
+    [DataInlineUnit("nested")]
+    [DataInlineUnit("generic")]
+    [DataInlineUnit("file")]
+    [DataInlineUnit("suffix")]
+    public void Generator_Should_Not_Read_Razor_For_Ineligible_Programs(string shape)
+    {
+        var source = shape switch
+        {
+            "internal" => ProgramSource.Replace("public class TestProgram", "internal class TestProgram", StringComparison.Ordinal)
+                .Replace("public static", "public TestProgram() {} public static", StringComparison.Ordinal),
+            "nested" => "public class Container {" + ProgramSource + "}",
+            "generic" => ProgramSource.Replace("TestProgram", "TestProgram<T>", StringComparison.Ordinal),
+            "file" => ProgramSource.Replace("public class TestProgram", "file class TestProgram", StringComparison.Ordinal)
+                .Replace("public static", "public TestProgram() {} public static", StringComparison.Ordinal),
+            _ => ProgramSource.Replace("TestProgram", "Testprogram", StringComparison.Ordinal)
+        };
+
+        var result = Generate(source, [new UnreadablePage()]);
+
+        result.Diagnostics.Should().BeEmpty();
+        result.GeneratedTrees.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Generator_Should_Ignore_Abstract_Programs_And_Lookalike_Bases()
+    {
+        const string source = """
+            public abstract class AbstractProgram<T> : DRN.Framework.Hosting.DrnProgram.DrnProgramBase<T>
+                where T : DRN.Framework.Hosting.DrnProgram.DrnProgramBase<T>, DRN.Framework.Hosting.DrnProgram.IDrnProgram, new() {}
+            namespace Lookalike
+            {
+                public class DrnProgramBase<T> {}
+                public class FakeProgram : DrnProgramBase<FakeProgram> {}
+            }
+            """;
+
+        var result = Generate(source, [new UnreadablePage()]);
+
+        result.Diagnostics.Should().BeEmpty();
+        result.GeneratedTrees.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Generator_Should_Not_Discover_Referenced_Programs()
+    {
+        var referenced = CreateCompilation(ProgramSource, "ReferencedProgram");
+        using var assembly = new MemoryStream();
+        referenced.Emit(assembly).Diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+        var reference = MetadataReference.CreateFromImage(assembly.ToArray());
+
+        var result = Generate("public class Consumer {}", [new UnreadablePage()], references: [reference]);
+
+        result.Diagnostics.Should().BeEmpty();
+        result.GeneratedTrees.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Generator_Should_Use_App_For_Program_And_Reject_Root_Collisions()
+    {
+        var source = ProgramSource.Replace("TestProgram", "Program", StringComparison.Ordinal);
+        var result = Generate(source);
+
+        result.Diagnostics.Should().BeEmpty();
+        Generated(result, "AppEndpointFor.g.cs").Should().Contain("EndpointCollectionBase<global::Program, AppEndpointFor>");
+        Generated(result, "AppPageFor.g.cs").Should().Contain("PageCollectionBase<AppPageFor>");
+
+        var collision = Generate(source + ProgramSource.Replace("TestProgram", "AppProgram", StringComparison.Ordinal));
+        collision.Diagnostics.Should().Contain(diagnostic => diagnostic.Id == "DRNHG001" && diagnostic.GetMessage().Contains("collides"));
+    }
+
+    [Fact]
+    public void Generated_Accessors_Should_Use_Stored_References_Without_PerAccess_Lookups()
+    {
+        var source = "public class ItemsController : Microsoft.AspNetCore.Mvc.ControllerBase { public void Read() {} }" + ProgramSource;
+        var result = Generate(source, [new Page("Pages/Home.cshtml", "@page")]);
+
+        result.Diagnostics.Should().BeEmpty();
+        Generated(result, "TestEndpointFor.g.cs").Should().Contain("public ItemsFor Items { get; } = new();");
+        Generated(result, "TestPageFor.g.cs").Should().Contain("public RootPageFor Root { get; } = new();");
+        Generated(result, "ItemsFor.g.cs").Should().Contain("public ApiEndpoint Read { get; private set; } = null!;");
+        Generated(result, "RootPageFor.g.cs").Should().Contain("public string Home { get; init; } = \"/Home\";");
+        foreach (var tree in result.GeneratedTrees)
+        {
+            var properties = tree.GetRoot().DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.PropertyDeclarationSyntax>();
+            properties.Should().OnlyContain(property => property.ExpressionBody == null && property.AccessorList != null &&
+                property.AccessorList.Accessors.All(accessor => accessor.Body == null && accessor.ExpressionBody == null));
+        }
     }
 
     [Fact]
@@ -32,8 +179,7 @@ public class HostedAccessorGeneratorTests
     {
         var source = """
             using DRN.Framework.Hosting.Endpoints;
-            using Test.Helpers.EndpointFor;
-            [assembly: HostedAccessors(typeof(TestProgram), Namespace = "Test.Helpers")]
+            using Helpers.EndpointFor;
             public class ItemsController : Microsoft.AspNetCore.Mvc.ControllerBase { public void Read() {} }
             public class Consumer
             {
@@ -58,20 +204,13 @@ public class HostedAccessorGeneratorTests
     [Theory]
     [DataInlineUnit(false, true)]
     [DataInlineUnit(true, false)]
-    public void Generator_Should_Not_Read_Razor_Text_Unless_A_Web_Host_Opts_In(bool optedIn, bool hosted)
+    public void Generator_Should_Not_Read_Razor_Text_Without_An_Eligible_Web_Program(bool hasProgram, bool hosted)
     {
-        var declaration = optedIn ? "[assembly: HostedAccessors(typeof(TestProgram))]" : "";
-        var result = Generate("using DRN.Framework.Hosting.Endpoints;" + declaration + ProgramSource,
+        var result = Generate(hasProgram ? ProgramSource : "public class OrdinaryProgram {}",
             [new UnreadablePage()], hosted: hosted);
 
-        result.GeneratedTrees.Should().NotContain(tree => tree.FilePath.Contains(".PageFor.", StringComparison.Ordinal));
-        if (hosted)
-            result.Diagnostics.Should().BeEmpty();
-        else
-        {
-            result.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNHG001");
-            result.Diagnostics[0].GetMessage().Should().Contain("SDK Web");
-        }
+        result.GeneratedTrees.Should().BeEmpty();
+        result.Diagnostics.Should().BeEmpty();
     }
 
     [Fact]
@@ -79,7 +218,6 @@ public class HostedAccessorGeneratorTests
     {
         var source = """
             using DRN.Framework.Hosting.Endpoints;
-            [assembly: HostedAccessors(typeof(TestProgram), Namespace = "Test.Helpers")]
             [assembly: DRN.Framework.Hosting.Endpoints.Lookalikes.AccessorMember(typeof(TestProgram), "Endpoint.Missing.Read")]
             namespace DRN.Framework.Hosting.Endpoints
             {
@@ -104,10 +242,9 @@ public class HostedAccessorGeneratorTests
     {
         var source = """
             using DRN.Framework.Hosting.Endpoints;
-            [assembly: HostedAccessors(typeof(TestProgram), Namespace = "Test.Helpers")]
             public class Consumer
             {
-                public Test.Helpers.PageFor.TestPageFor Pages => Test.Helpers.PageFor.TestPageFor.PageCollection;
+                public Helpers.PageFor.TestPageFor Pages => Helpers.PageFor.TestPageFor.PageCollection;
                 public int Count => Pages.All.Count;
             }
             """ + ProgramSource;
@@ -132,11 +269,10 @@ public class HostedAccessorGeneratorTests
         var source = """
             using DRN.Framework.Hosting.Endpoints;
             using Microsoft.AspNetCore.Mvc;
-            [assembly: HostedAccessors(typeof(TestProgram), Namespace = "Test.Helpers")]
             [assembly: AccessorController(typeof(TestProgram), typeof(ItemsController), TypeName = "LegacyItemsFor", RouteTemplate = "")]
             [Route("/items")]
             public class ItemsController : ControllerBase { public void Read() {} }
-            public class Consumer { public ApiEndpoint Read => new Test.Helpers.EndpointFor.TestEndpointFor().Items.Read; }
+            public class Consumer { public ApiEndpoint Read => new Helpers.EndpointFor.TestEndpointFor().Items.Read; }
             """ + ProgramSource;
 
         var result = Generate(source);
@@ -155,18 +291,17 @@ public class HostedAccessorGeneratorTests
     {
         var source = """
             using DRN.Framework.Hosting.Endpoints;
-            [assembly: HostedAccessors(typeof(TestProgram), Namespace = "Test.Helpers")]
             [assembly: AccessorController(typeof(TestProgram), typeof(ItemsController), "Group.Items")]
             [assembly: AccessorGroup(typeof(TestProgram), "Group", "ApiEndpoint")]
             public class ItemsController : Microsoft.AspNetCore.Mvc.ControllerBase { public void Read() {} }
-            namespace Test
+            namespace Helpers
             {
                 public class ControllerForBase<T> {}
                 public class EndpointActionAttribute : System.Attribute {}
             }
             public class Consumer
             {
-                public DRN.Framework.Hosting.Endpoints.ApiEndpoint Read => new Test.Helpers.EndpointFor.TestEndpointFor().Group.Items.Read;
+                public DRN.Framework.Hosting.Endpoints.ApiEndpoint Read => new Helpers.EndpointFor.TestEndpointFor().Group.Items.Read;
             }
             """ + ProgramSource;
 
@@ -184,12 +319,11 @@ public class HostedAccessorGeneratorTests
     {
         var source = """
             using DRN.Framework.Hosting.Endpoints;
-            [assembly: HostedAccessors(typeof(TestProgram), Namespace = "Test.Helpers")]
             public class ItemsController : Microsoft.AspNetCore.Mvc.ControllerBase { public void Password() {} }
             public class Consumer
             {
-                public ApiEndpoint Get() => new Test.Helpers.EndpointFor.TestEndpointFor().Items.Password;
-                public string Read() => new Test.Helpers.PageFor.TestPageFor().Root.Token;
+                public ApiEndpoint Get() => new Helpers.EndpointFor.TestEndpointFor().Items.Password;
+                public string Read() => new Helpers.PageFor.TestPageFor().Root.Token;
             }
             """ + ProgramSource;
         GeneratorDriver driver = CSharpGeneratorDriver.Create([new HostedAccessorGenerator().AsSourceGenerator()],
@@ -224,9 +358,8 @@ public class HostedAccessorGeneratorTests
         var source = """
             global using Shadows;
             using DRN.Framework.Hosting.Endpoints;
-            [assembly: HostedAccessors(typeof(TestProgram), Namespace = "Test.Helpers")]
             [assembly: AccessorController(typeof(TestProgram), typeof(Referenced.IncludedController))]
-            public class Consumer { public DRN.Framework.Hosting.Endpoints.ApiEndpoint Read => new Test.Helpers.EndpointFor.TestEndpointFor().Included.Read; }
+            public class Consumer { public DRN.Framework.Hosting.Endpoints.ApiEndpoint Read => new Helpers.EndpointFor.TestEndpointFor().Included.Read; }
             """ + ProgramSource;
         var result = Generate(source, references: [reference]);
 
@@ -241,7 +374,6 @@ public class HostedAccessorGeneratorTests
     {
         const string declarations = """
             using DRN.Framework.Hosting.Endpoints;
-            [assembly: HostedAccessors(typeof(TestProgram), Namespace = "Test.Helpers")]
             public class ItemsController : Microsoft.AspNetCore.Mvc.ControllerBase { public void Read(int id) {} }
             """;
         var page = new Page("Pages/Home.cshtml", "@page");
@@ -261,7 +393,7 @@ public class HostedAccessorGeneratorTests
         Generated(driver.GetRunResult(), "TestPageFor.g.cs").Should().Contain("PageCollectionBase<TestPageFor>");
         driver.GetRunResult().GeneratedTrees.Should().NotContain(tree => tree.FilePath.EndsWith("RootPageFor.g.cs", StringComparison.Ordinal));
 
-        const string removed = "using DRN.Framework.Hosting.Endpoints; [assembly: HostedAccessors(typeof(TestProgram), Namespace = \"Test.Helpers\")]";
+        const string removed = "using DRN.Framework.Hosting.Endpoints;";
         driver = driver.RunGeneratorsAndUpdateCompilation(CreateCompilation(removed + ProgramSource), out var third, out _);
         driver.GetRunResult().Diagnostics.Should().BeEmpty();
         third.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
@@ -274,7 +406,6 @@ public class HostedAccessorGeneratorTests
         var source = """
             using DRN.Framework.Hosting.Endpoints;
             using Microsoft.AspNetCore.Mvc;
-            [assembly: HostedAccessors(typeof(TestProgram), Namespace = "Test.Helpers")]
             [assembly: AccessorController(typeof(TestProgram), typeof(OverrideController), "Override", RouteTemplate = "/legacy")]
             [assembly: AccessorController(typeof(TestProgram), typeof(EmptyController), "Empty", RouteTemplate = "")]
             public static class Routes { public const string Template = "/api/[controller]"; }
@@ -301,12 +432,11 @@ public class HostedAccessorGeneratorTests
     }
 
     [Fact]
-    public void Generator_Should_Not_Emit_Helpers_In_Libraries_Even_When_Opted_In()
+    public void Generator_Should_Not_Emit_Helpers_In_Libraries()
     {
-        var result = Generate("using DRN.Framework.Hosting.Endpoints; [assembly: HostedAccessors(typeof(TestProgram))]" + ProgramSource,
-            checkCompilation: false, hosted: false);
+        var result = Generate(ProgramSource, hosted: false);
         result.GeneratedTrees.Should().BeEmpty();
-        result.Diagnostics.Should().Contain(diagnostic => diagnostic.Id == "DRNHG001" && diagnostic.GetMessage().Contains("SDK Web"));
+        result.Diagnostics.Should().BeEmpty();
     }
 
     [Fact]
@@ -318,7 +448,6 @@ public class HostedAccessorGeneratorTests
             using DRN.Framework.SharedKernel.Domain;
             using DRN.Framework.SharedKernel.Domain.Repository;
             using Microsoft.AspNetCore.Mvc;
-            [assembly: HostedAccessors(typeof(TestProgram), Namespace = "Test.Helpers")]
             [assembly: AccessorController(typeof(TestProgram), typeof(TagController), "QA.Tag")]
             [assembly: AccessorMember(typeof(TestProgram), "Endpoint.QA.Tag.GetAsync", Name = "Read")]
             public class Entity : AggregateRoot { }
@@ -367,9 +496,8 @@ public class HostedAccessorGeneratorTests
     {
         var source = """
             using DRN.Framework.Hosting.Endpoints;
-            [assembly: HostedAccessors(typeof(TestProgram), Namespace = "Test.Helpers")]
             [assembly: AccessorMember(typeof(TestProgram), "Page.Root.Manual", Exclude = true)]
-            namespace Test.Helpers.PageFor
+            namespace Helpers.PageFor
             {
                 public partial class RootPageFor { public string Manual { get; init; } = "/Manual"; }
             }
@@ -390,12 +518,12 @@ public class HostedAccessorGeneratorTests
 
     [Theory]
     [DataInlineUnit("public class ItemsController : Microsoft.AspNetCore.Mvc.ControllerBase { public void Read(int id) {} public void Read(string id) {} }", "overloads")]
-    [DataInlineUnit("namespace Test.Helpers.EndpointFor { public class TestEndpointFor {} }", "partial")]
+    [DataInlineUnit("namespace Helpers.EndpointFor { public class TestEndpointFor {} }", "partial")]
     [DataInlineUnit("namespace Other { public class TestEndpointFor : DRN.Framework.Hosting.Endpoints.EndpointCollectionBase<TestProgram, TestEndpointFor> {} }", "another endpoint collection")]
-    [DataInlineUnit("namespace Test.Helpers.EndpointFor { public partial class TestEndpointFor { public static object EndpointCollection => new(); } }", "reserved for the inherited typed singleton")]
+    [DataInlineUnit("namespace Helpers.EndpointFor { public partial class TestEndpointFor { public static object EndpointCollection => new(); } }", "reserved for the inherited typed singleton")]
     public void Generator_Should_Diagnose_Ambiguous_Or_Conflicting_Declarations(string declarations, string reason)
     {
-        var result = Generate("using DRN.Framework.Hosting.Endpoints; [assembly: HostedAccessors(typeof(TestProgram), Namespace = \"Test.Helpers\")]" + declarations + ProgramSource,
+        var result = Generate("using DRN.Framework.Hosting.Endpoints;" + declarations + ProgramSource,
             checkCompilation: false);
         result.Diagnostics.Should().Contain(diagnostic => diagnostic.Id == "DRNHG001" && diagnostic.GetMessage().Contains(reason));
     }
@@ -405,7 +533,7 @@ public class HostedAccessorGeneratorTests
     [DataInlineUnit("public class Outer { public class Inner { public class Catalog : EndpointCollectionBase<TestProgram, Catalog> {} } }")]
     public void Generator_Should_Reject_Nested_Endpoint_Collections(string declarations)
     {
-        var result = Generate("using DRN.Framework.Hosting.Endpoints; [assembly: HostedAccessors(typeof(TestProgram), Namespace = \"Test.Helpers\")]" + declarations + ProgramSource,
+        var result = Generate("using DRN.Framework.Hosting.Endpoints;" + declarations + ProgramSource,
             checkCompilation: false);
 
         result.Diagnostics.Should().Contain(diagnostic => diagnostic.Id == "DRNHG001" &&
@@ -416,7 +544,7 @@ public class HostedAccessorGeneratorTests
     [Fact]
     public void Generator_Should_Reject_Stale_Customization()
     {
-        var stale = Generate("using DRN.Framework.Hosting.Endpoints; [assembly: HostedAccessors(typeof(TestProgram), Namespace = \"Test.Helpers\")]" +
+        var stale = Generate("using DRN.Framework.Hosting.Endpoints;" +
             "[assembly: AccessorMember(typeof(TestProgram), \"Endpoint.Missing.Action\", Exclude = true)]" + ProgramSource, checkCompilation: false);
         stale.Diagnostics.Should().Contain(diagnostic => diagnostic.GetMessage().Contains("stale"));
     }
@@ -426,8 +554,6 @@ public class HostedAccessorGeneratorTests
     {
         var declarations = """
             using DRN.Framework.Hosting.Endpoints;
-            [assembly: HostedAccessors(typeof(TestProgram), Namespace = "First.Helpers")]
-            [assembly: HostedAccessors(typeof(OtherProgram), Namespace = "Second.Helpers")]
             public class ItemsController : Microsoft.AspNetCore.Mvc.ControllerBase
             {
                 [Microsoft.AspNetCore.Mvc.ActionName("Renamed")]
@@ -435,7 +561,8 @@ public class HostedAccessorGeneratorTests
                 [Microsoft.AspNetCore.Mvc.NonAction]
                 public void InternalOperation() { }
             }
-            """ + ProgramSource + ProgramSource.Replace("TestProgram", "OtherProgram", StringComparison.Ordinal);
+            """ + "namespace First {" + ProgramSource + "} namespace Second {" +
+            ProgramSource.Replace("TestProgram", "OtherProgram", StringComparison.Ordinal) + "}";
         var result = Generate(declarations);
         result.Diagnostics.Should().BeEmpty();
         result.GeneratedTrees.Should().Contain(tree => tree.FilePath.Contains("First.Helpers.EndpointFor.ItemsFor"));
@@ -455,7 +582,6 @@ public class HostedAccessorGeneratorTests
     {
         var source = $$"""
             using DRN.Framework.Hosting.Endpoints;
-            [assembly: HostedAccessors(typeof(TestProgram), Namespace = "Test.Helpers")]
             [assembly: AccessorController(typeof(TestProgram), typeof(ItemsController), "{{path}}")]
             public class ItemsController : Microsoft.AspNetCore.Mvc.ControllerBase { public void Read() {} }
             """ + ProgramSource;
@@ -478,11 +604,10 @@ public class HostedAccessorGeneratorTests
     {
         var source = """
             using DRN.Framework.Hosting.Endpoints;
-            [assembly: HostedAccessors(typeof(TestProgram), Namespace = "Test.Helpers")]
             [assembly: AccessorMember(typeof(TestProgram), "Page.user-profile.Edit", Exclude = true)]
             [assembly: AccessorMember(typeof(TestProgram), "Page.Areas.admin-tools.Root.Edit", Exclude = true)]
             [assembly: AccessorMember(typeof(TestProgram), "Page.Manual.Only", Exclude = true)]
-            namespace Test.Helpers.PageFor
+            namespace Helpers.PageFor
             {
                 public partial class RootPageFor { public string ProfileEdit { get; init; } = "/user-profile/Edit"; }
                 public partial class ManualPageFor { public string Only { get; init; } = "/Manual/Only"; }
@@ -506,7 +631,6 @@ public class HostedAccessorGeneratorTests
     {
         var source = new StringBuilder("""
             using DRN.Framework.Hosting.Endpoints;
-            [assembly: HostedAccessors(typeof(TestProgram), Namespace = "Test.Helpers")]
             """);
         for (var controller = 0; controller < 40; controller++)
         {
@@ -518,9 +642,9 @@ public class HostedAccessorGeneratorTests
         source.Append("public class Consumer { public object[] Read() => [");
         for (var controller = 0; controller < 40; controller++)
             for (var action = 0; action < 4; action++)
-                source.Append($"new Test.Helpers.EndpointFor.TestEndpointFor().Items{controller}.Operation{action},");
+                source.Append($"new Helpers.EndpointFor.TestEndpointFor().Items{controller}.Operation{action},");
         for (var page = 0; page < 24; page++)
-            source.Append($"new Test.Helpers.PageFor.TestPageFor().Catalog.Entry{page},");
+            source.Append($"new Helpers.PageFor.TestPageFor().Catalog.Entry{page},");
         source.Append("]; }").Append(ProgramSource);
         var pages = Enumerable.Range(0, 24)
             .Select(index => (AdditionalText)new Page($"Pages/Catalog/Entry{index}.cshtml", "@page\n<p>Content</p>"))
@@ -533,11 +657,74 @@ public class HostedAccessorGeneratorTests
     }
 
     [Fact]
+    public void Generator_Should_Cache_Unchanged_Inputs_And_Reevaluate_Program_Changes()
+    {
+        var compilation = CreateCompilation(ProgramSource);
+        GeneratorDriver driver = CSharpGeneratorDriver.Create([new HostedAccessorGenerator().AsSourceGenerator()],
+            optionsProvider: new PageOptions(true),
+            driverOptions: new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None, trackIncrementalGeneratorSteps: true));
+        Run(compilation);
+        var original = driver.GetRunResult().GeneratedTrees.Select(tree => tree.ToString()).ToArray();
+
+        Run(compilation);
+        driver.GetRunResult().GeneratedTrees.Select(tree => tree.ToString()).Should().Equal(original);
+        driver.GetRunResult().Results.Single().TrackedSteps["HostedAccessorInputs"].SelectMany(step => step.Outputs)
+            .Should().OnlyContain(output => output.Reason == IncrementalStepRunReason.Cached);
+
+        Run(CreateCompilation(ProgramSource.Replace("TestProgram", "RenamedProgram", StringComparison.Ordinal)));
+        Generated(driver.GetRunResult(), "RenamedEndpointFor.g.cs").Should().Contain("global::RenamedProgram");
+        driver.GetRunResult().GeneratedTrees.Should().NotContain(tree => tree.FilePath.EndsWith("TestEndpointFor.g.cs", StringComparison.Ordinal));
+
+        Run(CreateCompilation("public class RenamedProgram {}"));
+        driver.GetRunResult().GeneratedTrees.Should().BeEmpty();
+
+        Run(CreateCompilation("public class Ordinary {}" + ProgramSource));
+        driver.GetRunResult().GeneratedTrees.Select(tree => tree.ToString()).Should().Equal(original);
+
+        Run(CreateCompilation("public class Ordinary {}"));
+        driver.GetRunResult().GeneratedTrees.Should().BeEmpty();
+
+        void Run(CSharpCompilation input)
+        {
+            driver = driver.RunGeneratorsAndUpdateCompilation(input, out var updated, out _);
+            driver.GetRunResult().Diagnostics.Should().BeEmpty();
+            updated.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+        }
+    }
+
+    [Fact]
+    public void Generator_Should_Reevaluate_Unchanged_Program_Syntax_When_Its_Base_Changes()
+    {
+        const string source = "public class IndirectProgram : BaseProgram {}";
+        var tree = CSharpSyntaxTree.ParseText(source);
+        var baseSource = ProgramSource.Replace("TestProgram", "IndirectProgram", StringComparison.Ordinal)
+            .Replace("public class IndirectProgram", "public abstract class BaseProgram", StringComparison.Ordinal);
+        var compilation = CreateCompilation(baseSource).AddSyntaxTrees(tree);
+        GeneratorDriver driver = CSharpGeneratorDriver.Create([new HostedAccessorGenerator().AsSourceGenerator()],
+            optionsProvider: new PageOptions(true));
+        Run(compilation);
+        driver.GetRunResult().GeneratedTrees.Should().HaveCount(2);
+
+        var changedBase = CSharpSyntaxTree.ParseText("public abstract class BaseProgram {}");
+        Run(compilation.ReplaceSyntaxTree(compilation.SyntaxTrees.First(), changedBase));
+        driver.GetRunResult().GeneratedTrees.Should().BeEmpty();
+
+        Run(compilation);
+        Generated(driver.GetRunResult(), "IndirectEndpointFor.g.cs").Should().Contain("global::IndirectProgram");
+
+        void Run(CSharpCompilation input)
+        {
+            driver = driver.RunGeneratorsAndUpdateCompilation(input, out var updated, out _);
+            driver.GetRunResult().Diagnostics.Should().BeEmpty();
+            updated.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+        }
+    }
+
+    [Fact]
     public void Generator_Should_Cache_Razor_Body_Edits_And_Invalidate_Page_Identity_Changes()
     {
         const string declarations = """
             using DRN.Framework.Hosting.Endpoints;
-            [assembly: HostedAccessors(typeof(TestProgram), Namespace = "Test.Helpers")]
             """;
         var compilation = CreateCompilation(declarations + ProgramSource);
         var page = new Page("Pages/Home.cshtml", "@page\n<p>Before</p>");
@@ -601,11 +788,10 @@ public class HostedAccessorGeneratorTests
         var reference = MetadataReference.CreateFromImage(assembly.ToArray());
         const string declarations = """
             using DRN.Framework.Hosting.Endpoints;
-            [assembly: HostedAccessors(typeof(TestProgram), Namespace = "Test.Helpers")]
             public class ItemsController : Microsoft.AspNetCore.Mvc.ControllerBase { public void Read() {} }
             public class Consumer
             {
-                public DRN.Framework.Hosting.Endpoints.ApiEndpoint Read => new Test.Helpers.EndpointFor.TestEndpointFor().Items.Read;
+                public DRN.Framework.Hosting.Endpoints.ApiEndpoint Read => new Helpers.EndpointFor.TestEndpointFor().Items.Read;
             }
             """;
         GeneratorDriver driver = CSharpGeneratorDriver.Create([new HostedAccessorGenerator().AsSourceGenerator()],
@@ -625,20 +811,58 @@ public class HostedAccessorGeneratorTests
     }
 
     [Fact]
+    public void Generator_Should_Share_Identical_Leaf_Types_Between_Separate_Program_Roots()
+    {
+        var source = "public class ItemsController : Microsoft.AspNetCore.Mvc.ControllerBase { public void Read() {} }" +
+            ProgramSource + ProgramSource.Replace("TestProgram", "OtherProgram", StringComparison.Ordinal);
+
+        var result = Generate(source, [new Page("Pages/Home.cshtml", "@page")]);
+
+        result.Diagnostics.Should().BeEmpty();
+        result.GeneratedTrees.Should().HaveCount(6);
+        result.GeneratedTrees.Should().ContainSingle(tree => tree.FilePath.EndsWith(".ItemsFor.g.cs", StringComparison.Ordinal));
+        result.GeneratedTrees.Should().ContainSingle(tree => tree.FilePath.EndsWith(".RootPageFor.g.cs", StringComparison.Ordinal));
+        Generated(result, "TestEndpointFor.g.cs").Should().Contain("EndpointCollectionBase<global::TestProgram, TestEndpointFor>")
+            .And.Contain("public ItemsFor Items { get; } = new();");
+        Generated(result, "OtherEndpointFor.g.cs").Should().Contain("EndpointCollectionBase<global::OtherProgram, OtherEndpointFor>")
+            .And.Contain("public ItemsFor Items { get; } = new();");
+        Generated(result, "TestPageFor.g.cs").Should().Contain("PageCollectionBase<TestPageFor>")
+            .And.Contain("public RootPageFor Root { get; } = new();");
+        Generated(result, "OtherPageFor.g.cs").Should().Contain("PageCollectionBase<OtherPageFor>")
+            .And.Contain("public RootPageFor Root { get; } = new();");
+    }
+
+    [Fact]
+    public void Generator_Should_Reject_Differently_Customized_Leaf_Types_Before_Emitting_Their_Roots()
+    {
+        var source = """
+            using DRN.Framework.Hosting.Endpoints;
+            [assembly: AccessorMember(typeof(TestProgram), "Endpoint.Items.Read", Name = "Fetch")]
+            public class ItemsController : Microsoft.AspNetCore.Mvc.ControllerBase { public void Read() {} }
+            """ + ProgramSource + ProgramSource.Replace("TestProgram", "OtherProgram", StringComparison.Ordinal);
+
+        var result = Generate(source);
+
+        result.Diagnostics.Should().ContainSingle(diagnostic => diagnostic.Id == "DRNHG001" && diagnostic.GetMessage().Contains("collides"));
+        Generated(result, "ItemsFor.g.cs").Should().Contain("ApiEndpoint Read").And.NotContain("ApiEndpoint Fetch");
+        Generated(result, "OtherEndpointFor.g.cs").Should().Contain("public ItemsFor Items { get; } = new();");
+        result.GeneratedTrees.Should().NotContain(tree => tree.FilePath.EndsWith(".TestEndpointFor.g.cs", StringComparison.Ordinal) ||
+            tree.FilePath.EndsWith(".TestPageFor.g.cs", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Generator_Should_Account_For_Sibling_Host_Aliases_In_A_Shared_Output_Namespace()
     {
         var source = """
             using DRN.Framework.Hosting.Endpoints;
-            [assembly: HostedAccessors(typeof(TestProgram), Namespace = "Test.Helpers")]
-            [assembly: HostedAccessors(typeof(ZOtherProgram), Namespace = "Test.Helpers")]
             [assembly: AccessorController(typeof(TestProgram), typeof(ItemsController), "First.Items", TypeName = "FirstItemsFor")]
             [assembly: AccessorController(typeof(ZOtherProgram), typeof(ItemsController), "Second.Items", TypeName = "SecondItemsFor")]
             [assembly: AccessorGroup(typeof(ZOtherProgram), "Second", "ApiEndpoint")]
             public class ItemsController : Microsoft.AspNetCore.Mvc.ControllerBase { public void Read() {} }
             public class Consumer
             {
-                public DRN.Framework.Hosting.Endpoints.ApiEndpoint First => new Test.Helpers.EndpointFor.TestEndpointFor().First.Items.Read;
-                public DRN.Framework.Hosting.Endpoints.ApiEndpoint Second => new Test.Helpers.EndpointFor.ZOtherEndpointFor().Second.Items.Read;
+                public DRN.Framework.Hosting.Endpoints.ApiEndpoint First => new Helpers.EndpointFor.TestEndpointFor().First.Items.Read;
+                public DRN.Framework.Hosting.Endpoints.ApiEndpoint Second => new Helpers.EndpointFor.ZOtherEndpointFor().Second.Items.Read;
             }
             """ + ProgramSource + ProgramSource.Replace("TestProgram", "ZOtherProgram", StringComparison.Ordinal);
 
@@ -657,7 +881,7 @@ public class HostedAccessorGeneratorTests
     private static CSharpCompilation CreateCompilation(string source, string name = "AccessorFixture", MetadataReference[]? additionalReferences = null)
     {
         var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
-            .Append(typeof(HostedAccessorsAttribute).Assembly.Location)
+            .Append(typeof(AccessorControllerAttribute).Assembly.Location)
             .Distinct(StringComparer.Ordinal).Select(path => MetadataReference.CreateFromFile(path));
         return CSharpCompilation.Create(name, [CSharpSyntaxTree.ParseText(source)], references.Concat(additionalReferences ?? []),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));

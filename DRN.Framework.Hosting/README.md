@@ -846,16 +846,13 @@ DRN provides typed accessor members for controller endpoints and Razor Page iden
 
 ### Automatic hosted accessors
 
-SDK Web hosts can opt in to generated helpers. The generator is included with Hosting. Its `buildTransitive` target exposes it to direct and transitive package consumers. In this repository, the shared `Directory.Build.targets` import provides it to project-reference consumers, including transitive ones. Hosts do not need a separate generator reference. Source projects outside this shared build tree must import Hosting's build target once at their common build root, since MSBuild does not propagate analyzer items through project references.
+SDK Web hosts receive generated helpers automatically for eligible DRN programs. The generator is included with Hosting. Its `buildTransitive` target exposes it to direct and transitive package consumers. In this repository, the shared `Directory.Build.targets` import provides it to project-reference consumers, including transitive ones. Hosts do not need a separate generator reference. Source projects outside this shared build tree must import Hosting's build target once at their common build root, since MSBuild does not propagate analyzer items through project references.
 
 The generator targets `net10.0` because IDE compiler hosts can run on .NET 10 independently of a `net11.0` application. It requires a .NET 10 or newer compiler host with compatible Roslyn 5.12 APIs. This does not lower the application target or change the solution SDK. If Rider cannot resolve generated roots, inspect its Roslyn worker logs for assembly-load errors and its Dependencies / Source Generators output. After rebuilding the generator, reload the solution so the IDE can load the updated assembly.
 
-Availability does not generate helpers in libraries. Generation requires SDK Web, an explicit opt-in, and a public concrete DRN program declared in that same project:
+Generation requires SDK Web and a public, concrete, non-generic, top-level DRN program declared in that same project. Its inherited `DrnProgramBase<TProgram>` argument must be the program itself. For example, `AppProgram : DrnProgramBase<AppProgram>` qualifies, while a subclass of that closed program does not create another root. Referenced programs do not create roots in the consuming project. Non-Web projects do not generate helpers.
 
-```csharp
-using DRN.Framework.Hosting.Endpoints;
-[assembly: HostedAccessors(typeof(AppProgram))]
-```
+Every class deriving directly or indirectly from `DrnProgramBase<TProgram>` must end with the case-sensitive suffix `Program`. Diagnostic `DRNHG002` reports an error otherwise, including abstract, generic and nested descendants. `HostedAccessors` is no longer needed or available. Remove its assembly declarations and use the program's name and namespace for the generated roots.
 
 Return the generated singleton from the program's startup hook:
 
@@ -864,11 +861,13 @@ protected override EndpointCollection<AppProgram> ConfigureEndpointCollection()
     => Helpers.EndpointFor.AppEndpointFor.EndpointCollection;
 ```
 
-Generated endpoint roots inherit `EndpointCollectionBase<AppProgram, AppEndpointFor>`. Their inherited `EndpointCollection` property creates the typed singleton directly. Page roots expose their typed `PageCollection` property in the same way. Keep the endpoint hook configured so startup binds and validates the generated controller accessors.
+Generated endpoint roots inherit `EndpointCollectionBase<AppProgram, AppEndpointFor>`. Their inherited `EndpointCollection` property creates the typed singleton directly. Page roots expose their typed `PageCollection` property in the same way. Reuse those singletons: generated group, page and endpoint properties return initialized values directly without a lookup or a new allocation on each access. Construction and startup binding still allocate. Keep the endpoint hook configured so startup binds and validates the generated controller accessors.
 
-The default namespace is the program namespace plus `.Helpers` (`Helpers` for a global-namespace program). Roots are `<ProgramStem>EndpointFor` and `<ProgramStem>PageFor`, under `.EndpointFor` and `.PageFor`. `Program` uses the stem `App`. Override `Namespace` or `Name` on the opt-in when needed. Both roots are always generated. Razor Pages are detected automatically from `@page` directives in Razor AdditionalFiles using logical TargetPath metadata. Views, partials and Razor comments do not create page members. With no page inputs, the page root is empty and its `PageCollection.All` is empty. The `Pages` option has been removed.
+The namespace is always the program namespace plus `.Helpers` (`Helpers` for a global-namespace program). Roots are `<ProgramStem>EndpointFor` and `<ProgramStem>PageFor`, under `.EndpointFor` and `.PageFor`. Removing the final `Program` suffix gives the stem, so `SampleProgram` generates `SampleEndpointFor` and `SamplePageFor`. `Program` alone uses the stem `App`. Both roots are always generated. Razor Pages are detected automatically from `@page` directives in Razor AdditionalFiles using logical TargetPath metadata. Views, partials and Razor comments do not create page members. With no page inputs, the page root is empty and its `PageCollection.All` is empty.
 
 Discovery uses compiler inputs, not a filesystem scan. Keep Razor compilation and AdditionalFiles enabled for hosts with pages. Missing inputs yield an empty collection; invalid logical paths on supplied pages still report `DRNHG001`.
+
+Programs in the same namespace share identical generated group and leaf type definitions. Each program keeps its own roots and accessor instances. Duplicate root names or conflicting definitions report `DRNHG001` before any sources for the conflicting program are emitted. Customize controller or group type names when programs need different definitions in the same namespace.
 
 Local controllers and their eligible inherited actions are discovered automatically. Source-Known generic read/write bases are supported. Most-derived `[NonAction]` overrides exclude actions; `IgnoreApi` does not. Action members keep CLR method names, including `Async`; runtime metadata supplies effective MVC action names, areas and routes. Generated bindings include the concrete controller and CLR parameter types, independently of member aliases. No default route names are registered.
 
@@ -887,7 +886,7 @@ Preserve host-specific groups with assembly declarations:
 
 When `RouteTemplate` is omitted, legacy `ControllerRoute` metadata uses one distinct standard MVC `[Route]` template from the controller or its base classes. Multiple distinct templates, custom route providers or no template produce empty metadata. An explicit override wins, including `RouteTemplate = ""`. Runtime routing remains authoritative. Keep repeated route templates in handwritten controller-owned constants and retain shared contract constants. Do not reference generator-produced constants from routing declarations.
 
-Generated types are public partial classes. Keep custom members in authored partials. Explicitly exclude a generated member before replacing it manually. Keep `Get` handwritten to preserve other host helpers and initialization order. Generated code belongs to the compiler, not the physical Helpers directory. Optional compiler output belongs under `obj`; do not check it in.
+Generated types are public partial classes. Keep custom members in authored partials. Explicitly exclude a generated member before replacing it manually. Keep `Get` handwritten to preserve other host helpers and initialization order. Generated hint paths are `Helpers/PageFor/<full type name>.g.cs` and `Helpers/EndpointFor/<full type name>.g.cs`. Generated code belongs to the compiler, not the physical project source directory. Optional compiler output belongs under `obj`; do not check it in.
 
 Endpoint accessor paths support up to five group segments followed by the controller member, such as `A.B.C.D.E.Items`. Deeper paths report `DRNHG001`; use a shorter `AccessorController` alias. Pages in folders or areas that are not C# identifiers can be excluded using their original path, such as `Page.user-profile.Edit`, and handled manually. Exclusions in valid groups preserve those groups for handwritten partial replacements.
 
@@ -895,53 +894,70 @@ Pages use file identities, not custom `@page` URLs. Root files group under `Root
 
 Typed parameter/constraint generation remains a TODO. Continue passing route/query values to `Url.Endpoint`; runtime constraints and encoding remain authoritative. For absolute identity links use `LinkGenerator.GetUriByEndpoint(HttpContext, endpoint, values)`, which shares effective-action and destination-area validation with `Url.Endpoint` and uses the processed request origin and PathBase.
 
-### 1. Define manual accessors
+### 1. Migrate existing accessors
 
-Create application-owned endpoint and page collections:
+Eligible SDK Web programs always generate both roots. An existing endpoint collection under another name produces `DRNHG001`, even when the startup hook returns that collection. There is no root-name override or per-program generation opt-out. Changing only the old collection's base to `EndpointCollectionBase<TProgram, TCollection>` is insufficient.
+
+For an `Example.Hosted.AppProgram`, migrate as follows:
+
+1. Remove every `HostedAccessors` assembly declaration, including its `Name` and `Namespace` overrides. Rename DRN program descendants to end with `Program`.
+2. Replace references to the old roots with `Example.Hosted.Helpers.EndpointFor.AppEndpointFor` and `Example.Hosted.Helpers.PageFor.AppPageFor`. A program named `Program` uses these same root names. Other program names use their stem as described above.
+3. Remove old root declarations when they contain only generated members. Move custom root members into public partial classes at the new names and namespaces. Remove the old base declarations, constructors that duplicate generated initialization, and generated group properties. Do not declare an `EndpointCollection` property on the endpoint root.
+4. Move custom controller, group and page members into the corresponding generated partial classes. Remove declarations already supplied by generation, including controller constructors and page `PathSegments` overrides. Use `AccessorController.TypeName` and `AccessorGroup` to retain leaf or group type names where needed. These aliases do not rename roots or change their namespaces.
+5. Before retaining an authored replacement for a generated action or page, exclude that member with `AccessorMember`. Keep endpoint bindings aligned with the CLR action signature, using `EndpointAction` when needed. Exclusions affect accessor generation, not MVC routing or authorization.
+6. Update the handwritten `Get` facade and return the generated endpoint singleton from `ConfigureEndpointCollection`. Remove obsolete collections after moving their customizations.
+
+For example, this declaration preserves `Get.Endpoint.User.Login` and `Get.Endpoint.User.Profile` for a local `UserController` with eligible `Login` and `Profile` actions. Put assembly attributes before namespace and type declarations:
 
 ```csharp
-public sealed class AppEndpoints : EndpointCollectionBase<Program, AppEndpoints>
-{
-    public UserEndpoints User { get; } = new();
-}
+using DRN.Framework.Hosting.Endpoints;
+using Example.Hosted;
+using Example.Hosted.Controllers;
 
-public sealed class UserEndpoints()
-    : ControllerForBase<UserController>("/Api/User/[controller]")
-{
-    // Property names match controller action method names.
-    public ApiEndpoint Login { get; private set; } = null!;
-    public ApiEndpoint Profile { get; private set; } = null!;
-}
+[assembly: AccessorController(typeof(AppProgram), typeof(UserController), "User", TypeName = "UserEndpoints")]
+```
 
-public sealed class AppPages : PageCollectionBase<AppPages>
-{
-    public UserPages User { get; } = new();
-}
+Keep the facade in an authored file. With `Pages/User/Login.cshtml` containing `@page`, the generated page root supplies `User.Login`:
 
-public sealed class UserPages : PageForBase
-{
-    protected override string[] PathSegments { get; } = ["User"];
-    public string Login { get; init; } = string.Empty;
-}
+```csharp
+namespace Example.Hosted;
 
 public static class Get
 {
-    public static AppEndpoints Endpoint { get; } =
-        AppEndpoints.EndpointCollection;
+    public static Helpers.EndpointFor.AppEndpointFor Endpoint { get; } =
+        Helpers.EndpointFor.AppEndpointFor.EndpointCollection;
 
-    public static AppPages Page { get; } =
-        AppPages.PageCollection;
+    public static Helpers.PageFor.AppPageFor Page { get; } =
+        Helpers.PageFor.AppPageFor.PageCollection;
 }
 ```
 
-Override the host hook to bind the singleton during startup:
+Inside `AppProgram`, bind the endpoint singleton during startup:
 
 ```csharp
-protected override EndpointCollection<Program> ConfigureEndpointCollection()
-    => AppEndpoints.EndpointCollection;
+protected override EndpointCollection<AppProgram> ConfigureEndpointCollection()
+    => Helpers.EndpointFor.AppEndpointFor.EndpointCollection;
 ```
 
-The one-parameter `EndpointCollectionBase<TProgram>` has been removed. Migrate manual roots to `EndpointCollectionBase<TProgram, TCollection>` and return their singleton from `ConfigureEndpointCollection`. Collection construction no longer scans the host assembly. The hook accepts only a collection for the matching program. Leave it unconfigured for hosts without typed controller accessors. Access runtime endpoint lists through `IEndpointAccessor` instead of the removed base's static catalog properties. Code that used `EndpointSource` can construct `DrnEndpointSource` from `IEndpointAccessor.EndpointHelper.EndpointDataSource`.
+To retain an authored page destination, exclude the generated member and provide its replacement in the generated type's partial declaration:
+
+```csharp
+using DRN.Framework.Hosting.Endpoints;
+using Example.Hosted;
+
+[assembly: AccessorMember(typeof(AppProgram), "Page.User.Login", Exclude = true)]
+
+namespace Example.Hosted.Helpers.PageFor;
+
+public partial class UserPageFor
+{
+    public string Login { get; init; } = "/User/Login";
+}
+```
+
+The exclusion requires a matching page input. Use page identity paths even when `@page` defines a custom URL route. Additional authored shortcuts that do not replace generated members need no exclusion.
+
+Collection construction no longer scans the host assembly. The startup hook accepts only a collection for the matching program. Leave it unconfigured for hosts without typed controller accessors that need binding. Access runtime endpoint lists through `IEndpointAccessor` instead of the removed base's static catalog properties. Code that used `EndpointSource` can construct `DrnEndpointSource` from `IEndpointAccessor.EndpointHelper.EndpointDataSource`.
 
 ### 2. Usage in Code
 
