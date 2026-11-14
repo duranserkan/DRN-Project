@@ -306,7 +306,9 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
         services.Configure<CookiePolicyOptions>(options => ConfigureCookiePolicy(options, appSettings));
         services.Configure<CookieTempDataProviderOptions>(options => ConfigureCookieTempDataProvider(options, appSettings));
         services.Configure(ConfigureStaticFileOptions(appSettings));
-        services.AddOptions<StaticFileOptions>().PostConfigure<IViteManifest>(DrnCompressionConfigurator.ConfigureViteSidecars);
+        services.AddOptions<StaticFileOptions>().PostConfigure<IViteManifest>(DrnStaticFileConfigurator.ConfigureViteSidecars);
+        services.AddOptions<DrnStaticFileHeaderOptions>();
+        services.AddOptions<StaticFileOptions>().PostConfigure<IOptions<DrnStaticFileHeaderOptions>>(DrnStaticFileConfigurator.ConfigureHeaderRules);
         services.Configure(ConfigureForwardedHeadersOptions(appSettings));
         ConfigureIdentityRenewal(services, appSettings);
         if (appSettings.Localization.Enabled)
@@ -477,16 +479,17 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// Override to customize the public static-file source, request path, content types, or cache headers.
     /// </summary>
     /// <remarks>
-    /// Return a delegate that invokes the base delegate before applying targeted changes. It runs during options resolution.
-    /// Base enables one-year public caching. Only expose files suitable for anonymous public access
-    /// because this middleware runs before authentication and authorization. Replacing OnPrepareResponse replaces its cache headers.
+    /// Invoke the base delegate to retain defaults. Static files use one-year public caching,
+    /// except robots.txt, which requires revalidation by default.
+    /// Use <see cref="DrnStaticFileHeaderOptions"/> for path-specific response headers.
+    /// Only expose files suitable for anonymous public access.
     /// <para>References:</para>
     /// <list type="bullet">
     /// <item><description><a href="https://learn.microsoft.com/en-us/aspnet/core/fundamentals/static-files">Static files in ASP.NET Core</a></description></item>
     /// </list>
     /// </remarks>
     protected virtual Action<StaticFileOptions> ConfigureStaticFileOptions(IAppSettings appSettings) =>
-        DrnCompressionConfigurator.ConfigureStaticFileOptions;
+        DrnStaticFileConfigurator.ConfigureStaticFileOptions;
 
     /// <summary>
     /// Override when the deployment needs proxy trust or forwarded-header rules that configuration alone cannot express.
@@ -738,8 +741,11 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
     /// These options do not make a response cacheable; response headers and middleware eligibility still govern storage.
     /// Do not mark personalized or sensitive responses public merely to enable caching.
     /// </remarks>
-    protected virtual void ConfigureResponseCachingOptions(ResponseCachingOptions options) =>
-        DrnCompressionConfigurator.ConfigureResponseCachingOptions(options);
+    protected virtual void ConfigureResponseCachingOptions(ResponseCachingOptions options)
+    {
+        options.MaximumBodySize = 16 * 1024 * 1024; // 16 MB safety limit for memory preservation
+        options.UseCaseSensitivePaths = false;
+    }
 
     /// <summary>
     /// Override to add global MVC filters, model-binding rules, formatters, or validation conventions.

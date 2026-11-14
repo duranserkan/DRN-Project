@@ -49,6 +49,8 @@ Resolve contradictions with TRIZ, then apply Security -> Correctness -> Clarity 
 
 Check rendering conditions and refactors against [basic-code-review](../skills/basic-code-review/SKILL.md#architecture-checks).
 
+For changed CLI inputs, apply the [path and child-process checks](../skills/basic-security-checklist/SKILL.md#cli-paths-and-child-process-arguments). For input-controlled redirects, apply the [destination checks](../skills/basic-security-checklist/SKILL.md#redirect-destinations). Review test setup against [fixture constraints](../skills/basic-code-review/SKILL.md#test-coverage-expectations) before accepting coverage claims.
+
 Every finding must include severity, evidence, impact, violated invariant, concrete recommendation, confidence, and verification. For Critical, Major, and Suggestion fixes:
 
 - Tag disproportionate fix complexity as `[COMPLEXITY WARNING]`. Complexity never lowers Critical or Major severity.

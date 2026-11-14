@@ -125,6 +125,8 @@ See README **Razor TagHelpers** for Vite/SRI, CSP nonces, HTMX CSRF, active link
 
 Publish Vite manifests with their emitted assets. See README **Static Asset Compression** for build-time integrity hashes and Brotli-only entries.
 
+Use `DrnStaticFileHeaderOptions` for startup header rules. `Set` adds or updates a rule; `Remove` disables it. `Override` replaces a header and `IfMissing` preserves it. Robots.txt revalidation is enabled by default. README **Static Asset Compression** owns examples and path matching.
+
 ## Related Skills
 
 - [Framework overview](../overview-drn-framework/SKILL.md): shared conventions.

@@ -1,7 +1,7 @@
 ---
 name: basic-security-checklist
 description: Use when adding or reviewing endpoints, input handling, auth, authorization, CSP, CSRF, secrets, dependencies, security headers, infrastructure, or deployment changes.
-last-updated: 2026-11-13
+last-updated: 2026-11-14
 difficulty: intermediate
 ---
 
@@ -32,6 +32,18 @@ Validate required fields, types, lengths, and allowed values at the server bound
 - Use type-safe parsing and framework binders where possible.
 - Validate file type, size, storage path, and scanning requirements for uploads.
 - Constrain deserialization types and payload size.
+
+## CLI Paths And Child Process Arguments
+
+- Trace each changed CLI argument to the file operation or child process that consumes it. Enforce the command's documented directory boundary on resolved destinations before reads or writes, including symlinked parents and existing output files.
+- Allow only permitted filename operands. When forwarding them, place them after the child's own `--` if supported. A shell-free argument array still permits the child to interpret options.
+- Check valid inputs alongside parent traversal, external absolute paths, symlinks outside the allowed directory, and filenames beginning with `-`. Rejection must prevent unintended file access and must not turn skipped work into a successful exit.
+
+## Redirect Destinations
+
+- Trace untrusted destinations through forms, query strings, and stored state to the final server redirect or browser navigation. Earlier validation does not cover a value replaced by a later request.
+- For in-app returns, use the framework's local-URL validation and local redirect API. Fall back to a known local route. For permitted external redirects, parse the URL and compare its origin, including scheme and port, against the allowlist.
+- Preserve valid local paths and query strings. Check absolute external URLs, scheme-relative URLs, and backslash or encoded forms using the actual framework or browser semantics. For external allowlists, also check lookalike hosts and user-info URLs.
 
 ## Authentication And Authorization
 

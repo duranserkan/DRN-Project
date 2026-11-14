@@ -1088,9 +1088,28 @@ Scoped HTTP diagnostics, startup reports, and developer-page copies use the [cen
 
 ## Static Asset Compression
 
+DRN does not compress responses at runtime. Compress static assets during the frontend build and deploy the generated files with their Vite manifests. Original assets, Razor HTML and API JSON are served uncompressed on HTTP and HTTPS.
+
+Static files default to one-year public caching. `/robots.txt` requires cache revalidation by default, with no application configuration needed. Add or customize response headers at startup:
+
+```csharp
+using DRN.Framework.Hosting.DrnProgram;
+using Microsoft.Net.Http.Headers;
+
+builder.Services.Configure<DrnStaticFileHeaderOptions>(options =>
+{
+    options.Set(new DrnStaticFileHeaderRule("/downloads/guide.pdf", HeaderNames.ContentDisposition,
+        "attachment", DrnStaticFileHeaderBehavior.IfMissing));
+});
+```
+
+`Set` adds or updates a rule by path and header name. `Override` replaces the response header and is the default. `IfMissing` preserves an existing header. Use `Remove("/robots.txt", HeaderNames.CacheControl)` to remove the default exception and restore normal static-file caching.
+
+Paths match exactly and case-insensitively, excluding query strings, deployment prefixes, and `StaticFileOptions.RequestPath`. Wildcards are unsupported. Invalid paths and headers are rejected. Rules apply to public static files and do not change access control.
+
 Deploy the files declared by each Vite manifest. Use `ViteManifestItem.BrowserPath` for the deployed URL and `Path` for the logical original path. Script, stylesheet and preload TagHelpers link directly to the Brotli file when present at manifest load, or to the original otherwise. Direct Brotli URLs require a Brotli-capable browser. The URL includes the request path base, and subresource integrity uses the build-time hash of the decoded bytes. ASP.NET Core static files serve the compressed bytes with `Content-Encoding: br` and the original media type.
 
-The Sample Vite build uses Brotli quality 11. DRN serves original assets, Razor HTML and API JSON without runtime compression on HTTP and HTTPS. Original and Brotli assets have separate URLs and can be cached independently.
+The Sample Vite build uses Brotli quality 11. Original and Brotli assets have separate URLs and can be cached independently.
 
 ## Local Development Infrastructure
 

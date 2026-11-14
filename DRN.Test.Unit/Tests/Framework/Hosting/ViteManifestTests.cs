@@ -1,7 +1,14 @@
+using System.Text.Json;
 using DRN.Framework.Hosting.DrnProgram.Configurators;
+using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Hosting.Utils.Vite;
+using DRN.Framework.Hosting.Utils.Vite.Models;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Options;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting;
 
@@ -52,12 +59,12 @@ public class ViteManifestTests
         var url = manifest.GetManifestItem("buildwww/app/js/app.js?url");
 
         worker.Should().NotBeNull();
-        worker!.Path.Should().Be("/app/worker.js");
+        worker.Path.Should().Be("/app/worker.js");
         worker.BrowserPath.Should().Be("/app/worker.js.br");
         worker.Integrity.Should().Be("sha256-1NVXzfSuJNRNtBDa7nGdcQMIPCr0f7f4i5zoLNzdJ/c=");
 
         url.Should().NotBeNull();
-        url!.Path.Should().Be("/app/url.js");
+        url.Path.Should().Be("/app/url.js");
         url.BrowserPath.Should().Be(url.Path);
         manifest.GetManifestItem("buildwww/app/js/app.js").Should().BeNull();
     }
@@ -165,7 +172,7 @@ public class ViteManifestTests
 
         if (!brotliOnly)
             File.WriteAllText(Path.Combine(helper.Root, "app.js"), "app");
-        WriteManifest(helper.Root, System.Text.Json.JsonSerializer.Serialize(new
+        WriteManifest(helper.Root, JsonSerializer.Serialize(new
         {
             app = new { file = "app.js", src = "app", brotliOnly, hash = "1NVXzfSuJNRNtBDa7nGdcQMIPCr0f7f4i5zoLNzdJ/c=" }
         }));
@@ -176,21 +183,88 @@ public class ViteManifestTests
     }
 
     [Theory]
-    [DataInlineUnit]
-    public void StaticFiles_Should_Map_Only_Listed_Brotli_Sidecars_To_The_Original_Mime_Type(DrnTestContextUnit context)
+    [DataInlineUnit("")]
+    [DataInlineUnit("/static")]
+    public async Task StaticFiles_Should_Map_Only_Listed_Brotli_Sidecars_To_The_Original_Mime_Type(DrnTestContextUnit context, string requestPath)
     {
         using var helper = new ViteManifestTestHelper(context);
         var output = Directory.CreateDirectory(Path.Combine(helper.Root, "assets"));
         foreach (var file in new[] { "app.css", "app.css.br", "unlisted.css", "unlisted.css.br" })
-            File.WriteAllText(Path.Combine(output.FullName, file), "fixture");
+            await File.WriteAllTextAsync(Path.Combine(output.FullName, file), "fixture");
         WriteManifest(output.FullName, """{"style":{"file":"app.css","src":"style","hash":"1NVXzfSuJNRNtBDa7nGdcQMIPCr0f7f4i5zoLNzdJ/c="}}""");
-        var options = new StaticFileOptions();
-        DrnCompressionConfigurator.ConfigureViteSidecars(options, helper.CreateManifest());
+        var options = new StaticFileOptions { RequestPath = requestPath };
+        DrnStaticFileConfigurator.ConfigureStaticFileOptions(options);
+        DrnStaticFileConfigurator.ConfigureViteSidecars(options, helper.CreateManifest());
+        var rules = new DrnStaticFileHeaderOptions();
+        rules.Set(new("/assets/app.css.br", "X-Asset", "style"));
+        DrnStaticFileConfigurator.ConfigureHeaderRules(options, Options.Create(rules));
 
-        var types = options.ContentTypeProvider!;
+        var types = options.ContentTypeProvider;
         types.TryGetContentType("/assets/app.css.br", out var type).Should().BeTrue();
         type.Should().Be("text/css");
         types.TryGetContentType("/assets/unlisted.css.br", out _).Should().BeFalse();
+        types.TryGetContentType("/assets/APP.css.br", out _).Should().BeFalse();
+
+        var http = new DefaultHttpContext
+        {
+            Request =
+            {
+                Path = requestPath + "/assets/app.css.br"
+            }
+        };
+        var response = new StaticFileResponseContext(http, new NotFoundFileInfo("fixture"));
+        options.OnPrepareResponse(response);
+        await options.OnPrepareResponseAsync(response);
+        http.Response.Headers.ContentEncoding.ToString().Should().Be("br");
+        http.Response.Headers.CacheControl.ToString().Should().Be("public,max-age=31536000");
+        http.Response.Headers["X-Asset"].ToString().Should().Be("style");
+    }
+
+    [Fact]
+    public void StaticFile_Sidecar_Callbacks_Should_Not_Allocate_After_Initialization()
+    {
+        var item = JsonSerializer.Deserialize<ViteManifestItem>("""{"file":"app.css","src":"style"}""")!;
+        var manifest = Substitute.For<IViteManifest>();
+        manifest.GetAllManifestItems().Returns([item, item]);
+        var original = new TrackingContentTypeProvider();
+        var options = new StaticFileOptions { RequestPath = "/static", ContentTypeProvider = original };
+        DrnStaticFileConfigurator.ConfigureStaticFileOptions(options);
+        DrnStaticFileConfigurator.ConfigureViteSidecars(options, manifest);
+        var types = options.ContentTypeProvider;
+        types.TryGetContentType("/ordinary.css", out _).Should().BeTrue();
+        manifest.DidNotReceive().GetAllManifestItems();
+
+        var http = new DefaultHttpContext
+        {
+            Request =
+            {
+                Path = "/static/app.css.br"
+            }
+        };
+        var response = new StaticFileResponseContext(http, new NotFoundFileInfo("fixture"));
+        for (var index = 0; index < 1000; index++)
+        {
+            types.TryGetContentType("/app.css.br", out _);
+            options.OnPrepareResponse(response);
+        }
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var index = 0; index < 1000; index++)
+        {
+            types.TryGetContentType("/app.css.br", out _);
+            options.OnPrepareResponse(response);
+        }
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        allocated.Should().Be(0);
+        original.LastPath.Should().BeSameAs(item.Path);
+        http.Response.Headers.ContentEncoding.ToString().Should().Be("br");
+        manifest.Received(1).GetAllManifestItems();
+        original.ContentType = "text/x-custom-css";
+        types.TryGetContentType("/app.css.br", out var type).Should().BeTrue();
+        type.Should().Be("text/x-custom-css");
+        types.TryGetContentType("/unlisted.css.br", out _).Should().BeTrue();
+        original.LastPath.Should().Be("/unlisted.css.br");
     }
 
     [Theory]
@@ -212,6 +286,19 @@ public class ViteManifestTests
         var manifestDir = Path.Combine(outputDir, ".vite");
         Directory.CreateDirectory(manifestDir);
         File.WriteAllText(Path.Combine(manifestDir, "manifest.json"), manifestJson);
+    }
+
+    private sealed class TrackingContentTypeProvider : IContentTypeProvider
+    {
+        public string? LastPath { get; private set; }
+        public string ContentType { get; set; } = "text/css";
+
+        public bool TryGetContentType(string subpath, out string contentType)
+        {
+            LastPath = subpath;
+            contentType = ContentType;
+            return true;
+        }
     }
 
     private sealed class ViteManifestTestHelper : IDisposable

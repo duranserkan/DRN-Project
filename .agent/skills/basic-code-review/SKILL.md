@@ -1,7 +1,7 @@
 ---
 name: basic-code-review
 description: Use when reviewing code changes, pull requests, staged diffs, or self-reviewing work for security, correctness, clarity, simplicity, performance, breaking changes, and missing verification.
-last-updated: 2026-11-13
+last-updated: 2026-11-14
 difficulty: intermediate
 ---
 
@@ -39,7 +39,7 @@ Resolve contradictions with TRIZ first. Then evaluate every change in order:
 - DTOs, API models, and persistence entities stay separated when the repository uses that boundary.
 - New abstractions remove real complexity or match an established local pattern.
 - Apply the [refactoring guidance](../basic-agentic-development/SKILL.md#refactoring-for-clarity): names should expose intent, and extraction must preserve behavior. Static inspection supports equivalence but does not establish runtime or visual correctness.
-- Check unnecessary allocations, repeated work, and whether algorithms and data structures fit usage. Require source evidence or measurements for claimed benefits, explicit assumptions, and preserved correctness.
+- Apply [allocation and lookup guidance](../basic-agentic-development/SKILL.md#allocations-and-stable-lookups). Require source evidence or measurements for claimed benefits, explicit assumptions, and preserved correctness.
 - Public behavior changes are documented and classified as breaking or non-breaking.
 - Follow the repository profile's runtime-access conventions.
 - Apply the [deprecated-code rule](../basic-agentic-development/SKILL.md#anti-patterns).
@@ -77,6 +77,8 @@ Prefer suppression attributes when supported. In C#, apply `[SuppressMessage]` t
 | Documentation-only change | Link/path validation, drift scan, or targeted review |
 
 Respect repository rules about running builds and tests. If execution is not allowed, report verification as not run instead of implying pass/fail.
+
+Trace boundary-case inputs through constructors, implicit conversions, and property setters before evaluating assertions. Verify dependency constraints against source or version-matched documentation. Use valid configuration for downstream behavior tests. If rejection is intended, assert it at the rejecting boundary. Never bypass validation to create an impossible runtime state. Distinguish fixture validity from unexecuted behavioral assertions.
 
 ## Breaking Change Detection
 

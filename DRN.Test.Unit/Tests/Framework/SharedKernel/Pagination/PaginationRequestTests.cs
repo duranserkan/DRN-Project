@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DRN.Framework.SharedKernel.Domain.Pagination;
+using DRN.Framework.SharedKernel.Json;
 using DRN.Framework.Testing.Extensions;
 
 namespace DRN.Test.Unit.Tests.Framework.SharedKernel.Pagination;
@@ -10,7 +11,7 @@ public class PaginationRequestTests
     public void PaginationOptions_Should_Deserialize_Partial_Json_With_Defaults()
     {
         var options = JsonSerializer.Deserialize<PaginationOptions>("{\"pageSize\":25,\"updateTotalCount\":true}",
-            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            JsonConventions.DefaultOptions);
 
         options.Should().NotBeNull();
         var request = PaginationRequest.DefaultWith(options!);
@@ -48,7 +49,7 @@ public class PaginationRequestTests
     public void PaginationOptions_Should_Ignore_Client_Supplied_TotalCount()
     {
         var options = JsonSerializer.Deserialize<PaginationOptions>("{\"totalCount\":1000000}",
-            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            JsonConventions.DefaultOptions);
 
         var request = PaginationRequest.DefaultWith(options!);
 

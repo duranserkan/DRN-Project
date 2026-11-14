@@ -5,6 +5,7 @@ This guide covers local startup, developer tools, error handling, notifications,
 ## Contents
 
 - [Run locally](#run-locally)
+- [Crawler policy and reverse proxies](#crawler-policy-and-reverse-proxies)
 - [Swagger and test pages](#swagger-and-test-pages)
 - [Pagination APIs](#pagination-apis)
 - [Error pages and API failures](#error-pages-and-api-failures)
@@ -26,6 +27,16 @@ dotnet run --project Sample.Hosted -c Debug
 The sample runs at [http://localhost:5998](http://localhost:5998). Its Debug/Development startup provisions local PostgreSQL through Testcontainers. See the [Docker and Docker Compose guide](../Docker/README.md) for dependency ports, container setup, credentials, data migration, and published image verification.
 
 For framework setup and solution-wide build and test commands, see the [project quick start](../docs/quick-start.md).
+
+## Crawler policy and reverse proxies
+
+[wwwroot/robots.txt](wwwroot/robots.txt) is served anonymously as a static file. It allows only `/User/Login$`. The `$` excludes longer paths and query-string variants. Robots rules guide crawlers, not authorization.
+
+Hosting defaults the response to `Cache-Control: no-cache` so caches must revalidate the policy before reuse. Customize headers through [typed startup rules](../DRN.Framework.Hosting/README.md#static-asset-compression). Other static assets retain their existing cache lifetime.
+
+For a public prefix such as `/app`, deploy the file with `Allow: /app/User/Login$`. Static files do not adapt to forwarded headers. Proxy the public origin's `/robots.txt` directly to the Sample service's `/robots.txt`, without a redirect or `/app` backend prefix. Return `200 OK` with `text/plain`.
+
+[Robots rules apply to the entire origin](https://www.rfc-editor.org/rfc/rfc9309.html#section-2.3). When apps share a hostname, the gateway owns this single policy. This example blocks crawling of every other app too.
 
 ## Swagger and test pages
 

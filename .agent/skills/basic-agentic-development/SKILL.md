@@ -1,7 +1,7 @@
 ---
 name: basic-agentic-development
 description: Use when planning, implementing, refactoring, or verifying work under repository autonomy and execution rules.
-last-updated: 2026-11-13
+last-updated: 2026-11-14
 difficulty: basic
 ---
 
@@ -75,6 +75,18 @@ These tiers do not override workflow, command, or VCS gates.
 - Put decisions on the owning model or module. Use properties for cheap state checks and methods for arguments or generated values. Resolve and validate generated content together to avoid duplicate calls.
 - Preserve short-circuiting, null handling, evaluation count, captured state, callback identity, and mutation/disposal order. Move helpers outside closures only when they do not need local state.
 - Check analyzer suggestions against framework contracts and UI semantics. Follow the [diagnostic suppression guidance](../basic-code-review/SKILL.md#diagnostic-suppressions).
+
+#### Allocations And Stable Lookups
+
+- Distinguish startup, lazy first-use, and steady-state costs. Inspect dependency implementations before attributing allocations. Move stable initialization outside repeated callbacks.
+- Avoid temporary lookup keys. Use spans for string slicing and comparison when supported. Retain original strings when downstream APIs need them. Prefer direct loops when they remove verified closure or enumeration allocations without obscuring intent.
+- Cache reusable read-only views and lookup adapters. Use an immutable snapshot when later configuration changes must not affect active readers. Keep configuration builders and response headers mutable.
+- Consider an immutable index for data built infrequently and queried repeatedly. Group entries by lookup key so requests visit only matching rules. Keep a direct comparison for a single entry. Do not assume an index wins for small collections or invent a crossover threshold without measurements.
+- In .NET, `FrozenDictionary` can support these indexes. For span queries, cache a compatible `GetAlternateLookup<ReadOnlySpan<char>>()` adapter instead of calling `ToString()` per lookup. Verify target framework and comparer support.
+- Preserve comparer semantics, duplicate-key policy, order within groups, snapshot isolation, and lazy initialization. Cache stable inputs without caching a custom provider's potentially changing answer. Verify hits, misses, case variants, duplicates, multiple values per key, and changes after snapshot creation.
+- An async callback that completes synchronously may not allocate. Preserve callback order, exceptions, and cancellation. Do not remove async solely because it appears expensive.
+
+When measurement is authorized, warm up first and keep setup, assertions, and allocating substitutes outside the measured section. Separate lookup costs from provider, middleware, and response-header storage costs. Removing an allocation in source does not prove zero allocation for a whole request or improved throughput. Report unexecuted measurements explicitly.
 
 ### 4. Verification
 

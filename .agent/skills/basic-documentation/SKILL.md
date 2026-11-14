@@ -1,7 +1,7 @@
 ---
 name: basic-documentation
 description: Use when writing or reviewing public documentation, READMEs, release notes, API guides, or agent skills.
-last-updated: 2026-11-13
+last-updated: 2026-11-14
 difficulty: basic
 ---
 
@@ -16,7 +16,7 @@ Standards for creating and maintaining repository documentation.
 - **Conciseness**: Lead with the outcome. Use short sentences and tables for comparisons. Avoid prose semicolons and em/en dashes.
 - **Evidence**: State verified facts directly. Identify uncertainty rather than converting it into a promise.
 - **Public behavior**: Document supported usage, contracts, configuration, and migration. Inspect internals only to verify those claims.
-- **Maintenance**: Update the owner when public behavior changes. Routine repairs to an unchanged contract belong in code and regression coverage.
+- **Maintenance**: Update the owner when public behavior, usage requirements, or durable conventions change. Routine repairs to an unchanged contract belong in code and regression coverage, not repeated descriptions in agent files. Link to the owner instead of duplicating guidance. Assess release-note impact separately.
 - **Shared Defaults**: Cross-package defaults and docs-sync rules belong in the repository profile or the owning source documentation. Package READMEs must stay self-contained for important facts and may reference sibling package READMEs for related guidance.
 
 ## 2. README.md Standard
