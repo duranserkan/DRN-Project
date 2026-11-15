@@ -3,7 +3,6 @@ using DRN.Framework.Testing.DataAttributes;
 
 namespace DRN.Test.Analyzer.Tests;
 
-[SuppressMessage("ReSharper", "AccessToDisposedClosure")]
 public partial class SourceKnownEntityTypeAnalyzerTests
 {
     private const string SharedKernelDomainStubs = """
@@ -737,6 +736,7 @@ public partial class SourceKnownEntityTypeAnalyzerTests
     [Theory]
     [DataInlineUnit(false)]
     [DataInlineUnit(true)]
+    [SuppressMessage("ReSharper", "AccessToDisposedClosure", Justification = "Both delegates execute synchronously in Throw assertions and finish before the cancellation source is disposed.")]
     public void EntityMetadataExtraction_ObservesCancellation(bool cacheMetadata)
     {
         const string source = """

@@ -566,6 +566,132 @@ public class HostedAccessorGeneratorTests
     }
 
     [Fact]
+    public void Generator_Should_Skip_Controllers_Outside_The_Accessor_Contract()
+    {
+        var source = """
+            using Microsoft.AspNetCore.Mvc;
+            public class PlainController { public void Read() { } }
+            [Controller] public class AttributedEndpoint { public void Read() { } }
+            public class SupportedController : ControllerBase { public void Read() { } }
+            """ + ProgramSource;
+
+        var result = Generate(source);
+
+        result.Diagnostics.Should().BeEmpty();
+        Generated(result, "TestEndpointFor.g.cs").Should().Contain("SupportedFor Supported").And.NotContain("Plain").And.NotContain("Attributed");
+        Generated(result, "TestPageFor.g.cs").Should().Contain("TestPageFor");
+        Members(Generated(result, "SupportedFor.g.cs")).Should().Equal("Read");
+
+        var mapped = Generate("""
+            [assembly: DRN.Framework.Hosting.Endpoints.AccessorController(typeof(TestProgram), typeof(PlainController))]
+            public class PlainController { public void Read() { } }
+            """ + ProgramSource, checkCompilation: false);
+
+        mapped.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNHG001");
+        mapped.GeneratedTrees.Should().BeEmpty();
+    }
+
+    [Theory]
+    [DataInlineUnit("void System.IDisposable.Dispose() { }", true)]
+    [DataInlineUnit("public void Dispose() { }", false)]
+    public void Generator_Should_Exclude_Only_The_Disposable_Interface_Implementation(string implementation, bool separateAction)
+    {
+        var action = separateAction ? "public void Dispose() { }" : "";
+        var source = $$"""
+            public abstract class DisposableBase : Microsoft.AspNetCore.Mvc.ControllerBase, System.IDisposable
+            {
+                {{implementation}}
+            }
+            public class ProbeController : DisposableBase
+            {
+                {{action}}
+                public void Read() { }
+            }
+            """ + ProgramSource;
+
+        var result = Generate(source);
+
+        result.Diagnostics.Should().BeEmpty();
+        string[] expected = separateAction ? ["Dispose", "Read"] : ["Read"];
+        Members(Generated(result, "ProbeFor.g.cs")).Should().Equal(expected);
+    }
+
+    [Theory]
+    [DataInlineUnit("public override void Dispose() { }", false)]
+    [DataInlineUnit("void System.IDisposable.Dispose() { }", false)]
+    [DataInlineUnit("public new void Dispose() { }", true)]
+    public void Generator_Should_Check_Dispose_At_Its_Base_Definition(string implementation, bool separateAction)
+    {
+        var interfaces = separateAction ? "" : ", System.IDisposable";
+        var source = $$"""
+            public abstract class DisposableBase : Microsoft.AspNetCore.Mvc.ControllerBase, System.IDisposable
+            {
+                public virtual void Dispose() { }
+            }
+            public class ProbeController : DisposableBase{{interfaces}}
+            {
+                {{implementation}}
+                public void Read() { }
+            }
+            """ + ProgramSource;
+
+        var result = Generate(source);
+
+        result.Diagnostics.Should().BeEmpty();
+        string[] expected = separateAction ? ["Dispose", "Read"] : ["Read"];
+        Members(Generated(result, "ProbeFor.g.cs")).Should().Equal(expected);
+    }
+
+    [Theory]
+    [DataInlineUnit("public System.Threading.Tasks.ValueTask DisposeAsync() => default;", false)]
+    [DataInlineUnit("System.Threading.Tasks.ValueTask System.IAsyncDisposable.DisposeAsync() => default;", false)]
+    [DataInlineUnit("[Microsoft.AspNetCore.Mvc.NonAction] public System.Threading.Tasks.ValueTask DisposeAsync() => default;", false)]
+    [DataInlineUnit("System.Threading.Tasks.ValueTask System.IAsyncDisposable.DisposeAsync() => default; public System.Threading.Tasks.ValueTask DisposeAsync() => default;", true)]
+    public void Generator_Should_Exclude_Only_Async_Disposal_Implementations(string implementation, bool isAction)
+    {
+        var source = $$"""
+            public class ProbeController : Microsoft.AspNetCore.Mvc.ControllerBase, System.IAsyncDisposable
+            {
+                {{implementation}}
+                public void Read() { }
+            }
+            """ + ProgramSource;
+
+        var result = Generate(source);
+
+        result.Diagnostics.Should().BeEmpty();
+        string[] expected = isAction ? ["DisposeAsync", "Read"] : ["Read"];
+        Members(Generated(result, "ProbeFor.g.cs")).Should().Equal(expected);
+    }
+
+    [Theory]
+    [DataInlineUnit("", false)]
+    [DataInlineUnit("public override System.Threading.Tasks.ValueTask DisposeAsync() => default;", false)]
+    [DataInlineUnit("System.Threading.Tasks.ValueTask System.IAsyncDisposable.DisposeAsync() => default;", false)]
+    [DataInlineUnit("public new System.Threading.Tasks.ValueTask DisposeAsync() => default;", true)]
+    public void Generator_Should_Check_Async_Dispose_At_Its_Base_Definition(string implementation, bool separateAction)
+    {
+        var interfaces = separateAction ? "" : ", System.IAsyncDisposable";
+        var source = $$"""
+            public abstract class DisposableBase : Microsoft.AspNetCore.Mvc.ControllerBase, System.IAsyncDisposable
+            {
+                public virtual System.Threading.Tasks.ValueTask DisposeAsync() => default;
+            }
+            public class ProbeController : DisposableBase{{interfaces}}
+            {
+                {{implementation}}
+                public void Read() { }
+            }
+            """ + ProgramSource;
+
+        var result = Generate(source);
+
+        result.Diagnostics.Should().BeEmpty();
+        string[] expected = separateAction ? ["DisposeAsync", "Read"] : ["Read"];
+        Members(Generated(result, "ProbeFor.g.cs")).Should().Equal(expected);
+    }
+
+    [Fact]
     public void Generator_Should_Not_Restore_Base_Actions_Hidden_By_Ineligible_Methods()
     {
         var source = """

@@ -869,7 +869,9 @@ Discovery uses compiler inputs, not a filesystem scan. Keep Razor compilation an
 
 Programs in the same namespace share identical generated group and leaf type definitions. Each program keeps its own roots and accessor instances. Duplicate root names or conflicting definitions report `DRNHG001` before any sources for the conflicting program are emitted. Customize controller or group type names when programs need different definitions in the same namespace.
 
-Local controllers and their eligible inherited actions are discovered automatically. Source-Known generic read/write bases are supported. Most-derived `[NonAction]` overrides exclude actions; `IgnoreApi` does not. Action members keep CLR method names, including `Async`; runtime metadata supplies effective MVC action names, areas and routes. Generated bindings include the concrete controller and CLR parameter types, independently of member aliases. No default route names are registered.
+Local public, concrete, top-level, non-generic controllers deriving from `ControllerBase` and their eligible inherited actions are discovered automatically. MVC controllers without that ancestor are skipped because `ControllerForBase<TController>` requires it. Explicit mappings to unsupported controllers report `DRNHG001`. Source-Known generic read/write bases are supported. Most-derived `[NonAction]` overrides exclude actions; `IgnoreApi` does not. Action members keep CLR method names, including `Async`; runtime metadata supplies effective MVC action names, areas and routes. Generated bindings include the concrete controller and CLR parameter types, independently of member aliases. No default route names are registered.
+
+Generated accessors omit `IDisposable.Dispose` and `IAsyncDisposable.DisposeAsync` implementations, including inherited implementations and overrides. Separate methods with those names remain eligible. This does not change MVC routing. Apply `[NonAction]` to a public `DisposeAsync` implementation to exclude it from MVC actions as well.
 
 Preserve host-specific groups with assembly declarations:
 

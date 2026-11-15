@@ -161,7 +161,6 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
         public string? Area { get; set; }
     }
 
-    [SuppressMessage("SonarQube", "S3267", Justification = "Direct loops avoid additional Where iterators and predicates capturing mapping or publication state. Keep cancellation checks and dictionary mutations explicit and in their existing order.")]
     private sealed class AccessorModelBuilder(Compilation compilation, CompilationFacts facts, CancellationToken cancellation, INamedTypeSymbol program,
         ImmutableArray<PageInput> pages, Dictionary<string, AccessorModel> generatedSources)
     {
@@ -192,6 +191,7 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
             PublishSources(sources, ns, endpoints.Name, pageRoot.Name);
         }
 
+        [SuppressMessage("SonarQube", "S3267", Justification = "Where predicates would capture and mutate the mapping dictionaries.")]
         private void CollectMappings()
         {
             foreach (var attribute in ForProgram("AccessorMemberAttribute"))
@@ -212,6 +212,7 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
                 throw new AccessorException($"AccessorGroup '{unusedGroup}' does not identify a generated group.");
         }
 
+        [SuppressMessage("SonarQube", "S3267", Justification = "A Where predicate would capture generatedSources and both root names.")]
         private void PublishSources(SortedDictionary<string, AccessorModel> sources, string ns, string endpointName, string pageName)
         {
             var metadataNamespace = ns.Replace("@", "");
@@ -381,10 +382,6 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
             return current;
         }
 
-        private static bool IsController(INamedTypeSymbol type) => !type.IsAbstract && type.Arity == 0 && type.ContainingType == null &&
-            type.DeclaredAccessibility == Accessibility.Public && !HasAttribute(type, "Microsoft.AspNetCore.Mvc.NonControllerAttribute") &&
-            Bases(type).Any(candidate => candidate.ToDisplayString() == "Microsoft.AspNetCore.Mvc.ControllerBase");
-
         private static IEnumerable<IMethodSymbol> Actions(INamedTypeSymbol type, CancellationToken cancellation)
         {
             var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -395,20 +392,32 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
                     cancellation.ThrowIfCancellationRequested();
                     if (method.MethodKind != MethodKind.Ordinary || method.DeclaredAccessibility != Accessibility.Public) continue;
                     var signature = method.Name + "`" + method.Arity + "(" + string.Join(",", method.Parameters.Select(parameter => parameter.RefKind + ":" + TypeName(parameter.Type))) + ")";
-                    if (seen.Add(signature) && IsAction(method, type)) yield return method;
+                    if (seen.Add(signature) && IsAction(method)) yield return method;
                 }
             }
         }
 
-        private static bool IsAction(IMethodSymbol method, INamedTypeSymbol controller)
+        private static bool IsAction(IMethodSymbol method)
         {
             if (method.IsStatic || method.IsGenericMethod || method.IsAbstract ||
                 HasAttribute(method, "Microsoft.AspNetCore.Mvc.NonActionAttribute")) return false;
             var original = method;
             while (original.OverriddenMethod != null) original = original.OverriddenMethod;
             if (original.ContainingType.SpecialType == SpecialType.System_Object) return false;
-            return method.Name != "Dispose" || method.Parameters.Length != 0 ||
-                !controller.AllInterfaces.Any(item => item.ToDisplayString() == "System.IDisposable");
+            if (original.Parameters.Length != 0) return true;
+            var interfaceName = original.Name switch
+            {
+                "Dispose" => "System.IDisposable",
+                "DisposeAsync" => "System.IAsyncDisposable",
+                _ => null
+            };
+            if (interfaceName == null) return true;
+            // Preserve disposal exclusions across overrides and derived interface reimplementations.
+            var declaringType = original.ContainingType;
+            var disposable = declaringType.AllInterfaces.FirstOrDefault(item => item.ToDisplayString() == interfaceName);
+            var dispose = disposable?.GetMembers(original.Name).OfType<IMethodSymbol>().SingleOrDefault();
+            var implementation = dispose == null ? null : declaringType.FindImplementationForInterfaceMember(dispose);
+            return !SymbolEqualityComparer.Default.Equals(original, implementation);
         }
 
         private static string ControllerRouteTemplate(INamedTypeSymbol controller)
@@ -425,6 +434,11 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
             return templates.Length == 1 ? templates[0] ?? "" : "";
         }
     }
+
+    private static bool IsController(INamedTypeSymbol type) => type.TypeKind == TypeKind.Class && !type.IsAbstract &&
+        type.Arity == 0 && type.ContainingType == null && type.DeclaredAccessibility == Accessibility.Public &&
+        !HasAttribute(type, "Microsoft.AspNetCore.Mvc.NonControllerAttribute") &&
+        Bases(type).Any(candidate => candidate.ToDisplayString() == "Microsoft.AspNetCore.Mvc.ControllerBase");
 
     private static bool HasAttribute(ISymbol symbol, string name)
     {

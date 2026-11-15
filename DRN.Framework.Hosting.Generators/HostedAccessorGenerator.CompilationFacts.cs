@@ -7,7 +7,6 @@ namespace DRN.Framework.Hosting.Generators;
 
 public sealed partial class HostedAccessorGenerator
 {
-    [SuppressMessage("SonarQube", "S3267", Justification = "Direct discovery loops avoid additional Where iterators and predicates capturing symbols or conflict sets. Keep per-item cancellation and conflict-set updates in their existing order.")]
     private sealed class CompilationFacts
     {
         private static readonly string[] FrameworkNames =
@@ -117,6 +116,7 @@ public sealed partial class HostedAccessorGenerator
                 CollectGlobalImportConflicts(tree);
         }
 
+        [SuppressMessage("SonarQube", "S3267", Justification = "The direct loop preserves per-import cancellation and lazy semantic-model creation.")]
         private void CollectGlobalImportConflicts(SyntaxTree tree)
         {
             _cancellation.ThrowIfCancellationRequested();
@@ -138,6 +138,7 @@ public sealed partial class HostedAccessorGenerator
             }
         }
 
+        [SuppressMessage("SonarQube", "S3267", Justification = "A Where predicate would capture the conflict set that the loop updates.")]
         private void CollectImportedNames(ISymbol? imported)
         {
             foreach (var name in FrameworkNames)
@@ -193,15 +194,14 @@ public sealed partial class HostedAccessorGenerator
             return conflicts;
         }
 
+        [SuppressMessage("SonarQube", "S3267", Justification = "A Where predicate would capture the current namespace during conflict collection.")]
         private static void AddNamespaceConflicts(INamespaceSymbol current, HashSet<string> conflicts)
         {
             foreach (var candidate in FrameworkNames)
                 if (current.GetMembers(candidate).Any()) conflicts.Add(candidate);
         }
 
-        private static bool IsControllerCandidate(INamedTypeSymbol type) => type.TypeKind == TypeKind.Class && !type.IsAbstract &&
-            type.Arity == 0 && type.DeclaredAccessibility == Accessibility.Public &&
-            !HasAttribute(type, "Microsoft.AspNetCore.Mvc.NonControllerAttribute") &&
+        private static bool IsControllerCandidate(INamedTypeSymbol type) => IsController(type) &&
             (type.Name.EndsWith("Controller", StringComparison.OrdinalIgnoreCase) || HasAttribute(type, "Microsoft.AspNetCore.Mvc.ControllerAttribute"));
 
         private static IEnumerable<INamedTypeSymbol> Types(INamespaceSymbol ns, CancellationToken cancellation)

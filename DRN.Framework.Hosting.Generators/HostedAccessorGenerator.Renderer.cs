@@ -11,7 +11,6 @@ public sealed partial class HostedAccessorGenerator
     private sealed record AccessorModel(string HintName, string Namespace, string Name, string? BaseType,
         bool UsesFrameworkImport, string? ConstructorRoute, bool PageLeaf, string? Area, string Members);
 
-    [SuppressMessage("SonarQube", "S3267", Justification = "Direct validation loops avoid Where predicates capturing the member dictionary and authored type. Keep member insertion and first-collision reporting in their existing order.")]
     private sealed class AccessorRenderer(Compilation compilation, CompilationFacts facts, INamedTypeSymbol program,
         CancellationToken cancellation)
     {
@@ -44,6 +43,7 @@ public sealed partial class HostedAccessorGenerator
             return existing;
         }
 
+        [SuppressMessage("SonarQube", "S3267", Justification = "Where predicates would capture members and existing.")]
         private static SortedDictionary<string, string> BuildMembers(Node node, string fullName, INamedTypeSymbol? existing,
             bool page, bool root)
         {
