@@ -1,0 +1,415 @@
+using DRN.Framework.SharedKernel.CodeFixes;
+using Microsoft.CodeAnalysis.CodeActions;
+using Microsoft.CodeAnalysis.CodeRefactorings;
+using Microsoft.CodeAnalysis.Text;
+
+namespace DRN.Test.Analyzer.Tests;
+
+public sealed class EntityConfigurationRefactoringTests
+{
+    private const string EntitySource = """
+        namespace Sample.Domain.QA;
+        [System.ComponentModel.DataAnnotations.Schema.Table("users")]
+        public class User : DRN.Framework.SharedKernel.Domain.SourceKnownEntity;
+        """;
+
+    [Fact]
+    public async Task Attribute_Only_Entity_Should_Offer_Additive_Context_Selected_Configuration()
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace);
+        var actions = await Actions(entity);
+        var action = actions.Should().ContainSingle().Which;
+        action.Title.Should().Contain("Sample.Infra.QA.QAContext").And.Contain("QA/Configurations/UserConfiguration.cs");
+        var operations = await action.GetOperationsAsync(CancellationToken.None);
+        var changed = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        (await changed.GetDocument(entity.Id)!.GetTextAsync()).ToString().Should().Be(EntitySource);
+        var added = changed.GetProject(entity.Project.Id)!.Documents.Single(document => document.Name == "UserConfiguration.cs");
+        var source = (await added.GetTextAsync()).ToString();
+        source.Should().Contain("namespace Sample.Infra.QA.Configurations;")
+            .And.Contain("IEntityTypeConfiguration<global::Sample.Domain.QA.User>")
+            .And.Contain("public void Configure(").And.NotContain("HasKey").And.NotContain("ToTable");
+        (await added.Project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        workspace.TryApplyChanges(changed).Should().BeTrue();
+        (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Existing_Configuration_Even_Outside_Discovery_Should_Block_Duplicate_Action()
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace, """
+            namespace Sample.Infra.Other;
+            public class Existing : Microsoft.EntityFrameworkCore.IEntityTypeConfiguration<Sample.Domain.QA.User>
+            {
+                public void Configure(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<Sample.Domain.QA.User> builder) { }
+            }
+            """);
+        (await Actions(entity)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Static_DbSet_Should_Not_Establish_Entity_Membership_For_An_Additive_Action()
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace);
+        var context = entity.Project.Documents.Single(document => document.Name == "QAContext.cs");
+        var source = (await context.GetTextAsync()).ToString().Replace("public Microsoft.EntityFrameworkCore.DbSet",
+            "public static Microsoft.EntityFrameworkCore.DbSet", StringComparison.Ordinal);
+        workspace.TryApplyChanges(context.WithText(SourceText.From(source)).Project.Solution).Should().BeTrue();
+        var current = workspace.CurrentSolution.GetDocument(entity.Id)!;
+        (await current.Project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        (await Actions(current)).Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Nonpublic_Entity_Or_Containing_Type_Should_Decline_Public_Configuration(bool nested)
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace);
+        var source = nested
+            ? "namespace Sample.Domain.QA; internal class Container { public class User : DRN.Framework.SharedKernel.Domain.SourceKnownEntity; }"
+            : EntitySource.Replace("public class User", "internal class User", StringComparison.Ordinal);
+        var context = entity.Project.Documents.Single(document => document.Name == "QAContext.cs");
+        var contextSource = (await context.GetTextAsync()).ToString()
+            .Replace("public class QAContext", "internal class QAContext", StringComparison.Ordinal);
+        if (nested) contextSource = contextSource.Replace("Sample.Domain.QA.User", "Sample.Domain.QA.Container.User", StringComparison.Ordinal);
+        var solution = entity.Project.Solution.WithDocumentText(entity.Id, SourceText.From(source))
+            .WithDocumentText(context.Id, SourceText.From(contextSource));
+        workspace.TryApplyChanges(solution).Should().BeTrue();
+        var current = workspace.CurrentSolution.GetDocument(entity.Id)!;
+        (await current.Project.GetCompilationAsync())!.GetDiagnostics()
+            .Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        (await Actions(current)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Existing_Case_Insensitive_Workspace_Path_Should_Not_Be_Overwritten()
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace);
+        var collision = entity.Project.AddDocument("userconfiguration.cs", "// preserved content",
+            filePath: "/source/Sample.Infra/QA/Configurations/userconfiguration.cs");
+        workspace.TryApplyChanges(collision.Project.Solution).Should().BeTrue();
+        (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Non_Source_Workspace_Documents_Should_Not_Be_Overwritten(bool analyzerConfig)
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace);
+        var id = DocumentId.CreateNewId(entity.Project.Id);
+        var path = "/source/Sample.Infra/QA/Configurations/UserConfiguration.cs";
+        var text = SourceText.From("# Existing user content");
+        var changed = analyzerConfig
+            ? entity.Project.Solution.AddAnalyzerConfigDocument(id, "UserConfiguration.cs", text, filePath: path)
+            : entity.Project.Solution.AddAdditionalDocument(id, "UserConfiguration.cs", text, filePath: path);
+        workspace.TryApplyChanges(changed).Should().BeTrue();
+        (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().BeEmpty();
+        var preserved = analyzerConfig ? workspace.CurrentSolution.GetAnalyzerConfigDocument(id) : workspace.CurrentSolution.GetAdditionalDocument(id);
+        (await preserved!.GetTextAsync()).ContentEquals(text).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Case_Insensitive_Symbol_Collision_Should_Block_Configuration_Even_Without_A_File_Path()
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace);
+        var collision = entity.Project.AddDocument("InMemory.cs", "namespace Sample.Infra.QA.Configurations; public class userconfiguration;");
+        workspace.TryApplyChanges(collision.Project.Solution).Should().BeTrue();
+        (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("/source/Sample.Infra/QA/Configurations")]
+    [InlineData("/source/Sample.Infra/QA/configurations")]
+    [InlineData("/source/Sample.Infra/QA/Configurations/UserConfiguration.cs/notes.md")]
+    public async Task Workspace_File_And_Directory_Conflicts_Should_Decline_Configuration(string path)
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace);
+        var collision = entity.Project.AddAdditionalDocument("notes.md", "Existing user content", filePath: path);
+        workspace.TryApplyChanges(collision.Project.Solution).Should().BeTrue();
+        var before = workspace.CurrentSolution;
+        (await Actions(before.GetDocument(entity.Id)!)).Should().BeEmpty();
+        workspace.CurrentSolution.Should().BeSameAs(before);
+        (await before.GetAdditionalDocument(collision.Id)!.GetTextAsync()).ToString().Should().Be("Existing user content");
+    }
+
+    [Fact]
+    public async Task Existing_Directory_Casing_Should_Not_Be_Changed_By_A_New_File()
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace);
+        var existing = entity.Project.AddDocument("Other.cs", "// preserved content",
+            filePath: "/source/Sample.Infra/QA/configurations/Other.cs");
+        workspace.TryApplyChanges(existing.Project.Solution).Should().BeTrue();
+        (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Invalid_Context_Host_Path_Should_Decline_Without_Throwing()
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace);
+        var context = entity.Project.Documents.Single(document => document.Name == "QAContext.cs");
+        var changed = context.WithFilePath("/source/Sample.Infra/QA/\0Context.cs");
+        workspace.TryApplyChanges(changed.Project.Solution).Should().BeTrue();
+        (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Changed_Preimage_Should_Invalidate_Prepared_Configuration_Action()
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace);
+        var action = (await Actions(entity)).Single();
+        var changed = entity.WithText(SourceText.From(EntitySource + "\n// concurrent edit"));
+        workspace.TryApplyChanges(changed.Project.Solution).Should().BeTrue();
+        var operations = await action.GetOperationsAsync(CancellationToken.None);
+        var result = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        result.GetProject(entity.Project.Id)!.Documents.Should().NotContain(document => document.Name == "UserConfiguration.cs");
+        (await result.GetDocument(entity.Id)!.GetTextAsync()).ToString().Should().EndWith("// concurrent edit");
+    }
+
+    [Fact]
+    public async Task Cancellation_Should_Leave_Workspace_Unchanged()
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace);
+        var action = (await Actions(entity)).Single();
+        var before = workspace.CurrentSolution;
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var apply = async () => await action.GetOperationsAsync(cancellation.Token);
+        await apply.Should().ThrowAsync<OperationCanceledException>();
+        workspace.CurrentSolution.Should().BeSameAs(before);
+    }
+
+    [Theory]
+    [InlineData("protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder builder) => base.OnModelCreating(builder);", true)]
+    [InlineData("protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder builder) { base.OnModelCreating(builder); }", true)]
+    [InlineData("protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder builder) { base.OnModelCreating(builder); builder.Ignore<Sample.Domain.QA.User>(); }", false)]
+    [InlineData("protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder builder) { Forward(builder); } private void Forward(Microsoft.EntityFrameworkCore.ModelBuilder builder) => base.OnModelCreating(builder);", false)]
+    public async Task Discovery_Should_Accept_Only_Exact_Base_Forwarding(string members, bool supported)
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace, contextMembers: members);
+        var actions = await Actions(entity);
+        actions.Should().HaveCount(supported ? 1 : 0);
+        if (!supported) return;
+        var changed = (await actions[0].GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        (await changed.GetDocument(entity.Id)!.GetTextAsync()).ToString().Should().Be(EntitySource);
+        var context = changed.GetProject(entity.Project.Id)!.Documents.Single(document => document.Name == "QAContext.cs");
+        (await context.GetTextAsync()).ToString().Should().Contain(members);
+    }
+
+    [Fact]
+    public async Task Split_Role_Project_Should_Require_Reviewed_Destinations_Instead_Of_Default_Paths()
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace);
+        var additional = entity.Project.AddAdditionalDocument("DrnConventionInputs.g.cs", """
+            [assembly: DRN.Conventions.Version("1")]
+            [assembly: DRN.Conventions.Role("Infra", NamespacePrefix = "Sample.Infra", LogicalPathPrefix = "Persistence")]
+            """);
+        workspace.TryApplyChanges(additional.Project.Solution).Should().BeTrue();
+        (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("type.Namespace == \"Sample.Infra.QA.Configurations\"", true)]
+    [InlineData("\"Sample.Infra.QA.Configurations\" == type.Namespace", true)]
+    [InlineData("type.Namespace == \"Sample.Infra.Other.Configurations\"", false)]
+    [InlineData("type.Namespace!.StartsWith(\"Sample.Infra\")", false)]
+    public async Task Exact_Custom_Assembly_Scan_Should_Offer_Only_Proven_Destination(string predicate, bool supported)
+    {
+        using var workspace = new AdhocWorkspace();
+        var members = "protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder builder) => " +
+            "builder.ApplyConfigurationsFromAssembly(typeof(QAContext).Assembly, type => " + predicate + ");";
+        var entity = CreateDocuments(workspace, contextMembers: members);
+        var actions = await Actions(entity);
+        actions.Should().HaveCount(supported ? 1 : 0);
+        if (!supported) return;
+        var changed = (await actions[0].GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var project = changed.GetProject(entity.Project.Id)!;
+        (await project.Documents.Single(document => document.Name == "QAContext.cs").GetTextAsync()).ToString().Should().Contain(members);
+        (await project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Theory]
+    [InlineData("typeof(Microsoft.EntityFrameworkCore.DbContext).Assembly")]
+    [InlineData("typeof(QAContext).Assembly", "builder.Ignore<Sample.Domain.QA.User>();")]
+    public async Task External_Or_Model_Mutating_Custom_Scan_Should_Decline(string assembly, string suffix = "")
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace, contextMembers:
+            "protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder builder) { " +
+            "builder.ApplyConfigurationsFromAssembly(" + assembly + ", type => type.Namespace == \"Sample.Infra.QA.Configurations\"); " + suffix + " }");
+        (await Actions(entity)).Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    public async Task Shared_Discovery_Should_Name_Every_Context_And_Require_Existing_Membership(bool member, bool supported)
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace, $$"""
+            namespace Sample.Infra.QA;
+            public class QAReadContext : DRN.Framework.EntityFramework.Context.DrnContext<QAReadContext>
+            {
+                public QAReadContext() : base(null) { }
+                {{(member ? "public Microsoft.EntityFrameworkCore.DbSet<Sample.Domain.QA.User> Users { get; set; }" : "")}}
+            }
+            """);
+        var actions = await Actions(entity);
+        actions.Should().HaveCount(supported ? 2 : 0);
+        foreach (var action in actions) action.Title.Should().Contain("Sample.Infra.QA.QAContext, Sample.Infra.QA.QAReadContext");
+    }
+
+    [Fact]
+    public async Task Unknown_Other_Context_Discovery_Should_Not_Silently_Change_Its_Model()
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace, """
+            namespace Sample.Infra.Other;
+            public class OtherContext : DRN.Framework.EntityFramework.Context.DrnContext<OtherContext>
+            {
+                public OtherContext() : base(null) { }
+                protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder builder) => Configure(builder);
+                private void Configure(Microsoft.EntityFrameworkCore.ModelBuilder builder) { }
+            }
+            """);
+        (await Actions(entity)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Hidden_Model_Method_Should_Not_Override_The_Actual_Default_Scan()
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace, contextMembers:
+            "public new void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder builder) => builder.Ignore<Sample.Domain.QA.User>();");
+        (await Actions(entity)).Should().ContainSingle();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Referencing_Context_Scanning_The_Target_Assembly_Should_Block_Unannounced_Sharing(bool externalScan)
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace);
+        var dependent = workspace.AddProject("Sample.Read.Infra", LanguageNames.CSharp)
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(entity.Project.MetadataReferences)
+            .AddProjectReference(new ProjectReference(entity.Project.Id));
+        var document = dependent.AddDocument("ReadContext.cs", $$"""
+            namespace Sample.Read.Infra.QA;
+            public class ReadContext() : DRN.Framework.EntityFramework.Context.DrnContext<ReadContext>(null)
+            {
+                {{(externalScan ? "protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder builder) => builder.ApplyConfigurationsFromAssembly(typeof(Sample.Infra.QA.QAContext).Assembly, type => type.Namespace == \"Sample.Infra.QA.Configurations\");" : "")}}
+            }
+            """, filePath: "/source/Sample.Read.Infra/QA/ReadContext.cs");
+        workspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
+        (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().HaveCount(externalScan ? 0 : 1);
+    }
+
+    [Theory]
+    [InlineData("namespace Sample.Infra.QA.Configurations.UserConfiguration { public class Detail; }")]
+    [InlineData("namespace Sample.Infra.QA { public class Configurations; }")]
+    [InlineData("namespace Sample.Infra.QA { public class configurations; }")]
+    public async Task Leaf_Namespaces_And_Namespace_Segment_Types_Should_Block_Configuration(string collision)
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace, extraSource: collision);
+        (await Actions(entity)).Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("[assembly: DRN.Conventions.Version(\"2\")]")]
+    [InlineData("[module: DRN.Conventions.Version(\"1\")]")]
+    [InlineData("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Version(\"1\")]")]
+    [InlineData("[assembly: DRN.Conventions.Version(\"1\")] class Executable { }")]
+    [InlineData("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Path(\"/source/User.cs\", LogicalPath = \"../outside.cs\")]")]
+    [InlineData("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Reference(\"Inventory\", Stage = \"Custom\")]")]
+    [InlineData("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Ownership(\"Sample.Domain.QA.User\", Subdomain = \"QA\", Kind = \"Helper\")]")]
+    [InlineData("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Context(\"Sample.Infra.QA.QAContext\", Repositories = \"../outside\")]")]
+    [InlineData("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Exception(\"DRNCV016\", SymbolTarget = \"T:Sample.Domain.QA.User\")]")]
+    public async Task Invalid_Present_Input_Should_Not_Authorize_Default_Configuration_Paths(string input)
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace);
+        var changed = entity.Project.AddAdditionalDocument("DrnConventionInputs.g.cs", input).Project.Solution;
+        workspace.TryApplyChanges(changed).Should().BeTrue();
+        (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Oversized_Input_Should_Not_Authorize_Default_Configuration_Paths(bool characters)
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace);
+        var input = characters ? new string(' ', 1_048_577) : "[assembly: DRN.Conventions.Version(\"1\")]" +
+            string.Concat(Enumerable.Repeat("[assembly: DRN.Conventions.Path(\"x\", LogicalPath = \"x\")]", 16_384));
+        var changed = entity.Project.AddAdditionalDocument("DrnConventionInputs.g.cs", input).Project.Solution;
+        workspace.TryApplyChanges(changed).Should().BeTrue();
+        (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Structurally_Valid_Exception_Should_Not_Disable_Independent_Configuration_Generation()
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace);
+        var changed = entity.Project.AddAdditionalDocument("DrnConventionInputs.g.cs", """
+            [assembly: DRN.Conventions.Version("1")]
+            [assembly: DRN.Conventions.Exception("DRNCV016", SymbolTarget = "T:Sample.Domain.QA.User",
+                Reason = "Shared legacy assembly placement", Owner = "Storage team", Review = "2099-01-01")]
+            """).Project.Solution;
+        workspace.TryApplyChanges(changed).Should().BeTrue();
+        (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().ContainSingle();
+    }
+
+    private static Document CreateDocuments(AdhocWorkspace workspace, string? extraSource = null, string contextMembers = "")
+    {
+        var project = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                "Sample.Infra", "Sample.Infra", LanguageNames.CSharp, filePath: "/source/Sample.Infra/Sample.Infra.csproj"))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
+            .AddMetadataReference(MetadataReference.CreateFromFile(typeof(DRN.Framework.EntityFramework.Context.DrnContext<>).Assembly.Location))
+            .AddMetadataReference(MetadataReference.CreateFromFile(typeof(DRN.Framework.Utils.Settings.IAppSettings).Assembly.Location));
+        var entity = project.AddDocument("User.cs", EntitySource, filePath: "/source/Sample.Infra/QA/User.cs");
+        var context = entity.Project.AddDocument("QAContext.cs", $$"""
+            namespace Sample.Infra.QA;
+            public class QAContext : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>
+            {
+                public QAContext() : base(null) { }
+                public Microsoft.EntityFrameworkCore.DbSet<Sample.Domain.QA.User> Users { get; set; }
+                {{contextMembers}}
+            }
+            """, filePath: "/source/Sample.Infra/QA/QAContext.cs");
+        var solution = context.Project.Solution;
+        if (extraSource is not null)
+            solution = context.Project.AddDocument("Existing.cs", extraSource, filePath: "/source/Sample.Infra/Other/Existing.cs").Project.Solution;
+        workspace.TryApplyChanges(solution).Should().BeTrue();
+        return workspace.CurrentSolution.GetDocument(entity.Id)!;
+    }
+
+    private static async Task<List<CodeAction>> Actions(Document entity)
+    {
+        var actions = new List<CodeAction>();
+        var text = (await entity.GetTextAsync()).ToString();
+        await new EntityConfigurationRefactoringProvider().ComputeRefactoringsAsync(new CodeRefactoringContext(entity,
+            new TextSpan(text.IndexOf("User :", StringComparison.Ordinal), 0), actions.Add, CancellationToken.None));
+        return actions;
+    }
+}

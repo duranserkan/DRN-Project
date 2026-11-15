@@ -25,6 +25,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <None Update="CONVENTIONS.md;CONVENTION-DIAGNOSTICS.md;SCAFFOLDING.md" Pack="true" PackagePath="/" />
         <None Update="README.md">
             <Pack>True</Pack>
             <PackagePath>\</PackagePath>
@@ -74,6 +75,10 @@
         <None Update="buildTransitive/DRN.Framework.SharedKernel.targets">
             <Pack>true</Pack>
             <PackagePath>buildTransitive/$(PackageId).targets</PackagePath>
+        </None>
+        <None Update="buildTransitive/Conventions/DRN.Framework.SharedKernel.Conventions.targets">
+            <Pack>true</Pack>
+            <PackagePath>buildTransitive/Conventions/DRN.Framework.SharedKernel.Conventions.targets</PackagePath>
         </None>
         <None Update="build/DRN.Framework.SharedKernel.props">
             <Pack>true</Pack>

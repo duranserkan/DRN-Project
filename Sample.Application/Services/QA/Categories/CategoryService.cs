@@ -1,7 +1,7 @@
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Sample.Domain.QA.Categories;
 
-namespace Sample.Application.Services;
+namespace Sample.Application.Services.QA.Categories;
 
 public interface ICategoryService
 {

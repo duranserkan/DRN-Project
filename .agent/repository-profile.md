@@ -75,6 +75,7 @@ dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 ## Conventions
 
 - DI/configuration: use DRN attributes. Do not manually register attribute-decorated services. Follow `overview-drn-framework` and `drn-utils`.
+- SharedKernel `CONVENTIONS.md` owns name-based roles, directional minimum-one references and Domain subdomains. Shared dependencies need no naming root or custom properties.
 - Identity: explicit `NexusAppSettings:AppId` and `AppInstanceId` in every environment; zero is valid. Use Source-Known IDs and entity metadata. DTOs derive from `Dto`, live in `*.Contract`, and expose `Guid` IDs, not entities. `drn-sharedkernel` and `drn-utils` own identity formats, time configuration, and lifecycle contracts.
 - Runtime access: prefer `[UnsafeAccessor]` when target types are known and accessible at compile time. Reserve reflection for dynamically discovered types.
 - `drn-hosting` owns typed roots, `ConfigureEndpointCollection`, and automatic Razor detection.
@@ -112,9 +113,7 @@ Use these owners for public contracts. For implementation work, discover relevan
 
 ### Documentation Sync
 
-Document public usage, behavior, configuration, and migration. Omit internals. Classify public impact first; inspect private details only to prove public behavior or documentation accuracy.
-
-When shared behavior changes, verify its owner, update affected module READMEs and framework skills, assess release-note impact, and search changed names/defaults/examples for drift. Keep browser declarations aligned with the Sample guide. Run `git diff --check`.
+Document public usage, behavior, configuration and migration. For shared changes, update owning READMEs and skills, assess release notes, and scan names/defaults/examples for drift. Align browser declarations with the Sample guide. Run `git diff --check`.
 
 ### Release Notes
 

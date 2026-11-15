@@ -5,5 +5,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj/**;bin/**</DefaultItemExcludes>
+  </PropertyGroup>
+  <PropertyGroup Condition="$(MSBuildProjectName.StartsWith('Consumer.Hosted.'))">
+    <RootNamespace>Consumer</RootNamespace>
+    <BaseIntermediateOutputPath>obj/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
+    <DefineConstants Condition="'$(DrnConventionFixtureSuppress)' == 'true'">$(DefineConstants);DRN_CONVENTION_EXCEPTION</DefineConstants>
+    <BaseIntermediateOutputPath Condition="'$(DrnConventionIntermediateLayout)' == 'Relative'">obj/convention-paths/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
+    <BaseIntermediateOutputPath Condition="'$(DrnConventionIntermediateLayout)' == 'Rooted'">$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', 'obj/convention-paths/$(MSBuildProjectName)/'))</BaseIntermediateOutputPath>
+    <BaseIntermediateOutputPath Condition="'$(DrnConventionIntermediateLayout)' == 'Parent'">../obj-convention-paths/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
   </PropertyGroup>
 </Project>

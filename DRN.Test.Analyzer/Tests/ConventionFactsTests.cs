@@ -1,0 +1,450 @@
+using DRN.Framework.SharedKernel.Analyzers.Conventions;
+using Microsoft.CodeAnalysis.Emit;
+using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
+
+namespace DRN.Test.Analyzer.Tests;
+
+public sealed class ConventionFactsTests
+{
+    [Fact]
+    public void Contradictory_Unreasoned_Ownership_Should_Report_One_Issue_For_The_Target()
+    {
+        var compilation = Compilation("""
+            namespace Sample.Infra.QA;
+            [DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomain("Other")]
+            public class Category;
+            """).WithAssemblyName("Sample.Infra");
+        var location = Location.Create("DrnConventionInputs.g.cs", new(0, 1), new(new(0, 0), new(0, 1)));
+        var facts = Facts(compilation, new ConventionInput("Ownership", "Sample.Infra.QA.Category",
+            ImmutableDictionary<string, string>.Empty.Add("Subdomain", "QA").Add("Kind", "Entity"), location));
+        var category = compilation.GetTypeByMetadataName("Sample.Infra.QA.Category")!;
+        facts.Owner(category).Should().BeNull();
+        facts.Owner(category).Should().BeNull();
+        var diagnostic = facts.Diagnostics.Should().ContainSingle().Which;
+        diagnostic.Id.Should().Be("DRNCV001");
+        diagnostic.GetMessage().Should().Contain("contradictory").And.Contain("Sample.Infra.QA.Category");
+        diagnostic.Location.Should().Be(location);
+        diagnostic.AdditionalLocations.Should().ContainSingle().Which.SourceTree.Should().Be(compilation.SyntaxTrees.Single());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Malformed_Referenced_Project_Identity_Should_Be_Reported_Once_For_Multiple_Requested_Types(bool emitted)
+    {
+        var producer = Compilation("""
+            using System.Reflection;
+            [assembly: AssemblyMetadata("DRN.Conventions.ProjectName", "Sample.Domain")]
+            [assembly: AssemblyMetadata("DRN.Conventions.ProjectName", "Other.Domain")]
+            [assembly: AssemblyMetadata("DRN.Conventions.RootNamespace", "Sample.Domain")]
+            namespace Sample.Domain.QA;
+            public class First;
+            public class Second;
+            """).WithAssemblyName("Sample.Domain");
+        var consumer = Compilation("public class Consumer;").WithAssemblyName("Sample.Infra").AddReferences(Reference(producer, emitted));
+        var facts = Facts(consumer);
+        foreach (var name in new[] { "First", "Second", "First" })
+            facts.Owner(consumer.GetTypeByMetadataName("Sample.Domain.QA." + name)!).Should().BeNull();
+        var diagnostic = facts.Diagnostics.Should().ContainSingle().Which;
+        diagnostic.Id.Should().Be("DRNCV001");
+        diagnostic.GetMessage().Should().Contain("MSBuildProjectName").And.Contain("contradictory");
+        diagnostic.Location.Should().Be(Location.None);
+    }
+
+    [Theory]
+    [InlineData("Role.Infra", "Sample.Domain.QA")]
+    [InlineData("Role.Imaginary", "Sample.Other")]
+    public void Malformed_Referenced_Role_Inventory_Should_Not_Supply_An_Owner(string key, string value)
+    {
+        var producer = Compilation($$"""
+            using System.Reflection;
+            [assembly: AssemblyMetadata("DRN.Conventions.ProjectName", "Sample.Domain")]
+            [assembly: AssemblyMetadata("DRN.Conventions.RootNamespace", "Sample.Domain")]
+            [assembly: AssemblyMetadata("DRN.Conventions.Role.Domain", "Sample.Domain")]
+            [assembly: AssemblyMetadata("DRN.Conventions.{{key}}", "{{value}}")]
+            namespace Sample.Domain.QA;
+            public class Category;
+            """).WithAssemblyName("Sample.Domain");
+        var consumer = Compilation("public class Consumer;").AddReferences(Reference(producer, true));
+        var facts = Facts(consumer);
+        facts.Owner(consumer.GetTypeByMetadataName("Sample.Domain.QA.Category")!).Should().BeNull();
+        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV001");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("[assembly: System.Reflection.AssemblyMetadata(\"DRN.Conventions.ProjectName\", null)]")]
+    public void Missing_Producer_Name_Should_Use_Assembly_Identity_But_Explicit_Null_Should_Be_Rejected(string projectName)
+    {
+        var producer = Compilation(projectName + """
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Sample.Domain")]
+            namespace Sample.Domain.QA;
+            public class Category;
+            """).WithAssemblyName("Sample.Domain");
+        var consumer = Compilation("public class Consumer;").AddReferences(Reference(producer, true));
+        var facts = Facts(consumer);
+        var type = consumer.GetTypeByMetadataName("Sample.Domain.QA.Category")!;
+        if (projectName.Length == 0)
+        {
+            facts.Owner(type)!.Subdomain.Should().Be("QA");
+            facts.Diagnostics.Should().BeEmpty();
+            return;
+        }
+        facts.Owner(type).Should().BeNull();
+        facts.Owner(type).Should().BeNull();
+        var diagnostic = facts.Diagnostics.Should().ContainSingle().Which;
+        diagnostic.Id.Should().Be("DRNCV001");
+        diagnostic.GetMessage().Should().Contain("reference-visible project identity");
+    }
+
+    [Fact]
+    public void Assembly_Metadata_Lookalike_Should_Not_Export_Project_Identity()
+    {
+        var producer = Compilation("""
+            [assembly: Local.AssemblyMetadata("DRN.Conventions.ProjectName", "Sample.Domain")]
+            [assembly: Local.AssemblyMetadata("DRN.Conventions.RootNamespace", "Sample.Domain")]
+            namespace Local
+            {
+                [System.AttributeUsage(System.AttributeTargets.Assembly, AllowMultiple = true)]
+                public class AssemblyMetadataAttribute(string key, string value) : System.Attribute;
+            }
+            namespace Sample.Domain.QA { public class Category; }
+            """).WithAssemblyName("External.Library");
+        var consumer = Compilation("public class Consumer;").AddReferences(Reference(producer, true));
+        var facts = Facts(consumer);
+        facts.Owner(consumer.GetTypeByMetadataName("Sample.Domain.QA.Category")!).Should().BeNull();
+        facts.Diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Repeated_Malformed_Producer_Key_Should_Report_Once_Without_Invalidating_Independent_Ownership()
+    {
+        var producer = Compilation("""
+            using System.Reflection;
+            [assembly: AssemblyMetadata("DRN.Conventions.ProjectName", "Sample.Domain")]
+            [assembly: AssemblyMetadata("DRN.Conventions.RootNamespace", "Sample.Domain")]
+            [assembly: AssemblyMetadata("DRN.Conventions.Ownership.Broken", "QA")]
+            [assembly: AssemblyMetadata("DRN.Conventions.Ownership.Broken", "QA")]
+            namespace Sample.Domain.QA;
+            public class Category;
+            """).WithAssemblyName("Sample.Domain");
+        var consumer = Compilation("public class Consumer;").AddReferences(Reference(producer, true));
+        var facts = Facts(consumer);
+        var category = consumer.GetTypeByMetadataName("Sample.Domain.QA.Category")!;
+        facts.Owner(category)!.Subdomain.Should().Be("QA");
+        facts.Owner(category)!.Subdomain.Should().Be("QA");
+        var diagnostic = facts.Diagnostics.Should().ContainSingle().Which;
+        diagnostic.Id.Should().Be("DRNCV001");
+        diagnostic.GetMessage().Should().Contain("Ownership.Broken").And.Contain("malformed");
+    }
+
+    [Theory]
+    [InlineData("QA", "", false)]
+    [InlineData("Other", "", true)]
+    [InlineData("Other", "External technical owner is explicitly mapped.", false)]
+    public void Referenced_Ownership_Should_Require_Reason_Only_For_An_Exception(string owner, string reason, bool invalid)
+    {
+        var producer = Compilation($$"""
+            using System.Reflection;
+            using DRN.Framework.SharedKernel.Attributes;
+            [assembly: AssemblyMetadata("DRN.Conventions.ProjectName", "Sample.Domain")]
+            [assembly: AssemblyMetadata("DRN.Conventions.RootNamespace", "Sample.Domain")]
+            namespace Sample.Domain.QA;
+            [SourceKnownSubdomain({{SymbolDisplay.FormatLiteral(owner, true)}}, Reason = {{SymbolDisplay.FormatLiteral(reason, true)}})]
+            public class Category;
+            """).WithAssemblyName("Sample.Domain");
+        producer.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        using var stream = new MemoryStream();
+        var emission = producer.Emit(stream, options: new EmitOptions(metadataOnly: true, includePrivateMembers: false));
+        emission.Success.Should().BeTrue(string.Join(Environment.NewLine, emission.Diagnostics));
+        var consumer = Compilation("namespace Sample.Infra.QA; public class Consumer;").WithAssemblyName("Sample.Infra")
+            .AddReferences(MetadataReference.CreateFromImage(stream.ToArray()));
+        var facts = Facts(consumer);
+        var category = consumer.GetTypeByMetadataName("Sample.Domain.QA.Category")!;
+        var result = facts.Owner(category);
+        facts.HasInvalidOwner(category).Should().Be(invalid);
+        if (invalid)
+        {
+            result.Should().BeNull();
+            facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV001");
+        }
+        else
+        {
+            result!.Subdomain.Should().Be(owner);
+            result.AssemblyName.Should().Be("Sample.Domain");
+            facts.Diagnostics.Should().BeEmpty();
+        }
+    }
+
+    [Fact]
+    public void Logical_Path_Overlap_Should_Not_Be_Hidden_By_An_Intervening_Punctuation_Prefix()
+    {
+        var compilation = Compilation("""
+            namespace Sample.Split.First { public class First; }
+            namespace Sample.Split.Middle { public class Middle; }
+            namespace Sample.Split.Child { public class Child; }
+            """);
+        var facts = Facts(compilation,
+            Role("Domain", "Sample.Split.First", "A"),
+            Role("Contract", "Sample.Split.Middle", "A-"),
+            Role("Infra", "Sample.Split.Child", "A/B"));
+        facts.Role(compilation.GetTypeByMetadataName("Sample.Split.First.First")!).Role.Should().BeEmpty();
+        facts.Role(compilation.GetTypeByMetadataName("Sample.Split.Child.Child")!).Role.Should().BeEmpty();
+        facts.Role(compilation.GetTypeByMetadataName("Sample.Split.Middle.Middle")!).Role.Should().Be("Contract");
+        facts.Diagnostics.Should().HaveCount(2).And.OnlyContain(diagnostic => diagnostic.Id == "DRNCV001");
+        facts.Diagnostics.Select(diagnostic => diagnostic.GetMessage()).Should().BeEquivalentTo(
+            "Convention input 'Role:Domain' is overlapping another role mapping; declare one valid set of nonoverlapping namespace and logical-path prefixes.",
+            "Convention input 'Role:Infra' is overlapping another role mapping; declare one valid set of nonoverlapping namespace and logical-path prefixes.");
+    }
+
+    [Fact]
+    public void Invalid_Logical_Input_Should_Not_Expose_Physical_Paths_In_The_Message()
+    {
+        var location = Location.Create("DrnConventionInputs.g.cs", new(0, 1), new(new(0, 0), new(0, 1)));
+        var facts = Facts(Compilation("public class Consumer;"), new ConventionInput("Path", "/private/producer.cs",
+            ImmutableDictionary<string, string>.Empty.Add("LogicalPath", "/private/invalid.cs"), location));
+        var diagnostic = facts.Diagnostics.Should().ContainSingle().Which;
+        diagnostic.Id.Should().Be("DRNCV001");
+        diagnostic.GetMessage().Should().Contain("Path:Compile/Link").And.NotContain("/private/");
+        diagnostic.GetMessage().Should().Be("Convention input 'Path:Compile/Link' is declared with an invalid logical path; declare one valid project-relative Compile or Link path.");
+        diagnostic.Location.Should().Be(location);
+    }
+
+    [Fact]
+    public void Unknown_Input_Fields_Should_Have_A_Grammatical_Diagnostic()
+    {
+        var facts = Facts(Compilation("public class Consumer;"), new ConventionInput("Context", "Consumer",
+            ImmutableDictionary<string, string>.Empty.Add("Unsupported", "value"), Location.None));
+        facts.Diagnostics.Should().ContainSingle().Which.GetMessage().Should().Be(
+            "Convention input 'Context:Consumer' is declared with unknown fields; declare one valid record using documented fields for Context.");
+    }
+
+    [Fact]
+    public void Referenced_Source_Attributes_Should_Not_Report_Foreign_Syntax_Locations()
+    {
+        var producer = Compilation("""
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Sample.Domain")]
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Sample.Domain")]
+            namespace Sample.Domain.QA;
+            [DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomain("Other")]
+            public class Category;
+            """).WithAssemblyName("Sample.Domain");
+        var consumer = Compilation("public class Consumer;").WithAssemblyName("Sample.Infra")
+            .AddReferences(producer.ToMetadataReference());
+        var facts = Facts(consumer);
+        var category = consumer.GetTypeByMetadataName("Sample.Domain.QA.Category")!;
+        facts.Owner(category).Should().BeNull();
+        facts.Location(category).Should().Be(Location.None);
+        facts.Diagnostics.Should().ContainSingle().Which.Location.Should().Be(Location.None);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Producer_Project_Ownership_And_Classification_Should_Survive_Source_And_Emitted_References(bool emitted)
+    {
+        var producer = Compilation("""
+            using System.Reflection;
+            [assembly: AssemblyMetadata("DRN.Conventions.ProjectName", "Sample.Domain")]
+            [assembly: AssemblyMetadata("DRN.Conventions.RootNamespace", "Sample.Domain")]
+            [assembly: AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.Legacy.Account.Subdomain", "Identity")]
+            [assembly: AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.Legacy.Account.Reason", "Preserve the published account namespace.")]
+            [assembly: AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.Legacy.Account.Kind", "Entity")]
+            [assembly: AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.Shared.Money.Subdomain", "Shared")]
+            [assembly: AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.Shared.Money.Reason", "")]
+            [assembly: AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.Shared.Money.Kind", "Value")]
+            namespace Sample.Domain.Legacy { public class Account; }
+            namespace Sample.Domain.Shared { public class Money; }
+            """).WithAssemblyName("Sample.Domain");
+        var consumer = Compilation("public class Consumer;").WithAssemblyName("Sample.Infra").AddReferences(Reference(producer, emitted));
+        var facts = Facts(consumer);
+        var account = consumer.GetTypeByMetadataName("Sample.Domain.Legacy.Account")!;
+        var money = consumer.GetTypeByMetadataName("Sample.Domain.Shared.Money")!;
+        facts.IsEntity(account).Should().BeTrue();
+        facts.Owner(account)!.Subdomain.Should().Be("Identity");
+        facts.Owner(account)!.AssemblyName.Should().Be("Sample.Domain");
+        facts.IsNeutralValue(money).Should().BeTrue();
+        facts.IsEntity(money).Should().BeFalse();
+        facts.Diagnostics.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Producer_Context_Owner_Should_Survive_Reference_Boundaries(bool emitted)
+    {
+        var framework = MetadataReference.CreateFromFile(typeof(Framework.EntityFramework.Context.DrnContext<>).Assembly.Location);
+        var utils = MetadataReference.CreateFromFile(typeof(Framework.Utils.Entity.IEntityUtils).Assembly.Location);
+        var producer = Compilation("""
+            using System.Reflection;
+            [assembly: AssemblyMetadata("DRN.Conventions.ProjectName", "Sample.Infra")]
+            [assembly: AssemblyMetadata("DRN.Conventions.RootNamespace", "Sample.Infra")]
+            [assembly: AssemblyMetadata("DRN.Conventions.Context.Sample.Infra.Legacy.AccountContext.Subdomain", "Identity")]
+            [assembly: AssemblyMetadata("DRN.Conventions.Context.Sample.Infra.Legacy.AccountContext.Reason", "Preserve storage and context identity.")]
+            namespace Sample.Infra.Legacy;
+            public class AccountContext() : DRN.Framework.EntityFramework.Context.DrnContext<AccountContext>(null);
+            """).WithAssemblyName("Sample.Infra").AddReferences(framework, utils);
+        var consumer = Compilation("public class Consumer;").WithAssemblyName("Sample.Hosted")
+            .AddReferences(framework, utils, Reference(producer, emitted));
+        var facts = Facts(consumer);
+        var context = consumer.GetTypeByMetadataName("Sample.Infra.Legacy.AccountContext")!;
+        facts.Owner(context)!.Subdomain.Should().Be("Identity");
+        facts.Owner(context)!.Role.Should().Be("Infra");
+        facts.Diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void A_Consumer_Context_Item_Should_Not_Redefine_A_Referenced_Conventional_Owner()
+    {
+        var framework = MetadataReference.CreateFromFile(typeof(Framework.EntityFramework.Context.DrnContext<>).Assembly.Location);
+        var utils = MetadataReference.CreateFromFile(typeof(Framework.Utils.Entity.IEntityUtils).Assembly.Location);
+        var producer = Compilation("""
+            using System.Reflection;
+            [assembly: AssemblyMetadata("DRN.Conventions.ProjectName", "Sample.Infra")]
+            [assembly: AssemblyMetadata("DRN.Conventions.RootNamespace", "Sample.Infra")]
+            namespace Sample.Infra.QA;
+            public class QAContext() : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>(null);
+            """).WithAssemblyName("Sample.Infra").AddReferences(framework, utils);
+        var consumer = Compilation("public class Consumer;").WithAssemblyName("Sample.Hosted")
+            .AddReferences(framework, utils, Reference(producer, true));
+        var input = new ConventionInput("Context", "Sample.Infra.QA.QAContext",
+            ImmutableDictionary<string, string>.Empty.Add("Subdomain", "Billing").Add("Reason", "Attempted consumer context alias."), Location.None);
+        var facts = Facts(consumer, input);
+        facts.Owner(consumer.GetTypeByMetadataName("Sample.Infra.QA.QAContext")!).Should().BeNull();
+        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV001");
+    }
+
+    [Theory]
+    [InlineData("Subdomain", "Other")]
+    [InlineData("Kind", "Value")]
+    public void Contradictory_Producer_Metadata_Should_Be_Reported_Once_And_Not_Used(string field, string value)
+    {
+        var producer = Compilation($$"""
+            using System.Reflection;
+            [assembly: AssemblyMetadata("DRN.Conventions.ProjectName", "Sample.Domain")]
+            [assembly: AssemblyMetadata("DRN.Conventions.RootNamespace", "Sample.Domain")]
+            [assembly: AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.QA.User.Subdomain", "QA")]
+            [assembly: AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.QA.User.Kind", "Entity")]
+            [assembly: AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.QA.User.{{field}}", "{{value}}")]
+            namespace Sample.Domain.QA;
+            public class User;
+            """).WithAssemblyName("Sample.Domain");
+        var consumer = Compilation("public class Consumer;").WithAssemblyName("Sample.Infra").AddReferences(Reference(producer, false));
+        var facts = Facts(consumer);
+        var user = consumer.GetTypeByMetadataName("Sample.Domain.QA.User")!;
+        facts.IsEntity(user).Should().BeFalse();
+        facts.Owner(user).Should().BeNull();
+        facts.IsNeutralValue(user).Should().BeFalse();
+        facts.Owner(user).Should().BeNull();
+        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV001");
+    }
+
+    [Theory]
+    [InlineData("Identity", "Entity", false)]
+    [InlineData("Billing", "Entity", true)]
+    [InlineData("Identity", "Value", true)]
+    public void Consumer_Inputs_Should_Not_Redefine_The_Producer_Owner_Or_Entity_Kind(string owner, string kind, bool invalid)
+    {
+        var producer = Compilation("""
+            using System.Reflection;
+            [assembly: AssemblyMetadata("DRN.Conventions.ProjectName", "Sample.Domain")]
+            [assembly: AssemblyMetadata("DRN.Conventions.RootNamespace", "Sample.Domain")]
+            [assembly: AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.Legacy.Account.Subdomain", "Identity")]
+            [assembly: AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.Legacy.Account.Reason", "Compatibility namespace.")]
+            [assembly: AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.Legacy.Account.Kind", "Entity")]
+            namespace Sample.Domain.Legacy;
+            public class Account;
+            """).WithAssemblyName("Sample.Domain");
+        var consumer = Compilation("public class Consumer;").WithAssemblyName("Sample.Infra").AddReferences(Reference(producer, true));
+        var input = new ConventionInput("Ownership", "Sample.Domain.Legacy.Account",
+            ImmutableDictionary<string, string>.Empty.Add("Subdomain", owner).Add("Kind", kind).Add("Reason", "Explicit local declaration."), Location.None);
+        var facts = Facts(consumer, input);
+        var account = consumer.GetTypeByMetadataName("Sample.Domain.Legacy.Account")!;
+        var resolved = facts.Owner(account);
+        if (invalid)
+        {
+            resolved.Should().BeNull();
+            facts.IsNeutralValue(account).Should().BeFalse();
+            facts.Diagnostics.Should().NotBeEmpty().And.OnlyContain(diagnostic => diagnostic.Id == "DRNCV001");
+        }
+        else
+        {
+            resolved!.Subdomain.Should().Be("Identity");
+            facts.IsEntity(account).Should().BeTrue();
+            facts.Diagnostics.Should().BeEmpty();
+        }
+    }
+
+    [Fact]
+    public void An_Unclassified_Assembly_Should_Not_Acquire_The_Consumers_Application_Root()
+    {
+        var producer = Compilation("""
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.External.User.Subdomain", "Identity")]
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.External.User.Kind", "Entity")]
+            namespace External;
+            public class User;
+            """).WithAssemblyName("External");
+        var consumer = Compilation("public class Consumer;").WithAssemblyName("Sample.Infra").AddReferences(Reference(producer, true));
+        var facts = Facts(consumer);
+        var user = consumer.GetTypeByMetadataName("External.User")!;
+        facts.IsEntity(user).Should().BeFalse();
+        facts.Owner(user).Should().BeNull();
+        facts.Diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Another_Assembly_Should_Not_Export_A_New_Owner_For_A_Referenced_Type()
+    {
+        var producer = Compilation("""
+            using System.Reflection;
+            [assembly: AssemblyMetadata("DRN.Conventions.ProjectName", "Sample.Domain")]
+            [assembly: AssemblyMetadata("DRN.Conventions.RootNamespace", "Sample.Domain")]
+            [assembly: AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.QA.User.Subdomain", "QA")]
+            [assembly: AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.QA.User.Kind", "Entity")]
+            namespace Sample.Domain.QA;
+            public class User;
+            """).WithAssemblyName("Sample.Domain");
+        var ownerReference = Reference(producer, true);
+        var other = Compilation("""
+            using System.Reflection;
+            [assembly: AssemblyMetadata("DRN.Conventions.ProjectName", "Sample.Infra")]
+            [assembly: AssemblyMetadata("DRN.Conventions.RootNamespace", "Sample.Infra")]
+            [assembly: AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.QA.User.Subdomain", "Billing")]
+            [assembly: AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.QA.User.Reason", "Attempted imported-owner replacement.")]
+            [assembly: AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.QA.User.Kind", "Value")]
+            public class Marker;
+            """).WithAssemblyName("Sample.Infra").AddReferences(ownerReference);
+        var consumer = Compilation("public class Consumer;").WithAssemblyName("Sample.Hosted")
+            .AddReferences(ownerReference, Reference(other, true));
+        var facts = Facts(consumer);
+        var user = consumer.GetTypeByMetadataName("Sample.Domain.QA.User")!;
+        facts.IsEntity(user).Should().BeTrue();
+        facts.IsNeutralValue(user).Should().BeFalse();
+        facts.Owner(user)!.Subdomain.Should().Be("QA");
+        facts.Diagnostics.Should().BeEmpty();
+    }
+
+    private static MetadataReference Reference(CSharpCompilation producer, bool emitted)
+    {
+        producer.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        if (!emitted) return producer.ToMetadataReference();
+        using var stream = new MemoryStream();
+        var result = producer.Emit(stream, options: new EmitOptions(metadataOnly: true, includePrivateMembers: false));
+        result.Success.Should().BeTrue(string.Join(Environment.NewLine, result.Diagnostics));
+        return MetadataReference.CreateFromImage(stream.ToArray());
+    }
+
+    private static ConventionInput Role(string role, string ns, string path) => new("Role", role,
+        ImmutableDictionary<string, string>.Empty.Add("NamespacePrefix", ns).Add("LogicalPathPrefix", path), Location.None);
+
+    private static ConventionFacts Facts(CSharpCompilation compilation, params ConventionInput[] inputs) =>
+        new(compilation, new(true, "Sample.Infra", "Infra", "Sample.Infra", compilation.AssemblyName!, []),
+            new([.. inputs], []), new Options(), CancellationToken.None);
+
+    private sealed class Options : AnalyzerConfigOptionsProvider
+    {
+        public override AnalyzerConfigOptions GlobalOptions { get; } = new ConventionInputTests.Config(new());
+        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => GlobalOptions;
+        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => GlobalOptions;
+    }
+}

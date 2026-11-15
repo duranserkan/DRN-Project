@@ -23,6 +23,8 @@
 - **Shared extensions** - Casing and safe path helpers for lower-layer packages
 - **Source Known IDs** - Internal `long` keys and external `Guid` identifiers with type and partition validation
 
+[SourceKnown development conventions](CONVENTIONS.md) infer roles from project-name tokens without custom properties or an application-root identity. Rules apply progressively: Hosted requires at least one direct Application and Infra reference, Infra requires Domain with corresponding subdomains, and Domain requires Contract. Shared dependencies and multiple references are valid regardless of naming prefix. SharedKernel is a foundation role. These warnings are separate from existing identity, classification and authorization rules. See the [diagnostic reference](CONVENTION-DIAGNOSTICS.md) for exact messages and standard exception channels, and [editable assistance](SCAFFOLDING.md) for guarded refactorings and review plans. The guides describe supported evidence and static-analysis limits.
+
 ## Table of Contents
 
 - [QuickStart: Beginner](#quickstart-beginner)

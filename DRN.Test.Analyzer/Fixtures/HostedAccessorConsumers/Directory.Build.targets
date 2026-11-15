@@ -1,11 +1,49 @@
 <Project>
   <!-- This is the common-root import documented for external source consumers. -->
   <Import Project="$(DrnSourceRoot)/DRN.Framework.Hosting/buildTransitive/DRN.Framework.Hosting.targets"
-          Condition="'$(MSBuildProjectName)' == 'ExternalSource' and '$(DrnSourceRoot)' != ''" />
+          Condition="('$(MSBuildProjectName)' == 'ExternalSource' or '$(MSBuildProjectName)' == 'Consumer.Hosted.ExternalSource') and '$(DrnSourceRoot)' != ''" />
+  <Import Project="$(DrnSourceRoot)/DRN.Framework.SharedKernel/buildTransitive/DRN.Framework.SharedKernel.targets"
+          Condition="('$(MSBuildProjectName)' == 'ExternalSource' or '$(MSBuildProjectName)' == 'Consumer.Hosted.ExternalSource') and '$(DrnSourceRoot)' != ''" />
+  <PropertyGroup Condition="$(MSBuildProjectName.StartsWith('Consumer.Hosted.'))">
+    <_FixtureProbeLink>QA/ConventionProbe.cs</_FixtureProbeLink>
+    <_FixtureProbeLink Condition="'$(DrnConventionLinkCase)' == 'Traversal'">../QA/ConventionProbe.cs</_FixtureProbeLink>
+    <_FixtureProbeLink Condition="'$(DrnConventionLinkCase)' == 'Rooted'">$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', 'QA/ConventionProbe.cs'))</_FixtureProbeLink>
+  </PropertyGroup>
+  <ItemGroup Condition="$(MSBuildProjectName.StartsWith('Consumer.Hosted.'))">
+    <Compile Include="$(MSBuildThisFileDirectory)Shared/ConventionProbe.cs" Link="$(_FixtureProbeLink)" />
+    <Compile Remove="PathProbe.cs" />
+    <Compile Include="PathProbe.cs" Condition="'$(DrnConventionPhysicalLayout)' == '' or '$(DrnConventionPhysicalLayout)' == 'Relative'" />
+    <Compile Include="$(MSBuildProjectDirectory)/PathProbe.cs" Condition="'$(DrnConventionPhysicalLayout)' == 'Rooted'" />
+    <Compile Include="../$([System.IO.Path]::GetFileName('$(MSBuildProjectDirectory)'))/PathProbe.cs" Condition="'$(DrnConventionPhysicalLayout)' == 'Parent'" />
+  </ItemGroup>
+  <Target Name="CaptureConventionCompileInputs" BeforeTargets="_PrepareDrnConventionInputs"
+          Condition="$(MSBuildProjectName.StartsWith('Consumer.Hosted.'))">
+    <ItemGroup>
+      <_FixtureOriginalCompile Include="@(Compile)" />
+    </ItemGroup>
+  </Target>
+  <Target Name="ValidateConventionLogicalPaths" AfterTargets="_PrepareDrnConventionInputs"
+          Condition="$(MSBuildProjectName.StartsWith('Consumer.Hosted.'))">
+    <ItemGroup>
+      <_FixturePathProbe Include="@(_DrnConventionInput)" Condition="'%(_DrnConventionInput.Identity)' == 'DRN.Conventions.Path' and '%(_DrnConventionInput.LogicalPath)' == 'PathProbe.cs'" />
+      <_FixtureLinkedProbe Include="@(_DrnConventionInput)" Condition="'%(_DrnConventionInput.Identity)' == 'DRN.Conventions.Path' and '%(_DrnConventionInput.LogicalPath)' == '$(_FixtureProbeLink)'" />
+      <_FixtureGeneratedPath Include="@(_DrnConventionCompile)"
+                             Condition="'%(_DrnConventionCompile.Link)' == '' and $([System.String]::Copy('%(_DrnConventionCompile.FullPath)').StartsWith('$(_DrnConventionIntermediateDirectory)', System.StringComparison.$(_DrnConventionPathComparison)))" />
+      <_FixtureGeneratedCompile Include="@(Compile)"
+                                Condition="$([System.String]::Copy('%(Compile.FullPath)').StartsWith('$(_DrnConventionIntermediateDirectory)', System.StringComparison.$(_DrnConventionPathComparison)))" />
+      <_FixtureMissingCompile Include="@(_FixtureOriginalCompile)" />
+      <_FixtureMissingCompile Remove="@(Compile)" />
+    </ItemGroup>
+    <Error Condition="'@(_FixturePathProbe->Count())' != '1'" Text="In-project source must have one normalized project-relative Path record." />
+    <Error Condition="'@(_FixtureLinkedProbe->Count())' != '1'" Text="Handwritten linked source must retain its explicit logical path." />
+    <Error Condition="'@(_FixtureGeneratedPath)' != ''" Text="Intermediate generated source must not contribute logical-path records." />
+    <Error Condition="'@(_FixtureGeneratedCompile)' == ''" Text="Generated sources must remain in Compile for semantic analysis." />
+    <Error Condition="'@(_FixtureMissingCompile)' != ''" Text="Logical-path filtering must not remove any original Compile item." />
+  </Target>
   <Target Name="ValidateConsumerFixtureInputs" BeforeTargets="CollectPackageReferences;PrepareForBuild">
-    <Error Condition="('$(MSBuildProjectName)' == 'DirectPackage' or '$(MSBuildProjectName)' == 'PackageBridge') and '$(DrnHostingPackageVersion)' == ''"
+    <Error Condition="('$(MSBuildProjectName)' == 'DirectPackage' or '$(MSBuildProjectName)' == 'Consumer.Hosted.DirectPackage' or '$(MSBuildProjectName)' == 'PackageBridge') and '$(DrnHostingPackageVersion)' == ''"
            Text="Set DrnHostingPackageVersion to the version of the locally produced Hosting package under test." />
-    <Error Condition="('$(MSBuildProjectName)' == 'ExternalSource' or '$(MSBuildProjectName)' == 'SourceBridge') and '$(DrnSourceRoot)' == ''"
+    <Error Condition="('$(MSBuildProjectName)' == 'ExternalSource' or '$(MSBuildProjectName)' == 'Consumer.Hosted.ExternalSource' or '$(MSBuildProjectName)' == 'SourceBridge') and '$(DrnSourceRoot)' == ''"
            Text="Set DrnSourceRoot to the absolute DRN source repository path." />
   </Target>
 </Project>

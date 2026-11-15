@@ -11,5 +11,8 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.12.0" PrivateAssets="all" />
+    <Compile Include="../DRN.Framework.SharedKernel.Analyzers/Conventions/ConventionInputLimits.cs" Link="Conventions/ConventionInputLimits.cs" />
+    <Compile Include="../DRN.Framework.SharedKernel.Analyzers/Conventions/ConventionInputSyntax.cs" Link="Conventions/ConventionInputSyntax.cs" />
+    <Compile Include="../DRN.Framework.SharedKernel.Analyzers/Conventions/ConventionNames.cs" Link="Conventions/ConventionNames.cs" />
   </ItemGroup>
 </Project>

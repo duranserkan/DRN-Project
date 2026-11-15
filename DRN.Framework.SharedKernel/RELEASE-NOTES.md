@@ -8,6 +8,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
+*   **Application conventions**: Project-name role tokens now enable DRNCV warnings without custom properties or an application-root identity. Hosted requires at least one direct Application and Infra project reference, Infra requires Domain with corresponding populated subdomains, and Domain requires Contract. Multiple references and shared dependencies are valid regardless of naming prefix. Every reference must obey the allowed direction. SharedKernel is a foundation role. These warnings can fail warnings-as-errors builds. Standard diagnostic severity settings and narrow suppressions govern intentional exceptions. Identity, classification and authorization rules remain independent.
+
 *   **Target framework**: Runtime applications require .NET 11. Analyzer and code-fix assemblies target .NET 10 for IDE compiler-host compatibility and require compatible Roslyn 5.12 APIs.
 
 *   **Source-Known Controller Policies**: DRN0026 requires explicit nonblank named policies on exposed SourceKnown controller actions, declared on the controller or action. Bare `[Authorize]`, roles alone and anonymous access do not satisfy the rule. Register policies with ASP.NET Core and retain resource-specific checks in application code. `[NonAction]` disables an endpoint and exempts it; hiding API documentation does not.
@@ -23,6 +25,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 *   **Logging Boundary Enforcement**: DRN0022 reports sensitive ILogger placeholders, scope dictionary keys, and direct classified-property captures, including inherited properties implementing classified interfaces on the receiver type. Remove or redact affected values before logging. Standard ILogger does not apply DRN runtime redaction.
 
 ### New Features
+
+*   **SourceKnown development conventions**: Added bounded ownership, placement, context, persistence, composition and architectural diagnostics, plus reference-visible ownership metadata. Concrete application EF contexts must implement `IDrnContext`, with inherited implementations and narrow justified exceptions supported. Observed attribute-scan paths check eligible ordinary services and repositories without explicit registration demands. Ordinary MVC controllers and Razor Pages remain supported. Editor actions offer a guarded options constructor, additive entity configuration, selected scoped repository pairs, combined repository/configuration creation, DTO projections and explicit repository-operation forwarding services. Aggregate/context and controller actions create review plans only, pending project-system and business/security decisions. Attribute-only mapping remains valid without a warning. See the convention guide for supported evidence, exceptions and analysis limits.
 
 *   **Source-Known Services**: Added `ISourceKnownService<TEntity>` with a read-only `Repository` property of type `ISourceKnownRepository<TEntity>` for `AggregateRoot` entities. The abstract `SourceKnownService<TEntity>` base class implements this contract with a constructor-supplied repository.
 

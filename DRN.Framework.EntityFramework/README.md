@@ -16,6 +16,8 @@
 
 SharedKernel classification analyzers apply transitively to public readable model properties. Classify application model properties with the SharedKernel diagnostic attributes where required.
 
+[SourceKnown conventions](../DRN.Framework.SharedKernel/CONVENTIONS.md) require concrete application-owned EF contexts to implement `IDrnContext`, directly or through inheritance. See [DRNCV020](../DRN.Framework.SharedKernel/CONVENTION-DIAGNOSTICS.md#drncv020-implement-the-application-persistence-context-contract) for specialized-context exceptions and validation limits. `SourceKnownPersistenceAttribute` describes context membership for analysis without changing the EF model. Attribute-only mapping and multiple contexts per entity remain supported. See [editable assistance](../DRN.Framework.SharedKernel/SCAFFOLDING.md) for optional scaffolding.
+
 ## Features
 
 - `DrnContext<TContext>` provides attribute-based registration, model conventions, and design-time migration support.

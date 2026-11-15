@@ -1,7 +1,7 @@
 ---
 name: drn-entityframework
 description: "Configure DRN PostgreSQL contexts, identity tracking, migrations, prototype safety, repositories and cancellation."
-last-updated: 2026-11-13
+last-updated: 2026-11-15
 difficulty: advanced
 ---
 
@@ -11,7 +11,9 @@ Read the installed `DRN.Framework.EntityFramework` package README for connection
 
 ## DrnContext Pattern
 
-Derive the context from `DrnContext<TContext>`. Provide the options constructor and parameterless constructor for migrations. Register via attribute scanning. Use the context type name for its connection-string key. Put entity configurations in the same assembly, in the context namespace or a child namespace.
+Use `DrnContext<TContext>` for the standard DRN runtime pattern. Provide the options constructor and parameterless constructor for migrations. Register via attribute scanning. Use the context type name for its connection-string key. Put entity configurations in the same assembly, in the context namespace or a child namespace.
+
+Application conventions require concrete application-owned EF contexts to implement `IDrnContext`, directly or through inheritance. Use a narrow justified DRNCV020 exception for specialized contexts. The interface alone does not establish provider, model or lifecycle correctness. Consult SharedKernel's installed `CONVENTIONS.md` for architecture rules and exceptions.
 
 ```csharp
 public class OrdersContext : DrnContext<OrdersContext>
@@ -65,6 +67,8 @@ Prototype recreation drops the database. Allow it only in Development with all o
 Staging can opt into migrations through `AutoMigrateStaging`. Production never auto-migrates. Neither environment permits prototype recreation.
 
 ## Entity Configuration
+
+`SourceKnownPersistenceAttribute` is descriptive convention evidence only. It does not include or exclude an entity in the EF model. Attribute-only mapping needs no configuration class or suppression. The additive configuration refactoring declines uncertain discovery and collisions. Multiple contexts can share one subdomain. Keep cross-owner suppression separate from membership, and preserve context names and storage identity. Consult SharedKernel's installed convention guide for current tooling limits. Namespace normalization still requires model/snapshot compatibility evidence.
 
 Prefer attributes for ordinary mappings. Use Fluent API for complex relationships. Configure the relationship before navigation options such as `AutoInclude()`. [EF Core ordering example](https://github.com/dotnet/efcore/issues/31380)
 

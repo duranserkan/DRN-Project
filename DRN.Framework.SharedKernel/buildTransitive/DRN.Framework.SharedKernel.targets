@@ -1,4 +1,5 @@
 <Project>
+  <Import Project="$(MSBuildThisFileDirectory)Conventions/DRN.Framework.SharedKernel.Conventions.targets" />
   <PropertyGroup>
     <_DrnRuleTargetsFile>$(MSBuildThisFileFullPath)</_DrnRuleTargetsFile>
   </PropertyGroup>

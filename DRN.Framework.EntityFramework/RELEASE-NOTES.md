@@ -10,6 +10,12 @@ Targets .NET 11.
 
 SharedKernel classification analyzers apply transitively. Review application model properties and add required classification annotations when upgrading.
 
+SharedKernel application conventions infer roles from project-name tokens without custom properties or an application-root identity. Infra requires at least one direct Domain reference and populated subdomains matching its concrete contexts and repositories. Subdomain evidence is collected across referenced Domain projects. Multiple Domain references and shared Infra are valid regardless of naming prefix. Concrete EF contexts must implement `IDrnContext` or carry a narrow justified exception. New warnings can fail warnings-as-errors builds. Standard diagnostic severity settings remain available independently of classification and identity rules.
+
+### New Features
+
+*   **Convention persistence metadata**: `SourceKnownPersistenceAttribute` records context/entity inclusion or exclusion for application convention analysis. It does not change the EF model or waive cross-subdomain reuse diagnostics. Attribute-only mapping and multiple contexts per subdomain remain supported.
+
 ## Version 0.10.0
 
 ### Breaking Changes

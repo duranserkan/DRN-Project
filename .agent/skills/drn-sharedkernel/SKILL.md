@@ -1,7 +1,7 @@
 ---
 name: drn-sharedkernel
 description: "DRN domain primitives, Source-Known identity and time, repository contracts, pagination, exceptions, and classification analyzers."
-last-updated: 2026-11-14
+last-updated: 2026-11-15
 difficulty: intermediate
 ---
 
@@ -47,6 +47,8 @@ Use the semantic `ExceptionFor` factories. A custom semantic subclass inherits i
 Use `JsonConventions.DefaultOptions` for framework serialization, including Web defaults, string enums and longs, camelCase, trailing commas and maximum depth 32. Use `GetPathWithinDirectory()` for manifests, uploads, and file serving to reject parent and symlink traversal. The [Utils skill](../drn-utils/SKILL.md) covers application data roots.
 
 ## Attributes
+
+The installed package's `CONVENTIONS.md` owns application roles, dependencies, ownership and diagnostic exceptions. `SCAFFOLDING.md` describes supported editor actions and their limits. Consult these guides before adopting conventions or applying generated artifacts. Convention warnings remain independent of identity, classification and authorization diagnostics.
 
 Analyzer/code-fix assemblies target net10.0 independently of net11.0 applications. The package README owns compiler-host requirements and reload guidance. Keep packaged DLL paths aligned with tooling targets.
 
