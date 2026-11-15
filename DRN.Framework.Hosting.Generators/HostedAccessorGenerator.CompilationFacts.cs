@@ -21,7 +21,7 @@ public sealed partial class HostedAccessorGenerator
         private readonly Dictionary<ITypeSymbol, List<string>> _endpointCollections = new(SymbolEqualityComparer.Default);
         private readonly SymbolFactCache<INamedTypeSymbol, ImmutableArray<IMethodSymbol>>? _actions;
 
-        public CompilationFacts(Compilation compilation, CancellationToken cancellation, bool reuseActions)
+        public CompilationFacts(Compilation compilation, bool reuseActions, CancellationToken cancellation)
         {
             _compilation = compilation;
             _cancellation = cancellation;

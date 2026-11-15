@@ -106,7 +106,7 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
             cancellation.ThrowIfCancellationRequested();
             try
             {
-                facts ??= new CompilationFacts(compilation, cancellation, reuseActions: hosts.Length > 1);
+                facts ??= new CompilationFacts(compilation, reuseActions: hosts.Length > 1, cancellation);
                 new AccessorModelBuilder(compilation, facts, program, orderedPages, generatedSources, cancellation).Prepare();
             }
             catch (AccessorException exception)

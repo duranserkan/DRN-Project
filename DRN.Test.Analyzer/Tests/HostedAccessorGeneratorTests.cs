@@ -8,6 +8,13 @@ namespace DRN.Test.Analyzer.Tests;
 
 public class HostedAccessorGeneratorTests
 {
+    private static readonly string[] ExpectedProbeActions =
+    [
+        "AcceptedAction", "CustomMethodsAction", "CustomRouteAction", "CustomVerbAction", "DeleteAction", "GetAction", "HeadAction",
+        "InheritedAction", "InterfaceAction", "MultipleRoutesAction", "NamedActionAsync", "OptionsAction",
+        "OverriddenAction", "PatchAction", "PostAction", "PutAction", "RouteAction", "UndocumentedAction"
+    ];
+
     private const string ProgramSource = """
         public class TestProgram : DRN.Framework.Hosting.DrnProgram.DrnProgramBase<TestProgram>, DRN.Framework.Hosting.DrnProgram.IDrnProgram
         {
@@ -786,12 +793,7 @@ public class HostedAccessorGeneratorTests
         var result = Generate(source);
 
         result.Diagnostics.Should().BeEmpty();
-        Members(Generated(result, "ProbeFor.g.cs")).Should().Equal(new[]
-        {
-            "AcceptedAction", "CustomMethodsAction", "CustomRouteAction", "CustomVerbAction", "DeleteAction", "GetAction", "HeadAction",
-            "InheritedAction", "InterfaceAction", "MultipleRoutesAction", "NamedActionAsync", "OptionsAction",
-            "OverriddenAction", "PatchAction", "PostAction", "PutAction", "RouteAction", "UndocumentedAction"
-        }.Order(StringComparer.Ordinal));
+        Members(Generated(result, "ProbeFor.g.cs")).Should().Equal(ExpectedProbeActions.Order(StringComparer.Ordinal));
         Members(Generated(result, "ConventionalFor.g.cs")).Should().Equal("ConventionalAction");
         Generated(result, "ProbeFor.g.cs").Should().Contain("EndpointAction(\"NamedActionAsync\")")
             .And.NotContain("EndpointAction(\"Renamed\")");

@@ -174,7 +174,7 @@ internal static class EntityAnalyzerHelper
         if (IsEffectivelyPrivate(typeSymbol))
             return;
 
-        if (typeSymbol is { TypeKind: TypeKind.Class, IsAbstract: false } && DerivesFrom(typeSymbol, sourceKnownEntitySymbol))
+        if (typeSymbol is { TypeKind: TypeKind.Class, IsAbstract: false } && DerivesFrom(typeSymbol, sourceKnownEntitySymbol, cancellationToken))
             collectedEntities.Add(typeSymbol);
 
         foreach (var nestedType in typeSymbol.GetTypeMembers())

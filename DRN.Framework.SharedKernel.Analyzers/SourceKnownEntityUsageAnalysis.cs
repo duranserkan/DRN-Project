@@ -78,23 +78,23 @@ internal sealed class SourceKnownEntityUsageAnalysis
 
     private ImmutableArray<INamedTypeSymbol> FindRepositoryBindings(INamedTypeSymbol type, CancellationToken cancellation)
     {
-        ImmutableArray<INamedTypeSymbol>.Builder? bindings = null;
         HashSet<ISymbol>? reported = null;
-        Check(type);
-        for (var current = type.BaseType; current != null; current = current.BaseType) Check(current);
-        foreach (var implemented in type.AllInterfaces) Check(implemented);
+        var bindings = Check(type, null);
+        for (var current = type.BaseType; current != null; current = current.BaseType) bindings = Check(current, bindings);
+        foreach (var implemented in type.AllInterfaces) bindings = Check(implemented, bindings);
         return bindings?.ToImmutable() ?? [];
 
-        void Check(INamedTypeSymbol binding)
+        ImmutableArray<INamedTypeSymbol>.Builder? Check(INamedTypeSymbol binding, ImmutableArray<INamedTypeSymbol>.Builder? collected)
         {
             cancellation.ThrowIfCancellationRequested();
             var index = RepositoryEntityIndex(binding);
             if (index < 0 || binding.TypeArguments[index] is not INamedTypeSymbol { IsAbstract: true } entity ||
-                !_entityFacts.IsEntity(entity, cancellation)) return;
+                !_entityFacts.IsEntity(entity, cancellation)) return collected;
             reported ??= new(SymbolEqualityComparer.Default);
-            if (!reported.Add(entity)) return;
-            bindings ??= ImmutableArray.CreateBuilder<INamedTypeSymbol>();
-            bindings.Add(binding);
+            if (!reported.Add(entity)) return collected;
+            collected ??= ImmutableArray.CreateBuilder<INamedTypeSymbol>();
+            collected.Add(binding);
+            return collected;
         }
     }
 
