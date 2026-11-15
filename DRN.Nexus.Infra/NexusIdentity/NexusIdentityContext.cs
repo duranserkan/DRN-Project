@@ -1,10 +1,11 @@
 using DRN.Framework.EntityFramework.Context.Identity;
-using DRN.Nexus.Domain.User;
+using DRN.Nexus.Domain.NexusIdentity;
 using Microsoft.EntityFrameworkCore;
 
-namespace DRN.Nexus.Infra.Identity;
+namespace DRN.Nexus.Infra.NexusIdentity;
 
 //https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity-api-authorization
+[NexusIdentityContextNpgsqlDbContextOptions]
 public class NexusIdentityContext : DrnContextIdentity<NexusIdentityContext, NexusUser>
 {
     public NexusIdentityContext(DbContextOptions<NexusIdentityContext> options) : base(options)
@@ -14,4 +15,5 @@ public class NexusIdentityContext : DrnContextIdentity<NexusIdentityContext, Nex
     public NexusIdentityContext() : base(null)
     {
     }
+
 }
