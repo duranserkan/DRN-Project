@@ -21,6 +21,64 @@ public sealed class ConventionPersistenceTests
         """;
 
     [Fact]
+    public void Drn_DbSets_Should_Expose_Only_Aggregate_Roots()
+    {
+        var facts = Analyze(Imports + """
+            public class Child : SourceKnownEntity;
+            public class Plain;
+            public class DerivedCategory : Category;
+            public class QAContext() : DrnContext<QAContext>(null)
+            {
+                public DbSet<Category> Categories => Set<Category>();
+                public DbSet<DerivedCategory> Derived => Set<DerivedCategory>();
+                public DbSet<Child> Children => Set<Child>();
+                public DbSet<Plain> Rows => Set<Plain>();
+            }
+            """);
+        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNCV023").ToArray();
+        diagnostics.Should().HaveCount(2);
+        diagnostics.Select(item => item.Properties["Entity"]).Should().BeEquivalentTo(
+            "Sample.Infra.QA.Child", "Sample.Infra.QA.Plain");
+        diagnostics.Should().OnlyContain(item => item.Severity == DiagnosticSeverity.Warning);
+        diagnostics.Select(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan))
+            .Should().BeEquivalentTo("Children", "Rows");
+    }
+
+    [Fact]
+    public void Inherited_Generic_DbSets_Should_Be_Checked_After_Substitution()
+    {
+        var facts = Analyze(Imports + """
+            public class Child : SourceKnownEntity;
+            public abstract class ContextBase<TContext, TEntity>() : DrnContext<TContext>(null)
+                where TContext : DrnContext<TContext>, new() where TEntity : class
+            {
+                public DbSet<TEntity> Entities => Set<TEntity>();
+            }
+            public class QAContext : ContextBase<QAContext, Child>;
+            public class DerivedContext : QAContext;
+            public class ReadContext : ContextBase<ReadContext, Category>;
+            """);
+        var diagnostic = facts.Diagnostics.Where(item => item.Id == "DRNCV023").Should().ContainSingle().Which;
+        diagnostic.Properties["Entity"].Should().Be("Sample.Infra.QA.Child");
+        diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan).Should().Be("Entities");
+    }
+
+    [Fact]
+    public void Non_Drn_Contexts_And_Static_Or_Lookalike_Sets_Should_Not_Trigger_Aggregate_Rule()
+    {
+        Analyze(Imports + """
+            public class Child : SourceKnownEntity;
+            public class OtherContext : DbContext { public DbSet<Child> Children => Set<Child>(); }
+            public class FakeSet<T>;
+            public class QAContext() : DrnContext<QAContext>(null)
+            {
+                public static DbSet<Child> Shared => null!;
+                public FakeSet<Child> Lookalike => new();
+            }
+            """).Diagnostics.Should().NotContain(item => item.Id == "DRNCV023");
+    }
+
+    [Fact]
     public void Explicit_Contradiction_Should_Report_The_Context_And_Exact_Pair()
     {
         var facts = Analyze(Imports + """
@@ -95,7 +153,7 @@ public sealed class ConventionPersistenceTests
                 public DbSet<Parent> Parents { get; set; } = null!;
                 public DbSet<ReadRow> Rows { get; set; } = null!;
             }
-            """).Diagnostics.Should().BeEmpty();
+            """).Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV023");
     }
 
     [Fact]
@@ -262,10 +320,38 @@ public sealed class ConventionPersistenceTests
     }
 
     [Theory]
-    [InlineData("DbSet")]
-    [InlineData("Membership")]
-    [InlineData("Repository")]
-    public void Unique_Positive_Membership_Should_Associate_An_Ordinary_Configuration_In_A_Sibling_Area(string evidence)
+    [InlineData("base.OnModelCreating(model);", true)]
+    [InlineData("model.Ignore<Category>();", false)]
+    public void Shared_Model_Override_Chains_Should_Preserve_Default_Scan_Behavior(string body, bool defaultScan)
+    {
+        var facts = Analyze(Imports + $$"""
+            public class QAContext() : DrnContext<QAContext>(null)
+            {
+                protected override void OnModelCreating(ModelBuilder model) { {{body}} }
+            }
+            public class FirstContext : QAContext
+            {
+                protected override void OnModelCreating(ModelBuilder model) => base.OnModelCreating(model);
+            }
+            public class SecondContext : QAContext
+            {
+                protected override void OnModelCreating(ModelBuilder model) => base.OnModelCreating(model);
+            }
+            """);
+        foreach (var name in new[] { "QAContext", "FirstContext", "SecondContext" })
+        {
+            var context = facts.Compilation.GetTypeByMetadataName("Sample.Infra.QA." + name)!;
+            ConventionPersistenceAnalysis.GetModel(facts, context).DefaultScan.Should().Be(defaultScan);
+        }
+    }
+
+    [Theory]
+    [InlineData("DbSet", "")]
+    [InlineData("Membership", "")]
+    [InlineData("Repository", "")]
+    [InlineData("DbSet", "protected override void OnModelCreating(ModelBuilder model) { base.OnModelCreating(model); }")]
+    [InlineData("DbSet", "protected override void OnModelCreating(ModelBuilder model) => base.OnModelCreating(model);")]
+    public void Unique_Positive_Membership_Should_Associate_An_Ordinary_Configuration_In_A_Sibling_Area(string evidence, string modelOverride)
     {
         var membership = evidence == "Membership" ? "[SourceKnownPersistence(typeof(Category))]" : "";
         var dbSet = evidence == "DbSet" ? "public DbSet<Category> Categories => Set<Category>();" : "";
@@ -286,7 +372,7 @@ public sealed class ConventionPersistenceTests
             namespace Sample.Infra.QA.Write
             {
                 {{membership}}
-                public class WriteContext() : DrnContext<WriteContext>(null) { {{dbSet}} }
+                public class WriteContext() : DrnContext<WriteContext>(null) { {{dbSet}} {{modelOverride}} }
                 {{repository}}
             }
             namespace Sample.Infra.QA.Configurations
@@ -311,7 +397,7 @@ public sealed class ConventionPersistenceTests
             using Microsoft.EntityFrameworkCore;
             using Microsoft.EntityFrameworkCore.Metadata.Builders;
             using DRN.Framework.EntityFramework.Context;
-            namespace Sample.Infra.QA { public class Category { public int Id { get; set; } } }
+            namespace Sample.Infra.QA { public class Category : DRN.Framework.SharedKernel.Domain.AggregateRoot; }
             namespace Sample.Infra.QA.Read
             {
                 public class ReadContext() : DrnContext<ReadContext>(null)
@@ -349,9 +435,13 @@ public sealed class ConventionPersistenceTests
                 }
             }
             """);
-        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV009").Should().Be(invalidReadConfiguration ? 1 : 0);
+        facts.Diagnostics.Should().HaveCount(invalidReadConfiguration ? 1 : 0);
         if (invalidReadConfiguration)
-            facts.Diagnostics.Single().Properties["Context"].Should().Be("Sample.Infra.QA.Read.ReadContext");
+        {
+            var diagnostic = facts.Diagnostics.Single();
+            diagnostic.Id.Should().Be("DRNCV009");
+            diagnostic.Properties["Context"].Should().Be("Sample.Infra.QA.Read.ReadContext");
+        }
     }
 
     [Fact]
@@ -668,7 +758,20 @@ public sealed class ConventionPersistenceTests
             {
                 protected override void BuildModel(Microsoft.EntityFrameworkCore.ModelBuilder builder) { }
             }
-            """, "QASnapshot.cs").WithAssemblyName("Sample.Migrations").AddReferences(framework, utils, reference);
+            """, "QASnapshot.cs").WithAssemblyName("Sample.Migrations").AddReferences(framework, utils, reference)
+            .AddSyntaxTrees(CSharpSyntaxTree.ParseText("""
+                using Microsoft.Extensions.DependencyInjection;
+                using DRN.Framework.Utils.DependencyInjection;
+                namespace Sample.Migrations;
+                public static class MigrationsModule
+                {
+                    public static IServiceCollection AddMigrationsServices(this IServiceCollection services)
+                    {
+                        services.AddServicesWithAttributes();
+                        return services;
+                    }
+                }
+                """, path: "MigrationsModule.cs"));
         consumer.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
         var expectedAssembly = wrongAssembly ? "Sample.OtherMigrations" : "Sample.Migrations";
         var fixture = ConventionTestDependencies.WithRequiredLayers(consumer, "Infra");
@@ -688,7 +791,8 @@ public sealed class ConventionPersistenceTests
         diagnostic.GetMessage().Should().Be("Migration artifact 'QASnapshot' identifies context 'QAContext' inconsistently with declared destination 'Sample.OtherMigrations:QA/Migrations'.");
         diagnostic.Location.Kind.Should().Be(LocationKind.ExternalFile);
         diagnostic.Properties["Context"].Should().Be("Sample.Infra.QA.QAContext");
-        diagnostic.AdditionalLocations.Should().OnlyContain(location => location.SourceTree == consumer.SyntaxTrees.Single());
+        var snapshotTree = consumer.SyntaxTrees.Single(tree => tree.FilePath == "QASnapshot.cs");
+        diagnostic.AdditionalLocations.Should().OnlyContain(location => location.SourceTree == snapshotTree);
     }
 
     [Theory]

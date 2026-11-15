@@ -86,12 +86,12 @@ internal sealed partial class ConventionFacts
                 Diagnostics.Add(ConventionProject.InputIssue("assembly ownership", "malformed", "reasoned exact external type owner", location));
                 continue;
             }
-            if (_externalOwners.TryGetValue(external, out var previous) && previous.ConstructorArguments[1].Value as string != owner)
+            if (_externalOwners.TryGetValue(external.OriginalDefinition, out var previous) && previous.ConstructorArguments[1].Value as string != owner)
             {
                 InvalidOwner(external, ConventionSymbols.MetadataName(external), "contradictory external ownership", location);
                 continue;
             }
-            _externalOwners[external] = attribute;
+            _externalOwners[external.OriginalDefinition] = attribute;
         }
     }
 

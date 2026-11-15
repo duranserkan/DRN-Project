@@ -26,10 +26,13 @@ internal sealed class ConventionSymbols(Compilation compilation)
     internal INamedTypeSymbol? ServiceContract { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.ISourceKnownService`1");
     internal INamedTypeSymbol? Dto { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.Dto");
     internal INamedTypeSymbol? Controller { get; } = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.ControllerBase");
+    internal INamedTypeSymbol? SourceKnownController { get; } = compilation.GetTypeByMetadataName("DRN.Framework.Hosting.Controllers.SourceKnownControllerBase`2");
     internal INamedTypeSymbol? PageModel { get; } = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.RazorPages.PageModel");
     internal INamedTypeSymbol? OwnershipAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomainAttribute");
     internal INamedTypeSymbol? PersistenceAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.EntityFramework.Attributes.SourceKnownPersistenceAttribute");
     internal INamedTypeSymbol? LifetimeAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.Utils.DependencyInjection.Attributes.LifetimeAttribute");
+    internal INamedTypeSymbol? HostedServiceAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.Utils.DependencyInjection.Attributes.HostedServiceAttribute");
+    internal INamedTypeSymbol? HostedService { get; } = compilation.GetTypeByMetadataName("Microsoft.Extensions.Hosting.IHostedService");
     internal INamedTypeSymbol? GenericLifetimeAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.Utils.DependencyInjection.Attributes.LifetimeAttribute`1");
     internal INamedTypeSymbol? KeyedLifetimeAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.Utils.DependencyInjection.Attributes.LifetimeWithKeyAttribute`1");
     internal INamedTypeSymbol? RegistrationAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.Utils.DependencyInjection.Attributes.ServiceRegistrationAttribute");
@@ -43,6 +46,7 @@ internal sealed class ConventionSymbols(Compilation compilation)
     internal INamedTypeSymbol? SuppressionAttribute { get; } = compilation.GetTypeByMetadataName("System.Diagnostics.CodeAnalysis.SuppressMessageAttribute");
     internal INamedTypeSymbol? AttributeUsage { get; } = compilation.GetTypeByMetadataName("System.AttributeUsageAttribute");
     internal INamedTypeSymbol? ConfigAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.Utils.DependencyInjection.Attributes.ConfigAttribute");
+    internal INamedTypeSymbol? ContextOptionsAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.EntityFramework.Attributes.NpgsqlDbContextOptionsAttribute");
 
     internal bool IsEntity(INamedTypeSymbol type, CancellationToken cancellation) =>
         IsKnown(type, Entity, cancellation) || IsKnown(type, IdentityUser, cancellation);
@@ -54,11 +58,11 @@ internal sealed class ConventionSymbols(Compilation compilation)
         IsKnown(type, Controller, cancellation) || IsKnown(type, PageModel, cancellation);
 
     internal bool IsPersistenceType(INamedTypeSymbol type, CancellationToken cancellation) =>
-        IsEntity(type, cancellation) || IsContext(type, cancellation) ||
+        IsEntity(type, cancellation) || IsContext(type, cancellation) || IsKnown(type, DbSet, cancellation) ||
         IsKnown(type, RepositoryContract, cancellation) || IsKnown(type, Configuration, cancellation) ||
         IsKnown(type, ModelBuilder, cancellation) || IsKnown(type, EntityBuilder, cancellation) || IsKnown(type, GenericEntityBuilder, cancellation);
 
-    private bool IsKnown(INamedTypeSymbol type, INamedTypeSymbol? target, CancellationToken cancellation)
+    internal bool IsKnown(INamedTypeSymbol type, INamedTypeSymbol? target, CancellationToken cancellation)
     {
         cancellation.ThrowIfCancellationRequested();
         if (target is null) return false;

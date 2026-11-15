@@ -46,10 +46,14 @@ File `Shop.Infra/Sales/SalesContext.cs`:
 
 ```csharp
 using DRN.Framework.EntityFramework.Context;
+using DRN.Framework.EntityFramework.Attributes;
 using Microsoft.EntityFrameworkCore;
 
 namespace Shop.Infra.Sales;
 
+public class SalesContextNpgsqlDbContextOptionsAttribute : NpgsqlDbContextOptionsAttribute;
+
+[SalesContextNpgsqlDbContextOptions]
 public class SalesContext : DrnContext<SalesContext>
 {
     public SalesContext() : base(null) { }
@@ -58,9 +62,9 @@ public class SalesContext : DrnContext<SalesContext>
 }
 ```
 
-The existing DRN base supplies its normal convention/default path. It is an example, not a mandatory base class. Enabled application conventions require concrete application contexts to implement `IDrnContext`, including inherited implementations. The interface alone is not proof of runtime safeguards. No redundant options attribute is required. A custom options hook is a separate requested customization with actual selected values.
+The existing DRN base supplies its normal convention/default path. It is an example, not a mandatory base class. Enabled application conventions require concrete application contexts to implement `IDrnContext`, including inherited implementations. The interface alone is not proof of runtime safeguards. Concrete DRN contexts must directly apply a custom options attribute. Prefer a name such as `SalesContextNpgsqlDbContextOptionsAttribute`. Add configuration overrides only for actual selected values.
 
-Preview this project edit with the source file:
+The conventional `Sales/Repositories` and `Sales/Migrations` destinations need no project entry. An explicit declaration remains supported when needed to resolve ambiguity:
 
 ```xml
 <ItemGroup>
@@ -70,11 +74,11 @@ Preview this project edit with the source file:
 </ItemGroup>
 ```
 
-Project-name tokens supply roles without custom properties or an application-root identity. Reuse existing context items instead of duplicating them. Infra must directly reference at least one Domain project. The referenced Domain projects collectively supply populated subdomain namespaces matching concrete Infra contexts and repositories. Repositories and Migrations are tracked destinations. Do not create fake files to retain empty directories. EF tooling remains the only owner of generated migrations. A context in `Sales.Read` can use `Sales/Read/Repositories` and `Sales/Read/Migrations`. Same-owner read/write membership is valid, but runtime read-only behavior is not inferred.
+Project-name tokens supply roles without custom properties or an application-root identity. Reuse existing context items instead of duplicating them. Infra must directly reference at least one Domain project. The referenced Domain projects collectively supply populated subdomain namespaces matching concrete Infra contexts and repositories. Alternate destinations require explicit metadata and a Reason. Do not create fake files to retain empty directories. EF tooling remains the only owner of generated migrations. A context in `Sales.Read` can use `Sales/Read/Repositories` and `Sales/Read/Migrations`. Same-owner read/write membership is valid, but runtime read-only behavior is not inferred.
 
 ## Optional entity configuration
 
-The user must select the existing entity and target context. This example assumes `Shop.Domain.Sales.Orders.Order` already exists and its mapping is attribute-based. File `Shop.Infra/Sales/Configurations/OrderConfiguration.cs`:
+The user must select the existing entity and target context. This example assumes `Shop.Domain.Sales.Orders.Order` already exists and its mapping is attribute-based. File `Shop.Infra/Sales/Configurations/OrderConfig.cs`:
 
 ```csharp
 using Microsoft.EntityFrameworkCore;
@@ -83,7 +87,7 @@ using Shop.Domain.Sales.Orders;
 
 namespace Shop.Infra.Sales.Configurations;
 
-public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
+public sealed class OrderConfig : IEntityTypeConfiguration<Order>
 {
     public void Configure(EntityTypeBuilder<Order> builder)
     {
@@ -95,18 +99,22 @@ The deliberately empty body is the explicitly requested editable configuration s
 
 Confirm the selected context's real discovery path before adding this file. The action recognizes DRN's exact/child default scan, exact base forwarding, and straight-line local-assembly scans using a constant namespace equality predicate. For supported shared scans, the title names every affected context and all must have positive membership evidence. Unknown local or dependent-project discovery prevents the offer. Arbitrary predicates, external scans and custom destinations still need separate review. The lightbulb is a refactoring on valid code, with no fabricated missing-configuration warning.
 
+Contexts in the global namespace are not configuration-generation candidates.
+
 An intended association can be declared explicitly:
 
 ```xml
-<DrnConventionConfiguration Include="Shop.Infra.Sales.Configurations.OrderConfiguration"
+<DrnConventionConfiguration Include="Shop.Infra.Sales.Configurations.OrderConfig"
                             Context="Shop.Infra.Sales.SalesContext" />
 ```
 
 ## Optional repository
 
-On an existing Domain aggregate, the Add scoped repository pair action offers each eligible Infra context separately through the existing project-reference graph. It previews the Domain interface and Infra implementation together. The Infra project must already reference the selected Domain project, include the entity, and declare the conventional Repositories destination. Naming prefixes do not have to match. Existing repository bindings, conflicting ownership, unsafe destinations or unsupported discovery prevent the offer. It adds no project reference or destination metadata. The selected action requests scoped registration and names both files in its title.
+On an existing Domain aggregate, the Add scoped repository pair action offers each eligible Infra context separately through the existing project-reference graph. It previews the Domain interface and Infra implementation together. The Infra project must already reference the selected Domain project and include the entity. A conventional Repositories destination is inferred when the context namespace and source home agree. Explicit destinations and intentional context aliases remain validated. Naming prefixes do not have to match. Existing repository bindings, conflicting ownership, unsafe destinations or unsupported discovery prevent the offer. It adds no project reference or destination metadata. The selected action requests scoped registration and names both files in its title.
 
 Choose **Add scoped repository pair and entity configuration** to request those two files plus the optional configuration in one solution change. Its title names the selected context and all three paths. The combined action is offered only when configuration discovery identifies that same single context. A shared configuration scan needs the separate configuration action with its all-context preview. An existing mapping or configuration collision prevents the combined action while an independently valid repository pair can remain available. Cancellation or a changed workspace invalidates the entire combined action. It never applies only part of the three-file selection.
+
+Reasoned entity or context ownership overrides do not authorize generation when the new interface or implementation would inherit a different owner from its namespace.
 
 Only create a custom repository when the selected use case needs that contract. This example assumes the existing Order aggregate is included in SalesContext and the requested service type is IOrderRepository.
 
@@ -146,6 +154,8 @@ For an explicitly requested forwarding use case, select one complete method decl
 For DTO/request assistance, list each external field, its type, classification, validation owner and mapping source first. Public DTOs derive from `Dto` and expose Guid identity. Preserve CreatedAt/ModifiedAt mapping. Put public contracts in Contract and entity mapping in an allowed Domain/Application location. Do not introduce a Contract-to-Domain reference just to simplify mapping.
 
 To request the bounded DTO action, select the complete declarations of the public readable scalar properties to expose on an existing Domain entity. The action offers a loaded Contract project only when the selected Domain project already references it, regardless of naming prefix. Preview includes a Contract DTO and a Domain mapping extension. The DTO constructor forwards the source entity to Dto, preserving identity and timestamps. The mapper initializes every selected field. Nonnullable reference fields are required init properties, without invented defaults. Known classification attributes are retained. Unsupported types or classification metadata prevent the action. This does not generate a creation request, validation, endpoint or authorization behavior.
+
+Enum properties require an accessible matching enum in the Contract project. Enums nested inside generic containing types are declined.
 
 For example, only after the user selects a public `Number` field, a Contract DTO may be:
 

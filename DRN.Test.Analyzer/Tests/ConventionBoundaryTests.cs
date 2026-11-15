@@ -6,6 +6,60 @@ namespace DRN.Test.Analyzer.Tests;
 public sealed class ConventionBoundaryTests
 {
     [Theory]
+    [InlineData("Hosted", "public class Consumer : Microsoft.AspNetCore.Mvc.RazorPages.PageModel", false)]
+    [InlineData("Hosted", "public class Consumer : Microsoft.AspNetCore.Mvc.ControllerBase", false)]
+    [InlineData("Hosted", "public class Consumer : Microsoft.AspNetCore.Razor.TagHelpers.TagHelper", false)]
+    [InlineData("Hosted", "public class Consumer", false)]
+    [InlineData("Application", "public class Consumer", false)]
+    [InlineData("Infra", "public class Consumer", false)]
+    [InlineData("Infra", "public class Consumer : Microsoft.EntityFrameworkCore.DbContext", true)]
+    [InlineData("Infra", "public interface IConsumer : DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<Sample.Infra.QA.User>", true)]
+    [InlineData("Application", "public interface IConsumer : DRN.Framework.SharedKernel.Domain.ISourceKnownService<Sample.Application.QA.User>", true)]
+    [InlineData("Domain", "public class Consumer", true)]
+    [InlineData("Application", "public interface IConsumerService", true)]
+    public void Entity_Boundaries_Should_Require_An_Architectural_Role(string role, string declaration, bool scoped)
+    {
+        var member = declaration.Contains("interface", StringComparison.Ordinal)
+            ? "Sample." + role + ".QA.User Read();"
+            : "public Sample." + role + ".QA.User Read() => new();";
+        var facts = Facts($$"""
+            namespace Sample.{{role}}.QA { public class User : DRN.Framework.SharedKernel.Domain.AggregateRoot; }
+            namespace Sample.{{role}}.Billing { {{declaration}} { {{member}} } }
+            """, role);
+        ConventionBoundaryAnalysis.Analyze(facts);
+        facts.Diagnostics.Any(item => item.Id == "DRNCV019").Should().Be(scoped);
+        if (declaration.Contains("PageModel", StringComparison.Ordinal))
+        {
+            facts.Diagnostics.Should().NotContain(item => item.Id == "DRNCV014");
+            ConventionOwnershipAnalysis.Analyze(facts);
+            facts.Diagnostics.Should().NotContain(item => item.Id == "DRNCV002" || item.Id == "DRNCV003");
+        }
+    }
+
+    [Fact]
+    public void SourceKnown_Controllers_Should_Retain_Entity_Boundaries()
+    {
+        var compilation = Compilation("""
+            namespace Sample.Hosted.QA
+            {
+                public class User : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+                public class UserDto : DRN.Framework.SharedKernel.Domain.Dto;
+            }
+            namespace Sample.Hosted.Controllers.Billing
+            {
+                public class UsersController() : DRN.Framework.Hosting.Controllers.SourceKnownControllerBase<Sample.Hosted.QA.User, Sample.Hosted.QA.UserDto>(null!)
+                {
+                    protected override Sample.Hosted.QA.UserDto ToDto(Sample.Hosted.QA.User entity) => new();
+                }
+            }
+            """).AddReferences(MetadataReference.CreateFromFile(typeof(DRN.Framework.Hosting.Controllers.SourceKnownControllerBase<,>).Assembly.Location));
+        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        var facts = CreateFacts(compilation, "Hosted");
+        ConventionBoundaryAnalysis.Analyze(facts);
+        facts.Diagnostics.Should().Contain(item => item.Id == "DRNCV019");
+    }
+
+    [Theory]
     [InlineData("QA", 0)]
     [InlineData("Billing", 1)]
     public void Entity_Uses_Should_Compare_Actual_Ownership_And_Deduplicate_A_Member(string owner, int count)
@@ -29,7 +83,7 @@ public sealed class ConventionBoundaryTests
         diagnostics.Should().HaveCount(count);
         if (count == 0) return;
         diagnostics[0].GetMessage().Should().Contain("Billing").And.Contain("QA")
-            .And.Contain("owning-subdomain contract or identifier").And.Contain("concrete justification");
+            .And.Contain("Use the entity's identifier or a contract from 'QA'.");
         diagnostics[0].Location.SourceTree!.GetText().ToString(diagnostics[0].Location.SourceSpan).Should().Be("var");
         diagnostics[0].Properties["Consumer"].Should().Be("M:Sample.Domain.Billing.Reader.Read");
         diagnostics[0].AdditionalLocations.Should().NotBeEmpty();
@@ -322,6 +376,7 @@ public sealed class ConventionBoundaryTests
     [Theory]
     [InlineData("System.Collections.Generic.List<Envelope<User[]>>", true)]
     [InlineData("System.Collections.Generic.List<Envelope<System.Guid>>", false)]
+    [InlineData("Microsoft.EntityFrameworkCore.DbSet<Envelope<System.Guid>>", true)]
     public void Public_Contract_Shapes_Should_Find_Nested_Persistence_Without_Name_Heuristics(string shape, bool violation)
     {
         var facts = ContractFacts($$"""
@@ -334,7 +389,8 @@ public sealed class ConventionBoundaryTests
         diagnostics.Should().HaveCount(violation ? 1 : 0);
         if (violation)
         {
-            diagnostics[0].GetMessage().Should().Contain("Response.Payload").And.Contain("Sample.Domain.QA.User");
+            diagnostics[0].GetMessage().Should().Contain("Response.Payload").And.Contain(
+                shape.StartsWith("Microsoft.EntityFrameworkCore.DbSet", StringComparison.Ordinal) ? "DbSet" : "Sample.Domain.QA.User");
             diagnostics[0].Location.SourceTree!.GetText().ToString(diagnostics[0].Location.SourceSpan).Should().Be("Payload");
         }
     }

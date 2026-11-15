@@ -1,6 +1,7 @@
 <Project>
   <!-- Isolate package consumers from the repository's source-tree analyzer imports. -->
   <PropertyGroup>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>

@@ -9,6 +9,8 @@ internal sealed record ConventionOwner(string AssemblyName, string Subdomain, st
 internal sealed partial class ConventionFacts
 {
     private readonly Dictionary<SyntaxTree, bool> _generatedTrees = [];
+    private readonly Dictionary<INamedTypeSymbol, bool> _subdomainBoundaries = new(SymbolEqualityComparer.Default);
+    private readonly Dictionary<SyntaxTree, (string Directory, string Name)?> _directories = [];
     private readonly Dictionary<ISymbol, Location> _locations = new(SymbolEqualityComparer.Default);
     private readonly Dictionary<INamedTypeSymbol, (string Role, string Namespace, string PathPrefix)> _typeRoles = new(SymbolEqualityComparer.Default);
     private readonly Dictionary<IAssemblySymbol, ConventionProject?> _referenceProjects = new(SymbolEqualityComparer.Default);
@@ -50,6 +52,9 @@ internal sealed partial class ConventionFacts
     internal ImmutableArray<INamedTypeSymbol> Types { get; }
     internal List<Diagnostic> Diagnostics { get; } = [];
     internal List<ConventionInput> Records { get; } = [];
+    internal Dictionary<INamedTypeSymbol, ConventionPersistenceAnalysis.ContextModel> ContextModels { get; } = new(SymbolEqualityComparer.Default);
+    internal Dictionary<IMethodSymbol, bool> DefaultModelScans { get; } = new(SymbolEqualityComparer.Default);
+    internal Dictionary<INamedTypeSymbol, ConventionRegistrationAnalysis.LifetimeAnalysis> Lifetimes { get; } = new(SymbolEqualityComparer.Default);
 
     internal bool IsLocal(INamedTypeSymbol type) => SymbolEqualityComparer.Default.Equals(type.ContainingAssembly, Compilation.Assembly);
 
@@ -65,10 +70,53 @@ internal sealed partial class ConventionFacts
 
     internal bool IsEntity(INamedTypeSymbol type) => Symbols.IsEntity(type, Cancellation) || DeclaredKind(type) == "Entity";
 
+    internal bool HasSubdomainBoundary(INamedTypeSymbol type)
+    {
+        Cancellation.ThrowIfCancellationRequested();
+        if (_subdomainBoundaries.TryGetValue(type, out var cached)) return cached;
+        var result = ResolveSubdomainBoundary(type);
+        Cancellation.ThrowIfCancellationRequested();
+        _subdomainBoundaries.Add(type, result);
+        return result;
+    }
+
+    private bool ResolveSubdomainBoundary(INamedTypeSymbol type)
+    {
+        if (Symbols.IsKnown(type, Symbols.PageModel, Cancellation)) return false;
+        var role = Role(type).Role;
+        if (role == "Domain" || IsEntity(type) || Symbols.IsContext(type, Cancellation) ||
+            Symbols.IsKnown(type, Symbols.Configuration, Cancellation) ||
+            Symbols.IsKnown(type, Symbols.RepositoryContract, Cancellation) ||
+            Symbols.IsKnown(type, Symbols.ServiceContract, Cancellation) ||
+            Symbols.IsKnown(type, Symbols.SourceKnownController, Cancellation)) return true;
+        if (role is "Application" or "Infra" &&
+            (ConventionOwnershipAnalysis.HasEntityBinding(this, type) ||
+             ConventionRegistrationAnalysis.IsServiceImplementation(this, type) &&
+             Symbols.EffectiveAttributes(type, Symbols.LifetimeAttribute, Cancellation).Any())) return true;
+        return type.ContainingType is { } containing && HasSubdomainBoundary(containing);
+    }
+
     internal bool IsNeutralValue(INamedTypeSymbol type) => !Symbols.IsPersistenceType(type, Cancellation) && DeclaredKind(type) == "Value";
 
     internal string? LogicalPath(SyntaxTree tree) =>
         _paths.TryGetValue(ConventionProject.NormalizeSeparators(tree.FilePath), out var input) ? input.Get("LogicalPath") : null;
+
+    internal (string Directory, string Name)? LogicalDirectory(SyntaxTree tree)
+    {
+        Cancellation.ThrowIfCancellationRequested();
+        if (_directories.TryGetValue(tree, out var cached)) return cached;
+        (string Directory, string Name)? result = null;
+        if (LogicalPath(tree) is { } path)
+        {
+            path = ConventionProject.NormalizeSeparators(path);
+            var separator = path.LastIndexOf('/');
+            var directory = separator < 0 ? "" : path[..separator];
+            result = (directory, directory[(directory.LastIndexOf('/') + 1)..]);
+        }
+        Cancellation.ThrowIfCancellationRequested();
+        _directories.Add(tree, result);
+        return result;
+    }
 
     internal bool IsGenerated(SyntaxTree tree)
     {
@@ -125,7 +173,8 @@ internal sealed partial class ConventionFacts
             if (_invalidRoles.Any(item => ConventionProject.IsNamespaceWithin(ns, item.Get("NamespacePrefix"))))
                 return ("", "", "");
             var mapping = _roles.FirstOrDefault(item => ConventionProject.IsNamespaceWithin(ns, item.Get("NamespacePrefix")));
-            if (mapping is not null) return (mapping.Identity, mapping.Get("NamespacePrefix"), mapping.Get("LogicalPathPrefix"));
+            if (mapping is not null) return (mapping.Identity, mapping.Get("NamespacePrefix"),
+                ConventionProject.NormalizeSeparators(mapping.Get("LogicalPathPrefix")));
         }
         else
         {

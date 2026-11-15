@@ -143,7 +143,7 @@ public sealed class SourceKnownConventionAnalyzerTests
         diagnostic.Severity.Should().Be(DiagnosticSeverity.Warning);
         diagnostic.Properties["Entity"].Should().Be("Legacy.Models.Customer");
         diagnostic.Properties["Consumer"].Should().Be("M:Sample.Domain.Billing.Reader.Read");
-        diagnostic.GetMessage().Should().Be("'Sample.Domain.Billing.Reader.Read()' in subdomain 'Billing' uses entity 'Legacy.Models.Customer' owned by 'QA'. Use an owning-subdomain contract or identifier, correct misplaced ownership/code, or add a narrow DRNCV019 suppression with a concrete justification for intentional reuse.");
+        diagnostic.GetMessage().Should().Be("'Sample.Domain.Billing.Reader.Read()' in subdomain 'Billing' references entity 'Legacy.Models.Customer' from 'QA'. Use the entity's identifier or a contract from 'QA'.");
         diagnostic.Location.SourceTree.Should().Be(consumer.SyntaxTrees.Single());
         diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan).Should().Be("Legacy.Models.Customer");
     }
@@ -160,8 +160,8 @@ public sealed class SourceKnownConventionAnalyzerTests
         diagnostics.Should().NotContain(item => item.Id == "AD0001");
         diagnostics.Where(item => item.Id == "DRNCV001").Select(item => item.GetMessage()).Should().BeEquivalentTo(new[]
         {
-            "Convention input 'DrnConventionInputs.g.cs' is missing; declare one valid build-generated convention input file.",
-            "Convention input 'Sample.Domain.QA.Payload' is missing logical source placement; declare one valid Compile or Link path."
+            "Convention input 'DrnConventionInputs.g.cs' is missing. Declare one valid build-generated convention input file.",
+            "Convention input 'Sample.Domain.QA.Payload' is missing logical source placement. Declare one valid Compile or Link path."
         });
         var role = diagnostics.Where(item => item.Id == "DRNCV016").Should().ContainSingle().Which;
         role.GetMessage().Should().Be("Implementation 'Payload' (DTO) belongs to role 'Contract'.");

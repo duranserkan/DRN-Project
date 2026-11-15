@@ -40,7 +40,7 @@
 | DRNCV007 | DRN.Conventions.Context | Warning | Preserve required base model configuration |
 | DRNCV008 | DRN.Conventions.Persistence | Warning | Resolve inconsistent persistence membership |
 | DRNCV009 | DRN.Conventions.Persistence | Warning | Make declared configuration discoverable |
-| DRNCV010 | DRN.Conventions.Structure | Warning | Declare context destinations |
+| DRNCV010 | DRN.Conventions.Structure | Warning | Infer conventional context destinations and require explicit alternate or ambiguous destinations |
 | DRNCV011 | DRN.Conventions.Repository | Warning | Align repository aggregate and context |
 | DRNCV012 | DRN.Conventions.Registration | Warning | Establish effective registration for explicit demands and eligible services on observed attribute-scan paths |
 | DRNCV013 | DRN.Conventions.Application | Warning | Align service repository binding |
@@ -53,3 +53,13 @@
 | DRNCV020 | DRN.Conventions.Context | Warning | Require IDrnContext for concrete application-owned DbContext implementations |
 | DRNCV021 | DRN.Conventions.Architecture | Warning | Require direct application-layer project references |
 | DRNCV022 | DRN.Conventions.Architecture | Warning | Require populated Domain subdomains for infrastructure |
+| DRNCV023 | DRN.Conventions.Persistence | Warning | Require AggregateRoot entities for DrnContext DbSet properties |
+| DRNCV024 | DRN.Conventions.Structure | Warning | Require semantic Entity, Repository, Service, Controller and Config suffixes |
+| DRNCV025 | DRN.Conventions.Structure | Warning | Match aggregate namespace and directory to its name without Entity |
+| DRNCV026 | DRN.Conventions.Repository | Warning | Require an aggregate repository interface in the same Domain namespace and logical folder |
+| DRNCV027 | DRN.Conventions.Repository | Warning | Require Infra repository implementations for assigned aggregates |
+| DRNCV028 | DRN.Conventions.Structure | Warning | Require dedicated Repositories, Configurations and Migrations folders |
+| DRNCV029 | DRN.Conventions.Context | Warning | Require context-prefixed custom options names ending in Options |
+| DRNCV030 | DRN.Conventions.Context | Warning | Require concrete DRN contexts to directly declare a custom NpgsqlDbContextOptionsAttribute descendant |
+| DRNCV031 | DRN.Conventions.Registration | Warning | Require one lifetime attribute bound to the matching IName interface on concrete Application/Infra implementations |
+| DRNCV032 | DRN.Conventions.Registration | Warning | Require Hosted, Application, Infra and Utils project modules to scan their own assembly for attributed services |

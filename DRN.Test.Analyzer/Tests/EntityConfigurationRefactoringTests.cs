@@ -20,11 +20,11 @@ public sealed class EntityConfigurationRefactoringTests
         var entity = CreateDocuments(workspace);
         var actions = await Actions(entity);
         var action = actions.Should().ContainSingle().Which;
-        action.Title.Should().Contain("Sample.Infra.QA.QAContext").And.Contain("QA/Configurations/UserConfiguration.cs");
+        action.Title.Should().Contain("Sample.Infra.QA.QAContext").And.Contain("QA/Configurations/UserConfig.cs");
         var operations = await action.GetOperationsAsync(CancellationToken.None);
         var changed = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution;
         (await changed.GetDocument(entity.Id)!.GetTextAsync()).ToString().Should().Be(EntitySource);
-        var added = changed.GetProject(entity.Project.Id)!.Documents.Single(document => document.Name == "UserConfiguration.cs");
+        var added = changed.GetProject(entity.Project.Id)!.Documents.Single(document => document.Name == "UserConfig.cs");
         var source = (await added.GetTextAsync()).ToString();
         source.Should().Contain("namespace Sample.Infra.QA.Configurations;")
             .And.Contain("IEntityTypeConfiguration<global::Sample.Domain.QA.User>")
@@ -90,8 +90,8 @@ public sealed class EntityConfigurationRefactoringTests
     {
         using var workspace = new AdhocWorkspace();
         var entity = CreateDocuments(workspace);
-        var collision = entity.Project.AddDocument("userconfiguration.cs", "// preserved content",
-            filePath: "/source/Sample.Infra/QA/Configurations/userconfiguration.cs");
+        var collision = entity.Project.AddDocument("userconfig.cs", "// preserved content",
+            filePath: "/source/Sample.Infra/QA/Configurations/userconfig.cs");
         workspace.TryApplyChanges(collision.Project.Solution).Should().BeTrue();
         (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().BeEmpty();
     }
@@ -104,11 +104,11 @@ public sealed class EntityConfigurationRefactoringTests
         using var workspace = new AdhocWorkspace();
         var entity = CreateDocuments(workspace);
         var id = DocumentId.CreateNewId(entity.Project.Id);
-        var path = "/source/Sample.Infra/QA/Configurations/UserConfiguration.cs";
+        var path = "/source/Sample.Infra/QA/Configurations/UserConfig.cs";
         var text = SourceText.From("# Existing user content");
         var changed = analyzerConfig
-            ? entity.Project.Solution.AddAnalyzerConfigDocument(id, "UserConfiguration.cs", text, filePath: path)
-            : entity.Project.Solution.AddAdditionalDocument(id, "UserConfiguration.cs", text, filePath: path);
+            ? entity.Project.Solution.AddAnalyzerConfigDocument(id, "UserConfig.cs", text, filePath: path)
+            : entity.Project.Solution.AddAdditionalDocument(id, "UserConfig.cs", text, filePath: path);
         workspace.TryApplyChanges(changed).Should().BeTrue();
         (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().BeEmpty();
         var preserved = analyzerConfig ? workspace.CurrentSolution.GetAnalyzerConfigDocument(id) : workspace.CurrentSolution.GetAdditionalDocument(id);
@@ -120,7 +120,7 @@ public sealed class EntityConfigurationRefactoringTests
     {
         using var workspace = new AdhocWorkspace();
         var entity = CreateDocuments(workspace);
-        var collision = entity.Project.AddDocument("InMemory.cs", "namespace Sample.Infra.QA.Configurations; public class userconfiguration;");
+        var collision = entity.Project.AddDocument("InMemory.cs", "namespace Sample.Infra.QA.Configurations; public class userconfig;");
         workspace.TryApplyChanges(collision.Project.Solution).Should().BeTrue();
         (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().BeEmpty();
     }
@@ -128,7 +128,7 @@ public sealed class EntityConfigurationRefactoringTests
     [Theory]
     [InlineData("/source/Sample.Infra/QA/Configurations")]
     [InlineData("/source/Sample.Infra/QA/configurations")]
-    [InlineData("/source/Sample.Infra/QA/Configurations/UserConfiguration.cs/notes.md")]
+    [InlineData("/source/Sample.Infra/QA/Configurations/UserConfig.cs/notes.md")]
     public async Task Workspace_File_And_Directory_Conflicts_Should_Decline_Configuration(string path)
     {
         using var workspace = new AdhocWorkspace();
@@ -173,7 +173,7 @@ public sealed class EntityConfigurationRefactoringTests
         workspace.TryApplyChanges(changed.Project.Solution).Should().BeTrue();
         var operations = await action.GetOperationsAsync(CancellationToken.None);
         var result = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution;
-        result.GetProject(entity.Project.Id)!.Documents.Should().NotContain(document => document.Name == "UserConfiguration.cs");
+        result.GetProject(entity.Project.Id)!.Documents.Should().NotContain(document => document.Name == "UserConfig.cs");
         (await result.GetDocument(entity.Id)!.GetTextAsync()).ToString().Should().EndWith("// concurrent edit");
     }
 
@@ -321,7 +321,7 @@ public sealed class EntityConfigurationRefactoringTests
     }
 
     [Theory]
-    [InlineData("namespace Sample.Infra.QA.Configurations.UserConfiguration { public class Detail; }")]
+    [InlineData("namespace Sample.Infra.QA.Configurations.UserConfig { public class Detail; }")]
     [InlineData("namespace Sample.Infra.QA { public class Configurations; }")]
     [InlineData("namespace Sample.Infra.QA { public class configurations; }")]
     public async Task Leaf_Namespaces_And_Namespace_Segment_Types_Should_Block_Configuration(string collision)
@@ -377,6 +377,19 @@ public sealed class EntityConfigurationRefactoringTests
             """).Project.Solution;
         workspace.TryApplyChanges(changed).Should().BeTrue();
         (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Global_Namespace_Context_Should_Not_Offer_A_Configuration()
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace);
+        var context = entity.Project.Documents.Single(document => document.Name == "QAContext.cs");
+        var source = (await context.GetTextAsync()).ToString().Replace("namespace Sample.Infra.QA;", "", StringComparison.Ordinal);
+        workspace.TryApplyChanges(context.WithText(SourceText.From(source)).Project.Solution).Should().BeTrue();
+        entity = workspace.CurrentSolution.GetDocument(entity.Id)!;
+        (await entity.Project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        (await Actions(entity)).Should().BeEmpty();
     }
 
     private static Document CreateDocuments(AdhocWorkspace workspace, string? extraSource = null, string contextMembers = "")

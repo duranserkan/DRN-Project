@@ -197,6 +197,25 @@ public sealed class ConventionDependencyTests
     public async Task Production_Analyzer_Should_Expose_Required_Edges_And_Respect_Standard_Severity(bool suppressed)
     {
         var fixture = Create("Public.Hosted");
+        fixture = fixture with
+        {
+            Compilation = fixture.Compilation
+                .AddReferences(MetadataReference.CreateFromFile(typeof(DRN.Framework.Utils.DependencyInjection.Attributes.LifetimeAttribute).Assembly.Location))
+                .AddSyntaxTrees(CSharpSyntaxTree.ParseText("""
+                    using Microsoft.Extensions.DependencyInjection;
+                    using DRN.Framework.Utils.DependencyInjection;
+                    namespace Public.Hosted;
+                    public static class HostedModule
+                    {
+                        public static IServiceCollection AddHostedServices(this IServiceCollection services)
+                        {
+                            services.AddServicesWithAttributes();
+                            return services;
+                        }
+                    }
+                    """, path: "HostedModule.cs"))
+        };
+        fixture.Compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
         var compilation = suppressed ? ConventionTestDependencies.SuppressConventions(fixture.Compilation) : fixture.Compilation;
         var input = new ProjectDiagnosticRulesTests.RuleFile(ConventionInputs.FileName,
             "[assembly: DRN.Conventions.Version(\"1\")]\n" + ConventionTestDependencies.Serialize(fixture.Records));

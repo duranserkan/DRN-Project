@@ -1,16 +1,171 @@
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Operations;
 
 namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 
 internal static class ConventionRegistrationAnalysis
 {
-    internal static void Analyze(ConventionFacts facts)
+    internal static void AnalyzeAll(ConventionFacts facts, bool requireModule = false)
+    {
+        var implementations = ReadImplementations(facts);
+        var lifetimeFailures = AnalyzeLifetimeAttributes(facts, implementations);
+        Analyze(facts, implementations, lifetimeFailures, requireModule);
+    }
+
+    private static INamedTypeSymbol[] ReadImplementations(ConventionFacts facts)
+    {
+        facts.Cancellation.ThrowIfCancellationRequested();
+        return facts.Types.Where(type =>
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            return IsServiceImplementation(facts, type);
+        }).ToArray();
+    }
+
+    internal static void AnalyzeLifetimeAttributes(ConventionFacts facts) =>
+        AnalyzeLifetimeAttributes(facts, ReadImplementations(facts));
+
+    private static Dictionary<INamedTypeSymbol, INamedTypeSymbol>? AnalyzeLifetimeAttributes(ConventionFacts facts, INamedTypeSymbol[] implementations)
+    {
+        Dictionary<INamedTypeSymbol, INamedTypeSymbol>? failures = null;
+        foreach (var implementation in implementations)
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            INamedTypeSymbol? registeredService = null;
+            var lifetimeRead = false;
+            foreach (var service in implementation.AllInterfaces)
+            {
+                facts.Cancellation.ThrowIfCancellationRequested();
+                if (service.Name.Length != implementation.Name.Length + 1 || service.Name[0] != 'I' ||
+                    !service.Name.AsSpan(1).SequenceEqual(implementation.Name.AsSpan())) continue;
+                if (!lifetimeRead)
+                {
+                    registeredService = GetLifetime(facts, implementation).Service;
+                    lifetimeRead = true;
+                }
+                if (SymbolEqualityComparer.Default.Equals(registeredService, service)) continue;
+                var location = facts.Location(implementation);
+                if (location != Location.None)
+                {
+                    facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.LifetimeRequired, location,
+                        ImmutableDictionary<string, string?>.Empty.Add("Target", implementation.GetDocumentationCommentId()),
+                        implementation.Name, service.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
+                    (failures ??= new(SymbolEqualityComparer.Default)).Add(implementation, service);
+                }
+                break;
+            }
+        }
+        return failures;
+    }
+
+    internal readonly record struct LifetimeAnalysis(AttributeData? Attribute, INamedTypeSymbol? Service, bool Ambiguous);
+
+    internal static LifetimeAnalysis GetLifetime(ConventionFacts facts, INamedTypeSymbol implementation)
+    {
+        facts.Cancellation.ThrowIfCancellationRequested();
+        if (facts.Lifetimes.TryGetValue(implementation, out var cached)) return cached;
+        var result = ReadLifetime(facts, implementation);
+        facts.Cancellation.ThrowIfCancellationRequested();
+        facts.Lifetimes.Add(implementation, result);
+        return result;
+    }
+
+    private static LifetimeAnalysis ReadLifetime(ConventionFacts facts, INamedTypeSymbol implementation)
+    {
+        AttributeData? selected = null;
+        foreach (var attribute in implementation.GetAttributes())
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            if (attribute.AttributeClass is not { } type ||
+                !facts.Symbols.IsKnown(type, facts.Symbols.LifetimeAttribute, facts.Cancellation)) continue;
+            if (selected is not null) return new(null, null, true);
+            selected = attribute;
+        }
+        // Runtime scanning prefers direct lifetime attributes over inherited ones.
+        if (selected is null)
+            foreach (var attribute in facts.Symbols.EffectiveAttributes(implementation, facts.Symbols.LifetimeAttribute, facts.Cancellation))
+            {
+                facts.Cancellation.ThrowIfCancellationRequested();
+                if (selected is not null) return new(null, null, true);
+                selected = attribute;
+            }
+        for (var type = selected?.AttributeClass; type is not null; type = type.BaseType)
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            if ((ConventionSymbols.Same(type, facts.Symbols.GenericLifetimeAttribute) ||
+                 ConventionSymbols.Same(type, facts.Symbols.KeyedLifetimeAttribute)) &&
+                type.TypeArguments is [INamedTypeSymbol service]) return new(selected, service, false);
+        }
+        return new(selected, selected is null ? null : ReadCustomService(facts, selected), false);
+    }
+
+    private static INamedTypeSymbol? ReadCustomService(ConventionFacts facts, AttributeData attribute)
+    {
+        var constructor = attribute.AttributeConstructor;
+        if (constructor is null) return null;
+        var values = new Dictionary<IParameterSymbol, INamedTypeSymbol?>(SymbolEqualityComparer.Default);
+        for (var i = 0; i < constructor.Parameters.Length && i < attribute.ConstructorArguments.Length; i++)
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            values[constructor.Parameters[i]] = attribute.ConstructorArguments[i].Value as INamedTypeSymbol;
+        }
+
+        // Bound malformed constructor cycles and keep arbitrary expressions outside the proof.
+        for (var depth = 0; depth < 32; depth++)
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            if (ConventionSymbols.Same(constructor.ContainingType, facts.Symbols.LifetimeAttribute))
+            {
+                foreach (var parameter in constructor.Parameters)
+                    if (parameter.Name == "serviceType") return values.GetValueOrDefault(parameter);
+                return null;
+            }
+            if (constructor.DeclaringSyntaxReferences is not [var reference] ||
+                !facts.Compilation.ContainsSyntaxTree(reference.SyntaxTree)) return null;
+            var syntax = reference.GetSyntax(facts.Cancellation);
+            SyntaxNode? initializer = syntax is ConstructorDeclarationSyntax declaration ? declaration.Initializer :
+                syntax is TypeDeclarationSyntax type ? type.BaseList?.Types.OfType<PrimaryConstructorBaseTypeSyntax>().FirstOrDefault() : null;
+            if (initializer is null) return null;
+            var semantic = facts.Compilation.GetSemanticModel(reference.SyntaxTree);
+            if (semantic.GetSymbolInfo(initializer, facts.Cancellation).Symbol is not IMethodSymbol next) return null;
+            var arguments = initializer is ConstructorInitializerSyntax ordinary ? ordinary.ArgumentList.Arguments :
+                ((PrimaryConstructorBaseTypeSyntax)initializer).ArgumentList.Arguments;
+            var forwarded = new Dictionary<IParameterSymbol, INamedTypeSymbol?>(SymbolEqualityComparer.Default);
+            foreach (var argument in arguments)
+            {
+                facts.Cancellation.ThrowIfCancellationRequested();
+                if (semantic.GetOperation(argument, facts.Cancellation) is not IArgumentOperation { Parameter: { } parameter } operation)
+                    return null;
+                var value = operation.Value;
+                while (value is IConversionOperation { OperatorMethod: null } conversion)
+                {
+                    facts.Cancellation.ThrowIfCancellationRequested();
+                    value = conversion.Operand;
+                }
+                forwarded[parameter] = value switch
+                {
+                    ITypeOfOperation { TypeOperand: INamedTypeSymbol service } => service,
+                    IParameterReferenceOperation forwardedParameter => values.GetValueOrDefault(forwardedParameter.Parameter),
+                    _ => null
+                };
+            }
+            constructor = next;
+            values = forwarded;
+        }
+        return null;
+    }
+
+    internal static void Analyze(ConventionFacts facts) => Analyze(facts, ReadImplementations(facts));
+
+    private static void Analyze(ConventionFacts facts, INamedTypeSymbol[] implementations,
+        Dictionary<INamedTypeSymbol, INamedTypeSymbol>? lifetimeFailures = null, bool requireModule = false)
     {
         var demands = facts.Records.Where(input => input.Kind == "Registration").ToArray();
         var evidence = ReadComposition(facts);
-        var implementations = facts.Types.Where(type => IsServiceImplementation(facts, type)).ToArray();
+        if (requireModule && facts.Project.Role is ("Hosted" or "Application" or "Infra" or "Utils") && !evidence.ModuleScan)
+            facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.ModuleScan, Location.None, facts.Project.Name));
         var serviceImplementations = new Dictionary<INamedTypeSymbol, INamedTypeSymbol?>(SymbolEqualityComparer.Default);
         var observedServices = ReadConstructorServices(facts).Where(demand => UniqueImplementation(demand.Service) is not null).ToArray();
         var unknownModules = new Dictionary<IAssemblySymbol, bool>(SymbolEqualityComparer.Default);
@@ -85,6 +240,9 @@ internal static class ConventionRegistrationAnalysis
 
         void AnalyzeDemand(INamedTypeSymbol implementation, INamedTypeSymbol service, string? key, Location location)
         {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            if (lifetimeFailures is not null && lifetimeFailures.TryGetValue(implementation, out var failedService) &&
+                SymbolEqualityComparer.Default.Equals(failedService, service)) return;
             if (evidence.Manual.Any(item => SymbolEqualityComparer.Default.Equals(item.Service, service) &&
                     SymbolEqualityComparer.Default.Equals(item.Implementation, implementation) && (key is null || item.Key == key))) return;
             if (!evidence.Scanned.Contains(implementation.ContainingAssembly) || evidence.UnknownComposition) return;
@@ -99,7 +257,7 @@ internal static class ConventionRegistrationAnalysis
         }
     }
 
-    private static bool IsServiceImplementation(ConventionFacts facts, INamedTypeSymbol type)
+    internal static bool IsServiceImplementation(ConventionFacts facts, INamedTypeSymbol type)
     {
         if (type.TypeKind != TypeKind.Class || type.IsAbstract || type.IsStatic ||
             ConventionSymbols.IsOpen(type, facts.Cancellation) || facts.Role(type).Role is not ("Application" or "Infra") ||
@@ -161,17 +319,16 @@ internal static class ConventionRegistrationAnalysis
     {
         for (var containing = implementation; containing is not null; containing = containing.ContainingType)
             if (containing.DeclaredAccessibility != Accessibility.Public) return false;
-        var direct = implementation.GetAttributes().Where(attribute =>
-            ConventionSymbols.Is(attribute.AttributeClass, facts.Symbols.LifetimeAttribute, facts.Cancellation)).ToArray();
-        var attributes = direct.Length > 0 ? direct : facts.Symbols.EffectiveAttributes(implementation,
-            facts.Symbols.LifetimeAttribute, facts.Cancellation).ToArray();
-        if (attributes.Length == 0) return false;
-        if (attributes.Length != 1) return null;
-        var attribute = attributes[0];
+        var lifetime = GetLifetime(facts, implementation);
+        if (lifetime.Ambiguous) return null;
+        if (lifetime.Attribute is not { } attribute) return false;
         if (attribute.AttributeClass is null) return null;
-        var generic = ConventionSymbols.Bindings(attribute.AttributeClass, facts.Symbols.GenericLifetimeAttribute, facts.Cancellation)
-            .Concat(ConventionSymbols.Bindings(attribute.AttributeClass, facts.Symbols.KeyedLifetimeAttribute, facts.Cancellation)).FirstOrDefault();
-        if (generic?.TypeArguments is not [INamedTypeSymbol registered]) return null;
+        if (facts.Symbols.IsKnown(attribute.AttributeClass, facts.Symbols.HostedServiceAttribute, facts.Cancellation))
+        {
+            return facts.Symbols.IsKnown(implementation, facts.Symbols.HostedService, facts.Cancellation) &&
+                   SymbolEqualityComparer.Default.Equals(service, facts.Symbols.HostedService) && (key is null || key.Length == 0);
+        }
+        if (lifetime.Service is not { } registered) return null;
         if (!SymbolEqualityComparer.Default.Equals(registered, service)) return false;
 
         // Only framework constructors have known key semantics. Arbitrary derived attributes may transform arguments.
@@ -218,25 +375,54 @@ internal static class ConventionRegistrationAnalysis
                 if (ConventionSymbols.Same(original.ContainingType, drnExtensions) && method.Name == "AddServicesWithAttributes")
                 {
                     if (scope is not null) scanScopes.Add(scope);
-                    var arguments = invocation.ArgumentList.Arguments;
-                    var offset = method.ReducedFrom is null ? 1 : 0;
-                    if (arguments.Count == offset) evidence.Scanned.Add(facts.Compilation.Assembly);
-                    else if (arguments.Count == offset + 1 && arguments[offset].Expression is MemberAccessExpressionSyntax
-                             { Expression: TypeOfExpressionSyntax typeOf, Name.Identifier.ValueText: "Assembly" } &&
-                             semantic.GetTypeInfo(typeOf.Type, facts.Cancellation).Type is INamedTypeSymbol marker)
-                        evidence.Scanned.Add(marker.ContainingAssembly);
+                    IParameterSymbol? receiverParameter = null;
+                    IAssemblySymbol? scannedAssembly = original.Parameters.Length == 1 ? facts.Compilation.Assembly : null;
+                    if (semantic.GetOperation(invocation, facts.Cancellation) is IInvocationOperation scan)
+                    {
+                        foreach (var argument in scan.Arguments)
+                        {
+                            facts.Cancellation.ThrowIfCancellationRequested();
+                            var value = argument.Value;
+                            while (value is IConversionOperation { IsImplicit: true, OperatorMethod: null } conversion)
+                            {
+                                facts.Cancellation.ThrowIfCancellationRequested();
+                                value = conversion.Operand;
+                            }
+                            if (argument.Parameter?.Name == "sc" && value is IParameterReferenceOperation scanReceiver)
+                                receiverParameter = scanReceiver.Parameter;
+                            else if (argument.Parameter?.Name == "assembly" && value is IPropertyReferenceOperation
+                                { Property.Name: "Assembly", Instance: ITypeOfOperation { TypeOperand: INamedTypeSymbol marker } })
+                                scannedAssembly = marker.ContainingAssembly;
+                        }
+                    }
+                    if (scannedAssembly is not null) evidence.Scanned.Add(scannedAssembly);
+                    var localScan = SymbolEqualityComparer.Default.Equals(scannedAssembly, facts.Compilation.Assembly);
+                    if (localScan && !evidence.ModuleScan && scope is IMethodSymbol
+                        { MethodKind: MethodKind.Ordinary, IsStatic: true, IsGenericMethod: false,
+                            DeclaredAccessibility: Accessibility.Public, ContainingType: { IsStatic: true, IsGenericType: false,
+                                DeclaredAccessibility: Accessibility.Public, ContainingType: null } module } moduleMethod &&
+                        module.Name.EndsWith("Module", StringComparison.Ordinal) &&
+                        SymbolEqualityComparer.Default.Equals(moduleMethod.ReturnType, collection))
+                    {
+                        if (receiverParameter is not null &&
+                            SymbolEqualityComparer.Default.Equals(receiverParameter.ContainingSymbol, moduleMethod) &&
+                            SymbolEqualityComparer.Default.Equals(receiverParameter.Type, collection)) evidence.ModuleScan = true;
+                    }
                     continue;
                 }
                 if (!ConventionSymbols.Same(original.ContainingType, diExtensions) ||
                     method.Name is not ("AddScoped" or "AddTransient" or "AddSingleton" or "AddKeyedScoped" or "AddKeyedTransient" or "AddKeyedSingleton"))
                 {
-                    if (scope is not null) unknownScopes.Add(scope);
                     var receivesCollection = invocation.ArgumentList.Arguments.Any(argument =>
                         semantic.GetTypeInfo(argument.Expression, facts.Cancellation).Type is INamedTypeSymbol argumentType &&
                         ConventionSymbols.Is(argumentType, collection, facts.Cancellation));
                     var collectionReceiver = invocation.Expression is MemberAccessExpressionSyntax access &&
                         semantic.GetTypeInfo(access.Expression, facts.Cancellation).Type is INamedTypeSymbol receiver &&
                         ConventionSymbols.Is(receiver, collection, facts.Cancellation);
+                    var returnsCollection = method.ReturnType is INamedTypeSymbol returnType &&
+                        ConventionSymbols.Is(returnType, collection, facts.Cancellation);
+                    if (scope is not null && (receivesCollection || collectionReceiver || returnsCollection ||
+                        SymbolEqualityComparer.Default.Equals(method.ContainingType, scope.ContainingType))) unknownScopes.Add(scope);
                     evidence.UnknownComposition |= receivesCollection || collectionReceiver;
                     continue;
                 }
@@ -293,6 +479,7 @@ internal static class ConventionRegistrationAnalysis
 
     private sealed class Composition
     {
+        internal bool ModuleScan { get; set; }
         internal HashSet<IAssemblySymbol> Scanned { get; } = new(SymbolEqualityComparer.Default);
         internal List<ManualRegistration> Manual { get; } = [];
         internal bool UnknownComposition { get; set; }

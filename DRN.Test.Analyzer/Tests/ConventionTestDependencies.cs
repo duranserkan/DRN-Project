@@ -6,6 +6,20 @@ namespace DRN.Test.Analyzer.Tests;
 // These fixtures isolate other diagnostics while supplying the architecture's required direct layers.
 internal static class ConventionTestDependencies
 {
+    private static readonly SyntaxTree ModuleTree = CSharpSyntaxTree.ParseText("""
+        public static class ConventionFixtureModule
+        {
+            public static Microsoft.Extensions.DependencyInjection.IServiceCollection Register(
+                Microsoft.Extensions.DependencyInjection.IServiceCollection services)
+            {
+                DRN.Framework.Utils.DependencyInjection.ServiceCollectionExtensions.AddServicesWithAttributes(services);
+                return services;
+            }
+        }
+        """, path: "ConventionFixtureModule.cs");
+
+    internal static CSharpCompilation WithModule(CSharpCompilation compilation) => compilation.AddSyntaxTrees(ModuleTree);
+
     private static readonly Lazy<Layer> Application = new(() => CreateLayer("Application"));
     private static readonly Lazy<Layer> Infra = new(() => CreateLayer("Infra"));
     private static readonly Lazy<Layer> Contract = new(() => CreateLayer("Contract"));

@@ -112,6 +112,7 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
         var domainDocument = await EditableHome(domain, entity, token);
         var owner = Owner(entity, domainIdentity.Namespace, domainCompilation);
         if (domainDocument?.FilePath is null || owner is null || entity.ContainingNamespace.IsGlobalNamespace ||
+            NamespaceOwner(entity, domainIdentity.Namespace) != owner ||
             !OwnershipCompatible(domainInputs, entityName, owner, token)) return result;
         var repositoryContract = domainCompilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository`1");
         if (repositoryContract is null) return result;
@@ -132,7 +133,7 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
             var infraIdentity = ProjectIdentity(infra);
             if (infraIdentity.Role != "Infra" || infra.FilePath is null ||
                 !TryFullPath(infra.FilePath, out var infraProjectPath)) continue;
-            var infraInputs = await ReadInputs(infra, required: true, token);
+            var infraInputs = await ReadInputs(infra, required: false, token);
             if (infraInputs is null) continue;
             var compilation = await infra.GetCompilationAsync(token);
             var importedEntity = compilation?.GetTypeByMetadataName(entityName);
@@ -156,6 +157,7 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
                 token.ThrowIfCancellationRequested();
                 if (!DefaultDiscovery(context, compilation, token) || !HasMembership(context, importedEntity, compilation) ||
                     Owner(context, infraIdentity.Namespace, compilation) != owner ||
+                    NamespaceOwner(context, infraIdentity.Namespace) != owner ||
                     !OwnershipCompatible(infraInputs, MetadataName(context), owner, token)) continue;
                 var contextDocument = await EditableHome(infra, context, token);
                 if (contextDocument?.FilePath is null) continue;
@@ -166,7 +168,9 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
                 var relative = Path.GetRelativePath(infraRoot, destination).Replace('\\', '/');
                 var aliasRequired = context.Name.EndsWith("Context", StringComparison.Ordinal) && context.Name.Length > 7 &&
                                     context.Name[..^7] != owner && !ReasonedSymbolOwner(context, owner, compilation);
-                var declaredDestination = RepositoryDestination(infraInputs, MetadataName(context), owner, aliasRequired, token);
+                var conventionalDestination = context.ContainingNamespace.ToDisplayString()[(infraIdentity.Namespace.Length + 1)..]
+                    .Replace('.', '/') + "/Repositories";
+                var declaredDestination = RepositoryDestination(infraInputs, MetadataName(context), owner, aliasRequired, conventionalDestination, token);
                 if (declaredDestination != relative[..relative.LastIndexOf('/')]) continue;
                 var constructed = repository.Construct(context, importedEntity);
                 if (!constructed.InstanceConstructors.Any(constructor => constructor.Parameters.Length == 2 &&
@@ -188,9 +192,7 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
 
     private static string? Owner(INamedTypeSymbol type, string rootNamespace, Compilation compilation)
     {
-        var ns = type.ContainingNamespace.ToDisplayString();
-        var conventional = ns.StartsWith(rootNamespace + ".", StringComparison.Ordinal)
-            ? ns[(rootNamespace.Length + 1)..].Split('.')[0] : null;
+        var conventional = NamespaceOwner(type, rootNamespace);
         var ownership = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomainAttribute");
         var declarations = type.GetAttributes().Where(attribute => Same(attribute.AttributeClass, ownership)).ToArray();
         if (declarations.Length == 0) return conventional;
@@ -198,6 +200,13 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
             !SyntaxFacts.IsValidIdentifier(owner)) return null;
         var reason = declarations[0].NamedArguments.FirstOrDefault(pair => pair.Key == "Reason").Value.Value as string;
         return owner == conventional || !string.IsNullOrWhiteSpace(reason) ? owner : null;
+    }
+
+    private static string? NamespaceOwner(INamedTypeSymbol type, string rootNamespace)
+    {
+        var ns = type.ContainingNamespace.ToDisplayString();
+        return ns.StartsWith(rootNamespace + ".", StringComparison.Ordinal)
+            ? ns[(rootNamespace.Length + 1)..].Split('.')[0] : null;
     }
 
     private static bool ReasonedSymbolOwner(INamedTypeSymbol type, string owner, Compilation compilation)
@@ -246,9 +255,11 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
         return true;
     }
 
-    private static string? RepositoryDestination(CompilationUnitSyntax root, string contextName, string owner, bool aliasRequired, CancellationToken token)
+    private static string? RepositoryDestination(CompilationUnitSyntax root, string contextName, string owner, bool aliasRequired,
+        string conventionalDestination, CancellationToken token)
     {
         string? destination = null;
+        var declaredContext = false;
         foreach (var list in root.AttributeLists)
         foreach (var attribute in list.Attributes)
         {
@@ -256,6 +267,7 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
             if (list.Target?.Identifier.ValueText != "assembly" || attribute.Name.ToString().Replace("global::", "") != "DRN.Conventions.Context" ||
                 attribute.ArgumentList is not { Arguments.Count: > 0 } arguments ||
                 Literal(arguments.Arguments[0].Expression, token) != contextName) continue;
+            declaredContext = true;
             if (arguments.Arguments[0].NameEquals is not null || arguments.Arguments[0].NameColon is not null) return null;
             var owners = arguments.Arguments.Where(argument => argument.NameEquals?.Name.Identifier.ValueText == "Subdomain").ToArray();
             if (owners.Length > 1) return null;
@@ -271,11 +283,19 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
                     string.IsNullOrWhiteSpace(Literal(reasons[0].Expression, token))) return null;
             }
             var values = arguments.Arguments.Where(argument => argument.NameEquals?.Name.Identifier.ValueText == "Repositories").ToArray();
-            if (values.Length != 1 || Literal(values[0].Expression, token) is not { } value ||
-                destination is not null && destination != value.Replace('\\', '/')) return null;
-            destination = value.Replace('\\', '/');
+            if (values.Length > 1) return null;
+            var value = values.Length == 0 ? "" : Literal(values[0].Expression, token);
+            if (value is null) return null;
+            var resolved = value.Length == 0 ? conventionalDestination : value.Replace('\\', '/');
+            if (resolved != conventionalDestination)
+            {
+                var reasons = arguments.Arguments.Where(argument => argument.NameEquals?.Name.Identifier.ValueText == "Reason").ToArray();
+                if (reasons.Length != 1 || string.IsNullOrWhiteSpace(Literal(reasons[0].Expression, token))) return null;
+            }
+            if (destination is not null && destination != resolved) return null;
+            destination = resolved;
         }
-        return destination;
+        return aliasRequired && !declaredContext ? null : destination ?? conventionalDestination;
     }
 
     private static bool OwnershipCompatible(CompilationUnitSyntax root, string typeName, string owner, CancellationToken token)

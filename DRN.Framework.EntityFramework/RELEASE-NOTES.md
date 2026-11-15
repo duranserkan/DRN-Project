@@ -6,6 +6,12 @@ Targets .NET 11.
 
 ### Breaking Changes
 
+*   **Infrastructure layout**: DRNCV028 checks dedicated Repositories, Configurations and Migrations folders/namespaces. EF configuration names end in Config. DRNCV029 checks the context prefix and Options suffix on applied custom options attributes, excluding shared framework defaults.
+
+*   **Aggregate repositories**: DRNCV027 requires a concrete SourceKnownRepository implementing the aggregate's Domain subdomain interface for aggregates assigned to this Infra's contexts. One implementation can cover multiple contexts. Unassigned Domain aggregates are excluded.
+
+*   **Aggregate DbSets**: The transitive DRNCV023 analyzer requires `AggregateRoot` descendants for instance DbSet properties on `DrnContext<TContext>`, including inherited sets. The separate Identity context hierarchy is excluded. EF mapping and runtime generic constraints are unchanged.
+
 *   **Target framework**: Requires .NET 11.
 
 SharedKernel classification analyzers apply transitively. Review application model properties and add required classification annotations when upgrading.

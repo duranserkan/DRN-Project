@@ -110,7 +110,7 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
         foreach (var context in contexts)
         {
             token.ThrowIfCancellationRequested();
-            if (!HasMembership(context, entity, compilation) ||
+            if (context.ContainingNamespace.IsGlobalNamespace || !HasMembership(context, entity, compilation) ||
                 context.DeclaringSyntaxReferences.Length == 0) continue;
             var contextNamespace = context.ContainingNamespace.ToDisplayString();
             var configurationNamespace = contextNamespace + ".Configurations";
@@ -139,7 +139,7 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
                 contextDocument = part;
             }
             if (!editable || contextDocument?.FilePath is null) continue;
-            var className = entity.Name + "Configuration";
+            var className = entity.Name + "Config";
             if (ConventionGenerationPreflight.SymbolCollision(compilation, configurationNamespace, className, token)) continue;
             if (!TryFullPath(Path.Combine(Path.GetDirectoryName(contextDocument.FilePath)!, "Configurations", className + ".cs"), out var destination)) continue;
             if (!SafeDestination(projectDirectory, destination) || WorkspaceDestinationConflict(project.Solution, destination, token)) continue;

@@ -26,6 +26,7 @@ public sealed class AggregateReviewPlanRefactoringTests
         content.Should().Contain("proposed new context, not created").And.Contain("Sales/SalesContext.cs")
             .And.Contain("Sales/Repositories").And.Contain("Sales/Migrations").And.Contain("No membership is inferred")
             .And.Contain("Missing identity is unresolved").And.Contain("atomic application is unsupported");
+        content.Should().Contain("Conventional destinations need no Context item");
         content.Length.Should().BeLessThan(12000);
         (await changed.GetDocument(document.Id)!.GetTextAsync()).ToString().Should().Be(Source);
         workspace.TryApplyChanges(changed).Should().BeTrue();

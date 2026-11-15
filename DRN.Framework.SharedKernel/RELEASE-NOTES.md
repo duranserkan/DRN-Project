@@ -8,6 +8,22 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
+*   **Project DI modules**: DRNCV032 requires Hosted, Application, Infra and Utils projects to expose a public static module method accepting and returning IServiceCollection and scanning the project's assembly for attributed services. Domain, Contract, SharedKernel, framework and test projects are excluded. This checks module structure rather than runtime invocation.
+
+*   **Custom DI bindings**: Convention checks recognize statically provable service types forwarded through source-visible custom lifetime constructors. Arbitrary expressions and unavailable constructor bodies remain unproven.
+
+*   **DI lifetime declarations**: DRNCV031 requires one lifetime attribute bound to the matching IName interface on concrete Application/Infra service implementations. Generic and keyed lifetime derivatives count, including inherited attributes when no direct lifetime is declared. Self-registration, another service binding or ambiguous lifetime attributes fail this rule even with manual registration or unknown composition. The warning fails warnings-as-errors builds.
+
+*   **Subdomain scope**: Ownership boundaries apply to Domain types and recognized persistence, repository, service and SourceKnown controller roles. Razor page models and unclassified presentation/utility helpers no longer require business-subdomain namespaces. Page models may use domain entities without being treated as public API contracts. MVC API contract checks remain active.
+
+*   **Infrastructure conventions**: Configuration names must end in Config. DRNCV028 requires dedicated Repositories, Configurations and Migrations folders/namespaces. DRNCV029 requires context-prefixed custom options names ending in Options before an optional Attribute suffix. Prefer names such as QAContextNpgsqlDbContextOptionsAttribute. DRNCV030 requires concrete, closed DRN contexts to directly apply custom NpgsqlDbContextOptionsAttribute descendants. Inherited options and framework defaults do not satisfy this declaration requirement. Configuration scaffolding emits Config names. Framework default options remain exempt from naming checks.
+
+*   **Aggregate architecture**: DRNCV024-027 require Entity-suffixed aggregates in matching namespace/folder segments, role suffixes for repositories/services/controllers, Domain repository interfaces beside their aggregates in the same namespace and logical folder, and concrete Infra repository implementations for aggregates assigned to its contexts. Existing public names may require migration. Unassigned aggregates do not require implementations in every Infra project.
+
+*   **Aggregate DbSets**: DRNCV023 requires instance DbSet properties on `DrnContext<TContext>` descendants to expose `AggregateRoot` descendants, including inherited sets. Child entities and keyless rows trigger a warning that can fail warnings-as-errors builds. The separate Identity context hierarchy is excluded.
+
+*   **Context destinations**: DRNCV010 infers conventional repository and migration destinations from namespaces and logical source homes. Explicit metadata is required for alternate or ambiguous layouts, with reasons for alternatives. Explicit destinations remain validated even without artifacts. Empty contexts need no destination metadata. Repository-pair scaffolding also accepts conventional destinations without a Context item.
+
 *   **Application conventions**: Project-name role tokens now enable DRNCV warnings without custom properties or an application-root identity. Hosted requires at least one direct Application and Infra project reference, Infra requires Domain with corresponding populated subdomains, and Domain requires Contract. Multiple references and shared dependencies are valid regardless of naming prefix. Every reference must obey the allowed direction. SharedKernel is a foundation role. These warnings can fail warnings-as-errors builds. Standard diagnostic severity settings and narrow suppressions govern intentional exceptions. Identity, classification and authorization rules remain independent.
 
 *   **Target framework**: Runtime applications require .NET 11. Analyzer and code-fix assemblies target .NET 10 for IDE compiler-host compatibility and require compatible Roslyn 5.12 APIs.

@@ -36,8 +36,11 @@ public sealed class SourceKnownConventionAnalyzer : DiagnosticAnalyzer
         ConventionOwnershipAnalysis.Analyze(facts);
         ConventionContextAnalysis.Analyze(facts);
         ConventionPersistenceAnalysis.Analyze(facts);
-        ConventionRegistrationAnalysis.Analyze(facts);
+        ConventionRegistrationAnalysis.AnalyzeAll(facts, requireModule: true);
         ConventionBoundaryAnalysis.Analyze(facts);
+        ConventionNamingAnalysis.Analyze(facts);
+        ConventionAggregateRepositoryAnalysis.Analyze(facts);
+        ConventionInfrastructureAnalysis.Analyze(facts);
         foreach (var diagnostic in facts.Diagnostics)
         {
             context.CancellationToken.ThrowIfCancellationRequested();

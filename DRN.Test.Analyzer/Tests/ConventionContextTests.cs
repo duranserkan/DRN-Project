@@ -134,6 +134,9 @@ public sealed class ConventionContextTests
     [InlineData(false, false, "conditional")]
     [InlineData(false, false, "alias")]
     [InlineData(false, false, "escaped")]
+    [InlineData(false, false, "non-generic")]
+    [InlineData(true, true, "non-generic")]
+    [InlineData(false, false, "non-generic-only")]
     public void Ef_Registration_Should_Accept_Options_With_Additional_Injected_Dependencies(bool conventions, bool optionsLast, string form)
     {
         var registration = conventions
@@ -142,6 +145,9 @@ public sealed class ConventionContextTests
         var parameters = optionsLast
             ? "ITenant tenant, Microsoft.EntityFrameworkCore.DbContextOptions<QAContext> options"
             : "Microsoft.EntityFrameworkCore.DbContextOptions<QAContext> options, ITenant tenant";
+        if (form.StartsWith("non-generic", StringComparison.Ordinal))
+            parameters = parameters.Replace("DbContextOptions<QAContext>", "DbContextOptions", StringComparison.Ordinal);
+        if (form == "non-generic-only") parameters = "Microsoft.EntityFrameworkCore.DbContextOptions options";
         var call = form switch
         {
             "extension" => "services.AddDbContext<QAContext>()",
@@ -171,16 +177,18 @@ public sealed class ConventionContextTests
         facts.Diagnostics.Should().NotContain(item => item.Id == "DRNCV005");
     }
 
-    [Fact]
-    public void Drn_Design_Time_Factory_Should_Still_Require_An_Options_Only_Constructor()
+    [Theory]
+    [InlineData("Microsoft.EntityFrameworkCore.DbContextOptions<QAContext> options, ITenant tenant")]
+    [InlineData("Microsoft.EntityFrameworkCore.DbContextOptions options")]
+    public void Drn_Design_Time_Factory_Should_Still_Require_An_Options_Only_Constructor(string parameters)
     {
-        var facts = Facts("""
+        var facts = Facts($$"""
             namespace Sample.Infra.QA;
             public interface ITenant;
             public class QAContext : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>
             {
                 public QAContext() : base(null) { }
-                public QAContext(Microsoft.EntityFrameworkCore.DbContextOptions<QAContext> options, ITenant tenant) : base(options) { }
+                public QAContext({{parameters}}) : base(null) { }
             }
             """);
         ConventionContextAnalysis.Analyze(facts);
@@ -307,15 +315,80 @@ public sealed class ConventionContextTests
     }
 
     [Fact]
-    public void Missing_Destinations_Should_Report_Each_Kind_And_Bind_The_Context()
+    public void Unknown_Logical_Paths_Should_Require_Explicit_Destinations_And_Bind_The_Context()
     {
-        var facts = Facts(ContextSource("QAContext"));
+        var facts = Facts(ContextSource("QAContext",
+            "public Microsoft.EntityFrameworkCore.DbSet<DRN.Framework.SharedKernel.Domain.AggregateRoot> Entities => Set<DRN.Framework.SharedKernel.Domain.AggregateRoot>();") + """
+            [Microsoft.EntityFrameworkCore.Infrastructure.DbContext(typeof(QAContext))]
+            public class Snapshot : Microsoft.EntityFrameworkCore.Infrastructure.ModelSnapshot
+            {
+                protected override void BuildModel(Microsoft.EntityFrameworkCore.ModelBuilder builder) { }
+            }
+            """);
         ConventionContextAnalysis.Analyze(facts);
         var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNCV010").ToArray();
         diagnostics.Should().HaveCount(2);
         diagnostics.Should().OnlyContain(item => item.Properties["Target"] == "T:Sample.Infra.QA.QAContext");
         diagnostics.Select(item => item.GetMessage()).Should().Contain(item => item.Contains("QA/Repositories"))
             .And.Contain(item => item.Contains("QA/Migrations"));
+    }
+
+    [Theory]
+    [InlineData("", false)]
+    [InlineData("public Microsoft.EntityFrameworkCore.DbSet<object> Rows => Set<object>();", false)]
+    [InlineData("public static Microsoft.EntityFrameworkCore.DbSet<DRN.Framework.SharedKernel.Domain.AggregateRoot> Roots => null!;", false)]
+    [InlineData("public Microsoft.EntityFrameworkCore.DbSet<DRN.Framework.SharedKernel.Domain.AggregateRoot> Roots => Set<DRN.Framework.SharedKernel.Domain.AggregateRoot>();", true)]
+    public void Unknown_Repository_Destination_Should_Require_An_Aggregate_DbSet(string members, bool required)
+    {
+        var facts = Facts(ContextSource("QAContext", members));
+        ConventionContextAnalysis.Analyze(facts);
+        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNCV010").ToArray();
+        diagnostics.Count(item => item.GetMessage().Contains("QA/Repositories")).Should().Be(required ? 1 : 0);
+        diagnostics.Count(item => item.GetMessage().Contains("QA/Migrations")).Should().Be(0);
+    }
+
+    [Fact]
+    public void Inherited_Aggregate_DbSet_Should_Require_A_Destination_When_Logical_Paths_Are_Unknown()
+    {
+        var facts = Facts("""
+            namespace Sample.Infra.QA;
+            public abstract class BaseContext<T>() : DRN.Framework.EntityFramework.Context.DrnContext<T>(null)
+                where T : DRN.Framework.EntityFramework.Context.DrnContext<T>, new()
+            {
+                public Microsoft.EntityFrameworkCore.DbSet<DRN.Framework.SharedKernel.Domain.AggregateRoot> Roots => Set<DRN.Framework.SharedKernel.Domain.AggregateRoot>();
+            }
+            public class QAContext : BaseContext<QAContext>;
+            """);
+        ConventionContextAnalysis.Analyze(facts);
+        facts.Diagnostics.Should().ContainSingle(item => item.Id == "DRNCV010" && item.GetMessage().Contains("QA/Repositories"));
+    }
+
+    [Theory]
+    [InlineData("QAContext", true)]
+    [InlineData("OtherContext", false)]
+    public void Unknown_Migration_Destination_Should_Be_Required_Only_For_The_Associated_Context(string target, bool required)
+    {
+        var facts = Facts(ContextSource("QAContext") + $$"""
+            public class OtherContext : Microsoft.EntityFrameworkCore.DbContext;
+            [Microsoft.EntityFrameworkCore.Infrastructure.DbContext(typeof({{target}}))]
+            public class Snapshot : Microsoft.EntityFrameworkCore.Infrastructure.ModelSnapshot
+            {
+                protected override void BuildModel(Microsoft.EntityFrameworkCore.ModelBuilder builder) { }
+            }
+            """);
+        ConventionContextAnalysis.Analyze(facts);
+        facts.Diagnostics.Count(item => item.Id == "DRNCV010" &&
+            item.Properties["Context"] == "Sample.Infra.QA.QAContext").Should().Be(required ? 1 : 0);
+    }
+
+    [Fact]
+    public void Explicit_Migration_Destination_Should_Be_Validated_Without_Migration_Artifacts()
+    {
+        var input = new ConventionInput("Context", "Sample.Infra.QA.QAContext",
+            ImmutableDictionary<string, string>.Empty.Add("Migrations", "Elsewhere/Migrations"), Location.None);
+        var facts = Facts(ContextSource("QAContext"), input);
+        ConventionContextAnalysis.Analyze(facts);
+        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV010");
     }
 
     private static string ContextSource(string name, string members = "") => $$"""
@@ -465,9 +538,103 @@ public sealed class ConventionContextTests
         facts.Diagnostics.Should().BeEmpty();
     }
 
-    private static ConventionFacts Facts(string source, params ConventionInput[] inputs)
+    [Theory]
+    [InlineData("Repositories", "QA/Repositories", "Sample.Infra.QA.Repositories", false)]
+    [InlineData("Migrations", "QA/Migrations", "Sample.Infra.QA.Migrations", false)]
+    [InlineData("Migrations", "QA\\Migrations", "Sample.Infra.QA.Migrations", false)]
+    [InlineData("Repositories", "Other/Repositories", "Sample.Infra.QA.Repositories", true)]
+    [InlineData("Migrations", "Other/Migrations", "Sample.Infra.QA.Migrations", true)]
+    [InlineData("Repositories", "QA/Repositories", "Sample.Infra.Other.Repositories", true)]
+    [InlineData("Migrations", "QA/Migrations", "Sample.Infra.Other.Migrations", true)]
+    public void Conventional_Artifact_Destinations_Should_Be_Inferred_From_Logical_Paths_And_Namespaces(
+        string kind, string directory, string artifactNamespace, bool requiresEntry)
     {
-        var compilation = Compilation(source, "QA/Context.cs").AddReferences(
+        var members = kind == "Repositories"
+            ? "public Microsoft.EntityFrameworkCore.DbSet<DRN.Framework.SharedKernel.Domain.AggregateRoot> Roots => Set<DRN.Framework.SharedKernel.Domain.AggregateRoot>();"
+            : "";
+        var artifact = kind == "Repositories" ? """
+            public class RootRepository(Sample.Infra.QA.QAContext context, DRN.Framework.Utils.Entity.IEntityUtils utils)
+                : DRN.Framework.EntityFramework.Domain.SourceKnownRepository<Sample.Infra.QA.QAContext, DRN.Framework.SharedKernel.Domain.AggregateRoot>(context, utils);
+            """ : """
+            [Microsoft.EntityFrameworkCore.Infrastructure.DbContext(typeof(Sample.Infra.QA.QAContext))]
+            public class Snapshot : Microsoft.EntityFrameworkCore.Infrastructure.ModelSnapshot
+            {
+                protected override void BuildModel(Microsoft.EntityFrameworkCore.ModelBuilder builder) { }
+            }
+            """;
+        var compilation = Compilation(ContextSource("QAContext", members), "Context.cs")
+            .AddSyntaxTrees(CSharpSyntaxTree.ParseText((kind == "Migrations" ? "// <auto-generated/>\n" : "") +
+                "namespace " + artifactNamespace + ";\n" + artifact, path: "Artifact.cs"));
+        var facts = Facts(compilation, PathInput("Context.cs", "QA/Context.cs"), PathInput("Artifact.cs", directory + "/Artifact.cs"));
+        ConventionContextAnalysis.Analyze(facts);
+        facts.Diagnostics.Count(item => item.Id == "DRNCV010").Should().Be(requiresEntry ? 1 : 0);
+    }
+
+    [Theory]
+    [InlineData("QA/Context.cs", "QA/Other.cs", false)]
+    [InlineData("QA/Context.cs", "Other/Other.cs", true)]
+    [InlineData("Other/Context.cs", "Other/Other.cs", true)]
+    public void Repository_Destination_Without_Artifacts_Should_Require_An_Unambiguous_Conventional_Context_Home(
+        string firstPath, string secondPath, bool requiresEntry)
+    {
+        var source = ContextSource("QAContext",
+            "public Microsoft.EntityFrameworkCore.DbSet<DRN.Framework.SharedKernel.Domain.AggregateRoot> Roots => Set<DRN.Framework.SharedKernel.Domain.AggregateRoot>();")
+            .Replace("public class QAContext", "public partial class QAContext", StringComparison.Ordinal);
+        var compilation = Compilation(source, "Context.cs").AddSyntaxTrees(CSharpSyntaxTree.ParseText(
+            "namespace Sample.Infra.QA; public partial class QAContext;", path: "Other.cs"));
+        var facts = Facts(compilation, PathInput("Context.cs", firstPath), PathInput("Other.cs", secondPath));
+        ConventionContextAnalysis.Analyze(facts);
+        facts.Diagnostics.Count(item => item.Id == "DRNCV010").Should().Be(requiresEntry ? 1 : 0);
+    }
+
+    [Theory]
+    [InlineData("Repositories", "QA/Repositories", "", false)]
+    [InlineData("Repositories", "Other/Repositories", "", true)]
+    [InlineData("Repositories", "Other/Repositories", "Reviewed alternate destination", false)]
+    [InlineData("Migrations", "Other/Migrations", "", true)]
+    [InlineData("Migrations", "Other/Migrations", "Reviewed alternate destination", false)]
+    [InlineData("Migrations", "../Migrations", "Reviewed alternate destination", true)]
+    public void Explicit_Destinations_Should_Remain_Validated_Even_Without_Artifacts(string kind, string path, string reason, bool invalid)
+    {
+        var input = new ConventionInput("Context", "Sample.Infra.QA.QAContext",
+            ImmutableDictionary<string, string>.Empty.Add(kind, path).Add("Reason", reason), Location.None);
+        var facts = Facts(ContextSource("QAContext"), input, PathInput("QA/Context.cs", "QA/Context.cs"));
+        ConventionContextAnalysis.Analyze(facts);
+        facts.Diagnostics.Count(item => item.Id == "DRNCV010").Should().Be(invalid ? 1 : 0);
+    }
+
+    [Fact]
+    public void Split_Role_And_Link_Paths_Should_Supply_Conventional_Destinations()
+    {
+        var source = ContextSource("QAContext",
+            "public Microsoft.EntityFrameworkCore.DbSet<DRN.Framework.SharedKernel.Domain.AggregateRoot> Roots => Set<DRN.Framework.SharedKernel.Domain.AggregateRoot>();");
+        var role = new ConventionInput("Role", "Infra", ImmutableDictionary<string, string>.Empty
+            .Add("NamespacePrefix", "Sample.Infra").Add("LogicalPathPrefix", "Layers\\Storage"), Location.None);
+        var facts = Facts(Compilation(source, "/external/Context.cs"), role,
+            PathInput("/external/Context.cs", "Layers/Storage/QA/Context.cs"));
+        ConventionContextAnalysis.Analyze(facts);
+        facts.Diagnostics.Should().BeEmpty();
+    }
+
+    private static ConventionInput PathInput(string source, string logical) => new("Path", source,
+        ImmutableDictionary<string, string>.Empty.Add("LogicalPath", logical), Location.None);
+
+    [Fact]
+    public void Separate_Migration_Assembly_Should_Require_An_Explicit_Destination()
+    {
+        var input = new ConventionInput("Context", "Sample.Infra.QA.QAContext",
+            ImmutableDictionary<string, string>.Empty.Add("MigrationsAssembly", "Sample.Migrations"), Location.None);
+        var facts = Facts(ContextSource("QAContext"), input, PathInput("QA/Context.cs", "QA/Context.cs"));
+        ConventionContextAnalysis.Analyze(facts);
+        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV010");
+    }
+
+    private static ConventionFacts Facts(string source, params ConventionInput[] inputs) =>
+        Facts(Compilation(source, "QA/Context.cs"), inputs);
+
+    private static ConventionFacts Facts(CSharpCompilation compilation, params ConventionInput[] inputs)
+    {
+        compilation = compilation.AddReferences(
             MetadataReference.CreateFromFile(typeof(DRN.Framework.EntityFramework.Context.DrnContext<>).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(DRN.Framework.Utils.Settings.IAppSettings).Assembly.Location));
         compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);

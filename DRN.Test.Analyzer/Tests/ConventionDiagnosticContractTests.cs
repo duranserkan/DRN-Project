@@ -5,6 +5,19 @@ namespace DRN.Test.Analyzer.Tests;
 
 public sealed class ConventionDiagnosticContractTests
 {
+    [Fact]
+    public async Task Missing_Module_Should_Report_A_Project_Diagnostic_In_Production()
+    {
+        var scenario = new Scenario("Application", "namespace Sample.Application; public class Helper;",
+            [], "", "", "", _ => { }, IncludeModule: false);
+        var diagnostics = await AnalyzeProduction(scenario);
+        var diagnostic = diagnostics.Where(item => item.Id == "DRNCV032").Should().ContainSingle().Which;
+        diagnostic.Location.Should().Be(Location.None);
+        diagnostic.Severity.Should().Be(DiagnosticSeverity.Warning);
+        diagnostic.GetMessage().Should().Be("Project 'Sample.Application' needs a public static *Module class with a public static method accepting and returning IServiceCollection. Call services.AddServicesWithAttributes() on that parameter to scan this project's assembly.");
+        (await AnalyzeProduction(scenario with { ConventionsEnabled = false })).Should().BeEmpty();
+    }
+
     [Theory]
     [InlineData("DRNCV002", "", true)]
     [InlineData("DRNCV002", "Reviewed legacy entity ownership boundary.", false)]
@@ -57,6 +70,14 @@ public sealed class ConventionDiagnosticContractTests
             public class ModelSnapshot;
             public class Snapshot : ModelSnapshot;
             public class Response { public SourceKnownEntity Entity { get; init; } }
+            public static class ProjectModule
+            {
+                public static Microsoft.Extensions.DependencyInjection.IServiceCollection Register(Microsoft.Extensions.DependencyInjection.IServiceCollection services)
+                {
+                    DRN.Framework.Utils.DependencyInjection.ServiceCollectionExtensions.AddServicesWithAttributes(services);
+                    return services;
+                }
+            }
             """, [], "", "", "", facts =>
             {
                 ConventionOwnershipAnalysis.Analyze(facts);
@@ -89,6 +110,8 @@ public sealed class ConventionDiagnosticContractTests
     [InlineData("DRNCV017")]
     [InlineData("DRNCV019")]
     [InlineData("DRNCV020")]
+    [InlineData("DRNCV030")]
+    [InlineData("DRNCV031")]
     public async Task Real_Violation_Should_Have_Exact_Public_Diagnostic_Contract(string id)
     {
         var scenario = ScenarioFor(id);
@@ -140,6 +163,8 @@ public sealed class ConventionDiagnosticContractTests
     [InlineData("DRNCV017")]
     [InlineData("DRNCV019")]
     [InlineData("DRNCV020")]
+    [InlineData("DRNCV030")]
+    [InlineData("DRNCV031")]
     public async Task Reviewed_Exception_Should_Cover_Only_The_Exact_Real_Violation_And_Expire_On_Review_Day(string id)
     {
         var scenario = ScenarioFor(id);
@@ -240,7 +265,7 @@ public sealed class ConventionDiagnosticContractTests
             "DRNCV001" => new("Infra", infra + Context.Replace("BODY", "", StringComparison.Ordinal).Replace("QAContext", "QAReadContext", StringComparison.Ordinal),
                 [Input("Context", "Sample.Infra.QA.QAReadContext", ("Repositories", "QA/Repositories"), ("Migrations", "QA/Migrations"))],
                 "T:Sample.Infra.QA.QAReadContext", "QAReadContext",
-                "Convention input 'QAReadContext:Subdomain' is missing its context alias mapping; declare one valid reasoned context-to-subdomain declaration.", ConventionContextAnalysis.Analyze),
+                "Convention input 'QAReadContext:Subdomain' is inconsistent with subdomain 'QA'. Use subdomain 'QA' with context 'QAContext', or subdomain 'QARead' with context 'QAReadContext'. Align the namespace and folder. Only for an intentional alias, set Subdomain=\"QA\" and Reason on its DrnConventionContext item.", ConventionContextAnalysis.Analyze),
             "DRNCV002" => new("Domain", """
                 namespace Sample.Domain { public class Category : DRN.Framework.SharedKernel.Domain.AggregateRoot; }
                 namespace Sample.Domain.QA { public class OtherTarget; }
@@ -276,9 +301,9 @@ public sealed class ConventionDiagnosticContractTests
                 """, [Input("Configuration", "Sample.Infra.QA.CategoryConfiguration", ("Context", "Sample.Infra.QA.QAContext"))],
                 "T:Sample.Infra.QA.CategoryConfiguration", "CategoryConfiguration",
                 "Configuration 'CategoryConfiguration' for 'Category' is not discoverable by context 'QAContext'; use its configuration namespace/assembly or an explicit supported application path.", ConventionPersistenceAnalysis.Analyze),
-            "DRNCV010" => new("Infra", infra + Context.Replace("BODY", "", StringComparison.Ordinal),
-                [Input("Context", "Sample.Infra.QA.QAContext", ("Migrations", "QA/Migrations"))], "T:Sample.Infra.QA.QAContext", "input",
-                "Context 'QAContext' needs declared Repositories destination metadata matching 'QA/Repositories', or a reasoned override.", ConventionContextAnalysis.Analyze),
+            "DRNCV010" => new("Infra", infra + Context.Replace("BODY", "public Microsoft.EntityFrameworkCore.DbSet<Category> Categories => Set<Category>();", StringComparison.Ordinal),
+                [Input("Context", "Sample.Infra.QA.QAContext", ("Repositories", "Other/Repositories"), ("Migrations", "QA/Migrations"))], "T:Sample.Infra.QA.QAContext", "input",
+                "Context 'QAContext' has no valid Repositories destination. Set Repositories=\"QA/Repositories\" on its DrnConventionContext item, or provide a Reason for an alternate destination.", ConventionContextAnalysis.Analyze),
             "DRNCV011" => new("Infra", infra + """
                 [DRN.Framework.EntityFramework.Attributes.SourceKnownPersistence(typeof(Category), Inclusion = DRN.Framework.EntityFramework.Attributes.SourceKnownPersistenceInclusion.Exclude)]
                 """ + Context.Replace("BODY", "", StringComparison.Ordinal) + """
@@ -288,6 +313,7 @@ public sealed class ConventionDiagnosticContractTests
                 "Repository 'CategoryRepository' binds aggregate 'Category' inconsistently with contract or context 'QAContext explicitly excludes the entity'.", ConventionPersistenceAnalysis.Analyze),
             "DRNCV012" => new("Application", application + """
                 public interface ICategoryService : ISourceKnownService<Category>;
+                [DRN.Framework.Utils.DependencyInjection.Attributes.ScopedWithKey<ICategoryService>("read")]
                 public class CategoryService : ICategoryService { public ISourceKnownRepository<Category> Repository => null!; }
                 public static class Module
                 {
@@ -336,13 +362,21 @@ public sealed class ConventionDiagnosticContractTests
                 namespace Sample.Domain.QA { public class OtherTarget; public class Category : DRN.Framework.SharedKernel.Domain.AggregateRoot; }
                 namespace Sample.Domain.Billing { public class Reader { public Sample.Domain.QA.Category Entity => null!; } }
                 """, [], "P:Sample.Domain.Billing.Reader.Entity", "Sample.Domain.QA.Category",
-                "'Sample.Domain.Billing.Reader.Entity' in subdomain 'Billing' uses entity 'Sample.Domain.QA.Category' owned by 'QA'. Use an owning-subdomain contract or identifier, correct misplaced ownership/code, or add a narrow DRNCV019 suppression with a concrete justification for intentional reuse.", ConventionBoundaryAnalysis.Analyze),
+                "'Sample.Domain.Billing.Reader.Entity' in subdomain 'Billing' references entity 'Sample.Domain.QA.Category' from 'QA'. Use the entity's identifier or a contract from 'QA'.", ConventionBoundaryAnalysis.Analyze),
             "DRNCV020" => new("Application", """
                 namespace Sample.Application.QA;
                 public class OtherTarget;
                 public class QAContext : Microsoft.EntityFrameworkCore.DbContext;
                 """, [], "T:Sample.Application.QA.QAContext", "QAContext",
                 "Application context 'QAContext' must implement IDrnContext or declare a narrow, justified exception.", ConventionContextAnalysis.Analyze),
+            "DRNCV031" => new("Application", "namespace Sample.Application.QA; public interface IWorker; public class Worker : IWorker; public class OtherTarget;",
+                [], "T:Sample.Application.QA.Worker", "Worker",
+                "'Worker' must register 'IWorker' through a matching LifetimeAttribute. Choose [Scoped<IWorker>], [Transient<IWorker>], or [Singleton<IWorker>] for its intended lifetime.",
+                ConventionRegistrationAnalysis.AnalyzeLifetimeAttributes),
+            "DRNCV030" => new("Infra", infra + Context.Replace("BODY", "", StringComparison.Ordinal),
+                [], "T:Sample.Infra.QA.QAContext", "QAContext",
+                "Context 'QAContext' must directly declare a custom attribute derived from NpgsqlDbContextOptionsAttribute. Recommended name: 'QAContextNpgsqlDbContextOptionsAttribute'.",
+                ConventionInfrastructureAnalysis.Analyze),
             _ => throw new ArgumentOutOfRangeException(nameof(id))
         };
     }
@@ -365,6 +399,8 @@ public sealed class ConventionDiagnosticContractTests
         var compilation = Compilation(scenario.Source, "ContractFixture.cs").WithAssemblyName("Sample." + scenario.Role)
             .AddReferences(MetadataReference.CreateFromFile(typeof(DRN.Framework.EntityFramework.Context.DrnContext<>).Assembly.Location),
                 MetadataReference.CreateFromFile(typeof(DRN.Framework.Utils.Entity.IEntityUtils).Assembly.Location));
+        if (scenario.IncludeModule && scenario.Role is ("Hosted" or "Application" or "Infra" or "Utils"))
+            compilation = ConventionTestDependencies.WithModule(compilation);
         compilation.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
         var fixture = ConventionTestDependencies.WithRequiredLayers(compilation, scenario.Role);
         var records = scenario.Inputs.Concat(extra).Concat(fixture.Records).ToList();
@@ -381,6 +417,7 @@ public sealed class ConventionDiagnosticContractTests
         var diagnostics = await subject.WithAnalyzers([new SourceKnownConventionAnalyzer()],
             new AnalyzerOptions([input], new Options(scenario.Role))).GetAnalyzerDiagnosticsAsync();
         diagnostics.Should().NotContain(diagnostic => diagnostic.Id == "AD0001");
+        if (scenario.IncludeModule) diagnostics.Should().NotContain(diagnostic => diagnostic.Id == "DRNCV032");
         return diagnostics;
     }
 
@@ -389,7 +426,7 @@ public sealed class ConventionDiagnosticContractTests
         Location.Create("DrnConventionInputs.g.cs", new(4, 3), new(new(0, 4), new(0, 7))));
 
     private sealed record Scenario(string Role, string Source, ConventionInput[] Inputs, string Target, string Location,
-        string Message, Action<ConventionFacts> Analyze, bool ConventionsEnabled = true);
+        string Message, Action<ConventionFacts> Analyze, bool ConventionsEnabled = true, bool IncludeModule = true);
 
     private sealed class Options(string role = "Domain") : AnalyzerConfigOptionsProvider
     {

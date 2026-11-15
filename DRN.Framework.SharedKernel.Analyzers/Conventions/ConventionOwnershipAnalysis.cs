@@ -21,7 +21,7 @@ internal static class ConventionOwnershipAnalysis
             var service = ConventionSymbols.Is(type, symbols.ServiceContract, facts.Cancellation) ||
                           role.Role == "Application" && HasEntityBinding(facts, type);
             var dto = ConventionSymbols.Is(type, symbols.Dto, facts.Cancellation);
-            var transport = symbols.IsTransport(type, facts.Cancellation);
+            var transport = symbols.IsKnown(type, symbols.SourceKnownController, facts.Cancellation);
             if (!(entity || context || configuration || repository || service || dto || transport)) continue;
             var owner = facts.Owner(type);
             if (facts.HasInvalidOwner(type)) continue;
@@ -79,7 +79,7 @@ internal static class ConventionOwnershipAnalysis
         }
     }
 
-    private static bool HasEntityBinding(ConventionFacts facts, INamedTypeSymbol type)
+    internal static bool HasEntityBinding(ConventionFacts facts, INamedTypeSymbol type)
     {
         if (facts.Symbols.IsTransport(type, facts.Cancellation)) return false;
         foreach (var member in type.GetMembers())

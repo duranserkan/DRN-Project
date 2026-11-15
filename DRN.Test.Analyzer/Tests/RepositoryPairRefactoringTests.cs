@@ -21,7 +21,7 @@ public sealed class RepositoryPairRefactoringTests
         (await Actions(entity)).Should().ContainSingle();
         var action = (await Actions(entity, bundles: true)).Should().ContainSingle().Which;
         action.Title.Should().StartWith("Add scoped repository pair and entity configuration:")
-            .And.Contain("Sample.Infra.QA.QAContext").And.Contain("QA/Configurations/OrderConfiguration.cs");
+            .And.Contain("Sample.Infra.QA.QAContext").And.Contain("QA/Configurations/OrderConfig.cs");
         var changed = await ChangedSolution(action);
         var changes = changed.GetChanges(workspace.CurrentSolution).GetProjectChanges().ToArray();
         changes.Should().HaveCount(2);
@@ -32,8 +32,8 @@ public sealed class RepositoryPairRefactoringTests
         var infra = changed.Projects.Single(project => project.Name == "Sample.Infra");
         domain.Documents.Should().ContainSingle(document => document.Name == "IOrderRepository.cs");
         infra.Documents.Should().ContainSingle(document => document.Name == "OrderRepository.cs");
-        var configuration = infra.Documents.Single(document => document.Name == "OrderConfiguration.cs");
-        configuration.FilePath.Should().Be("/source/Sample.Infra/QA/Configurations/OrderConfiguration.cs");
+        var configuration = infra.Documents.Single(document => document.Name == "OrderConfig.cs");
+        configuration.FilePath.Should().Be("/source/Sample.Infra/QA/Configurations/OrderConfig.cs");
         (await configuration.GetTextAsync()).ToString().Should().Contain("IEntityTypeConfiguration<global::Sample.Domain.QA.Orders.Order>")
             .And.NotContain("HasKey").And.NotContain("ToTable");
         (await changed.GetDocument(entity.Id)!.GetTextAsync()).ToString().Should().Be(EntitySource);
@@ -50,8 +50,8 @@ public sealed class RepositoryPairRefactoringTests
         using var workspace = new AdhocWorkspace();
         var entity = CreateDocuments(workspace);
         var infra = workspace.CurrentSolution.Projects.Single(project => project.Name == "Sample.Infra");
-        var collision = infra.AddAdditionalDocument("orderconfiguration.cs", "// retained", filePath:
-            "/source/Sample.Infra/QA/Configurations/orderconfiguration.cs");
+        var collision = infra.AddAdditionalDocument("orderconfig.cs", "// retained", filePath:
+            "/source/Sample.Infra/QA/Configurations/orderconfig.cs");
         workspace.TryApplyChanges(collision.Project.Solution).Should().BeTrue();
         var currentEntity = workspace.CurrentSolution.GetDocument(entity.Id)!;
         (await Actions(currentEntity, bundles: true)).Should().BeEmpty();
@@ -88,7 +88,7 @@ public sealed class RepositoryPairRefactoringTests
         workspace.TryApplyChanges(concurrent.Project.Solution).Should().BeTrue();
         var changed = await ChangedSolution(action);
         changed.Projects.SelectMany(project => project.Documents).Should().NotContain(document =>
-            document.Name == "IOrderRepository.cs" || document.Name == "OrderRepository.cs" || document.Name == "OrderConfiguration.cs");
+            document.Name == "IOrderRepository.cs" || document.Name == "OrderRepository.cs" || document.Name == "OrderConfig.cs");
         (await changed.GetDocument(entity.Id)!.GetTextAsync()).ToString().Should().EndWith("// concurrent edit");
     }
 
@@ -117,8 +117,8 @@ public sealed class RepositoryPairRefactoringTests
         var infra = changed.Projects.Single(project => project.Name == "Sample.Infra");
         infra.Documents.Single(document => document.Name == "OrderRepository.cs").FilePath.Should()
             .Be("/source/Sample.Infra/QA/Read/Repositories/OrderRepository.cs");
-        infra.Documents.Single(document => document.Name == "OrderConfiguration.cs").FilePath.Should()
-            .Be("/source/Sample.Infra/QA/Read/Configurations/OrderConfiguration.cs");
+        infra.Documents.Single(document => document.Name == "OrderConfig.cs").FilePath.Should()
+            .Be("/source/Sample.Infra/QA/Read/Configurations/OrderConfig.cs");
         (await infra.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
     }
 
@@ -170,14 +170,51 @@ public sealed class RepositoryPairRefactoringTests
 
     [Theory]
     [InlineData(false, true)]
-    [InlineData(true, false)]
-    public async Task Missing_Membership_Or_Destination_Should_Not_Offer_Partial_Scaffolding(bool membership, bool destination)
+    [InlineData(false, false)]
+    public async Task Missing_Membership_Should_Not_Offer_Partial_Scaffolding(bool membership, bool destination)
     {
         using var workspace = new AdhocWorkspace();
         var entity = CreateDocuments(workspace, membership: membership, destination: destination);
         (await Actions(entity)).Should().BeEmpty();
         workspace.CurrentSolution.Projects.SelectMany(project => project.Documents).Should()
             .NotContain(document => document.Name == "IOrderRepository.cs" || document.Name == "OrderRepository.cs");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Conventional_Repository_Destination_Should_Not_Require_Explicit_Metadata(bool contextRecord)
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace, destination: false);
+        if (contextRecord)
+        {
+            var infra = workspace.CurrentSolution.Projects.Single(project => project.Name == "Sample.Infra");
+            var input = infra.AddAdditionalDocument("DrnConventionInputs.g.cs", """
+                [assembly: DRN.Conventions.Version("1")]
+                [assembly: DRN.Conventions.Context("Sample.Infra.QA.QAContext", Migrations = "QA/Migrations")]
+                """);
+            workspace.TryApplyChanges(input.Project.Solution).Should().BeTrue();
+            entity = workspace.CurrentSolution.GetDocument(entity.Id)!;
+        }
+        var action = (await Actions(entity)).Should().ContainSingle().Which;
+        var changed = await ChangedSolution(action);
+        var implementation = changed.Projects.Single(project => project.Name == "Sample.Infra")
+            .Documents.Single(document => document.Name == "OrderRepository.cs");
+        implementation.FilePath.Should().Be("/source/Sample.Infra/QA/Repositories/OrderRepository.cs");
+        foreach (var project in changed.Projects)
+            (await project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Fact]
+    public async Task Nonconventional_Context_Home_Should_Not_Guess_A_Repository_Destination()
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace, destination: false);
+        var infra = workspace.CurrentSolution.Projects.Single(project => project.Name == "Sample.Infra");
+        var context = infra.Documents.Single(document => document.Name == "QAContext.cs");
+        workspace.TryApplyChanges(context.WithFilePath("/source/Sample.Infra/Legacy/QAContext.cs").Project.Solution).Should().BeTrue();
+        (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().BeEmpty();
     }
 
     [Fact]
@@ -358,6 +395,40 @@ public sealed class RepositoryPairRefactoringTests
             .OnlyContain(change => !change.GetAddedProjectReferences().Any());
         (await infra.GetCompilationAsync())!.GetDiagnostics().Should()
             .NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Reasoned_Owner_Should_Not_Generate_A_Pair_In_A_Different_Namespace_Owner(bool moveEntity)
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace);
+        var infra = workspace.CurrentSolution.Projects.Single(project => project.Name == "Sample.Infra");
+        var context = infra.Documents.Single(document => document.Name == "QAContext.cs");
+        var contextSource = (await context.GetTextAsync()).ToString();
+        var ownership = "[DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomain(\"QA\", Reason = \"Reviewed legacy placement\")]\n";
+        var solution = workspace.CurrentSolution;
+        if (moveEntity)
+        {
+            var source = EntitySource.Replace("Sample.Domain.QA.Orders", "Sample.Domain.Legacy.Orders", StringComparison.Ordinal)
+                .Replace("public class Order", ownership + "public class Order", StringComparison.Ordinal);
+            solution = solution.WithDocumentText(entity.Id, SourceText.From(source));
+            contextSource = contextSource.Replace("Sample.Domain.QA.Orders", "Sample.Domain.Legacy.Orders", StringComparison.Ordinal);
+        }
+        else
+        {
+            contextSource = contextSource.Replace("namespace Sample.Infra.QA;", "namespace Sample.Infra.Legacy;", StringComparison.Ordinal)
+                .Replace("public class QAContext", ownership + "public class QAContext", StringComparison.Ordinal);
+            var input = infra.AdditionalDocuments.Single();
+            var inputSource = (await input.GetTextAsync()).ToString().Replace("Sample.Infra.QA.QAContext", "Sample.Infra.Legacy.QAContext", StringComparison.Ordinal);
+            solution = solution.WithAdditionalDocumentText(input.Id, SourceText.From(inputSource));
+        }
+        solution = solution.WithDocumentText(context.Id, SourceText.From(contextSource));
+        workspace.TryApplyChanges(solution).Should().BeTrue();
+        foreach (var project in workspace.CurrentSolution.Projects)
+            (await project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().BeEmpty();
     }
 
     private static Document CreateDocuments(AdhocWorkspace workspace, bool membership = true, bool destination = true, bool cqrs = false,

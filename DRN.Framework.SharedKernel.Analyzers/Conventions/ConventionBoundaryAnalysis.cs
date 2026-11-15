@@ -24,7 +24,8 @@ internal static class ConventionBoundaryAnalysis
             var location = facts.Location(type);
             if (location == Location.None) continue;
             AnalyzeRole(facts, type, location);
-            if (IsPublic(type) && (facts.Role(type).Role == "Contract" || facts.Symbols.IsTransport(type, facts.Cancellation)))
+            if (IsPublic(type) && (facts.Role(type).Role == "Contract" ||
+                facts.Symbols.IsKnown(type, facts.Symbols.Controller, facts.Cancellation)))
                 AnalyzePublicShape(facts, type);
         }
         AnalyzeBoundUses(facts);
@@ -242,7 +243,7 @@ internal static class ConventionBoundaryAnalysis
         void RecordUse(ISymbol consumer, INamedTypeSymbol entity, Location evidence, bool userUse)
         {
             var type = consumer as INamedTypeSymbol ?? consumer.ContainingType;
-            if (type is null || facts.Owner(type) is null || !facts.IsEntity(entity) ||
+            if (type is null || !facts.HasSubdomainBoundary(type) || facts.Owner(type) is null || !facts.IsEntity(entity) ||
                 facts.Owner(entity) is null || facts.UsesOwnSubdomain(type, entity)) return;
             if (!uses.TryGetValue(consumer, out var entities)) uses.Add(consumer, entities = new(SymbolEqualityComparer.Default));
             if (!entities.TryGetValue(entity, out var locations)) entities.Add(entity, locations = new());
@@ -276,6 +277,7 @@ internal static class ConventionBoundaryAnalysis
                 var type = consumer as INamedTypeSymbol ?? consumer.ContainingType;
                 if (type is null) continue;
                 var role = facts.Role(type).Role;
+                if (!facts.HasSubdomainBoundary(type) && role is not ("Domain" or "Contract" or "SharedKernel" or "Utils")) continue;
                 dependencies.Clear();
                 if (model.GetTypeInfo(node, facts.Cancellation).Type is { } valueType) dependencies.Add(valueType);
                 if (node is SimpleNameSyntax or MemberAccessExpressionSyntax &&

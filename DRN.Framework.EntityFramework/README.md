@@ -178,6 +178,12 @@ The internal `long` is the database key used for indexes and joins. External IDs
 
 ## DrnContext
 
+Put repository implementations in `Repositories`, EF configurations in `Configurations` with names ending in `Config`, and DRN migrations/snapshots in `Migrations`. These are the immediate logical folders and final namespace segments. Domain repository interfaces stay beside their aggregates. Applied custom options names start with the context name and end in `Options`, before an optional `Attribute`, such as `QAContextNpgsqlDbContextOptionsAttribute`. Shared framework defaults are exempt. See DRNCV024, DRNCV028 and DRNCV029 in the [diagnostic reference](../DRN.Framework.SharedKernel/CONVENTION-DIAGNOSTICS.md).
+
+Each aggregate assigned to an Infra context needs a concrete `SourceKnownRepository<TContext,TEntity>` implementing its Domain subdomain repository interface. DRNCV027 checks supported DbSet, explicit membership and configuration evidence. Unassigned aggregates from referenced Domain projects do not require implementations here. See [aggregate conventions](../DRN.Framework.SharedKernel/CONVENTIONS.md).
+
+Instance `DbSet<TEntity>` properties on `DrnContext<TContext>` descendants must expose entities derived from `AggregateRoot`. DRNCV023 checks inherited properties and closed generic substitutions. Child entities may remain mapped through their aggregate without a DbSet property. The separate Identity context hierarchy is outside this rule. See the [diagnostic reference](../DRN.Framework.SharedKernel/CONVENTION-DIAGNOSTICS.md#drncv023-expose-aggregate-roots-through-dbset-properties).
+
 Derive from `DrnContext<TContext>` and provide both constructors shown in the beginner example. The options constructor is used by dependency injection; the public parameterless constructor supports `IDesignTimeDbContextFactory<TContext>`.
 
 ### Standard Attributes (Inherited)
@@ -520,7 +526,7 @@ public class User : AggregateRoot
 Use `IEntityTypeConfiguration<T>` for relationships, owned types, or conditional mapping. This fragment assumes an application model with `Posts`, `Author`, `AuthorId`, `TenantId`, and an owned `Address` with `Street` and `City` properties:
 
 ```csharp
-public class UserConfiguration : IEntityTypeConfiguration<User>
+public class UserConfig : IEntityTypeConfiguration<User>
 {
     public void Configure(EntityTypeBuilder<User> builder)
     {
@@ -555,8 +561,8 @@ Configurations are automatically discovered and applied if they:
 Sample.Infra/
 ├── QAContext.cs                    # Namespace: Sample.Infra
 ├── Configurations/
-│   ├── UserConfiguration.cs        # Namespace: Sample.Infra.Configurations ✓
-│   └── QuestionConfiguration.cs    # Namespace: Sample.Infra.Configurations ✓
+│   ├── UserConfig.cs               # Namespace: Sample.Infra.Configurations ✓
+│   └── QuestionConfig.cs           # Namespace: Sample.Infra.Configurations ✓
 ```
 
 ### JSON Models

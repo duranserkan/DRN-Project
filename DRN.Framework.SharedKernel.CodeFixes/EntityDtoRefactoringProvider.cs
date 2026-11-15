@@ -174,9 +174,13 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
                    scalar.ContainingAssembly.Identity.Equals(named.ContainingAssembly.Identity);
         var name = MetadataName(named);
         if (named.TypeKind == TypeKind.Enum)
+        {
+            for (var containing = named.ContainingType; containing is not null; containing = containing.ContainingType)
+                if (containing.IsGenericType) return false;
             return target.GetTypeByMetadataName(name) is { TypeKind: TypeKind.Enum } enumeration &&
                    enumeration.ContainingAssembly.Identity.Equals(named.ContainingAssembly.Identity) &&
                    target.IsSymbolAccessibleWithin(enumeration, target.Assembly);
+        }
         if (name is not ("System.Guid" or "System.DateTime" or "System.DateTimeOffset" or "System.DateOnly" or "System.TimeOnly" or "System.TimeSpan")) return false;
         return target.GetTypeByMetadataName(name) is { } available && source.GetTypeByMetadataName(name) is { } original &&
                SymbolEqualityComparer.Default.Equals(named, original) && available.ContainingAssembly.Identity.Equals(named.ContainingAssembly.Identity);

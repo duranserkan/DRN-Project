@@ -6,6 +6,49 @@ namespace DRN.Test.Analyzer.Tests;
 
 public sealed class ConventionFactsTests
 {
+    [Theory]
+    [InlineData("Layers/Storage")]
+    [InlineData("Layers\\Storage")]
+    public void Role_Mapping_Should_Normalize_Logical_Path_Separators(string prefix)
+    {
+        var compilation = Compilation("namespace Sample.Storage.QA; public class Model;");
+        var facts = Facts(compilation, Role("Infra", "Sample.Storage", prefix));
+        facts.Role(compilation.GetTypeByMetadataName("Sample.Storage.QA.Model")!)
+            .Should().Be(("Infra", "Sample.Storage", "Layers/Storage"));
+        facts.Diagnostics.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void External_Constructed_Ownership_Should_Use_The_Generic_Definition(bool contradictory)
+    {
+        var producer = Compilation("namespace External; public class Row<T>;").WithAssemblyName("External.Library");
+        var secondOwner = contradictory ? "Billing" : "QA";
+        var consumer = Compilation($$"""
+            using DRN.Framework.SharedKernel.Attributes;
+            [assembly: SourceKnownSubdomain(typeof(External.Row<int>), "QA", Reason = "External storage owner")]
+            [assembly: SourceKnownSubdomain(typeof(External.Row<string>), "{{secondOwner}}", Reason = "External storage owner")]
+            public class Consumer;
+            """).AddReferences(Reference(producer, true));
+        consumer.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        var facts = Facts(consumer);
+        var definition = consumer.GetTypeByMetadataName("External.Row`1")!;
+        var constructed = definition.Construct(consumer.GetSpecialType(SpecialType.System_Int32));
+        if (contradictory)
+        {
+            facts.Owner(constructed).Should().BeNull();
+            facts.HasInvalidOwner(definition).Should().BeTrue();
+            facts.Diagnostics.Should().ContainSingle().Which.GetMessage().Should().Contain("contradictory external ownership");
+        }
+        else
+        {
+            facts.Owner(constructed)!.Subdomain.Should().Be("QA");
+            facts.Owner(definition)!.Subdomain.Should().Be("QA");
+            facts.Diagnostics.Should().BeEmpty();
+        }
+    }
+
     [Fact]
     public void Cached_Locations_Should_Keep_Logical_Path_Order_And_Observe_Cancellation()
     {
@@ -271,8 +314,8 @@ public sealed class ConventionFactsTests
         facts.Role(compilation.GetTypeByMetadataName("Sample.Split.Middle.Middle")!).Role.Should().Be("Contract");
         facts.Diagnostics.Should().HaveCount(2).And.OnlyContain(diagnostic => diagnostic.Id == "DRNCV001");
         facts.Diagnostics.Select(diagnostic => diagnostic.GetMessage()).Should().BeEquivalentTo(
-            "Convention input 'Role:Domain' is overlapping another role mapping; declare one valid set of nonoverlapping namespace and logical-path prefixes.",
-            "Convention input 'Role:Infra' is overlapping another role mapping; declare one valid set of nonoverlapping namespace and logical-path prefixes.");
+            "Convention input 'Role:Domain' is overlapping another role mapping. Declare one valid set of nonoverlapping namespace and logical-path prefixes.",
+            "Convention input 'Role:Infra' is overlapping another role mapping. Declare one valid set of nonoverlapping namespace and logical-path prefixes.");
     }
 
     [Fact]
@@ -284,7 +327,7 @@ public sealed class ConventionFactsTests
         var diagnostic = facts.Diagnostics.Should().ContainSingle().Which;
         diagnostic.Id.Should().Be("DRNCV001");
         diagnostic.GetMessage().Should().Contain("Path:Compile/Link").And.NotContain("/private/");
-        diagnostic.GetMessage().Should().Be("Convention input 'Path:Compile/Link' is declared with an invalid logical path; declare one valid project-relative Compile or Link path.");
+        diagnostic.GetMessage().Should().Be("Convention input 'Path:Compile/Link' is declared with an invalid logical path. Declare one valid project-relative Compile or Link path.");
         diagnostic.Location.Should().Be(location);
     }
 
@@ -294,7 +337,7 @@ public sealed class ConventionFactsTests
         var facts = Facts(Compilation("public class Consumer;"), new ConventionInput("Context", "Consumer",
             ImmutableDictionary<string, string>.Empty.Add("Unsupported", "value"), Location.None));
         facts.Diagnostics.Should().ContainSingle().Which.GetMessage().Should().Be(
-            "Convention input 'Context:Consumer' is declared with unknown fields; declare one valid record using documented fields for Context.");
+            "Convention input 'Context:Consumer' is declared with unknown fields. Declare one valid record using documented fields for Context.");
     }
 
     [Fact]

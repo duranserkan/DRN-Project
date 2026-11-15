@@ -10,7 +10,9 @@ There is no Fix All. Only DRNCV005 has a diagnostic code fix. Configuration crea
 
 Category: `DRN.Conventions.Configuration`.
 
-> Convention input '{0}' is {1}; declare one valid {2}.
+> Convention input '{0}' is {1}. {2}.
+
+For a context/subdomain mismatch, prefer either conventional alignment before an alias: `DataProtection` with `DataProtectionContext`, or `DrnDataProtection` with `DrnDataProtectionContext`, with matching namespace and folder. Use a reasoned mapping only for an intentional exception.
 
 The analyzer needs an unambiguous project role and consistent ownership and logical-path evidence. Case-insensitive whole role tokens identify roles. Both `Infra` and `Shop.Infrastructure.Sql` are Infra, while `DomainHelpers` is unrecognized. No application-name prefix is required. A name with multiple role tokens is ambiguous. Conflicting owners, overlapping split roles, invalid paths or missing reference inventory are also invalid.
 
@@ -52,7 +54,7 @@ Category: `DRN.Conventions.Context`.
 
 > Context '{0}' needs the options constructor required by its declared registration/design-time path.
 
-DRN context bases require a public options-only `DbContextOptions<ActualContext>` constructor for their design-time factory. A public forwarding constructor is valid. A conventional context with only a parameterless constructor is not. For contexts without a DRN base, observed `AddDbContext` and `AddDbContextWithConventions` registrations also accept public options constructors with additional injected dependencies. This does not establish that those dependencies are registered. Unselected custom construction paths are not guessed, and equivalent generic/new() compiler failures are not duplicated.
+DRN context bases require a public options-only `DbContextOptions<ActualContext>` constructor for their design-time factory. A public forwarding constructor is valid. A conventional context with only a parameterless constructor is not. For contexts without a DRN base, observed `AddDbContext` and `AddDbContextWithConventions` registrations accept public constructors taking `DbContextOptions<ActualContext>` or non-generic `DbContextOptions`, with optional additional injected dependencies. This does not establish that those dependencies are registered. Unselected custom construction paths are not guessed, and equivalent generic/new() compiler failures are not duplicated.
 
 A reasoned exact Factory declaration can identify an alternate path, with runtime validation still required. The code fix adds only a known forwarding constructor. Primary constructors, conflicting overloads, nontrivial initialization or generated/linked/unedited partial ambiguity prevent the offer. Preview it before applying. It changes no settings, context identity or migrations.
 
@@ -94,6 +96,8 @@ Category: `DRN.Conventions.Persistence`.
 
 Present/intended `IEntityTypeConfiguration<T>` mappings must be discoverable through supported evidence. The normal DRN scan includes exact/child context namespaces in its assembly. A sibling configuration associated with that context is invalid under a proven default scan. Explicit application and composed mappings can be valid. Unrelated Configure-named classes are excluded.
 
+An override that only forwards the unchanged model builder to the framework base retains that default scan evidence, including an expression-bodied override.
+
 Composed mappings support same-type, nonvirtual, nongeneric helper calls that forward the builder unchanged, including explicitly invoked local functions. Uninvoked helpers and deferred lambdas do not establish application.
 
 Attribute-only mapping is valid with no configuration warning. Correct actual discovery, select an explicit supported association or justify an exact exceptional relationship. Unknown custom discovery is not declared broken. Never move shared mapping automatically. The separate Add entity configuration action preserves annotations and adds no invented relationships.
@@ -102,11 +106,13 @@ Attribute-only mapping is valid with no configuration warning. Correct actual di
 
 Category: `DRN.Conventions.Structure`.
 
-> Context '{0}' needs declared {1} destination metadata matching '{2}', or a reasoned override.
+> Context '{0}' has no valid {1} destination. Set {1}="{2}" on its DrnConventionContext item, or provide a Reason for an alternate destination.
 
-Concrete persistent contexts need tracked Repositories and Migrations destinations even before those artifacts exist. `Sales/Repositories` and `Sales/Migrations` are valid for a conventional Sales area. Missing or conflicting destinations are invalid. Ordinary classes named Context do not require destinations.
+Conventional destinations are inferred without a `DrnConventionContext` entry. For a context in `Sample.Infra.Sales` whose logical source home is `Sales`, the defaults are `Sales/Repositories` and `Sales/Migrations`. All context partials must agree on that home. Existing context-bound repositories and migration/snapshot artifacts must have the corresponding namespace and logical directory. Compile/Link paths and split-role path prefixes are respected. No physical folder or placeholder file is required.
 
-Add the exact `DrnConventionContext` item or a reasoned alternate destination/migrations assembly. Do not create fake files for empty folders. Project metadata edits need a supported atomic host transaction or reviewed template plan. No analyzer action generates migrations or changes a database.
+Repository inference applies to contexts exposing aggregate DbSets, including inherited sets. Migration inference applies when associated migration/snapshot artifacts exist. Explicit repository and migration destinations are validated even without artifacts. Empty contexts need no destination metadata.
+
+Alternate, conflicting or unavailable logical homes require an explicit destination. Alternate destinations require a `Reason`. A separate migrations assembly requires explicit migration destination metadata. Explicit overrides do not waive folder, ownership or migration-association checks. No analyzer action generates migrations or changes a database.
 
 ## DRNCV011: Align repository aggregate and context
 
@@ -144,7 +150,9 @@ Category: `DRN.Conventions.Contract`.
 
 > Public contract member '{0}' exposes persistence/domain type '{1}'; expose an approved DTO or value model.
 
-Public Contract and supported transport shapes should expose DTOs/values rather than entities, contexts or repository objects. Dto Guid/timestamp mapping is valid. A nested array/tuple/generic wrapper containing Order is invalid. An unrelated value class named Entity is not a persistence type.
+Public Contract and MVC API shapes should expose DTOs/values rather than entities, contexts or repository objects. Razor page models are presentation models and are excluded from this API-shape check. Dto Guid/timestamp mapping is valid. A nested array/tuple/generic wrapper containing Order is invalid. An unrelated value class named Entity is not a persistence type.
+
+Public `DbSet<T>` properties expose persistence even when `T` is an ordinary class.
 
 An exact Dto constructor forwarding its source entity is allowed. Private nonserialized framework state is not external API. Approved neutral values remain eligible for public-shape inspection rather than hiding nested entities. Models exceeding the analysis limit report incomplete evidence and require review. Object/dynamic/custom serialization requires application review. Any DTO/API rewrite needs explicit compatibility and field decisions.
 
@@ -194,9 +202,11 @@ Correct or remove the exception. Never fabricate a justification. Optional finge
 
 Category: `DRN.Conventions.Ownership`.
 
-> '{0}' in subdomain '{1}' uses entity '{2}' owned by '{3}'. Use an owning-subdomain contract or identifier, correct misplaced ownership/code, or add a narrow DRNCV019 suppression with a concrete justification for intentional reuse.
+> '{0}' in subdomain '{1}' references entity '{2}' from '{3}'. Use the entity's identifier or a contract from '{3}'.
 
 Same-owner entity use across CQRS contexts is valid. Sales consuming an Inventory entity without a justified exception is reported. Strings, comments, using directives and unrelated same-named classes do not establish use. Bound signatures, inherited generic shapes and generated uses count when a handwritten declaration or exact input supplies an actionable location.
+
+Consumers are scoped to Domain types, entities, persistence contexts/configurations, repository/service bindings, DI-registered Application/Infra services and SourceKnown controllers, including nested helpers. Page models, ordinary MVC controllers and unclassified navigation/utility types do not acquire subdomain ownership from namespaces. Page models may use domain entities. API contract exposure, project dependencies and implementation-role checks are separate rules.
 
 Declaring assembly and symbol preserve ownership identity. Infra, Application and Hosted can use a referenced Domain entity in the same subdomain across naming prefixes. A Domain assembly using another Domain assembly's entity does not become the same owner merely because both subdomains share a name.
 
@@ -231,3 +241,104 @@ Category: `DRN.Conventions.Architecture`.
 Every Infra project needs at least one populated subdomain namespace across its directly referenced Domain projects. Concrete Infra contexts and repositories must have matching Domain subdomains. A type in `Shop.Domain.Sales` establishes Sales in its declaring assembly. Same-named subdomains in different assemblies remain distinct owners. An empty directory or namespace with no types does not establish a subdomain. The message uses `<any>` when no populated Domain subdomain is available.
 
 Place real Domain types under the owning subdomain or correct misplaced Infra ownership. Do not add placeholder types or empty folders merely to silence the diagnostic. Missing required references are reported first, and incomplete reference evidence does not prove a missing subdomain. No automatic namespace move or project-reference fix is offered.
+
+## DRNCV023: Expose aggregate roots through DbSet properties
+
+Category: `DRN.Conventions.Persistence`.
+
+> DbSet property '{0}' on context '{1}' exposes '{2}', which must derive from AggregateRoot.
+
+Instance `DbSet<TEntity>` properties on `DrnContext<TContext>` descendants must expose framework `AggregateRoot` descendants. This includes inherited properties and closed generic substitutions. Child entities, ordinary classes and keyless rows do not qualify merely because EF can map them. Keep child entities behind their aggregate instead of exposing a context set, or document a narrow intentional exception.
+
+The rule checks resolved framework symbols, including derived DbSet types. Static properties, unrelated lookalikes, plain DbContext and DrnContextIdentity are excluded. Open or erroneous entity types are deferred until resolved. Navigation-only entities and calls to Set/GetEntities are not DbSet property declarations. The rule changes neither EF mapping nor runtime generic constraints.
+
+## DRNCV024: Use the semantic role suffix
+
+Category: `DRN.Conventions.Structure`.
+
+> Rename '{0}' to end with '{1}' and include a name before the suffix.
+
+Concrete aggregates end in Entity. Repository contracts and implementations end in Repository. SourceKnown services, entity-bound application services/contracts and eligible attribute-registered application services end in Service. MVC controllers end in Controller. IEntityTypeConfiguration implementations end in Config. The interface prefix I alone is not a name stem. Abstract classes, open generic helpers, Razor PageModels and unrelated lookalikes are excluded. Context names retain DRNCV004.
+
+## DRNCV025: Place aggregates in their named directory and namespace
+
+Category: `DRN.Conventions.Structure`.
+
+> Place aggregate '{0}' in a folder named '{1}' and a namespace ending in '.{1}'.
+
+OrderEntity belongs in a namespace ending in Order and a logical source directory ending in Order. Use Compile/Link paths, including every handwritten partial declaration. DRNCV003 still checks the full ownership path. Missing logical paths remain DRNCV001 rather than guessed physical placement. Fix an invalid Entity suffix before placement is evaluated. No automatic public-type rename is offered.
+
+## DRNCV026: Declare the aggregate repository interface
+
+Category: `DRN.Conventions.Repository`.
+
+> Aggregate '{0}' has no matching repository interface in Domain subdomain '{1}'. Declare or move an interface extending ISourceKnownRepository<{0}> into the same namespace and folder as '{0}'.
+
+Each concrete, closed Domain aggregate needs a dedicated interface derived directly or indirectly from ISourceKnownRepository of that exact aggregate, in its own assembly, namespace and logical folder. An interface for another aggregate, namespace or folder does not satisfy the rule. Every handwritten partial declaration must share the folder. Compile/Link paths determine logical placement. Missing or invalid paths are handled by ownership input diagnostics without guessing physical paths. Referenced assemblies expose namespace identity, so producer folder validation occurs in the Domain compilation. Abstract/open generic aggregates are excluded. Missing or invalid ownership is handled by ownership diagnostics.
+
+## DRNCV027: Implement the aggregate repository in infrastructure
+
+Category: `DRN.Conventions.Repository`.
+
+> Aggregate '{0}' has no matching repository in Infra subdomain '{1}'. Add a concrete SourceKnownRepository implementation of its Domain repository interface.
+
+Checks only aggregates assigned to this Infra project's concrete contexts through DbSets, explicit inclusion or supported configuration evidence. Requires a concrete, closed SourceKnownRepository descendant implementing the exact Domain interface in the aggregate's subdomain. An unrelated same-named class, an abstract repository, or an implementation of only the framework interface is insufficient. One implementation can satisfy multiple contexts in that Infra. Explicitly excluded/ignored entities and unassigned Domain aggregates do not create an obligation. Reports at a context with the exact Entity property for narrow exceptions. This is bounded source evidence, not execution of arbitrary model-building code.
+
+## DRNCV028: Use the dedicated infrastructure folder
+
+Category: `DRN.Conventions.Structure`.
+
+> Place '{0}' in a folder named '{1}' and a namespace ending in '.{1}'.
+
+Concrete Infra repository implementations belong immediately in Repositories and IEntityTypeConfiguration implementations in Configurations. Their final namespace segment must match. Domain interfaces stay beside aggregates. Migrations and model snapshots associated through DbContextAttribute with DrnContext or DrnContextIdentity descendants belong immediately in Migrations, including generated artifacts. Linked files use logical Compile/Link paths. Missing migration paths report incomplete input rather than guessing physical placement. Generated artifacts use a context or input reporting anchor when available. DRNCV017 still validates context identity and declared destination. Reasoned destination metadata does not waive this independent folder rule.
+
+## DRNCV029: Name options for their context
+
+Category: `DRN.Conventions.Context`.
+
+> Rename options '{0}' to start with '{1}' and end with 'Options'. An 'Attribute' suffix may follow. Recommended name: '{1}NpgsqlDbContextOptionsAttribute'.
+
+Custom NpgsqlDbContextOptionsAttribute descendants, including performance options, use the applied DRN context's exact name as their prefix. QAContextOptions and QAContextNpgsqlDbContextOptionsAttribute are valid for QAContext. Inherited custom attributes are checked against the receiving context too. Framework-provided shared defaults are exempt. Unapplied classes and arbitrary same-named options are not guessed to belong to a context. This rule does not require an Options folder or rename runtime settings automatically.
+
+Prefer `QAContextNpgsqlDbContextOptionsAttribute`, applied as `[QAContextNpgsqlDbContextOptions]`. The `NpgsqlDbContext` portion is recommended, not mandatory.
+
+## DRNCV030: Declare context options on the context
+
+Category: `DRN.Conventions.Context`.
+
+> Context '{0}' must directly declare a custom attribute derived from NpgsqlDbContextOptionsAttribute. Recommended name: '{0}NpgsqlDbContextOptionsAttribute'.
+
+Each concrete, closed `DrnContext` or `DrnContextIdentity` descendant must directly apply a custom attribute derived from `NpgsqlDbContextOptionsAttribute`. An attribute on another partial declaration counts. Inherited custom options and framework defaults do not satisfy the direct declaration requirement. Unrelated same-named attributes do not count. DRNCV029 independently checks the names of applied custom options.
+
+Abstract bases, open generic contexts, plain EF contexts and unrelated classes are excluded. This rule requires a declaration, not a particular configuration override or runtime setting. Use the normal exact, justified exception channels for intentional departures.
+
+## DRNCV031: Declare a DI lifetime for paired implementations
+
+DRNCV031 takes precedence over DRNCV012 for the same implementation/interface binding failure. Other service demands and key mismatches remain eligible for DRNCV012. A missing attribute scan is not diagnosed by either rule.
+
+Category: `DRN.Conventions.Registration`.
+
+> 'AnswerRepository' must register 'IAnswerRepository' through a matching LifetimeAttribute. Choose [Scoped<IAnswerRepository>], [Transient<IAnswerRepository>], or [Singleton<IAnswerRepository>] for its intended lifetime.
+
+Concrete, closed Application/Infra service implementations of an exact `I{Name}` interface require one lifetime attribute bound to that exact interface, including its generic arguments. Generic lifetime derivatives establish the binding through their service type argument. Custom nongeneric derivatives also count when source-visible explicit constructor chains forward a statically known type to LifetimeAttribute's serviceType parameter. Supported evidence includes typeof expressions, type-valued attribute arguments, parameter forwarding, named arguments, primary constructors and explicit base/this initializers. Arbitrary expressions and unavailable constructor bodies remain unproven. A nongeneric attribute name alone does not establish a binding. Direct lifetime attributes take precedence over inherited ones, matching runtime scanning. Multiple selected lifetime attributes, self-registration and other interface bindings do not satisfy the rule. Partial declarations are checked once. Choose a lifetime appropriate to the implementation's dependencies; the examples are alternatives, not interchangeable recommendations.
+
+This binding rule applies without an observed attribute scan. Manual registrations and unknown custom composition do not waive it. Keyed matching bindings count; DRNCV012 independently checks required keys and supported registration paths. DRNCV031 does not certify runtime registration or lifetime safety. Abstract/open generic classes, entities, neutral values, DTOs, contexts, EF configurations, bound options and transport types such as Razor page models and controllers are excluded. Use an exact, justified convention exception for intentional departures.
+
+## DRNCV032: Declare a project module with an attribute scan
+
+Category: `DRN.Conventions.Registration`.
+
+Hosted, Application, Infra and Utils projects need a public, top-level, nongeneric static class whose name ends in `Module`. It must expose a public static nongeneric method accepting and returning `IServiceCollection`, with a direct `services.AddServicesWithAttributes()` call on its service-collection parameter. A static call to the same DRN API also counts. An explicit `typeof(LocalType).Assembly` argument is supported when the type belongs to this assembly.
+
+Calls scanning another assembly, lookalike APIs, calls on unrelated collections and calls inside lambdas or local functions do not satisfy the rule. Framework/test projects remain excluded by project-role discovery. Domain, Contract and SharedKernel roles do not require DI modules. The diagnostic is project-level because the module itself may be missing. This is a structural check; it does not prove host invocation, reachability or execution on every path.
+
+```csharp
+public static class ApplicationModule
+{
+    public static IServiceCollection AddApplicationServices(this IServiceCollection services)
+    {
+        services.AddServicesWithAttributes();
+        return services;
+    }
+}
+```

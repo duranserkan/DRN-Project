@@ -316,6 +316,36 @@ public sealed class EntityDtoRefactoringTests
         (await Actions(workspace.CurrentSolution.GetDocument(document.Id)!)).Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineData("", "", true)]
+    [InlineData("<T>", "<int>", false)]
+    [InlineData("<T>", "<Sample.Domain.QA.DomainOnly>", false)]
+    public async Task Nested_Enum_Selection_Should_Require_A_Type_Resolvable_In_Both_Projects(string declaration, string construction, bool offered)
+    {
+        using var workspace = new AdhocWorkspace();
+        var source = Source.Replace("public int Count", "public Sample.Contract.Types.Container" + construction + ".State Count", StringComparison.Ordinal)
+            + "\npublic class DomainOnly;";
+        var document = Create(workspace, source);
+        var contract = workspace.CurrentSolution.Projects.Single(project => project.Name == "Sample.Contract");
+        var enumeration = contract.AddDocument("State.cs", "namespace Sample.Contract.Types; public class Container" + declaration +
+            " { public enum State { Ready } }", filePath: "/source/Sample.Contract/Types/State.cs");
+        workspace.TryApplyChanges(enumeration.Project.Solution).Should().BeTrue();
+        document = workspace.CurrentSolution.GetDocument(document.Id)!;
+        (await document.Project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        var actions = await Actions(document);
+        if (!offered)
+        {
+            actions.Should().BeEmpty();
+            return;
+        }
+        var action = actions.Should().ContainSingle().Which;
+        var changed = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        foreach (var project in changed.Projects)
+            (await project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        var dto = changed.GetProject(contract.Id)!.Documents.Single(item => item.Name == "UserDto.cs");
+        (await dto.GetTextAsync()).ToString().Should().Contain("global::Sample.Contract.Types.Container.State Count");
+    }
+
     private static Document Create(AdhocWorkspace workspace, string source = Source, bool reference = true, string contractName = "Sample.Contract")
     {
         var contract = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),

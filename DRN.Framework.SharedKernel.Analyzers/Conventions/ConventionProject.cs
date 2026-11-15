@@ -39,7 +39,7 @@ internal sealed record ConventionProject(bool Enabled, string Name, string Role,
         value.Split('.').All(segment => SyntaxFacts.IsValidIdentifier(segment));
 
     internal static Diagnostic InputIssue(string key, string problem, string remedy, Location? location = null) =>
-        Diagnostic.Create(ConventionDiagnosticDescriptors.InvalidInput, location ?? Location.None, key, problem, remedy);
+        Diagnostic.Create(ConventionDiagnosticDescriptors.InvalidInput, location ?? Location.None, key, problem, "Declare one valid " + remedy);
 
     internal static string NormalizeSeparators(string value) => value.Replace('\\', '/');
 
