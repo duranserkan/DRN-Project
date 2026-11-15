@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.SharedKernel;
@@ -133,6 +134,7 @@ public class EndpointCollectionLifecycleTests
 
     public sealed class CatalogProbeController : ControllerBase
     {
+        [SuppressMessage("Performance", "CA1822", Justification = "The endpoint collection fixture binds an MVC instance action. Static methods are not MVC actions.")]
         public void Read(Guid id) { }
     }
 

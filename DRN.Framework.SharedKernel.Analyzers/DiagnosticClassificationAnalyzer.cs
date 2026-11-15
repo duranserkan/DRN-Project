@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using DRN.Framework.SharedKernel.Diagnostics;
 using Microsoft.CodeAnalysis;
@@ -42,22 +43,74 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
             var personal = start.Compilation.GetTypeByMetadataName(AttributeNamespace + "PersonalAttribute");
             if (sensitive == null || personal == null) return;
             var contract = new ClassificationContract(sensitive, personal);
+            var captureApis = new CaptureApis(start.Compilation);
             var exemptions = new DiagnosticNameExemption();
             start.RegisterSyntaxTreeAction(exemptions.Collect);
             start.RegisterCompilationEndAction(exemptions.ReportUnused);
             start.RegisterSymbolAction(symbol => AnalyzeProperty(symbol, contract, rules), SymbolKind.Property);
             start.RegisterOperationAction(operation => AnalyzeAnonymousObject(operation, rules), OperationKind.AnonymousObjectCreation);
             start.RegisterSyntaxNodeAction(node => AnalyzeAttribute(node, contract), Microsoft.CodeAnalysis.CSharp.SyntaxKind.Attribute);
-            start.RegisterOperationAction(operation => AnalyzeConstructor(operation, contract), OperationKind.Invocation);
-            start.RegisterOperationAction(operation => AnalyzeCapture(operation, contract, rules, exemptions), OperationKind.Invocation);
-            start.RegisterOperationAction(operation => AnalyzeDictionaryCapture(operation, rules, exemptions), OperationKind.Invocation);
-            start.RegisterOperationAction(operation =>
+            start.RegisterOperationBlockStartAction(block =>
             {
-                var call = (IInvocationOperation)operation.Operation;
-                if (!IsSubstituteVerification(call))
-                    LoggingCaptureAnalysis.Analyze(operation, contract, rules, call, exemptions);
-            }, OperationKind.Invocation);
+                var localWrites = new DictionaryCaptureAnalysis.LocalWriteIndex();
+                block.RegisterOperationAction(operation =>
+                    AnalyzeInvocation(operation, contract, captureApis, rules, exemptions, localWrites), OperationKind.Invocation);
+            });
         });
+    }
+
+    private static void AnalyzeInvocation(OperationAnalysisContext context, ClassificationContract contract, CaptureApis captureApis,
+        DiagnosticRedactionRules rules, DiagnosticNameExemption exemptions, DictionaryCaptureAnalysis.LocalWriteIndex localWrites)
+    {
+        var call = (IInvocationOperation)context.Operation;
+        if (call.TargetMethod.MethodKind == MethodKind.Constructor)
+        {
+            AnalyzeConstructor(context, contract);
+            return;
+        }
+        if (call.TargetMethod.Name is not ("Add" or "AddToList" or "AddIfNotNullOrEmpty" or "AddProperties" or
+            "AddWithPolicy" or "AddPropertiesWithPolicy" or "SanitizeValue" or "SanitizeWithPolicy" or
+            "AddDictionary" or "SanitizeDictionary" or "Log" or "LogTrace" or "LogDebug" or "LogInformation" or
+            "LogWarning" or "LogError" or "LogCritical" or "BeginScope") || IsSubstituteVerification(call)) return;
+
+        var api = captureApis.Find(call.TargetMethod.ContainingType);
+        if (api != CaptureApi.None)
+        {
+            AnalyzeCapture(context, contract, rules, exemptions, call, api);
+            AnalyzeDictionaryCapture(context, rules, exemptions, call, localWrites);
+        }
+        LoggingCaptureAnalysis.Analyze(context, contract, rules, call, exemptions, localWrites);
+    }
+
+    private enum CaptureApi { None, ScopedLog, Sanitizer, Extensions }
+
+    private sealed class CaptureApis(Compilation compilation)
+    {
+        private readonly ConcurrentDictionary<INamedTypeSymbol, CaptureApi> _otherTypes = new(SymbolEqualityComparer.Default);
+        private readonly INamedTypeSymbol? _log = compilation.GetTypeByMetadataName("DRN.Framework.Utils.Logging.IScopedLog");
+        private readonly INamedTypeSymbol? _concreteLog = compilation.GetTypeByMetadataName("DRN.Framework.Utils.Logging.ScopedLog");
+        private readonly INamedTypeSymbol? _sanitizer = compilation.GetTypeByMetadataName("DRN.Framework.Utils.Logging.Diagnostics.IDiagnosticSanitizer");
+        private readonly INamedTypeSymbol? _concreteSanitizer = compilation.GetTypeByMetadataName("DRN.Framework.Utils.Logging.Diagnostics.DiagnosticSanitizer");
+        private readonly INamedTypeSymbol? _extensions = compilation.GetTypeByMetadataName("DRN.Framework.Utils.Logging.Diagnostics.DiagnosticCaptureExtensions");
+
+        public CaptureApi Find(INamedTypeSymbol type)
+        {
+            if (type.Name is not ("IScopedLog" or "ScopedLog" or "IDiagnosticSanitizer" or "DiagnosticSanitizer" or "DiagnosticCaptureExtensions"))
+                return CaptureApi.None;
+            if (SymbolEqualityComparer.Default.Equals(type, _log) || SymbolEqualityComparer.Default.Equals(type, _concreteLog))
+                return CaptureApi.ScopedLog;
+            if (SymbolEqualityComparer.Default.Equals(type, _sanitizer) || SymbolEqualityComparer.Default.Equals(type, _concreteSanitizer))
+                return CaptureApi.Sanitizer;
+            if (SymbolEqualityComparer.Default.Equals(type, _extensions)) return CaptureApi.Extensions;
+            // Preserve name-based coverage for ambiguous references and extern aliases.
+            return _otherTypes.GetOrAdd(type, static candidate => candidate.ToDisplayString() switch
+            {
+                "DRN.Framework.Utils.Logging.IScopedLog" or "DRN.Framework.Utils.Logging.ScopedLog" => CaptureApi.ScopedLog,
+                "DRN.Framework.Utils.Logging.Diagnostics.IDiagnosticSanitizer" or "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticSanitizer" => CaptureApi.Sanitizer,
+                "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticCaptureExtensions" => CaptureApi.Extensions,
+                _ => CaptureApi.None
+            });
+        }
     }
 
     private static DiagnosticRedactionRules LoadRules(Compilation compilation, AnalyzerOptions options,
@@ -154,23 +207,13 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
         named.ContainingNamespace.ToDisplayString() == "Microsoft.EntityFrameworkCore.Migrations.Operations.Builders" &&
         named.TypeArguments[0].ToDisplayString() == "Microsoft.EntityFrameworkCore.Migrations.Operations.AddColumnOperation";
 
-    private static bool IsScopedLog(string owner) =>
-        owner is "DRN.Framework.Utils.Logging.IScopedLog" or "DRN.Framework.Utils.Logging.ScopedLog";
-
-    private static bool IsSanitizer(string owner) =>
-        owner is "DRN.Framework.Utils.Logging.Diagnostics.IDiagnosticSanitizer" or "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticSanitizer";
-
     private static IOperation? GetArgumentValue(IInvocationOperation call, int ordinal) =>
         call.Arguments.FirstOrDefault(argument => argument.Parameter?.Ordinal == ordinal)?.Value;
 
-    private static void AnalyzeDictionaryCapture(OperationAnalysisContext context, DiagnosticRedactionRules rules, DiagnosticNameExemption exemptions)
+    private static void AnalyzeDictionaryCapture(OperationAnalysisContext context, DiagnosticRedactionRules rules,
+        DiagnosticNameExemption exemptions, IInvocationOperation call, DictionaryCaptureAnalysis.LocalWriteIndex localWrites)
     {
-        var call = (IInvocationOperation)context.Operation;
-        if (IsSubstituteVerification(call)) return;
         var method = call.TargetMethod;
-        var owner = method.ContainingType.ToDisplayString();
-        if (!IsScopedLog(owner) && !IsSanitizer(owner) &&
-            owner != "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticCaptureExtensions") return;
         if (method.Name is not ("Add" or "AddToList" or "AddProperties" or "AddWithPolicy" or "AddPropertiesWithPolicy" or
             "SanitizeValue" or "SanitizeWithPolicy" or "AddDictionary" or "SanitizeDictionary")) return;
         var offset = method.IsExtensionMethod && method.ReducedFrom == null ? 1 : 0;
@@ -179,7 +222,7 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
         var dictionaryApi = method.Name is "AddDictionary" or "SanitizeDictionary";
         var prefix = GetArgumentValue(call, offset);
         var rootPath = prefix?.ConstantValue is { HasValue: true, Value: string path } ? path : null;
-        new DictionaryCaptureAnalysis(context, rules, call, exemptions).Analyze(value, dictionaryApi, rootPath);
+        new DictionaryCaptureAnalysis(context, rules, call, exemptions, localWrites).Analyze(value, dictionaryApi, rootPath);
     }
 
     private static void AnalyzeAttribute(SyntaxNodeAnalysisContext context, ClassificationContract contract)
@@ -207,11 +250,9 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
     }
 
     private static void AnalyzeCapture(OperationAnalysisContext context, ClassificationContract contract, DiagnosticRedactionRules rules,
-        DiagnosticNameExemption exemptions)
+        DiagnosticNameExemption exemptions, IInvocationOperation call, CaptureApi api)
     {
-        var call = (IInvocationOperation)context.Operation;
-        if (IsSubstituteVerification(call)) return;
-        if (!IsModelCapture(call, out var flat, out var namesAcknowledged)) return;
+        if (!IsModelCapture(call, api, out var flat, out var namesAcknowledged)) return;
         var offset = call.TargetMethod.IsExtensionMethod && call.TargetMethod.ReducedFrom == null ? 1 : 0;
         var prefix = GetArgumentValue(call, offset);
         if (prefix == null || !prefix.ConstantValue.HasValue || prefix.ConstantValue.Value is not string path) return;
@@ -220,13 +261,11 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
         new ModelCaptureAnalysis(context, contract, rules, call, flat, exemptions, namesAcknowledged).Analyze(type, path);
     }
 
-    private static bool IsModelCapture(IInvocationOperation call, out bool flat, out bool namesAcknowledged)
+    private static bool IsModelCapture(IInvocationOperation call, CaptureApi api, out bool flat, out bool namesAcknowledged)
     {
         var method = call.TargetMethod;
-        var owner = method.ContainingType.ToDisplayString();
-        var extensions = owner == "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticCaptureExtensions";
-        flat = method.Name is "AddProperties" or "AddPropertiesWithPolicy" && (IsScopedLog(owner) || extensions);
-        var valueCapture = IsValueCapture(method.Name, owner, extensions);
+        flat = method.Name is "AddProperties" or "AddPropertiesWithPolicy" && api is CaptureApi.ScopedLog or CaptureApi.Extensions;
+        var valueCapture = IsValueCapture(method.Name, api);
         var offset = method.IsExtensionMethod && method.ReducedFrom == null ? 1 : 0;
         namesAcknowledged = method.Name.EndsWith("WithPolicy", StringComparison.Ordinal) ||
                             !flat && call.Arguments.Length > 2 + offset;
@@ -234,9 +273,9 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
         return (flat || valueCapture) && call.Arguments.Length >= 2 + offset;
     }
 
-    private static bool IsValueCapture(string methodName, string owner, bool extensions) =>
-        methodName is "Add" or "AddToList" or "AddIfNotNullOrEmpty" or "AddWithPolicy" && (IsScopedLog(owner) || extensions) ||
-        methodName is "SanitizeValue" or "SanitizeWithPolicy" && (IsSanitizer(owner) || extensions);
+    private static bool IsValueCapture(string methodName, CaptureApi api) =>
+        methodName is "Add" or "AddToList" or "AddIfNotNullOrEmpty" or "AddWithPolicy" && api is CaptureApi.ScopedLog or CaptureApi.Extensions ||
+        methodName is "SanitizeValue" or "SanitizeWithPolicy" && api is CaptureApi.Sanitizer or CaptureApi.Extensions;
 
     private static ITypeSymbol? GetCaptureType(IInvocationOperation call, bool flat, int offset)
     {

@@ -1,4 +1,3 @@
-using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.CodeAnalysis.Emit;
 using DRN.Test.Shared;
@@ -59,7 +58,7 @@ public sealed class ProjectDiagnosticRulesTests
     public async Task Own_Assembly_Metadata_Should_Use_The_Same_Catalog_Parser()
     {
         var source = "[assembly: DRN.Framework.SharedKernel.Attributes.DataClassificationRules(" +
-                     Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(Fixture(), true) + ")]\n" +
+                     SymbolDisplay.FormatLiteral(Fixture(), true) + ")]\n" +
                      "public class Model { public string MembershipNumber => \"\"; }";
         var diagnostics = await Analyze(DiagnosticClassificationAnalyzerTests.Compilation(source));
         diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRN0015");
@@ -70,8 +69,8 @@ public sealed class ProjectDiagnosticRulesTests
     {
         var metadata = (drnCatalog ? "[assembly: DRN.Framework.SharedKernel.Attributes.DataClassificationRules(" :
                            "[assembly: System.Reflection.AssemblyMetadata(\"DRN.DataClassificationRules\", ") +
-                       Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(json, true) + ")]\n";
-        var compilation = DiagnosticClassificationAnalyzerTests.Compilation(metadata + source).WithAssemblyName(name).AddReferences(dependencies);
+                       SymbolDisplay.FormatLiteral(json, true) + ")]\n";
+        var compilation = Compilation(metadata + source).WithAssemblyName(name).AddReferences(dependencies);
         using var stream = new MemoryStream();
         var result = compilation.Emit(stream, options: new EmitOptions(metadataOnly: true, includePrivateMembers: false));
         result.Success.Should().BeTrue(string.Join(Environment.NewLine, result.Diagnostics));
@@ -81,7 +80,7 @@ public sealed class ProjectDiagnosticRulesTests
     [Fact]
     public async Task Project_Rules_Should_Extend_Builtins_Without_Leaking_Across_Compilations()
     {
-        var compilation = DiagnosticClassificationAnalyzerTests.Compilation("""
+        var compilation = Compilation("""
             public class Model
             {
                 public string Membership_Number { get; set; } = "";

@@ -3,17 +3,8 @@ using Sample.Hosted;
 using Sample.Hosted.Controllers.Sample;
 using Sample.Hosted.Controllers.User;
 
-// Generated roots: {baseNamespace}.EndpointFor.{rootPrefix}EndpointFor and {baseNamespace}.PageFor.{rootPrefix}PageFor.
-// {programNamespace}: namespace declaring the type passed to typeof, here Sample.Hosted.
-// {baseNamespace}: {programNamespace}.Helpers by default, here Sample.Hosted.Helpers. Set Namespace to replace it.
-// For a type with no namespace, {baseNamespace} defaults to Helpers.
-// {rootPrefix}: type name with a trailing Program removed, here Sample. Set Name to replace this prefix.
-// Program alone uses App; a name without the Program suffix stays unchanged.
-// Thus SampleProgram generates SampleEndpointFor/SamplePageFor; Program generates AppEndpointFor/AppPageFor.
-// Namespaces follow the program namespace, not this file's folder. No files are written into Helpers.
-// Controller namespaces define groups. Razor @page paths define page groups: Pages/Home.cshtml -> Get.Page.Root.Home.
-// SampleProgram.ConfigureEndpointCollection returns SampleEndpointFor.EndpointCollection for startup binding.
-[assembly: HostedAccessors(typeof(SampleProgram))]
+// SampleProgram automatically generates SampleEndpointFor and SamplePageFor under Sample.Hosted.Helpers.
+// This file contains only customizations. Generated sources remain compiler-owned under Helpers hint folders.
 
 // Preserve the existing group type UserIdentityFor instead of UserIdentityApiFor.
 [assembly: AccessorGroup(typeof(SampleProgram), "User.Identity", "UserIdentityFor")]

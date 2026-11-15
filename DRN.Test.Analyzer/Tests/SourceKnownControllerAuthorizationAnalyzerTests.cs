@@ -1,5 +1,3 @@
-using System.IO;
-
 namespace DRN.Test.Analyzer.Tests;
 
 public class SourceKnownControllerAuthorizationAnalyzerTests
@@ -316,17 +314,17 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
 
     private static CSharpCompilation Compile(string name, string source, params MetadataReference[] extraReferences)
     {
-        var references = new List<MetadataReference>
-        {
+        List<MetadataReference> references =
+        [
             MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
-            MetadataReference.CreateFromFile(Path.Combine(Path.GetDirectoryName(typeof(object).Assembly.Location)!, "System.Runtime.dll"))
-        };
-        references.AddRange(extraReferences);
+            MetadataReference.CreateFromFile(Path.Combine(Path.GetDirectoryName(typeof(object).Assembly.Location)!, "System.Runtime.dll")),
+            .. extraReferences
+        ];
         return CSharpCompilation.Create(name, [CSharpSyntaxTree.ParseText(source)], references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
     }
 
-    private static MetadataReference EmitReference(CSharpCompilation compilation)
+    private static PortableExecutableReference EmitReference(CSharpCompilation compilation)
     {
         using var stream = new MemoryStream();
         var result = compilation.Emit(stream);

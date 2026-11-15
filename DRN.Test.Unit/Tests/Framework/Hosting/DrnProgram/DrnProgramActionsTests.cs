@@ -66,9 +66,14 @@ public class DrnProgramActionsTests
         using var settings = SettingsProvider.Development();
         var log = Substitute.For<IScopedLog>();
 
-        await actions.ApplicationBuilderCreatedAsync(program, null!, settings, log);
-        await actions.ApplicationBuiltAsync(program, null!, settings, log);
-        await actions.ApplicationValidatedAsync(program, null!, settings, log);
+        var invokeDefaultHooks = async () =>
+        {
+            await actions.ApplicationBuilderCreatedAsync(program, null!, settings, log);
+            await actions.ApplicationBuiltAsync(program, null!, settings, log);
+            await actions.ApplicationValidatedAsync(program, null!, settings, log);
+        };
+
+        await invokeDefaultHooks.Should().NotThrowAsync();
     }
 
     private static Assembly AssemblyWith(params Type[] types)

@@ -101,7 +101,7 @@ public sealed class ClassificationCodeFixTests
                 provider.FixableDiagnosticIds, new ClassificationDiagnostics(), CancellationToken.None);
             var action = await provider.GetFixAllProvider().GetFixAsync(context);
             action.Should().NotBeNull();
-            var changed = (await Apply(action!)).GetProject(project.Id)!;
+            var changed = (await Apply(action)).GetProject(project.Id)!;
             var after = (CSharpCompilation)(await changed.GetCompilationAsync())!;
             (await DiagnosticClassificationAnalyzerTests.Analyze(after)).Should().BeEmpty();
             foreach (var (type, name) in new[] { ("Model", first), ("Details", second) })
@@ -228,7 +228,7 @@ public sealed class ClassificationCodeFixTests
             provider.FixableDiagnosticIds, new ClassificationDiagnostics(), CancellationToken.None);
         var action = await provider.GetFixAllProvider().GetFixAsync(context);
         action.Should().NotBeNull();
-        var changed = await Apply(document, action!);
+        var changed = await Apply(document, action);
         (await DiagnosticClassificationAnalyzerTests.Analyze((CSharpCompilation)(await changed.Project.GetCompilationAsync())!))
             .Should().BeEmpty();
         var text = (await changed.GetTextAsync()).ToString();

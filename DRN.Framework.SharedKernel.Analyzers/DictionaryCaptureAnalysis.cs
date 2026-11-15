@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using DRN.Framework.SharedKernel.Diagnostics;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
@@ -6,7 +7,7 @@ using Microsoft.CodeAnalysis.Operations;
 namespace DRN.Framework.SharedKernel.Analyzers;
 
 internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context, DiagnosticRedactionRules rules, IInvocationOperation call,
-    DiagnosticNameExemption exemptions,
+    DiagnosticNameExemption exemptions, DictionaryCaptureAnalysis.LocalWriteIndex localWrites,
     DiagnosticDescriptor? descriptor = null, Action<IOperation>? inspectValue = null)
 {
     private const int MaxDictionaryWork = 16384;
@@ -125,10 +126,11 @@ internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context
 
     private void InspectLocalWrites(ILocalSymbol local, bool allowKeys, int depth, string? capturePath)
     {
-        _localWrites ??= IndexLocalWrites();
+        _localWrites ??= localWrites.Get(call, context.CancellationToken);
         if (!_localWrites.TryGetValue(local, out var writes)) return;
         foreach (var write in writes)
         {
+            if (write is not IVariableDeclaratorOperation && write.Syntax.SpanStart >= call.Syntax.SpanStart) continue;
             if (!TryVisit()) return;
             if (write is IVariableDeclaratorOperation { Initializer: { } initializer })
                 Inspect(initializer.Value, allowKeys, depth + 1, capturePath);
@@ -139,33 +141,41 @@ internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context
         }
     }
 
-    private Dictionary<ILocalSymbol, List<IOperation>> IndexLocalWrites()
+    internal sealed class LocalWriteIndex
     {
-        var writes = new Dictionary<ILocalSymbol, List<IOperation>>(SymbolEqualityComparer.Default);
-        var root = call.Parent;
-        while (root?.Parent != null) root = root.Parent;
-        if (root == null) return writes;
-        // Scan once per capture. Bound indexing separately so unrelated operations do not
-        // consume the path-sensitive traversal budget on every shared-local visit.
-        var remaining = MaxDictionaryWork;
-        foreach (var prior in root.Descendants())
+        private ConcurrentDictionary<IOperation, Dictionary<ILocalSymbol, List<IOperation>>>? _roots;
+
+        internal Dictionary<ILocalSymbol, List<IOperation>> Get(IInvocationOperation call, CancellationToken cancellation)
         {
-            context.CancellationToken.ThrowIfCancellationRequested();
-            if (remaining-- == 0) break;
-            ILocalSymbol? local;
-            if (prior is IVariableDeclaratorOperation { Initializer: not null } declaration)
-                local = declaration.Symbol;
-            else
-                local = prior.Syntax.SpanStart < call.Syntax.SpanStart ? GetWrittenLocal(prior) : null;
-            if (local == null) continue;
-            if (!writes.TryGetValue(local, out var entries))
-            {
-                entries = [];
-                writes.Add(local, entries);
-            }
-            entries.Add(prior);
+            cancellation.ThrowIfCancellationRequested();
+            var root = call.Parent;
+            while (root?.Parent != null) root = root.Parent;
+            if (root == null) return new(SymbolEqualityComparer.Default);
+            var roots = LazyInitializer.EnsureInitialized(ref _roots);
+            return roots.GetOrAdd(root, static (operation, token) => Index(operation, token), cancellation);
         }
-        return writes;
+
+        private static Dictionary<ILocalSymbol, List<IOperation>> Index(IOperation root, CancellationToken cancellation)
+        {
+            var writes = new Dictionary<ILocalSymbol, List<IOperation>>(SymbolEqualityComparer.Default);
+            // Index once per operation root. Each capture applies its own position cutoff.
+            var remaining = MaxDictionaryWork;
+            foreach (var operation in root.Descendants())
+            {
+                cancellation.ThrowIfCancellationRequested();
+                if (remaining-- == 0) break;
+                var local = operation is IVariableDeclaratorOperation { Initializer: not null } declaration
+                    ? declaration.Symbol : GetWrittenLocal(operation);
+                if (local == null) continue;
+                if (!writes.TryGetValue(local, out var entries))
+                {
+                    entries = [];
+                    writes.Add(local, entries);
+                }
+                entries.Add(operation);
+            }
+            return writes;
+        }
     }
 
     private static ILocalSymbol? GetWrittenLocal(IOperation operation)

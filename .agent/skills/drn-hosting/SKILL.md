@@ -52,9 +52,9 @@ Use typed `PageCollection`/`EndpointCollection` singletons. Return the latter fr
 
 `EndpointName` is a label, not a registered name. Inventory runtime names before assertions. `Path(...)` only formats templates; use `Url.Endpoint` for routing, constraints, encoding and request prefixes.
 
-Typed links reject shared MVC addresses. See README.
+README owns typed-link restrictions and disposal-method exclusions.
 
-Hosting ships net10.0 generation via buildTransitive/shared targets. SDK Web opt-in: `[assembly: HostedAccessors(typeof(ExampleProgram))]`. Razor detection is automatic. No pages means an empty root. Keep `Get` and route constants handwritten. Omit conventional override paths. Legacy route metadata infers one standard template; overrides win. Runtime routing is authoritative. Parameter/constraint generation is TODO. README **Automatic hosted accessors** owns conventions and limits.
+Hosting ships net10.0 generation via buildTransitive/shared targets. README **Automatic hosted accessors** owns program eligibility, DRNHG002 naming and Razor conventions. Reuse typed singletons. Keep `Get` and route constants handwritten. Runtime routing is authoritative. Parameter/constraint generation is TODO. Controller accessors require `ControllerBase`. Discovery skips controllers without it; explicit mappings report DRNHG001.
 
 Prefer MVC page/action routing or `Url.Endpoint(endpoint, values)` for initialized APIs. Use `~/` for application-relative HTML/HTMX URLs and `Url.Content` in C#. Reserve `Request.ApplicationUrl` for configured destinations such as MFA pages. Preserve validated return URLs. See README **Application URLs**.
 

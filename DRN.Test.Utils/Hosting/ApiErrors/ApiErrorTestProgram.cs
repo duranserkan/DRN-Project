@@ -21,13 +21,14 @@ public sealed class ApiErrorTestProgram : DrnProgramBase<ApiErrorTestProgram>, I
 {
     public const string Root = "/api-error-probe";
     public const string Secret = "private-exception-password";
+    private const string BrowserScheme = "Browser";
     public static Task Main(string[] args) => RunAsync(args);
 
     protected override Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings, IScopedLog scopedLog)
     {
         builder.Services.AddAuthentication(IdentityConstants.BearerScheme)
             .AddBearerToken(IdentityConstants.BearerScheme)
-            .AddCookie("Browser");
+            .AddCookie(BrowserScheme);
         builder.Services.AddAuthorizationBuilder()
             .AddPolicy(SourceKnownRoutingPolicies.Read, policy => policy
                 .AddAuthenticationSchemes(IdentityConstants.BearerScheme)
@@ -79,7 +80,7 @@ public sealed class ApiErrorTestProgram : DrnProgramBase<ApiErrorTestProgram>, I
         application.MapGet(Root + "/minimal", () => TypedResults.NotFound()).DisableCookieRedirect().AllowAnonymous();
         application.MapGet(Root + "/protected", () => "protected")
             .DisableCookieRedirect().RequireAuthorization();
-        application.MapGet(Root + "/browser", () => Results.Challenge(authenticationSchemes: ["Browser"]))
+        application.MapGet(Root + "/browser", () => Results.Challenge(authenticationSchemes: [BrowserScheme]))
             .AllowAnonymous();
         application.MapGet(Root + "/token", () => Results.SignIn(
                 new ClaimsPrincipal(new ClaimsIdentity([
@@ -96,10 +97,10 @@ public sealed class ApiErrorTestProgram : DrnProgramBase<ApiErrorTestProgram>, I
                 new ClaimsPrincipal(new ClaimsIdentity([
                     new Claim(ClaimTypes.NameIdentifier, "probe-user"), new Claim("amr", "mfa"),
                     new Claim(SourceKnownRoutingPolicies.WriteClaim, "allowed")
-                ], "Browser")), authenticationScheme: "Browser"))
+                ], BrowserScheme)), authenticationScheme: BrowserScheme))
             .AllowAnonymous();
         application.MapGet(Root + "/cookie-protected", () => "cookie-authenticated")
-            .RequireAuthorization(new AuthorizeAttribute { AuthenticationSchemes = "Browser" });
+            .RequireAuthorization(new AuthorizeAttribute { AuthenticationSchemes = BrowserScheme });
     }
 
     private sealed class ProbeRejectionRule : ISingletonRateLimitRule

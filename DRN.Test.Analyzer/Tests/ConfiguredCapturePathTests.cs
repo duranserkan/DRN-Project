@@ -33,14 +33,14 @@ public sealed class ConfiguredCapturePathTests
                 }
             }
             """);
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
+        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
         var diagnostics = await Analyze(compilation, new ProjectDiagnosticRulesTests.RuleFile(
             "data-classification-rules.json", """{"sensitiveFieldPaths":["Payload.Detail"]}"""));
 
         var diagnostic = diagnostics.Should().ContainSingle().Which;
         diagnostic.Id.Should().Be(expectedDiagnostic);
-        diagnostic.Severity.Should().Be(Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
-        diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan)
+        diagnostic.Severity.Should().Be(DiagnosticSeverity.Error);
+        (await diagnostic.Location.SourceTree!.GetTextAsync()).ToString(diagnostic.Location.SourceSpan)
             .Should().Be("log.Add(\"Payload\", model)");
     }
 
@@ -76,7 +76,7 @@ public sealed class ConfiguredCapturePathTests
             """{"sensitiveFieldPaths":["Payload.Detail"]}"""));
 
         diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRN0020");
-        diagnostics.Single().Location.SourceTree!.GetText().ToString(diagnostics.Single().Location.SourceSpan)
+        (await diagnostics.Single().Location.SourceTree!.GetTextAsync()).ToString(diagnostics.Single().Location.SourceSpan)
             .Should().Be("log.AddDictionary(\"Payload\", new Dictionary<string, object> { [\"Detail\"] = (string)(ConvertedValue)" + literal + " })");
     }
 

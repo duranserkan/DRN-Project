@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace DRN.Test.Analyzer.Tests;
 
 public partial class SourceKnownEntityTypeAnalyzerTests
@@ -316,7 +318,7 @@ public partial class SourceKnownEntityTypeAnalyzerTests
         diagnostics.Should().OnlyContain(d => d.IsEnabledByDefault && d.HelpLinkUri == DiagnosticDescriptors.HelpLinkUri);
         diagnostics.Count(d => d.DefaultSeverity == DiagnosticSeverity.Error).Should().Be(4);
         diagnostics.Count(d => d.DefaultSeverity == DiagnosticSeverity.Warning).Should().Be(2);
-        DiagnosticDescriptors.AbstractEntityMetadataArgument.Title.ToString().Should().Be("Concrete entity type required");
+        DiagnosticDescriptors.AbstractEntityMetadataArgument.Title.ToString(CultureInfo.InvariantCulture).Should().Be("Concrete entity type required");
         new SourceKnownEntityTypeAnalyzer().SupportedDiagnostics.Select(d => d.Id).Should().OnlyHaveUniqueItems();
     }
 }
