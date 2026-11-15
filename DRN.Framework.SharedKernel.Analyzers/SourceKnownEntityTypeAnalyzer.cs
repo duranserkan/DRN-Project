@@ -54,8 +54,9 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
             if (sourceKnownEntitySymbol == null || entityTypeAttributeSymbol == null)
                 return;
 
-            SourceKnownEntityUsageAnalysis.Register(compilationContext, sourceKnownEntitySymbol);
-            UninitializedEntityOperationsAnalysis.Register(compilationContext, sourceKnownEntitySymbol);
+            var entityFacts = new EntityAnalyzerHelper.EntityTypeFacts(sourceKnownEntitySymbol);
+            SourceKnownEntityUsageAnalysis.Register(compilationContext, sourceKnownEntitySymbol, entityFacts);
+            UninitializedEntityOperationsAnalysis.Register(compilationContext, sourceKnownEntitySymbol, entityFacts);
 
             var collectedEntityTypeDeclarations = new ConcurrentBag<EntityTypeDeclaration>();
             var collectedEntityNameDeclarations = new ConcurrentBag<EntityNameDeclaration>();
@@ -69,7 +70,7 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
             compilationContext.RegisterSymbolAction(
                 symbolContext => AnalyzeNamedType(
                     symbolContext,
-                    sourceKnownEntitySymbol,
+                    entityFacts,
                     entityTypeAttributeSymbol,
                     collectedEntityTypeDeclarations,
                     collectedEntityNameDeclarations,
@@ -89,7 +90,7 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
 
     private static void AnalyzeNamedType(
         SymbolAnalysisContext symbolContext,
-        INamedTypeSymbol sourceKnownEntitySymbol,
+        EntityAnalyzerHelper.EntityTypeFacts entityFacts,
         INamedTypeSymbol entityTypeAttributeSymbol,
         ConcurrentBag<EntityTypeDeclaration> collectedEntityTypeDeclarations,
         ConcurrentBag<EntityNameDeclaration> collectedEntityNameDeclarations,
@@ -111,7 +112,7 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
                 namedType.Name));
         }
 
-        var inheritsSourceKnownEntity = EntityAnalyzerHelper.DerivesFrom(namedType, sourceKnownEntitySymbol);
+        var inheritsSourceKnownEntity = entityFacts.IsDerived(namedType, symbolContext.CancellationToken);
         var entityTypeAttribute = EntityAnalyzerHelper.FindAttribute(namedType, entityTypeAttributeSymbol);
         var isPrivate = EntityAnalyzerHelper.IsEffectivelyPrivate(namedType);
 

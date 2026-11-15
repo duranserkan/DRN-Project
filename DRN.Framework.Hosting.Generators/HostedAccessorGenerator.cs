@@ -106,7 +106,7 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
             cancellation.ThrowIfCancellationRequested();
             try
             {
-                facts ??= new CompilationFacts(compilation, cancellation);
+                facts ??= new CompilationFacts(compilation, cancellation, reuseActions: hosts.Length > 1);
                 new AccessorModelBuilder(compilation, facts, cancellation, program, orderedPages, generatedSources).Prepare();
             }
             catch (AccessorException exception)
@@ -302,8 +302,9 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
 
         private void AddActions(Node leaf, INamedTypeSymbol controller)
         {
-            foreach (var method in Actions(controller, cancellation))
+            foreach (var method in facts.Actions(controller))
             {
+                cancellation.ThrowIfCancellationRequested();
                 var member = MemberName("Endpoint." + leaf.Path + "." + method.Name, method.Name);
                 if (member == null) continue;
                 if (method.Parameters.Any(parameter => parameter.RefKind != RefKind.None || parameter.Type.TypeKind is TypeKind.Pointer or TypeKind.FunctionPointer))
@@ -380,44 +381,6 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
                 current = child;
             }
             return current;
-        }
-
-        private static IEnumerable<IMethodSymbol> Actions(INamedTypeSymbol type, CancellationToken cancellation)
-        {
-            var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var current in Bases(type))
-            {
-                foreach (var method in current.GetMembers().OfType<IMethodSymbol>().OrderBy(method => method.ToDisplayString(), StringComparer.Ordinal))
-                {
-                    cancellation.ThrowIfCancellationRequested();
-                    if (method.MethodKind != MethodKind.Ordinary || method.DeclaredAccessibility != Accessibility.Public) continue;
-                    var signature = method.Name + "`" + method.Arity + "(" + string.Join(",", method.Parameters.Select(parameter => parameter.RefKind + ":" + TypeName(parameter.Type))) + ")";
-                    if (seen.Add(signature) && IsAction(method)) yield return method;
-                }
-            }
-        }
-
-        private static bool IsAction(IMethodSymbol method)
-        {
-            if (method.IsStatic || method.IsGenericMethod || method.IsAbstract ||
-                HasAttribute(method, "Microsoft.AspNetCore.Mvc.NonActionAttribute")) return false;
-            var original = method;
-            while (original.OverriddenMethod != null) original = original.OverriddenMethod;
-            if (original.ContainingType.SpecialType == SpecialType.System_Object) return false;
-            if (original.Parameters.Length != 0) return true;
-            var interfaceName = original.Name switch
-            {
-                "Dispose" => "System.IDisposable",
-                "DisposeAsync" => "System.IAsyncDisposable",
-                _ => null
-            };
-            if (interfaceName == null) return true;
-            // Preserve disposal exclusions across overrides and derived interface reimplementations.
-            var declaringType = original.ContainingType;
-            var disposable = declaringType.AllInterfaces.FirstOrDefault(item => item.ToDisplayString() == interfaceName);
-            var dispose = disposable?.GetMembers(original.Name).OfType<IMethodSymbol>().SingleOrDefault();
-            var implementation = dispose == null ? null : declaringType.FindImplementationForInterfaceMember(dispose);
-            return !SymbolEqualityComparer.Default.Equals(original, implementation);
         }
 
         private static string ControllerRouteTemplate(INamedTypeSymbol controller)

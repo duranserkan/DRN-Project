@@ -719,6 +719,112 @@ public class HostedAccessorGeneratorTests
     }
 
     [Fact]
+    public void Generator_Should_Discover_Mvc_Actions_Across_Route_And_Http_Attribute_Forms()
+    {
+        var source = """
+            using Microsoft.AspNetCore.Mvc;
+            using Microsoft.AspNetCore.Mvc.Routing;
+            public sealed class CustomVerbAttribute() : HttpMethodAttribute(["CUSTOM"]);
+            public sealed class CustomMethodsAttribute : System.Attribute, IActionHttpMethodProvider
+            {
+                public System.Collections.Generic.IEnumerable<string> HttpMethods => ["SEARCH"];
+            }
+            public sealed class CustomRouteAttribute : System.Attribute, IRouteTemplateProvider
+            {
+                public string Template => "custom";
+                public int? Order => null;
+                public string Name => "CustomRoute";
+            }
+            public abstract class ProbeBase : ControllerBase
+            {
+                [HttpGet("inherited")] public void InheritedAction() { }
+                [HttpPost("override")] public virtual void OverriddenAction() { }
+                [NonAction] public virtual void DisabledAction() { }
+            }
+            public interface IProbeActions
+            {
+                void InterfaceAction();
+                void ExplicitAction();
+            }
+            [Route("api/[controller]")]
+            public class ProbeController : ProbeBase, IProbeActions
+            {
+                [HttpGet] public void GetAction() { }
+                [HttpPost("post")] public void PostAction() { }
+                [HttpPut("put")] public void PutAction() { }
+                [HttpPatch("patch")] public void PatchAction() { }
+                [HttpDelete("delete")] public void DeleteAction() { }
+                [HttpHead("head")] public void HeadAction() { }
+                [HttpOptions("options")] public void OptionsAction() { }
+                [AcceptVerbs("GET", "POST", Route = "accepted")] public void AcceptedAction() { }
+                [Route("route")] public void RouteAction() { }
+                [HttpGet("first"), HttpPost("second"), Route("third")] public void MultipleRoutesAction() { }
+                [CustomVerb, Route("verb")] public void CustomVerbAction() { }
+                [CustomMethods, Route("methods")] public void CustomMethodsAction() { }
+                [CustomRoute] public void CustomRouteAction() { }
+                [ActionName("Renamed"), HttpGet("renamed")] public void NamedActionAsync() { }
+                [ApiExplorerSettings(IgnoreApi = true), HttpGet("hidden-docs")] public void UndocumentedAction() { }
+                public override void OverriddenAction() { }
+                public override void DisabledAction() { }
+                public void InterfaceAction() { }
+                void IProbeActions.ExplicitAction() { }
+                [HttpGet("non-action"), NonAction] public void ExcludedAction() { }
+                [HttpGet("private")] private void PrivateAction() { }
+                [HttpGet("protected")] protected void ProtectedAction() { }
+                [HttpGet("internal")] internal void InternalAction() { }
+                [HttpGet("static")] public static void StaticAction() { }
+                [HttpGet("generic")] public void GenericAction<T>() { }
+                public string Property => "not an action";
+                public override string ToString() => "not an action";
+            }
+            public class ConventionalController : ControllerBase
+            {
+                public void ConventionalAction() { }
+            }
+            """ + ProgramSource;
+
+        var result = Generate(source);
+
+        result.Diagnostics.Should().BeEmpty();
+        Members(Generated(result, "ProbeFor.g.cs")).Should().Equal(new[]
+        {
+            "AcceptedAction", "CustomMethodsAction", "CustomRouteAction", "CustomVerbAction", "DeleteAction", "GetAction", "HeadAction",
+            "InheritedAction", "InterfaceAction", "MultipleRoutesAction", "NamedActionAsync", "OptionsAction",
+            "OverriddenAction", "PatchAction", "PostAction", "PutAction", "RouteAction", "UndocumentedAction"
+        }.Order(StringComparer.Ordinal));
+        Members(Generated(result, "ConventionalFor.g.cs")).Should().Equal("ConventionalAction");
+        Generated(result, "ProbeFor.g.cs").Should().Contain("EndpointAction(\"NamedActionAsync\")")
+            .And.NotContain("EndpointAction(\"Renamed\")");
+    }
+
+    [Fact]
+    public void Generator_Should_Keep_Program_Aliases_And_Exclusions_Separate_When_Sharing_Controller_Actions()
+    {
+        var source = """
+            using DRN.Framework.Hosting.Endpoints;
+            [assembly: AccessorMember(typeof(First.TestProgram), "Endpoint.Items.Read", Name = "Fetch")]
+            [assembly: AccessorMember(typeof(First.TestProgram), "Endpoint.Items.Write", Exclude = true)]
+            [assembly: AccessorMember(typeof(Second.OtherProgram), "Endpoint.Items.Write", Name = "Save")]
+            public class ItemsController : Microsoft.AspNetCore.Mvc.ControllerBase
+            {
+                [Microsoft.AspNetCore.Mvc.HttpGet("items")] public void Read() { }
+                [Microsoft.AspNetCore.Mvc.HttpPost("items")] public void Write() { }
+            }
+            """ + "namespace First {" + ProgramSource + "} namespace Second {" +
+            ProgramSource.Replace("TestProgram", "OtherProgram", StringComparison.Ordinal) + "}";
+
+        var result = Generate(source);
+
+        result.Diagnostics.Should().BeEmpty();
+        var first = Generated(result, "First.Helpers.EndpointFor.ItemsFor.g.cs");
+        var second = Generated(result, "Second.Helpers.EndpointFor.ItemsFor.g.cs");
+        Members(first).Should().Equal("Fetch");
+        Members(second).Should().Equal("Read", "Save");
+        first.Should().Contain("EndpointAction(\"Read\")");
+        second.Should().Contain("EndpointAction(\"Write\")");
+    }
+
+    [Fact]
     public void Generator_Should_Isolate_Programs_And_Reject_Manual_Member_Collisions()
     {
         var declarations = """
