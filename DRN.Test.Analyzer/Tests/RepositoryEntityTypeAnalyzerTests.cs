@@ -85,6 +85,31 @@ public partial class SourceKnownEntityTypeAnalyzerTests
     }
 
     [Fact]
+    public async Task RepeatedRepositoryBindings_Should_Keep_Constructed_Types_And_Locations_Separate()
+    {
+        const string source = """
+            using DRN.Framework.SharedKernel.Domain;
+            using Invalid = DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<DRN.Framework.SharedKernel.Domain.AggregateRoot>;
+            using Valid = DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<Order>;
+            [EntityType<DefaultApp>(1)] public class Order : AggregateRoot;
+            public class Consumer
+            {
+                public Valid First;
+                public Invalid Second;
+                public Valid Third;
+                public Invalid Fourth;
+            }
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(RepositoryTypeStubs, source);
+
+        diagnostics.Should().HaveCount(3).And.OnlyContain(diagnostic => diagnostic.Id == "DRN0013");
+        diagnostics.Select(diagnostic => diagnostic.Location.SourceSpan).Distinct().Should().HaveCount(3);
+        diagnostics.Count(diagnostic => source.Substring(diagnostic.Location.SourceSpan.Start, diagnostic.Location.SourceSpan.Length) == "Invalid")
+            .Should().Be(2);
+    }
+
+    [Fact]
     public async Task RepositoryBindings_AllowConcreteEntitiesGenericForwardingAndUnrelatedTypes()
     {
         const string source = """

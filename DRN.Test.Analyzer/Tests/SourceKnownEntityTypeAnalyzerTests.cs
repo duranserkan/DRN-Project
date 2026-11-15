@@ -1,5 +1,9 @@
+using System.Diagnostics.CodeAnalysis;
+using DRN.Framework.Testing.DataAttributes;
+
 namespace DRN.Test.Analyzer.Tests;
 
+[SuppressMessage("ReSharper", "AccessToDisposedClosure")]
 public partial class SourceKnownEntityTypeAnalyzerTests
 {
     private const string SharedKernelDomainStubs = """
@@ -161,7 +165,7 @@ public partial class SourceKnownEntityTypeAnalyzerTests
 
     private static async Task<ImmutableArray<Diagnostic>> RunAnalyzerAsync(
         string[] sources,
-        string assemblyName = "TestAssembly",
+        string assemblyName,
         Dictionary<string, string>? buildProperties = null)
     {
         var syntaxTrees = sources
@@ -190,9 +194,7 @@ public partial class SourceKnownEntityTypeAnalyzerTests
             ? new AnalyzerOptions(ImmutableArray<AdditionalText>.Empty, new CustomOptionsProvider(buildProperties))
             : null;
 
-        var compilationWithAnalyzers = compilation.WithAnalyzers(
-            ImmutableArray.Create<DiagnosticAnalyzer>(analyzer),
-            analyzerOptions);
+        var compilationWithAnalyzers = compilation.WithAnalyzers([analyzer], analyzerOptions);
 
         return await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync(CancellationToken.None);
     }
@@ -246,9 +248,7 @@ public partial class SourceKnownEntityTypeAnalyzerTests
             ? new AnalyzerOptions(ImmutableArray<AdditionalText>.Empty, new CustomOptionsProvider(buildProperties))
             : null;
 
-        var compilationWithAnalyzers = consumingCompilation.WithAnalyzers(
-            ImmutableArray.Create<DiagnosticAnalyzer>(analyzer),
-            analyzerOptions);
+        var compilationWithAnalyzers = consumingCompilation.WithAnalyzers([analyzer], analyzerOptions);
 
         return await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync(CancellationToken.None);
     }
@@ -716,14 +716,14 @@ public partial class SourceKnownEntityTypeAnalyzerTests
             public sealed class CustomAttribute(byte value) : EntityTypeAttribute<DefaultApp>(value), IOther;
             """;
         var tree = CSharpSyntaxTree.ParseText(source);
-        var root = tree.GetRoot();
+        var root = await tree.GetRootAsync();
         var initializer = root.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.PrimaryConstructorBaseTypeSyntax>().Single();
         var otherBase = root.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.SimpleBaseTypeSyntax>().Single();
         // The parser only creates a primary-constructor initializer for the first base type.
         // Construct the malformed tree directly to exercise the multiple-initializer guard.
         var ambiguousBase = SyntaxFactory.PrimaryConstructorBaseType(otherBase.Type, initializer.ArgumentList);
         tree = tree.WithRootAndOptions(root.ReplaceNode(otherBase, ambiguousBase), tree.Options);
-        tree.GetRoot().DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.PrimaryConstructorBaseTypeSyntax>()
+        (await tree.GetRootAsync()).DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.PrimaryConstructorBaseTypeSyntax>()
             .Should().HaveCount(2);
         var compilation = CSharpCompilation.Create("Domain", [tree], GetBaseReferences(),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
@@ -734,8 +734,10 @@ public partial class SourceKnownEntityTypeAnalyzerTests
         diagnostics.Should().ContainSingle(diagnostic => diagnostic.Id == "DRN0008");
     }
 
-    [Fact]
-    public void EntityMetadataExtraction_ObservesCancellation()
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public void EntityMetadataExtraction_ObservesCancellation(bool cacheMetadata)
     {
         const string source = """
             using DRN.Framework.SharedKernel.Domain;
@@ -752,14 +754,15 @@ public partial class SourceKnownEntityTypeAnalyzerTests
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
         compilation.GetDiagnostics().Should().NotContain(d => d.Severity == DiagnosticSeverity.Error);
         var attribute = compilation.GetTypeByMetadataName("Entity")!.GetAttributes().Single();
-        EntityAnalyzerHelper.TryGetEntityType(attribute, compilation, CancellationToken.None, out var entityType, out var appId)
+        var metadata = cacheMetadata ? new EntityAnalyzerHelper.CompilationMetadata(compilation) : null;
+        EntityAnalyzerHelper.TryGetEntityType(attribute, compilation, CancellationToken.None, out var entityType, out var appId, metadata)
             .Should().BeTrue();
         entityType.Should().Be(42);
         appId.Should().Be(5);
 
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        Action extract = () => EntityAnalyzerHelper.TryGetEntityType(attribute, compilation, cancellation.Token, out _, out _);
+        Action extract = () => EntityAnalyzerHelper.TryGetEntityType(attribute, compilation, cancellation.Token, out _, out _, metadata);
         extract.Should().Throw<OperationCanceledException>().Which.CancellationToken.Should().Be(cancellation.Token);
 
         var entityBase = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity")!;
@@ -1575,9 +1578,7 @@ public partial class SourceKnownEntityTypeAnalyzerTests
             ? new AnalyzerOptions(ImmutableArray<AdditionalText>.Empty, new CustomOptionsProvider(buildProperties))
             : null;
 
-        var compilationWithAnalyzers = consumingCompilation.WithAnalyzers(
-            ImmutableArray.Create<DiagnosticAnalyzer>(analyzer),
-            analyzerOptions);
+        var compilationWithAnalyzers = consumingCompilation.WithAnalyzers([analyzer], analyzerOptions);
 
         return await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync(CancellationToken.None);
     }

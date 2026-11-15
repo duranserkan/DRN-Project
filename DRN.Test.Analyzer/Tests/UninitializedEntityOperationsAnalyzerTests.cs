@@ -40,6 +40,33 @@ public partial class SourceKnownEntityTypeAnalyzerTests
     }
 
     [Fact]
+    public async Task ReusedConstructorFacts_Should_Not_Reuse_Receiver_Freshness()
+    {
+        const string source = """
+            using DRN.Framework.SharedKernel.Domain;
+            public class Consumer
+            {
+                public void First(SourceKnownEntityId id)
+                {
+                    var order = new Order();
+                    order.ToPlain(id);
+                    Initialize(order);
+                    order.ToPlain(id);
+                    new Order().ToPlain(id);
+                }
+                public void Second(SourceKnownEntityId id) => new Order().ToPlain(id);
+                private static void Initialize(Order entity) { }
+            }
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(FreshEntityStubs, source);
+
+        diagnostics.Should().HaveCount(3).And.OnlyContain(diagnostic => diagnostic.Id == "DRN0014");
+        diagnostics.Count(diagnostic => diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan) == "new Order().ToPlain(id)")
+            .Should().Be(2);
+    }
+
+    [Fact]
     public async Task ConstructorCalls_RejectUninitializedThis()
     {
         const string source = """
@@ -194,7 +221,7 @@ public partial class SourceKnownEntityTypeAnalyzerTests
 
         var diagnostics = await RunAnalyzerAsync(FreshEntityStubs, source);
         diagnostics.Should().ContainSingle(d => d.Id == "DRN0014");
-        diagnostics[0].Location.SourceTree!.GetText().ToString(diagnostics[0].Location.SourceSpan).Should().Be("order.ToPlain(id)");
+        (await diagnostics[0].Location.SourceTree!.GetTextAsync()).ToString(diagnostics[0].Location.SourceSpan).Should().Be("order.ToPlain(id)");
     }
 
     [Fact]

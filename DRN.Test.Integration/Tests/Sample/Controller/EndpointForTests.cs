@@ -16,6 +16,8 @@ namespace DRN.Test.Integration.Tests.Sample.Controller;
 
 public class SampleEndpointForTests
 {
+    private static readonly string[] CreateHttpMethods = ["POST"];
+
     [Theory]
     [DataInline]
     public async Task EndPointFor_Should_Return_Endpoint_Address(DrnTestContext context)
@@ -102,6 +104,6 @@ public class SampleEndpointForTests
         var create = accessors.Single(endpoint => endpoint.ActionMethodName == "PostAsync");
         create.ActionDescriptor.Should().OnlyContain(action => action.MethodInfo.GetParameters()[0].ParameterType == createRequest);
         create.RouteEndpoints.Should().OnlyContain(route =>
-            route.Metadata.GetRequiredMetadata<IHttpMethodMetadata>().HttpMethods.SequenceEqual(new[] { "POST" }));
+            route.Metadata.GetRequiredMetadata<IHttpMethodMetadata>().HttpMethods.SequenceEqual(CreateHttpMethods));
     }
 }

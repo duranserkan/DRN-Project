@@ -29,9 +29,10 @@ public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnaly
                 nonController is null || attributeUsage is null || policyProperty is null || conditional is null)
                 return;
 
-            var disposable = start.Compilation.GetTypeByMetadataName("System.IDisposable");
+            var dispose = start.Compilation.GetTypeByMetadataName("System.IDisposable")
+                ?.GetMembers("Dispose").OfType<IMethodSymbol>().FirstOrDefault();
             var contract = new Contract(foundation, authorize, anonymous, nonAction, nonController, attributeUsage,
-                policyProperty, conditional, disposable);
+                policyProperty, conditional, dispose);
             start.RegisterSymbolAction(symbol => AnalyzeController(symbol, contract), SymbolKind.NamedType);
         });
     }
@@ -55,20 +56,26 @@ public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnaly
             if (!IsAction(method, contract))
                 continue;
 
-            var methodAttributes = EffectiveAttributes(method, contract).ToArray();
-            if (methodAttributes.Any(attribute => DerivesFrom(attribute.AttributeClass, contract.NonAction)))
-                continue;
-
-            var allowsAnonymous = classAllowsAnonymous || methodAttributes.Any(attribute => AllowsAnonymous(attribute, contract));
-            if (!allowsAnonymous && (classHasPolicy || methodAttributes.Any(attribute => HasNamedPolicy(attribute, contract))))
-                continue;
-
-            var owner = SymbolEqualityComparer.Default.Equals(method.ContainingType, controller) ? (ISymbol)method : controller;
-            var location = owner.Locations.FirstOrDefault(item => item.IsInSource) ?? Location.None;
-            context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.SourceKnownControllerPolicyRequired,
-                location, controller.Name, method.Name,
-                allowsAnonymous ? "anonymous access bypasses authorization" : "no explicit nonblank named policy is declared"));
+            AnalyzeAction(context, contract, controller, method, classAllowsAnonymous, classHasPolicy);
         }
+    }
+
+    private static void AnalyzeAction(SymbolAnalysisContext context, Contract contract, INamedTypeSymbol controller,
+        IMethodSymbol method, bool classAllowsAnonymous, bool classHasPolicy)
+    {
+        var methodAttributes = EffectiveAttributes(method, contract).ToArray();
+        if (methodAttributes.Any(attribute => DerivesFrom(attribute.AttributeClass, contract.NonAction)))
+            return;
+
+        var allowsAnonymous = classAllowsAnonymous || methodAttributes.Any(attribute => AllowsAnonymous(attribute, contract));
+        if (!allowsAnonymous && (classHasPolicy || methodAttributes.Any(attribute => HasNamedPolicy(attribute, contract))))
+            return;
+
+        var owner = SymbolEqualityComparer.Default.Equals(method.ContainingType, controller) ? (ISymbol)method : controller;
+        var location = owner.Locations.FirstOrDefault(item => item.IsInSource) ?? Location.None;
+        context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.SourceKnownControllerPolicyRequired,
+            location, controller.Name, method.Name,
+            allowsAnonymous ? "anonymous access bypasses authorization" : "no explicit nonblank named policy is declared"));
     }
 
     private static bool IsPublicClosedType(INamedTypeSymbol type)
@@ -90,14 +97,13 @@ public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnaly
         if (root.ContainingType.SpecialType == SpecialType.System_Object)
             return false;
 
-        var dispose = contract.Disposable?.GetMembers("Dispose").OfType<IMethodSymbol>().FirstOrDefault();
-        return dispose is null || !SymbolEqualityComparer.Default.Equals(
-            root.ContainingType.FindImplementationForInterfaceMember(dispose), root);
+        return contract.Dispose is null || !SymbolEqualityComparer.Default.Equals(
+            root.ContainingType.FindImplementationForInterfaceMember(contract.Dispose), root);
     }
 
     private static IEnumerable<IMethodSymbol> EffectivePublicMethods(INamedTypeSymbol controller, CancellationToken cancellationToken)
     {
-        var seen = new List<IMethodSymbol>();
+        var seen = new Dictionary<string, List<IMethodSymbol>>(StringComparer.Ordinal);
         var overridden = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
         for (var current = controller; current is not null; current = current.BaseType)
         {
@@ -106,10 +112,16 @@ public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnaly
             {
                 if (method.DeclaredAccessibility != Accessibility.Public || method.MethodKind != MethodKind.Ordinary)
                     continue;
-                if (overridden.Contains(method.OriginalDefinition) || seen.Any(derived => SameRuntimeSignature(derived, method)))
+                seen.TryGetValue(method.Name, out var overloads);
+                if (overridden.Contains(method.OriginalDefinition) || overloads?.Any(derived => SameRuntimeSignature(derived, method)) == true)
                     continue;
 
-                seen.Add(method);
+                if (overloads == null)
+                {
+                    overloads = [];
+                    seen.Add(method.Name, overloads);
+                }
+                overloads.Add(method);
                 for (var parent = method.OverriddenMethod; parent is not null; parent = parent.OverriddenMethod)
                     overridden.Add(parent.OriginalDefinition);
                 yield return method;
@@ -198,7 +210,7 @@ public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnaly
         for (var current = attributeType; current is not null; current = current.BaseType)
         {
             var usage = current.GetAttributes().FirstOrDefault(attribute =>
-                SymbolEqualityComparer.Default.Equals(attribute.AttributeClass, contract.AttributeUsage));
+                SymbolEqualityComparer.Default.Equals(attribute.AttributeClass, contract.AttributeUsageType));
             if (usage is null)
                 continue;
             var inherited = true;
@@ -268,6 +280,6 @@ public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnaly
     }
 
     private sealed record Contract(INamedTypeSymbol Foundation, INamedTypeSymbol Authorize, INamedTypeSymbol Anonymous,
-        INamedTypeSymbol NonAction, INamedTypeSymbol NonController, INamedTypeSymbol AttributeUsage,
-        IPropertySymbol PolicyProperty, INamedTypeSymbol Conditional, INamedTypeSymbol? Disposable);
+        INamedTypeSymbol NonAction, INamedTypeSymbol NonController, INamedTypeSymbol AttributeUsageType,
+        IPropertySymbol PolicyProperty, INamedTypeSymbol Conditional, IMethodSymbol? Dispose);
 }

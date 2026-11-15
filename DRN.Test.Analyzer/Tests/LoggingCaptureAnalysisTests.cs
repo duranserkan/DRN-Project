@@ -268,7 +268,7 @@ public sealed class LoggingCaptureAnalysisTests
             """));
         var diagnostic = diagnostics.Should().ContainSingle().Which;
         diagnostic.Id.Should().Be("DRN0022");
-        diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan)
+        (await diagnostic.Location.SourceTree!.GetTextAsync()).ToString(diagnostic.Location.SourceSpan)
             .Should().Be("log.LogInformation(\"{Password}\", value)");
     }
 

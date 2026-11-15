@@ -243,12 +243,15 @@ public class UrlHelperEndpointTests
 
     private sealed class ItemsController : ControllerBase
     {
+        [SuppressMessage("Performance", "CA1822", Justification = "The URL binding fixture models MVC instance actions. Static methods are not MVC actions.")]
         public void ReadAsync() { }
+        [SuppressMessage("Performance", "CA1822", Justification = "The URL binding fixture models MVC instance actions. Static methods are not MVC actions.")]
         public void ReadAsync(string id) { }
     }
 
     private sealed class OtherItemsController : ControllerBase
     {
+        [SuppressMessage("Performance", "CA1822", Justification = "The URL binding fixture models an MVC instance action. Static methods are not MVC actions.")]
         public void ReadAsync() { }
     }
 }

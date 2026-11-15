@@ -1,4 +1,3 @@
-using System.IO;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Hosting.Generators;
 using DRN.Framework.Testing.DataAttributes;

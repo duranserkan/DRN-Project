@@ -60,7 +60,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
 
         var diagnostic = diagnostics.Should().ContainSingle().Which;
         diagnostic.Id.Should().Be("DRN0017");
-        diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan)
+        (await diagnostic.Location.SourceTree!.GetTextAsync()).ToString(diagnostic.Location.SourceSpan)
             .Should().Be("log.Add(\"Payload\", 42)");
     }
 
@@ -133,7 +133,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
         declaration.GetMessage().Should().Contain("'Email'");
         var capture = diagnostics.Should().ContainSingle(item => item.Id == "DRN0017").Which;
         capture.GetMessage().Should().Contain("'Records.Count'");
-        capture.Location.SourceTree!.GetText().ToString(capture.Location.SourceSpan).Should().Be("log.Add(\"Records\", model)");
+        (await capture.Location.SourceTree!.GetTextAsync()).ToString(capture.Location.SourceSpan).Should().Be("log.Add(\"Records\", model)");
     }
 
     [Theory]
@@ -507,6 +507,36 @@ public sealed class DiagnosticClassificationAnalyzerTests
     }
 
     [Fact]
+    public async Task Shared_Dictionary_Write_Index_Should_Preserve_Each_Capture_Position()
+    {
+        var diagnostics = await Analyze(Compilation("""
+            using System.Collections.Generic;
+            namespace DRN.Framework.Utils.Logging
+            {
+                public interface IScopedLog { void Add(string key, object value); }
+            }
+            public class Caller
+            {
+                public void Run(DRN.Framework.Utils.Logging.IScopedLog log, string value)
+                {
+                    var values = new Dictionary<string, object>();
+                    log.Add("Before", values);
+                    values["Password"] = value;
+                    log.Add("Middle", values);
+                    values["Email"] = value;
+                    log.Add("After", values);
+                }
+            }
+            """));
+
+        diagnostics.Should().HaveCount(3).And.OnlyContain(diagnostic => diagnostic.Id == "DRN0020");
+        var captures = diagnostics.Select(diagnostic => diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan)).ToArray();
+        captures.Should().NotContain("log.Add(\"Before\", values)");
+        captures.Count(capture => capture == "log.Add(\"Middle\", values)").Should().Be(1);
+        captures.Count(capture => capture == "log.Add(\"After\", values)").Should().Be(2);
+    }
+
+    [Fact]
     public async Task Dictionary_Initializers_Should_Be_Tracked_In_Closures_By_Local_Symbol()
     {
         var diagnostics = await Analyze(Compilation("""
@@ -761,7 +791,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
         .Append(typeof(Microsoft.EntityFrameworkCore.DbContext).Assembly.Location)
         .Append(typeof(Microsoft.Extensions.Compliance.Classification.DataClassificationAttribute).Assembly.Location)
         .Append(typeof(Microsoft.Extensions.Logging.ILogger).Assembly.Location)
-        .Distinct(StringComparer.Ordinal).Select(path => MetadataReference.CreateFromFile(path)).ToArray();
+        .Distinct(StringComparer.Ordinal).Select(path => MetadataReference.CreateFromFile(path)).ToArray<MetadataReference>();
 
     internal static CSharpCompilation Compilation(string source, string path = "Models.cs") => CSharpCompilation.Create(
         "DiagnosticModelConsumer", [CSharpSyntaxTree.ParseText(source, path: path)], References,

@@ -16,7 +16,8 @@ internal sealed class LoggingCaptureAnalysis(OperationAnalysisContext context, C
     private static DiagnosticDescriptor Descriptor => ClassificationDiagnosticDescriptors.UnsafeLoggingCapture;
 
     internal static void Analyze(OperationAnalysisContext context, ClassificationContract contract,
-        DiagnosticRedactionRules rules, IInvocationOperation call, DiagnosticNameExemption exemptions)
+        DiagnosticRedactionRules rules, IInvocationOperation call, DiagnosticNameExemption exemptions,
+        DictionaryCaptureAnalysis.LocalWriteIndex localWrites)
     {
         var method = call.TargetMethod.ReducedFrom ?? call.TargetMethod;
         switch (method.ContainingType.Name, method.Name)
@@ -34,7 +35,7 @@ internal sealed class LoggingCaptureAnalysis(OperationAnalysisContext context, C
                 var state = analysis.Argument("state");
                 if (state != null)
                 {
-                    new DictionaryCaptureAnalysis(context, rules, call, exemptions, Descriptor, analysis.AnalyzeValue).Analyze(state, false, null);
+                    new DictionaryCaptureAnalysis(context, rules, call, exemptions, localWrites, Descriptor, analysis.AnalyzeValue).Analyze(state, false, null);
                     analysis.AnalyzeValue(state);
                 }
                 break;

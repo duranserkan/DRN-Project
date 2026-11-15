@@ -1,4 +1,3 @@
-using System.IO;
 using System.Text;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Generators;
@@ -541,12 +540,56 @@ public class HostedAccessorGeneratorTests
         result.GeneratedTrees.Should().BeEmpty();
     }
 
-    [Fact]
-    public void Generator_Should_Reject_Stale_Customization()
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public void Generator_Should_Reject_Stale_Customization_In_Ordinal_Order(bool includeMembers)
     {
-        var stale = Generate("using DRN.Framework.Hosting.Endpoints;" +
-            "[assembly: AccessorMember(typeof(TestProgram), \"Endpoint.Missing.Action\", Exclude = true)]" + ProgramSource, checkCompilation: false);
-        stale.Diagnostics.Should().Contain(diagnostic => diagnostic.GetMessage().Contains("stale"));
+        var declarations = """
+            using DRN.Framework.Hosting.Endpoints;
+            [assembly: AccessorGroup(typeof(TestProgram), "ZMissing", "ZFor")]
+            [assembly: AccessorGroup(typeof(TestProgram), "AMissing", "AFor")]
+            """;
+        if (includeMembers)
+            declarations += """
+                [assembly: AccessorMember(typeof(TestProgram), "Endpoint.ZMissing.Action", Exclude = true)]
+                [assembly: AccessorMember(typeof(TestProgram), "Endpoint.AMissing.Action", Exclude = true)]
+                """;
+        var stale = Generate(declarations + ProgramSource, checkCompilation: false);
+
+        var diagnostic = stale.Diagnostics.Should().ContainSingle().Which;
+        diagnostic.Id.Should().Be("DRNHG001");
+        diagnostic.GetMessage().Should().Be(includeMembers
+            ? "AccessorMember 'Endpoint.AMissing.Action' does not identify an eligible action/page. Remove stale configuration."
+            : "AccessorGroup 'AMissing' does not identify a generated group.");
+        stale.GeneratedTrees.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Generator_Should_Not_Restore_Base_Actions_Hidden_By_Ineligible_Methods()
+    {
+        var source = """
+            using Microsoft.AspNetCore.Mvc;
+            public abstract class ProbeBase : ControllerBase
+            {
+                public void Hidden() { }
+                public virtual void Disabled() { }
+                public void Read() { }
+            }
+            public class ProbeController : ProbeBase, System.IDisposable
+            {
+                public new static void Hidden() { }
+                [NonAction] public override void Disabled() { }
+                public void Generic<T>() { }
+                public void Dispose() { }
+                public override string ToString() => "probe";
+            }
+            """ + ProgramSource;
+
+        var result = Generate(source);
+
+        result.Diagnostics.Should().BeEmpty();
+        Members(Generated(result, "ProbeFor.g.cs")).Should().Equal("Read");
     }
 
     [Fact]
@@ -687,6 +730,56 @@ public class HostedAccessorGeneratorTests
         void Run(CSharpCompilation input)
         {
             driver = driver.RunGeneratorsAndUpdateCompilation(input, out var updated, out _);
+            driver.GetRunResult().Diagnostics.Should().BeEmpty();
+            updated.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+        }
+    }
+
+    [Fact]
+    public void Generator_Should_Cache_Rendering_After_CSharp_Body_Edits_And_Invalidate_Changed_Accessors()
+    {
+        const string controllers = """
+            public class ItemsController : Microsoft.AspNetCore.Mvc.ControllerBase { public void Read(int id) { } }
+            public class OtherController : Microsoft.AspNetCore.Mvc.ControllerBase { public void List() { } }
+            """;
+        var compilation = CreateCompilation(controllers + ProgramSource);
+        var declaration = compilation.SyntaxTrees.Single();
+        var consumer = CSharpSyntaxTree.ParseText("public class Consumer { public int Read() => 1; }");
+        compilation = compilation.AddSyntaxTrees(consumer);
+        GeneratorDriver driver = CSharpGeneratorDriver.Create([new HostedAccessorGenerator().AsSourceGenerator()],
+            optionsProvider: new PageOptions(true),
+            driverOptions: new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None, trackIncrementalGeneratorSteps: true));
+        Run();
+        var original = driver.GetRunResult().GeneratedTrees.Select(tree => tree.ToString()).ToArray();
+        var originalItems = Generated(driver.GetRunResult(), "ItemsFor.g.cs");
+
+        var changedConsumer = CSharpSyntaxTree.ParseText("public class Consumer { public int Read() => 2; }");
+        compilation = compilation.ReplaceSyntaxTree(consumer, changedConsumer);
+        Run();
+        AssertCached();
+
+        var changedDeclaration = CSharpSyntaxTree.ParseText(controllers.Replace("Read(int id) { }", "Read(int id) { var value = id; }", StringComparison.Ordinal) + ProgramSource);
+        compilation = compilation.ReplaceSyntaxTree(declaration, changedDeclaration);
+        Run();
+        AssertCached();
+
+        var changedSignature = CSharpSyntaxTree.ParseText(controllers.Replace("int id", "string id", StringComparison.Ordinal) + ProgramSource);
+        compilation = compilation.ReplaceSyntaxTree(changedDeclaration, changedSignature);
+        Run();
+        Generated(driver.GetRunResult(), "ItemsFor.g.cs").Should().NotBe(originalItems);
+        driver.GetRunResult().Results.Single().TrackedSteps["HostedAccessorSources"].SelectMany(step => step.Outputs)
+            .Should().ContainSingle(output => output.Reason == IncrementalStepRunReason.Modified);
+
+        void AssertCached()
+        {
+            driver.GetRunResult().GeneratedTrees.Select(tree => tree.ToString()).Should().Equal(original);
+            driver.GetRunResult().Results.Single().TrackedSteps["HostedAccessorSources"].SelectMany(step => step.Outputs)
+                .Should().NotBeEmpty().And.OnlyContain(output => output.Reason == IncrementalStepRunReason.Cached);
+        }
+
+        void Run()
+        {
+            driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var updated, out _);
             driver.GetRunResult().Diagnostics.Should().BeEmpty();
             updated.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
         }

@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -17,6 +19,7 @@ internal sealed class SourceKnownEntityUsageAnalysis
     private readonly INamedTypeSymbol? _repositoryBase;
     private readonly HashSet<object> _formats;
     private readonly HashSet<ISymbol> _metadataMethods = new(SymbolEqualityComparer.Default);
+    private readonly ConcurrentDictionary<INamedTypeSymbol, ImmutableArray<INamedTypeSymbol>> _repositoryBindings = new(SymbolEqualityComparer.Default);
 
     private SourceKnownEntityUsageAnalysis(Compilation compilation, INamedTypeSymbol entity)
     {
@@ -60,23 +63,46 @@ internal sealed class SourceKnownEntityUsageAnalysis
         if (symbol is IAliasSymbol alias) symbol = alias.Target;
         if (symbol is not INamedTypeSymbol type || type.IsUnboundGenericType) return;
 
-        var reported = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
-        for (var current = type; current != null; current = current.BaseType)
-            CheckRepositoryBinding(context, type, current, reported);
-        foreach (var implemented in type.AllInterfaces)
-            CheckRepositoryBinding(context, type, implemented, reported);
+        if (!_repositoryBindings.TryGetValue(type, out var bindings))
+        {
+            bindings = FindRepositoryBindings(type, context.CancellationToken);
+            _repositoryBindings.TryAdd(type, bindings);
+        }
+        foreach (var binding in bindings)
+            ReportRepositoryBinding(context, type, binding);
     }
 
-    private void CheckRepositoryBinding(SyntaxNodeAnalysisContext context, INamedTypeSymbol usedType,
-        INamedTypeSymbol binding, HashSet<ISymbol> reported)
+    private ImmutableArray<INamedTypeSymbol> FindRepositoryBindings(INamedTypeSymbol type, CancellationToken cancellation)
+    {
+        ImmutableArray<INamedTypeSymbol>.Builder? bindings = null;
+        HashSet<ISymbol>? reported = null;
+        for (var current = type; current != null; current = current.BaseType) Check(current);
+        foreach (var implemented in type.AllInterfaces) Check(implemented);
+        return bindings?.ToImmutable() ?? [];
+
+        void Check(INamedTypeSymbol binding)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            var index = RepositoryEntityIndex(binding);
+            if (index < 0 || binding.TypeArguments[index] is not INamedTypeSymbol { IsAbstract: true } entity || !IsEntity(entity)) return;
+            reported ??= new(SymbolEqualityComparer.Default);
+            if (!reported.Add(entity)) return;
+            bindings ??= ImmutableArray.CreateBuilder<INamedTypeSymbol>();
+            bindings.Add(binding);
+        }
+    }
+
+    private int RepositoryEntityIndex(INamedTypeSymbol binding)
+    {
+        if (SymbolEqualityComparer.Default.Equals(binding.OriginalDefinition, _repositoryInterface)) return 0;
+        return SymbolEqualityComparer.Default.Equals(binding.OriginalDefinition, _repositoryBase) ? 1 : -1;
+    }
+
+    private void ReportRepositoryBinding(SyntaxNodeAnalysisContext context, INamedTypeSymbol usedType, INamedTypeSymbol binding)
     {
         context.CancellationToken.ThrowIfCancellationRequested();
-        var index = -1;
-        if (SymbolEqualityComparer.Default.Equals(binding.OriginalDefinition, _repositoryInterface)) index = 0;
-        else if (SymbolEqualityComparer.Default.Equals(binding.OriginalDefinition, _repositoryBase)) index = 1;
-        if (index < 0 || binding.TypeArguments[index] is not INamedTypeSymbol { IsAbstract: true } entity ||
-            !IsEntity(entity) || !reported.Add(entity)) return;
-
+        var index = RepositoryEntityIndex(binding);
+        var entity = binding.TypeArguments[index];
         // Point at the entity argument when it is written directly on a framework repository.
         var location = context.Node is GenericNameSyntax name &&
                        SymbolEqualityComparer.Default.Equals(usedType, binding)

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.SharedKernel.Domain.Repository;
@@ -9,6 +10,7 @@ namespace DRN.Framework.Hosting.Controllers;
 /// Exposes only create and delete HTTP actions. Inherited reads remain callable from C#,
 /// but sealed <see cref="NonActionAttribute"/> overrides exclude them from MVC routing.
 /// </summary>
+[SuppressMessage("SonarQube", "S2436", Justification = "The write-only variant preserves the base controller's independent entity, response DTO and create request contracts while excluding read actions from MVC routing.")]
 public abstract class SourceKnownWriteOnlyController<TEntity, TDto, TCreateRequest>(ISourceKnownRepository<TEntity> repository)
     : SourceKnownController<TEntity, TDto, TCreateRequest>(repository)
     where TEntity : AggregateRoot

@@ -12,6 +12,35 @@ internal static class EntityAnalyzerHelper
     internal const byte MaxAppId = 127;
     private const string AppIdName = "AppId";
 
+    internal sealed class CompilationMetadata(Compilation compilation)
+    {
+        private readonly ConcurrentDictionary<INamedTypeSymbol, bool> _contracts = new(SymbolEqualityComparer.Default);
+        private readonly ConcurrentDictionary<INamedTypeSymbol, (bool Resolved, byte AppId)> _appIds = new(SymbolEqualityComparer.Default);
+
+        internal bool IsSupported(INamedTypeSymbol? attribute, CancellationToken cancellation)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (attribute == null) return false;
+            if (_contracts.TryGetValue(attribute, out var supported)) return supported;
+            supported = EntityAttributeContract.IsSupported(attribute, compilation, cancellation);
+            _contracts.TryAdd(attribute, supported);
+            return supported;
+        }
+
+        internal bool TryGetAppId(INamedTypeSymbol attribute, CancellationToken cancellation, out byte appId)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (!_appIds.TryGetValue(attribute, out var result))
+            {
+                var resolved = TryExtractAppIdFromClassHierarchy(attribute, compilation, cancellation, out var value);
+                result = (resolved, value);
+                _appIds.TryAdd(attribute, result);
+            }
+            appId = result.AppId;
+            return result.Resolved;
+        }
+    }
+
     internal static ConcurrentBag<INamedTypeSymbol> ScanReferencedAssemblies(
         Compilation compilation,
         INamedTypeSymbol sourceKnownEntitySymbol,
@@ -183,17 +212,22 @@ internal static class EntityAnalyzerHelper
         return false;
     }
 
-    internal static bool TryGetEntityType(AttributeData attributeData, Compilation compilation, CancellationToken cancellationToken, out byte entityTypeValue, out byte appId)
+    internal static bool TryGetEntityType(AttributeData attributeData, Compilation compilation, CancellationToken cancellationToken,
+        out byte entityTypeValue, out byte appId, CompilationMetadata? metadata = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
         entityTypeValue = 0;
         appId = 0;
 
-        if (!EntityAttributeContract.IsSupported(attributeData.AttributeClass, compilation, cancellationToken) ||
+        var supported = metadata?.IsSupported(attributeData.AttributeClass, cancellationToken)
+                        ?? EntityAttributeContract.IsSupported(attributeData.AttributeClass, compilation, cancellationToken);
+        if (!supported ||
             attributeData.ConstructorArguments.Length != 1 || !TryExtractByte(attributeData.ConstructorArguments[0].Value, out entityTypeValue))
             return false;
 
-        return TryExtractAppIdFromClassHierarchy(attributeData.AttributeClass, compilation, cancellationToken, out appId);
+        return metadata != null
+            ? metadata.TryGetAppId(attributeData.AttributeClass!, cancellationToken, out appId)
+            : TryExtractAppIdFromClassHierarchy(attributeData.AttributeClass, compilation, cancellationToken, out appId);
     }
 
     private static bool TryExtractAppIdFromClassHierarchy(INamedTypeSymbol? attributeClass, Compilation? compilation, CancellationToken cancellationToken, out byte appId)

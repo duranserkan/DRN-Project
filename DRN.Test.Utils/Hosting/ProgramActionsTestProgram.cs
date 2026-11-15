@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Utils.DependencyInjection;
@@ -12,11 +13,11 @@ public sealed class ProgramActionsTestProgram : DrnProgramBase<ProgramActionsTes
 {
     public static Task Main(string[] args) => RunAsync(args);
 
-    protected override void ConfigureApplicationBuilder(WebApplicationBuilder builder, IAppSettings appSettings)
+    protected override void ConfigureApplicationBuilder(WebApplicationBuilder applicationBuilder, IAppSettings appSettings)
     {
-        builder.Logging.ClearProviders();
-        ConfigureWebHostBuilder(appSettings, builder.WebHost);
-        builder.Services.AddSingleton(appSettings);
+        applicationBuilder.Logging.ClearProviders();
+        ConfigureWebHostBuilder(appSettings, applicationBuilder.WebHost);
+        applicationBuilder.Services.AddSingleton(appSettings);
     }
 
     protected override Task AddServicesAsync(WebApplicationBuilder builder, IAppSettings appSettings, IScopedLog scopedLog)
@@ -74,7 +75,7 @@ public sealed class ProgramActionsProbe
         builder.Services.AddSingleton(new DrnServiceContainer(typeof(ProgramActionsProbe).Assembly,
             [new TransientAttribute<ProgramActionsValidationProbe>()],
             PauseValidation
-                ? [new AttributeSpecifiedServiceModule([ServiceDescriptor.Singleton(this)], new ProgramActionsValidationModule())]
+                ? [new AttributeSpecifiedServiceModule([ServiceDescriptor.Singleton(this)], new ProgramActionsValidationModuleAttribute())]
                 : []));
         Events.Enqueue("builder:configured");
     }
@@ -107,7 +108,8 @@ public sealed class ProgramActionsProbe
     }
 }
 
-public sealed class ProgramActionsValidationModule : ServiceRegistrationAttribute
+[AttributeUsage(AttributeTargets.Class, Inherited = true, AllowMultiple = true)]
+public sealed class ProgramActionsValidationModuleAttribute : ServiceRegistrationAttribute
 {
     // The probe supplies the module descriptors explicitly to isolate this validation fixture.
     public override void ServiceRegistration(IServiceCollection sc, Assembly? assembly) { }
@@ -122,6 +124,7 @@ public sealed class ProgramActionGate
     public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 }
 
+[SuppressMessage("SonarQube", "S2094", Justification = "This concrete DI marker triggers the registered factory, which records validation resolutions and injects failures. No instance state is needed.")]
 public sealed class ProgramActionsValidationProbe;
 
 // Discovery is assembly-wide. Other support programs must retain their existing lifecycle behavior.

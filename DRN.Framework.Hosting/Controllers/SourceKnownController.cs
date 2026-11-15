@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.SharedKernel.Domain.Repository;
 using Microsoft.AspNetCore.Http;
@@ -9,6 +10,7 @@ namespace DRN.Framework.Hosting.Controllers;
 /// Combines all read actions with opt-in create and delete actions.
 /// Applications supply request mapping, explicit authorization policies and resource-specific checks.
 /// </summary>
+[SuppressMessage("SonarQube", "S2436", Justification = "Entity, response DTO and create request are independent contracts. Three type parameters preserve typed repository access, response mapping and request binding.")]
 public abstract class SourceKnownController<TEntity, TDto, TCreateRequest>(ISourceKnownRepository<TEntity> repository)
     : SourceKnownReadOnlyController<TEntity, TDto>(repository)
     where TEntity : AggregateRoot

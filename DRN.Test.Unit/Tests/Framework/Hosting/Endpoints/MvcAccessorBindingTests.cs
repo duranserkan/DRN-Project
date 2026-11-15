@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.SharedKernel;
 using DRN.Nexus.Hosted.Controllers.Sample;
@@ -44,14 +45,14 @@ public class MvcAccessorBindingTests
         inherited.ActionDescriptor[0].ActionName.Should().Be(suppressAsyncSuffix ? "Read" : "ReadAsync");
         inherited.ActionDescriptor[0].ControllerName.Should().Be("RuntimeController");
         inherited.ActionDescriptor[0].RouteValues["area"].Should().Be("Admin");
-        inherited.ActionDescriptor[0].MethodInfo.DeclaringType.Should().Be(typeof(AccessorProbeBase<Guid>));
+        inherited.ActionDescriptor[0].MethodInfo.DeclaringType.Should().Be<AccessorProbeBase<Guid>>();
 
         var renamed = Bind(nameof(AccessorProbeController.RenamedAsync), []);
         renamed.ActionDescriptor[0].ActionName.Should().Be("PublicName");
         var convention = Bind(nameof(AccessorProbeController.ConventionAsync), []);
         convention.ActionDescriptor[0].ActionName.Should().Be("RuntimeAction");
         var overridden = Bind(nameof(AccessorProbeController.OverrideAsync), [typeof(Guid)]);
-        overridden.ActionDescriptor[0].MethodInfo.DeclaringType.Should().Be(typeof(AccessorProbeController));
+        overridden.ActionDescriptor[0].MethodInfo.DeclaringType.Should().Be<AccessorProbeController>();
 
         Bind(nameof(AccessorProbeController.LookupAsync), [typeof(int)]).ActionDescriptor[0].ActionName.Should().Be("Number");
         Bind(nameof(AccessorProbeController.LookupAsync), [typeof(string)]).ActionDescriptor[0].ActionName.Should().Be("Text");
@@ -149,12 +150,15 @@ public class MvcAccessorBindingTests
     {
         [HttpGet]
         [ActionName("PublicName")]
+        [SuppressMessage("Performance", "CA1822", Justification = "MVC must discover this instance action to verify ActionName binding. Static methods are not MVC actions.")]
         public Task RenamedAsync() => Task.CompletedTask;
 
         [HttpGet]
+        [SuppressMessage("Performance", "CA1822", Justification = "MVC must discover this instance action before applying the naming convention.")]
         public Task ConventionAsync() => Task.CompletedTask;
 
         [HttpGet]
+        [SuppressMessage("Performance", "CA1822", Justification = "MVC must discover this instance action before the fixture convention removes it.")]
         public Task RemovedByConventionAsync() => Task.CompletedTask;
 
         public override Task<Guid> OverrideAsync(Guid id) => Task.FromResult(id);
@@ -164,14 +168,17 @@ public class MvcAccessorBindingTests
 
         [HttpGet("number/{id:int}")]
         [ActionName("Number")]
+        [SuppressMessage("Performance", "CA1822", Justification = "MVC must discover both instance overloads to verify parameter-specific binding.")]
         public Task<int> LookupAsync(int id) => Task.FromResult(id);
 
         [HttpGet("text/{id}")]
         [ActionName("Text")]
+        [SuppressMessage("Performance", "CA1822", Justification = "MVC must discover both instance overloads to verify parameter-specific binding.")]
         public Task<string> LookupAsync(string id) => Task.FromResult(id);
 
         [HttpGet("first")]
         [HttpGet("second")]
+        [SuppressMessage("Performance", "CA1822", Justification = "MVC must discover this instance action to verify multiple route bindings.")]
         public Task MultipleAsync() => Task.CompletedTask;
     }
 }

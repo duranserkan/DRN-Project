@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.SharedKernel;
@@ -100,12 +101,15 @@ public class ApiEndpointTests
 
     private sealed class OverloadedController : ControllerBase
     {
+        [SuppressMessage("Performance", "CA1822", Justification = "The binding fixture models MVC instance actions. Static methods are not MVC actions.")]
         public void ReadAsync(int id) { }
+        [SuppressMessage("Performance", "CA1822", Justification = "The binding fixture models MVC instance actions. Static methods are not MVC actions.")]
         public void ReadAsync(string id) { }
     }
 
     private sealed class ItemsController : ControllerBase
     {
+        [SuppressMessage("Performance", "CA1822", Justification = "The binding fixture models an MVC instance action. Static methods are not MVC actions.")]
         public void Read() { }
     }
 }

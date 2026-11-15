@@ -301,7 +301,7 @@ public sealed class DiagnosticNameExemptionTests
         diagnostics.Should().ContainSingle(item => item.Id == "DRN0022");
         var invalid = diagnostics.Should().ContainSingle(item => item.Id == "DRN0023").Which;
         invalid.GetMessage().Should().Contain("ExactName | Nonempty justification");
-        invalid.Location.SourceTree!.GetText().ToString(invalid.Location.SourceSpan).Should().Be(comment);
+        (await invalid.Location.SourceTree!.GetTextAsync()).ToString(invalid.Location.SourceSpan).Should().Be(comment);
     }
 
     [Fact]

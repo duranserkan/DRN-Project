@@ -16,6 +16,13 @@ namespace DRN.Test.Unit.Tests.Framework.Hosting.Controllers;
 
 public class SourceKnownControllerTests
 {
+    private static readonly string[] ReadActionNames =
+    [
+        "GetAsync", "GetManyAsync", "AnyAsync", "CountAsync", "PaginateAsync", "PaginateWithOptionsAsync", "PaginateWithBodyAsync"
+    ];
+    private static readonly string[] WriteActionNames = ["PostAsync", "DeleteAsync"];
+    private static readonly string[] WriteHttpMethods = ["POST", "DELETE"];
+
     [Fact]
     public void MVC_Should_Discover_Inherited_Actions_And_Remove_NonActions_Without_Confusing_IgnoreApi()
     {
@@ -33,10 +40,7 @@ public class SourceKnownControllerTests
 
         actions.Where(action => action.ControllerTypeInfo.AsType() == typeof(FoundationProbeController)).Should().BeEmpty();
         var readActions = actions.Where(action => action.ControllerTypeInfo.AsType() == typeof(ReadProbeController)).ToArray();
-        readActions.Select(action => action.MethodInfo.Name).Should().BeEquivalentTo(new[]
-        {
-            "GetAsync", "GetManyAsync", "AnyAsync", "CountAsync", "PaginateAsync", "PaginateWithOptionsAsync", "PaginateWithBodyAsync"
-        });
+        readActions.Select(action => action.MethodInfo.Name).Should().BeEquivalentTo(ReadActionNames);
         var writeActions = actions.Where(action => action.ControllerTypeInfo.AsType() == typeof(WriteProbeController)).ToArray();
         writeActions.Should().HaveCount(9);
         writeActions.Should().OnlyContain(action => action.EndpointMetadata.OfType<AuthorizeAttribute>().Any(attribute => attribute.Policy == "SourceKnown.Probe"));
@@ -44,7 +48,7 @@ public class SourceKnownControllerTests
             action.FilterDescriptors.Should().NotContain(filter => filter.Filter is ValidateAntiForgeryTokenAttribute);
 
         var writeOnlyActions = actions.Where(action => action.ControllerTypeInfo.AsType() == typeof(WriteOnlyProbeController)).ToArray();
-        writeOnlyActions.Select(action => action.MethodInfo.Name).Should().BeEquivalentTo(new[] { "PostAsync", "DeleteAsync" });
+        writeOnlyActions.Select(action => action.MethodInfo.Name).Should().BeEquivalentTo(WriteActionNames);
         var controllerDescriptions = provider.GetRequiredService<IApiDescriptionGroupCollectionProvider>().ApiDescriptionGroups.Items
             .SelectMany(group => group.Items)
             .Where(description => description.ActionDescriptor is ControllerActionDescriptor)
@@ -52,9 +56,9 @@ public class SourceKnownControllerTests
         var writeOnlyDescriptions = controllerDescriptions
             .Where(description => ((ControllerActionDescriptor)description.ActionDescriptor).ControllerTypeInfo.AsType() == typeof(WriteOnlyProbeController))
             .ToArray();
-        writeOnlyDescriptions.Select(description => description.HttpMethod).Should().BeEquivalentTo(new[] { "POST", "DELETE" });
+        writeOnlyDescriptions.Select(description => description.HttpMethod).Should().BeEquivalentTo(WriteHttpMethods);
         writeOnlyDescriptions.Select(description => ((ControllerActionDescriptor)description.ActionDescriptor).MethodInfo.Name)
-            .Should().BeEquivalentTo(new[] { "PostAsync", "DeleteAsync" });
+            .Should().BeEquivalentTo(WriteActionNames);
 
         var disabledActions = actions.Where(action => action.ControllerTypeInfo.AsType() == typeof(DisabledProbeController)).ToArray();
         disabledActions.Should().NotContain(action => action.MethodInfo.Name == "CountAsync");
