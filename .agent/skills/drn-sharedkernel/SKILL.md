@@ -29,6 +29,8 @@ GUID helpers default to `ConfiguredDefault`. Implementations expose an immutable
 
 ## Repository Contract
 
+Concrete aggregates use an `Entity` suffix and a final namespace/folder matching the name without that suffix: `QA/Order/OrderEntity.cs` in `<DomainRoot>.QA.Order`. Each needs an `ISourceKnownRepository<TEntity>`-derived interface in the same Domain assembly, namespace and logical folder, such as `QA/Order/IOrderRepository.cs`. Use Compile/Link paths for folder validation. Repository classes/interfaces end in `Repository`, semantic services/contracts in `Service`, and MVC controllers in `Controller`. DRNCV024-027 own these checks. Abstract/open generic helpers are excluded. Other role folders keep their existing conventions. Consult CONVENTIONS.md for exact scope and intentional exceptions.
+
 `ISourceKnownService<TEntity>` in `DRN.Framework.SharedKernel.Domain` exposes a read-only `ISourceKnownRepository<TEntity> Repository` property and requires `TEntity : AggregateRoot`.
 The abstract `SourceKnownService<TEntity>` base class implements this contract with a repository supplied through its constructor.
 
@@ -51,6 +53,18 @@ Use `JsonConventions.DefaultOptions` for framework serialization, including Web 
 The installed package's `CONVENTIONS.md` owns application roles, dependencies, ownership and diagnostic exceptions. `SCAFFOLDING.md` describes supported editor actions and their limits. Consult these guides before adopting conventions or applying generated artifacts. Convention warnings remain independent of identity, classification and authorization diagnostics.
 
 Analyzer/code-fix assemblies target net10.0 independently of net11.0 applications. The package README owns compiler-host requirements and reload guidance. Keep packaged DLL paths aligned with tooling targets.
+
+When adding an analyzer diagnostic, register its ID, category and default severity in the owning analyzer project's `AnalyzerReleases.Unshipped.md`. Verify the release-tracking entry alongside the descriptor and public diagnostic documentation. Missing entries fail compilation with RS2000.
+
+DRNCV032 requires Hosted, Application, Infra and Utils projects to expose a public static nongeneric method on a public top-level nongeneric static *Module class. Accept and return IServiceCollection and directly scan the local assembly on that parameter with AddServicesWithAttributes. Reuse the composition pass for this check. Keep Domain, Contract, SharedKernel, framework and tests excluded. Do not confuse module structure with proof of runtime invocation.
+
+For analyzer implementation changes, apply the [Roslyn performance guidance](../basic-agentic-development/SKILL.md#roslyn-analyzers-and-generators). Review new loops and semantic queries for repeated scans, allocations and compilation-scoped reuse before completion.
+
+Share lifetime selection and binding facts across registration rules at compilation scope. Check cancellation before cache hits and publication. Custom nongeneric attributes can establish service binding through source-visible explicit constructor forwarding of typeof expressions or type-valued attribute arguments. Keep arbitrary expressions and custom key semantics outside the proof.
+
+Avoid duplicate DRNCV012/031 reports for the same implementation/interface binding failure. Preserve DRNCV012 checks for other service demands and key mismatches. Do not claim either rule detects a missing runtime attribute scan.
+
+DRNCV031 requires one lifetime attribute bound to the exact matching IName interface, including generic arguments, for concrete, closed Application/Infra service implementations. Generic and keyed lifetime derivatives count, including custom derivatives. Direct attributes take precedence over inherited attributes. Self-registration, other interface bindings and ambiguous lifetime declarations fail even with manual registration or unknown composition. Preserve documented service eligibility exclusions, including page models and controllers. DRNCV012 separately checks effective registration and required keys. Diagnostic examples should show Scoped, Transient and Singleton without choosing a lifetime for the user.
 
 DRN0026 requires explicit nonblank authorization policies on exposed SourceKnown controller actions, including inherited actions. Anonymous actions are rejected. `[NonAction]` is exempt, `IgnoreApi` is not. Hosting owns runtime policies and application resource checks.
 

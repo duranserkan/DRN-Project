@@ -75,7 +75,7 @@ dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 ## Conventions
 
 - DI/configuration: use DRN attributes. Do not manually register attribute-decorated services. Follow `overview-drn-framework` and `drn-utils`.
-- SharedKernel `CONVENTIONS.md` owns name-based roles, directional minimum-one references and Domain subdomains. Shared dependencies need no naming root or custom properties.
+- SharedKernel `CONVENTIONS.md` owns application conventions. Declare alternate or ambiguous context destinations. Shared dependencies need no naming root or custom properties.
 - Identity: explicit `NexusAppSettings:AppId` and `AppInstanceId` in every environment; zero is valid. Use Source-Known IDs and entity metadata. DTOs derive from `Dto`, live in `*.Contract`, and expose `Guid` IDs, not entities. `drn-sharedkernel` and `drn-utils` own identity formats, time configuration, and lifecycle contracts.
 - Runtime access: prefer `[UnsafeAccessor]` when target types are known and accessible at compile time. Reserve reflection for dynamically discovered types.
 - `drn-hosting` owns typed roots, `ConfigureEndpointCollection`, and automatic Razor detection.
@@ -104,7 +104,7 @@ Use these owners for public contracts. For implementation work, discover relevan
 
 | Contract | Owner | Agent guidance |
 |---|---|---|
-| Identity, entities, repositories, analyzer diagnostics | `DRN.Framework.SharedKernel/README.md`, `DRN.Framework.EntityFramework/README.md` | `drn-sharedkernel`, `drn-entityframework` |
+| Identity, entities, aggregate rules, repositories, analyzer diagnostics | `DRN.Framework.SharedKernel/README.md`, `DRN.Framework.EntityFramework/README.md` | `drn-sharedkernel`, `drn-entityframework` |
 | Configuration, data paths, cancellation, ID/time utilities, events | `DRN.Framework.Utils/README.md` | `drn-utils`, `overview-drn-framework` |
 | Classification, capture limits, exemptions, migration | `DRN.Framework.Utils/Logging/Diagnostics/README.md`; catalog `DRN.Framework.Utils/Logging/Diagnostics/data-classification-rules.json` | `drn-utils`, `drn-sharedkernel`, `drn-testing` |
 | Hosting, SourceKnown policy enforcement, MFA, Razor and assets | `DRN.Framework.Hosting/README.md` | `drn-hosting`, relevant frontend skills |
