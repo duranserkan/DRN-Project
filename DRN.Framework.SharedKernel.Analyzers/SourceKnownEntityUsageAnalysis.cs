@@ -80,7 +80,8 @@ internal sealed class SourceKnownEntityUsageAnalysis
     {
         ImmutableArray<INamedTypeSymbol>.Builder? bindings = null;
         HashSet<ISymbol>? reported = null;
-        for (var current = type; current != null; current = current.BaseType) Check(current);
+        Check(type);
+        for (var current = type.BaseType; current != null; current = current.BaseType) Check(current);
         foreach (var implemented in type.AllInterfaces) Check(implemented);
         return bindings?.ToImmutable() ?? [];
 

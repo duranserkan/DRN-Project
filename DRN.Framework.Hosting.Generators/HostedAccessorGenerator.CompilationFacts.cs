@@ -202,6 +202,7 @@ public sealed partial class HostedAccessorGenerator
             }
         }
 
+        [SuppressMessage("SonarQube", "S3267", Justification = "The direct loop avoids a predicate delegate capturing rootName on each lookup.")]
         public bool HasOtherEndpointCollection(INamedTypeSymbol program, string rootName)
         {
             if (!_endpointCollections.TryGetValue(program, out var collections)) return false;

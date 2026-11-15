@@ -50,13 +50,18 @@ internal sealed class UninitializedEntityOperationsAnalysis
                 foreach (var block in blockContext.OperationBlocks)
                 {
                     var analysis = new UninitializedEntityOperationsAnalysis(blockContext, entity, entityFacts, passiveConstructors);
-                    if (method.MethodKind == MethodKind.Constructor && analysis.IsEntity(method.ContainingType) &&
-                        analysis.HasPassiveInitialization(method, new HashSet<ISymbol>(SymbolEqualityComparer.Default)))
-                        analysis._this = analysis.NewOrigin();
+                    analysis.InitializeConstructorReceiver(method);
                     analysis.Evaluate(block);
                 }
             });
         });
+    }
+
+    private void InitializeConstructorReceiver(IMethodSymbol method)
+    {
+        if (method.MethodKind == MethodKind.Constructor && IsEntity(method.ContainingType) &&
+            HasPassiveInitialization(method, new HashSet<ISymbol>(SymbolEqualityComparer.Default)))
+            _this = NewOrigin();
     }
 
     private FreshEntity NewOrigin()

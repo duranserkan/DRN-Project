@@ -208,7 +208,7 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         var distinctReferencedEntities = referencedEntitySymbols
             .Distinct(SymbolEqualityComparer.Default)
             .OfType<INamedTypeSymbol>()
-            .Select(symbol => ExtractEntityTypeInfo(symbol, entityTypeAttributeSymbol, endContext.Compilation, endContext.CancellationToken, metadata))
+            .Select(symbol => ExtractEntityTypeInfo(symbol, entityTypeAttributeSymbol, endContext.Compilation, metadata, endContext.CancellationToken))
             .ToArray();
 
         AnalyzeDuplicateEntityTypeValues(endContext, distinctReferencedEntities, collectedEntityTypeDeclarations, entityTypeAttributeSymbol);
@@ -287,8 +287,8 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         INamedTypeSymbol symbol,
         INamedTypeSymbol entityTypeAttributeSymbol,
         Compilation compilation,
-        CancellationToken cancellationToken,
-        EntityAnalyzerHelper.CompilationMetadata metadata)
+        EntityAnalyzerHelper.CompilationMetadata metadata,
+        CancellationToken cancellationToken)
     {
         var attr = EntityAnalyzerHelper.FindAttribute(symbol, entityTypeAttributeSymbol);
         if (attr == null)

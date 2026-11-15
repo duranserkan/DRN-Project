@@ -55,7 +55,7 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
                 new GeneratedSource(model.HintName, AccessorRenderer.Render(model, cancellation)))
             .WithTrackingName("HostedAccessorSources");
         context.RegisterSourceOutput(sources, static (output, source) =>
-            output.AddSource(source.HintName, SourceText.From(source.Text, Encoding.UTF8)));
+            output.AddSource(source.HintName, SourceText.From(source.Content, Encoding.UTF8)));
         // Locations must follow the current compilation even when source models remain equal.
         context.RegisterSourceOutput(generation.SelectMany(static (result, _) => result.Diagnostics),
             static (output, diagnostic) => output.ReportDiagnostic(diagnostic));
@@ -107,7 +107,7 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
             try
             {
                 facts ??= new CompilationFacts(compilation, cancellation, reuseActions: hosts.Length > 1);
-                new AccessorModelBuilder(compilation, facts, cancellation, program, orderedPages, generatedSources).Prepare();
+                new AccessorModelBuilder(compilation, facts, program, orderedPages, generatedSources, cancellation).Prepare();
             }
             catch (AccessorException exception)
             {
@@ -134,7 +134,7 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
 
     private sealed record PageInput(string? Path, bool IsPage);
     private sealed record GenerationResult(ImmutableArray<AccessorModel> Sources, ImmutableArray<Diagnostic> Diagnostics);
-    private sealed record GeneratedSource(string HintName, string Text);
+    private sealed record GeneratedSource(string HintName, string Content);
     [SuppressMessage("SonarQube", "S3871", Justification = "This private generation failure is caught by PreparePrograms and reported as DRNHG001. It never forms part of the generator's public exception contract.")]
     private sealed class AccessorException(string message) : Exception(message);
     private static string? Text(AttributeData? attribute, string name) =>
@@ -161,8 +161,8 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
         public string? Area { get; set; }
     }
 
-    private sealed class AccessorModelBuilder(Compilation compilation, CompilationFacts facts, CancellationToken cancellation, INamedTypeSymbol program,
-        ImmutableArray<PageInput> pages, Dictionary<string, AccessorModel> generatedSources)
+    private sealed class AccessorModelBuilder(Compilation compilation, CompilationFacts facts, INamedTypeSymbol program,
+        ImmutableArray<PageInput> pages, Dictionary<string, AccessorModel> generatedSources, CancellationToken cancellation)
     {
         private readonly Dictionary<string, AttributeData> _members = new(StringComparer.Ordinal);
         private readonly HashSet<string> _usedMembers = new(StringComparer.Ordinal);
