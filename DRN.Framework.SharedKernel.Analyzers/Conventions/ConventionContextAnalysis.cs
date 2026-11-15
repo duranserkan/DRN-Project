@@ -163,10 +163,19 @@ internal static class ConventionContextAnalysis
         foreach (var tree in facts.Compilation.SyntaxTrees)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
-            var model = facts.Compilation.GetSemanticModel(tree);
+            SemanticModel? model = null;
             foreach (var invocation in tree.GetRoot(facts.Cancellation).DescendantNodes().OfType<InvocationExpressionSyntax>())
             {
                 facts.Cancellation.ThrowIfCancellationRequested();
+                var name = invocation.Expression switch
+                {
+                    SimpleNameSyntax simple => simple.Identifier.ValueText,
+                    MemberAccessExpressionSyntax access => access.Name.Identifier.ValueText,
+                    MemberBindingExpressionSyntax binding => binding.Name.Identifier.ValueText,
+                    _ => null
+                };
+                if (name is not null and not ("AddDbContext" or "AddDbContextWithConventions")) continue;
+                model ??= facts.Compilation.GetSemanticModel(tree);
                 if (model.GetSymbolInfo(invocation, facts.Cancellation).Symbol is not IMethodSymbol method ||
                     method.TypeArguments is not [{ } argument] || argument is not INamedTypeSymbol context) continue;
                 var drn = method.Name == "AddDbContextWithConventions" && ConventionSymbols.Same(method.ContainingType, drnExtensions);

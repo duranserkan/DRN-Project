@@ -5,6 +5,8 @@ namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 
 internal sealed class ConventionSymbols(Compilation compilation)
 {
+    private readonly Dictionary<INamedTypeSymbol, Dictionary<INamedTypeSymbol, bool>> _classifications = new(SymbolEqualityComparer.Default);
+    private readonly Dictionary<INamedTypeSymbol, (bool Inherited, bool Multiple)> _attributeUsage = new(SymbolEqualityComparer.Default);
     internal INamedTypeSymbol? Entity { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity");
     internal INamedTypeSymbol? Aggregate { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.AggregateRoot");
     internal INamedTypeSymbol? IdentityUser { get; } = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Identity.IdentityUser`1");
@@ -40,29 +42,47 @@ internal sealed class ConventionSymbols(Compilation compilation)
     internal INamedTypeSymbol? AssemblyMetadataAttribute { get; } = compilation.GetTypeByMetadataName("System.Reflection.AssemblyMetadataAttribute");
     internal INamedTypeSymbol? SuppressionAttribute { get; } = compilation.GetTypeByMetadataName("System.Diagnostics.CodeAnalysis.SuppressMessageAttribute");
     internal INamedTypeSymbol? AttributeUsage { get; } = compilation.GetTypeByMetadataName("System.AttributeUsageAttribute");
+    internal INamedTypeSymbol? ConfigAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.Utils.DependencyInjection.Attributes.ConfigAttribute");
 
     internal bool IsEntity(INamedTypeSymbol type, CancellationToken cancellation) =>
-        Is(type, Entity, cancellation) || Is(type, IdentityUser, cancellation);
+        IsKnown(type, Entity, cancellation) || IsKnown(type, IdentityUser, cancellation);
 
     internal bool IsContext(INamedTypeSymbol type, CancellationToken cancellation) =>
-        Is(type, Context, cancellation) || Is(type, DbContext, cancellation);
+        IsKnown(type, Context, cancellation) || IsKnown(type, DbContext, cancellation);
 
     internal bool IsTransport(INamedTypeSymbol type, CancellationToken cancellation) =>
-        Is(type, Controller, cancellation) || Is(type, PageModel, cancellation);
+        IsKnown(type, Controller, cancellation) || IsKnown(type, PageModel, cancellation);
 
     internal bool IsPersistenceType(INamedTypeSymbol type, CancellationToken cancellation) =>
         IsEntity(type, cancellation) || IsContext(type, cancellation) ||
-        Is(type, RepositoryContract, cancellation) || Is(type, Configuration, cancellation) ||
-        Is(type, ModelBuilder, cancellation) || Is(type, EntityBuilder, cancellation) || Is(type, GenericEntityBuilder, cancellation);
+        IsKnown(type, RepositoryContract, cancellation) || IsKnown(type, Configuration, cancellation) ||
+        IsKnown(type, ModelBuilder, cancellation) || IsKnown(type, EntityBuilder, cancellation) || IsKnown(type, GenericEntityBuilder, cancellation);
+
+    private bool IsKnown(INamedTypeSymbol type, INamedTypeSymbol? target, CancellationToken cancellation)
+    {
+        cancellation.ThrowIfCancellationRequested();
+        if (target is null) return false;
+        if (!_classifications.TryGetValue(target, out var types))
+            _classifications.Add(target, types = new(SymbolEqualityComparer.Default));
+        if (types.TryGetValue(type, out var cached)) return cached;
+        var result = Is(type, target, cancellation);
+        cancellation.ThrowIfCancellationRequested();
+        types.Add(type, result);
+        return result;
+    }
 
     internal static bool Same(ITypeSymbol? left, ITypeSymbol? right) => left is not null && right is not null &&
         SymbolEqualityComparer.Default.Equals(left.OriginalDefinition, right.OriginalDefinition);
 
     internal static bool Is(INamedTypeSymbol? type, INamedTypeSymbol? target, CancellationToken cancellation)
     {
+        cancellation.ThrowIfCancellationRequested();
         if (type is null || target is null) return false;
-        foreach (var current in Bases(type, cancellation))
+        for (var current = type; current is not null; current = current.BaseType)
+        {
+            cancellation.ThrowIfCancellationRequested();
             if (Same(current, target)) return true;
+        }
         if (target.TypeKind != TypeKind.Interface) return false;
         foreach (var current in type.AllInterfaces)
         {
@@ -104,17 +124,27 @@ internal sealed class ConventionSymbols(Compilation compilation)
         {
             foreach (var attribute in current.GetAttributes())
             {
-                if (!Is(attribute.AttributeClass, target, cancellation)) continue;
-                var usage = Bases(attribute.AttributeClass!, cancellation).SelectMany(owner => owner.GetAttributes())
-                    .FirstOrDefault(item => Same(item.AttributeClass, AttributeUsage));
-                var inherited = usage?.NamedArguments.FirstOrDefault(pair => pair.Key == "Inherited").Value.Value is not false;
-                var multiple = usage?.NamedArguments.FirstOrDefault(pair => pair.Key == "AllowMultiple").Value.Value is true;
+                if (attribute.AttributeClass is not { } attributeType || !IsKnown(attributeType, target, cancellation)) continue;
+                var (inherited, multiple) = ReadAttributeUsage(attributeType, cancellation);
                 if (!first && !inherited) continue;
                 if (!multiple && !singleAttributes.Add(attribute.AttributeClass!)) continue;
                 yield return attribute;
             }
             first = false;
         }
+    }
+
+    private (bool Inherited, bool Multiple) ReadAttributeUsage(INamedTypeSymbol type, CancellationToken cancellation)
+    {
+        cancellation.ThrowIfCancellationRequested();
+        if (_attributeUsage.TryGetValue(type, out var cached)) return cached;
+        var usage = Bases(type, cancellation).SelectMany(owner => owner.GetAttributes())
+            .FirstOrDefault(item => Same(item.AttributeClass, AttributeUsage));
+        var result = (usage?.NamedArguments.FirstOrDefault(pair => pair.Key == "Inherited").Value.Value is not false,
+            usage?.NamedArguments.FirstOrDefault(pair => pair.Key == "AllowMultiple").Value.Value is true);
+        cancellation.ThrowIfCancellationRequested();
+        _attributeUsage.Add(type, result);
+        return result;
     }
 
     internal static bool IsOpen(INamedTypeSymbol type, CancellationToken cancellation = default)

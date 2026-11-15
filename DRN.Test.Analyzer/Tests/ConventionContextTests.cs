@@ -126,11 +126,15 @@ public sealed class ConventionContextTests
     }
 
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(false, true)]
-    [InlineData(true, false)]
-    [InlineData(true, true)]
-    public void Ef_Registration_Should_Accept_Options_With_Additional_Injected_Dependencies(bool conventions, bool optionsLast)
+    [InlineData(false, false, "qualified")]
+    [InlineData(false, true, "qualified")]
+    [InlineData(true, false, "qualified")]
+    [InlineData(true, true, "qualified")]
+    [InlineData(false, false, "extension")]
+    [InlineData(false, false, "conditional")]
+    [InlineData(false, false, "alias")]
+    [InlineData(false, false, "escaped")]
+    public void Ef_Registration_Should_Accept_Options_With_Additional_Injected_Dependencies(bool conventions, bool optionsLast, string form)
     {
         var registration = conventions
             ? "DRN.Framework.EntityFramework.Extensions.ServiceCollectionExtensions.AddDbContextWithConventions"
@@ -138,7 +142,17 @@ public sealed class ConventionContextTests
         var parameters = optionsLast
             ? "ITenant tenant, Microsoft.EntityFrameworkCore.DbContextOptions<QAContext> options"
             : "Microsoft.EntityFrameworkCore.DbContextOptions<QAContext> options, ITenant tenant";
+        var call = form switch
+        {
+            "extension" => "services.AddDbContext<QAContext>()",
+            "conditional" => "services?.AddDbContext<QAContext>()",
+            "alias" => "Ef.AddDbContext<QAContext>(services)",
+            "escaped" => "services.@AddDbContext<QAContext>()",
+            _ => registration + "<QAContext>(services)"
+        };
         var facts = Facts($$"""
+            using Microsoft.Extensions.DependencyInjection;
+            using Ef = Microsoft.Extensions.DependencyInjection.EntityFrameworkServiceCollectionExtensions;
             namespace Sample.Infra.QA;
             public interface ITenant;
             public class QAContext : Microsoft.EntityFrameworkCore.DbContext, DRN.Framework.EntityFramework.Context.IDrnContext
@@ -150,7 +164,7 @@ public sealed class ConventionContextTests
             public static class Composition
             {
                 public static void Register(Microsoft.Extensions.DependencyInjection.IServiceCollection services)
-                    => {{registration}}<QAContext>(services);
+                    => {{call}};
             }
             """);
         ConventionContextAnalysis.Analyze(facts);

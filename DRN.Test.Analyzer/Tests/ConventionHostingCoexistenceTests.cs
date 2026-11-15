@@ -144,15 +144,16 @@ public sealed class ConventionHostingCoexistenceTests
     private static string[] Outputs(GeneratorDriver driver) => driver.GetRunResult().Results.SelectMany(result => result.GeneratedSources)
         .OrderBy(source => source.HintName, StringComparer.Ordinal).Select(source => source.HintName + "\n" + source.SourceText).ToArray();
 
-    private static CSharpCompilation Compile(params string[] sources)
-    {
-        var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
+    private static readonly ImmutableArray<MetadataReference> References = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
             .Append(typeof(DRN.Framework.Hosting.Endpoints.AccessorControllerAttribute).Assembly.Location)
             .Append(typeof(DRN.Framework.Utils.Settings.IAppSettings).Assembly.Location)
             .Append(typeof(DRN.Framework.SharedKernel.Domain.Dto).Assembly.Location)
-            .Distinct(StringComparer.Ordinal).Select(path => MetadataReference.CreateFromFile(path));
+            .Distinct(StringComparer.Ordinal).Select(path => (MetadataReference)MetadataReference.CreateFromFile(path)).ToImmutableArray();
+
+    private static CSharpCompilation Compile(params string[] sources)
+    {
         var compilation = CSharpCompilation.Create("Sample.Hosted", sources.Select((source, index) =>
-            CSharpSyntaxTree.ParseText(source, path: "Fixture" + index + ".cs")), references,
+            CSharpSyntaxTree.ParseText(source, path: "Fixture" + index + ".cs")), References,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
         compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
         return compilation;

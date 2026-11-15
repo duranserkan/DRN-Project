@@ -495,6 +495,29 @@ public sealed class ConventionRegistrationTests
     }
 
     [Fact]
+    public void Repeated_Service_Demands_Should_Preserve_Distinct_Keys()
+    {
+        var diagnostics = Analyze("""
+            using DRN.Framework.Utils.DependencyInjection;
+            using DRN.Framework.Utils.DependencyInjection.Attributes;
+            using Microsoft.Extensions.DependencyInjection;
+            namespace Sample.Application.QA;
+            public interface IReader { int Read(); }
+            [ScopedWithKey<IReader>("read")]
+            public class Reader : IReader { public int Read() => 1; }
+            public interface IConsumer { int Read(); }
+            [Scoped<IConsumer>]
+            public class Consumer([FromKeyedServices("read")] IReader first,
+                [FromKeyedServices("read")] IReader second,
+                [FromKeyedServices("write")] IReader third) : IConsumer
+            {
+                public int Read() => first.Read() + second.Read() + third.Read();
+            }
+            """ + Scan, includeDemand: false).Diagnostics;
+        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV012");
+    }
+
+    [Fact]
     public void Constructed_Generic_Service_Demands_Should_Not_Be_Deduplicated_By_Definition()
     {
         var diagnostics = Analyze("""

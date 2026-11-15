@@ -783,7 +783,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
         diagnostics.Should().BeEmpty();
     }
 
-    internal static MetadataReference[] References => ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
+    internal static ImmutableArray<MetadataReference> References { get; } = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
         .Split(Path.PathSeparator).Where(path => !Path.GetFileName(path).StartsWith("DRN.", StringComparison.Ordinal))
         .Append(typeof(SensitiveAttribute).Assembly.Location)
         .Append(typeof(NSubstitute.SubstituteExtensions).Assembly.Location)
@@ -791,7 +791,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
         .Append(typeof(Microsoft.EntityFrameworkCore.DbContext).Assembly.Location)
         .Append(typeof(Microsoft.Extensions.Compliance.Classification.DataClassificationAttribute).Assembly.Location)
         .Append(typeof(Microsoft.Extensions.Logging.ILogger).Assembly.Location)
-        .Distinct(StringComparer.Ordinal).Select(path => MetadataReference.CreateFromFile(path)).ToArray<MetadataReference>();
+        .Distinct(StringComparer.Ordinal).Select(path => (MetadataReference)MetadataReference.CreateFromFile(path)).ToImmutableArray();
 
     internal static CSharpCompilation Compilation(string source, string path = "Models.cs") => CSharpCompilation.Create(
         "DiagnosticModelConsumer", [CSharpSyntaxTree.ParseText(source, path: path)], References,

@@ -277,14 +277,16 @@ internal static class ConventionPersistenceAnalysis
         var applications = new List<(INamedTypeSymbol Configuration, IMethodSymbol Method)>();
         foreach (var tree in facts.Compilation.SyntaxTrees)
         {
-            var semantic = facts.Compilation.GetSemanticModel(tree);
+            SemanticModel? semantic = null;
             foreach (var invocation in tree.GetRoot(facts.Cancellation).DescendantNodes().OfType<InvocationExpressionSyntax>())
             {
                 facts.Cancellation.ThrowIfCancellationRequested();
+                if (invocation.ArgumentList.Arguments is not [var argument]) continue;
+                semantic ??= facts.Compilation.GetSemanticModel(tree);
                 if (semantic.GetSymbolInfo(invocation, facts.Cancellation).Symbol is not IMethodSymbol method ||
                     semantic.GetEnclosingSymbol(invocation.SpanStart, facts.Cancellation) is not IMethodSymbol ownerMethod ||
                     ownerMethod.MethodKind is not (MethodKind.Ordinary or MethodKind.LocalFunction) ||
-                    ownerMethod.Parameters is not [var builder] || invocation.ArgumentList.Arguments is not [var argument] ||
+                    ownerMethod.Parameters is not [var builder] ||
                     !SymbolEqualityComparer.Default.Equals(semantic.GetSymbolInfo(argument.Expression, facts.Cancellation).Symbol, builder)) continue;
                 // Follow only same-type helpers that forward the original builder unchanged.
                 if (method.Parameters.Length == 1 && !method.IsGenericMethod && !method.IsVirtual && !method.IsAbstract &&

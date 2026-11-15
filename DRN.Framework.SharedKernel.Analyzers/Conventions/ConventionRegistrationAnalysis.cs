@@ -11,8 +11,8 @@ internal static class ConventionRegistrationAnalysis
         var demands = facts.Records.Where(input => input.Kind == "Registration").ToArray();
         var evidence = ReadComposition(facts);
         var implementations = facts.Types.Where(type => IsServiceImplementation(facts, type)).ToArray();
-        var observedServices = ReadConstructorServices(facts).Where(demand => implementations.Count(implementation =>
-            facts.Compilation.ClassifyCommonConversion(implementation, demand.Service).IsImplicit) == 1).ToArray();
+        var serviceImplementations = new Dictionary<INamedTypeSymbol, INamedTypeSymbol?>(SymbolEqualityComparer.Default);
+        var observedServices = ReadConstructorServices(facts).Where(demand => UniqueImplementation(demand.Service) is not null).ToArray();
         var unknownModules = new Dictionary<IAssemblySymbol, bool>(SymbolEqualityComparer.Default);
         var seen = new HashSet<(string Implementation, string Service, string Key)>();
         var explicitPairs = new HashSet<(string Implementation, string Service)>();
@@ -43,7 +43,7 @@ internal static class ConventionRegistrationAnalysis
         foreach (var implementation in implementations)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
-            var observed = observedServices.Where(demand => facts.Compilation.ClassifyCommonConversion(implementation, demand.Service).IsImplicit &&
+            var observed = observedServices.Where(demand => SymbolEqualityComparer.Default.Equals(implementation, serviceImplementations[demand.Service]) &&
                 !evidence.Manual.Any(item => SymbolEqualityComparer.Default.Equals(item.Service, demand.Service) && item.Key == demand.Key &&
                     !SymbolEqualityComparer.Default.Equals(item.Implementation, implementation))).ToArray();
             foreach (var demand in observed)
@@ -62,6 +62,25 @@ internal static class ConventionRegistrationAnalysis
                 var location = facts.Location(implementation);
                 if (location != Location.None) AnalyzeDemand(implementation, service, null, location);
             }
+        }
+
+        INamedTypeSymbol? UniqueImplementation(INamedTypeSymbol service)
+        {
+            if (serviceImplementations.TryGetValue(service, out var cached)) return cached;
+            INamedTypeSymbol? match = null;
+            foreach (var implementation in implementations)
+            {
+                facts.Cancellation.ThrowIfCancellationRequested();
+                if (!facts.Compilation.ClassifyCommonConversion(implementation, service).IsImplicit) continue;
+                if (match is not null)
+                {
+                    match = null;
+                    break;
+                }
+                match = implementation;
+            }
+            serviceImplementations.Add(service, match);
+            return match;
         }
 
         void AnalyzeDemand(INamedTypeSymbol implementation, INamedTypeSymbol service, string? key, Location location)
@@ -86,10 +105,9 @@ internal static class ConventionRegistrationAnalysis
             ConventionSymbols.IsOpen(type, facts.Cancellation) || facts.Role(type).Role is not ("Application" or "Infra") ||
             facts.IsEntity(type) || facts.IsNeutralValue(type) || facts.Symbols.IsTransport(type, facts.Cancellation) ||
             facts.Symbols.IsContext(type, facts.Cancellation)) return false;
-        var config = facts.Compilation.GetTypeByMetadataName("DRN.Framework.Utils.DependencyInjection.Attributes.ConfigAttribute");
         return !ConventionSymbols.Is(type, facts.Symbols.Dto, facts.Cancellation) &&
                !ConventionSymbols.Is(type, facts.Symbols.Configuration, facts.Cancellation) &&
-               !facts.Symbols.EffectiveAttributes(type, config, facts.Cancellation).Any();
+               !facts.Symbols.EffectiveAttributes(type, facts.Symbols.ConfigAttribute, facts.Cancellation).Any();
     }
 
     private static IEnumerable<INamedTypeSymbol> ServiceContracts(ConventionFacts facts, INamedTypeSymbol implementation)

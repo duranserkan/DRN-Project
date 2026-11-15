@@ -252,6 +252,9 @@ internal static class ConventionBoundaryAnalysis
         }
 
         var forbidden = new Dictionary<INamedTypeSymbol, (string Family, string Role, List<Location> Locations)>(SymbolEqualityComparer.Default);
+        var dependencies = new List<ITypeSymbol>(2);
+        var pendingDependencies = new Stack<ITypeSymbol>();
+        var visitedDependencies = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
         var transportTypes = new[]
         {
             "Microsoft.AspNetCore.Mvc.IActionResult", "Microsoft.AspNetCore.Mvc.ActionResult`1",
@@ -273,7 +276,7 @@ internal static class ConventionBoundaryAnalysis
                 var type = consumer as INamedTypeSymbol ?? consumer.ContainingType;
                 if (type is null) continue;
                 var role = facts.Role(type).Role;
-                var dependencies = new List<ITypeSymbol>();
+                dependencies.Clear();
                 if (model.GetTypeInfo(node, facts.Cancellation).Type is { } valueType) dependencies.Add(valueType);
                 if (node is SimpleNameSyntax or MemberAccessExpressionSyntax &&
                     model.GetSymbolInfo(node, facts.Cancellation).Symbol is { } bound)
@@ -281,7 +284,7 @@ internal static class ConventionBoundaryAnalysis
                     if (bound is INamedTypeSymbol named) dependencies.Add(named);
                     else if (bound.ContainingType is { } declaringType) dependencies.Add(declaringType);
                 }
-                foreach (var entity in NamedDependencies(dependencies, facts.Cancellation))
+                foreach (var entity in NamedDependencies(dependencies, pendingDependencies, visitedDependencies, facts.Cancellation))
                 {
                     var forbiddenUse = generated ? null : ForbiddenUse(facts, role, entity, transportTypes);
                     if (forbiddenUse is { } dependencyRole)
@@ -310,10 +313,10 @@ internal static class ConventionBoundaryAnalysis
                 if (member is INamedTypeSymbol || member is IMethodSymbol
                     { MethodKind: MethodKind.Constructor or MethodKind.StaticConstructor } ||
                     !facts.Compilation.IsSymbolAccessibleWithin(member, type)) continue;
-                var dependencies = SignatureTypes(member);
+                var memberDependencies = SignatureTypes(member);
                 if (member is IMethodSymbol method)
-                    dependencies = dependencies.Concat(method.TypeParameters.SelectMany(parameter => parameter.ConstraintTypes));
-                foreach (var entity in NamedDependencies(dependencies, facts.Cancellation))
+                    memberDependencies = memberDependencies.Concat(method.TypeParameters.SelectMany(parameter => parameter.ConstraintTypes));
+                foreach (var entity in NamedDependencies(memberDependencies, pendingDependencies, visitedDependencies, facts.Cancellation))
                 {
                     RecordUse(consumer, entity, Location.None, false);
                     foreach (var location in member.Locations.Where(location => location.SourceTree is { } source &&
@@ -374,10 +377,12 @@ internal static class ConventionBoundaryAnalysis
         return null;
     }
 
-    private static IEnumerable<INamedTypeSymbol> NamedDependencies(IEnumerable<ITypeSymbol> dependencies, CancellationToken cancellation)
+    private static IEnumerable<INamedTypeSymbol> NamedDependencies(IEnumerable<ITypeSymbol> dependencies,
+        Stack<ITypeSymbol> pending, HashSet<ITypeSymbol> visited, CancellationToken cancellation)
     {
-        var pending = new Stack<ITypeSymbol>(dependencies);
-        var visited = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);
+        pending.Clear();
+        visited.Clear();
+        foreach (var dependency in dependencies) pending.Push(dependency);
         while (pending.TryPop(out var dependency))
         {
             cancellation.ThrowIfCancellationRequested();

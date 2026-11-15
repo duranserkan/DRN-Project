@@ -1,7 +1,7 @@
 ---
 name: basic-agentic-development
 description: Use when planning, implementing, refactoring, or verifying work under repository autonomy and execution rules.
-last-updated: 2026-11-14
+last-updated: 2026-11-15
 difficulty: basic
 ---
 
@@ -87,6 +87,15 @@ These tiers do not override workflow, command, or VCS gates.
 - An async callback that completes synchronously may not allocate. Preserve callback order, exceptions, and cancellation. Do not remove async solely because it appears expensive.
 
 When measurement is authorized, warm up first and keep setup, assertions, and allocating substitutes outside the measured section. Separate lookup costs from provider, middleware, and response-header storage costs. Removing an allocation in source does not prove zero allocation for a whole request or improved throughput. Report unexecuted measurements explicitly.
+
+#### Roslyn Analyzers And Generators
+
+- Apply cheap syntax, name and arity filters before semantic queries when they cannot exclude supported aliases, inheritance or malformed-input diagnostics. Prefer relevant symbol/operation callbacks over repeated whole-tree scans. Keep compilation-wide passes for rules requiring global evidence.
+- Resolve well-known symbols once per compilation. Cache repeated type classification, generated-tree status and other stable facts at compilation or generation-pass scope. Use symbol equality and preserve constructed generic arguments when they affect the result. Do not retain compilations, semantic models or symbols in static caches.
+- Cache immutable, context-free facts. Publish results only after successful calculation and cancellation checks. Do not cache exceptions or canceled work. Keep diagnostic emission and traversal-dependent decisions outside fact factories. Use concurrency-safe caches only when callbacks share them concurrently.
+- Reuse traversal collections only within one non-overlapping analysis invocation. Clear visited state between independent traversals. Preserve cycle guards, cancellation, generated-code evidence, diagnostic locations and deterministic ordering.
+- Incremental generators should project inputs into small value-equatable source models before rendering. Keep current-compilation diagnostic locations separate from reusable models. Preserve meaningful invalidation from references, configuration and additional files. Verify unchanged edits reuse output, relevant edits invalidate it, and cancellation does not poison later runs.
+- Prefer established local caches and indexes over a new abstraction. Validate diagnostic/output equivalence as well as allocations and elapsed time. Separate fixture setup, cold execution and warm incremental execution when measurement is authorized.
 
 ### 4. Verification
 

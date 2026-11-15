@@ -1,7 +1,7 @@
 ---
 name: drn-testing
 description: "Choose DRN unit and integration data attributes, test contexts, fixtures, and MTP entry points."
-last-updated: 2026-11-13
+last-updated: 2026-11-15
 difficulty: intermediate
 ---
 
@@ -47,6 +47,10 @@ public async Task Health_endpoint_succeeds(DrnTestContext context, string route)
 - Analyzer fixtures need real logging and EF references. Pair permitted schema, constant-key and substitute-verification cases with unsafe writes and lookalike APIs. Cover exact comment names, statement boundaries, and valid, malformed and unused acknowledgements. Keep suppressions narrow and explained.
 - Share analyzer/browser catalog fixtures. Cover inherited and malformed catalogs, compilation isolation, deployment and code fixes. Verify runtime rejection of an invalid replacement catalog. Backend fixtures must classify dynamic values explicitly. Annotate fixtures and use named models for matching anonymous properties. See [classification rules](../drn-sharedkernel/SKILL.md#attributes).
 - For diagnostic capture, cover native and extension dictionary APIs, dynamic keys, protected descendants, detached copies and inherited/interface classifications. Unrelated same-named members must not inherit classification. Verify getter behavior, ignored members, serialization failure recovery and credential suppression. Keep implementation-specific cases with their source tests.
+
+## Compiler Test Performance
+
+Cache materialized immutable metadata references for fixed assembly inputs. Lazily emit invariant dependency fixtures once with thread-safe initialization. Preserve reference paths, assembly identity and provenance records. Keep consumer compilations, analyzer state and generator drivers isolated where a test requires a fresh run. Do not reuse a fixture whose source or options vary, or replace emitted references in tests covering metadata behavior. Preserve coverage while removing repeated setup. For compiler cache and incremental-output rules, see [Roslyn guidance](../basic-agentic-development/SKILL.md#roslyn-analyzers-and-generators).
 
 ## Context Capabilities
 
