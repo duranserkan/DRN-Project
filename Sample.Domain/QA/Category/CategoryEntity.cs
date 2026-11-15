@@ -1,22 +1,22 @@
 using Sample.Contract.QA.Categories;
-using Sample.Domain.QA.Questions;
+using Sample.Domain.QA.Question;
 
-namespace Sample.Domain.QA.Categories;
+namespace Sample.Domain.QA.Category;
 
 [SampleEntityType(SampleEntityTypes.Category)]
-public class Category : AggregateRoot
+public class CategoryEntity : AggregateRoot
 {
-    private Category()
+    private CategoryEntity()
     {
     }
 
-    public Category(string name)
+    public CategoryEntity(string name)
     {
         Name = name;
     }
 
     public string Name { get; private set; } = null!;
-    public List<Question> Questions { get; private set; } = [];
+    public List<QuestionEntity> Questions { get; private set; } = [];
 
     public CategoryDto ToDto() => new(this)
     {

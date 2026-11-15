@@ -12,7 +12,7 @@ public class QBContextNpgsqlDbContextOptionsAttribute : NpgsqlDbContextOptionsAt
     public override bool UsePrototypeMode { get; set; } = false;
 }
 
-//Added to the test multiple context support
+// Demonstrates an entityless context alongside the application's persistence contexts.
 [QBContextNpgsqlDbContextOptions]
 public class QBContext : DrnContext<QBContext>
 {

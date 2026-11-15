@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Sample.Contract.QA.Tags;
-using Sample.Domain.QA.Tags;
+using Tag = Sample.Domain.QA.Tag.TagEntity;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting.Controllers;
 

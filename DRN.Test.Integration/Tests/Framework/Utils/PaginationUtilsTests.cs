@@ -4,7 +4,8 @@ using DRN.Framework.Testing.Extensions;
 using DRN.Framework.Utils.Entity;
 using DRN.Framework.Utils.Ids;
 using Sample.Contract.QA.Tags;
-using Sample.Domain.QA.Tags;
+using Sample.Domain.QA.Tag;
+using Tag = Sample.Domain.QA.Tag.TagEntity;
 using Sample.Hosted;
 using Sample.Infra.QA;
 

@@ -1,6 +1,6 @@
 using DRN.Framework.Hosting.Controllers;
 using Sample.Contract.QA.Categories;
-using Sample.Domain.QA.Categories;
+using Sample.Domain.QA.Category;
 using Sample.Hosted.Settings;
 
 namespace Sample.Hosted.Controllers.QA;
@@ -8,12 +8,12 @@ namespace Sample.Hosted.Controllers.QA;
 [Route(ControllerRoutes.QA)]
 [Authorize(Policy = IdentitySettings.QaApiPolicy)]
 public class CategoryController(ICategoryRepository repository)
-    : SourceKnownController<Category, CategoryDto, CategoryPostRequest>(repository)
+    : SourceKnownController<CategoryEntity, CategoryDto, CategoryPostRequest>(repository)
 {
-    protected override CategoryDto ToDto(Category entity) => entity.ToDto();
+    protected override CategoryDto ToDto(CategoryEntity entity) => entity.ToDto();
 
-    protected override Task<Category> CreateEntityAsync(CategoryPostRequest request, CancellationToken cancellationToken)
-        => Task.FromResult(new Category(request.Name));
+    protected override Task<CategoryEntity> CreateEntityAsync(CategoryPostRequest request, CancellationToken cancellationToken)
+        => Task.FromResult(new CategoryEntity(request.Name));
 
     [NonAction]
     public override Task<NoContentResult> DeleteAsync(Guid id, CancellationToken cancellationToken = default)

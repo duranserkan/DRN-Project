@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.Utils.Data.Serialization;
@@ -11,8 +10,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Sample.Contract.QA.Categories;
-using Sample.Domain.QA.Categories;
-using Sample.Domain.QA.Tags;
+using Sample.Domain.QA.Category;
+using Sample.Domain.QA.Tag;
 using Sample.Hosted;
 using Sample.Hosted.Controllers.QA;
 using Sample.Hosted.Helpers;
@@ -40,7 +39,7 @@ public class CategoryControllerTests
         var policies = application.Services.GetRequiredService<IAuthorizationPolicyProvider>();
         var policy = await policies.GetPolicyAsync(IdentitySettings.QaApiPolicy);
         policy.Should().NotBeNull();
-        policy!.AuthenticationSchemes.Should().Equal(IdentityConstants.BearerScheme);
+        policy.AuthenticationSchemes.Should().Equal(IdentityConstants.BearerScheme);
 
         var collectionPath = pathBase + "/" + Get.Endpoint.QA.Category.PaginateAsync.Path().TrimStart('/');
         collectionPath.Should().Be(pathBase + "/Api/QA/Category");
@@ -84,7 +83,7 @@ public class CategoryControllerTests
         created.StatusCode.Should().Be(HttpStatusCode.Created, "response body: {0}", await created.Content.ReadAsStringAsync());
         var expected = await created.Content.ReadFromJsonAsync<CategoryDto>();
         expected.Should().NotBeNull();
-        expected!.Id.Should().NotBeEmpty();
+        expected.Id.Should().NotBeEmpty();
         created.Headers.Location.Should().BeNull();
         var location = pathBase + "/" + Get.Endpoint.QA.Category.GetAsync.Path(expected.Id).TrimStart('/');
         var actual = await client.GetFromJsonAsync<CategoryDto>(location);
@@ -95,8 +94,8 @@ public class CategoryControllerTests
         using var scope = application.Services.CreateScope();
         var entityIds = scope.ServiceProvider.GetRequiredService<ISourceKnownEntityIdUtils>();
         var categoryId = entityIds.Parse(expected.Id);
-        var wrongTypeId = entityIds.Generate<Tag>(categoryId.Source.Id).EntityId;
-        var absentId = entityIds.Generate<Category>().EntityId;
+        var wrongTypeId = entityIds.Generate<TagEntity>(categoryId.Source.Id).EntityId;
+        var absentId = entityIds.Generate<CategoryEntity>().EntityId;
         foreach (var missingId in new[] { Guid.NewGuid(), absentId, wrongTypeId })
         {
             var missingPath = pathBase + "/" + Get.Endpoint.QA.Category.GetAsync.Path(missingId).TrimStart('/');
@@ -114,12 +113,12 @@ public class CategoryControllerTests
 
         // Leave more than a full page after the first bounded request to exercise the cursor ceiling too.
         var database = scope.ServiceProvider.GetRequiredService<QAContext>();
-        database.Categories.AddRange(Enumerable.Range(0, 201).Select(i => new Category($"Pagination category {i}")));
+        database.Categories.AddRange(Enumerable.Range(0, 201).Select(i => new CategoryEntity($"Pagination category {i}")));
         await database.SaveChangesAsync();
 
         var first = await client.GetFromJsonAsync<PaginationResultModel<CategoryDto>>(collectionPath);
         first.Should().NotBeNull();
-        first!.Items.Should().HaveCount(10);
+        first.Items.Should().HaveCount(10);
         first.Info.Request.PageSize.MaxSize.Should().Be(100);
         first.Info.Request.UpdateTotalCount.Should().BeFalse();
         first.Info.Total.Count.Should().Be(-1);
@@ -131,14 +130,14 @@ public class CategoryControllerTests
         minimumResponse.StatusCode.Should().Be(HttpStatusCode.OK, "response body: {0}", minimumBody);
         var minimum = await minimumResponse.Content.ReadFromJsonAsync<PaginationResultModel<CategoryDto>>();
         minimum.Should().NotBeNull();
-        minimum!.Items.Should().HaveCount(1);
+        minimum.Items.Should().HaveCount(1);
         minimum.Info.Request.PageSize.Size.Should().Be(1);
 
         var nextRequest = first.Info.Request.GetNextPage(first.Info.FirstId, first.Info.LastId);
         var nextUrl = collectionPath.AppendQueryParam(nextRequest.Serialize(SerializationMethod.QueryString));
         var second = await client.GetFromJsonAsync<PaginationResultModel<CategoryDto>>(nextUrl);
         second.Should().NotBeNull();
-        second!.Items.Should().HaveCount(10);
+        second.Items.Should().HaveCount(10);
         second.Info.Request.PageNumber.Should().Be(2);
         second.Items.Select(item => item.Id).Intersect(first.Items.Select(item => item.Id)).Should().BeEmpty();
 
@@ -146,7 +145,7 @@ public class CategoryControllerTests
         var oversizedUrl = collectionPath.AppendQueryParam(oversized.Serialize(SerializationMethod.QueryString));
         var bounded = await client.GetFromJsonAsync<PaginationResultModel<CategoryDto>>(oversizedUrl);
         bounded.Should().NotBeNull();
-        bounded!.Items.Should().HaveCount(100);
+        bounded.Items.Should().HaveCount(100);
         bounded.Info.Request.PageSize.Size.Should().Be(100);
         bounded.Info.Request.PageSize.MaxSize.Should().Be(100);
         bounded.Info.Total.Count.Should().BeGreaterThanOrEqualTo(202);
@@ -156,7 +155,7 @@ public class CategoryControllerTests
         var cursorUrl = collectionPath.AppendQueryParam(nextOversized.Serialize(SerializationMethod.QueryString));
         var cursorPage = await client.GetFromJsonAsync<PaginationResultModel<CategoryDto>>(cursorUrl);
         cursorPage.Should().NotBeNull();
-        cursorPage!.Items.Should().HaveCount(100);
+        cursorPage.Items.Should().HaveCount(100);
         cursorPage.Info.Request.PageSize.MaxSize.Should().Be(100);
         cursorPage.Items.Select(item => item.Id).Intersect(bounded.Items.Select(item => item.Id)).Should().BeEmpty();
 
@@ -164,13 +163,13 @@ public class CategoryControllerTests
         var optionsPage = await client.GetFromJsonAsync<PaginationResultModel<CategoryDto>>(
             optionsPath.AppendQueryParam("pageSize", 1000).AppendQueryParam("maxSize", 1000));
         optionsPage.Should().NotBeNull();
-        optionsPage!.Items.Should().HaveCount(100);
+        optionsPage.Items.Should().HaveCount(100);
         var bodyPath = pathBase + "/" + Get.Endpoint.QA.Category.PaginateWithBodyAsync.Path().TrimStart('/');
         using var refreshResponse = await client.PostAsJsonAsync(bodyPath, first.Info.RequestRefresh());
         refreshResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var refreshed = await refreshResponse.Content.ReadFromJsonAsync<PaginationResultModel<CategoryDto>>();
         refreshed.Should().NotBeNull();
-        refreshed!.Items.Select(item => item.Id).Should().Equal(first.Items.Select(item => item.Id));
+        refreshed.Items.Select(item => item.Id).Should().Equal(first.Items.Select(item => item.Id));
         refreshed.Info.HasNext.Should().BeTrue();
     }
 

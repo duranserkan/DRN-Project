@@ -1,7 +1,7 @@
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.SharedKernel.Domain;
-using DRN.Nexus.Domain.User;
-using DRN.Nexus.Infra.Identity;
+using DRN.Nexus.Domain.NexusIdentity;
+using DRN.Nexus.Infra.NexusIdentity;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -9,8 +9,9 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Sample.Domain;
-using Sample.Domain.QA.Authors;
-using Sample.Domain.QA.Questions;
+using Author = Sample.Domain.QA.Author.AuthorEntity;
+using Question = Sample.Domain.QA.Question.QuestionEntity;
+using User = Sample.Domain.QA.User.UserEntity;
 using Sample.Domain.Users;
 using Sample.Infra.DataProtection;
 using Sample.Infra.Identity;
@@ -51,7 +52,7 @@ public sealed class SourceKnownNormalizationModelTests
     [Theory]
     [InlineData("QA", "Sample.Infra.QA.QAContext", "Sample.Infra.QA.Migrations.QAContextModelSnapshot", "qa_context", "qa_context_history")]
     [InlineData("SampleIdentity", "Sample.Infra.Identity.SampleIdentityContext", "Sample.Infra.Identity.Migrations.SampleIdentityContextModelSnapshot", "sample_identity_context", "sample_identity_context_history")]
-    [InlineData("NexusIdentity", "DRN.Nexus.Infra.Identity.NexusIdentityContext", "DRN.Nexus.Infra.Identity.Migrations.NexusIdentityContextModelSnapshot", "nexus_identity_context", "nexus_identity_context_history")]
+    [InlineData("NexusIdentity", "DRN.Nexus.Infra.NexusIdentity.NexusIdentityContext", "DRN.Nexus.Infra.NexusIdentity.Migrations.NexusIdentityContextModelSnapshot", "nexus_identity_context", "nexus_identity_context_history")]
     [InlineData("DataProtection", "Sample.Infra.DataProtection.DrnDataProtectionContext", "Sample.Infra.DataProtection.Migrations.DrnDataProtectionContextModelSnapshot", "__drn_data_protection_context", "drn_data_protection_context_history")]
     public void Context_Snapshot_Schema_And_History_Identities_Should_Remain_Stable(string selection, string contextName,
         string snapshotName, string schema, string historyTable)

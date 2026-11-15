@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Sample.Domain.QB;
+namespace Sample.Domain.QB.QBTest;
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 public sealed class QBEntityTypeAttribute(QBEntityTypes entityType)

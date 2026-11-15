@@ -7,8 +7,9 @@ using DRN.Framework.Utils.Cancellation;
 using DRN.Framework.Utils.Entity;
 using DRN.Test.Integration.Tests.Sample.Infra.QA.Repositories.Data;
 using Microsoft.EntityFrameworkCore;
-using Sample.Domain.QA.Categories;
-using Sample.Domain.QA.Tags;
+using Category = Sample.Domain.QA.Category.CategoryEntity;
+using Sample.Domain.QA.Tag;
+using Tag = Sample.Domain.QA.Tag.TagEntity;
 using Sample.Infra;
 using Sample.Infra.QA;
 

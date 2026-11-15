@@ -1,6 +1,6 @@
 using DRN.Framework.Hosting.Controllers;
 using Sample.Contract.QA.Tags;
-using Sample.Domain.QA.Tags;
+using Sample.Domain.QA.Tag;
 using Sample.Hosted.Settings;
 
 namespace Sample.Hosted.Controllers.QA;
@@ -8,12 +8,12 @@ namespace Sample.Hosted.Controllers.QA;
 [Route(ControllerRoutes.QA)]
 [Authorize(Policy = IdentitySettings.QaApiPolicy)]
 public class TagController(ITagRepository repository)
-    : SourceKnownController<Tag, TagDto, TagPostRequest>(repository)
+    : SourceKnownController<TagEntity, TagDto, TagPostRequest>(repository)
 {
-    protected override TagDto ToDto(Tag entity) => entity.ToDto();
+    protected override TagDto ToDto(TagEntity entity) => entity.ToDto();
 
-    protected override Task<Tag> CreateEntityAsync(TagPostRequest request, CancellationToken cancellationToken)
-        => Task.FromResult(new Tag(request.Name) { Model = request.Model });
+    protected override Task<TagEntity> CreateEntityAsync(TagPostRequest request, CancellationToken cancellationToken)
+        => Task.FromResult(new TagEntity(request.Name) { Model = request.Model });
 
     [NonAction]
     public override Task<TagDto[]> GetManyAsync(Guid[] ids, CancellationToken cancellationToken = default)

@@ -1,15 +1,15 @@
-using Sample.Domain.Users;
+using Sample.Domain.QA.User;
 
-namespace Sample.Domain.QA.Questions;
+namespace Sample.Domain.QA.QuestionComment;
 
 [SampleEntityType(SampleEntityTypes.QuestionComment)]
-public class QuestionComment : AggregateRoot
+public class QuestionCommentEntity : AggregateRoot
 {
-    private QuestionComment()
+    private QuestionCommentEntity()
     {
     }
 
-    public QuestionComment(string body, User user)
+    public QuestionCommentEntity(string body, UserEntity user)
     {
         Body = body;
         UserId = user.Id;

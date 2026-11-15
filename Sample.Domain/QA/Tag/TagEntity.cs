@@ -1,22 +1,22 @@
 using Sample.Contract.QA.Tags;
-using Sample.Domain.QA.Questions;
+using Sample.Domain.QA.Question;
 
-namespace Sample.Domain.QA.Tags;
+namespace Sample.Domain.QA.Tag;
 
 [SampleEntityType(SampleEntityTypes.Tag)]
-public class Tag : AggregateRoot<TagValueModel>
+public class TagEntity : AggregateRoot<TagValueModel>
 {
-    private Tag()
+    private TagEntity()
     {
     }
 
-    public Tag(string name)
+    public TagEntity(string name)
     {
         Name = name;
     }
 
     public string Name { get; private set; } = null!;
-    public List<Question> Questions { get; private set; } = [];
+    public List<QuestionEntity> Questions { get; private set; } = [];
 
     public TagDto ToDto() => new(this)
     {

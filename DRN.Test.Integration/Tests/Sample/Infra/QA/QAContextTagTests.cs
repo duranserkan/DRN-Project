@@ -4,11 +4,12 @@ using DRN.Framework.SharedKernel.Domain.Repository;
 using DRN.Framework.Utils.Entity;
 using DRN.Test.Integration.Tests.Sample.Infra.QA.Repositories.Data;
 using Microsoft.EntityFrameworkCore;
-using Sample.Domain.QA.Questions;
-using Sample.Domain.QA.Tags;
+using Question = Sample.Domain.QA.Question.QuestionEntity;
+using Sample.Domain.QA.Tag;
+using Tag = Sample.Domain.QA.Tag.TagEntity;
 using Sample.Infra;
 using Sample.Infra.QA;
-using Sample.Domain.QB;
+using Sample.Domain.QB.QBTest;
 
 namespace DRN.Test.Integration.Tests.Sample.Infra.QA;
 

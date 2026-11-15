@@ -1,4 +1,5 @@
-using Sample.Domain.Users;
+using Sample.Domain.QA.User;
+using User = Sample.Domain.QA.User.UserEntity;
 
 namespace DRN.Test.Integration.Tests.Sample.Infra.QA.Repositories.Data;
 

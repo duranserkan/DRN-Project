@@ -1,16 +1,16 @@
 using Microsoft.EntityFrameworkCore;
 using DRN.Framework.SharedKernel.Attributes;
 
-namespace Sample.Domain.Users;
+namespace Sample.Domain.QA.User;
 
 [SampleEntityType(SampleEntityTypes.User)]
-public class User : AggregateRoot
+public class UserEntity : AggregateRoot
 {
-    private User()
+    private UserEntity()
     {
     }
 
-    public User(string name, string surname, string userName, ContactDetail contactDetail, Address address)
+    public UserEntity(string name, string surname, string userName, ContactDetail contactDetail, Address address)
     {
         Name = name;
         Surname = surname;
