@@ -176,21 +176,21 @@ internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context
             }
             return writes;
         }
-    }
 
-    private static ILocalSymbol? GetWrittenLocal(IOperation operation)
-    {
-        if (operation is ISimpleAssignmentOperation { Target: ILocalReferenceOperation local }) return local.Local;
-        var receiver = operation switch
+        private static ILocalSymbol? GetWrittenLocal(IOperation operation)
         {
-            IInvocationOperation { TargetMethod.Name: "Add", Instance: ILocalReferenceOperation instance } => instance,
-            ISimpleAssignmentOperation
+            if (operation is ISimpleAssignmentOperation { Target: ILocalReferenceOperation local }) return local.Local;
+            var receiver = operation switch
             {
-                Target: IPropertyReferenceOperation { Property.IsIndexer: true, Instance: ILocalReferenceOperation instance }
-            } => instance,
-            _ => null
-        };
-        return receiver != null && IsDictionary(receiver.Type) ? receiver.Local : null;
+                IInvocationOperation { TargetMethod.Name: "Add", Instance: ILocalReferenceOperation instance } => instance,
+                ISimpleAssignmentOperation
+                {
+                    Target: IPropertyReferenceOperation { Property.IsIndexer: true, Instance: ILocalReferenceOperation instance }
+                } => instance,
+                _ => null
+            };
+            return receiver != null && IsDictionary(receiver.Type) ? receiver.Local : null;
+        }
     }
 
     private void InspectEntry(IOperation entry, bool allowKeys, int depth, string? capturePath)

@@ -122,11 +122,16 @@ public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnaly
                     seen.Add(method.Name, overloads);
                 }
                 overloads.Add(method);
-                for (var parent = method.OverriddenMethod; parent is not null; parent = parent.OverriddenMethod)
-                    overridden.Add(parent.OriginalDefinition);
+                RecordOverriddenMethods(method, overridden);
                 yield return method;
             }
         }
+    }
+
+    private static void RecordOverriddenMethods(IMethodSymbol method, HashSet<ISymbol> overridden)
+    {
+        for (var parent = method.OverriddenMethod; parent is not null; parent = parent.OverriddenMethod)
+            overridden.Add(parent.OriginalDefinition);
     }
 
     private static bool SameRuntimeSignature(IMethodSymbol left, IMethodSymbol right)

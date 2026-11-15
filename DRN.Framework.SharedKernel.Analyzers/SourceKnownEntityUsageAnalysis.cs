@@ -13,6 +13,7 @@ internal sealed class SourceKnownEntityUsageAnalysis
     private const string Domain = "DRN.Framework.SharedKernel.Domain.";
     private const string ValidateMethodName = "Validate";
     private readonly INamedTypeSymbol _entity;
+    private readonly EntityAnalyzerHelper.EntityTypeFacts _entityFacts;
     private readonly INamedTypeSymbol? _identity;
     private readonly INamedTypeSymbol? _format;
     private readonly INamedTypeSymbol? _repositoryInterface;
@@ -21,9 +22,11 @@ internal sealed class SourceKnownEntityUsageAnalysis
     private readonly HashSet<ISymbol> _metadataMethods = new(SymbolEqualityComparer.Default);
     private readonly ConcurrentDictionary<INamedTypeSymbol, ImmutableArray<INamedTypeSymbol>> _repositoryBindings = new(SymbolEqualityComparer.Default);
 
-    private SourceKnownEntityUsageAnalysis(Compilation compilation, INamedTypeSymbol entity)
+    private SourceKnownEntityUsageAnalysis(Compilation compilation, INamedTypeSymbol entity,
+        EntityAnalyzerHelper.EntityTypeFacts entityFacts)
     {
         _entity = entity;
+        _entityFacts = entityFacts;
         _repositoryInterface = compilation.GetTypeByMetadataName(Domain + "Repository.ISourceKnownRepository`1");
         _repositoryBase = compilation.GetTypeByMetadataName("DRN.Framework.EntityFramework.Domain.SourceKnownRepository`2");
         _identity = compilation.GetTypeByMetadataName(Domain + "EntityTypeId");
@@ -44,9 +47,10 @@ internal sealed class SourceKnownEntityUsageAnalysis
         AddMethods(compilation, "DRN.Framework.Utils.Ids.SourceKnownIdUtils", "Next");
     }
 
-    internal static void Register(CompilationStartAnalysisContext context, INamedTypeSymbol entity)
+    internal static void Register(CompilationStartAnalysisContext context, INamedTypeSymbol entity,
+        EntityAnalyzerHelper.EntityTypeFacts entityFacts)
     {
-        var analysis = new SourceKnownEntityUsageAnalysis(context.Compilation, entity);
+        var analysis = new SourceKnownEntityUsageAnalysis(context.Compilation, entity, entityFacts);
         context.RegisterOperationAction(analysis.AnalyzeArgument, OperationKind.Argument);
         context.RegisterOperationAction(analysis.AnalyzeAssignment, OperationKind.SimpleAssignment);
         context.RegisterOperationAction(analysis.AnalyzeInvocation, OperationKind.Invocation);
@@ -76,7 +80,8 @@ internal sealed class SourceKnownEntityUsageAnalysis
     {
         ImmutableArray<INamedTypeSymbol>.Builder? bindings = null;
         HashSet<ISymbol>? reported = null;
-        for (var current = type; current != null; current = current.BaseType) Check(current);
+        Check(type);
+        for (var current = type.BaseType; current != null; current = current.BaseType) Check(current);
         foreach (var implemented in type.AllInterfaces) Check(implemented);
         return bindings?.ToImmutable() ?? [];
 
@@ -84,7 +89,8 @@ internal sealed class SourceKnownEntityUsageAnalysis
         {
             cancellation.ThrowIfCancellationRequested();
             var index = RepositoryEntityIndex(binding);
-            if (index < 0 || binding.TypeArguments[index] is not INamedTypeSymbol { IsAbstract: true } entity || !IsEntity(entity)) return;
+            if (index < 0 || binding.TypeArguments[index] is not INamedTypeSymbol { IsAbstract: true } entity ||
+                !_entityFacts.IsEntity(entity, cancellation)) return;
             reported ??= new(SymbolEqualityComparer.Default);
             if (!reported.Add(entity)) return;
             bindings ??= ImmutableArray.CreateBuilder<INamedTypeSymbol>();
@@ -154,7 +160,7 @@ internal sealed class SourceKnownEntityUsageAnalysis
     private void AnalyzeType(SymbolAnalysisContext context)
     {
         var type = (INamedTypeSymbol)context.Symbol;
-        if (type.TypeKind != TypeKind.Class || !EntityAnalyzerHelper.DerivesFrom(type, _entity)) return;
+        if (type.TypeKind != TypeKind.Class || !_entityFacts.IsDerived(type, context.CancellationToken)) return;
 
         if (!type.IsAbstract && !EntityAnalyzerHelper.IsEffectivelyPrivate(type) && HasGenericContainerOrParameters(type))
             context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.GenericConcreteEntity,
@@ -214,18 +220,22 @@ internal sealed class SourceKnownEntityUsageAnalysis
         {
             // Validate<TApp>(id, entityType) reads IAppId, not entity metadata.
             if (method.TypeArguments[index] is INamedTypeSymbol argument &&
-                method.TypeParameters[index].ConstraintTypes.OfType<INamedTypeSymbol>().Any(IsEntity))
+                HasEntityConstraint(method.TypeParameters[index], context.CancellationToken))
                 ReportAbstractEntity(context, method, argument);
         }
     }
 
     private void ReportAbstractEntity(OperationAnalysisContext context, IMethodSymbol method, INamedTypeSymbol type)
     {
-        if (!type.IsAbstract || !IsEntity(type)) return;
+        if (!type.IsAbstract || !_entityFacts.IsEntity(type, context.CancellationToken)) return;
         context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.AbstractEntityMetadataArgument,
             context.Operation.Syntax.GetLocation(), type.ToDisplayString(), method.Name));
     }
 
-    private bool IsEntity(INamedTypeSymbol type) =>
-        SymbolEqualityComparer.Default.Equals(type, _entity) || EntityAnalyzerHelper.DerivesFrom(type, _entity);
+    private bool HasEntityConstraint(ITypeParameterSymbol parameter, CancellationToken cancellation)
+    {
+        foreach (var constraint in parameter.ConstraintTypes)
+            if (constraint is INamedTypeSymbol type && _entityFacts.IsEntity(type, cancellation)) return true;
+        return false;
+    }
 }

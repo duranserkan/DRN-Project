@@ -10,7 +10,7 @@ internal sealed class ModelCaptureAnalysis(OperationAnalysisContext context, Cla
     bool namesAcknowledged = false)
 {
     private const int MaxModelDepth = 16;
-    private const int MaxModelWork = 16384;
+    internal const int MaxModelWork = 16384;
     private const string TimeSpanTypeName = "System.TimeSpan";
     private const string NullableTimeSpanTypeName = TimeSpanTypeName + "?";
     private const string DateTimeOffsetTypeName = "System.DateTimeOffset";
@@ -47,7 +47,7 @@ internal sealed class ModelCaptureAnalysis(OperationAnalysisContext context, Cla
     internal void Analyze(ITypeSymbol type, string path)
     {
         context.CancellationToken.ThrowIfCancellationRequested();
-        if (contract.Positive(type)) return;
+        if (contract.Positive(type, context.CancellationToken)) return;
         if (call.TargetMethod.Name == "Add" && type.ToDisplayString() is TimeSpanTypeName or NullableTimeSpanTypeName)
             path += SecondsSuffix;
         if (rules.MatchesPath(path) || !namesAcknowledged && !IsModelType(type) && rules.MatchesField(path) &&
@@ -78,7 +78,7 @@ internal sealed class ModelCaptureAnalysis(OperationAnalysisContext context, Cla
     private bool ShouldSkipType(ITypeSymbol current, int depth) =>
         depth > MaxModelDepth || current.SpecialType != SpecialType.None || current.TypeKind is TypeKind.Enum or TypeKind.TypeParameter ||
         current.ToDisplayString() is TimeSpanTypeName or DateTimeOffsetTypeName or DateOnlyTypeName or TimeOnlyTypeName or
-            UriTypeName or GuidTypeName or ScopeEventTypeName || contract.Positive(current);
+            UriTypeName or GuidTypeName or ScopeEventTypeName || contract.Positive(current, context.CancellationToken);
 
     private void VisitNamedType(INamedTypeSymbol named, string currentPath, string namePath, int depth)
     {
@@ -95,13 +95,15 @@ internal sealed class ModelCaptureAnalysis(OperationAnalysisContext context, Cla
     private void VisitProperties(INamedTypeSymbol named, string currentPath, string namePath, int depth)
     {
         var names = new HashSet<string>(StringComparer.Ordinal);
+        var isModelType = IsModelType(named);
         for (var level = named; level != null; level = level.BaseType)
-            foreach (var property in level.GetMembers().OfType<IPropertySymbol>().Where(ClassificationContract.Eligible))
+            foreach (var property in contract.DeclaredProperties(level, context.CancellationToken))
             {
                 if (!TryVisit()) return;
-                if (!names.Add(property.Name) || contract.Positive(property) || contract.Positive(property.Type) ||
-                    contract.Positive(property.ContainingType)) continue;
-                var propertyNamePath = IsModelType(named) ? property.Name : namePath + "." + property.Name;
+                if (!names.Add(property.Name) || contract.Positive(property, context.CancellationToken) ||
+                    contract.Positive(property.Type, context.CancellationToken) ||
+                    contract.Positive(property.ContainingType, context.CancellationToken)) continue;
+                var propertyNamePath = isModelType ? property.Name : namePath + "." + property.Name;
                 VisitProperty(property, currentPath + "." + property.Name, propertyNamePath, depth);
             }
     }

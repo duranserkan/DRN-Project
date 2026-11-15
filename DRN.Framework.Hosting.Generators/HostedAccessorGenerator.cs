@@ -55,7 +55,7 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
                 new GeneratedSource(model.HintName, AccessorRenderer.Render(model, cancellation)))
             .WithTrackingName("HostedAccessorSources");
         context.RegisterSourceOutput(sources, static (output, source) =>
-            output.AddSource(source.HintName, SourceText.From(source.Text, Encoding.UTF8)));
+            output.AddSource(source.HintName, SourceText.From(source.Content, Encoding.UTF8)));
         // Locations must follow the current compilation even when source models remain equal.
         context.RegisterSourceOutput(generation.SelectMany(static (result, _) => result.Diagnostics),
             static (output, diagnostic) => output.ReportDiagnostic(diagnostic));
@@ -106,8 +106,8 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
             cancellation.ThrowIfCancellationRequested();
             try
             {
-                facts ??= new CompilationFacts(compilation, cancellation);
-                new AccessorModelBuilder(compilation, facts, cancellation, program, orderedPages, generatedSources).Prepare();
+                facts ??= new CompilationFacts(compilation, cancellation, reuseActions: hosts.Length > 1);
+                new AccessorModelBuilder(compilation, facts, program, orderedPages, generatedSources, cancellation).Prepare();
             }
             catch (AccessorException exception)
             {
@@ -134,7 +134,7 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
 
     private sealed record PageInput(string? Path, bool IsPage);
     private sealed record GenerationResult(ImmutableArray<AccessorModel> Sources, ImmutableArray<Diagnostic> Diagnostics);
-    private sealed record GeneratedSource(string HintName, string Text);
+    private sealed record GeneratedSource(string HintName, string Content);
     [SuppressMessage("SonarQube", "S3871", Justification = "This private generation failure is caught by PreparePrograms and reported as DRNHG001. It never forms part of the generator's public exception contract.")]
     private sealed class AccessorException(string message) : Exception(message);
     private static string? Text(AttributeData? attribute, string name) =>
@@ -161,8 +161,8 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
         public string? Area { get; set; }
     }
 
-    private sealed class AccessorModelBuilder(Compilation compilation, CompilationFacts facts, CancellationToken cancellation, INamedTypeSymbol program,
-        ImmutableArray<PageInput> pages, Dictionary<string, AccessorModel> generatedSources)
+    private sealed class AccessorModelBuilder(Compilation compilation, CompilationFacts facts, INamedTypeSymbol program,
+        ImmutableArray<PageInput> pages, Dictionary<string, AccessorModel> generatedSources, CancellationToken cancellation)
     {
         private readonly Dictionary<string, AttributeData> _members = new(StringComparer.Ordinal);
         private readonly HashSet<string> _usedMembers = new(StringComparer.Ordinal);
@@ -302,8 +302,9 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
 
         private void AddActions(Node leaf, INamedTypeSymbol controller)
         {
-            foreach (var method in Actions(controller, cancellation))
+            foreach (var method in facts.Actions(controller))
             {
+                cancellation.ThrowIfCancellationRequested();
                 var member = MemberName("Endpoint." + leaf.Path + "." + method.Name, method.Name);
                 if (member == null) continue;
                 if (method.Parameters.Any(parameter => parameter.RefKind != RefKind.None || parameter.Type.TypeKind is TypeKind.Pointer or TypeKind.FunctionPointer))
@@ -380,44 +381,6 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
                 current = child;
             }
             return current;
-        }
-
-        private static IEnumerable<IMethodSymbol> Actions(INamedTypeSymbol type, CancellationToken cancellation)
-        {
-            var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var current in Bases(type))
-            {
-                foreach (var method in current.GetMembers().OfType<IMethodSymbol>().OrderBy(method => method.ToDisplayString(), StringComparer.Ordinal))
-                {
-                    cancellation.ThrowIfCancellationRequested();
-                    if (method.MethodKind != MethodKind.Ordinary || method.DeclaredAccessibility != Accessibility.Public) continue;
-                    var signature = method.Name + "`" + method.Arity + "(" + string.Join(",", method.Parameters.Select(parameter => parameter.RefKind + ":" + TypeName(parameter.Type))) + ")";
-                    if (seen.Add(signature) && IsAction(method)) yield return method;
-                }
-            }
-        }
-
-        private static bool IsAction(IMethodSymbol method)
-        {
-            if (method.IsStatic || method.IsGenericMethod || method.IsAbstract ||
-                HasAttribute(method, "Microsoft.AspNetCore.Mvc.NonActionAttribute")) return false;
-            var original = method;
-            while (original.OverriddenMethod != null) original = original.OverriddenMethod;
-            if (original.ContainingType.SpecialType == SpecialType.System_Object) return false;
-            if (original.Parameters.Length != 0) return true;
-            var interfaceName = original.Name switch
-            {
-                "Dispose" => "System.IDisposable",
-                "DisposeAsync" => "System.IAsyncDisposable",
-                _ => null
-            };
-            if (interfaceName == null) return true;
-            // Preserve disposal exclusions across overrides and derived interface reimplementations.
-            var declaringType = original.ContainingType;
-            var disposable = declaringType.AllInterfaces.FirstOrDefault(item => item.ToDisplayString() == interfaceName);
-            var dispose = disposable?.GetMembers(original.Name).OfType<IMethodSymbol>().SingleOrDefault();
-            var implementation = dispose == null ? null : declaringType.FindImplementationForInterfaceMember(dispose);
-            return !SymbolEqualityComparer.Default.Equals(original, implementation);
         }
 
         private static string ControllerRouteTemplate(INamedTypeSymbol controller)

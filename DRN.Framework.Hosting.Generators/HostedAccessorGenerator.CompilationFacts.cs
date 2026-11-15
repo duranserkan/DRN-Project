@@ -1,4 +1,6 @@
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using DRN.Framework.CompilerTools;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -17,11 +19,13 @@ public sealed partial class HostedAccessorGenerator
         private readonly Dictionary<string, HashSet<string>> _namespaceConflicts = new(StringComparer.Ordinal);
         private readonly Dictionary<ISymbol, Dictionary<string, List<AttributeData>>> _programAttributes = new(SymbolEqualityComparer.Default);
         private readonly Dictionary<ITypeSymbol, List<string>> _endpointCollections = new(SymbolEqualityComparer.Default);
+        private readonly SymbolFactCache<INamedTypeSymbol, ImmutableArray<IMethodSymbol>>? _actions;
 
-        public CompilationFacts(Compilation compilation, CancellationToken cancellation)
+        public CompilationFacts(Compilation compilation, CancellationToken cancellation, bool reuseActions)
         {
             _compilation = compilation;
             _cancellation = cancellation;
+            if (reuseActions) _actions = new();
             cancellation.ThrowIfCancellationRequested();
             Controllers = DiscoverControllers();
             CollectProgramAttributes();
@@ -29,6 +33,48 @@ public sealed partial class HostedAccessorGenerator
         }
 
         public KeyValuePair<string, INamedTypeSymbol>[] Controllers { get; }
+
+        public IEnumerable<IMethodSymbol> Actions(INamedTypeSymbol controller) =>
+            _actions == null ? DiscoverActions(controller, _cancellation) :
+                _actions.GetOrAdd(controller, static (type, cancellation) => DiscoverActions(type, cancellation).ToImmutableArray(), _cancellation);
+
+        private static IEnumerable<IMethodSymbol> DiscoverActions(INamedTypeSymbol type, CancellationToken cancellation)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var current in Bases(type))
+            {
+                foreach (var method in current.GetMembers().OfType<IMethodSymbol>().OrderBy(method => method.ToDisplayString(), StringComparer.Ordinal))
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    if (method.MethodKind != MethodKind.Ordinary || method.DeclaredAccessibility != Accessibility.Public) continue;
+                    var signature = method.Name + "`" + method.Arity + "(" + string.Join(",", method.Parameters.Select(parameter => parameter.RefKind + ":" + TypeName(parameter.Type))) + ")";
+                    if (seen.Add(signature) && IsAction(method)) yield return method;
+                }
+            }
+        }
+
+        private static bool IsAction(IMethodSymbol method)
+        {
+            if (method.IsStatic || method.IsGenericMethod || method.IsAbstract ||
+                HasAttribute(method, "Microsoft.AspNetCore.Mvc.NonActionAttribute")) return false;
+            var original = method;
+            while (original.OverriddenMethod != null) original = original.OverriddenMethod;
+            if (original.ContainingType.SpecialType == SpecialType.System_Object) return false;
+            if (original.Parameters.Length != 0) return true;
+            var interfaceName = original.Name switch
+            {
+                "Dispose" => "System.IDisposable",
+                "DisposeAsync" => "System.IAsyncDisposable",
+                _ => null
+            };
+            if (interfaceName == null) return true;
+            // Preserve disposal exclusions across overrides and derived interface reimplementations.
+            var declaringType = original.ContainingType;
+            var disposable = declaringType.AllInterfaces.FirstOrDefault(item => item.ToDisplayString() == interfaceName);
+            var dispose = disposable?.GetMembers(original.Name).OfType<IMethodSymbol>().SingleOrDefault();
+            var implementation = dispose == null ? null : declaringType.FindImplementationForInterfaceMember(dispose);
+            return !SymbolEqualityComparer.Default.Equals(original, implementation);
+        }
 
         private KeyValuePair<string, INamedTypeSymbol>[] DiscoverControllers()
         {
@@ -156,6 +202,7 @@ public sealed partial class HostedAccessorGenerator
             }
         }
 
+        [SuppressMessage("SonarQube", "S3267", Justification = "The direct loop avoids a predicate delegate capturing rootName on each lookup.")]
         public bool HasOtherEndpointCollection(INamedTypeSymbol program, string rootName)
         {
             if (!_endpointCollections.TryGetValue(program, out var collections)) return false;

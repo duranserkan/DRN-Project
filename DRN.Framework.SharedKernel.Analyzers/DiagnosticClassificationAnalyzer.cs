@@ -153,7 +153,7 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
     {
         var property = (IPropertySymbol)context.Symbol;
         if (property.ContainingType.IsAnonymousType) return;
-        if (!ClassificationContract.Eligible(property) || !rules.MatchesField(property.Name) || contract.Accepted(property)) return;
+        if (!ClassificationContract.Eligible(property) || !rules.MatchesField(property.Name) || contract.Accepted(property, context.CancellationToken)) return;
         var location = property.Locations.FirstOrDefault(item => item.IsInSource);
         if (location == null) return;
         context.ReportDiagnostic(Diagnostic.Create(ClassificationContract.HasUnknown(property) ? UnknownClassification : MissingClassification,

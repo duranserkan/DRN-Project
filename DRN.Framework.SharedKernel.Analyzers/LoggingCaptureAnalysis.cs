@@ -131,7 +131,8 @@ internal sealed class LoggingCaptureAnalysis(OperationAnalysisContext context, C
         context.CancellationToken.ThrowIfCancellationRequested();
         if (Unwrap(value) is not IPropertyReferenceOperation reference) return;
         var property = reference.Property;
-        if (contract.Positive(property) || contract.Positive(property.ContainingType) || contract.Positive(property.Type))
+        if (contract.Positive(property, context.CancellationToken) || contract.Positive(property.ContainingType, context.CancellationToken) ||
+            contract.Positive(property.Type, context.CancellationToken))
         {
             Report(property.ToDisplayString());
             return;
@@ -146,7 +147,8 @@ internal sealed class LoggingCaptureAnalysis(OperationAnalysisContext context, C
                 context.CancellationToken.ThrowIfCancellationRequested();
                 if (++inspected > MaxValues) return;
                 if (SymbolEqualityComparer.Default.Equals(receiverType.FindImplementationForInterfaceMember(member), property) &&
-                    (contract.Positive(member) || contract.Positive(member.ContainingType) || contract.Positive(member.Type)))
+                    (contract.Positive(member, context.CancellationToken) || contract.Positive(member.ContainingType, context.CancellationToken) ||
+                     contract.Positive(member.Type, context.CancellationToken)))
                 {
                     Report(property.ToDisplayString());
                     return;

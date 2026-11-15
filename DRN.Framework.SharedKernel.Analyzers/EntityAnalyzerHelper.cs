@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using DRN.Framework.CompilerTools;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -11,6 +12,33 @@ internal static class EntityAnalyzerHelper
     internal const string EntityTypeAttributeMetadataName = "DRN.Framework.SharedKernel.Domain.EntityTypeAttribute";
     internal const byte MaxAppId = 127;
     private const string AppIdName = "AppId";
+
+    internal sealed class EntityTypeFacts
+    {
+        private readonly INamedTypeSymbol _entity;
+        private readonly SymbolFactCache<INamedTypeSymbol, bool> _derivedTypes = new();
+        private readonly Func<INamedTypeSymbol, CancellationToken, bool> _calculateInheritance;
+
+        internal EntityTypeFacts(INamedTypeSymbol entity)
+        {
+            _entity = entity;
+            _calculateInheritance = CalculateInheritance;
+        }
+
+        internal bool IsDerived(INamedTypeSymbol type, CancellationToken cancellation)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (type.BaseType == null) return false;
+            if (SymbolEqualityComparer.Default.Equals(type.BaseType, _entity)) return true;
+            return _derivedTypes.GetOrAdd(type, _calculateInheritance, cancellation);
+        }
+
+        internal bool IsEntity(INamedTypeSymbol type, CancellationToken cancellation) =>
+            SymbolEqualityComparer.Default.Equals(type, _entity) || IsDerived(type, cancellation);
+
+        private bool CalculateInheritance(INamedTypeSymbol type, CancellationToken cancellation) =>
+            DerivesFrom(type, _entity, cancellation);
+    }
 
     internal sealed class CompilationMetadata(Compilation compilation)
     {
@@ -162,11 +190,13 @@ internal static class EntityAnalyzerHelper
         return false;
     }
 
-    internal static bool DerivesFrom(INamedTypeSymbol typeSymbol, INamedTypeSymbol baseTargetSymbol)
+    internal static bool DerivesFrom(INamedTypeSymbol typeSymbol, INamedTypeSymbol baseTargetSymbol,
+        CancellationToken cancellation = default)
     {
         var current = typeSymbol.BaseType;
         while (current != null)
         {
+            cancellation.ThrowIfCancellationRequested();
             if (SymbolEqualityComparer.Default.Equals(current, baseTargetSymbol) ||
                 current.ToDisplayString() == SourceKnownEntityMetadataName)
                 return true;

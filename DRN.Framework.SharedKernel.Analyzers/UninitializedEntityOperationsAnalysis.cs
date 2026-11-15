@@ -16,20 +16,23 @@ internal sealed class UninitializedEntityOperationsAnalysis
 
     private readonly OperationBlockAnalysisContext _context;
     private readonly INamedTypeSymbol _entity;
+    private readonly EntityAnalyzerHelper.EntityTypeFacts _entityFacts;
     private readonly ConcurrentDictionary<IMethodSymbol, bool> _passiveConstructors;
     private readonly Dictionary<ILocalSymbol, FreshEntity?> _locals = new(SymbolEqualityComparer.Default);
     private readonly List<FreshEntity> _origins = [];
     private FreshEntity? _this;
 
     private UninitializedEntityOperationsAnalysis(OperationBlockAnalysisContext context, INamedTypeSymbol entity,
-        ConcurrentDictionary<IMethodSymbol, bool> passiveConstructors)
+        EntityAnalyzerHelper.EntityTypeFacts entityFacts, ConcurrentDictionary<IMethodSymbol, bool> passiveConstructors)
     {
         _context = context;
         _entity = entity;
+        _entityFacts = entityFacts;
         _passiveConstructors = passiveConstructors;
     }
 
-    internal static void Register(CompilationStartAnalysisContext context, INamedTypeSymbol entity)
+    internal static void Register(CompilationStartAnalysisContext context, INamedTypeSymbol entity,
+        EntityAnalyzerHelper.EntityTypeFacts entityFacts)
     {
         var passiveConstructors = new ConcurrentDictionary<IMethodSymbol, bool>(SymbolEqualityComparer.Default);
         context.RegisterOperationBlockStartAction(start =>
@@ -46,14 +49,19 @@ internal sealed class UninitializedEntityOperationsAnalysis
                 if (Volatile.Read(ref hasOperationsCall) == 0) return;
                 foreach (var block in blockContext.OperationBlocks)
                 {
-                    var analysis = new UninitializedEntityOperationsAnalysis(blockContext, entity, passiveConstructors);
-                    if (method.MethodKind == MethodKind.Constructor && analysis.IsEntity(method.ContainingType) &&
-                        analysis.HasPassiveInitialization(method, new HashSet<ISymbol>(SymbolEqualityComparer.Default)))
-                        analysis._this = analysis.NewOrigin();
+                    var analysis = new UninitializedEntityOperationsAnalysis(blockContext, entity, entityFacts, passiveConstructors);
+                    analysis.InitializeConstructorReceiver(method);
                     analysis.Evaluate(block);
                 }
             });
         });
+    }
+
+    private void InitializeConstructorReceiver(IMethodSymbol method)
+    {
+        if (method.MethodKind == MethodKind.Constructor && IsEntity(method.ContainingType) &&
+            HasPassiveInitialization(method, new HashSet<ISymbol>(SymbolEqualityComparer.Default)))
+            _this = NewOrigin();
     }
 
     private FreshEntity NewOrigin()
@@ -184,7 +192,7 @@ internal sealed class UninitializedEntityOperationsAnalysis
     }
 
     private bool IsEntity(INamedTypeSymbol type) =>
-        SymbolEqualityComparer.Default.Equals(type, _entity) || EntityAnalyzerHelper.DerivesFrom(type, _entity);
+        _entityFacts.IsEntity(type, _context.CancellationToken);
 
     private bool IsFrameworkConstructor(IMethodSymbol constructor)
     {
