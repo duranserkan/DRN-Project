@@ -1,6 +1,6 @@
 using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Utils.Time;
-using Sample.Domain.Identity.ProfilePictures;
+using Sample.Domain.SampleIdentity.ProfilePictures;
 
 namespace Sample.Hosted.Controllers.User.Profile;
 

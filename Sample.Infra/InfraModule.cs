@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
-using Sample.Domain.Users;
-using Sample.Infra.Identity;
+using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
+using Sample.Infra.SampleIdentity;
 using Sample.Utils;
 
 namespace Sample.Infra;

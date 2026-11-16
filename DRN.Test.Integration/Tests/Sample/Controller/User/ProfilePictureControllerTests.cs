@@ -1,6 +1,6 @@
 using System.Net;
 using Microsoft.AspNetCore.Identity;
-using Sample.Domain.Users;
+using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
 using Sample.Hosted;
 using Sample.Hosted.Helpers;
 using DRN.Test.Integration.Tests.Sample.Controller.Helpers;

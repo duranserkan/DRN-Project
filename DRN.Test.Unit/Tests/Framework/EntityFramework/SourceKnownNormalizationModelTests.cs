@@ -12,20 +12,21 @@ using Sample.Domain;
 using Author = Sample.Domain.QA.Author.AuthorEntity;
 using Question = Sample.Domain.QA.Question.QuestionEntity;
 using User = Sample.Domain.QA.User.UserEntity;
-using Sample.Domain.Users;
-using Sample.Infra.DataProtection;
-using Sample.Infra.Identity;
+using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
+using Sample.Infra.DrnDataProtection;
+using Sample.Infra.SampleIdentity;
 using Sample.Infra.QA;
+using Sample.Infra.QB;
 
 namespace DRN.Test.Unit.Tests.Framework.EntityFramework;
 
 public sealed class SourceKnownNormalizationModelTests
 {
     [Theory]
-    [InlineData("QA")]
-    [InlineData("SampleIdentity")]
-    [InlineData("NexusIdentity")]
-    [InlineData("DataProtection")]
+    [DataInlineUnit("QA")]
+    [DataInlineUnit("SampleIdentity")]
+    [DataInlineUnit("NexusIdentity")]
+    [DataInlineUnit("DataProtection")]
     public void Existing_Snapshot_And_Current_Model_Must_Have_Equal_Relational_Identities_Before_Normalization(string contextName)
     {
         using var context = CreateContext(contextName);
@@ -36,10 +37,10 @@ public sealed class SourceKnownNormalizationModelTests
     }
 
     [Theory]
-    [InlineData("QA")]
-    [InlineData("SampleIdentity")]
-    [InlineData("NexusIdentity")]
-    [InlineData("DataProtection")]
+    [DataInlineUnit("QA")]
+    [DataInlineUnit("SampleIdentity")]
+    [DataInlineUnit("NexusIdentity")]
+    [DataInlineUnit("DataProtection")]
     public void Existing_Snapshot_Should_Require_No_Migration_Operations_Before_Normalization(string contextName)
     {
         using var context = CreateContext(contextName);
@@ -50,10 +51,10 @@ public sealed class SourceKnownNormalizationModelTests
     }
 
     [Theory]
-    [InlineData("QA", "Sample.Infra.QA.QAContext", "Sample.Infra.QA.Migrations.QAContextModelSnapshot", "qa_context", "qa_context_history")]
-    [InlineData("SampleIdentity", "Sample.Infra.Identity.SampleIdentityContext", "Sample.Infra.Identity.Migrations.SampleIdentityContextModelSnapshot", "sample_identity_context", "sample_identity_context_history")]
-    [InlineData("NexusIdentity", "DRN.Nexus.Infra.NexusIdentity.NexusIdentityContext", "DRN.Nexus.Infra.NexusIdentity.Migrations.NexusIdentityContextModelSnapshot", "nexus_identity_context", "nexus_identity_context_history")]
-    [InlineData("DataProtection", "Sample.Infra.DataProtection.DrnDataProtectionContext", "Sample.Infra.DataProtection.Migrations.DrnDataProtectionContextModelSnapshot", "__drn_data_protection_context", "drn_data_protection_context_history")]
+    [DataInlineUnit("QA", "Sample.Infra.QA.QAContext", "Sample.Infra.QA.Migrations.QAContextModelSnapshot", "qa_context", "qa_context_history")]
+    [DataInlineUnit("SampleIdentity", "Sample.Infra.SampleIdentity.SampleIdentityContext", "Sample.Infra.SampleIdentity.Migrations.SampleIdentityContextModelSnapshot", "sample_identity_context", "sample_identity_context_history")]
+    [DataInlineUnit("NexusIdentity", "DRN.Nexus.Infra.NexusIdentity.NexusIdentityContext", "DRN.Nexus.Infra.NexusIdentity.Migrations.NexusIdentityContextModelSnapshot", "nexus_identity_context", "nexus_identity_context_history")]
+    [DataInlineUnit("DataProtection", "Sample.Infra.DrnDataProtection.DrnDataProtectionContext", "Sample.Infra.DrnDataProtection.Migrations.DrnDataProtectionContextModelSnapshot", "__drn_data_protection_context", "drn_data_protection_context_history")]
     public void Context_Snapshot_Schema_And_History_Identities_Should_Remain_Stable(string selection, string contextName,
         string snapshotName, string schema, string historyTable)
     {
@@ -63,7 +64,7 @@ public sealed class SourceKnownNormalizationModelTests
         assembly.Assembly.Should().BeSameAs(context.GetType().Assembly);
         var snapshot = assembly.ModelSnapshot;
         snapshot.Should().NotBeNull();
-        snapshot!.GetType().FullName.Should().Be(snapshotName);
+        snapshot.GetType().FullName.Should().Be(snapshotName);
         snapshot.GetType().GetCustomAttribute<DbContextAttribute>()!.ContextType.Should().Be(context.GetType());
         snapshot.Model.GetDefaultSchema().Should().Be(schema);
         context.GetService<IDesignTimeModel>().Model.GetDefaultSchema().Should().Be(schema);
@@ -105,7 +106,7 @@ public sealed class SourceKnownNormalizationModelTests
         var model = context.GetService<IDesignTimeModel>().Model;
         var user = model.FindEntityType(typeof(User));
         user.Should().NotBeNull();
-        user!.GetTableName().Should().Be("users");
+        user.GetTableName().Should().Be("users");
         user.GetSchema().Should().Be("qa_context");
         user.FindPrimaryKey()!.Properties.Should().ContainSingle().Which.ClrType.Should().Be(typeof(long));
         var question = model.FindEntityType(typeof(Question))!;
@@ -118,8 +119,8 @@ public sealed class SourceKnownNormalizationModelTests
     }
 
     [Theory]
-    [InlineData("SampleIdentity", typeof(SampleUser), "Sample.Domain.Users.SampleUser")]
-    [InlineData("NexusIdentity", typeof(NexusUser), "DRN.Nexus.Domain.User.NexusUser")]
+    [DataInlineUnit("SampleIdentity", typeof(SampleUser), "Sample.Domain.Users.SampleUser")]
+    [DataInlineUnit("NexusIdentity", typeof(NexusUser), "DRN.Nexus.Domain.User.NexusUser")]
     public void Authentication_Models_Should_Preserve_String_Keys_And_Identity_Tables(string selection, Type userType, string historicalName)
     {
         using var context = CreateContext(selection);
@@ -132,6 +133,17 @@ public sealed class SourceKnownNormalizationModelTests
         model.GetRelationalModel().Tables.Select(table => table.Name).Should().Contain(
             ["users", "user_tokens", "user_logins", "user_claims", "roles", "user_roles", "role_claims"]);
         context.GetService<IMigrationsAssembly>().ModelSnapshot!.Model.FindEntityType(historicalName).Should().NotBeNull();
+    }
+
+    [Fact]
+    public void Qb_Context_Should_Support_An_Empty_Model_Without_Migrations()
+    {
+        using var context = new QBContext(Options<QBContext>());
+        var model = context.GetService<IDesignTimeModel>().Model;
+        model.GetEntityTypes().Should().BeEmpty();
+        var migrations = context.GetService<IMigrationsAssembly>();
+        migrations.Migrations.Should().BeEmpty();
+        migrations.ModelSnapshot.Should().BeNull();
     }
 
     [Fact]
@@ -168,7 +180,7 @@ public sealed class SourceKnownNormalizationModelTests
     {
         var snapshot = context.GetService<IMigrationsAssembly>().ModelSnapshot;
         snapshot.Should().NotBeNull("the existing snapshot is the required pre-move comparison baseline");
-        var snapshotModel = snapshot!.Model;
+        var snapshotModel = snapshot.Model;
         if (snapshotModel is IMutableModel mutable) snapshotModel = mutable.FinalizeModel();
         var initialized = context.GetService<IModelRuntimeInitializer>().Initialize(snapshotModel, designTime: true, validationLogger: null);
         return (initialized, context.GetService<IDesignTimeModel>().Model);

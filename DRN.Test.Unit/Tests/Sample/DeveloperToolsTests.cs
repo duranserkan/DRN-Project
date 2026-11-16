@@ -3,7 +3,7 @@ using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.Endpoints;
 using Microsoft.AspNetCore.Authorization;
-using Sample.Domain.Identity;
+using Sample.Domain.SampleIdentity;
 using Sample.Hosted;
 using Sample.Hosted.Helpers;
 

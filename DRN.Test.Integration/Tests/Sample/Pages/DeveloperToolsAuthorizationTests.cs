@@ -6,8 +6,8 @@ using DRN.Test.Integration.Helpers;
 using DRN.Test.Integration.Tests.Sample.Pages.Helpers;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
-using Sample.Domain.Identity;
-using Sample.Domain.Users;
+using Sample.Domain.SampleIdentity;
+using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
 using Sample.Hosted;
 using Sample.Hosted.Helpers;
 

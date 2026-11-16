@@ -4,7 +4,7 @@ using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.DataProtection.XmlEncryption;
 using Microsoft.Extensions.DependencyInjection;
-using Sample.Infra.DataProtection;
+using Sample.Infra.DrnDataProtection;
 
 namespace DRN.Test.Unit.Tests.Sample.Infra.DataProtection;
 

@@ -2,7 +2,7 @@ using System.Net;
 using DRN.Framework.Utils.Auth.MFA;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
-using Sample.Domain.Users;
+using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
 using Sample.Hosted;
 using Sample.Hosted.Helpers;
 using DRN.Test.Integration.Tests.Sample.Controller.Helpers;

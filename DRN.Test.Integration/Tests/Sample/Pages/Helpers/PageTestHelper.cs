@@ -1,6 +1,6 @@
 using DRN.Framework.Testing.Providers;
 using Microsoft.AspNetCore.Identity;
-using Sample.Domain.Users;
+using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
 
 namespace DRN.Test.Integration.Tests.Sample.Pages.Helpers;
 

@@ -1,7 +1,7 @@
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Sample.Domain.Identity;
+using Sample.Domain.SampleIdentity;
 
 namespace Sample.Hosted.Pages.Test;
 

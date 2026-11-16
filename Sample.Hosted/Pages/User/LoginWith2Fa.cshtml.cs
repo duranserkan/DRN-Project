@@ -6,7 +6,7 @@ using DRN.Framework.Hosting.Identity;
 using DRN.Framework.Utils.Auth.MFA;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Sample.Domain.Users;
+using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
 
 namespace Sample.Hosted.Pages.User;
 
