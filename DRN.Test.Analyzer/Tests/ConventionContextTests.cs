@@ -5,6 +5,11 @@ namespace DRN.Test.Analyzer.Tests;
 
 public sealed class ConventionContextTests
 {
+    private static readonly MetadataReference FrameworkReference = MetadataReference.CreateFromFile(
+        typeof(DRN.Framework.EntityFramework.Context.DrnContext<>).Assembly.Location);
+    private static readonly MetadataReference UtilsReference = MetadataReference.CreateFromFile(
+        typeof(DRN.Framework.Utils.Settings.IAppSettings).Assembly.Location);
+
     [Fact]
     public void Concrete_Ef_Contexts_Should_Require_IDrnContext_Without_Diagnosing_Abstract_Bases()
     {
@@ -511,7 +516,7 @@ public sealed class ConventionContextTests
             {
                 private QAContext() : base(null) { }
             }
-            """).AddReferences(MetadataReference.CreateFromFile(typeof(DRN.Framework.EntityFramework.Context.DrnContext<>).Assembly.Location));
+            """).AddReferences(FrameworkReference);
         compilation.GetDiagnostics().Where(item => item.Severity == DiagnosticSeverity.Error).Should().ContainSingle()
             .Which.Id.Should().Be("CS0310");
         var facts = new ConventionFacts(compilation, new(true, "Sample.Infra", "Infra", "Sample.Infra", compilation.AssemblyName!, []),
@@ -670,9 +675,7 @@ public sealed class ConventionContextTests
 
     private static ConventionFacts Facts(CSharpCompilation compilation, params ConventionInput[] inputs)
     {
-        compilation = compilation.AddReferences(
-            MetadataReference.CreateFromFile(typeof(DRN.Framework.EntityFramework.Context.DrnContext<>).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(DRN.Framework.Utils.Settings.IAppSettings).Assembly.Location));
+        compilation = compilation.AddReferences(FrameworkReference, UtilsReference);
         compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
         var project = new ConventionProject(true, "Sample.Infra", "Infra", "Sample.Infra", compilation.AssemblyName!, []);
         return new(compilation, project, new([.. inputs], []), new Options(), CancellationToken.None);

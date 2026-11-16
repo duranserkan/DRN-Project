@@ -4,6 +4,31 @@ namespace DRN.Test.Analyzer.Tests;
 
 public sealed class DiagnosticNameExemptionTests
 {
+    [Fact]
+    public async Task Cached_Comments_Should_Match_Each_Name_And_Record_Only_Actual_Uses()
+    {
+        var diagnostics = await Analyze(Compilation("""
+            using System.Collections.Generic;
+            namespace DRN.Framework.Utils.Logging
+            {
+                public interface IScopedLog { void Add(string key, object value); }
+            }
+            public class Caller
+            {
+                public void Run(DRN.Framework.Utils.Logging.IScopedLog log)
+                {
+                    // DiagnosticNameExemption: TokenCount | Reviewed metric.
+                    // DiagnosticNameExemption: UnusedMetric | No matching key.
+                    log.Add("Metrics", new Dictionary<string, object> { ["TokenCount"] = 3, ["Password"] = "secret" });
+                    log.Add("Next", new Dictionary<string, object> { ["TokenCount"] = 4 });
+                }
+            }
+            """));
+        diagnostics.Count(item => item.Id == "DRN0020").Should().Be(2);
+        diagnostics.Count(item => item.Id == "DRN0024").Should().Be(1);
+        diagnostics.Should().HaveCount(3);
+    }
+
     [Theory]
     [InlineData("DRN.Framework.Utils.Logging", "IScopedLog", "Add")]
     [InlineData("DRN.Framework.Utils.Logging", "IScopedLog", "AddToList")]

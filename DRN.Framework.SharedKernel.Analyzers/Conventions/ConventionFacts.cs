@@ -9,6 +9,7 @@ internal sealed record ConventionOwner(string AssemblyName, string Subdomain, st
 internal sealed partial class ConventionFacts
 {
     private readonly Dictionary<SyntaxTree, bool> _generatedTrees = [];
+    private readonly Dictionary<IAssemblySymbol, ImmutableArray<KeyValuePair<string, string>>> _assemblyMetadata = new(SymbolEqualityComparer.Default);
     private readonly Dictionary<INamedTypeSymbol, bool> _subdomainBoundaries = new(SymbolEqualityComparer.Default);
     private readonly Dictionary<SyntaxTree, (string Directory, string Name)?> _directories = [];
     private readonly Dictionary<ISymbol, Location> _locations = new(SymbolEqualityComparer.Default);
@@ -304,7 +305,7 @@ internal sealed partial class ConventionFacts
     internal ConventionProject? ReferenceProject(IAssemblySymbol assembly)
     {
         if (_referenceProjects.TryGetValue(assembly, out var existing)) return existing;
-        var metadata = AssemblyMetadata(assembly).ToArray();
+        var metadata = AssemblyMetadata(assembly);
         var values = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["build_property.MSBuildProjectName"] = assembly.Name,
@@ -347,7 +348,7 @@ internal sealed partial class ConventionFacts
         return project;
     }
 
-    private bool ValidReferenceRoles(KeyValuePair<string, string>[] metadata)
+    private bool ValidReferenceRoles(ImmutableArray<KeyValuePair<string, string>> metadata)
     {
         var prefixes = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var (key, value) in metadata)
@@ -368,15 +369,22 @@ internal sealed partial class ConventionFacts
         return true;
     }
 
-    internal IEnumerable<KeyValuePair<string, string>> AssemblyMetadata(IAssemblySymbol assembly)
+    internal ImmutableArray<KeyValuePair<string, string>> AssemblyMetadata(IAssemblySymbol assembly)
     {
+        Cancellation.ThrowIfCancellationRequested();
+        if (_assemblyMetadata.TryGetValue(assembly, out var cached)) return cached;
+        var metadata = ImmutableArray.CreateBuilder<KeyValuePair<string, string>>();
         foreach (var attribute in assembly.GetAttributes())
         {
             Cancellation.ThrowIfCancellationRequested();
             if (ConventionSymbols.Same(attribute.AttributeClass, Symbols.AssemblyMetadataAttribute) &&
                 attribute.ConstructorArguments is [{ Value: string key }, var value] && value.Kind != TypedConstantKind.Error &&
-                (value.Value is string || value.IsNull)) yield return new(key, value.Value as string ?? "");
+                (value.Value is string || value.IsNull)) metadata.Add(new(key, value.Value as string ?? ""));
         }
+        var result = metadata.ToImmutable();
+        Cancellation.ThrowIfCancellationRequested();
+        _assemblyMetadata.Add(assembly, result);
+        return result;
     }
 
     internal static string Reason(AttributeData attribute) =>

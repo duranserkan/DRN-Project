@@ -7,6 +7,8 @@ internal sealed class ConventionSymbols(Compilation compilation)
 {
     private readonly Dictionary<INamedTypeSymbol, Dictionary<INamedTypeSymbol, bool>> _classifications = new(SymbolEqualityComparer.Default);
     private readonly Dictionary<INamedTypeSymbol, (bool Inherited, bool Multiple)> _attributeUsage = new(SymbolEqualityComparer.Default);
+    private readonly Dictionary<INamedTypeSymbol, bool> _openTypes = new(SymbolEqualityComparer.Default);
+    private readonly Dictionary<INamedTypeSymbol, Dictionary<INamedTypeSymbol, ImmutableArray<INamedTypeSymbol>>> _bindings = new(SymbolEqualityComparer.Default);
     internal INamedTypeSymbol? Entity { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity");
     internal INamedTypeSymbol? Aggregate { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.AggregateRoot");
     internal INamedTypeSymbol? IdentityUser { get; } = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Identity.IdentityUser`1");
@@ -105,17 +107,25 @@ internal sealed class ConventionSymbols(Compilation compilation)
         }
     }
 
-    internal static IEnumerable<INamedTypeSymbol> Bindings(INamedTypeSymbol type, INamedTypeSymbol? target,
+    internal ImmutableArray<INamedTypeSymbol> Bindings(INamedTypeSymbol type, INamedTypeSymbol? target,
         CancellationToken cancellation)
     {
-        if (target is null) yield break;
+        cancellation.ThrowIfCancellationRequested();
+        if (target is null) return [];
+        if (_bindings.TryGetValue(target, out var types) && types.TryGetValue(type, out var cached)) return cached;
+        var bindings = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
         foreach (var current in Bases(type, cancellation))
-            if (Same(current, target)) yield return current;
+            if (Same(current, target)) bindings.Add(current);
         foreach (var current in type.AllInterfaces)
         {
             cancellation.ThrowIfCancellationRequested();
-            if (Same(current, target)) yield return current;
+            if (Same(current, target)) bindings.Add(current);
         }
+        var result = bindings.ToImmutable();
+        cancellation.ThrowIfCancellationRequested();
+        if (types is null) _bindings.Add(target, types = new(SymbolEqualityComparer.Default));
+        types.Add(type, result);
+        return result;
     }
 
     internal IEnumerable<AttributeData> EffectiveAttributes(INamedTypeSymbol type, INamedTypeSymbol? target,
@@ -151,7 +161,17 @@ internal sealed class ConventionSymbols(Compilation compilation)
         return result;
     }
 
-    internal static bool IsOpen(INamedTypeSymbol type, CancellationToken cancellation = default)
+    internal bool IsOpen(INamedTypeSymbol type, CancellationToken cancellation = default)
+    {
+        cancellation.ThrowIfCancellationRequested();
+        if (_openTypes.TryGetValue(type, out var cached)) return cached;
+        var result = ReadIsOpen(type, cancellation);
+        cancellation.ThrowIfCancellationRequested();
+        _openTypes.Add(type, result);
+        return result;
+    }
+
+    private static bool ReadIsOpen(INamedTypeSymbol type, CancellationToken cancellation)
     {
         var pending = new Stack<ITypeSymbol>();
         var visited = new HashSet<ITypeSymbol>(SymbolEqualityComparer.Default);

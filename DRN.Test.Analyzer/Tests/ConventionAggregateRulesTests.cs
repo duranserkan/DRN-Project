@@ -9,6 +9,8 @@ public sealed class ConventionAggregateRulesTests
         typeof(DRN.Framework.EntityFramework.Context.DrnContext<>).Assembly.Location);
     private static readonly MetadataReference UtilsReference = MetadataReference.CreateFromFile(
         typeof(DRN.Framework.Utils.Entity.IEntityUtils).Assembly.Location);
+    private static readonly Lazy<ImmutableArray<MetadataReference>> MultiEntityConfigurationReferences =
+        new(CreateMultiEntityConfigurationReferences);
     private const string Domain = """
         namespace Sample.Domain.QA.Order;
         public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot;
@@ -338,6 +340,67 @@ public sealed class ConventionAggregateRulesTests
             diagnostic.Id.Should().Be("DRNCV024");
             diagnostic.Properties["Target"].Should().Be("T:Sample.Application.QA.IHandler");
         }
+    }
+
+    [Theory]
+    [DataInlineUnit("OrderEntity", "", "OrderEntity")]
+    [DataInlineUnit("OtherEntity", "", "OtherEntity")]
+    [DataInlineUnit("OrderEntity", "OtherEntity", "OrderEntity")]
+    [DataInlineUnit("OtherEntity", "OrderEntity", "OtherEntity")]
+    [DataInlineUnit("OrderEntity", "OrderEntity", "")]
+    [DataInlineUnit("OtherEntity", "OtherEntity", "")]
+    public void Referenced_Multi_Entity_Configuration_Should_Assign_Only_The_Selected_Entity(
+        string selected, string ignored, string expected)
+    {
+        var source = $$"""
+            using Microsoft.EntityFrameworkCore;
+            using Sample.Domain.QA.Order;
+            namespace Sample.Infra.QA;
+            public class QAContext() : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>(null)
+            {
+                protected override void OnModelCreating(ModelBuilder model)
+                {
+                    base.OnModelCreating(model);
+                    model.ApplyConfiguration<{{selected}}>(new External.SharedConfig());
+                    {{(ignored.Length == 0 ? "" : "model.Ignore<" + ignored + ">();")}}
+                }
+            }
+            """;
+        var facts = Facts(Compilation(source).WithAssemblyName("Sample.Infra")
+            .AddReferences(MultiEntityConfigurationReferences.Value).AddReferences(FrameworkReference, UtilsReference), "Infra");
+        ConventionAggregateRepositoryAnalysis.Analyze(facts);
+        if (expected.Length == 0) facts.Diagnostics.Should().BeEmpty();
+        else
+        {
+            var diagnostic = facts.Diagnostics.Should().ContainSingle().Which;
+            diagnostic.Id.Should().Be("DRNCV027");
+            diagnostic.Properties["Entity"].Should().Be("Sample.Domain.QA.Order." + expected);
+        }
+    }
+
+    private static ImmutableArray<MetadataReference> CreateMultiEntityConfigurationReferences()
+    {
+        var domain = Compilation(Domain + Contract + """
+            public class OtherEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+            public interface IOtherRepository : DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<OtherEntity>;
+            """).WithAssemblyName("Sample.Domain");
+        using var domainImage = new MemoryStream();
+        domain.Emit(domainImage).Success.Should().BeTrue();
+        var domainReference = MetadataReference.CreateFromImage(domainImage.ToArray());
+        var dependency = Compilation("""
+            using Microsoft.EntityFrameworkCore;
+            using Microsoft.EntityFrameworkCore.Metadata.Builders;
+            using Sample.Domain.QA.Order;
+            namespace External;
+            public class SharedConfig : IEntityTypeConfiguration<OrderEntity>, IEntityTypeConfiguration<OtherEntity>
+            {
+                public void Configure(EntityTypeBuilder<OrderEntity> builder) { }
+                public void Configure(EntityTypeBuilder<OtherEntity> builder) { }
+            }
+            """).WithAssemblyName("ConfigurationFixture").AddReferences(domainReference);
+        using var image = new MemoryStream();
+        dependency.Emit(image).Success.Should().BeTrue();
+        return [domainReference, MetadataReference.CreateFromImage(image.ToArray())];
     }
 
     private static ConventionFacts Facts(CSharpCompilation compilation, string role, string logicalPath = "QA/Models.cs")

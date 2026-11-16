@@ -6,6 +6,67 @@ namespace DRN.Test.Analyzer.Tests;
 
 public sealed class ConventionFactsTests
 {
+    [Fact]
+    public void Cached_Generic_Facts_Should_Preserve_Constructed_Types_And_Observe_Cancellation()
+    {
+        var compilation = Compilation("public interface IBinding<T>; public class Model<T> : IBinding<T>;");
+        var symbols = new ConventionSymbols(compilation);
+        var definition = compilation.GetTypeByMetadataName("Model`1")!;
+        var contract = compilation.GetTypeByMetadataName("IBinding`1")!;
+        var integer = compilation.GetSpecialType(SpecialType.System_Int32);
+        var text = compilation.GetSpecialType(SpecialType.System_String);
+        var first = definition.Construct(integer);
+        var second = definition.Construct(text);
+        symbols.IsOpen(definition).Should().BeTrue();
+        symbols.IsOpen(first).Should().BeFalse();
+        symbols.IsOpen(second).Should().BeFalse();
+        var firstBindings = symbols.Bindings(first, contract, CancellationToken.None);
+        firstBindings.Should().ContainSingle().Which.TypeArguments.Should().ContainSingle().Which.Should().Be(integer);
+        symbols.Bindings(second, contract, CancellationToken.None).Should().ContainSingle()
+            .Which.TypeArguments.Should().ContainSingle().Which.Should().Be(text);
+        symbols.Bindings(first, contract, CancellationToken.None).Equals(firstBindings).Should().BeTrue();
+        symbols.Bindings(first, definition, CancellationToken.None).Should().ContainSingle().Which.Should().Be(first);
+        symbols.Bindings(first, null, CancellationToken.None).Should().BeEmpty();
+
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        Action openHit = () => symbols.IsOpen(first, cancellation.Token);
+        Action bindingHit = () => symbols.Bindings(first, contract, cancellation.Token);
+        var unbound = definition.ConstructUnboundGenericType();
+        Action openMiss = () => symbols.IsOpen(unbound, cancellation.Token);
+        Action bindingMiss = () => symbols.Bindings(definition, contract, cancellation.Token);
+        openHit.Should().Throw<OperationCanceledException>();
+        bindingHit.Should().Throw<OperationCanceledException>();
+        openMiss.Should().Throw<OperationCanceledException>();
+        bindingMiss.Should().Throw<OperationCanceledException>();
+        symbols.IsOpen(unbound).Should().BeTrue();
+        symbols.Bindings(definition, contract, CancellationToken.None).Should().ContainSingle()
+            .Which.TypeArguments.Should().ContainSingle().Which.TypeKind.Should().Be(TypeKind.TypeParameter);
+    }
+
+    [Fact]
+    public void Cached_Assembly_Metadata_Should_Preserve_Entries_And_Compilation_Isolation()
+    {
+        var first = Compilation("""
+            [assembly: System.Reflection.AssemblyMetadata("Key", "First")]
+            [assembly: System.Reflection.AssemblyMetadata("Key", "Second")]
+            [assembly: System.Reflection.AssemblyMetadata("Empty", null)]
+            public class Marker;
+            """);
+        var facts = Facts(first);
+        var metadata = facts.AssemblyMetadata(first.Assembly);
+        metadata.Select(pair => (pair.Key, pair.Value)).Should().Equal(
+            ("Key", "First"), ("Key", "Second"), ("Empty", ""));
+        facts.AssemblyMetadata(first.Assembly).Equals(metadata).Should().BeTrue();
+
+        var second = Compilation("""
+            [assembly: System.Reflection.AssemblyMetadata("Key", "Changed")]
+            public class Marker;
+            """);
+        Facts(second).AssemblyMetadata(second.Assembly).Should().ContainSingle()
+            .Which.Value.Should().Be("Changed");
+    }
+
     [Theory]
     [DataInlineUnit("Layers/Storage")]
     [DataInlineUnit("Layers\\Storage")]
@@ -72,14 +133,17 @@ public sealed class ConventionFactsTests
             facts.Location(model).SourceTree!.FilePath.Should().Be("Z.cs");
             facts.IsGenerated(generated).Should().BeTrue();
             facts.Role(model).Role.Should().Be("Infra");
+            facts.AssemblyMetadata(compilation.Assembly).Should().BeEmpty();
         }
         cancellation.Cancel();
         Action location = () => facts.Location(model);
         Action generatedStatus = () => facts.IsGenerated(generated);
         Action role = () => facts.Role(model);
+        Action metadata = () => facts.AssemblyMetadata(compilation.Assembly);
         location.Should().Throw<OperationCanceledException>();
         generatedStatus.Should().Throw<OperationCanceledException>();
         role.Should().Throw<OperationCanceledException>();
+        metadata.Should().Throw<OperationCanceledException>();
     }
 
     [Fact]

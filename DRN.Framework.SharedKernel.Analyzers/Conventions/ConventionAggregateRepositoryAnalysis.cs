@@ -13,9 +13,9 @@ internal static class ConventionAggregateRepositoryAnalysis
         foreach (var type in facts.Types)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
-            if (type.TypeKind != TypeKind.Class || type.IsAbstract || ConventionSymbols.IsOpen(type, facts.Cancellation) ||
+            if (type.TypeKind != TypeKind.Class || type.IsAbstract || facts.Symbols.IsOpen(type, facts.Cancellation) ||
                 facts.Role(type).Role != "Infra") continue;
-            foreach (var binding in ConventionSymbols.Bindings(type, facts.Symbols.Repository, facts.Cancellation))
+            foreach (var binding in facts.Symbols.Bindings(type, facts.Symbols.Repository, facts.Cancellation))
             {
                 if (binding.TypeArguments is not [_, INamedTypeSymbol entity]) continue;
                 if (!implementations.TryGetValue(entity, out var list)) implementations.Add(entity, list = []);
@@ -26,7 +26,7 @@ internal static class ConventionAggregateRepositoryAnalysis
         foreach (var type in facts.Types)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
-            if (type.IsAbstract || ConventionSymbols.IsOpen(type, facts.Cancellation)) continue;
+            if (type.IsAbstract || facts.Symbols.IsOpen(type, facts.Cancellation)) continue;
             var location = facts.Location(type);
             if (location == Location.None) continue;
             if (facts.Role(type).Role == "Domain" && IsAggregate(type) && facts.Owner(type) is { } owner &&
@@ -45,7 +45,7 @@ internal static class ConventionAggregateRepositoryAnalysis
             if (!facts.Symbols.IsKnown(configuration, facts.Symbols.Configuration, facts.Cancellation)) continue;
             var index = configurationEntities.Count;
             var entities = new List<INamedTypeSymbol>();
-            foreach (var binding in ConventionSymbols.Bindings(configuration, facts.Symbols.Configuration, facts.Cancellation))
+            foreach (var binding in facts.Symbols.Bindings(configuration, facts.Symbols.Configuration, facts.Cancellation))
                 if (binding.TypeArguments is [INamedTypeSymbol entity]) entities.Add(entity);
             configurationEntities.Add(entities);
             if (!ConventionPersistenceAnalysis.DefaultDiscoverable(facts, configuration, configuration)) continue;
@@ -64,7 +64,7 @@ internal static class ConventionAggregateRepositoryAnalysis
         foreach (var context in facts.Types)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
-            if (context.IsAbstract || ConventionSymbols.IsOpen(context, facts.Cancellation) ||
+            if (context.IsAbstract || facts.Symbols.IsOpen(context, facts.Cancellation) ||
                 facts.Role(context).Role != "Infra" || !facts.Symbols.IsContext(context, facts.Cancellation)) continue;
             var location = facts.Location(context);
             if (location == Location.None || facts.HasInvalidContext(context)) continue;
@@ -82,11 +82,10 @@ internal static class ConventionAggregateRepositoryAnalysis
                     facts.Cancellation.ThrowIfCancellationRequested();
                     selectedConfigurations.Add(index);
                 }
-            foreach (var configuration in model.Applied)
+            foreach (var entity in model.Applied.Keys)
             {
                 facts.Cancellation.ThrowIfCancellationRequested();
-                foreach (var binding in ConventionSymbols.Bindings(configuration, facts.Symbols.Configuration, facts.Cancellation))
-                    if (binding.TypeArguments is [INamedTypeSymbol entity]) assigned.Add(entity);
+                assigned.Add(entity);
             }
             selectedConfigurations.Sort();
             var previousIndex = -1;
@@ -100,14 +99,14 @@ internal static class ConventionAggregateRepositoryAnalysis
             foreach (var entity in assigned)
             {
                 facts.Cancellation.ThrowIfCancellationRequested();
-                if (!IsAggregate(entity) || entity.IsAbstract || ConventionSymbols.IsOpen(entity, facts.Cancellation) ||
+                if (!IsAggregate(entity) || entity.IsAbstract || facts.Symbols.IsOpen(entity, facts.Cancellation) ||
                     model.Excluded.Contains(entity) || model.Ignored.Contains(entity) ||
                     facts.Role(entity).Role != "Domain" || facts.Owner(entity) is not { } owner ||
                     !facts.UsesOwnSubdomain(context, entity)) continue;
                 if (HasRepository(entity)) continue;
                 if (!reported.Add(entity)) continue;
                 facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.AggregateRepository, location,
-                    Properties(context, entity), entity.Name, owner.Subdomain));
+                    Properties(context, entity, context), entity.Name, owner.Subdomain));
             }
         }
 
@@ -151,9 +150,9 @@ internal static class ConventionAggregateRepositoryAnalysis
                     {
                         if (member is INamespaceOrTypeSymbol child) pending.Push(child);
                         if (member is not INamedTypeSymbol { TypeKind: TypeKind.Interface } contract ||
-                            ConventionSymbols.IsOpen(contract, facts.Cancellation) || facts.Role(contract).Role != "Domain" ||
+                            facts.Symbols.IsOpen(contract, facts.Cancellation) || facts.Role(contract).Role != "Domain" ||
                             facts.Owner(contract) is not { } contractOwner) continue;
-                        foreach (var binding in ConventionSymbols.Bindings(contract, facts.Symbols.RepositoryContract, facts.Cancellation))
+                        foreach (var binding in facts.Symbols.Bindings(contract, facts.Symbols.RepositoryContract, facts.Cancellation))
                         {
                             if (binding.TypeArguments is not [INamedTypeSymbol aggregate] ||
                                 !SymbolEqualityComparer.Default.Equals(aggregate.ContainingAssembly, contract.ContainingAssembly) ||
@@ -194,7 +193,11 @@ internal static class ConventionAggregateRepositoryAnalysis
         }
     }
 
-    private static ImmutableDictionary<string, string?> Properties(ISymbol target, INamedTypeSymbol entity) =>
-        ImmutableDictionary<string, string?>.Empty.Add("Target", target.GetDocumentationCommentId())
+    private static ImmutableDictionary<string, string?> Properties(ISymbol target, INamedTypeSymbol entity,
+        INamedTypeSymbol? context = null)
+    {
+        var properties = ImmutableDictionary<string, string?>.Empty.Add("Target", target.GetDocumentationCommentId())
             .Add("Entity", ConventionSymbols.MetadataName(entity));
+        return context is null ? properties : properties.Add("Context", ConventionSymbols.MetadataName(context));
+    }
 }

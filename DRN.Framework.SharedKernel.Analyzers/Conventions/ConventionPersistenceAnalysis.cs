@@ -15,7 +15,7 @@ internal static class ConventionPersistenceAnalysis
         {
             facts.Cancellation.ThrowIfCancellationRequested();
             CheckDbSetAggregates(facts, type, checkedDbSets);
-            if (type.IsAbstract || ConventionSymbols.IsOpen(type, facts.Cancellation)) continue;
+            if (type.IsAbstract || facts.Symbols.IsOpen(type, facts.Cancellation)) continue;
             if (facts.Symbols.IsContext(type, facts.Cancellation) && facts.Role(type).Role == "Infra")
             {
                 var model = Model(type);
@@ -45,11 +45,11 @@ internal static class ConventionPersistenceAnalysis
             facts.Cancellation.ThrowIfCancellationRequested();
             if (member is not IPropertySymbol { IsStatic: false, Type: INamedTypeSymbol propertyType } property ||
                 checkedProperties.Contains(property)) continue;
-            foreach (var binding in ConventionSymbols.Bindings(propertyType, facts.Symbols.DbSet, facts.Cancellation))
+            foreach (var binding in facts.Symbols.Bindings(propertyType, facts.Symbols.DbSet, facts.Cancellation))
             {
                 if (binding.TypeArguments is not [INamedTypeSymbol entity] || entity.TypeKind == TypeKind.Error ||
-                    ConventionSymbols.IsOpen(entity, facts.Cancellation)) continue;
-                if (ConventionSymbols.Is(entity, facts.Symbols.Aggregate, facts.Cancellation))
+                    facts.Symbols.IsOpen(entity, facts.Cancellation)) continue;
+                if (facts.Symbols.IsKnown(entity, facts.Symbols.Aggregate, facts.Cancellation))
                 {
                     checkedProperties.Add(property);
                     continue;
@@ -82,7 +82,7 @@ internal static class ConventionPersistenceAnalysis
             facts.Cancellation.ThrowIfCancellationRequested();
             if (!ConventionSymbols.Same(attribute.AttributeClass, facts.Symbols.PersistenceAttribute)) continue;
             if (attribute.ConstructorArguments is not [{ Value: INamedTypeSymbol entity }] ||
-                entity.TypeKind == TypeKind.Error || ConventionSymbols.IsOpen(entity, facts.Cancellation)) continue;
+                entity.TypeKind == TypeKind.Error || facts.Symbols.IsOpen(entity, facts.Cancellation)) continue;
             var inclusion = attribute.NamedArguments.FirstOrDefault(pair => pair.Key == "Inclusion").Value.Value;
             if (inclusion is not null and not 0 and not 1)
             {
@@ -103,8 +103,8 @@ internal static class ConventionPersistenceAnalysis
         {
             facts.Cancellation.ThrowIfCancellationRequested();
             if (property.IsStatic || property.Type is not INamedTypeSymbol propertyType) continue;
-            foreach (var binding in ConventionSymbols.Bindings(propertyType, facts.Symbols.DbSet, facts.Cancellation))
-                if (binding.TypeArguments is [INamedTypeSymbol entity] && !ConventionSymbols.IsOpen(entity, facts.Cancellation))
+            foreach (var binding in facts.Symbols.Bindings(propertyType, facts.Symbols.DbSet, facts.Cancellation))
+                if (binding.TypeArguments is [INamedTypeSymbol entity] && !facts.Symbols.IsOpen(entity, facts.Cancellation))
                     result.Candidates.Add(entity);
         }
 
@@ -142,9 +142,7 @@ internal static class ConventionPersistenceAnalysis
             if (method.Name == "Ignore" && method.TypeArguments is [INamedTypeSymbol ignored])
             {
                 result.Ignored.Add(ignored);
-                result.Applied.RemoveWhere(configuration => ConventionSymbols.Bindings(configuration,
-                    facts.Symbols.Configuration, facts.Cancellation).Any(binding => binding.TypeArguments.Length == 1 &&
-                    SymbolEqualityComparer.Default.Equals(binding.TypeArguments[0], ignored)));
+                result.Applied.Remove(ignored);
             }
             else if (method.Name == "Entity" && method.TypeArguments is [INamedTypeSymbol included])
                 result.Ignored.Remove(included);
@@ -153,9 +151,14 @@ internal static class ConventionPersistenceAnalysis
                 result.Ignored.Clear();
                 if (method.Name != "ApplyConfiguration") result.Applied.Clear();
             }
-            if (method.Name == "ApplyConfiguration" && invocation.ArgumentList.Arguments.Count == 1 &&
+            if (method.Name == "ApplyConfiguration" && method.TypeArguments is [INamedTypeSymbol selectedEntity] &&
+                invocation.ArgumentList.Arguments.Count == 1 &&
                 semantic.GetTypeInfo(invocation.ArgumentList.Arguments[0].Expression, facts.Cancellation).Type is INamedTypeSymbol configuration)
-                result.Applied.Add(configuration);
+            {
+                if (!result.Applied.TryGetValue(selectedEntity, out var configurations))
+                    result.Applied.Add(selectedEntity, configurations = new(SymbolEqualityComparer.Default));
+                configurations.Add(configuration);
+            }
         }
         return result;
     }
@@ -212,7 +215,7 @@ internal static class ConventionPersistenceAnalysis
     private static void CheckRepository(ConventionFacts facts, INamedTypeSymbol repository,
         Func<INamedTypeSymbol, ContextModel> model)
     {
-        var bindings = ConventionSymbols.Bindings(repository, facts.Symbols.Repository, facts.Cancellation).ToArray();
+        var bindings = facts.Symbols.Bindings(repository, facts.Symbols.Repository, facts.Cancellation);
         if (bindings.Length == 0) return;
         foreach (var reference in repository.DeclaringSyntaxReferences)
         {
@@ -223,7 +226,7 @@ internal static class ConventionPersistenceAnalysis
         foreach (var binding in bindings)
         {
             if (binding.TypeArguments is not [INamedTypeSymbol context, INamedTypeSymbol entity] ||
-                facts.HasInvalidContext(context) || ConventionSymbols.IsOpen(binding, facts.Cancellation)) continue;
+                facts.HasInvalidContext(context) || facts.Symbols.IsOpen(binding, facts.Cancellation)) continue;
             var membership = model(context);
             membership.Candidates.Add(entity);
             if (!membership.Excluded.Contains(entity) && !membership.Ignored.Contains(entity)) continue;
@@ -236,7 +239,7 @@ internal static class ConventionPersistenceAnalysis
     {
         var seen = new HashSet<(string Configuration, string Context)>();
         var declared = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
-        var uses = ReadConfigurationUses(facts);
+        var uses = new Lazy<ConfigurationUses>(() => ReadConfigurationUses(facts));
         foreach (var input in facts.Records.Where(input => input.Kind == "Configuration"))
         {
             facts.Cancellation.ThrowIfCancellationRequested();
@@ -259,7 +262,7 @@ internal static class ConventionPersistenceAnalysis
         foreach (var context in facts.Types)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
-            if (context.IsAbstract || ConventionSymbols.IsOpen(context, facts.Cancellation) ||
+            if (context.IsAbstract || facts.Symbols.IsOpen(context, facts.Cancellation) ||
                 !facts.Symbols.IsContext(context, facts.Cancellation) || facts.HasInvalidContext(context) ||
                 facts.Role(context).Role != "Infra") continue;
             var ns = context.ContainingNamespace.ToDisplayString();
@@ -278,9 +281,9 @@ internal static class ConventionPersistenceAnalysis
         foreach (var configuration in facts.Types)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
-            if (declared.Contains(configuration) || configuration.IsAbstract || ConventionSymbols.IsOpen(configuration, facts.Cancellation) ||
+            if (declared.Contains(configuration) || configuration.IsAbstract || facts.Symbols.IsOpen(configuration, facts.Cancellation) ||
                 facts.Role(configuration).Role != "Infra" || facts.Location(configuration) == Location.None ||
-                !ConventionSymbols.Is(configuration, facts.Symbols.Configuration, facts.Cancellation)) continue;
+                !facts.Symbols.IsKnown(configuration, facts.Symbols.Configuration, facts.Cancellation)) continue;
             var configurationNamespace = configuration.ContainingNamespace.ToDisplayString();
             List<INamedTypeSymbol>? nearest = null;
             for (var ns = configuration.ContainingNamespace; !ns.IsGlobalNamespace; ns = ns.ContainingNamespace)
@@ -299,7 +302,7 @@ internal static class ConventionPersistenceAnalysis
             var owner = facts.Owner(configuration);
             if (owner is null) continue;
             var candidates = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
-            foreach (var binding in ConventionSymbols.Bindings(configuration, facts.Symbols.Configuration, facts.Cancellation))
+            foreach (var binding in facts.Symbols.Bindings(configuration, facts.Symbols.Configuration, facts.Cancellation))
                 if (binding.TypeArguments is [INamedTypeSymbol entity] && contextsByEntity.TryGetValue(entity, out var contexts))
                     foreach (var context in contexts)
                     {
@@ -316,12 +319,12 @@ internal static class ConventionPersistenceAnalysis
     }
 
     private static void CheckConfiguration(ConventionFacts facts, INamedTypeSymbol configuration, INamedTypeSymbol context,
-        ContextModel evidence, ConfigurationUses uses, Location fallback)
+        ContextModel evidence, Lazy<ConfigurationUses> uses, Location fallback)
     {
         if (facts.HasInvalidContext(context) || facts.Role(context).Role != "Infra" ||
-            evidence.Applied.Contains(configuration) || !evidence.DefaultScan) return;
-        if (DefaultDiscoverable(facts, configuration, context) || HasPossibleApplication(facts, configuration, context, evidence, uses)) return;
-        foreach (var binding in ConventionSymbols.Bindings(configuration, facts.Symbols.Configuration, facts.Cancellation)
+            evidence.Applied.Values.Any(configurations => configurations.Contains(configuration)) || !evidence.DefaultScan) return;
+        if (DefaultDiscoverable(facts, configuration, context) || HasPossibleApplication(facts, configuration, context, evidence, uses.Value)) return;
+        foreach (var binding in facts.Symbols.Bindings(configuration, facts.Symbols.Configuration, facts.Cancellation)
                      .OrderBy(binding => ConventionSymbols.MetadataName(binding.TypeArguments[0] as INamedTypeSymbol ?? configuration), StringComparer.Ordinal))
         {
             if (binding.TypeArguments is not [INamedTypeSymbol entity] || evidence.Excluded.Contains(entity) || evidence.Ignored.Contains(entity)) continue;
@@ -339,7 +342,7 @@ internal static class ConventionPersistenceAnalysis
     internal static bool DefaultDiscoverable(ConventionFacts facts, INamedTypeSymbol configuration, INamedTypeSymbol context) =>
         ConventionProject.IsNamespaceWithin(configuration.ContainingNamespace.ToDisplayString(), context.ContainingNamespace.ToDisplayString()) &&
         SymbolEqualityComparer.Default.Equals(configuration.ContainingAssembly, context.ContainingAssembly) &&
-        !configuration.IsAbstract && !ConventionSymbols.IsOpen(configuration, facts.Cancellation) &&
+        !configuration.IsAbstract && !facts.Symbols.IsOpen(configuration, facts.Cancellation) &&
         configuration.InstanceConstructors.Any(constructor => constructor.Parameters.Length == 0);
 
     private static ConfigurationUses ReadConfigurationUses(ConventionFacts facts)
@@ -395,7 +398,7 @@ internal static class ConventionPersistenceAnalysis
         return result;
 
         bool IsConfigureImplementation(INamedTypeSymbol type, IMethodSymbol method) =>
-            ConventionSymbols.Bindings(type, facts.Symbols.Configuration, facts.Cancellation)
+            facts.Symbols.Bindings(type, facts.Symbols.Configuration, facts.Cancellation)
                 .SelectMany(binding => binding.GetMembers("Configure"))
                 .Any(member => SymbolEqualityComparer.Default.Equals(type.FindImplementationForInterfaceMember(member)?.OriginalDefinition,
                     method.OriginalDefinition));
@@ -419,7 +422,8 @@ internal static class ConventionPersistenceAnalysis
                     if (SymbolEqualityComparer.Default.Equals(owner, context)) return true;
                     continue;
                 }
-                if (evidence.Applied.Contains(owner) || DefaultDiscoverable(facts, owner, context)) return true;
+                if (evidence.Applied.Values.Any(configurations => configurations.Contains(owner)) ||
+                    DefaultDiscoverable(facts, owner, context)) return true;
                 pending.Push(owner);
             }
         }
@@ -428,7 +432,7 @@ internal static class ConventionPersistenceAnalysis
 
     private static void CheckService(ConventionFacts facts, INamedTypeSymbol service)
     {
-        foreach (var binding in ConventionSymbols.Bindings(service, facts.Symbols.ServiceContract, facts.Cancellation))
+        foreach (var binding in facts.Symbols.Bindings(service, facts.Symbols.ServiceContract, facts.Cancellation))
         {
             if (binding.TypeArguments is not [INamedTypeSymbol entity]) continue;
             var contract = binding.GetMembers("Repository").OfType<IPropertySymbol>().SingleOrDefault();
@@ -444,7 +448,7 @@ internal static class ConventionPersistenceAnalysis
                     .Any(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)) continue;
                 while (expression is CastExpressionSyntax cast) expression = cast.Expression;
                 if (semantic.GetTypeInfo(expression, facts.Cancellation).Type is not INamedTypeSymbol actual) continue;
-                var repositories = ConventionSymbols.Bindings(actual, facts.Symbols.RepositoryContract, facts.Cancellation).ToArray();
+                var repositories = facts.Symbols.Bindings(actual, facts.Symbols.RepositoryContract, facts.Cancellation);
                 if (repositories.Length == 0 || repositories.Any(repository => repository.TypeArguments.Length == 1 &&
                         SymbolEqualityComparer.Default.Equals(repository.TypeArguments[0], entity))) continue;
                 facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.Service,
@@ -507,7 +511,7 @@ internal static class ConventionPersistenceAnalysis
         internal HashSet<INamedTypeSymbol> Candidates { get; } = new(SymbolEqualityComparer.Default);
         internal HashSet<INamedTypeSymbol> Excluded { get; } = new(SymbolEqualityComparer.Default);
         internal HashSet<INamedTypeSymbol> Ignored { get; } = new(SymbolEqualityComparer.Default);
-        internal HashSet<INamedTypeSymbol> Applied { get; } = new(SymbolEqualityComparer.Default);
+        internal Dictionary<INamedTypeSymbol, HashSet<INamedTypeSymbol>> Applied { get; } = new(SymbolEqualityComparer.Default);
         internal bool DefaultScan { get; set; }
     }
 

@@ -17,6 +17,7 @@
                           UndefineProperties="RuntimeIdentifier;TargetArchitecture;PlatformTarget;SelfContained;PublishReadyToRun" />
         <ProjectReference Include="..\DRN.Framework.Testing\DRN.Framework.Testing.csproj"/>
         <ProjectReference Include="..\DRN.Framework.SharedKernel.Analyzers\DRN.Framework.SharedKernel.Analyzers.csproj"
+                          Aliases="global,SharedKernelAnalyzers"
                           UndefineProperties="RuntimeIdentifier;TargetArchitecture;PlatformTarget;SelfContained;PublishReadyToRun" />
         <ProjectReference Include="..\DRN.Framework.SharedKernel.CodeFixes\DRN.Framework.SharedKernel.CodeFixes.csproj"
                           UndefineProperties="RuntimeIdentifier;TargetArchitecture;PlatformTarget;SelfContained;PublishReadyToRun" />

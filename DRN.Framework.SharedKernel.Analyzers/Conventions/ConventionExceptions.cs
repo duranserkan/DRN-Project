@@ -41,8 +41,17 @@ internal sealed class ConventionExceptions
             : DocumentationCommentId.GetFirstSymbolForDeclarationId(target, _facts.Compilation);
         var edge = input.Identity == "DRNCV015" && _facts.Records.Any(record => record.Kind == "Reference" &&
             record.Get("Stage") is "Project" or "Package" && record.Identity == target);
+        var prefix = _facts.Project.AssemblyName + ":";
+        var projectTarget = input.Identity switch
+        {
+            "DRNCV021" => target.StartsWith(prefix, StringComparison.Ordinal) &&
+                target[prefix.Length..] is "Application" or "Infra" or "Domain" or "Contract",
+            "DRNCV022" => target == prefix + "Domain",
+            "DRNCV032" => target == prefix + "Module",
+            _ => false
+        };
         var valid = IsRule(input.Identity) && target.Length > 0 && !target.Contains('*') &&
-                    (IsSuppressionTarget(symbol) || edge) && !string.IsNullOrWhiteSpace(input.Get("Reason")) &&
+                    (IsSuppressionTarget(symbol) || edge || projectTarget) && !string.IsNullOrWhiteSpace(input.Get("Reason")) &&
                     !string.IsNullOrWhiteSpace(input.Get("Owner")) &&
                     DateOnly.TryParseExact(input.Get("Review"), "yyyy-MM-dd", CultureInfo.InvariantCulture,
                         DateTimeStyles.None, out var review) && review > _reviewDate;
@@ -86,27 +95,38 @@ internal sealed class ConventionExceptions
 
     internal bool Applies(Diagnostic diagnostic)
     {
-        if (diagnostic.Id == "DRNCV018") return false;
+        if (diagnostic.Id == "DRNCV018" || _valid.Count == 0) return false;
         ISymbol? source = null;
-        if (diagnostic.Location.SourceTree is { } tree)
-        {
-            var model = _facts.Compilation.GetSemanticModel(tree);
-            var node = tree.GetRoot(_facts.Cancellation).FindNode(diagnostic.Location.SourceSpan, getInnermostNodeForTie: true);
-            source = node.AncestorsAndSelf().Select(candidate => model.GetDeclaredSymbol(candidate, _facts.Cancellation))
-                .FirstOrDefault(symbol => symbol is not null) ?? model.GetEnclosingSymbol(diagnostic.Location.SourceSpan.Start, _facts.Cancellation);
-        }
+        var sourceResolved = false;
         foreach (var (input, symbol) in _valid)
         {
             _facts.Cancellation.ThrowIfCancellationRequested();
             if (input.Identity != diagnostic.Id) continue;
             var target = input.Get("Target").TrimStart('~');
-            var matches = diagnostic.Properties.TryGetValue("Target", out var declared) && declared == target ||
-                          source is not null && symbol is not null && SymbolEqualityComparer.Default.Equals(source, symbol);
+            var matches = diagnostic.Properties.TryGetValue("Target", out var declared) && declared == target;
+            if (!matches && symbol is not null)
+            {
+                if (!sourceResolved)
+                {
+                    sourceResolved = true;
+                    source = ResolveSourceSymbol(diagnostic);
+                }
+                matches = source is not null && SymbolEqualityComparer.Default.Equals(source, symbol);
+            }
             if (!matches) continue;
             if (!Matches(input, diagnostic, "Entity") || !Matches(input, diagnostic, "Context")) continue;
             return true;
         }
         return false;
+    }
+
+    private ISymbol? ResolveSourceSymbol(Diagnostic diagnostic)
+    {
+        if (diagnostic.Location.SourceTree is not { } tree) return null;
+        var model = _facts.Compilation.GetSemanticModel(tree);
+        var node = tree.GetRoot(_facts.Cancellation).FindNode(diagnostic.Location.SourceSpan, getInnermostNodeForTie: true);
+        return node.AncestorsAndSelf().Select(candidate => model.GetDeclaredSymbol(candidate, _facts.Cancellation))
+            .FirstOrDefault(symbol => symbol is not null) ?? model.GetEnclosingSymbol(diagnostic.Location.SourceSpan.Start, _facts.Cancellation);
     }
 
     private static bool Matches(ConventionInput input, Diagnostic diagnostic, string field) => input.Get(field).Length == 0 ||

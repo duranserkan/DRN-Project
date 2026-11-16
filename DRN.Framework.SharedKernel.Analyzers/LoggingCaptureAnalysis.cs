@@ -12,7 +12,7 @@ internal sealed class LoggingCaptureAnalysis(OperationAnalysisContext context, C
 {
     private const string LoggingAssembly = "Microsoft.Extensions.Logging.Abstractions";
     private const int MaxTemplateLength = 65536;
-    private const int MaxValues = 256;
+    internal const int MaxValues = 256;
     private static DiagnosticDescriptor Descriptor => ClassificationDiagnosticDescriptors.UnsafeLoggingCapture;
 
     internal static void Analyze(OperationAnalysisContext context, ClassificationContract contract,
@@ -140,20 +140,8 @@ internal sealed class LoggingCaptureAnalysis(OperationAnalysisContext context, C
         // Concrete access can still carry an interface-only classification.
         // An inherited property can implement an interface introduced by the receiver's type.
         var receiverType = reference.Instance?.Type as INamedTypeSymbol ?? property.ContainingType;
-        var inspected = 0;
-        foreach (var @interface in receiverType.AllInterfaces)
-            foreach (var member in @interface.GetMembers().OfType<IPropertySymbol>())
-            {
-                context.CancellationToken.ThrowIfCancellationRequested();
-                if (++inspected > MaxValues) return;
-                if (SymbolEqualityComparer.Default.Equals(receiverType.FindImplementationForInterfaceMember(member), property) &&
-                    (contract.Positive(member, context.CancellationToken) || contract.Positive(member.ContainingType, context.CancellationToken) ||
-                     contract.Positive(member.Type, context.CancellationToken)))
-                {
-                    Report(property.ToDisplayString());
-                    return;
-                }
-            }
+        if (contract.PositiveInterfaceProperty(receiverType, property, context.CancellationToken))
+            Report(property.ToDisplayString());
     }
 
     private void Report(string name) => context.ReportDiagnostic(Diagnostic.Create(Descriptor, call.Syntax.GetLocation(),

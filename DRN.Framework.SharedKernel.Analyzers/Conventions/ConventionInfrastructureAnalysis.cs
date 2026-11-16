@@ -10,7 +10,7 @@ internal static class ConventionInfrastructureAnalysis
         foreach (var type in facts.Types)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
-            if (type.TypeKind != TypeKind.Class || type.IsAbstract || ConventionSymbols.IsOpen(type, facts.Cancellation)) continue;
+            if (type.TypeKind != TypeKind.Class || type.IsAbstract || facts.Symbols.IsOpen(type, facts.Cancellation)) continue;
             var location = facts.Location(type);
             if (facts.Role(type).Role == "Infra" && location != Location.None)
             {

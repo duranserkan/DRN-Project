@@ -303,6 +303,62 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
         AssertSingle(await Analyze(compilation), "Read");
     }
 
+    [Fact]
+    public async Task Repeated_Custom_Authorization_Attributes_Should_Preserve_AttributeUsage_Inheritance_Across_Controllers()
+    {
+        var diagnostics = await Analyze("""
+            [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, Inherited = true, AllowMultiple = true)]
+            public sealed class InheritedPolicyAttribute : AuthorizeAttribute { }
+
+            [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, Inherited = false, AllowMultiple = true)]
+            public sealed class NonInheritedPolicyAttribute : AuthorizeAttribute { }
+
+            [InheritedPolicy(Policy = "InheritedReaders")]
+            public abstract class InheritedBaseController : SourceKnownControllerBase<object, object>;
+
+            public sealed class FirstInheritedController : InheritedBaseController
+            {
+                public void One() { }
+                public void Two() { }
+            }
+
+            public sealed class SecondInheritedController : InheritedBaseController
+            {
+                public void Three() { }
+            }
+
+            [NonInheritedPolicy(Policy = "BaseOnly")]
+            public abstract class NonInheritedBaseController : SourceKnownControllerBase<object, object>;
+
+            public sealed class ExposedDerivedController : NonInheritedBaseController
+            {
+                public void Exposed() { }
+            }
+            """);
+        var single = diagnostics.Should().ContainSingle().Which;
+        single.Id.Should().Be("DRN0026");
+        LocationText(single).Should().Be("Exposed");
+    }
+
+    [Fact]
+    public async Task PreCanceled_Token_Should_Cancel_Authorization_Analysis()
+    {
+        var compilation = Compile("Canceled", Imports + """
+            [Authorize("Readers")]
+            public sealed class TestController : SourceKnownControllerBase<object, object>
+            {
+                public void One() { }
+                public void Two() { }
+            }
+            """ + Framework);
+        compilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var act = async () => await compilation.WithAnalyzers([new SourceKnownControllerAuthorizationAnalyzer()])
+            .GetAnalyzerDiagnosticsAsync(cancellation.Token);
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
     private static Task<ImmutableArray<Diagnostic>> Analyze(string source)
         => Analyze(Compile("Test", Imports + source + Framework));
 

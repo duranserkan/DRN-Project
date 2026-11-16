@@ -6,6 +6,7 @@ global using System.Threading;
 global using System.Threading.Tasks;
 global using AwesomeAssertions;
 global using DRN.Framework.SharedKernel.Analyzers;
+global using DRN.Framework.Testing.DataAttributes;
 global using Microsoft.CodeAnalysis;
 global using Microsoft.CodeAnalysis.CSharp;
 global using Microsoft.CodeAnalysis.Diagnostics;

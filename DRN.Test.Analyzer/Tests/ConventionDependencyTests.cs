@@ -242,6 +242,52 @@ public sealed class ConventionDependencyTests
         return facts.Diagnostics;
     }
 
+    [Fact]
+    public void ReadDirectProjects_Should_Preserve_Order_And_Deduplicate_Dual_Key_Matches()
+    {
+        var location = Location.Create(ConventionInputs.FileName, new(0, 1), new(new(0, 0), new(0, 1)));
+        var commerce = Compilation("""
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Commerce.Domain")]
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Commerce.Domain")]
+            namespace Commerce.Domain.Sales;
+            public class Sale;
+            """).WithAssemblyName("Commerce.Domain");
+        var finance = Compilation("""
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Finance.Domain")]
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Finance.Domain")]
+            namespace Finance.Domain.Billing;
+            public class Invoice;
+            """).WithAssemblyName("Finance.Domain");
+        using var commerceImage = new MemoryStream();
+        commerce.Emit(commerceImage).Success.Should().BeTrue();
+        using var financeImage = new MemoryStream();
+        finance.Emit(financeImage).Success.Should().BeTrue();
+        var commercePath = "/dependency-tests/Commerce.Domain.dll";
+        var financePath = "/dependency-tests/Finance.Domain.dll";
+        var compilation = Compilation("public class Consumer;", "Consumer.cs").WithAssemblyName("Storage.Infra")
+            .AddReferences(
+                MetadataReference.CreateFromImage(commerceImage.ToArray(), filePath: commercePath),
+                MetadataReference.CreateFromImage(financeImage.ToArray(), filePath: financePath));
+        ConventionInput[] references =
+        [
+            new("Reference", ProjectPath("Commerce.Domain"), ImmutableDictionary<string, string>.Empty
+                .Add("Stage", "Project").Add("Source", ProjectPath("Commerce.Domain")), location),
+            new("Reference", ProjectPath("Finance.Domain"), ImmutableDictionary<string, string>.Empty
+                .Add("Stage", "Project").Add("Source", ProjectPath("Finance.Domain")), location),
+            new("Reference", commercePath, ImmutableDictionary<string, string>.Empty
+                .Add("Stage", "Resolved")
+                .Add("Project", ProjectPath("Commerce.Domain"))
+                .Add("OriginalProject", ProjectPath("Commerce.Domain")), location),
+            new("Reference", financePath, ImmutableDictionary<string, string>.Empty
+                .Add("Stage", "Resolved")
+                .Add("OriginalProject", ProjectPath("Finance.Domain")), location)
+        ];
+        var facts = Facts(new Fixture("Storage.Infra", compilation, [.. references]));
+        var resolved = ConventionDependencyAnalysis.ReadDirectProjects(facts, references);
+        resolved.Should().NotBeNull();
+        resolved!.Select(item => item.Project.AssemblyName).Should().Equal("Commerce.Domain", "Finance.Domain");
+    }
+
     private static ConventionFacts Facts(Fixture fixture)
     {
         var options = new Options(fixture.Name);

@@ -410,20 +410,20 @@ internal static class ConventionBoundaryAnalysis
         if (role is not ("Domain" or "Contract" or "SharedKernel" or "Utils")) return null;
         var symbols = facts.Symbols;
         var cancellation = facts.Cancellation;
-        if (symbols.IsTransport(dependency, cancellation) || transportTypes.Any(target => ConventionSymbols.Is(dependency, target, cancellation)))
+        if (symbols.IsTransport(dependency, cancellation) || transportTypes.Any(target => symbols.IsKnown(dependency, target, cancellation)))
             return ("transport-dependent", "Hosted");
-        if (ConventionSymbols.Is(dependency, symbols.DbContext, cancellation) || symbols.IsContext(dependency, cancellation) ||
-            ConventionSymbols.Is(dependency, symbols.ModelBuilder, cancellation) ||
-            ConventionSymbols.Is(dependency, symbols.EntityBuilder, cancellation) ||
-            ConventionSymbols.Is(dependency, symbols.GenericEntityBuilder, cancellation) ||
-            ConventionSymbols.Is(dependency, symbols.Configuration, cancellation) ||
-            ConventionSymbols.Is(dependency, symbols.Repository, cancellation) ||
-            dependency.TypeKind != TypeKind.Interface && ConventionSymbols.Is(dependency, symbols.RepositoryContract, cancellation))
+        if (symbols.IsKnown(dependency, symbols.DbContext, cancellation) || symbols.IsContext(dependency, cancellation) ||
+            symbols.IsKnown(dependency, symbols.ModelBuilder, cancellation) ||
+            symbols.IsKnown(dependency, symbols.EntityBuilder, cancellation) ||
+            symbols.IsKnown(dependency, symbols.GenericEntityBuilder, cancellation) ||
+            symbols.IsKnown(dependency, symbols.Configuration, cancellation) ||
+            symbols.IsKnown(dependency, symbols.Repository, cancellation) ||
+            dependency.TypeKind != TypeKind.Interface && symbols.IsKnown(dependency, symbols.RepositoryContract, cancellation))
             return ("persistence-dependent", "Infra");
-        if (ConventionSymbols.Is(dependency, symbols.ServiceContract, cancellation) &&
+        if (symbols.IsKnown(dependency, symbols.ServiceContract, cancellation) &&
             !(role == "SharedKernel" && (dependency.TypeKind == TypeKind.Interface || dependency.IsAbstract)))
             return ("use-case-service-dependent", "Application");
-        if (role == "Utils" && (facts.IsEntity(dependency) || ConventionSymbols.Is(dependency, symbols.RepositoryContract, cancellation)))
+        if (role == "Utils" && (facts.IsEntity(dependency) || symbols.IsKnown(dependency, symbols.RepositoryContract, cancellation)))
             return ("application-domain-dependent", "Domain or Application");
         return null;
     }

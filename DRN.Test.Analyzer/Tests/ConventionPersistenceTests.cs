@@ -7,6 +7,9 @@ namespace DRN.Test.Analyzer.Tests;
 
 public sealed class ConventionPersistenceTests
 {
+    private static readonly MetadataReference FrameworkReference = MetadataReference.CreateFromFile(typeof(DrnContext<>).Assembly.Location);
+    private static readonly MetadataReference UtilsReference = MetadataReference.CreateFromFile(typeof(IEntityUtils).Assembly.Location);
+
     private const string Imports = """
         using Microsoft.EntityFrameworkCore;
         using DRN.Framework.EntityFramework.Context;
@@ -728,8 +731,8 @@ public sealed class ConventionPersistenceTests
     [InlineData(true, true)]
     public async Task Separate_Migration_Assembly_Should_Use_Its_Own_Namespace_And_Exact_Declared_Assembly(bool emitted, bool wrongAssembly)
     {
-        var framework = MetadataReference.CreateFromFile(typeof(DrnContext<>).Assembly.Location);
-        var utils = MetadataReference.CreateFromFile(typeof(IEntityUtils).Assembly.Location);
+        var framework = FrameworkReference;
+        var utils = UtilsReference;
         var producer = Compilation("""
             [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Sample.Infra")]
             [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Sample.Infra")]
@@ -845,8 +848,7 @@ public sealed class ConventionPersistenceTests
     private static ConventionFacts AnalyzeRole(string source, string role, params ConventionInput[] records)
     {
         var compilation = Compilation(source).WithAssemblyName("Sample." + role)
-            .AddReferences(MetadataReference.CreateFromFile(typeof(DrnContext<>).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(IEntityUtils).Assembly.Location));
+            .AddReferences(FrameworkReference, UtilsReference);
         compilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
         var options = new Options(role);
         var project = ConventionProject.Read(compilation, options.GlobalOptions);

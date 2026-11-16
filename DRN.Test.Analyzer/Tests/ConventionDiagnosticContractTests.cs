@@ -5,6 +5,27 @@ namespace DRN.Test.Analyzer.Tests;
 
 public sealed class ConventionDiagnosticContractTests
 {
+    private static readonly MetadataReference FrameworkReference = MetadataReference.CreateFromFile(
+        typeof(DRN.Framework.EntityFramework.Context.DrnContext<>).Assembly.Location);
+    private static readonly MetadataReference UtilsReference = MetadataReference.CreateFromFile(
+        typeof(DRN.Framework.Utils.Entity.IEntityUtils).Assembly.Location);
+    private static readonly Lazy<(MetadataReference Reference, ConventionInput[] Records)> EmptyDomain =
+        new(() => CreateDomainFixture("Empty.Domain", """
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Empty.Domain")]
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Empty.Domain")]
+            namespace UnrelatedRoot { public class Marker; }
+            """));
+    private static readonly Lazy<(MetadataReference Reference, ConventionInput[] Records)> OrderDomain =
+        new(() => CreateDomainFixture("Order.Domain", """
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Order.Domain")]
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Order.Domain")]
+            namespace Order.Domain.QA.Order
+            {
+                public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+                public interface IOrderRepository : DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<OrderEntity>;
+            }
+            """));
+
     [Fact]
     public async Task Missing_Module_Should_Report_A_Project_Diagnostic_In_Production()
     {
@@ -91,27 +112,37 @@ public sealed class ConventionDiagnosticContractTests
     }
 
     [Theory]
-    [InlineData("DRNCV001")]
-    [InlineData("DRNCV002")]
-    [InlineData("DRNCV003")]
-    [InlineData("DRNCV004")]
-    [InlineData("DRNCV005")]
-    [InlineData("DRNCV006")]
-    [InlineData("DRNCV007")]
-    [InlineData("DRNCV008")]
-    [InlineData("DRNCV009")]
-    [InlineData("DRNCV010")]
-    [InlineData("DRNCV011")]
-    [InlineData("DRNCV012")]
-    [InlineData("DRNCV013")]
-    [InlineData("DRNCV014")]
-    [InlineData("DRNCV015")]
-    [InlineData("DRNCV016")]
-    [InlineData("DRNCV017")]
-    [InlineData("DRNCV019")]
-    [InlineData("DRNCV020")]
+    [DataInlineUnit("DRNCV001")]
+    [DataInlineUnit("DRNCV002")]
+    [DataInlineUnit("DRNCV003")]
+    [DataInlineUnit("DRNCV004")]
+    [DataInlineUnit("DRNCV005")]
+    [DataInlineUnit("DRNCV006")]
+    [DataInlineUnit("DRNCV007")]
+    [DataInlineUnit("DRNCV008")]
+    [DataInlineUnit("DRNCV009")]
+    [DataInlineUnit("DRNCV010")]
+    [DataInlineUnit("DRNCV011")]
+    [DataInlineUnit("DRNCV012")]
+    [DataInlineUnit("DRNCV013")]
+    [DataInlineUnit("DRNCV014")]
+    [DataInlineUnit("DRNCV015")]
+    [DataInlineUnit("DRNCV016")]
+    [DataInlineUnit("DRNCV017")]
+    [DataInlineUnit("DRNCV019")]
+    [DataInlineUnit("DRNCV020")]
+    [DataInlineUnit("DRNCV021")]
+    [DataInlineUnit("DRNCV022")]
+    [DataInlineUnit("DRNCV023")]
+    [DataInlineUnit("DRNCV024")]
+    [DataInlineUnit("DRNCV025")]
+    [DataInlineUnit("DRNCV026")]
+    [DataInlineUnit("DRNCV027")]
+    [DataInlineUnit("DRNCV028")]
+    [DataInlineUnit("DRNCV029")]
     [DataInlineUnit("DRNCV030")]
     [DataInlineUnit("DRNCV031")]
+    [DataInlineUnit("DRNCV032")]
     public async Task Real_Violation_Should_Have_Exact_Public_Diagnostic_Contract(string id)
     {
         var scenario = ScenarioFor(id);
@@ -126,6 +157,10 @@ public sealed class ConventionDiagnosticContractTests
             diagnostic.Location.GetLineSpan().Path.Should().Be("DrnConventionInputs.g.cs");
             diagnostic.Location.SourceSpan.Should().Be(new Microsoft.CodeAnalysis.Text.TextSpan(4, 3));
         }
+        else if (scenario.Location == "none")
+        {
+            diagnostic.Location.Should().Be(Location.None);
+        }
         else
         {
             diagnostic.Location.SourceTree!.FilePath.Should().Be("ContractFixture.cs");
@@ -139,32 +174,44 @@ public sealed class ConventionDiagnosticContractTests
         reported.Location.Kind.Should().Be(diagnostic.Location.Kind);
         if (scenario.Location == "input")
             reported.Location.GetLineSpan().Path.Should().Be(ConventionInputs.FileName);
+        else if (scenario.Location == "none")
+            reported.Location.Should().Be(Location.None);
         else
             reported.Location.SourceTree!.GetText().ToString(reported.Location.SourceSpan).Should().Be(scenario.Location);
     }
 
     [Theory]
-    [InlineData("DRNCV001")]
-    [InlineData("DRNCV002")]
-    [InlineData("DRNCV003")]
-    [InlineData("DRNCV004")]
-    [InlineData("DRNCV005")]
-    [InlineData("DRNCV006")]
-    [InlineData("DRNCV007")]
-    [InlineData("DRNCV008")]
-    [InlineData("DRNCV009")]
-    [InlineData("DRNCV010")]
-    [InlineData("DRNCV011")]
-    [InlineData("DRNCV012")]
-    [InlineData("DRNCV013")]
-    [InlineData("DRNCV014")]
-    [InlineData("DRNCV015")]
-    [InlineData("DRNCV016")]
-    [InlineData("DRNCV017")]
-    [InlineData("DRNCV019")]
-    [InlineData("DRNCV020")]
+    [DataInlineUnit("DRNCV001")]
+    [DataInlineUnit("DRNCV002")]
+    [DataInlineUnit("DRNCV003")]
+    [DataInlineUnit("DRNCV004")]
+    [DataInlineUnit("DRNCV005")]
+    [DataInlineUnit("DRNCV006")]
+    [DataInlineUnit("DRNCV007")]
+    [DataInlineUnit("DRNCV008")]
+    [DataInlineUnit("DRNCV009")]
+    [DataInlineUnit("DRNCV010")]
+    [DataInlineUnit("DRNCV011")]
+    [DataInlineUnit("DRNCV012")]
+    [DataInlineUnit("DRNCV013")]
+    [DataInlineUnit("DRNCV014")]
+    [DataInlineUnit("DRNCV015")]
+    [DataInlineUnit("DRNCV016")]
+    [DataInlineUnit("DRNCV017")]
+    [DataInlineUnit("DRNCV019")]
+    [DataInlineUnit("DRNCV020")]
+    [DataInlineUnit("DRNCV021")]
+    [DataInlineUnit("DRNCV022")]
+    [DataInlineUnit("DRNCV023")]
+    [DataInlineUnit("DRNCV024")]
+    [DataInlineUnit("DRNCV025")]
+    [DataInlineUnit("DRNCV026")]
+    [DataInlineUnit("DRNCV027")]
+    [DataInlineUnit("DRNCV028")]
+    [DataInlineUnit("DRNCV029")]
     [DataInlineUnit("DRNCV030")]
     [DataInlineUnit("DRNCV031")]
+    [DataInlineUnit("DRNCV032")]
     public async Task Reviewed_Exception_Should_Cover_Only_The_Exact_Real_Violation_And_Expire_On_Review_Day(string id)
     {
         var scenario = ScenarioFor(id);
@@ -213,6 +260,32 @@ public sealed class ConventionDiagnosticContractTests
         var facts = Analyze(scenario, exact);
         new ConventionExceptions(facts, new DateOnly(2026, 11, 15)).Applies(facts.Diagnostics.Single()).Should().BeTrue();
         var mismatched = Analyze(scenario, exact with { Fields = exact.Fields.SetItem("Entity", "Sample.Infra.QA.OtherTarget") });
+        new ConventionExceptions(mismatched, new DateOnly(2026, 11, 15)).Applies(mismatched.Diagnostics.Single()).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Context_Qualified_Exception_Should_Only_Cover_The_Matching_Context_For_DRNCV027()
+    {
+        var baseScenario = ScenarioFor("DRNCV027");
+        var scenario = baseScenario with
+        {
+            Source = baseScenario.Source + """
+                public sealed class OtherContextNpgsqlDbContextOptionsAttribute : DRN.Framework.EntityFramework.Attributes.NpgsqlDbContextOptionsAttribute;
+                [OtherContextNpgsqlDbContextOptions]
+                public class OtherContext : DRN.Framework.EntityFramework.Context.DrnContext<OtherContext>
+                {
+                    public OtherContext() : base(null) { }
+                    public OtherContext(Microsoft.EntityFrameworkCore.DbContextOptions<OtherContext> options) : base(options) { }
+                }
+                """
+        };
+        var exact = Input("Exception", "DRNCV027", ("Target", scenario.Target),
+            ("Entity", "Order.Domain.QA.Order.OrderEntity"), ("Context", "Sample.Infra.QA.QAContext"),
+            ("Reason", "Reviewed single aggregate/context repository omission."),
+            ("Owner", "Persistence maintainers"), ("Review", "2026-12-01"));
+        var facts = Analyze(scenario, exact);
+        new ConventionExceptions(facts, new DateOnly(2026, 11, 15)).Applies(facts.Diagnostics.Single()).Should().BeTrue();
+        var mismatched = Analyze(scenario, exact with { Fields = exact.Fields.SetItem("Context", "Sample.Infra.QA.OtherContext") });
         new ConventionExceptions(mismatched, new DateOnly(2026, 11, 15)).Applies(mismatched.Diagnostics.Single()).Should().BeFalse();
     }
 
@@ -369,6 +442,84 @@ public sealed class ConventionDiagnosticContractTests
                 public class QAContext : Microsoft.EntityFrameworkCore.DbContext;
                 """, [], "T:Sample.Application.QA.QAContext", "QAContext",
                 "Application context 'QAContext' must implement IDrnContext or declare a narrow, justified exception.", ConventionContextAnalysis.Analyze),
+            "DRNCV021" => new("Domain", "namespace Sample.Domain.QA; public class OtherTarget;",
+                [Input("Reference", "Inventory", ("Stage", "Complete"))], "Sample.Domain:Contract", "input",
+                "Project 'Sample.Domain' requires a direct project reference to its 'Contract' layer.", ConventionDependencyAnalysis.Analyze,
+                IncludeRequiredLayers: false),
+            "DRNCV022" => new("Infra", "namespace Sample.Infra.QA; public class OtherTarget;",
+                [Input("Reference", "Inventory", ("Stage", "Complete")), .. EmptyDomain.Value.Records],
+                "Sample.Infra:Domain", "input",
+                "Infrastructure 'Sample.Infra' requires populated Domain subdomain '<any>'.", ConventionDependencyAnalysis.Analyze,
+                IncludeRequiredLayers: false, ExtraReferences: [EmptyDomain.Value.Reference]),
+            "DRNCV023" => new("Infra", infra + """
+                public class ChildRow;
+                public sealed class QAContextNpgsqlDbContextOptionsAttribute : DRN.Framework.EntityFramework.Attributes.NpgsqlDbContextOptionsAttribute;
+                [QAContextNpgsqlDbContextOptions]
+                """ + Context.Replace("BODY", "public Microsoft.EntityFrameworkCore.DbSet<ChildRow> Rows => Set<ChildRow>();", StringComparison.Ordinal),
+                [], "P:Sample.Infra.QA.QAContext.Rows", "Rows",
+                "DbSet property 'Rows' on context 'QAContext' exposes 'Sample.Infra.QA.ChildRow', which must derive from AggregateRoot.",
+                ConventionPersistenceAnalysis.Analyze),
+            "DRNCV024" => new("Domain", """
+                namespace Sample.Domain.QA { public class OtherTarget; }
+                namespace Sample.Domain.QA.Order
+                {
+                    public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+                    public interface IOrderRepository : DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<Order>;
+                }
+                """, [Input("Path", "ContractFixture.cs", ("LogicalPath", "QA/Order/ContractFixture.cs"))],
+                "T:Sample.Domain.QA.Order.Order", "Order",
+                "Rename 'Order' to end with 'Entity' and include a name before the suffix.", ConventionNamingAnalysis.Analyze),
+            "DRNCV025" => new("Domain", """
+                namespace Sample.Domain.QA { public class OtherTarget; }
+                namespace Sample.Domain.QA.Orders
+                {
+                    public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+                    public interface IOrderRepository : DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<OrderEntity>;
+                }
+                """, [Input("Path", "ContractFixture.cs", ("LogicalPath", "QA/Orders/ContractFixture.cs"))],
+                "T:Sample.Domain.QA.Orders.OrderEntity", "OrderEntity",
+                "Place aggregate 'OrderEntity' in a folder named 'Order' and a namespace ending in '.Order'.", ConventionNamingAnalysis.Analyze),
+            "DRNCV026" => new("Domain", """
+                namespace Sample.Domain.QA { public class OtherTarget; }
+                namespace Sample.Domain.QA.Order
+                {
+                    public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+                }
+                """, [Input("Path", "ContractFixture.cs", ("LogicalPath", "QA/Order/ContractFixture.cs"))],
+                "T:Sample.Domain.QA.Order.OrderEntity", "OrderEntity",
+                "Aggregate 'OrderEntity' has no matching repository interface in Domain subdomain 'QA'. Declare or move an interface extending ISourceKnownRepository<OrderEntity> into the same namespace and folder as 'OrderEntity'.",
+                ConventionAggregateRepositoryAnalysis.Analyze),
+            "DRNCV027" => new("Infra", """
+                namespace Sample.Infra.QA;
+                public class OtherTarget;
+                public sealed class QAContextNpgsqlDbContextOptionsAttribute : DRN.Framework.EntityFramework.Attributes.NpgsqlDbContextOptionsAttribute;
+                [QAContextNpgsqlDbContextOptions]
+                public class QAContext : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>
+                {
+                    public QAContext() : base(null) { }
+                    public QAContext(Microsoft.EntityFrameworkCore.DbContextOptions<QAContext> options) : base(options) { }
+                    public Microsoft.EntityFrameworkCore.DbSet<Order.Domain.QA.Order.OrderEntity> Orders => Set<Order.Domain.QA.Order.OrderEntity>();
+                }
+                """, [Input("Reference", "Inventory", ("Stage", "Complete")), .. OrderDomain.Value.Records],
+                "T:Sample.Infra.QA.QAContext", "QAContext",
+                "Aggregate 'OrderEntity' has no matching repository in Infra subdomain 'QA'. Add a concrete SourceKnownRepository implementation of its Domain repository interface.",
+                ConventionAggregateRepositoryAnalysis.Analyze, IncludeRequiredLayers: false, ExtraReferences: [OrderDomain.Value.Reference]),
+            "DRNCV028" => new("Infra", """
+                namespace Sample.Infra.QA;
+                public class OtherTarget;
+                public class Row;
+                public class CategoryConfig : Microsoft.EntityFrameworkCore.IEntityTypeConfiguration<Row>
+                {
+                    public void Configure(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<Row> builder) { }
+                }
+                """, [Input("Path", "ContractFixture.cs", ("LogicalPath", "QA/ContractFixture.cs"))],
+                "T:Sample.Infra.QA.CategoryConfig", "CategoryConfig",
+                "Place 'CategoryConfig' in a folder named 'Configurations' and a namespace ending in '.Configurations'.",
+                ConventionInfrastructureAnalysis.Analyze),
+            "DRNCV029" => new("Infra", infra + "public sealed class BadOptionsAttribute : DRN.Framework.EntityFramework.Attributes.NpgsqlDbContextOptionsAttribute;\n[BadOptions]\n" + Context.Replace("BODY", "", StringComparison.Ordinal),
+                [], "T:Sample.Infra.QA.QAContext", "BadOptions",
+                "Rename options 'BadOptionsAttribute' to start with 'QAContext' and end with 'Options'. An 'Attribute' suffix may follow. Recommended name: 'QAContextNpgsqlDbContextOptionsAttribute'.",
+                ConventionInfrastructureAnalysis.Analyze),
             "DRNCV031" => new("Application", "namespace Sample.Application.QA; public interface IWorker; public class Worker : IWorker; public class OtherTarget;",
                 [], "T:Sample.Application.QA.Worker", "Worker",
                 "'Worker' must register 'IWorker' through a matching LifetimeAttribute. Choose [Scoped<IWorker>], [Transient<IWorker>], or [Singleton<IWorker>] for its intended lifetime.",
@@ -377,6 +528,10 @@ public sealed class ConventionDiagnosticContractTests
                 [], "T:Sample.Infra.QA.QAContext", "QAContext",
                 "Context 'QAContext' must directly declare a custom attribute derived from NpgsqlDbContextOptionsAttribute. Recommended name: 'QAContextNpgsqlDbContextOptionsAttribute'.",
                 ConventionInfrastructureAnalysis.Analyze),
+            "DRNCV032" => new("Application", "namespace Sample.Application.QA; public class OtherTarget;",
+                [], "Sample.Application:Module", "none",
+                "Project 'Sample.Application' needs a public static *Module class with a public static method accepting and returning IServiceCollection. Call services.AddServicesWithAttributes() on that parameter to scan this project's assembly.",
+                static facts => ConventionRegistrationAnalysis.AnalyzeAll(facts, requireModule: true), IncludeModule: false),
             _ => throw new ArgumentOutOfRangeException(nameof(id))
         };
     }
@@ -384,10 +539,10 @@ public sealed class ConventionDiagnosticContractTests
     private static ConventionFacts Analyze(Scenario scenario, params ConventionInput[] extra)
     {
         var compilation = Compilation(scenario.Source, "ContractFixture.cs").WithAssemblyName("Sample." + scenario.Role)
-            .AddReferences(MetadataReference.CreateFromFile(typeof(DRN.Framework.EntityFramework.Context.DrnContext<>).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(DRN.Framework.Utils.Entity.IEntityUtils).Assembly.Location));
+            .AddReferences(FrameworkReference, UtilsReference);
+        if (scenario.ExtraReferences is { Length: > 0 } extraReferences) compilation = compilation.AddReferences(extraReferences);
         compilation.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
-        var options = new Options();
+        var options = new Options(scenario.Role);
         var facts = new ConventionFacts(compilation, new(true, "Sample." + scenario.Role, scenario.Role, "Sample." + scenario.Role, compilation.AssemblyName!, []),
             new([.. scenario.Inputs, .. extra], []), options, CancellationToken.None);
         scenario.Analyze(facts);
@@ -397,14 +552,17 @@ public sealed class ConventionDiagnosticContractTests
     private static async Task<ImmutableArray<Diagnostic>> AnalyzeProduction(Scenario scenario, params ConventionInput[] extra)
     {
         var compilation = Compilation(scenario.Source, "ContractFixture.cs").WithAssemblyName("Sample." + scenario.Role)
-            .AddReferences(MetadataReference.CreateFromFile(typeof(DRN.Framework.EntityFramework.Context.DrnContext<>).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(DRN.Framework.Utils.Entity.IEntityUtils).Assembly.Location));
+            .AddReferences(FrameworkReference, UtilsReference);
+        if (scenario.ExtraReferences is { Length: > 0 } extraReferences) compilation = compilation.AddReferences(extraReferences);
         if (scenario.IncludeModule && scenario.Role is ("Hosted" or "Application" or "Infra" or "Utils"))
             compilation = ConventionTestDependencies.WithModule(compilation);
         compilation.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
-        var fixture = ConventionTestDependencies.WithRequiredLayers(compilation, scenario.Role);
-        var records = scenario.Inputs.Concat(extra).Concat(fixture.Records).ToList();
-        records.Add(Input("Reference", "Inventory", ("Stage", "Complete")));
+        var (layered, layerRecords) = scenario.IncludeRequiredLayers
+            ? ConventionTestDependencies.WithRequiredLayers(compilation, scenario.Role)
+            : ((Compilation)compilation, ImmutableArray<ConventionInput>.Empty);
+        var records = scenario.Inputs.Concat(extra).Concat(layerRecords).ToList();
+        if (!records.Any(record => record.Kind == "Reference" && record.Identity == "Inventory"))
+            records.Add(Input("Reference", "Inventory", ("Stage", "Complete")));
         if (!records.Any(record => record.Kind == "Path"))
             records.Add(Input("Path", "ContractFixture.cs", ("LogicalPath", "QA/ContractFixture.cs")));
         var declarations = records.Select(record => "[assembly: DRN.Conventions." + record.Kind + "(" +
@@ -413,7 +571,7 @@ public sealed class ConventionDiagnosticContractTests
                     SymbolDisplay.FormatLiteral(field.Value, true))) + ")]");
         var input = new ProjectDiagnosticRulesTests.RuleFile(ConventionInputs.FileName,
             "[assembly: DRN.Conventions.Version(\"1\")]\n" + string.Join("\n", declarations));
-        var subject = scenario.ConventionsEnabled ? fixture.Compilation : ConventionTestDependencies.SuppressConventions(fixture.Compilation);
+        var subject = scenario.ConventionsEnabled ? layered : ConventionTestDependencies.SuppressConventions(layered);
         var diagnostics = await subject.WithAnalyzers([new SourceKnownConventionAnalyzer()],
             new AnalyzerOptions([input], new Options(scenario.Role))).GetAnalyzerDiagnosticsAsync();
         diagnostics.Should().NotContain(diagnostic => diagnostic.Id == "AD0001");
@@ -421,12 +579,28 @@ public sealed class ConventionDiagnosticContractTests
         return diagnostics;
     }
 
+    private static (MetadataReference Reference, ConventionInput[] Records) CreateDomainFixture(string assemblyName, string source)
+    {
+        var domain = Compilation(source).WithAssemblyName(assemblyName);
+        domain.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        using var image = new MemoryStream();
+        domain.Emit(image).Success.Should().BeTrue();
+        var path = "/convention-fixtures/" + assemblyName;
+        ConventionInput[] records =
+        [
+            Input("Reference", path + ".csproj", ("Stage", "Project"), ("Source", path + ".csproj")),
+            Input("Reference", path + ".dll", ("Stage", "Resolved"), ("Project", path + ".csproj"))
+        ];
+        return (MetadataReference.CreateFromImage(image.ToArray(), filePath: path + ".dll"), records);
+    }
+
     private static ConventionInput Input(string kind, string identity, params (string Key, string Value)[] fields) => new(kind, identity,
         fields.ToImmutableDictionary(field => field.Key, field => field.Value),
         Location.Create("DrnConventionInputs.g.cs", new(4, 3), new(new(0, 4), new(0, 7))));
 
     private sealed record Scenario(string Role, string Source, ConventionInput[] Inputs, string Target, string Location,
-        string Message, Action<ConventionFacts> Analyze, bool ConventionsEnabled = true, bool IncludeModule = true);
+        string Message, Action<ConventionFacts> Analyze, bool ConventionsEnabled = true, bool IncludeModule = true,
+        bool IncludeRequiredLayers = true, MetadataReference[]? ExtraReferences = null);
 
     private sealed class Options(string role = "Domain") : AnalyzerConfigOptionsProvider
     {

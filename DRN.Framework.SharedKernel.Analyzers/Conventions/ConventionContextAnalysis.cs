@@ -7,8 +7,8 @@ internal static class ConventionContextAnalysis
 {
     internal static void Analyze(ConventionFacts facts)
     {
-        var registrations = ReadRegistrations(facts);
-        var artifacts = ReadContextArtifacts(facts);
+        Dictionary<INamedTypeSymbol, Registration>? registrations = null;
+        ContextArtifacts? artifacts = null;
         foreach (var type in facts.Types)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
@@ -21,7 +21,7 @@ internal static class ConventionContextAnalysis
                 facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.ContextContract, location,
                     System.Collections.Immutable.ImmutableDictionary<string, string?>.Empty
                         .Add("Target", type.GetDocumentationCommentId()), type.Name));
-            if (ConventionSymbols.IsOpen(type, facts.Cancellation) || facts.Role(type).Role != "Infra") continue;
+            if (facts.Symbols.IsOpen(type, facts.Cancellation) || facts.Role(type).Role != "Infra") continue;
             if (!type.Name.EndsWith("Context", StringComparison.Ordinal) || type.Name.Length <= "Context".Length)
                 facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.ContextName, location, type.Name));
 
@@ -29,8 +29,8 @@ internal static class ConventionContextAnalysis
             if (!facts.HasInvalidContext(type))
             {
                 AnalyzeAlias(facts, type, input, location);
-                AnalyzeDestinations(facts, type, input, location, artifacts);
-                registrations.TryGetValue(type, out var registration);
+                AnalyzeDestinations(facts, type, input, location, artifacts ??= ReadContextArtifacts(facts));
+                (registrations ??= ReadRegistrations(facts)).TryGetValue(type, out var registration);
                 AnalyzeConstruction(facts, type, input, registration, location);
                 // Options may be supplied by another composition path. An empty local delegate is not proof of absence.
                 if (!string.IsNullOrWhiteSpace(input?.Get("Provider")) && string.IsNullOrWhiteSpace(input.Get("Reason")))
@@ -100,7 +100,7 @@ internal static class ConventionContextAnalysis
     {
         var factory = facts.Compilation.GetTypeByMetadataName("Microsoft.EntityFrameworkCore.Design.IDesignTimeDbContextFactory`1");
         if (factory is null) return false;
-        foreach (var binding in ConventionSymbols.Bindings(type, factory, facts.Cancellation))
+        foreach (var binding in facts.Symbols.Bindings(type, factory, facts.Cancellation))
         foreach (var member in binding.GetMembers("CreateDbContext"))
             if (type.FindImplementationForInterfaceMember(member) is IMethodSymbol implementation &&
                 (ConventionSymbols.Same(implementation.ContainingType, facts.Symbols.DrnContext) ||
@@ -168,7 +168,7 @@ internal static class ConventionContextAnalysis
         {
             if (kind == "Migrations" && input?.Get("MigrationsAssembly") is { Length: > 0 } assembly &&
                 assembly != type.ContainingAssembly.Name) return false;
-            if (!HasLogicalHome(type, area)) return false;
+            if (!HasLogicalHome(type, area, ignoreGenerated: true)) return false;
             var index = kind == "Repositories" ? artifacts.Repositories : artifacts.Migrations;
             if (!index.TryGetValue(type, out var associated)) return true;
             var expectedNamespace = ns + "." + kind;
@@ -181,13 +181,13 @@ internal static class ConventionContextAnalysis
             return true;
         }
 
-        bool HasLogicalHome(INamedTypeSymbol symbol, string expected)
+        bool HasLogicalHome(INamedTypeSymbol symbol, string expected, bool ignoreGenerated = false)
         {
             if (symbol.DeclaringSyntaxReferences.Length == 0) return false;
             foreach (var reference in symbol.DeclaringSyntaxReferences)
             {
                 facts.Cancellation.ThrowIfCancellationRequested();
-                if (facts.IsGenerated(reference.SyntaxTree)) continue;
+                if (ignoreGenerated && facts.IsGenerated(reference.SyntaxTree)) continue;
                 if (facts.HasInvalidPath(reference.SyntaxTree) ||
                     facts.LogicalDirectory(reference.SyntaxTree)?.Directory != expected) return false;
             }
@@ -208,7 +208,7 @@ internal static class ConventionContextAnalysis
         {
             facts.Cancellation.ThrowIfCancellationRequested();
             if (facts.Symbols.IsKnown(type, facts.Symbols.Repository, facts.Cancellation))
-                foreach (var binding in ConventionSymbols.Bindings(type, facts.Symbols.Repository, facts.Cancellation))
+                foreach (var binding in facts.Symbols.Bindings(type, facts.Symbols.Repository, facts.Cancellation))
                     if (binding.TypeArguments is [INamedTypeSymbol context, _]) Add(result.Repositories, context, type);
             if (!facts.Symbols.IsKnown(type, facts.Symbols.Migration, facts.Cancellation) &&
                 !facts.Symbols.IsKnown(type, facts.Symbols.Snapshot, facts.Cancellation)) continue;
@@ -239,7 +239,7 @@ internal static class ConventionContextAnalysis
         {
             facts.Cancellation.ThrowIfCancellationRequested();
             if (member is not IPropertySymbol { IsStatic: false, Type: INamedTypeSymbol propertyType }) continue;
-            foreach (var binding in ConventionSymbols.Bindings(propertyType, facts.Symbols.DbSet, facts.Cancellation))
+            foreach (var binding in facts.Symbols.Bindings(propertyType, facts.Symbols.DbSet, facts.Cancellation))
                 if (binding.TypeArguments is [INamedTypeSymbol entity] &&
                     facts.Symbols.IsKnown(entity, facts.Symbols.Aggregate, facts.Cancellation)) return true;
         }

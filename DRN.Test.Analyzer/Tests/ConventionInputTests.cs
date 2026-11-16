@@ -1,5 +1,9 @@
+extern alias SharedKernelAnalyzers;
+
 using DRN.Framework.SharedKernel.Analyzers.Conventions;
 using Microsoft.CodeAnalysis.Emit;
+using ConventionInputLimits = SharedKernelAnalyzers::DRN.Framework.SharedKernel.Analyzers.Conventions.ConventionInputLimits;
+using ConventionInputSyntax = SharedKernelAnalyzers::DRN.Framework.SharedKernel.Analyzers.Conventions.ConventionInputSyntax;
 using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
 using static DRN.Test.Analyzer.Tests.ProjectDiagnosticRulesTests;
 

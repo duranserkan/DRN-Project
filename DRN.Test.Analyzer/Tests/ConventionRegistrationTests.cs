@@ -6,6 +6,10 @@ namespace DRN.Test.Analyzer.Tests;
 
 public sealed class ConventionRegistrationTests
 {
+    private static readonly MetadataReference UtilsReference = MetadataReference.CreateFromFile(typeof(LifetimeAttribute).Assembly.Location);
+    private static readonly MetadataReference FrameworkReference = MetadataReference.CreateFromFile(
+        typeof(DRN.Framework.EntityFramework.Context.IDrnContext).Assembly.Location);
+
     [Theory]
     [DataInlineUnit("typeof(ProjectModule).Assembly", true)]
     [DataInlineUnit("typeof(IServiceCollection).Assembly", false)]
@@ -372,6 +376,33 @@ public sealed class ConventionRegistrationTests
     }
 
     [Theory]
+    [DataInlineUnit("", true)]
+    [DataInlineUnit("var custom = new CustomRegistration(services);", false)]
+    [DataInlineUnit("CustomRegistration custom = new(services);", false)]
+    public void Composition_Scan_Should_Preserve_Unknown_Object_Creation(string creation, bool missing)
+    {
+        var facts = Analyze(Prefix + $$"""
+            public class CategoryService : ICategoryService
+            {
+                public ISourceKnownRepository<Category> Repository => null!;
+            }
+            public class CustomRegistration
+            {
+                public CustomRegistration(IServiceCollection services) { }
+            }
+            public static class Module
+            {
+                public static void Register(IServiceCollection services)
+                {
+                    services.AddServicesWithAttributes(typeof(Module).Assembly);
+                    {{creation}}
+                }
+            }
+            """);
+        facts.Diagnostics.Count(item => item.Id == "DRNCV012").Should().Be(missing ? 1 : 0);
+    }
+
+    [Theory]
     [InlineData("read", false)]
     [InlineData("write", true)]
     public void Keyed_Selection_Should_Match_The_Declared_Key(string key, bool missing)
@@ -709,7 +740,7 @@ public sealed class ConventionRegistrationTests
                 }
             }
             """).WithAssemblyName("Sample.Application")
-            .AddReferences(MetadataReference.CreateFromFile(typeof(LifetimeAttribute).Assembly.Location));
+            .AddReferences(UtilsReference);
         compilation.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
         var input = new ProjectDiagnosticRulesTests.RuleFile(ConventionInputs.FileName, """
             [assembly: DRN.Conventions.Version("1")]
@@ -934,11 +965,81 @@ public sealed class ConventionRegistrationTests
         Analyze(source, includeDemand: false).Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV012").Should().Be(missing ? 1 : 0);
     }
 
-    private static ConventionFacts Analyze(string source, string key = "", string reason = "", bool includeDemand = true, string role = "Application")
+    [Fact]
+    public void NonDomain_Framework_Interfaces_Should_Not_Trigger_Paired_Lifetime_Diagnostics()
+    {
+        var diagnostics = Analyze("""
+            using DRN.Framework.Utils.DependencyInjection;
+            using Microsoft.Extensions.DependencyInjection;
+            namespace Sample.Application.QA;
+            public sealed class Disposable : System.IDisposable
+            {
+                public void Dispose() { }
+            }
+            public sealed class Comparer : System.Collections.Generic.IComparer<int>
+            {
+                public int Compare(int x, int y) => x.CompareTo(y);
+            }
+            """ + Scan, includeDemand: false, includeLifetime: true).Diagnostics;
+        diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Ambiguous_Lifetime_Attributes_Should_Report_DRNCV012_On_Unpaired_Demands()
+    {
+        var diagnostics = Analyze("""
+            using DRN.Framework.Utils.DependencyInjection;
+            using DRN.Framework.Utils.DependencyInjection.Attributes;
+            using Microsoft.Extensions.DependencyInjection;
+            namespace Sample.Application.QA;
+            public interface IWorker { int Read(); }
+            public interface IExtra { int Read(); }
+            [Scoped<IWorker>]
+            [Transient<IExtra>]
+            public sealed class Worker : IWorker, IExtra { public int Read() => 1; }
+            public interface IConsumer { int Read(); }
+            [Scoped<IConsumer>]
+            public sealed class Consumer(IExtra extra) : IConsumer { public int Read() => extra.Read(); }
+            """ + Scan, includeDemand: false, includeLifetime: true).Diagnostics;
+        diagnostics.Should().Contain(item => item.Id == "DRNCV031" && item.GetMessage().Contains("IWorker", StringComparison.Ordinal));
+        diagnostics.Should().Contain(item => item.Id == "DRNCV012" && item.GetMessage().Contains("IExtra", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [DataInlineUnit("public", "", "DRNCV031")]
+    [DataInlineUnit("internal", "[Scoped<Common.SharedKernel.IWorker>]", "DRNCV012")]
+    [DataInlineUnit("public", "[Scoped<Common.SharedKernel.IWorker>]", "")]
+    public void SharedKernel_Paired_Interfaces_Should_Enforce_Lifetime_And_Registration_Conventions(
+        string accessibility, string attribute, string expectedRule)
+    {
+        var sharedKernel = Compilation("""
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Common.SharedKernel")]
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Common.SharedKernel")]
+            namespace Common.SharedKernel;
+            public interface IWorker { int Read(); }
+            """).WithAssemblyName("Common.SharedKernel");
+        using var image = new MemoryStream();
+        sharedKernel.Emit(image).Success.Should().BeTrue();
+        var sharedReference = MetadataReference.CreateFromImage(image.ToArray());
+
+        var diagnostics = Analyze($$"""
+            using DRN.Framework.Utils.DependencyInjection;
+            using DRN.Framework.Utils.DependencyInjection.Attributes;
+            using Microsoft.Extensions.DependencyInjection;
+            namespace Sample.Application.QA;
+            {{attribute}}
+            {{accessibility}} sealed class Worker : Common.SharedKernel.IWorker { public int Read() => 1; }
+            """ + Scan, includeDemand: false, includeLifetime: true, extraReferences: [sharedReference]).Diagnostics;
+        if (expectedRule.Length == 0) diagnostics.Should().BeEmpty();
+        else diagnostics.Should().ContainSingle().Which.Id.Should().Be(expectedRule);
+    }
+
+    private static ConventionFacts Analyze(string source, string key = "", string reason = "", bool includeDemand = true,
+        string role = "Application", bool includeLifetime = false, MetadataReference[]? extraReferences = null)
     {
         var compilation = Compilation(source).WithAssemblyName("Sample." + role)
-            .AddReferences(MetadataReference.CreateFromFile(typeof(LifetimeAttribute).Assembly.Location),
-                MetadataReference.CreateFromFile(typeof(DRN.Framework.EntityFramework.Context.IDrnContext).Assembly.Location));
+            .AddReferences(UtilsReference, FrameworkReference);
+        if (extraReferences is { Length: > 0 }) compilation = compilation.AddReferences(extraReferences);
         compilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
         var options = new Options(role);
         var registration = new ConventionInput("Registration", "Sample.Application.QA.CategoryService",
@@ -949,7 +1050,8 @@ public sealed class ConventionRegistrationTests
             Location.Create("DrnConventionInputs.g.cs", new(0, 1), new(new(0, 0), new(0, 1))));
         var facts = new ConventionFacts(compilation, ConventionProject.Read(compilation, options.GlobalOptions),
             new(includeDemand ? [registration] : [], []), options, CancellationToken.None);
-        ConventionRegistrationAnalysis.Analyze(facts);
+        if (includeLifetime) ConventionRegistrationAnalysis.AnalyzeAll(facts);
+        else ConventionRegistrationAnalysis.Analyze(facts);
         return facts;
     }
 

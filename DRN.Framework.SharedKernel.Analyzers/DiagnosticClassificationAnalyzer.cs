@@ -45,6 +45,7 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
             var contract = new ClassificationContract(sensitive, personal);
             var captureApis = new CaptureApis(start.Compilation);
             var exemptions = new DiagnosticNameExemption();
+            var dictionaryTypes = new DictionaryCaptureAnalysis.DictionaryTypeFacts();
             start.RegisterSyntaxTreeAction(exemptions.Collect);
             start.RegisterCompilationEndAction(exemptions.ReportUnused);
             start.RegisterSymbolAction(symbol => AnalyzeProperty(symbol, contract, rules), SymbolKind.Property);
@@ -52,7 +53,7 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
             start.RegisterSyntaxNodeAction(node => AnalyzeAttribute(node, contract), Microsoft.CodeAnalysis.CSharp.SyntaxKind.Attribute);
             start.RegisterOperationBlockStartAction(block =>
             {
-                var localWrites = new DictionaryCaptureAnalysis.LocalWriteIndex();
+                var localWrites = new DictionaryCaptureAnalysis.LocalWriteIndex(dictionaryTypes);
                 block.RegisterOperationAction(operation =>
                     AnalyzeInvocation(operation, contract, captureApis, rules, exemptions, localWrites), OperationKind.Invocation);
             });
@@ -228,13 +229,14 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
     private static void AnalyzeAttribute(SyntaxNodeAnalysisContext context, ClassificationContract contract)
     {
         var syntax = (AttributeSyntax)context.Node;
-        if (context.SemanticModel.GetSymbolInfo(syntax, context.CancellationToken).Symbol is not IMethodSymbol constructor ||
-            !SymbolEqualityComparer.Default.Equals(constructor.ContainingType, contract.Sensitive)) return;
         var argument = syntax.ArgumentList?.Arguments.FirstOrDefault(item => item.NameEquals == null);
-        if (argument == null || context.SemanticModel.GetConstantValue(argument.Expression, context.CancellationToken) is not { HasValue: true, Value: false }) return;
+        if (argument == null) return;
         // A positional record parameter with property: targets the generated property.
         var target = syntax.Parent as AttributeListSyntax;
         if (target?.Parent is PropertyDeclarationSyntax || target?.Parent is ParameterSyntax && target.Target?.Identifier.ValueText == "property") return;
+        if (context.SemanticModel.GetSymbolInfo(syntax, context.CancellationToken).Symbol is not IMethodSymbol constructor ||
+            !SymbolEqualityComparer.Default.Equals(constructor.ContainingType, contract.Sensitive)) return;
+        if (context.SemanticModel.GetConstantValue(argument.Expression, context.CancellationToken) is not { HasValue: true, Value: false }) return;
         context.ReportDiagnostic(Diagnostic.Create(InvalidExemption, syntax.GetLocation(), "Use [Sensitive(false)] only on properties"));
     }
 

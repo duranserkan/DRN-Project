@@ -1013,4 +1013,19 @@ public sealed class DiagnosticClassificationAnalyzerTests
             """));
         diagnostics.Should().Contain(item => item.Id == "DRN0016");
     }
+
+    [Fact]
+    public async Task Aliased_Attribute_With_Constant_False_Argument_Should_Satisfy_Model_Declaration()
+    {
+        var diagnostics = await Analyze(Compilation("""
+            using S = DRN.Framework.SharedKernel.Attributes.SensitiveAttribute;
+            public class Constants { public const bool FalseValue = false; }
+            public class Model
+            {
+                [S(Constants.FalseValue)]
+                public string Username { get; set; } = "";
+            }
+            """));
+        diagnostics.Should().BeEmpty();
+    }
 }

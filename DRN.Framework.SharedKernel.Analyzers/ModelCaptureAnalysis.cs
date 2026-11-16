@@ -11,16 +11,6 @@ internal sealed class ModelCaptureAnalysis(OperationAnalysisContext context, Cla
 {
     private const int MaxModelDepth = 16;
     internal const int MaxModelWork = 16384;
-    private const string TimeSpanTypeName = "System.TimeSpan";
-    private const string NullableTimeSpanTypeName = TimeSpanTypeName + "?";
-    private const string DateTimeOffsetTypeName = "System.DateTimeOffset";
-    private const string DateOnlyTypeName = "System.DateOnly";
-    private const string TimeOnlyTypeName = "System.TimeOnly";
-    private const string UriTypeName = "System.Uri";
-    private const string GuidTypeName = "System.Guid";
-    private const string ScopeEventTypeName = "DRN.Framework.Utils.Logging.ScopeEvent";
-    private const string JsonElementTypeName = "System.Text.Json.JsonElement";
-    private const string EnumerableTypeName = "System.Collections.IEnumerable";
     private const string SecondsSuffix = "_Seconds";
     private readonly HashSet<ITypeSymbol> _ancestors = new(SymbolEqualityComparer.Default);
     // Shared types must be revisited under different paths, so depth alone cannot bound work.
@@ -48,7 +38,7 @@ internal sealed class ModelCaptureAnalysis(OperationAnalysisContext context, Cla
     {
         context.CancellationToken.ThrowIfCancellationRequested();
         if (contract.Positive(type, context.CancellationToken)) return;
-        if (call.TargetMethod.Name == "Add" && type.ToDisplayString() is TimeSpanTypeName or NullableTimeSpanTypeName)
+        if (call.TargetMethod.Name == "Add" && contract.ModelType(type, context.CancellationToken).TimeSpan)
             path += SecondsSuffix;
         if (rules.MatchesPath(path) || !namesAcknowledged && !IsModelType(type) && rules.MatchesField(path) &&
             !exemptions.Allows(call.Syntax, path))
@@ -76,19 +66,14 @@ internal sealed class ModelCaptureAnalysis(OperationAnalysisContext context, Cla
     }
 
     private bool ShouldSkipType(ITypeSymbol current, int depth) =>
-        depth > MaxModelDepth || current.SpecialType != SpecialType.None || current.TypeKind is TypeKind.Enum or TypeKind.TypeParameter ||
-        current.ToDisplayString() is TimeSpanTypeName or DateTimeOffsetTypeName or DateOnlyTypeName or TimeOnlyTypeName or
-            UriTypeName or GuidTypeName or ScopeEventTypeName || contract.Positive(current, context.CancellationToken);
+        depth > MaxModelDepth || contract.ModelType(current, context.CancellationToken).Scalar ||
+        contract.Positive(current, context.CancellationToken);
 
     private void VisitNamedType(INamedTypeSymbol named, string currentPath, string namePath, int depth)
     {
-        if (IsUri(named)) return;
-        if (named.AllInterfaces.Any(item => item.ToDisplayString() == "System.Collections.IDictionary" ||
-                item.OriginalDefinition.ToDisplayString() == "System.Collections.Generic.IReadOnlyDictionary<TKey, TValue>")) return;
-        if (named.ToDisplayString() == JsonElementTypeName) return;
-        var list = named.AllInterfaces.FirstOrDefault(item => item.OriginalDefinition.ToDisplayString() == "System.Collections.Generic.IList<T>");
-        if (list != null) { Visit(list.TypeArguments[0], currentPath, namePath, depth + 1); return; }
-        if (named.AllInterfaces.Any(item => item.ToDisplayString() == EnumerableTypeName)) return;
+        var shape = contract.ModelType(named, context.CancellationToken);
+        if (shape.SkipProperties) return;
+        if (shape.ListElement is { } element) { Visit(element, currentPath, namePath, depth + 1); return; }
         VisitProperties(named, currentPath, namePath, depth);
     }
 
@@ -111,7 +96,7 @@ internal sealed class ModelCaptureAnalysis(OperationAnalysisContext context, Cla
     private void VisitProperty(IPropertySymbol property, string full, string propertyNamePath, int depth)
     {
         // Flat property capture converts TimeSpan to seconds and checks the resulting key again.
-        if (flat && depth == 0 && property.Type.ToDisplayString() is TimeSpanTypeName or NullableTimeSpanTypeName)
+        if (flat && depth == 0 && contract.ModelType(property.Type, context.CancellationToken).TimeSpan)
         {
             full += SecondsSuffix;
             propertyNamePath += SecondsSuffix;
@@ -122,7 +107,7 @@ internal sealed class ModelCaptureAnalysis(OperationAnalysisContext context, Cla
             ReportProperty(property, full);
             return;
         }
-        if (namesAcknowledged || !rules.MatchesField(propertyNamePath) || contract.Exempt(property))
+        if (namesAcknowledged || !rules.MatchesField(propertyNamePath) || contract.Exempt(property, context.CancellationToken))
         {
             Visit(property.Type, full, propertyNamePath, depth + 1);
             return;
@@ -138,23 +123,5 @@ internal sealed class ModelCaptureAnalysis(OperationAnalysisContext context, Cla
     private void ReportProperty(IPropertySymbol property, string path) =>
         context.ReportDiagnostic(Diagnostic.Create(ClassificationDiagnosticDescriptors.PathClassification, call.Syntax.GetLocation(), path, property.Name));
 
-    private static bool IsModelType(ITypeSymbol type)
-    {
-        if (type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable)
-            type = nullable.TypeArguments[0];
-        return type is INamedTypeSymbol { IsAnonymousType: false } named && type.SpecialType == SpecialType.None &&
-            type.TypeKind != TypeKind.Enum &&
-            type.ToDisplayString() is not (TimeSpanTypeName or DateTimeOffsetTypeName or DateOnlyTypeName or TimeOnlyTypeName or GuidTypeName or
-                JsonElementTypeName or ScopeEventTypeName) &&
-            !IsUri(named) &&
-            type.ToDisplayString() != EnumerableTypeName &&
-            !named.AllInterfaces.Any(item => item.ToDisplayString() == EnumerableTypeName);
-    }
-
-    private static bool IsUri(INamedTypeSymbol type)
-    {
-        for (var current = type; current != null; current = current.BaseType)
-            if (current.ToDisplayString() == UriTypeName) return true;
-        return false;
-    }
+    private bool IsModelType(ITypeSymbol type) => contract.ModelType(type, context.CancellationToken).Model;
 }

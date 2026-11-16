@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using DRN.Framework.CompilerTools;
 using DRN.Framework.SharedKernel.Diagnostics;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
@@ -81,7 +82,7 @@ internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context
             _activeLocals.Remove(local.Local);
             return;
         }
-        if (operation is IObjectCreationOperation creation && IsDictionary(creation.Type))
+        if (operation is IObjectCreationOperation creation && localWrites.IsDictionary(creation.Type, context.CancellationToken))
         {
             InspectDictionaryCreation(creation, allowKeys, depth, capturePath);
             return;
@@ -93,10 +94,35 @@ internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context
         }
     }
 
-    private static bool IsDictionary(ITypeSymbol? type) => type is INamedTypeSymbol named &&
-        new[] { named }.Concat(named.AllInterfaces).Any(item => item.ToDisplayString() == "System.Collections.IDictionary" ||
-            item.OriginalDefinition.ToDisplayString() is "System.Collections.Generic.IDictionary<TKey, TValue>" or
-                "System.Collections.Generic.IReadOnlyDictionary<TKey, TValue>");
+    internal sealed class DictionaryTypeFacts
+    {
+        private readonly SymbolFactCache<INamedTypeSymbol, bool> _types = new();
+
+        internal bool IsDictionary(ITypeSymbol? type, CancellationToken cancellation)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (type is not INamedTypeSymbol named) return false;
+            if (named.IsReferenceType && named.NullableAnnotation != NullableAnnotation.NotAnnotated)
+                named = (INamedTypeSymbol)named.WithNullableAnnotation(NullableAnnotation.NotAnnotated);
+            return _types.GetOrAdd(named, Calculate, cancellation);
+        }
+
+        private static bool Calculate(INamedTypeSymbol type, CancellationToken cancellation)
+        {
+            if (IsDictionaryContract(type)) return true;
+            foreach (var contract in type.AllInterfaces)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                if (IsDictionaryContract(contract)) return true;
+            }
+            return false;
+        }
+
+        private static bool IsDictionaryContract(INamedTypeSymbol type) =>
+            type.ToDisplayString() == "System.Collections.IDictionary" ||
+            type.OriginalDefinition.ToDisplayString() is "System.Collections.Generic.IDictionary<TKey, TValue>" or
+                "System.Collections.Generic.IReadOnlyDictionary<TKey, TValue>";
+    }
 
     private static bool IsScalar(ITypeSymbol? type)
     {
@@ -141,9 +167,11 @@ internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context
         }
     }
 
-    internal sealed class LocalWriteIndex
+    internal sealed class LocalWriteIndex(DictionaryTypeFacts dictionaryTypes)
     {
         private ConcurrentDictionary<IOperation, Dictionary<ILocalSymbol, List<IOperation>>>? _roots;
+
+        internal bool IsDictionary(ITypeSymbol? type, CancellationToken cancellation) => dictionaryTypes.IsDictionary(type, cancellation);
 
         internal Dictionary<ILocalSymbol, List<IOperation>> Get(IInvocationOperation call, CancellationToken cancellation)
         {
@@ -152,10 +180,10 @@ internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context
             while (root?.Parent != null) root = root.Parent;
             if (root == null) return new(SymbolEqualityComparer.Default);
             var roots = LazyInitializer.EnsureInitialized(ref _roots);
-            return roots.GetOrAdd(root, static (operation, token) => Index(operation, token), cancellation);
+            return roots.GetOrAdd(root, Index, cancellation);
         }
 
-        private static Dictionary<ILocalSymbol, List<IOperation>> Index(IOperation root, CancellationToken cancellation)
+        private Dictionary<ILocalSymbol, List<IOperation>> Index(IOperation root, CancellationToken cancellation)
         {
             var writes = new Dictionary<ILocalSymbol, List<IOperation>>(SymbolEqualityComparer.Default);
             // Index once per operation root. Each capture applies its own position cutoff.
@@ -165,7 +193,7 @@ internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context
                 cancellation.ThrowIfCancellationRequested();
                 if (remaining-- == 0) break;
                 var local = operation is IVariableDeclaratorOperation { Initializer: not null } declaration
-                    ? declaration.Symbol : GetWrittenLocal(operation);
+                    ? declaration.Symbol : GetWrittenLocal(operation, cancellation);
                 if (local == null) continue;
                 if (!writes.TryGetValue(local, out var entries))
                 {
@@ -177,7 +205,7 @@ internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context
             return writes;
         }
 
-        private static ILocalSymbol? GetWrittenLocal(IOperation operation)
+        private ILocalSymbol? GetWrittenLocal(IOperation operation, CancellationToken cancellation)
         {
             if (operation is ISimpleAssignmentOperation { Target: ILocalReferenceOperation local }) return local.Local;
             var receiver = operation switch
@@ -189,7 +217,7 @@ internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context
                 } => instance,
                 _ => null
             };
-            return receiver != null && IsDictionary(receiver.Type) ? receiver.Local : null;
+            return receiver != null && IsDictionary(receiver.Type, cancellation) ? receiver.Local : null;
         }
     }
 

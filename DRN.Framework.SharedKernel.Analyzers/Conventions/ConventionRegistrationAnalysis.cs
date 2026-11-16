@@ -27,34 +27,32 @@ internal static class ConventionRegistrationAnalysis
     internal static void AnalyzeLifetimeAttributes(ConventionFacts facts) =>
         AnalyzeLifetimeAttributes(facts, ReadImplementations(facts));
 
-    private static Dictionary<INamedTypeSymbol, INamedTypeSymbol>? AnalyzeLifetimeAttributes(ConventionFacts facts, INamedTypeSymbol[] implementations)
+    private static Dictionary<INamedTypeSymbol, HashSet<INamedTypeSymbol>>? AnalyzeLifetimeAttributes(ConventionFacts facts, INamedTypeSymbol[] implementations)
     {
-        Dictionary<INamedTypeSymbol, INamedTypeSymbol>? failures = null;
+        Dictionary<INamedTypeSymbol, HashSet<INamedTypeSymbol>>? failures = null;
+        var matched = new List<INamedTypeSymbol>();
         foreach (var implementation in implementations)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
-            INamedTypeSymbol? registeredService = null;
-            var lifetimeRead = false;
+            matched.Clear();
             foreach (var service in implementation.AllInterfaces)
             {
                 facts.Cancellation.ThrowIfCancellationRequested();
                 if (service.Name.Length != implementation.Name.Length + 1 || service.Name[0] != 'I' ||
-                    !service.Name.AsSpan(1).SequenceEqual(implementation.Name.AsSpan())) continue;
-                if (!lifetimeRead)
-                {
-                    registeredService = GetLifetime(facts, implementation).Service;
-                    lifetimeRead = true;
-                }
-                if (SymbolEqualityComparer.Default.Equals(registeredService, service)) continue;
-                var location = facts.Location(implementation);
-                if (location != Location.None)
-                {
-                    facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.LifetimeRequired, location,
-                        ImmutableDictionary<string, string?>.Empty.Add("Target", implementation.GetDocumentationCommentId()),
-                        implementation.Name, service.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
-                    (failures ??= new(SymbolEqualityComparer.Default)).Add(implementation, service);
-                }
-                break;
+                    !service.Name.AsSpan(1).SequenceEqual(implementation.Name.AsSpan()) ||
+                    facts.Role(service).Role.Length == 0) continue;
+                matched.Add(service);
+            }
+            if (matched.Count == 0) continue;
+            var registeredService = GetLifetime(facts, implementation).Service;
+            if (matched.Any(service => SymbolEqualityComparer.Default.Equals(registeredService, service))) continue;
+            var location = facts.Location(implementation);
+            if (location != Location.None)
+            {
+                facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.LifetimeRequired, location,
+                    ImmutableDictionary<string, string?>.Empty.Add("Target", implementation.GetDocumentationCommentId()),
+                    implementation.Name, matched[0].ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
+                (failures ??= new(SymbolEqualityComparer.Default)).Add(implementation, new(matched, SymbolEqualityComparer.Default));
             }
         }
         return failures;
@@ -160,14 +158,29 @@ internal static class ConventionRegistrationAnalysis
     internal static void Analyze(ConventionFacts facts) => Analyze(facts, ReadImplementations(facts));
 
     private static void Analyze(ConventionFacts facts, INamedTypeSymbol[] implementations,
-        Dictionary<INamedTypeSymbol, INamedTypeSymbol>? lifetimeFailures = null, bool requireModule = false)
+        Dictionary<INamedTypeSymbol, HashSet<INamedTypeSymbol>>? lifetimeFailures = null, bool requireModule = false)
     {
+        facts.Cancellation.ThrowIfCancellationRequested();
         var demands = facts.Records.Where(input => input.Kind == "Registration").ToArray();
+        var needsModule = requireModule && facts.Project.Role is ("Hosted" or "Application" or "Infra" or "Utils");
+        if (implementations.Length == 0 && demands.Length == 0 && !needsModule) return;
         var evidence = ReadComposition(facts);
-        if (requireModule && facts.Project.Role is ("Hosted" or "Application" or "Infra" or "Utils") && !evidence.ModuleScan)
-            facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.ModuleScan, Location.None, facts.Project.Name));
+        if (needsModule && !evidence.ModuleScan)
+            facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.ModuleScan, Location.None,
+                ImmutableDictionary<string, string?>.Empty.Add("Target", facts.Project.AssemblyName + ":Module"), facts.Project.Name));
+        if (implementations.Length == 0 && demands.Length == 0) return;
         var serviceImplementations = new Dictionary<INamedTypeSymbol, INamedTypeSymbol?>(SymbolEqualityComparer.Default);
-        var observedServices = ReadConstructorServices(facts).Where(demand => UniqueImplementation(demand.Service) is not null).ToArray();
+        var observedByImplementation = new Dictionary<INamedTypeSymbol, ObservedServices>(SymbolEqualityComparer.Default);
+        foreach (var demand in ReadConstructorServices(facts))
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            var implementation = UniqueImplementation(demand.Service);
+            if (implementation is null || evidence.HasConflictingManual(demand.Service, demand.Key, implementation)) continue;
+            if (!observedByImplementation.TryGetValue(implementation, out var observed))
+                observedByImplementation.Add(implementation, observed = new());
+            observed.Demands.Add(demand);
+            observed.Services.Add(demand.Service);
+        }
         var unknownModules = new Dictionary<IAssemblySymbol, bool>(SymbolEqualityComparer.Default);
         var seen = new HashSet<(string Implementation, string Service, string Key)>();
         var explicitPairs = new HashSet<(string Implementation, string Service)>();
@@ -180,7 +193,7 @@ internal static class ConventionRegistrationAnalysis
             var service = facts.Compilation.GetTypeByMetadataName(input.Get("Service"));
             explicitPairs.Add((input.Identity, input.Get("Service")));
             if (implementation is null || service is null || implementation.IsAbstract ||
-                ConventionSymbols.IsOpen(implementation, facts.Cancellation) ||
+                facts.Symbols.IsOpen(implementation, facts.Cancellation) ||
                 !facts.Compilation.ClassifyCommonConversion(implementation, service).IsImplicit)
             {
                 facts.Diagnostics.Add(ConventionProject.InputIssue(input.Identity, "an invalid registration relationship",
@@ -198,22 +211,23 @@ internal static class ConventionRegistrationAnalysis
         foreach (var implementation in implementations)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
-            var observed = observedServices.Where(demand => SymbolEqualityComparer.Default.Equals(implementation, serviceImplementations[demand.Service]) &&
-                !evidence.Manual.Any(item => SymbolEqualityComparer.Default.Equals(item.Service, demand.Service) && item.Key == demand.Key &&
-                    !SymbolEqualityComparer.Default.Equals(item.Implementation, implementation))).ToArray();
-            foreach (var demand in observed)
+            observedByImplementation.TryGetValue(implementation, out var observed);
+            if (observed is not null)
             {
-                var identity = ConventionSymbols.MetadataName(implementation);
-                var serviceName = demand.Service.IsGenericType ? demand.Service.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) :
-                    ConventionSymbols.MetadataName(demand.Service);
-                if (!seen.Add((identity, serviceName, demand.Key))) continue;
-                var location = facts.Location(implementation);
-                if (location != Location.None) AnalyzeDemand(implementation, demand.Service, demand.Key, location);
+                foreach (var demand in observed.Demands)
+                {
+                    var identity = ConventionSymbols.MetadataName(implementation);
+                    var serviceName = demand.Service.IsGenericType ? demand.Service.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) :
+                        ConventionSymbols.MetadataName(demand.Service);
+                    if (!seen.Add((identity, serviceName, demand.Key))) continue;
+                    var location = facts.Location(implementation);
+                    if (location != Location.None) AnalyzeDemand(implementation, demand.Service, demand.Key, location);
+                }
             }
             foreach (var service in ServiceContracts(facts, implementation))
             {
                 if (explicitPairs.Contains((ConventionSymbols.MetadataName(implementation), ConventionSymbols.MetadataName(service))) ||
-                    observed.Any(demand => SymbolEqualityComparer.Default.Equals(demand.Service, service))) continue;
+                    observed?.Services.Contains(service) is true) continue;
                 var location = facts.Location(implementation);
                 if (location != Location.None) AnalyzeDemand(implementation, service, null, location);
             }
@@ -241,10 +255,9 @@ internal static class ConventionRegistrationAnalysis
         void AnalyzeDemand(INamedTypeSymbol implementation, INamedTypeSymbol service, string? key, Location location)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
-            if (lifetimeFailures is not null && lifetimeFailures.TryGetValue(implementation, out var failedService) &&
-                SymbolEqualityComparer.Default.Equals(failedService, service)) return;
-            if (evidence.Manual.Any(item => SymbolEqualityComparer.Default.Equals(item.Service, service) &&
-                    SymbolEqualityComparer.Default.Equals(item.Implementation, implementation) && (key is null || item.Key == key))) return;
+            if (lifetimeFailures is not null && lifetimeFailures.TryGetValue(implementation, out var failedServices) &&
+                failedServices.Contains(service)) return;
+            if (evidence.HasManual(service, key, implementation)) return;
             if (!evidence.Scanned.Contains(implementation.ContainingAssembly) || evidence.UnknownComposition) return;
             if (!unknownModules.TryGetValue(implementation.ContainingAssembly, out var unknownModule))
                 unknownModules.Add(implementation.ContainingAssembly, unknownModule = HasUnknownModule(facts, implementation.ContainingAssembly));
@@ -260,11 +273,11 @@ internal static class ConventionRegistrationAnalysis
     internal static bool IsServiceImplementation(ConventionFacts facts, INamedTypeSymbol type)
     {
         if (type.TypeKind != TypeKind.Class || type.IsAbstract || type.IsStatic ||
-            ConventionSymbols.IsOpen(type, facts.Cancellation) || facts.Role(type).Role is not ("Application" or "Infra") ||
+            facts.Symbols.IsOpen(type, facts.Cancellation) || facts.Role(type).Role is not ("Application" or "Infra") ||
             facts.IsEntity(type) || facts.IsNeutralValue(type) || facts.Symbols.IsTransport(type, facts.Cancellation) ||
             facts.Symbols.IsContext(type, facts.Cancellation)) return false;
-        return !ConventionSymbols.Is(type, facts.Symbols.Dto, facts.Cancellation) &&
-               !ConventionSymbols.Is(type, facts.Symbols.Configuration, facts.Cancellation) &&
+        return !facts.Symbols.IsKnown(type, facts.Symbols.Dto, facts.Cancellation) &&
+               !facts.Symbols.IsKnown(type, facts.Symbols.Configuration, facts.Cancellation) &&
                !facts.Symbols.EffectiveAttributes(type, facts.Symbols.ConfigAttribute, facts.Cancellation).Any();
     }
 
@@ -276,12 +289,12 @@ internal static class ConventionRegistrationAnalysis
         {
             facts.Cancellation.ThrowIfCancellationRequested();
             if (service.Name != "I" + implementation.Name ||
-                facts.Role(service).Role is not ("Application" or "Domain" or "Infra")) continue;
+                facts.Role(service).Role.Length == 0) continue;
             var behavioral = service.GetMembers().OfType<IMethodSymbol>().Any(method => !method.IsStatic && method.MethodKind == MethodKind.Ordinary) ||
                              service.AllInterfaces.Any(parent => parent.GetMembers().OfType<IMethodSymbol>()
                                  .Any(method => !method.IsStatic && method.MethodKind == MethodKind.Ordinary));
-            if (behavioral || ConventionSymbols.Is(service, facts.Symbols.RepositoryContract, facts.Cancellation) ||
-                ConventionSymbols.Is(service, facts.Symbols.ServiceContract, facts.Cancellation)) yield return service;
+            if (behavioral || facts.Symbols.IsKnown(service, facts.Symbols.RepositoryContract, facts.Cancellation) ||
+                facts.Symbols.IsKnown(service, facts.Symbols.ServiceContract, facts.Cancellation)) yield return service;
         }
     }
 
@@ -302,7 +315,7 @@ internal static class ConventionRegistrationAnalysis
             {
                 if (parameter.IsOptional || parameter.HasExplicitDefaultValue ||
                     parameter.Type is not INamedTypeSymbol service || service.SpecialType != SpecialType.None ||
-                    ConventionSymbols.IsOpen(service, facts.Cancellation)) continue;
+                    facts.Symbols.IsOpen(service, facts.Cancellation)) continue;
                 var keyed = parameter.GetAttributes().FirstOrDefault(attribute => ConventionSymbols.Same(attribute.AttributeClass, keyedAttribute));
                 if (keyed is null) result.Add((service, ""));
                 else if (keyed.ConstructorArguments is [{ Value: string key }]) result.Add((service, KeyIdentity(key)));
@@ -320,7 +333,7 @@ internal static class ConventionRegistrationAnalysis
         for (var containing = implementation; containing is not null; containing = containing.ContainingType)
             if (containing.DeclaredAccessibility != Accessibility.Public) return false;
         var lifetime = GetLifetime(facts, implementation);
-        if (lifetime.Ambiguous) return null;
+        if (lifetime.Ambiguous) return false;
         if (lifetime.Attribute is not { } attribute) return false;
         if (attribute.AttributeClass is null) return null;
         if (facts.Symbols.IsKnown(attribute.AttributeClass, facts.Symbols.HostedServiceAttribute, facts.Cancellation))
@@ -361,10 +374,21 @@ internal static class ConventionRegistrationAnalysis
         var unknownScopes = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
         foreach (var tree in facts.Compilation.SyntaxTrees)
         {
-            var semantic = facts.Compilation.GetSemanticModel(tree);
-            foreach (var invocation in tree.GetRoot(facts.Cancellation).DescendantNodes().OfType<InvocationExpressionSyntax>())
+            SemanticModel? semantic = null;
+            foreach (var node in tree.GetRoot(facts.Cancellation).DescendantNodes())
             {
                 facts.Cancellation.ThrowIfCancellationRequested();
+                if (node is BaseObjectCreationExpressionSyntax { ArgumentList.Arguments.Count: > 0 } creation)
+                {
+                    semantic ??= facts.Compilation.GetSemanticModel(tree);
+                    if (creation.ArgumentList.Arguments.Any(argument =>
+                            semantic.GetTypeInfo(argument.Expression, facts.Cancellation).Type is INamedTypeSymbol argumentType &&
+                            ConventionSymbols.Is(argumentType, collection, facts.Cancellation)))
+                        evidence.UnknownComposition = true;
+                    continue;
+                }
+                if (node is not InvocationExpressionSyntax invocation) continue;
+                semantic ??= facts.Compilation.GetSemanticModel(tree);
                 if (semantic.GetSymbolInfo(invocation, facts.Cancellation).Symbol is not IMethodSymbol method)
                 {
                     evidence.UnknownComposition = true;
@@ -460,28 +484,48 @@ internal static class ConventionRegistrationAnalysis
                     }
                     key = KeyIdentity(value);
                 }
-                evidence.Manual.Add(new(service, implementation, key));
-            }
-            foreach (var creation in tree.GetRoot(facts.Cancellation).DescendantNodes().OfType<BaseObjectCreationExpressionSyntax>())
-            {
-                facts.Cancellation.ThrowIfCancellationRequested();
-                if (creation.ArgumentList?.Arguments.Any(argument =>
-                        semantic.GetTypeInfo(argument.Expression, facts.Cancellation).Type is INamedTypeSymbol argumentType &&
-                        ConventionSymbols.Is(argumentType, collection, facts.Cancellation)) is true)
-                    evidence.UnknownComposition = true;
+                evidence.AddManual(service, key, implementation);
             }
         }
         evidence.UnknownComposition |= scanScopes.Overlaps(unknownScopes);
         return evidence;
     }
 
-    private sealed record ManualRegistration(INamedTypeSymbol Service, INamedTypeSymbol Implementation, string Key);
+    private sealed class ObservedServices
+    {
+        internal List<(INamedTypeSymbol Service, string Key)> Demands { get; } = [];
+        internal HashSet<INamedTypeSymbol> Services { get; } = new(SymbolEqualityComparer.Default);
+    }
 
     private sealed class Composition
     {
         internal bool ModuleScan { get; set; }
         internal HashSet<IAssemblySymbol> Scanned { get; } = new(SymbolEqualityComparer.Default);
-        internal List<ManualRegistration> Manual { get; } = [];
+        private readonly Dictionary<INamedTypeSymbol, ManualBindings> _manual = new(SymbolEqualityComparer.Default);
         internal bool UnknownComposition { get; set; }
+
+        internal void AddManual(INamedTypeSymbol service, string key, INamedTypeSymbol implementation)
+        {
+            if (!_manual.TryGetValue(service, out var bindings)) _manual.Add(service, bindings = new());
+            if (!bindings.ByKey.TryGetValue(key, out var implementations))
+                bindings.ByKey.Add(key, implementations = new(SymbolEqualityComparer.Default));
+            implementations.Add(implementation);
+            bindings.All.Add(implementation);
+        }
+
+        internal bool HasManual(INamedTypeSymbol service, string? key, INamedTypeSymbol implementation) =>
+            _manual.TryGetValue(service, out var bindings) &&
+            (key is null ? bindings.All.Contains(implementation) :
+                bindings.ByKey.TryGetValue(key, out var implementations) && implementations.Contains(implementation));
+
+        internal bool HasConflictingManual(INamedTypeSymbol service, string key, INamedTypeSymbol implementation) =>
+            _manual.TryGetValue(service, out var bindings) && bindings.ByKey.TryGetValue(key, out var implementations) &&
+            (implementations.Count > 1 || !implementations.Contains(implementation));
+
+        private sealed class ManualBindings
+        {
+            internal Dictionary<string, HashSet<INamedTypeSymbol>> ByKey { get; } = new(StringComparer.Ordinal);
+            internal HashSet<INamedTypeSymbol> All { get; } = new(SymbolEqualityComparer.Default);
+        }
     }
 }

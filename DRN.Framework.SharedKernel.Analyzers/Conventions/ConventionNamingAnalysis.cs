@@ -10,7 +10,7 @@ internal static class ConventionNamingAnalysis
         foreach (var type in facts.Types)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
-            if (type.IsImplicitlyDeclared || ConventionSymbols.IsOpen(type, facts.Cancellation) ||
+            if (type.IsImplicitlyDeclared || facts.Symbols.IsOpen(type, facts.Cancellation) ||
                 type.TypeKind != TypeKind.Interface && type.IsAbstract) continue;
             var location = facts.Location(type);
             if (location == Location.None) continue;

@@ -30,7 +30,7 @@ internal static class ConventionDependencyAnalysis
         }
     }
 
-    private static List<(IAssemblySymbol Assembly, ConventionProject Project)>? ReadDirectProjects(
+    internal static List<(IAssemblySymbol Assembly, ConventionProject Project)>? ReadDirectProjects(
         ConventionFacts facts, ConventionInput[] references)
     {
         var result = new List<(IAssemblySymbol, ConventionProject)>();
@@ -38,16 +38,38 @@ internal static class ConventionDependencyAnalysis
             .Where(reference => reference.FilePath is not null)
             .GroupBy(reference => ConventionProject.NormalizeSeparators(reference.FilePath!), StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+        var byProject = new Dictionary<string, List<(int Index, ConventionInput Record)>>(StringComparer.Ordinal);
+        var byOriginalProject = new Dictionary<string, List<(int Index, ConventionInput Record)>>(StringComparer.Ordinal);
+        for (var index = 0; index < references.Length; index++)
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            var record = references[index];
+            if (record.Get("Stage") != "Resolved") continue;
+            var projectPath = ConventionProject.NormalizeSeparators(record.Get("Project"));
+            if (!byProject.TryGetValue(projectPath, out var projectList)) byProject.Add(projectPath, projectList = []);
+            projectList.Add((index, record));
+            var originalPath = ConventionProject.NormalizeSeparators(record.Get("OriginalProject"));
+            if (!byOriginalProject.TryGetValue(originalPath, out var originalList))
+                byOriginalProject.Add(originalPath, originalList = []);
+            originalList.Add((index, record));
+        }
+        var matched = new List<(int Index, ConventionInput Record)>();
         foreach (var declared in references.Where(record => record.Get("Stage") == "Project"))
         {
             facts.Cancellation.ThrowIfCancellationRequested();
-            var resolved = references.Where(record => record.Get("Stage") == "Resolved" &&
-                (ConventionProject.NormalizeSeparators(record.Get("Project")) == ConventionProject.NormalizeSeparators(declared.Identity) ||
-                 declared.Get("Source").Length > 0 && ConventionProject.NormalizeSeparators(record.Get("OriginalProject")) ==
-                 ConventionProject.NormalizeSeparators(declared.Get("Source")))).ToArray();
-            if (resolved.Length == 0) return null;
-            foreach (var record in resolved)
+            matched.Clear();
+            if (byProject.TryGetValue(ConventionProject.NormalizeSeparators(declared.Identity), out var projectMatches))
+                matched.AddRange(projectMatches);
+            var source = declared.Get("Source");
+            if (source.Length > 0 && byOriginalProject.TryGetValue(ConventionProject.NormalizeSeparators(source), out var originalMatches))
+                matched.AddRange(originalMatches);
+            if (matched.Count == 0) return null;
+            matched.Sort(static (left, right) => left.Index.CompareTo(right.Index));
+            var previousIndex = -1;
+            foreach (var (index, record) in matched)
             {
+                if (index == previousIndex) continue;
+                previousIndex = index;
                 if (!metadata.TryGetValue(ConventionProject.NormalizeSeparators(record.Identity), out var reference) ||
                     facts.Compilation.GetAssemblyOrModuleSymbol(reference) is not IAssemblySymbol assembly) return null;
                 if (facts.ReferenceProject(assembly) is { } project) result.Add((assembly, project));
@@ -83,10 +105,10 @@ internal static class ConventionDependencyAnalysis
         foreach (var type in facts.Types)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
-            if (type.TypeKind != TypeKind.Class || type.IsAbstract || ConventionSymbols.IsOpen(type, facts.Cancellation) ||
+            if (type.TypeKind != TypeKind.Class || type.IsAbstract || facts.Symbols.IsOpen(type, facts.Cancellation) ||
                 facts.Role(type).Role != "Infra" || facts.HasInvalidOwner(type) ||
                 !(facts.Symbols.IsContext(type, facts.Cancellation) ||
-                  ConventionSymbols.Is(type, facts.Symbols.RepositoryContract, facts.Cancellation))) continue;
+                  facts.Symbols.IsKnown(type, facts.Symbols.RepositoryContract, facts.Cancellation))) continue;
             var owner = facts.Owner(type)?.Subdomain;
             var location = facts.Location(type);
             if (location == Location.None || owner is not null && subdomains.Contains(owner)) continue;

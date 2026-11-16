@@ -10,7 +10,7 @@ internal static class ConventionOwnershipAnalysis
         {
             facts.Cancellation.ThrowIfCancellationRequested();
             var location = facts.Location(type);
-            if (location == Location.None || ConventionSymbols.IsOpen(type, facts.Cancellation)) continue;
+            if (location == Location.None || facts.Symbols.IsOpen(type, facts.Cancellation)) continue;
             var symbols = facts.Symbols;
             var role = facts.Role(type);
             if (role.Role == "SharedKernel" && (type.TypeKind == TypeKind.Interface || type.IsAbstract)) continue;

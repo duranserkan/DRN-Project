@@ -129,7 +129,7 @@ public partial class SourceKnownEntityTypeAnalyzerTests
         return MetadataReference.CreateFromImage(stream.ToArray());
     });
 
-    private static MetadataReference[] GetBaseReferences()
+    private static readonly Lazy<ImmutableArray<MetadataReference>> BaseReferences = new(() =>
     {
         var coreAssemblyPath = typeof(object).Assembly.Location;
         var runtimeAssemblyPath = Path.Combine(Path.GetDirectoryName(coreAssemblyPath)!, "System.Runtime.dll");
@@ -142,7 +142,9 @@ public partial class SourceKnownEntityTypeAnalyzerTests
             MetadataReference.CreateFromFile(typeof(Console).Assembly.Location),
             SharedKernelReference.Value
         ];
-    }
+    });
+
+    private static ImmutableArray<MetadataReference> GetBaseReferences() => BaseReferences.Value;
 
     private sealed class CustomOptionsProvider(Dictionary<string, string> globalOptions) : AnalyzerConfigOptionsProvider
     {
