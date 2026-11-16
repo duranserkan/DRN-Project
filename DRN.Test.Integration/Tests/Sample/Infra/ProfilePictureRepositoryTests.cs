@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Sample.Domain.Identity;
-using Sample.Domain.Identity.ProfilePictures;
-using Sample.Domain.Users;
+using Sample.Domain.SampleIdentity;
+using Sample.Domain.SampleIdentity.ProfilePictures;
+using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
 using Sample.Infra;
-using Sample.Infra.Identity;
+using Sample.Infra.SampleIdentity;
 
 namespace DRN.Test.Integration.Tests.Sample.Infra;
 

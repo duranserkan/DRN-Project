@@ -1,5 +1,5 @@
 using Sample.Contract.QA.Tags;
-using Sample.Domain.QA.Tags;
+using Tag = Sample.Domain.QA.Tag.TagEntity;
 
 namespace DRN.Test.Integration.Tests.Sample.Infra.QA.Repositories.Data;
 

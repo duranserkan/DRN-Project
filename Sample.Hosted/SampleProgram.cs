@@ -3,7 +3,7 @@ using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
-using Sample.Domain.Identity;
+using Sample.Domain.SampleIdentity;
 
 namespace Sample.Hosted;
 

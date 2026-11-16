@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.Extensions.Options;
-using Sample.Domain.Users;
+using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
 using Sample.Hosted;
 using Sample.Hosted.Helpers;
 

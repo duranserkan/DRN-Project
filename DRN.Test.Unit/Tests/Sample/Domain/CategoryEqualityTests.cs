@@ -1,4 +1,4 @@
-using Sample.Domain.QA.Categories;
+using Category = Sample.Domain.QA.Category.CategoryEntity;
 
 namespace DRN.Test.Unit.Tests.Sample.Domain;
 

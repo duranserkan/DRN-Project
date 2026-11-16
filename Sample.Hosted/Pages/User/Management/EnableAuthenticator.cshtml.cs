@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using QRCoder;
-using Sample.Domain.Users;
+using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
 using Sample.Hosted.Extensions;
 
 namespace Sample.Hosted.Pages.User.Management;

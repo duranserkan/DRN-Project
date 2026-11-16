@@ -1,5 +1,5 @@
 using DRN.Framework.SharedKernel.Domain.Pagination;
-using Sample.Domain.QA.Tags;
+using Tag = Sample.Domain.QA.Tag.TagEntity;
 
 namespace DRN.Test.Unit.Tests.Framework.SharedKernel.Pagination;
 

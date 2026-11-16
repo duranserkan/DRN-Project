@@ -8,6 +8,12 @@ namespace DRN.Test.Analyzer.Tests;
 
 public class HostedAccessorGeneratorTests
 {
+    private static readonly ImmutableArray<MetadataReference> CompilationReferences =
+        ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
+            .Append(typeof(AccessorControllerAttribute).Assembly.Location)
+            .Distinct(StringComparer.Ordinal).Select(path => (MetadataReference)MetadataReference.CreateFromFile(path))
+            .ToImmutableArray();
+
     private static readonly string[] ExpectedProbeActions =
     [
         "AcceptedAction", "CustomMethodsAction", "CustomRouteAction", "CustomVerbAction", "DeleteAction", "GetAction", "HeadAction",
@@ -1207,10 +1213,7 @@ public class HostedAccessorGeneratorTests
 
     private static CSharpCompilation CreateCompilation(string source, string name = "AccessorFixture", MetadataReference[]? additionalReferences = null)
     {
-        var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
-            .Append(typeof(AccessorControllerAttribute).Assembly.Location)
-            .Distinct(StringComparer.Ordinal).Select(path => MetadataReference.CreateFromFile(path));
-        return CSharpCompilation.Create(name, [CSharpSyntaxTree.ParseText(source)], references.Concat(additionalReferences ?? []),
+        return CSharpCompilation.Create(name, [CSharpSyntaxTree.ParseText(source)], CompilationReferences.Concat(additionalReferences ?? []),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
     }
 

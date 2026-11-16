@@ -6,6 +6,12 @@ namespace DRN.Test.Analyzer.Tests;
 
 public class DrnProgramNameAnalyzerTests
 {
+    private static readonly ImmutableArray<MetadataReference> CompilationReferences =
+        ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
+            .Append(typeof(DrnProgramBase<>).Assembly.Location)
+            .Distinct(StringComparer.Ordinal).Select(path => (MetadataReference)MetadataReference.CreateFromFile(path))
+            .ToImmutableArray();
+
     private const string ProgramSource = """
         public class BaseProgram : DRN.Framework.Hosting.DrnProgram.DrnProgramBase<BaseProgram>, DRN.Framework.Hosting.DrnProgram.IDrnProgram
         {
@@ -110,10 +116,7 @@ public class DrnProgramNameAnalyzerTests
 
     private static CSharpCompilation Compile(string source, string name = "ProgramNameFixture", params MetadataReference[] additionalReferences)
     {
-        var references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
-            .Append(typeof(DrnProgramBase<>).Assembly.Location)
-            .Distinct(StringComparer.Ordinal).Select(path => MetadataReference.CreateFromFile(path));
-        return CSharpCompilation.Create(name, [CSharpSyntaxTree.ParseText(source)], references.Concat(additionalReferences),
+        return CSharpCompilation.Create(name, [CSharpSyntaxTree.ParseText(source)], CompilationReferences.Concat(additionalReferences),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
     }
 

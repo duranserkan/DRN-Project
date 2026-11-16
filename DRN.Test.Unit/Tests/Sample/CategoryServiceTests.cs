@@ -1,6 +1,7 @@
 using DRN.Framework.SharedKernel.Domain;
-using Sample.Application.Services;
-using Sample.Domain.QA.Categories;
+using Sample.Application.Services.QA.Categories;
+using Sample.Domain.QA.Category;
+using Category = Sample.Domain.QA.Category.CategoryEntity;
 
 namespace DRN.Test.Unit.Tests.Sample;
 

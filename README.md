@@ -52,7 +52,10 @@ TL;DR: You can
 ## Table of Contents
 
 - [About Project](#about-project)
+- [Documentation](#documentation)
 - [About Design and Architecture](#about-design-and-architecture)
+- [Priority Stack and TRIZ](#priority-stack-and-triz)
+- [Domain-Safe Programming](#domain-safe-programming)
 - [About Management](#about-management)
 - [Engineering Manifest](#durans-engineering-manifest)
 
@@ -82,11 +85,11 @@ DRN Project is not another framework that will `bite the dust.` It is more than 
 This project is result of a productive and curious mindset that respects good solutions and best practices of others while enjoys from creating its own.
 It is not about coding. It is about process of creating and enhancing good things.
 
-### Documentation
+## Documentation
 
-- [Quick Start](docs/quick-start.md)
-- [Solution Structure](docs/solution-structure.md)
-- [Verify Published NuGet Packages](docs/verify-published-nuget-packages.md)
+- [Quick Start](docs/quick-start.md): Prerequisites, installation, application setup and testing.
+- [Solution Structure](docs/solution-structure.md): Repository layout and project responsibilities.
+- [Verify Published NuGet Packages](docs/verify-published-nuget-packages.md): Package provenance and SBOM verification.
 
 ## About Design and Architecture
 * [Chris Patterson's Great Article - Software Architect for Life](http://blog.phatboyg.com/2017/03/08/software-architect-for-life.html)
@@ -94,6 +97,24 @@ It is not about coding. It is about process of creating and enhancing good thing
 * [Strategic Domain Driven Design](https://vaadin.com/blog/ddd-part-1-strategic-domain-driven-design)
 * [Tactical Domain Driven Design](https://vaadin.com/blog/ddd-part-2-tactical-domain-driven-design)
 * [DDD and Hexagonal Architecture](https://vaadin.com/blog/ddd-part-3-domain-driven-design-and-the-hexagonal-architecture)
+
+## Priority Stack and TRIZ
+
+We use TRIZ, the theory of inventive problem solving, to resolve conflicting needs before accepting a tradeoff. We aim for the greatest benefit with the least cost and harm.
+
+When a conflict remains, we use this priority stack:
+
+1. **Security:** Never compromise.
+2. **Correctness:** Be complete and accurate.
+3. **Clarity:** Prefer readable over clever.
+4. **Simplicity:** Make complexity earn its place.
+5. **Performance:** Optimize with evidence.
+
+## Domain-Safe Programming
+
+Code can compile and still violate domain rules. Rust's [ownership rules](https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html) show how compiler checks can prevent classes of memory-safety errors before execution. Domain-safe programming applies that idea to explicit domain and architectural constraints.
+
+DRN analyzers detect supported violations, such as duplicate entity identities or forbidden layer dependencies. Guarded code fixes and optional code generation help developers follow those rules. These checks cover specific invariants, while runtime validation and tests remain necessary. See [Domain-Safe Programming](docs/domain-safe-programming.md) for the rules and their limits.
 
 ## About Management
 

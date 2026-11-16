@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -13,20 +14,33 @@ internal sealed class DiagnosticNameExemption
 
     private readonly ConcurrentDictionary<(SyntaxTree Tree, int Start), SyntaxTrivia> _comments = new();
     private readonly ConcurrentDictionary<(SyntaxTree Tree, int Start), byte> _used = new();
+    private readonly ConcurrentDictionary<(SyntaxTree Tree, int Start), ParsedComment> _parsed = new();
+    private readonly ConcurrentDictionary<SyntaxNode, ImmutableArray<ParsedComment>> _callComments = new();
+
+    private readonly record struct ParsedComment(SyntaxTrivia Trivia, string? Target);
 
     internal bool Allows(SyntaxNode call, string name)
     {
-        var statement = call.AncestorsAndSelf().TakeWhile(node => node is not AnonymousFunctionExpressionSyntax)
-            .OfType<StatementSyntax>().FirstOrDefault();
-        if (statement == null || !Supported(statement)) return false;
-        foreach (var comment in Comments(statement))
+        foreach (var comment in _callComments.GetOrAdd(call, ReadCallComments))
         {
-            if (!TryParse(comment.ToString(), out var target) || !string.Equals(target, name, StringComparison.Ordinal)) continue;
-            _used.TryAdd((call.SyntaxTree, comment.SpanStart), 0);
+            if (comment.Target is null || !string.Equals(comment.Target, name, StringComparison.Ordinal)) continue;
+            _used.TryAdd((call.SyntaxTree, comment.Trivia.SpanStart), 0);
             return true;
         }
         return false;
     }
+
+    private ImmutableArray<ParsedComment> ReadCallComments(SyntaxNode call)
+    {
+        var statement = call.AncestorsAndSelf().TakeWhile(node => node is not AnonymousFunctionExpressionSyntax)
+            .OfType<StatementSyntax>().FirstOrDefault();
+        if (statement == null || !Supported(statement)) return [];
+        return Comments(statement).Select(comment => Parse(call.SyntaxTree, comment)).ToImmutableArray();
+    }
+
+    private ParsedComment Parse(SyntaxTree tree, SyntaxTrivia comment) =>
+        _parsed.GetOrAdd((tree, comment.SpanStart), static (_, trivia) =>
+            new(trivia, TryParse(trivia.ToString(), out var target) ? target : null), comment);
 
     internal void Collect(SyntaxTreeAnalysisContext context)
     {
@@ -36,7 +50,7 @@ internal sealed class DiagnosticNameExemption
             context.CancellationToken.ThrowIfCancellationRequested();
             if (!comment.IsKind(SyntaxKind.SingleLineCommentTrivia) ||
                 !comment.ToString().AsSpan(2).TrimStart().StartsWith(Marker, StringComparison.Ordinal)) continue;
-            if (!TryParse(comment.ToString(), out _))
+            if (Parse(context.Tree, comment).Target is null)
                 context.ReportDiagnostic(Diagnostic.Create(ClassificationDiagnosticDescriptors.InvalidNameExemptionComment,
                     comment.GetLocation()));
             else _comments.TryAdd((context.Tree, comment.SpanStart), comment);

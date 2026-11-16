@@ -16,6 +16,8 @@
 
 SharedKernel classification analyzers apply transitively to public readable model properties. Classify application model properties with the SharedKernel diagnostic attributes where required.
 
+[SourceKnown conventions](../DRN.Framework.SharedKernel/CONVENTIONS.md) require concrete application-owned EF contexts to implement `IDrnContext`, directly or through inheritance. See [DRNCV020](../DRN.Framework.SharedKernel/CONVENTION-DIAGNOSTICS.md#drncv020-implement-the-application-persistence-context-contract) for specialized-context exceptions and validation limits. `SourceKnownPersistenceAttribute` describes context membership for analysis without changing the EF model. Attribute-only mapping and multiple contexts per entity remain supported. See [editable assistance](../DRN.Framework.SharedKernel/SCAFFOLDING.md) for optional scaffolding.
+
 ## Features
 
 - `DrnContext<TContext>` provides attribute-based registration, model conventions, and design-time migration support.
@@ -47,10 +49,11 @@ Production auto-migration and domain-event publishing are not implemented by thi
 
 ## QuickStart: Beginner
 
-Define a DbContext and entity with automatic ID generation:
+Define a DbContext and entity with automatic ID generation. DRNCV030 requires a directly applied custom attribute derived from `NpgsqlDbContextOptionsAttribute`, even when inherited defaults need no overrides. Name the attribute after the exact context name, ending in `Options` before the optional `Attribute` suffix:
 
 ```csharp
 using DRN.Framework.EntityFramework.Context;
+using DRN.Framework.EntityFramework.Attributes;
 using DRN.Framework.SharedKernel.Domain;
 using Microsoft.EntityFrameworkCore;
 
@@ -62,19 +65,22 @@ public readonly struct MyApp : IAppId
 }
 
 [EntityType<MyApp>(1)] // Unique byte within MyApp partition
-public class User : AggregateRoot
+public class UserEntity : AggregateRoot
 {
     public string Username { get; set; } = "";
     public bool IsActive { get; set; } = true;
 }
 
 // 2. Create your context inheriting from DrnContext
+public sealed class AppContextNpgsqlDbContextOptionsAttribute : NpgsqlDbContextOptionsAttribute;
+
+[AppContextNpgsqlDbContextOptions]
 public class AppContext : DrnContext<AppContext>
 {
     public AppContext(DbContextOptions<AppContext> options) : base(options) { }
     public AppContext() : base(null) { } // Required for migrations
 
-    public DbSet<User> Users => Set<User>();
+    public DbSet<UserEntity> Users => Set<UserEntity>();
 }
 
 // 3. Save a new entity
@@ -82,7 +88,7 @@ public class UserService(AppContext context)
 {
     public async Task CreateUserAsync(string username)
     {
-        var user = new User { Username = username };
+        var user = new UserEntity { Username = username };
         context.Users.Add(user); // Assigns the internal Id
         await context.SaveChangesAsync(); // Initializes external identity and lifecycle state
     }
@@ -124,16 +130,16 @@ public sealed class UserDto(SourceKnownEntity? entity = null) : Dto(entity)
 }
 
 // Repository with custom query methods
-public interface IUserRepository : ISourceKnownRepository<User> 
+public interface IUserRepository : ISourceKnownRepository<UserEntity>
 {
-    Task<User[]> GetActiveUsersAsync();
+    Task<UserEntity[]> GetActiveUsersAsync();
 }
 
 [Scoped<IUserRepository>]
-public class UserRepository(AppContext context, IEntityUtils utils) 
-    : SourceKnownRepository<AppContext, User>(context, utils), IUserRepository
+public class UserRepository(AppContext context, IEntityUtils utils)
+    : SourceKnownRepository<AppContext, UserEntity>(context, utils), IUserRepository
 {
-    public async Task<User[]> GetActiveUsersAsync()
+    public async Task<UserEntity[]> GetActiveUsersAsync()
     {
         return await EntitiesWithAppliedSettings()
             .Where(u => u.IsActive)
@@ -176,11 +182,17 @@ The internal `long` is the database key used for indexes and joins. External IDs
 
 ## DrnContext
 
+Put repository implementations in `Repositories`, EF configurations in `Configurations` with names ending in `Config`, and DRN migrations/snapshots in `Migrations`. These are the immediate logical folders and final namespace segments. Domain repository interfaces stay beside their aggregates. Applied custom options names start with the context name and end in `Options`, before an optional `Attribute`, such as `QAContextNpgsqlDbContextOptionsAttribute`. Shared framework defaults are exempt. See DRNCV024, DRNCV028 and DRNCV029 in the [diagnostic reference](../DRN.Framework.SharedKernel/CONVENTION-DIAGNOSTICS.md).
+
+Each aggregate assigned to an Infra context needs a concrete `SourceKnownRepository<TContext,TEntity>` implementing its Domain subdomain repository interface. DRNCV027 checks supported DbSet, explicit membership and configuration evidence. Unassigned aggregates from referenced Domain projects do not require implementations here. See [aggregate conventions](../DRN.Framework.SharedKernel/CONVENTIONS.md).
+
+Instance `DbSet<TEntity>` properties on `DrnContext<TContext>` descendants must expose entities derived from `AggregateRoot`. DRNCV023 checks inherited properties and closed generic substitutions. Child entities may remain mapped through their aggregate without a DbSet property. The separate Identity context hierarchy is outside this rule. See the [diagnostic reference](../DRN.Framework.SharedKernel/CONVENTION-DIAGNOSTICS.md#drncv023-expose-aggregate-roots-through-dbset-properties).
+
 Derive from `DrnContext<TContext>` and provide both constructors shown in the beginner example. The options constructor is used by dependency injection; the public parameterless constructor supports `IDesignTimeDbContextFactory<TContext>`.
 
 ### Standard Attributes (Inherited)
 
-Every `DrnContext` inherits registration, provider, and performance defaults. Customize database and performance settings with attributes derived from `NpgsqlDbContextOptionsAttribute` or `NpgsqlPerformanceSettingsAttribute`; service registration is inherited and should not be reapplied.
+Every `DrnContext` inherits registration, provider, and performance defaults. Concrete, closed DRN contexts must directly apply a custom `NpgsqlDbContextOptionsAttribute` descendant to satisfy DRNCV030. Inherited attributes and framework defaults do not satisfy this declaration requirement. The custom attribute can retain all defaults without overrides. Customize database and performance settings with attributes derived from `NpgsqlDbContextOptionsAttribute` or `NpgsqlPerformanceSettingsAttribute`. Service registration is inherited and should not be reapplied.
 
 ```csharp
 // The base class defines these defaults:
@@ -396,13 +408,13 @@ var dtoResult = result.ToModel(user => new UserDto(user)
 
 ### Query Composition
 
-Use `EntitiesWithAppliedSettings()` for custom retrieval queries, as in the advanced quickstart. The protected pagination overload accepts a composed query. This example assumes your `User` entity also defines a string `Role` property:
+Use `EntitiesWithAppliedSettings()` for custom retrieval queries, as in the advanced quickstart. The protected pagination overload accepts a composed query. This example assumes your `UserEntity` entity also defines a string `Role` property:
 
 ```csharp
 public class UserRepository(AppContext context, IEntityUtils utils)
-    : SourceKnownRepository<AppContext, User>(context, utils)
+    : SourceKnownRepository<AppContext, UserEntity>(context, utils)
 {
-    public async Task<PaginationResultModel<User>> GetUsersByRoleAsync(
+    public async Task<PaginationResultModel<UserEntity>> GetUsersByRoleAsync(
         string role, 
         PaginationRequest request)
     {
@@ -421,10 +433,10 @@ Override `EntitiesWithAppliedSettings` to customize repository retrieval queries
 > [!IMPORTANT]
 > Use `Settings.Filters` for constraints that must also apply to ID-based bulk deletes. An `EntitiesWithAppliedSettings` override customizes retrieval queries only.
 
-This override assumes your model defines `User.Posts`, `Post.Comments`, and `User.Profile`. Add it to the repository from the advanced quickstart:
+This override assumes your model defines `UserEntity.Posts`, `Post.Comments`, and `UserEntity.Profile`. Add it to the repository from the advanced quickstart:
 
 ```csharp
-protected override IQueryable<User> EntitiesWithAppliedSettings(string? caller = null)
+protected override IQueryable<UserEntity> EntitiesWithAppliedSettings(string? caller = null)
 {
     return base.EntitiesWithAppliedSettings(caller)
         .Include(u => u.Posts)
@@ -494,13 +506,13 @@ The framework supports both attribute-based and Fluent API configuration.
 
 ### Attribute-Based Configuration (Preferred)
 
-Use attributes for constraints and indexes that they can express. This is an alternative definition of the beginner `User` entity:
+Use attributes for constraints and indexes that they can express. This is an alternative definition of the beginner `UserEntity` entity:
 
 ```csharp
 [EntityType<MyApp>(1)]
 [Table("users")]
 [Index(nameof(Username), IsUnique = true)]
-public class User : AggregateRoot
+public class UserEntity : AggregateRoot
 {
     [MaxLength(100)]
     [Required]
@@ -518,9 +530,9 @@ public class User : AggregateRoot
 Use `IEntityTypeConfiguration<T>` for relationships, owned types, or conditional mapping. This fragment assumes an application model with `Posts`, `Author`, `AuthorId`, `TenantId`, and an owned `Address` with `Street` and `City` properties:
 
 ```csharp
-public class UserConfiguration : IEntityTypeConfiguration<User>
+public class UserConfig : IEntityTypeConfiguration<UserEntity>
 {
-    public void Configure(EntityTypeBuilder<User> builder)
+    public void Configure(EntityTypeBuilder<UserEntity> builder)
     {
         // Complex relationships
         builder.HasMany(u => u.Posts)
@@ -550,11 +562,11 @@ Configurations are automatically discovered and applied if they:
 - Share the context's namespace (or a sub-namespace)
 
 ```text
-Sample.Infra/
-├── QAContext.cs                    # Namespace: Sample.Infra
+Sample.Infra/QA/
+├── QAContext.cs                    # Namespace: Sample.Infra.QA
 ├── Configurations/
-│   ├── UserConfiguration.cs        # Namespace: Sample.Infra.Configurations ✓
-│   └── QuestionConfiguration.cs    # Namespace: Sample.Infra.Configurations ✓
+│   ├── UserConfig.cs               # Namespace: Sample.Infra.QA.Configurations ✓
+│   └── QuestionConfig.cs           # Namespace: Sample.Infra.QA.Configurations ✓
 ```
 
 ### JSON Models
@@ -563,9 +575,9 @@ Source-Known entities implementing `IEntityWithModel<TModel>` have their public 
 
 ```csharp
 [EntityType<MyApp>(2)]
-public class Question : AggregateRoot<QuestionModel>
+public class QuestionEntity : AggregateRoot<QuestionModel>
 {
-    public Question() => Model = new QuestionModel();
+    public QuestionEntity() => Model = new QuestionModel();
 }
 
 public class QuestionModel
@@ -618,7 +630,7 @@ Derive an attribute to configure provider options, data-source options, general 
 using Npgsql;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 
-public class MyContextOptions : NpgsqlDbContextOptionsAttribute
+public class MyDbContextOptions : NpgsqlDbContextOptionsAttribute
 {
     public override void ConfigureNpgsqlOptions<TContext>(
         NpgsqlDbContextOptionsBuilder builder, 
@@ -650,7 +662,7 @@ public class MyContextOptions : NpgsqlDbContextOptionsAttribute
         var context = serviceProvider.GetRequiredService<MyDbContext>();
         if (!await context.Users.AnyAsync(user => user.Username == "example-user"))
         {
-            context.Users.Add(new User { Username = "example-user" });
+            context.Users.Add(new UserEntity { Username = "example-user" });
             await context.SaveChangesAsync();
         }
     }
@@ -660,13 +672,13 @@ public class MyContextOptions : NpgsqlDbContextOptionsAttribute
 Apply the attribute to a context with both required constructors:
 
 ```csharp
-[MyContextOptions(UsePrototypeMode = true)]
+[MyDbContextOptions(UsePrototypeMode = true)]
 public class MyDbContext : DrnContext<MyDbContext>
 {
     public MyDbContext(DbContextOptions<MyDbContext> options) : base(options) { }
     public MyDbContext() : base(null) { }
 
-    public DbSet<User> Users => Set<User>();
+    public DbSet<UserEntity> Users => Set<UserEntity>();
 }
 ```
 
@@ -674,12 +686,12 @@ The seed inserts an application record, not an authenticated account. See [Seedi
 
 ### NpgsqlPerformanceSettingsAttribute
 
-Create a custom performance attribute and apply `[HighThroughputSettings]` to your context. These example values are overrides, not workload recommendations:
+Create a custom performance attribute and apply `[MyDbContextHighThroughputOptions]` to your context. These example values are overrides, not workload recommendations:
 
 ```csharp
-public class HighThroughputSettings : NpgsqlPerformanceSettingsAttribute
+public class MyDbContextHighThroughputOptions : NpgsqlPerformanceSettingsAttribute
 {
-    public HighThroughputSettings() : base(
+    public MyDbContextHighThroughputOptions() : base(
         maxAutoPrepare: 500,
         autoPrepareMinUsages: 3,
         minPoolSize: 10,
@@ -710,7 +722,7 @@ All conditions must hold:
 5. `DrnDevelopmentSettings:Prototype = true`.
 6. No migrations have been applied, or `UsePrototypeModeWhenMigrationExists = true` permits recreation despite applied migrations.
 
-Apply `[MyContextOptions(UsePrototypeMode = true)]` as shown above, then configure `appsettings.Development.json`:
+Apply `[MyDbContextOptions(UsePrototypeMode = true)]` as shown above, then configure `appsettings.Development.json`:
 
 ```json
 {
@@ -732,7 +744,7 @@ Applied migrations are read from the target database independently of the local 
 Declared migrations that have not been applied do not block prototyping. To override the applied-migration guard, replace the attribute on `MyDbContext` with:
 
 ```csharp
-[MyContextOptions(
+[MyDbContextOptions(
     UsePrototypeMode = true,
     UsePrototypeModeWhenMigrationExists = true
 )]
@@ -801,7 +813,7 @@ In Development, call `LaunchExternalDependenciesAsync` with `DrnDevelopmentSetti
 
 ```xml
 <ItemGroup Condition="'$(Configuration)' == 'Debug'">
-    <PackageReference Include="DRN.Framework.Testing" Version="0.10.0" />
+    <PackageReference Include="DRN.Framework.Testing" Version="0.11.0" />
 </ItemGroup>
 ```
 

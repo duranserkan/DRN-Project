@@ -1,9 +1,25 @@
 <Project>
   <!-- Isolate package consumers from the repository's source-tree analyzer imports. -->
   <PropertyGroup>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
     <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <BaseOutputPath>bin/$(MSBuildProjectName)/</BaseOutputPath>
+    <BaseIntermediateOutputPath>obj/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj/**;bin/**</DefaultItemExcludes>
+  </PropertyGroup>
+  <Import Project="$(DrnSourceRoot)/DRN.Framework.SharedKernel/buildTransitive/DRN.Framework.SharedKernel.props"
+          Condition="('$(MSBuildProjectName)' == 'ExternalSource' or '$(MSBuildProjectName)' == 'Consumer.Hosted.ExternalSource' or '$(MSBuildProjectName)' == 'SourceBridge') and '$(DrnSourceRoot)' != ''" />
+  <PropertyGroup Condition="$(MSBuildProjectName.StartsWith('Consumer.Hosted.'))">
+    <RootNamespace>Consumer</RootNamespace>
+    <DefineConstants Condition="'$(DrnConventionFixtureSuppress)' == 'true'">$(DefineConstants);DRN_CONVENTION_EXCEPTION</DefineConstants>
+    <BaseIntermediateOutputPath Condition="'$(DrnConventionIntermediateLayout)' == 'Relative'">obj/convention-paths/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
+    <BaseIntermediateOutputPath Condition="'$(DrnConventionIntermediateLayout)' == 'Rooted'">$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', 'obj/convention-paths/$(MSBuildProjectName)/'))</BaseIntermediateOutputPath>
+    <BaseIntermediateOutputPath Condition="'$(DrnConventionIntermediateLayout)' == 'Parent'">../obj-convention-paths/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
   </PropertyGroup>
 </Project>

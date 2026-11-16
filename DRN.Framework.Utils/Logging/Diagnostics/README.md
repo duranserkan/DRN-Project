@@ -41,6 +41,7 @@ SharedKernel distributes these diagnostics transitively. Public readable instanc
 | DRN0023 | Malformed DiagnosticNameExemption comment. |
 | DRN0024 | Warning: a valid DiagnosticNameExemption comment suppresses no name diagnostic. |
 | DRN0025 | Model capture exceeded the analysis work limit, so configured paths may remain unchecked. Capture a smaller model or classify sensitive subtrees explicitly. |
+| DRN0027 | A direct property capture exceeded the 256 interface-property scan limit before classification could be determined. Remove the capture, explicitly redact its value, or declare classification directly on the captured property or type. |
 
 Company attributes may derive from Sensitive or Personal, including in referenced assemblies. Derived Sensitive attributes must remain positive. Runtime non-None Microsoft classifications still redact, but unrelated classification families do not satisfy compiler verification. A custom attribute returning None is not a supported exemption.
 
@@ -87,7 +88,7 @@ Metric APIs use code-owned identifiers without native runtime name matching. Cus
 
 DRN0022 covers Microsoft LoggerExtensions templates, template BeginScope, scope dictionary initializers/direct local writes, and directly extracted classified property values in ILogger and DRN captures. Escaped braces are literals; format/alignment suffixes are excluded. Known null, empty, and exact `[redacted]` values are allowed. DRN0017 also checks AddIfNotNullOrEmpty, excluding known null and empty values. Standard ILogger does not apply DRN runtime redaction.
 
-Direct property checks include inherited implementations of classified interfaces on the receiver's statically known type. Unrelated explicit interface implementations do not classify a same-named public property.
+Direct property checks include inherited implementations of classified interfaces on the receiver's statically known type. Unrelated explicit interface implementations do not classify a same-named public property. If the 256 interface-property scan limit prevents a complete decision, DRN0027 reports an error at the logging call. This applies to scoped logging, ILogger templates, and scope dictionary values. Finding a positive classification within the limit still reports DRN0022. Name exemptions cannot waive incomplete classification analysis.
 
 ```csharp
 // DiagnosticNameExemption: TokenCount | Reviewed numeric metric.

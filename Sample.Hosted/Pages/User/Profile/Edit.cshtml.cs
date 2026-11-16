@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Sample.Application.Services;
-using Sample.Domain.Users;
+using Sample.Application.Services.SampleIdentity;
+using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
 using Sample.Hosted.Helpers;
 
 namespace Sample.Hosted.Pages.User.Profile;

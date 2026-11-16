@@ -6,6 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+
+
   <ItemGroup>
     <ProjectReference Include="..\DRN.Framework.EntityFramework\DRN.Framework.EntityFramework.csproj" />
     <ProjectReference Include="..\Sample.Domain\Sample.Domain.csproj" />
@@ -16,8 +18,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="DataProtection\Migrations\" />
-    <Folder Include="Identity\Migrations\" />
+    <Folder Include="DrnDataProtection\Migrations\" />
+    <Folder Include="SampleIdentity\Migrations\" />
     <Folder Include="QA\Migrations\" />
   </ItemGroup>
 

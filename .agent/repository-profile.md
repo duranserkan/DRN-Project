@@ -74,11 +74,13 @@ dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 
 ## Conventions
 
-- DI/configuration: use DRN attributes. Do not manually register attribute-decorated services. Follow `overview-drn-framework` and `drn-utils`.
-- Identity: explicit `NexusAppSettings:AppId` and `AppInstanceId` in every environment; zero is valid. Use Source-Known IDs and entity metadata. DTOs derive from `Dto`, live in `*.Contract`, and expose `Guid` IDs, not entities. `drn-sharedkernel` and `drn-utils` own identity formats, time configuration, and lifecycle contracts.
-- Runtime access: prefer `[UnsafeAccessor]` when target types are known and accessible at compile time. Reserve reflection for dynamically discovered types.
+- DI/configuration: use DRN attributes, not duplicate manual registrations. See `overview-drn-framework` and `drn-utils`.
+- SharedKernel `CONVENTIONS.md` owns application conventions. Declare alternate or ambiguous context destinations. Shared dependencies need no naming root or custom properties.
+- Identity: require explicit `NexusAppSettings:AppId` and `AppInstanceId` in all environments. Zero is valid. Use Source-Known IDs and entity metadata. DTOs derive from `Dto` in `*.Contract` and expose `Guid` IDs, not entities. `drn-sharedkernel` and `drn-utils` own identity, time and lifecycle contracts.
+- IDs: use `[Sensitive]` or `[Personal]` only when a contract, classification rule or reviewed use case requires it.
+- Runtime access: prefer `[UnsafeAccessor]` for compile-time accessible types. Reserve reflection for dynamically discovered types.
 - `drn-hosting` owns typed roots, `ConfigureEndpointCollection`, and automatic Razor detection.
-- Logging: use `IScopedLog` for request/operation diagnostics. Direct `ILogger` is for bootstrap, scope flushing, or dedicated audit events. Do not duplicate full request logs in audit events. Dynamic classification is the application's responsibility; backend runtime capture has no name-based redaction fallback.
+- Logging: use `IScopedLog` for request/operation diagnostics. Reserve `ILogger` for bootstrap, scope flushing or audit events. Avoid duplicating request logs in audits. Applications own dynamic classification. Backend capture has no name-based redaction fallback.
 - Testing: use `DrnTestContextUnit` in `DRN.Test.Unit`; full `DrnTestContext` belongs in integration tests. Reusable hosted test programs belong in `DRN.Test.Utils`, not MTP executables. `drn-testing` owns data attributes and fixture contracts. Do not weaken production invariants for tests.
 - Frontend: `Sample.Hosted/buildwww/` builds to `Sample.Hosted/wwwroot/`. See [assets](../Sample.Hosted/README.md#frontend-assets). Browser APIs use `window.DRN`. Preserve `DRN`, `Drn*`, and `DRN.Framework.*`. Hosting owns typed static-file header rules and robots.txt revalidation. See `drn-hosting`.
 - Sample behaviors: `buildwww/app/ts/behaviors/{layout,home,test}/` feed separate `layoutBehaviors.ts`, `homeBehaviors.ts`, and `testBehaviors.ts` entries. Load layout globally and page entries through their owning Razor `Scripts` sections. Use declarative data and idempotent mounting. `Sample.Hosted/README.md`, Independently updating component behaviors, owns aggregate/selective commands, nonce-fixture exceptions, and deployment/restart rules.
@@ -103,7 +105,7 @@ Use these owners for public contracts. For implementation work, discover relevan
 
 | Contract | Owner | Agent guidance |
 |---|---|---|
-| Identity, entities, repositories, analyzer diagnostics | `DRN.Framework.SharedKernel/README.md`, `DRN.Framework.EntityFramework/README.md` | `drn-sharedkernel`, `drn-entityframework` |
+| Identity, entities, aggregate rules, repositories, analyzer diagnostics | `DRN.Framework.SharedKernel/README.md`, `DRN.Framework.EntityFramework/README.md` | `drn-sharedkernel`, `drn-entityframework` |
 | Configuration, data paths, cancellation, ID/time utilities, events | `DRN.Framework.Utils/README.md` | `drn-utils`, `overview-drn-framework` |
 | Classification, capture limits, exemptions, migration | `DRN.Framework.Utils/Logging/Diagnostics/README.md`; catalog `DRN.Framework.Utils/Logging/Diagnostics/data-classification-rules.json` | `drn-utils`, `drn-sharedkernel`, `drn-testing` |
 | Hosting, SourceKnown policy enforcement, MFA, Razor and assets | `DRN.Framework.Hosting/README.md` | `drn-hosting`, relevant frontend skills |
@@ -112,9 +114,7 @@ Use these owners for public contracts. For implementation work, discover relevan
 
 ### Documentation Sync
 
-Document public usage, behavior, configuration, and migration. Omit internals. Classify public impact first; inspect private details only to prove public behavior or documentation accuracy.
-
-When shared behavior changes, verify its owner, update affected module READMEs and framework skills, assess release-note impact, and search changed names/defaults/examples for drift. Keep browser declarations aligned with the Sample guide. Run `git diff --check`.
+Document public usage, behavior, configuration and migration. For shared changes, update owning READMEs and skills, assess release notes, and scan names/defaults/examples for drift. Align browser declarations with the Sample guide. Run `git diff --check`.
 
 ### Release Notes
 

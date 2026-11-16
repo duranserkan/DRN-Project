@@ -13,7 +13,7 @@ using Sample.Hosted.Controllers.User;
 [assembly: AccessorController(typeof(SampleProgram), typeof(ExceptionController), TypeName = "ExceptionControllerFor")]
 
 // Preserve the identity-group path and UserIdentityRegisterFor type instead of Sample-prefixed defaults.
-[assembly: AccessorController(typeof(SampleProgram), typeof(SampleIdentityRegister), "User.Identity.RegisterController", TypeName = "UserIdentityRegisterFor")]
+[assembly: AccessorController(typeof(SampleProgram), typeof(SampleIdentityRegisterController), "User.Identity.RegisterController", TypeName = "UserIdentityRegisterFor")]
 
 // Preserve the identity-group path and UserIdentityLoginFor type instead of Sample-prefixed defaults.
 [assembly: AccessorController(typeof(SampleProgram), typeof(SampleIdentityLoginController), "User.Identity.LoginController", TypeName = "UserIdentityLoginFor")]

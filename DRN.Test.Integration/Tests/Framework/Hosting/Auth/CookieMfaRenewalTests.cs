@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
-using Sample.Domain.Users;
+using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
 using Sample.Hosted;
 
 namespace DRN.Test.Integration.Tests.Framework.Hosting.Auth;

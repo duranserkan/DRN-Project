@@ -41,6 +41,7 @@
 - [X] Scoped Logs
 
 ### DRN.Framework.SharedKernel
+- [ ] Explore additional progressive domain-safety cases and activation conditions beyond the required layer references. Validate source evidence, false positives and intentional exceptions before adding rules.
 - [X] Domain Entities and definitions
 - [X] Generalized Convention Exceptions
 - [X] AppConstants

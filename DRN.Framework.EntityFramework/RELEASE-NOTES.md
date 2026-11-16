@@ -6,9 +6,23 @@ Targets .NET 11.
 
 ### Breaking Changes
 
+*   **Direct context options**: DRNCV030 requires concrete, closed DRN contexts to directly apply a custom attribute derived from `NpgsqlDbContextOptionsAttribute`. Contexts relying on inherited attributes or framework defaults must add this declaration to avoid warnings-as-errors failures. The custom attribute can retain the inherited settings without overrides.
+
+*   **Infrastructure layout**: DRNCV028 checks dedicated Repositories, Configurations and Migrations folders/namespaces. EF configuration names end in Config. DRNCV029 checks the context prefix and Options suffix on applied custom options attributes, excluding shared framework defaults.
+
+*   **Aggregate repositories**: DRNCV027 requires a concrete SourceKnownRepository implementing the aggregate's Domain subdomain interface for aggregates assigned to this Infra's contexts. One implementation can cover multiple contexts. Unassigned Domain aggregates are excluded.
+
+*   **Aggregate DbSets**: The transitive DRNCV023 analyzer requires `AggregateRoot` descendants for instance DbSet properties on `DrnContext<TContext>`, including inherited sets. The separate Identity context hierarchy is excluded. EF mapping and runtime generic constraints are unchanged.
+
 *   **Target framework**: Requires .NET 11.
 
 SharedKernel classification analyzers apply transitively. Review application model properties and add required classification annotations when upgrading.
+
+SharedKernel application conventions infer roles from project-name tokens without custom properties or an application-root identity. Infra requires at least one direct Domain reference and populated subdomains matching its concrete contexts and repositories. Subdomain evidence is collected across referenced Domain projects. Multiple Domain references and shared Infra are valid regardless of naming prefix. Concrete EF contexts must implement `IDrnContext` or carry a narrow justified exception. New warnings can fail warnings-as-errors builds. Standard diagnostic severity settings remain available independently of classification and identity rules.
+
+### New Features
+
+*   **Convention persistence metadata**: `SourceKnownPersistenceAttribute` records context/entity inclusion or exclusion for application convention analysis. It does not change the EF model or waive cross-subdomain reuse diagnostics. Attribute-only mapping and multiple contexts per subdomain remain supported.
 
 ## Version 0.10.0
 

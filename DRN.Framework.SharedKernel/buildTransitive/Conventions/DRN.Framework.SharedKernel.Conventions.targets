@@ -1,0 +1,207 @@
+<Project>
+  <ItemGroup>
+    <CompilerVisibleProperty Include="MSBuildProjectName" />
+    <CompilerVisibleProperty Include="RootNamespace" />
+  </ItemGroup>
+
+  <!-- The analyzer infers application identity from standard project metadata. The fragment is data,
+       not executable source. WriteCodeFragment preserves string escaping. -->
+  <Target Name="_PrepareDrnConventionInputs" BeforeTargets="GenerateMSBuildEditorConfigFile;CoreCompile"
+          DependsOnTargets="ResolveReferences"
+          Condition="'$(MSBuildProjectExtension)' == '.csproj'">
+    <PropertyGroup>
+      <_DrnConventionInputPath>$(IntermediateOutputPath)DrnConventionInputs.g.cs</_DrnConventionInputPath>
+      <_DrnConventionProjectPath>$(IntermediateOutputPath)DrnConventionProject.g.cs</_DrnConventionProjectPath>
+      <_DrnConventionIntermediateDirectory>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)'))</_DrnConventionIntermediateDirectory>
+      <_DrnConventionBaseIntermediateDirectory Condition="'$(BaseIntermediateOutputPath)' != ''">$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(BaseIntermediateOutputPath)'))</_DrnConventionBaseIntermediateDirectory>
+      <_DrnConventionPathComparison>Ordinal</_DrnConventionPathComparison>
+      <_DrnConventionPathComparison Condition="$([MSBuild]::IsOSPlatform('Windows'))">OrdinalIgnoreCase</_DrnConventionPathComparison>
+    </PropertyGroup>
+    <ItemGroup>
+      <!-- SDK assembly attributes can precede this target without FileWrites metadata. Filter
+           logical-path data by output-directory ownership, not by source suffix or FileWrites.
+           Explicit links still need analyzer validation, even when located under an output root. -->
+      <_DrnConventionCompile Include="@(Compile)" />
+      <_DrnConventionCompile Remove="@(_DrnConventionCompile)"
+                             Condition="'%(_DrnConventionCompile.Link)' == '' and
+                                        (('$(IntermediateOutputPath)' != '' and $([System.String]::Copy('%(_DrnConventionCompile.FullPath)').StartsWith('$(_DrnConventionIntermediateDirectory)', System.StringComparison.$(_DrnConventionPathComparison)))) or
+                                         ('$(BaseIntermediateOutputPath)' != '' and $([System.String]::Copy('%(_DrnConventionCompile.FullPath)').StartsWith('$(_DrnConventionBaseIntermediateDirectory)', System.StringComparison.$(_DrnConventionPathComparison)))))" />
+      <_DrnConventionInput Include="DRN.Conventions.Version">
+        <_Parameter1>1</_Parameter1>
+        <_Parameter1_TypeName>System.String</_Parameter1_TypeName>
+      </_DrnConventionInput>
+      <_DrnConventionInput Include="DRN.Conventions.Reference">
+        <_Parameter1>Inventory</_Parameter1>
+        <_Parameter1_TypeName>System.String</_Parameter1_TypeName>
+        <Stage>Complete</Stage>
+        <Stage_TypeName>System.String</Stage_TypeName>
+      </_DrnConventionInput>
+      <_DrnConventionInput Include="DRN.Conventions.Path" Condition="'%(_DrnConventionCompile.Identity)' != ''">
+        <_Parameter1>%(_DrnConventionCompile.FullPath)</_Parameter1>
+        <_Parameter1_TypeName>System.String</_Parameter1_TypeName>
+        <LogicalPath Condition="'%(_DrnConventionCompile.Link)' != ''">%(_DrnConventionCompile.Link)</LogicalPath>
+        <LogicalPath Condition="'%(_DrnConventionCompile.Link)' == ''">$([MSBuild]::MakeRelative('$(MSBuildProjectDirectory)', '%(_DrnConventionCompile.FullPath)'))</LogicalPath>
+        <LogicalPath_TypeName>System.String</LogicalPath_TypeName>
+      </_DrnConventionInput>
+      <_DrnConventionInput Include="DRN.Conventions.Role" Condition="'%(DrnConventionRole.Identity)' != ''">
+        <_Parameter1>%(DrnConventionRole.Identity)</_Parameter1>
+        <_Parameter1_TypeName>System.String</_Parameter1_TypeName>
+        <NamespacePrefix>%(DrnConventionRole.NamespacePrefix)</NamespacePrefix>
+        <NamespacePrefix_TypeName>System.String</NamespacePrefix_TypeName>
+        <LogicalPathPrefix>%(DrnConventionRole.LogicalPathPrefix)</LogicalPathPrefix>
+        <LogicalPathPrefix_TypeName>System.String</LogicalPathPrefix_TypeName>
+        <Reason>%(DrnConventionRole.Reason)</Reason>
+        <Reason_TypeName>System.String</Reason_TypeName>
+      </_DrnConventionInput>
+      <_DrnConventionInput Include="DRN.Conventions.Context" Condition="'%(DrnConventionContext.Identity)' != ''">
+        <_Parameter1>%(DrnConventionContext.Identity)</_Parameter1>
+        <_Parameter1_TypeName>System.String</_Parameter1_TypeName>
+        <Subdomain>%(DrnConventionContext.Subdomain)</Subdomain>
+        <Subdomain_TypeName>System.String</Subdomain_TypeName>
+        <Repositories>%(DrnConventionContext.Repositories)</Repositories>
+        <Repositories_TypeName>System.String</Repositories_TypeName>
+        <Migrations>%(DrnConventionContext.Migrations)</Migrations>
+        <Migrations_TypeName>System.String</Migrations_TypeName>
+        <MigrationsAssembly>%(DrnConventionContext.MigrationsAssembly)</MigrationsAssembly>
+        <MigrationsAssembly_TypeName>System.String</MigrationsAssembly_TypeName>
+        <Factory>%(DrnConventionContext.Factory)</Factory>
+        <Factory_TypeName>System.String</Factory_TypeName>
+        <Provider>%(DrnConventionContext.Provider)</Provider>
+        <Provider_TypeName>System.String</Provider_TypeName>
+        <Reason>%(DrnConventionContext.Reason)</Reason>
+        <Reason_TypeName>System.String</Reason_TypeName>
+      </_DrnConventionInput>
+      <_DrnConventionInput Include="DRN.Conventions.Ownership" Condition="'%(DrnConventionOwnership.Identity)' != ''">
+        <_Parameter1>%(DrnConventionOwnership.Identity)</_Parameter1>
+        <_Parameter1_TypeName>System.String</_Parameter1_TypeName>
+        <Subdomain>%(DrnConventionOwnership.Subdomain)</Subdomain>
+        <Subdomain_TypeName>System.String</Subdomain_TypeName>
+        <Kind>%(DrnConventionOwnership.Kind)</Kind>
+        <Kind_TypeName>System.String</Kind_TypeName>
+        <Reason>%(DrnConventionOwnership.Reason)</Reason>
+        <Reason_TypeName>System.String</Reason_TypeName>
+      </_DrnConventionInput>
+      <_DrnConventionInput Include="DRN.Conventions.Exception" Condition="'%(DrnConventionException.Identity)' != ''">
+        <_Parameter1>%(DrnConventionException.Identity)</_Parameter1>
+        <_Parameter1_TypeName>System.String</_Parameter1_TypeName>
+        <SymbolTarget>%(DrnConventionException.SymbolTarget)</SymbolTarget>
+        <SymbolTarget_TypeName>System.String</SymbolTarget_TypeName>
+        <Entity>%(DrnConventionException.Entity)</Entity>
+        <Entity_TypeName>System.String</Entity_TypeName>
+        <Context>%(DrnConventionException.Context)</Context>
+        <Context_TypeName>System.String</Context_TypeName>
+        <Reason>%(DrnConventionException.Reason)</Reason>
+        <Reason_TypeName>System.String</Reason_TypeName>
+        <Owner>%(DrnConventionException.Owner)</Owner>
+        <Owner_TypeName>System.String</Owner_TypeName>
+        <Review>%(DrnConventionException.Review)</Review>
+        <Review_TypeName>System.String</Review_TypeName>
+        <Fingerprint>%(DrnConventionException.Fingerprint)</Fingerprint>
+        <Fingerprint_TypeName>System.String</Fingerprint_TypeName>
+      </_DrnConventionInput>
+      <_DrnConventionInput Include="DRN.Conventions.Configuration" Condition="'%(DrnConventionConfiguration.Identity)' != ''">
+        <_Parameter1>%(DrnConventionConfiguration.Identity)</_Parameter1>
+        <_Parameter1_TypeName>System.String</_Parameter1_TypeName>
+        <Context>%(DrnConventionConfiguration.Context)</Context>
+        <Context_TypeName>System.String</Context_TypeName>
+        <Reason>%(DrnConventionConfiguration.Reason)</Reason>
+        <Reason_TypeName>System.String</Reason_TypeName>
+      </_DrnConventionInput>
+      <_DrnConventionInput Include="DRN.Conventions.Registration" Condition="'%(DrnConventionRegistration.Identity)' != ''">
+        <_Parameter1>%(DrnConventionRegistration.Identity)</_Parameter1>
+        <_Parameter1_TypeName>System.String</_Parameter1_TypeName>
+        <Service>%(DrnConventionRegistration.Service)</Service>
+        <Service_TypeName>System.String</Service_TypeName>
+        <Key>%(DrnConventionRegistration.Key)</Key>
+        <Key_TypeName>System.String</Key_TypeName>
+        <Reason>%(DrnConventionRegistration.Reason)</Reason>
+        <Reason_TypeName>System.String</Reason_TypeName>
+      </_DrnConventionInput>
+      <_DrnConventionInput Include="DRN.Conventions.Reference"
+                           Condition="'%(ProjectReference.Identity)' != '' and '%(ProjectReference.ReferenceOutputAssembly)' != 'false'">
+        <_Parameter1>%(ProjectReference.FullPath)</_Parameter1>
+        <_Parameter1_TypeName>System.String</_Parameter1_TypeName>
+        <Stage>Project</Stage>
+        <Stage_TypeName>System.String</Stage_TypeName>
+        <Source>%(ProjectReference.Identity)</Source>
+        <Source_TypeName>System.String</Source_TypeName>
+      </_DrnConventionInput>
+      <_DrnConventionInput Include="DRN.Conventions.Reference" Condition="'%(PackageReference.Identity)' != ''">
+        <_Parameter1>%(PackageReference.Identity)</_Parameter1>
+        <_Parameter1_TypeName>System.String</_Parameter1_TypeName>
+        <Stage>Package</Stage>
+        <Stage_TypeName>System.String</Stage_TypeName>
+      </_DrnConventionInput>
+      <_DrnConventionInput Include="DRN.Conventions.Reference" Condition="'%(ReferencePath.Identity)' != ''">
+        <_Parameter1>%(ReferencePath.FullPath)</_Parameter1>
+        <_Parameter1_TypeName>System.String</_Parameter1_TypeName>
+        <Stage>Resolved</Stage>
+        <Stage_TypeName>System.String</Stage_TypeName>
+        <Project>%(ReferencePath.MSBuildSourceProjectFile)</Project>
+        <Project_TypeName>System.String</Project_TypeName>
+        <OriginalProject>%(ReferencePath.OriginalProjectReferenceItemSpec)</OriginalProject>
+        <OriginalProject_TypeName>System.String</OriginalProject_TypeName>
+        <Package>%(ReferencePath.NuGetPackageId)</Package>
+        <Package_TypeName>System.String</Package_TypeName>
+      </_DrnConventionInput>
+    </ItemGroup>
+    <ItemGroup>
+      <_DrnConventionProject Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>DRN.Conventions.ProjectName</_Parameter1>
+        <_Parameter2>$(MSBuildProjectName)</_Parameter2>
+      </_DrnConventionProject>
+      <_DrnConventionProject Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>DRN.Conventions.RootNamespace</_Parameter1>
+        <_Parameter2>$(RootNamespace)</_Parameter2>
+      </_DrnConventionProject>
+      <_DrnConventionProject Include="System.Reflection.AssemblyMetadataAttribute"
+                             Condition="'%(DrnConventionRole.Identity)' != ''">
+        <_Parameter1>DRN.Conventions.Role.%(DrnConventionRole.Identity)</_Parameter1>
+        <_Parameter2>%(DrnConventionRole.NamespacePrefix)</_Parameter2>
+      </_DrnConventionProject>
+      <_DrnConventionProject Include="System.Reflection.AssemblyMetadataAttribute"
+                             Condition="'%(DrnConventionOwnership.Identity)' != ''">
+        <_Parameter1>DRN.Conventions.Ownership.%(DrnConventionOwnership.Identity).Subdomain</_Parameter1>
+        <_Parameter2>%(DrnConventionOwnership.Subdomain)</_Parameter2>
+      </_DrnConventionProject>
+      <_DrnConventionProject Include="System.Reflection.AssemblyMetadataAttribute"
+                             Condition="'%(DrnConventionOwnership.Identity)' != ''">
+        <_Parameter1>DRN.Conventions.Ownership.%(DrnConventionOwnership.Identity).Reason</_Parameter1>
+        <_Parameter2>%(DrnConventionOwnership.Reason)</_Parameter2>
+      </_DrnConventionProject>
+      <_DrnConventionProject Include="System.Reflection.AssemblyMetadataAttribute"
+                             Condition="'%(DrnConventionOwnership.Identity)' != ''">
+        <_Parameter1>DRN.Conventions.Ownership.%(DrnConventionOwnership.Identity).Kind</_Parameter1>
+        <_Parameter2>%(DrnConventionOwnership.Kind)</_Parameter2>
+      </_DrnConventionProject>
+      <_DrnConventionProject Include="System.Reflection.AssemblyMetadataAttribute"
+                             Condition="'%(DrnConventionContext.Identity)' != '' and '%(DrnConventionContext.Subdomain)' != ''">
+        <_Parameter1>DRN.Conventions.Context.%(DrnConventionContext.Identity).Subdomain</_Parameter1>
+        <_Parameter2>%(DrnConventionContext.Subdomain)</_Parameter2>
+      </_DrnConventionProject>
+      <_DrnConventionProject Include="System.Reflection.AssemblyMetadataAttribute"
+                             Condition="'%(DrnConventionContext.Identity)' != '' and '%(DrnConventionContext.Subdomain)' != ''">
+        <_Parameter1>DRN.Conventions.Context.%(DrnConventionContext.Identity).Reason</_Parameter1>
+        <_Parameter2>%(DrnConventionContext.Reason)</_Parameter2>
+      </_DrnConventionProject>
+    </ItemGroup>
+
+    <WriteCodeFragment Language="C#" AssemblyAttributes="@(_DrnConventionInput)" OutputFile="$(_DrnConventionInputPath).tmp" />
+    <ReadLinesFromFile File="$(_DrnConventionInputPath).tmp">
+      <Output TaskParameter="Lines" ItemName="_DrnConventionInputLines" />
+    </ReadLinesFromFile>
+    <WriteLinesToFile File="$(_DrnConventionInputPath)" Lines="@(_DrnConventionInputLines)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <WriteCodeFragment Language="C#" AssemblyAttributes="@(_DrnConventionProject)" OutputFile="$(_DrnConventionProjectPath).tmp" />
+    <ReadLinesFromFile File="$(_DrnConventionProjectPath).tmp">
+      <Output TaskParameter="Lines" ItemName="_DrnConventionProjectLines" />
+    </ReadLinesFromFile>
+    <WriteLinesToFile File="$(_DrnConventionProjectPath)" Lines="@(_DrnConventionProjectLines)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <AdditionalFiles Remove="$(_DrnConventionInputPath)" />
+      <AdditionalFiles Include="$(_DrnConventionInputPath)" />
+      <Compile Remove="$(_DrnConventionProjectPath)" />
+      <Compile Include="$(_DrnConventionProjectPath)" />
+      <FileWrites Include="$(_DrnConventionInputPath);$(_DrnConventionInputPath).tmp;$(_DrnConventionProjectPath);$(_DrnConventionProjectPath).tmp" />
+    </ItemGroup>
+  </Target>
+</Project>

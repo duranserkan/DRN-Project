@@ -1,7 +1,7 @@
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Testing.Extensions;
 using Sample.Contract.QA.Tags;
-using Sample.Domain.QA.Tags;
+using Tag = Sample.Domain.QA.Tag.TagEntity;
 
 namespace DRN.Test.Unit.Tests.Framework.SharedKernel.Domain;
 

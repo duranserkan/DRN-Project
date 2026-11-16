@@ -69,4 +69,30 @@ public sealed class SymbolFactCacheTests
         cache.GetOrAdd(type, static (_, _) => throw new InvalidOperationException("Unexpected recalculation."), default)
             .Should().BeSameAs(results[0]);
     }
+
+    [Fact]
+    public void Custom_Small_Capacity_Should_Grow_Cleanly_Without_Losing_Cached_Entries()
+    {
+        var compilation = Compilation("""
+            public class A;
+            public class B;
+            public class C;
+            public class D;
+            public class E;
+            """);
+        var cache = new SymbolFactCache<INamedTypeSymbol, string>(capacity: 2);
+        string[] names = ["A", "B", "C", "D", "E"];
+        foreach (var name in names)
+        {
+            var symbol = compilation.GetTypeByMetadataName(name)!;
+            cache.GetOrAdd(symbol, static (item, _) => item.Name, default).Should().Be(name);
+        }
+
+        foreach (var name in names)
+        {
+            var symbol = compilation.GetTypeByMetadataName(name)!;
+            cache.GetOrAdd(symbol, static (_, _) => throw new InvalidOperationException("Unexpected recalculation."), default)
+                .Should().Be(name);
+        }
+    }
 }

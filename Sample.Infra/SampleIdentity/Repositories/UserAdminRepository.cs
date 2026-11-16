@@ -1,0 +1,97 @@
+using DRN.Framework.Utils.DependencyInjection.Attributes;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Caching.Memory;
+using Sample.Domain.SampleIdentity;
+using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
+
+namespace Sample.Infra.SampleIdentity.Repositories;
+
+[Scoped<IUserAdminRepository>]
+public class UserAdminRepository(
+    UserManager<SampleUser> userManager,
+    RoleManager<IdentityRole> roleManager,
+    SampleIdentityContext identityContext,
+    IMemoryCache cache) : IUserAdminRepository
+{
+    private const long BootstrapLockId = 0x53414D504C454144L;
+    private const string SystemAdminUserCacheKey = "SystemAdminUserExists";
+
+    public async Task<bool> AnySystemAdminExistsAsync()
+    {
+        if (cache.TryGetValue(SystemAdminUserCacheKey, out bool adminUserExists))
+            return adminUserExists;
+
+        var usersInRole = await userManager.GetUsersInRoleAsync(UserRoles.SystemAdmin);
+        adminUserExists = usersInRole.Count > 0;
+
+        if (adminUserExists)
+            cache.Set(SystemAdminUserCacheKey, true);
+
+        return adminUserExists;
+    }
+
+    public async Task<IdentityResult> CreateSystemAdminForInitialSetup(SampleUser user, string inputPassword)
+    {
+        await using var transaction = await identityContext.Database.BeginTransactionAsync();
+        try
+        {
+            await identityContext.Database.ExecuteSqlRawAsync(
+                "SELECT pg_advisory_xact_lock({0})",
+                BootstrapLockId);
+
+            var admins = await userManager.GetUsersInRoleAsync(UserRoles.SystemAdmin);
+            if (admins.Count > 0)
+            {
+                await transaction.RollbackAsync();
+
+                return IdentityResult.Failed(new IdentityError
+                {
+                    Code = "InitialSetupCompleted",
+                    Description = "Initial setup has already been completed."
+                });
+            }
+
+            var adminCreatedResult = await AddSystemAdminAsync(user, inputPassword);
+            if (adminCreatedResult.Succeeded)
+            {
+                await transaction.CommitAsync();
+                cache.Set(SystemAdminUserCacheKey, true);
+            }
+            else
+                await transaction.RollbackAsync();
+
+            return adminCreatedResult;
+        }
+        catch (Exception)
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+    }
+
+    private async Task<IdentityResult> AddSystemAdminAsync(SampleUser user, string inputPassword)
+    {
+        var adminRoleExists = await roleManager.RoleExistsAsync(UserRoles.SystemAdmin);
+        if (!adminRoleExists)
+        {
+            var role = new IdentityRole(UserRoles.SystemAdmin);
+            var roleCreatedResult = await roleManager.CreateAsync(role);
+
+            if (!roleCreatedResult.Succeeded)
+                return roleCreatedResult;
+        }
+
+        var existingUser = await userManager.Users.SingleOrDefaultAsync(u => u.Email == user.Email);
+        if (existingUser == null)
+        {
+            var userCreateResult = await userManager.CreateAsync(user, inputPassword);
+            if (!userCreateResult.Succeeded)
+                return userCreateResult;
+        }
+
+        var adminUser = existingUser ?? user;
+        var adminCreatedResult = await userManager.AddToRoleAsync(adminUser, UserRoles.SystemAdmin);
+
+        return adminCreatedResult;
+    }
+}

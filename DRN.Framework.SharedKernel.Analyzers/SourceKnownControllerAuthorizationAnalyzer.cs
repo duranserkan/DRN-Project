@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using DRN.Framework.CompilerTools;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 
@@ -44,7 +45,7 @@ public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnaly
             !DerivesFrom(controller, contract.Foundation))
             return;
 
-        var controllerAttributes = EffectiveAttributes(controller, contract).ToArray();
+        var controllerAttributes = EffectiveAttributes(controller, contract, context.CancellationToken).ToArray();
         if (controllerAttributes.Any(attribute => DerivesFrom(attribute.AttributeClass, contract.NonController)))
             return;
 
@@ -63,7 +64,7 @@ public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnaly
     private static void AnalyzeAction(SymbolAnalysisContext context, Contract contract, INamedTypeSymbol controller,
         IMethodSymbol method, bool classAllowsAnonymous, bool classHasPolicy)
     {
-        var methodAttributes = EffectiveAttributes(method, contract).ToArray();
+        var methodAttributes = EffectiveAttributes(method, contract, context.CancellationToken).ToArray();
         if (methodAttributes.Any(attribute => DerivesFrom(attribute.AttributeClass, contract.NonAction)))
             return;
 
@@ -182,17 +183,19 @@ public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnaly
         => left.Length == right.Length && left.Zip(right).All(pair => pair.First.IsOptional == pair.Second.IsOptional &&
             SymbolEqualityComparer.Default.Equals(pair.First.Modifier, pair.Second.Modifier));
 
-    private static IEnumerable<AttributeData> EffectiveAttributes(ISymbol symbol, Contract contract)
+    private static IEnumerable<AttributeData> EffectiveAttributes(ISymbol symbol, Contract contract, CancellationToken cancellationToken)
     {
         var seen = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
         var inherited = false;
         for (ISymbol? current = symbol; current is not null; current = AttributeParent(current))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             foreach (var attribute in current.GetAttributes())
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 if (attribute.AttributeClass is not { } attributeType)
                     continue;
-                var usage = AttributeUsage(attributeType, contract);
+                var usage = contract.AttributeUsage(attributeType, cancellationToken);
                 if (inherited && !usage.Inherited)
                     continue;
                 if (!seen.Add(attributeType) && !usage.AllowMultiple)
@@ -209,26 +212,6 @@ public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnaly
         IMethodSymbol method => method.OverriddenMethod,
         _ => null
     };
-
-    private static (bool Inherited, bool AllowMultiple) AttributeUsage(INamedTypeSymbol attributeType, Contract contract)
-    {
-        for (var current = attributeType; current is not null; current = current.BaseType)
-        {
-            var usage = current.GetAttributes().FirstOrDefault(attribute =>
-                SymbolEqualityComparer.Default.Equals(attribute.AttributeClass, contract.AttributeUsageType));
-            if (usage is null)
-                continue;
-            var inherited = true;
-            var multiple = false;
-            foreach (var argument in usage.NamedArguments)
-            {
-                if (argument.Key == "Inherited" && argument.Value.Value is bool inherits) inherited = inherits;
-                if (argument.Key == "AllowMultiple" && argument.Value.Value is bool allowsMultiple) multiple = allowsMultiple;
-            }
-            return (inherited, multiple);
-        }
-        return (true, false);
-    }
 
     private static bool HasNamedPolicy(AttributeData attribute, Contract contract)
     {
@@ -284,7 +267,59 @@ public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnaly
         return false;
     }
 
-    private sealed record Contract(INamedTypeSymbol Foundation, INamedTypeSymbol Authorize, INamedTypeSymbol Anonymous,
-        INamedTypeSymbol NonAction, INamedTypeSymbol NonController, INamedTypeSymbol AttributeUsageType,
-        IPropertySymbol PolicyProperty, INamedTypeSymbol Conditional, IMethodSymbol? Dispose);
+    private sealed class Contract
+    {
+        private readonly SymbolFactCache<INamedTypeSymbol, (bool Inherited, bool AllowMultiple)> _attributeUsage = new(capacity: 31);
+        private readonly Func<INamedTypeSymbol, CancellationToken, (bool Inherited, bool AllowMultiple)> _calculateAttributeUsage;
+
+        internal Contract(INamedTypeSymbol foundation, INamedTypeSymbol authorize, INamedTypeSymbol anonymous,
+            INamedTypeSymbol nonAction, INamedTypeSymbol nonController, INamedTypeSymbol attributeUsageType,
+            IPropertySymbol policyProperty, INamedTypeSymbol conditional, IMethodSymbol? dispose)
+        {
+            Foundation = foundation;
+            Authorize = authorize;
+            Anonymous = anonymous;
+            NonAction = nonAction;
+            NonController = nonController;
+            AttributeUsageType = attributeUsageType;
+            PolicyProperty = policyProperty;
+            Conditional = conditional;
+            Dispose = dispose;
+            _calculateAttributeUsage = CalculateAttributeUsage;
+        }
+
+        internal INamedTypeSymbol Foundation { get; }
+        internal INamedTypeSymbol Authorize { get; }
+        internal INamedTypeSymbol Anonymous { get; }
+        internal INamedTypeSymbol NonAction { get; }
+        internal INamedTypeSymbol NonController { get; }
+        internal INamedTypeSymbol AttributeUsageType { get; }
+        internal IPropertySymbol PolicyProperty { get; }
+        internal INamedTypeSymbol Conditional { get; }
+        internal IMethodSymbol? Dispose { get; }
+
+        internal (bool Inherited, bool AllowMultiple) AttributeUsage(INamedTypeSymbol attributeType, CancellationToken cancellationToken) =>
+            _attributeUsage.GetOrAdd(attributeType, _calculateAttributeUsage, cancellationToken);
+
+        private (bool Inherited, bool AllowMultiple) CalculateAttributeUsage(INamedTypeSymbol attributeType, CancellationToken cancellationToken)
+        {
+            for (var current = attributeType; current is not null; current = current.BaseType)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var usage = current.GetAttributes().FirstOrDefault(attribute =>
+                    SymbolEqualityComparer.Default.Equals(attribute.AttributeClass, AttributeUsageType));
+                if (usage is null)
+                    continue;
+                var inherited = true;
+                var multiple = false;
+                foreach (var argument in usage.NamedArguments)
+                {
+                    if (argument.Key == "Inherited" && argument.Value.Value is bool inherits) inherited = inherits;
+                    if (argument.Key == "AllowMultiple" && argument.Value.Value is bool allowsMultiple) multiple = allowsMultiple;
+                }
+                return (inherited, multiple);
+            }
+            return (true, false);
+        }
+    }
 }

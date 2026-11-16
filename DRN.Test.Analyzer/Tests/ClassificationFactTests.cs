@@ -5,6 +5,131 @@ namespace DRN.Test.Analyzer.Tests;
 public sealed class ClassificationFactTests
 {
     [Fact]
+    public void Dictionary_Type_Facts_Should_Include_Contracts_And_Observe_Cancellation()
+    {
+        var compilation = Compilation("public class Lookalike { public void Add(string key, object value) { } }");
+        var facts = new DictionaryCaptureAnalysis.DictionaryTypeFacts();
+        var key = compilation.GetSpecialType(SpecialType.System_String);
+        var value = compilation.GetSpecialType(SpecialType.System_Object);
+        var dictionary = compilation.GetTypeByMetadataName("System.Collections.Generic.Dictionary`2")!.Construct(key, value);
+        var mutable = compilation.GetTypeByMetadataName("System.Collections.Generic.IDictionary`2")!.Construct(key, value);
+        var readOnly = compilation.GetTypeByMetadataName("System.Collections.Generic.IReadOnlyDictionary`2")!.Construct(key, value);
+        var nonGeneric = compilation.GetTypeByMetadataName("System.Collections.IDictionary")!;
+        var lookalike = compilation.GetTypeByMetadataName("Lookalike")!;
+        Parallel.For(0, 8, _ =>
+        {
+            facts.IsDictionary(dictionary, default).Should().BeTrue();
+            facts.IsDictionary(mutable, default).Should().BeTrue();
+            facts.IsDictionary(readOnly, default).Should().BeTrue();
+            facts.IsDictionary(nonGeneric, default).Should().BeTrue();
+            facts.IsDictionary(lookalike, default).Should().BeFalse();
+        });
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        Action hit = () => facts.IsDictionary(dictionary, cancellation.Token);
+        Action miss = () => facts.IsDictionary(key, cancellation.Token);
+        hit.Should().Throw<OperationCanceledException>();
+        miss.Should().Throw<OperationCanceledException>();
+        facts.IsDictionary(key, default).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Cached_Classification_Details_Should_Preserve_Exemptions_Inheritance_And_Receiver_Identity()
+    {
+        var compilation = Compilation("""
+            using System;
+            using DRN.Framework.SharedKernel.Attributes;
+            [AttributeUsage(AttributeTargets.Class, Inherited = false)]
+            public class LocalPersonalAttribute : PersonalAttribute;
+            [LocalPersonal] public class Classified;
+            public class Child : Classified;
+            public interface IInput { [Personal] string Value { get; } }
+            public class Parent
+            {
+                public string Value => "";
+                [Sensitive(false)] public string Status => "";
+            }
+            public class Receiver : Parent, IInput;
+            public class Separate : Parent, IInput { string IInput.Value => ""; }
+            """);
+        var contract = CreateContract(compilation);
+        var parent = compilation.GetTypeByMetadataName("Parent")!;
+        var property = (IPropertySymbol)parent.GetMembers("Value").Single();
+        var exempt = (IPropertySymbol)parent.GetMembers("Status").Single();
+        var receiver = compilation.GetTypeByMetadataName("Receiver")!;
+        Parallel.For(0, 8, _ =>
+        {
+            contract.Positive(compilation.GetTypeByMetadataName("Classified")!, default).Should().BeTrue();
+            contract.Positive(compilation.GetTypeByMetadataName("Child")!, default).Should().BeFalse();
+            contract.Exempt(exempt).Should().BeTrue();
+            contract.Exempt(property).Should().BeFalse();
+            contract.PositiveInterfaceProperty(receiver, property, default).Should().BeTrue();
+            contract.PositiveInterfaceProperty(parent, property, default).Should().BeFalse();
+            contract.PositiveInterfaceProperty(compilation.GetTypeByMetadataName("Separate")!, property, default).Should().BeFalse();
+        });
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        Action exemptionHit = () => contract.Exempt(exempt, cancellation.Token);
+        Action receiverHit = () => contract.PositiveInterfaceProperty(receiver, property, cancellation.Token);
+        exemptionHit.Should().Throw<OperationCanceledException>();
+        receiverHit.Should().Throw<OperationCanceledException>();
+    }
+
+    [Fact]
+    public void Cached_Interface_Scan_Exhaustion_Should_Remain_Incomplete_And_Observe_Cancellation()
+    {
+        var members = string.Join("\n", Enumerable.Range(0, LoggingCaptureAnalysis.MaxValues + 1)
+            .Select(index => $"string P{index} {{ get; }}"));
+        var implementations = string.Join("\n", Enumerable.Range(0, LoggingCaptureAnalysis.MaxValues + 1)
+            .Select(index => $"public abstract string P{index} {{ get; }}"));
+        var compilation = Compilation($$"""
+            public interface IInput { {{members}} }
+            public abstract class Input : IInput
+            {
+                {{implementations}}
+                public string Value => "ordinary";
+            }
+            """);
+        var contract = CreateContract(compilation);
+        var receiver = compilation.GetTypeByMetadataName("Input")!;
+        var property = (IPropertySymbol)receiver.GetMembers("Value").Single();
+        Parallel.For(0, 8, _ =>
+            contract.PositiveInterfaceProperty(receiver, property, default).Should().BeNull());
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        Action hit = () => contract.PositiveInterfaceProperty(receiver, property, cancellation.Token);
+        hit.Should().Throw<OperationCanceledException>();
+        contract.PositiveInterfaceProperty(receiver, property, default).Should().BeNull();
+    }
+
+    [Fact]
+    public void Cached_Model_Shapes_Should_Preserve_Constructed_Elements_And_Nullable_Scalars()
+    {
+        var compilation = Compilation("public struct Model;");
+        var contract = CreateContract(compilation);
+        var model = compilation.GetTypeByMetadataName("Model")!;
+        var list = compilation.GetTypeByMetadataName("System.Collections.Generic.List`1")!;
+        var integer = compilation.GetSpecialType(SpecialType.System_Int32);
+        contract.ModelType(list.Construct(model), default).ListElement.Should().Be(model);
+        contract.ModelType(list.Construct(integer), default).ListElement.Should().Be(integer);
+        contract.ModelType(list.Construct(model), default).SkipProperties.Should().BeFalse();
+        contract.ModelType(list.Construct(model), default).Model.Should().BeFalse();
+        var nullable = compilation.GetTypeByMetadataName("System.Nullable`1")!;
+        contract.ModelType(nullable.Construct(model), default).Model.Should().BeTrue();
+        contract.ModelType(nullable.Construct(compilation.GetTypeByMetadataName("System.TimeSpan")!), default)
+            .TimeSpan.Should().BeTrue();
+        var dictionary = compilation.GetTypeByMetadataName("System.Collections.Generic.Dictionary`2")!.Construct(integer, model);
+        contract.ModelType(dictionary, default).SkipProperties.Should().BeTrue();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        Action hit = () => contract.ModelType(dictionary, cancellation.Token);
+        Action miss = () => contract.ModelType(model, cancellation.Token);
+        hit.Should().Throw<OperationCanceledException>();
+        miss.Should().Throw<OperationCanceledException>();
+        contract.ModelType(model, default).Model.Should().BeTrue();
+    }
+
+    [Fact]
     public void Classification_Facts_Should_Follow_Their_Compilation_And_Constructed_Type()
     {
         const string source = """
@@ -106,6 +231,53 @@ public sealed class ClassificationFactTests
         diagnostics.Should().HaveCount(2).And.OnlyContain(item => item.Id == "DRN0025");
         diagnostics.Select(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan))
             .Should().BeEquivalentTo("log.AddProperties(\"First\", value)", "log.AddProperties(\"Second\", value)");
+    }
+
+    [Fact]
+    public void Nullable_Annotated_Reference_And_Collection_Shapes_Should_Match_Non_Nullable_Facts()
+    {
+        var compilation = Compilation("""
+            #nullable enable
+            using System;
+            using System.Collections;
+            using System.Collections.Generic;
+            using DRN.Framework.SharedKernel.Attributes;
+            using DRN.Framework.Utils.Logging;
+
+            [Sensitive] public sealed class SecretItem;
+
+            public sealed class Shapes
+            {
+                public Uri Address { get; set; } = new("https://example.test/");
+                public Uri? NullableAddress { get; set; }
+                public ScopeEvent? Event { get; set; }
+                public IEnumerable? Sequence { get; set; }
+                public IList<SecretItem> SecretList { get; set; } = new List<SecretItem>();
+                public IDictionary? Dict { get; set; }
+                public Dictionary<string, object>? GenericDict { get; set; }
+            }
+            """)
+            .WithOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable))
+            .AddReferences(MetadataReference.CreateFromFile(typeof(DRN.Framework.Utils.Logging.ScopeEvent).Assembly.Location));
+        var contract = CreateContract(compilation);
+        var dictFacts = new DictionaryCaptureAnalysis.DictionaryTypeFacts();
+        var shapes = compilation.GetTypeByMetadataName("Shapes")!;
+        var secretItem = compilation.GetTypeByMetadataName("SecretItem")!;
+        var address = ((IPropertySymbol)shapes.GetMembers("Address").Single()).Type;
+        var nullableAddress = ((IPropertySymbol)shapes.GetMembers("NullableAddress").Single()).Type;
+        var scopeEvent = ((IPropertySymbol)shapes.GetMembers("Event").Single()).Type;
+        var sequence = ((IPropertySymbol)shapes.GetMembers("Sequence").Single()).Type;
+        var secretList = ((IPropertySymbol)shapes.GetMembers("SecretList").Single()).Type;
+        var dict = ((IPropertySymbol)shapes.GetMembers("Dict").Single()).Type;
+        var genericDict = ((IPropertySymbol)shapes.GetMembers("GenericDict").Single()).Type;
+
+        nullableAddress.NullableAnnotation.Should().Be(NullableAnnotation.Annotated);
+        contract.ModelType(nullableAddress, default).Should().Be(contract.ModelType(address, default));
+        contract.ModelType(scopeEvent, default).Should().Be(contract.ModelType(scopeEvent.WithNullableAnnotation(NullableAnnotation.NotAnnotated), default));
+        contract.ModelType(sequence, default).Should().Be(contract.ModelType(sequence.WithNullableAnnotation(NullableAnnotation.NotAnnotated), default));
+        contract.ModelType(secretList, default).ListElement.Should().Be(secretItem);
+        dictFacts.IsDictionary(dict, default).Should().BeTrue();
+        dictFacts.IsDictionary(genericDict, default).Should().BeTrue();
     }
 
     private static ClassificationContract CreateContract(Compilation compilation)

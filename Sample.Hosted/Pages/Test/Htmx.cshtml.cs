@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Attributes;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Sample.Domain.Identity;
+using Sample.Domain.SampleIdentity;
 
 namespace Sample.Hosted.Pages.Test;
 

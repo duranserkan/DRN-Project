@@ -1,10 +1,5 @@
 using DRN.Framework.EntityFramework.Attributes;
-using DRN.Framework.EntityFramework.Domain;
-using DRN.Framework.SharedKernel.Domain;
-using DRN.Framework.SharedKernel.Domain.Repository;
-using DRN.Framework.Utils.Entity;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
-using Sample.Domain.QB;
 
 namespace Sample.Infra.QB;
 
@@ -17,7 +12,7 @@ public class QBContextNpgsqlDbContextOptionsAttribute : NpgsqlDbContextOptionsAt
     public override bool UsePrototypeMode { get; set; } = false;
 }
 
-//Added to the test multiple context support
+// Demonstrates an entityless context alongside the application's persistence contexts.
 [QBContextNpgsqlDbContextOptions]
 public class QBContext : DrnContext<QBContext>
 {
@@ -29,8 +24,3 @@ public class QBContext : DrnContext<QBContext>
     {
     }
 }
-
-public interface IQBTestEntityRepository : ISourceKnownRepository<QBTestEntity>;
-
-public class QBTestEntityRepository(QBContext context, IEntityUtils utils)
-    : SourceKnownRepository<QBContext, QBTestEntity>(context, utils), IQBTestEntityRepository;

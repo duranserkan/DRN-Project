@@ -22,13 +22,13 @@ Add a `DbSet<T>` and, when needed, an `IEntityTypeConfiguration<T>` in the conte
 Define `ISourceKnownRepository<TAggregate>` interfaces in Domain. Implement them in Infrastructure with `SourceKnownRepository<TContext, TAggregate>` and scoped DI. Use inherited `IEntityUtils` for identity, pagination, dates, cancellation and logging. Start custom queries from `EntitiesWithAppliedSettings()` to retain caller settings.
 
 ```csharp
-public interface IUserRepository : ISourceKnownRepository<User> { }
+public interface IUserRepository : ISourceKnownRepository<UserEntity> { }
 
 [Scoped<IUserRepository>]
 public class UserRepository(ExampleDbContext context, IEntityUtils utils)
-    : SourceKnownRepository<ExampleDbContext, User>(context, utils), IUserRepository
+    : SourceKnownRepository<ExampleDbContext, UserEntity>(context, utils), IUserRepository
 {
-    protected override IQueryable<User> EntitiesWithAppliedSettings([CallerMemberName] string? caller = null) =>
+    protected override IQueryable<UserEntity> EntitiesWithAppliedSettings([CallerMemberName] string? caller = null) =>
         base.EntitiesWithAppliedSettings(caller)
             .Include(u => u.Profile)
             .ThenInclude(p => p.Address);
@@ -53,7 +53,7 @@ public class CategoryDto(SourceKnownEntity? entity = null) : Dto(entity)
 }
 ```
 
-In Domain, map out with `CategoryDto ToDto() => new(this) { Name = Name };` on the entity. Move mapping to a domain extension class if it crowds out domain behavior. Map back through a Domain extension that calls the entity's constructor, such as `new Category(dto.Name)`, so validation runs on every path.
+In Domain, map out with `CategoryDto ToDto() => new(this) { Name = Name };` on the entity. Move mapping to a domain extension class if it crowds out domain behavior. Map back through a Domain extension that calls the entity's constructor, such as `new CategoryEntity(dto.Name)`, so validation runs on every path.
 
 ## API Integration
 

@@ -1,6 +1,6 @@
-using Sample.Domain.QA.Categories;
-using Sample.Domain.QA.Questions;
-using Sample.Domain.Users;
+using Category = Sample.Domain.QA.Category.CategoryEntity;
+using Question = Sample.Domain.QA.Question.QuestionEntity;
+using User = Sample.Domain.QA.User.UserEntity;
 
 namespace DRN.Test.Integration.Tests.Sample.Infra.QA.Repositories.Data;
 

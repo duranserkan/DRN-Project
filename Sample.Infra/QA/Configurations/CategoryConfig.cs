@@ -1,11 +1,11 @@
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Sample.Domain.QA.Categories;
+using Sample.Domain.QA.Category;
 
 namespace Sample.Infra.QA.Configurations;
 
-public class CategoryConfig : IEntityTypeConfiguration<Category>
+public class CategoryConfig : IEntityTypeConfiguration<CategoryEntity>
 {
-    public void Configure(EntityTypeBuilder<Category> builder)
+    public void Configure(EntityTypeBuilder<CategoryEntity> builder)
     {
         builder
             .HasMany(category => category.Questions)

@@ -1,7 +1,7 @@
 using System.Text.Json;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.Testing.Extensions;
-using Sample.Domain.QA.Tags;
+using Tag = Sample.Domain.QA.Tag.TagEntity;
 
 namespace DRN.Test.Unit.Tests.Framework.SharedKernel.Pagination;
 

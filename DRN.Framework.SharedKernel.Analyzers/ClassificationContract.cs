@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using DRN.Framework.CompilerTools;
 using Microsoft.CodeAnalysis;
@@ -9,13 +10,23 @@ internal sealed class ClassificationContract
     private readonly INamedTypeSymbol _personal;
     private readonly SymbolFactCache<ISymbol, bool> _positive = new();
     private readonly SymbolFactCache<INamedTypeSymbol, ImmutableArray<IPropertySymbol>> _properties = new();
+    private readonly SymbolFactCache<IPropertySymbol, bool> _exemptions = new();
+    private readonly SymbolFactCache<INamedTypeSymbol, AttributeFacts> _attributes = new();
+    private readonly SymbolFactCache<ITypeSymbol, ModelTypeFacts> _modelTypes = new();
+    private readonly ConcurrentDictionary<INamedTypeSymbol, ReceiverFacts> _receivers = new(SymbolEqualityComparer.Default);
     private readonly Func<ISymbol, CancellationToken, bool> _calculatePositive;
+    private readonly Func<IPropertySymbol, CancellationToken, bool> _calculateExempt;
+    private readonly Func<INamedTypeSymbol, CancellationToken, AttributeFacts> _calculateAttribute;
+    private readonly Func<INamedTypeSymbol, ReceiverFacts> _createReceiver;
 
     internal ClassificationContract(INamedTypeSymbol sensitive, INamedTypeSymbol personal)
     {
         Sensitive = sensitive;
         _personal = personal;
         _calculatePositive = CalculatePositive;
+        _calculateExempt = CalculateExempt;
+        _calculateAttribute = CalculateAttribute;
+        _createReceiver = type => new ReceiverFacts(this, type);
     }
 
     internal INamedTypeSymbol Sensitive { get; }
@@ -24,10 +35,33 @@ internal sealed class ClassificationContract
         property.DeclaredAccessibility == Accessibility.Public && property.GetMethod?.DeclaredAccessibility == Accessibility.Public;
 
     internal bool Accepted(IPropertySymbol property, CancellationToken cancellation) => Positive(property, cancellation) ||
-        Positive(property.ContainingType, cancellation) || Positive(property.Type, cancellation) || Exempt(property);
+        Positive(property.ContainingType, cancellation) || Positive(property.Type, cancellation) || Exempt(property, cancellation);
 
-    internal bool Exempt(IPropertySymbol property) => property.GetAttributes().Any(attribute =>
-            SymbolEqualityComparer.Default.Equals(attribute.AttributeClass, Sensitive) && IsFalse(attribute));
+    internal bool Exempt(IPropertySymbol property, CancellationToken cancellation = default) =>
+        _exemptions.GetOrAdd(property, _calculateExempt, cancellation);
+
+    private bool CalculateExempt(IPropertySymbol property, CancellationToken cancellation)
+    {
+        foreach (var attribute in property.GetAttributes())
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (SymbolEqualityComparer.Default.Equals(attribute.AttributeClass, Sensitive) && IsFalse(attribute)) return true;
+        }
+        return false;
+    }
+
+    internal ModelTypeFacts ModelType(ITypeSymbol type, CancellationToken cancellation)
+    {
+        if (type.IsReferenceType && type.NullableAnnotation != NullableAnnotation.NotAnnotated)
+            type = type.WithNullableAnnotation(NullableAnnotation.NotAnnotated);
+        return _modelTypes.GetOrAdd(type, ModelTypeFacts.Read, cancellation);
+    }
+
+    internal bool? PositiveInterfaceProperty(INamedTypeSymbol receiver, IPropertySymbol property, CancellationToken cancellation)
+    {
+        cancellation.ThrowIfCancellationRequested();
+        return _receivers.GetOrAdd(receiver, _createReceiver).Positive(property, cancellation);
+    }
 
     internal bool Positive(ISymbol symbol, CancellationToken cancellation)
     {
@@ -43,9 +77,13 @@ internal sealed class ClassificationContract
         {
             cancellation.ThrowIfCancellationRequested();
             foreach (var attribute in current.GetAttributes())
-                if ((SymbolEqualityComparer.Default.Equals(current, symbol) || Inherited(attribute)) &&
-                    (Derives(attribute.AttributeClass, _personal) || Derives(attribute.AttributeClass, Sensitive) &&
-                    (!SymbolEqualityComparer.Default.Equals(attribute.AttributeClass, Sensitive) || !IsFalse(attribute)))) return true;
+            {
+                if (attribute.AttributeClass is not { } attributeType) continue;
+                var facts = _attributes.GetOrAdd(attributeType, _calculateAttribute, cancellation);
+                if ((SymbolEqualityComparer.Default.Equals(current, symbol) || facts.Inherited) &&
+                    (facts.Personal || facts.Sensitive &&
+                    (!SymbolEqualityComparer.Default.Equals(attributeType, Sensitive) || !IsFalse(attribute)))) return true;
+            }
         }
         return false;
     }
@@ -73,17 +111,66 @@ internal sealed class ClassificationContract
 
     private static bool IsFalse(AttributeData attribute) => attribute.ConstructorArguments is [{ Value: false }];
 
-    private static bool Inherited(AttributeData attribute)
+    private readonly record struct AttributeFacts(bool Personal, bool Sensitive, bool Inherited);
+
+    private AttributeFacts CalculateAttribute(INamedTypeSymbol type, CancellationToken cancellation) =>
+        new(Derives(type, _personal, cancellation), Derives(type, Sensitive, cancellation), Inherited(type, cancellation));
+
+    private static bool Inherited(INamedTypeSymbol attributeType, CancellationToken cancellation)
     {
-        foreach (var type in Ancestors(attribute.AttributeClass))
+        foreach (var type in Ancestors(attributeType))
+        {
+            cancellation.ThrowIfCancellationRequested();
             foreach (var usage in type.GetAttributes())
                 if (usage.AttributeClass?.ToDisplayString() == "System.AttributeUsageAttribute")
                     return !usage.NamedArguments.Any(pair => pair.Key == "Inherited" && pair.Value.Value is false);
+        }
         return true;
     }
 
-    private static bool Derives(INamedTypeSymbol? type, INamedTypeSymbol parent) =>
-        Ancestors(type).Any(candidate => SymbolEqualityComparer.Default.Equals(candidate, parent));
+    private static bool Derives(INamedTypeSymbol type, INamedTypeSymbol parent, CancellationToken cancellation)
+    {
+        foreach (var candidate in Ancestors(type))
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (SymbolEqualityComparer.Default.Equals(candidate, parent)) return true;
+        }
+        return false;
+    }
+
+    private sealed class ReceiverFacts
+    {
+        private readonly ClassificationContract _contract;
+        private readonly INamedTypeSymbol _receiver;
+        // Null retains an exhausted scan as incomplete, distinct from a proven negative.
+        private readonly SymbolFactCache<IPropertySymbol, bool?> _properties = new(capacity: 4);
+        private readonly Func<IPropertySymbol, CancellationToken, bool?> _calculate;
+
+        internal ReceiverFacts(ClassificationContract contract, INamedTypeSymbol receiver)
+        {
+            _contract = contract;
+            _receiver = receiver;
+            _calculate = Calculate;
+        }
+
+        internal bool? Positive(IPropertySymbol property, CancellationToken cancellation) =>
+            _properties.GetOrAdd(property, _calculate, cancellation);
+
+        private bool? Calculate(IPropertySymbol property, CancellationToken cancellation)
+        {
+            var inspected = 0;
+            foreach (var contract in _receiver.AllInterfaces)
+            foreach (var member in contract.GetMembers().OfType<IPropertySymbol>())
+            {
+                cancellation.ThrowIfCancellationRequested();
+                if (++inspected > LoggingCaptureAnalysis.MaxValues) return null;
+                if (SymbolEqualityComparer.Default.Equals(_receiver.FindImplementationForInterfaceMember(member), property) &&
+                    (_contract.Positive(member, cancellation) || _contract.Positive(member.ContainingType, cancellation) ||
+                     _contract.Positive(member.Type, cancellation))) return true;
+            }
+            return false;
+        }
+    }
 
     private static IEnumerable<INamedTypeSymbol> Ancestors(INamedTypeSymbol? type)
     {

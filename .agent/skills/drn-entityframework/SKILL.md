@@ -1,7 +1,7 @@
 ---
 name: drn-entityframework
 description: "Configure DRN PostgreSQL contexts, identity tracking, migrations, prototype safety, repositories and cancellation."
-last-updated: 2026-11-13
+last-updated: 2026-11-15
 difficulty: advanced
 ---
 
@@ -11,9 +11,24 @@ Read the installed `DRN.Framework.EntityFramework` package README for connection
 
 ## DrnContext Pattern
 
-Derive the context from `DrnContext<TContext>`. Provide the options constructor and parameterless constructor for migrations. Register via attribute scanning. Use the context type name for its connection-string key. Put entity configurations in the same assembly, in the context namespace or a child namespace.
+DRNCV010 infers conventional repository and migration destinations from the context namespace and logical source home, including Compile/Link and split-role prefixes. Context partials and associated artifacts must agree with that layout. Alternate or ambiguous destinations require explicit metadata, with a Reason for alternatives. Repository inference applies to aggregate DbSets, including inherited sets. Migration inference applies to associated migration/snapshot artifacts. Explicit destinations are validated even without artifacts. Empty contexts need no metadata. Prefer matching context names, subdomain namespaces and folders over alias mappings.
+
+Use immediate `Repositories`, `Configurations` and `Migrations` folders and matching final namespace segments for Infra repository implementations, EF configurations and DRN migrations/snapshots. Configuration classes end in `Config`. Domain repository interfaces stay beside their aggregates. Custom Npgsql options applied to a context start with its exact name and end in `Options` before an optional `Attribute`. Prefer `QAContextNpgsqlDbContextOptionsAttribute`, including `NpgsqlDbContext` in the name. Concrete, closed DRN contexts must directly apply a custom `NpgsqlDbContextOptionsAttribute` descendant. Inherited options and framework defaults do not replace that declaration. Framework defaults remain exempt from naming checks. DRNCV028-030 own folder/options checks. Destination override reasons do not waive them.
+
+For each aggregate assigned to an Infra context, provide a concrete `SourceKnownRepository<TContext,TEntity>` implementing its Domain subdomain's repository interface. One implementation can serve multiple contexts in that Infra. Merely referencing a Domain project does not require all its repositories. DRNCV027 uses DbSets, explicit inclusion and supported configuration evidence, respecting exclusion/Ignore. See [aggregate naming and contracts](../drn-sharedkernel/SKILL.md#repository-contract).
+
+Expose only `AggregateRoot` descendants through instance `DbSet<TEntity>` properties on `DrnContext<TContext>`. DRNCV023 includes inherited properties and closed generic substitutions. Keep child entities behind aggregate boundaries. This rule excludes the separate `DrnContextIdentity` hierarchy and does not change EF mapping or Set/GetEntities constraints.
+
+Use `DrnContext<TContext>` for the standard DRN runtime pattern. Provide the options constructor and parameterless constructor for migrations. Register via attribute scanning. Use the context type name for its connection-string key. Put entity configurations in the same assembly, in the context namespace or a child namespace.
+
+Application conventions require concrete application-owned EF contexts to implement `IDrnContext`, directly or through inheritance. Use a narrow justified DRNCV020 exception for specialized contexts. The interface alone does not establish provider, model or lifecycle correctness. Consult SharedKernel's installed `CONVENTIONS.md` for architecture rules and exceptions.
+
+DRN design-time factories require an exact public `DbContextOptions<TContext>`-only constructor. For observed EF registrations of non-DRN contexts, DRNCV005 also accepts non-generic `DbContextOptions` and additional injected dependencies. A model override that only forwards to the framework base retains its namespace-filtered configuration scan evidence.
 
 ```csharp
+public class OrdersContextNpgsqlDbContextOptionsAttribute : NpgsqlDbContextOptionsAttribute;
+
+[OrdersContextNpgsqlDbContextOptions]
 public class OrdersContext : DrnContext<OrdersContext>
 {
     public OrdersContext(DbContextOptions<OrdersContext> options) : base(options) { }
@@ -65,6 +80,8 @@ Prototype recreation drops the database. Allow it only in Development with all o
 Staging can opt into migrations through `AutoMigrateStaging`. Production never auto-migrates. Neither environment permits prototype recreation.
 
 ## Entity Configuration
+
+`SourceKnownPersistenceAttribute` is descriptive convention evidence only. It does not include or exclude an entity in the EF model. Attribute-only mapping needs no configuration class or suppression. The additive configuration refactoring declines uncertain discovery and collisions. Multiple contexts can share one subdomain. Keep cross-owner suppression separate from membership, and preserve context names and storage identity. Consult SharedKernel's installed convention guide for current tooling limits. Namespace normalization still requires model/snapshot compatibility evidence.
 
 Prefer attributes for ordinary mappings. Use Fluent API for complex relationships. Configure the relationship before navigation options such as `AutoInclude()`. [EF Core ordering example](https://github.com/dotnet/efcore/issues/31380)
 

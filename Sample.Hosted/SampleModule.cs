@@ -8,11 +8,11 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Sample.Application;
-using Sample.Domain.Identity;
-using Sample.Domain.Users;
+using Sample.Domain.SampleIdentity;
+using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
 using Sample.Hosted.Settings;
 using Sample.Infra;
-using Sample.Infra.DataProtection;
+using Sample.Infra.DrnDataProtection;
 
 namespace Sample.Hosted;
 

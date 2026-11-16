@@ -1,9 +1,10 @@
 using DRN.Framework.SharedKernel.Domain;
 using Microsoft.EntityFrameworkCore;
 using Sample.Domain;
-using Sample.Domain.QA.Categories;
-using Sample.Domain.QA.Questions;
-using Sample.Domain.Users;
+using Category = Sample.Domain.QA.Category.CategoryEntity;
+using Question = Sample.Domain.QA.Question.QuestionEntity;
+using Sample.Domain.QA.User;
+using User = Sample.Domain.QA.User.UserEntity;
 using Sample.Infra;
 using Sample.Infra.QA;
 using Sample.Infra.QB;

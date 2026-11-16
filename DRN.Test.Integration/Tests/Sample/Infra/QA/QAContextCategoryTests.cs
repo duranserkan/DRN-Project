@@ -1,4 +1,4 @@
-using Sample.Domain.QA.Categories;
+using Category = Sample.Domain.QA.Category.CategoryEntity;
 using Sample.Infra;
 using Sample.Infra.QA;
 

@@ -4,7 +4,8 @@ using DRN.Framework.Utils.Entity;
 using DRN.Framework.Utils.Ids;
 using DRN.Test.Unit.Tests.Framework.SharedKernel.Domain;
 using Microsoft.EntityFrameworkCore;
-using Sample.Domain.QA.Tags;
+using Sample.Domain.QA.Tag;
+using Tag = Sample.Domain.QA.Tag.TagEntity;
 using Sample.Infra.QA;
 using Sample.Infra.QA.Repositories;
 

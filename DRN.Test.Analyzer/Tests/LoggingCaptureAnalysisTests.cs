@@ -242,6 +242,71 @@ public sealed class LoggingCaptureAnalysisTests
                 "log.BeginScope(new Dictionary<string, object> { [\"Detail\"] = input.Value })");
     }
 
+    [Theory]
+    [InlineData(255, false, false, null)]
+    [InlineData(256, false, false, null)]
+    [InlineData(257, false, false, "DRN0027")]
+    [InlineData(255, true, false, "DRN0022")]
+    [InlineData(256, true, false, "DRN0022")]
+    [InlineData(257, true, false, "DRN0027")]
+    [InlineData(257, true, true, "DRN0022")]
+    public async Task Interface_Scan_Should_Distinguish_Completed_And_Incomplete_Captures(
+        int propertyCount, bool classified, bool valueFirst, string? expectedId)
+    {
+        var members = string.Join("\n", Enumerable.Range(0, propertyCount - 1)
+            .Select(index => $"string P{index} {{ get; }}"));
+        var implementations = string.Join("\n", Enumerable.Range(0, propertyCount - 1)
+            .Select(index => $"public string P{index} => \"ordinary\";"));
+        var value = (classified ? "[Personal] " : "") + "string Value { get; }";
+        var source = $$"""
+            using DRN.Framework.SharedKernel.Attributes;
+            using Microsoft.Extensions.Logging;
+            using System.Collections.Generic;
+            namespace DRN.Framework.Utils.Logging
+            {
+                public interface IScopedLog { void Add(string key, object value); }
+            }
+            public interface IInput
+            {
+                {{(valueFirst ? value : members)}}
+                {{(valueFirst ? members : value)}}
+            }
+            public class Input : IInput
+            {
+                {{implementations}}
+                public string Value => "private";
+            }
+            public class Caller
+            {
+                public void Run(DRN.Framework.Utils.Logging.IScopedLog scoped, ILogger log, Input input)
+                {
+                    scoped.Add("First", input.Value);
+                    scoped.Add("Second", input.Value);
+                    log.LogInformation("{First} {Second}", input.Value, input.Value);
+                    log.BeginScope(new Dictionary<string, object> { ["Detail"] = input.Value });
+                }
+            }
+            """;
+        var diagnostics = await Analyze(Compilation(source));
+
+        if (expectedId == null)
+            diagnostics.Should().BeEmpty();
+        else
+        {
+            // Positive captures report each value. Incomplete scans report once per call.
+            diagnostics.Should().HaveCount(expectedId == "DRN0022" ? 5 : 4)
+                .And.OnlyContain(item => item.Id == expectedId);
+            diagnostics.Select(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan))
+                .Distinct().Should().BeEquivalentTo(
+                    "scoped.Add(\"First\", input.Value)",
+                    "scoped.Add(\"Second\", input.Value)",
+                    "log.LogInformation(\"{First} {Second}\", input.Value, input.Value)",
+                    "log.BeginScope(new Dictionary<string, object> { [\"Detail\"] = input.Value })");
+        }
+
+        (await Analyze(Compilation(source, "Caller.g.cs"))).Should().BeEmpty();
+    }
+
     [Fact]
     public async Task Lookalike_Logging_And_Substitute_Verifications_Should_Remain_Excluded()
     {
