@@ -65,7 +65,7 @@ public readonly struct MyApp : IAppId
 }
 
 [EntityType<MyApp>(1)] // Unique byte within MyApp partition
-public class User : AggregateRoot
+public class UserEntity : AggregateRoot
 {
     public string Username { get; set; } = "";
     public bool IsActive { get; set; } = true;
@@ -80,7 +80,7 @@ public class AppContext : DrnContext<AppContext>
     public AppContext(DbContextOptions<AppContext> options) : base(options) { }
     public AppContext() : base(null) { } // Required for migrations
 
-    public DbSet<User> Users => Set<User>();
+    public DbSet<UserEntity> Users => Set<UserEntity>();
 }
 
 // 3. Save a new entity
@@ -88,7 +88,7 @@ public class UserService(AppContext context)
 {
     public async Task CreateUserAsync(string username)
     {
-        var user = new User { Username = username };
+        var user = new UserEntity { Username = username };
         context.Users.Add(user); // Assigns the internal Id
         await context.SaveChangesAsync(); // Initializes external identity and lifecycle state
     }
@@ -130,16 +130,16 @@ public sealed class UserDto(SourceKnownEntity? entity = null) : Dto(entity)
 }
 
 // Repository with custom query methods
-public interface IUserRepository : ISourceKnownRepository<User> 
+public interface IUserRepository : ISourceKnownRepository<UserEntity>
 {
-    Task<User[]> GetActiveUsersAsync();
+    Task<UserEntity[]> GetActiveUsersAsync();
 }
 
 [Scoped<IUserRepository>]
-public class UserRepository(AppContext context, IEntityUtils utils) 
-    : SourceKnownRepository<AppContext, User>(context, utils), IUserRepository
+public class UserRepository(AppContext context, IEntityUtils utils)
+    : SourceKnownRepository<AppContext, UserEntity>(context, utils), IUserRepository
 {
-    public async Task<User[]> GetActiveUsersAsync()
+    public async Task<UserEntity[]> GetActiveUsersAsync()
     {
         return await EntitiesWithAppliedSettings()
             .Where(u => u.IsActive)
@@ -408,13 +408,13 @@ var dtoResult = result.ToModel(user => new UserDto(user)
 
 ### Query Composition
 
-Use `EntitiesWithAppliedSettings()` for custom retrieval queries, as in the advanced quickstart. The protected pagination overload accepts a composed query. This example assumes your `User` entity also defines a string `Role` property:
+Use `EntitiesWithAppliedSettings()` for custom retrieval queries, as in the advanced quickstart. The protected pagination overload accepts a composed query. This example assumes your `UserEntity` entity also defines a string `Role` property:
 
 ```csharp
 public class UserRepository(AppContext context, IEntityUtils utils)
-    : SourceKnownRepository<AppContext, User>(context, utils)
+    : SourceKnownRepository<AppContext, UserEntity>(context, utils)
 {
-    public async Task<PaginationResultModel<User>> GetUsersByRoleAsync(
+    public async Task<PaginationResultModel<UserEntity>> GetUsersByRoleAsync(
         string role, 
         PaginationRequest request)
     {
@@ -433,10 +433,10 @@ Override `EntitiesWithAppliedSettings` to customize repository retrieval queries
 > [!IMPORTANT]
 > Use `Settings.Filters` for constraints that must also apply to ID-based bulk deletes. An `EntitiesWithAppliedSettings` override customizes retrieval queries only.
 
-This override assumes your model defines `User.Posts`, `Post.Comments`, and `User.Profile`. Add it to the repository from the advanced quickstart:
+This override assumes your model defines `UserEntity.Posts`, `Post.Comments`, and `UserEntity.Profile`. Add it to the repository from the advanced quickstart:
 
 ```csharp
-protected override IQueryable<User> EntitiesWithAppliedSettings(string? caller = null)
+protected override IQueryable<UserEntity> EntitiesWithAppliedSettings(string? caller = null)
 {
     return base.EntitiesWithAppliedSettings(caller)
         .Include(u => u.Posts)
@@ -506,13 +506,13 @@ The framework supports both attribute-based and Fluent API configuration.
 
 ### Attribute-Based Configuration (Preferred)
 
-Use attributes for constraints and indexes that they can express. This is an alternative definition of the beginner `User` entity:
+Use attributes for constraints and indexes that they can express. This is an alternative definition of the beginner `UserEntity` entity:
 
 ```csharp
 [EntityType<MyApp>(1)]
 [Table("users")]
 [Index(nameof(Username), IsUnique = true)]
-public class User : AggregateRoot
+public class UserEntity : AggregateRoot
 {
     [MaxLength(100)]
     [Required]
@@ -530,9 +530,9 @@ public class User : AggregateRoot
 Use `IEntityTypeConfiguration<T>` for relationships, owned types, or conditional mapping. This fragment assumes an application model with `Posts`, `Author`, `AuthorId`, `TenantId`, and an owned `Address` with `Street` and `City` properties:
 
 ```csharp
-public class UserConfig : IEntityTypeConfiguration<User>
+public class UserConfig : IEntityTypeConfiguration<UserEntity>
 {
-    public void Configure(EntityTypeBuilder<User> builder)
+    public void Configure(EntityTypeBuilder<UserEntity> builder)
     {
         // Complex relationships
         builder.HasMany(u => u.Posts)
@@ -562,11 +562,11 @@ Configurations are automatically discovered and applied if they:
 - Share the context's namespace (or a sub-namespace)
 
 ```text
-Sample.Infra/
-├── QAContext.cs                    # Namespace: Sample.Infra
+Sample.Infra/QA/
+├── QAContext.cs                    # Namespace: Sample.Infra.QA
 ├── Configurations/
-│   ├── UserConfig.cs               # Namespace: Sample.Infra.Configurations ✓
-│   └── QuestionConfig.cs           # Namespace: Sample.Infra.Configurations ✓
+│   ├── UserConfig.cs               # Namespace: Sample.Infra.QA.Configurations ✓
+│   └── QuestionConfig.cs           # Namespace: Sample.Infra.QA.Configurations ✓
 ```
 
 ### JSON Models
@@ -575,9 +575,9 @@ Source-Known entities implementing `IEntityWithModel<TModel>` have their public 
 
 ```csharp
 [EntityType<MyApp>(2)]
-public class Question : AggregateRoot<QuestionModel>
+public class QuestionEntity : AggregateRoot<QuestionModel>
 {
-    public Question() => Model = new QuestionModel();
+    public QuestionEntity() => Model = new QuestionModel();
 }
 
 public class QuestionModel
@@ -630,7 +630,7 @@ Derive an attribute to configure provider options, data-source options, general 
 using Npgsql;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 
-public class MyContextOptions : NpgsqlDbContextOptionsAttribute
+public class MyDbContextOptions : NpgsqlDbContextOptionsAttribute
 {
     public override void ConfigureNpgsqlOptions<TContext>(
         NpgsqlDbContextOptionsBuilder builder, 
@@ -662,7 +662,7 @@ public class MyContextOptions : NpgsqlDbContextOptionsAttribute
         var context = serviceProvider.GetRequiredService<MyDbContext>();
         if (!await context.Users.AnyAsync(user => user.Username == "example-user"))
         {
-            context.Users.Add(new User { Username = "example-user" });
+            context.Users.Add(new UserEntity { Username = "example-user" });
             await context.SaveChangesAsync();
         }
     }
@@ -672,13 +672,13 @@ public class MyContextOptions : NpgsqlDbContextOptionsAttribute
 Apply the attribute to a context with both required constructors:
 
 ```csharp
-[MyContextOptions(UsePrototypeMode = true)]
+[MyDbContextOptions(UsePrototypeMode = true)]
 public class MyDbContext : DrnContext<MyDbContext>
 {
     public MyDbContext(DbContextOptions<MyDbContext> options) : base(options) { }
     public MyDbContext() : base(null) { }
 
-    public DbSet<User> Users => Set<User>();
+    public DbSet<UserEntity> Users => Set<UserEntity>();
 }
 ```
 
@@ -686,12 +686,12 @@ The seed inserts an application record, not an authenticated account. See [Seedi
 
 ### NpgsqlPerformanceSettingsAttribute
 
-Create a custom performance attribute and apply `[HighThroughputSettings]` to your context. These example values are overrides, not workload recommendations:
+Create a custom performance attribute and apply `[MyDbContextHighThroughputOptions]` to your context. These example values are overrides, not workload recommendations:
 
 ```csharp
-public class HighThroughputSettings : NpgsqlPerformanceSettingsAttribute
+public class MyDbContextHighThroughputOptions : NpgsqlPerformanceSettingsAttribute
 {
-    public HighThroughputSettings() : base(
+    public MyDbContextHighThroughputOptions() : base(
         maxAutoPrepare: 500,
         autoPrepareMinUsages: 3,
         minPoolSize: 10,
@@ -722,7 +722,7 @@ All conditions must hold:
 5. `DrnDevelopmentSettings:Prototype = true`.
 6. No migrations have been applied, or `UsePrototypeModeWhenMigrationExists = true` permits recreation despite applied migrations.
 
-Apply `[MyContextOptions(UsePrototypeMode = true)]` as shown above, then configure `appsettings.Development.json`:
+Apply `[MyDbContextOptions(UsePrototypeMode = true)]` as shown above, then configure `appsettings.Development.json`:
 
 ```json
 {
@@ -744,7 +744,7 @@ Applied migrations are read from the target database independently of the local 
 Declared migrations that have not been applied do not block prototyping. To override the applied-migration guard, replace the attribute on `MyDbContext` with:
 
 ```csharp
-[MyContextOptions(
+[MyDbContextOptions(
     UsePrototypeMode = true,
     UsePrototypeModeWhenMigrationExists = true
 )]
@@ -813,7 +813,7 @@ In Development, call `LaunchExternalDependenciesAsync` with `DrnDevelopmentSetti
 
 ```xml
 <ItemGroup Condition="'$(Configuration)' == 'Debug'">
-    <PackageReference Include="DRN.Framework.Testing" Version="0.10.0" />
+    <PackageReference Include="DRN.Framework.Testing" Version="0.11.0" />
 </ItemGroup>
 ```
 

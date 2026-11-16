@@ -39,3 +39,21 @@ Excluding presentation code from subdomain checks must not disable separate API 
 ### Source To Update
 
 The analyzer's shared scope predicate and convention reference own the scope. Framework skills should reference that contract rather than infer business roles from arbitrary folder names.
+
+## 3. Check linked types before granting friend access
+
+### Case
+
+Granting a test assembly internal access exposed duplicate helper types compiled from linked sources in two referenced assemblies.
+
+### General Rule
+
+Before adding InternalsVisibleTo, inspect linked sources and overlapping type names across the test references. Use an assembly alias when tests must select one copy explicitly.
+
+### Decision Boundary
+
+Keep internal helpers internal. Preserve global reference access for unrelated callers. Do not remove test assertions to resolve type ambiguity.
+
+### Source To Update
+
+Project reference metadata and test imports own assembly disambiguation. Recheck both when changing friend access or linked sources.

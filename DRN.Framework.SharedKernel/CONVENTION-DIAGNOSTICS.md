@@ -230,7 +230,7 @@ Category: `DRN.Conventions.Architecture`.
 
 Hosted projects require at least one direct Application and one direct Infra project reference. Infra requires at least one Domain. Domain requires at least one Contract. These requirements apply whenever the corresponding layer exists, even before its code uses the dependency. Naming prefixes do not constrain references. Multiple Hosted projects may share Infra, and multiple Domain or Contract references are valid. Packages and transitive references do not satisfy a direct project requirement. Every direct reference must still obey DRNCV015's allowed direction.
 
-Add the missing `ProjectReference` or correct a misidentified project name. The analyzer does not create projects or references. Incomplete or invalid reference inventory defers absence claims. This rule is separate from DRNCV015, which rejects forbidden references.
+Add the missing `ProjectReference` or correct a misidentified project name. Intentional project exceptions use `SymbolTarget="<AssemblyName>:Application"`, `<AssemblyName>:Infra`, `<AssemblyName>:Domain`, or `<AssemblyName>:Contract`. The analyzer does not create projects or references. Incomplete or invalid reference inventory defers absence claims. This rule is separate from DRNCV015, which rejects forbidden references.
 
 ## DRNCV022: Establish the corresponding Domain subdomain
 
@@ -240,7 +240,7 @@ Category: `DRN.Conventions.Architecture`.
 
 Every Infra project needs at least one populated subdomain namespace across its directly referenced Domain projects. Concrete Infra contexts and repositories must have matching Domain subdomains. A type in `Shop.Domain.Sales` establishes Sales in its declaring assembly. Same-named subdomains in different assemblies remain distinct owners. An empty directory or namespace with no types does not establish a subdomain. The message uses `<any>` when no populated Domain subdomain is available.
 
-Place real Domain types under the owning subdomain or correct misplaced Infra ownership. Do not add placeholder types or empty folders merely to silence the diagnostic. Missing required references are reported first, and incomplete reference evidence does not prove a missing subdomain. No automatic namespace move or project-reference fix is offered.
+Place real Domain types under the owning subdomain or correct misplaced Infra ownership. Intentional project exceptions use `SymbolTarget="<AssemblyName>:Domain"` (or the reported symbol's documentation comment ID). Do not add placeholder types or empty folders merely to silence the diagnostic. Missing required references are reported first, and incomplete reference evidence does not prove a missing subdomain. No automatic namespace move or project-reference fix is offered.
 
 ## DRNCV023: Expose aggregate roots through DbSet properties
 
@@ -282,7 +282,7 @@ Category: `DRN.Conventions.Repository`.
 
 > Aggregate '{0}' has no matching repository in Infra subdomain '{1}'. Add a concrete SourceKnownRepository implementation of its Domain repository interface.
 
-Checks only aggregates assigned to this Infra project's concrete contexts through DbSets, explicit inclusion or supported configuration evidence. Requires a concrete, closed SourceKnownRepository descendant implementing the exact Domain interface in the aggregate's subdomain. An unrelated same-named class, an abstract repository, or an implementation of only the framework interface is insufficient. One implementation can satisfy multiple contexts in that Infra. Explicitly excluded/ignored entities and unassigned Domain aggregates do not create an obligation. Reports at a context with the exact Entity property for narrow exceptions. This is bounded source evidence, not execution of arbitrary model-building code.
+Checks only aggregates assigned to this Infra project's concrete contexts through DbSets, explicit inclusion or supported configuration evidence. Requires a concrete, closed SourceKnownRepository descendant implementing the exact Domain interface in the aggregate's subdomain. An unrelated same-named class, an abstract repository, or an implementation of only the framework interface is insufficient. One implementation can satisfy multiple contexts in that Infra. Explicitly excluded/ignored entities and unassigned Domain aggregates do not create an obligation. Reports at a context with the exact Entity property (and optional `Context` qualifier) for narrow exceptions. This is bounded source evidence, not execution of arbitrary model-building code.
 
 ## DRNCV028: Use the dedicated infrastructure folder
 
@@ -314,11 +314,11 @@ Abstract bases, open generic contexts, plain EF contexts and unrelated classes a
 
 ## DRNCV031: Declare a DI lifetime for paired implementations
 
-DRNCV031 takes precedence over DRNCV012 for the same implementation/interface binding failure. Other service demands and key mismatches remain eligible for DRNCV012. A missing attribute scan is not diagnosed by either rule.
-
 Category: `DRN.Conventions.Registration`.
 
-> 'AnswerRepository' must register 'IAnswerRepository' through a matching LifetimeAttribute. Choose [Scoped<IAnswerRepository>], [Transient<IAnswerRepository>], or [Singleton<IAnswerRepository>] for its intended lifetime.
+> '{0}' must register '{1}' through a matching LifetimeAttribute. Choose [Scoped<{1}>], [Transient<{1}>], or [Singleton<{1}>] for its intended lifetime.
+
+DRNCV031 takes precedence over DRNCV012 for the same implementation/interface binding failure. Other service demands and key mismatches remain eligible for DRNCV012. A missing attribute scan is not diagnosed by either rule.
 
 Concrete, closed Application/Infra service implementations of an exact `I{Name}` interface require one lifetime attribute bound to that exact interface, including its generic arguments. Generic lifetime derivatives establish the binding through their service type argument. Custom nongeneric derivatives also count when source-visible explicit constructor chains forward a statically known type to LifetimeAttribute's serviceType parameter. Supported evidence includes typeof expressions, type-valued attribute arguments, parameter forwarding, named arguments, primary constructors and explicit base/this initializers. Arbitrary expressions and unavailable constructor bodies remain unproven. A nongeneric attribute name alone does not establish a binding. Direct lifetime attributes take precedence over inherited ones, matching runtime scanning. Multiple selected lifetime attributes, self-registration and other interface bindings do not satisfy the rule. Partial declarations are checked once. Choose a lifetime appropriate to the implementation's dependencies; the examples are alternatives, not interchangeable recommendations.
 
@@ -328,9 +328,11 @@ This binding rule applies without an observed attribute scan. Manual registratio
 
 Category: `DRN.Conventions.Registration`.
 
+> Project '{0}' needs a public static *Module class with a public static method accepting and returning IServiceCollection. Call services.AddServicesWithAttributes() on that parameter to scan this project's assembly.
+
 Hosted, Application, Infra and Utils projects need a public, top-level, nongeneric static class whose name ends in `Module`. It must expose a public static nongeneric method accepting and returning `IServiceCollection`, with a direct `services.AddServicesWithAttributes()` call on its service-collection parameter. A static call to the same DRN API also counts. An explicit `typeof(LocalType).Assembly` argument is supported when the type belongs to this assembly.
 
-Calls scanning another assembly, lookalike APIs, calls on unrelated collections and calls inside lambdas or local functions do not satisfy the rule. Framework/test projects remain excluded by project-role discovery. Domain, Contract and SharedKernel roles do not require DI modules. The diagnostic is project-level because the module itself may be missing. This is a structural check; it does not prove host invocation, reachability or execution on every path.
+Calls scanning another assembly, lookalike APIs, calls on unrelated collections and calls inside lambdas or local functions do not satisfy the rule. Framework/test projects remain excluded by project-role discovery. Domain, Contract and SharedKernel roles do not require DI modules. The diagnostic reports with `Location.None` and accepts project-level exceptions using `SymbolTarget="<AssemblyName>:Module"` (for example, `Shop.Application:Module`). This is a structural check; it does not prove host invocation, reachability or execution on every path.
 
 ```csharp
 public static class ApplicationModule

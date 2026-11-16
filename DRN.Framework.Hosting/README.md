@@ -792,14 +792,14 @@ using DRN.Framework.Hosting.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sample.Contract.QA.Tags;
-using Sample.Domain.QA.Tags;
+using Sample.Domain.QA.Tag;
 
 [Route("api/tags")]
 [Authorize(Policy = "Tags.Read")]
 public class ReadOnlyTagController(ITagRepository repository)
-    : SourceKnownReadOnlyController<Tag, TagDto>(repository)
+    : SourceKnownReadOnlyController<TagEntity, TagDto>(repository)
 {
-    protected override TagDto ToDto(Tag entity) => entity.ToDto();
+    protected override TagDto ToDto(TagEntity entity) => entity.ToDto();
 
     [NonAction]
     public override Task<long> CountAsync(CancellationToken cancellationToken = default)

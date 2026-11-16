@@ -150,6 +150,8 @@ Each concrete Domain aggregate requires an interface derived from `ISourceKnownR
 | DRNCV028 | Put Infra repository implementations in Repositories, configurations in Configurations, and DRN migrations/snapshots in Migrations. |
 | DRNCV029 | Start custom options names with the applied context name and end with Options, before an optional Attribute suffix. |
 | DRNCV030 | Directly apply a custom NpgsqlDbContextOptionsAttribute descendant to each concrete, closed DRN context. Inherited options alone do not satisfy this requirement. |
+| DRNCV031 | Register each concrete, closed Application/Infra service implementing an exact I{Name} interface through one matching LifetimeAttribute. |
+| DRNCV032 | Expose a public static *Module class in Hosted, Application, Infra and Utils projects with an IServiceCollection method calling AddServicesWithAttributes() for its assembly. |
 
 Dedicated folders are the immediate logical parent and final namespace segment. For example, `QA/Configurations/OrderConfig.cs`, `QA/Repositories/OrderRepository.cs` and `QA/Migrations/QAContextModelSnapshot.cs`. Domain interfaces remain beside their aggregates. Compile/Link paths govern placement. Generated migrations are checked through their context association. A reasoned destination override does not itself waive DRNCV028. Custom Npgsql options attributes applied to a DRN context follow `QAContext...Options[Attribute]`. Shared framework defaults are exempt. Options naming does not add an Options folder requirement.
 
@@ -166,7 +168,12 @@ Correct real violations first. Standard suppression covers the named diagnostic 
 public void ReconcileInventory() { }
 ```
 
-This illustrates suppression placement, not an operation template. Project exceptions use resolvable documentation-comment targets:
+This illustrates suppression placement, not an operation template. Project exceptions use resolvable documentation-comment targets or project-level target tokens:
+
+- `DRNCV021`: `SymbolTarget="<AssemblyName>:Application"`, `<AssemblyName>:Infra`, `<AssemblyName>:Domain`, or `<AssemblyName>:Contract` (for example, `Shop.Domain:Contract`).
+- `DRNCV022`: `SymbolTarget="<AssemblyName>:Domain"` when no populated Domain subdomain exists, or the unresolved context/repository `T:...` symbol target.
+- `DRNCV032`: `SymbolTarget="<AssemblyName>:Module"`.
+- `DRNCV027`: optionally qualify with `Context="Shop.Infra.Sales.SalesContext"` alongside `SymbolTarget` and `Entity`.
 
 ```xml
 <DrnConventionException Include="DRNCV019"

@@ -38,7 +38,7 @@ Supplied convention input must pass the shared version, size, record-count and d
 
 ## Context and tracked destinations
 
-Select an existing Domain aggregate identifier to request **Create aggregate review plan only**. Eligible Infra projects that reference the selected Domain project and their existing contexts are separate choices. Project-name prefixes do not restrict selection. Without an existing context in that owner area, the action explicitly proposes the conventional owner-plus-Context name. Context aliases need a reasoned declaration. The Markdown plan records current source fingerprints, existing identity declarations, known inputs and proposed destinations. It creates no context, membership, ID, reference or project item. Reconcile the plan with the required business and project-system decisions before implementation.
+Select an existing Domain aggregate identifier to request **Create aggregate review plan only**. Eligible Infra projects that reference the selected Domain project and their existing contexts are separate choices. Project-name prefixes do not restrict selection. Without an existing context in that owner area, the action explicitly proposes the conventional owner-plus-Context name. Context aliases need a reasoned declaration. The action adds only the Markdown `AdditionalFiles` review plan, which records current source fingerprints, existing identity declarations, known inputs and proposed destinations. It creates no C# context, membership, ID, reference or project item. Reconcile the plan with the required business and project-system decisions before implementation.
 
 This example assumes the explicitly selected application is `Shop`, subdomain Sales, Infra namespace `Shop.Infra`, and new context `SalesContext`. Replace these values with the reviewed selection. Do not apply it to rename an existing persisted context.
 
@@ -78,18 +78,18 @@ Project-name tokens supply roles without custom properties or an application-roo
 
 ## Optional entity configuration
 
-The user must select the existing entity and target context. This example assumes `Shop.Domain.Sales.Orders.Order` already exists and its mapping is attribute-based. File `Shop.Infra/Sales/Configurations/OrderConfig.cs`:
+The user must select the existing entity and target context. This example assumes `Shop.Domain.Sales.Order.OrderEntity` already exists and its mapping is attribute-based. File `Shop.Infra/Sales/Configurations/OrderConfig.cs`:
 
 ```csharp
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Shop.Domain.Sales.Orders;
+using Shop.Domain.Sales.Order;
 
 namespace Shop.Infra.Sales.Configurations;
 
-public sealed class OrderConfig : IEntityTypeConfiguration<Order>
+public sealed class OrderConfig : IEntityTypeConfiguration<OrderEntity>
 {
-    public void Configure(EntityTypeBuilder<Order> builder)
+    public void Configure(EntityTypeBuilder<OrderEntity> builder)
     {
     }
 }
@@ -116,16 +116,16 @@ Choose **Add scoped repository pair and entity configuration** to request those 
 
 Reasoned entity or context ownership overrides do not authorize generation when the new interface or implementation would inherit a different owner from its namespace.
 
-Only create a custom repository when the selected use case needs that contract. This example assumes the existing Order aggregate is included in SalesContext and the requested service type is IOrderRepository.
+Only create a custom repository when the selected use case needs that contract. This example assumes the existing `OrderEntity` aggregate is included in `SalesContext` and the requested service type is `IOrderRepository`.
 
-File `Shop.Domain/Sales/Orders/IOrderRepository.cs`:
+File `Shop.Domain/Sales/Order/IOrderRepository.cs`:
 
 ```csharp
 using DRN.Framework.SharedKernel.Domain.Repository;
 
-namespace Shop.Domain.Sales.Orders;
+namespace Shop.Domain.Sales.Order;
 
-public interface IOrderRepository : ISourceKnownRepository<Order>;
+public interface IOrderRepository : ISourceKnownRepository<OrderEntity>;
 ```
 
 File `Shop.Infra/Sales/Repositories/OrderRepository.cs`:
@@ -134,13 +134,13 @@ File `Shop.Infra/Sales/Repositories/OrderRepository.cs`:
 using DRN.Framework.EntityFramework.Domain;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Entity;
-using Shop.Domain.Sales.Orders;
+using Shop.Domain.Sales.Order;
 
 namespace Shop.Infra.Sales.Repositories;
 
 [Scoped<IOrderRepository>]
 public class OrderRepository(SalesContext context, IEntityUtils utils)
-    : SourceKnownRepository<SalesContext, Order>(context, utils), IOrderRepository;
+    : SourceKnownRepository<SalesContext, OrderEntity>(context, utils), IOrderRepository;
 ```
 
 Preserve the application's existing registration path. Attribute registration requires the application's real assembly composition path. Do not add duplicate manual registration. Do not guess query filters, tracking settings, keyed selection or a new transaction boundary. Verify effective DI when execution is authorized.
@@ -149,7 +149,7 @@ Preserve the application's existing registration path. Attribute registration re
 
 A requested repository-backed service may derive from `SourceKnownService<TEntity>` or implement `ISourceKnownService<TEntity>`. Supply the actual requested operation and domain behavior before writing it. If the request only needs repository access, no service is required. A service skeleton with a hidden TODO or `NotImplementedException` is not an acceptable output.
 
-For an explicitly requested forwarding use case, select one complete method declaration on an existing Domain repository interface. The Add forwarding service action offers eligible loaded Application projects and separate scoped/unregistered choices. It forwards exactly the selected method and its cancellation token to the repository. It adds no business validation, query, write behavior or extra operations. Unsupported signatures, unavailable types, ownership conflicts or a missing existing Domain reference prevent the offer. Use this only when forwarding that existing operation is the intended use case. More involved orchestration still requires the real business implementation.
+For an explicitly requested forwarding use case, select one complete method declaration on an existing Domain repository interface. The Add forwarding service action offers eligible loaded Application projects and separate scoped/unregistered choices. It forwards exactly the selected method to the repository, and asynchronous (`Task`/`ValueTask`) methods require a `CancellationToken` parameter to qualify. It adds no business validation, query, write behavior or extra operations. Unsupported signatures, unavailable types, ownership conflicts or a missing existing Domain reference prevent the offer. Use this only when forwarding that existing operation is the intended use case. More involved orchestration still requires the real business implementation.
 
 For DTO/request assistance, list each external field, its type, classification, validation owner and mapping source first. Public DTOs derive from `Dto` and expose Guid identity. Preserve CreatedAt/ModifiedAt mapping. Put public contracts in Contract and entity mapping in an allowed Domain/Application location. Do not introduce a Contract-to-Domain reference just to simplify mapping.
 
@@ -162,9 +162,9 @@ For example, only after the user selects a public `Number` field, a Contract DTO
 ```csharp
 using DRN.Framework.SharedKernel.Domain;
 
-namespace Shop.Contract.Sales;
+namespace Shop.Contract.Sales.Order;
 
-public sealed class OrderDto : Dto
+public sealed class OrderDto(SourceKnownEntity? entity = null) : Dto(entity)
 {
     public required string Number { get; init; }
 }

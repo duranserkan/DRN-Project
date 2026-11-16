@@ -11,19 +11,20 @@ Roles come from recognized project-name tokens. References need no matching pref
 | Required references | DRNCV021 requires Hosted → Application and Infra, Infra → Domain, and Domain → Contract. At least one direct project per required role suffices. Shared and multiple dependencies are allowed. |
 | Dependency direction | DRNCV015 reports forbidden direct role references and restricted framework dependencies, including additional edges. |
 | Domain subdomains | DRNCV022 checks populated namespaces across directly referenced Domains and matches recognized concrete, closed Infra contexts/repositories by subdomain name. |
-| Ownership and placement | DRNCV002, DRNCV003, DRNCV016 and DRNCV019 check recognized implementations and supported cross-subdomain entity uses. |
+| Ownership and placement | DRNCV001 validates generated convention inputs. DRNCV002, DRNCV003, DRNCV016, DRNCV019, DRNCV024, DRNCV025, and DRNCV028 check semantic naming, dedicated directories, domain/infrastructure placement, and cross-subdomain entity uses. |
 | Public contracts and transport | DRNCV014 reports recognized entity/persistence exposure through bounded type traversal. It does not validate serialization. |
 
-See [architecture conventions](../DRN.Framework.SharedKernel/CONVENTIONS.md) for allowed directions and exceptions.
+See [architecture conventions](../DRN.Framework.SharedKernel/CONVENTIONS.md) for allowed directions, exception targets, and DRNCV018 review-expiry rules.
 
 ## Code level
 
 | Area | Analyzer checks |
 |---|---|
 | Entity identity | Source-Known analyzers check metadata, duplicate entity type values per application partition, constants and concrete entity bindings. |
+| Persistence | DRNCV004 through DRNCV011, DRNCV017, DRNCV020, DRNCV023, DRNCV026, DRNCV027, DRNCV029, and DRNCV030 check recognized contexts, construction, custom options naming and direct declaration, omitted base setup, declared membership/discovery, aggregate DbSets, Domain/Infra repository pairs, and migration identity. |
+| Services and DI modules | DRNCV012, DRNCV013, DRNCV031, and DRNCV032 check paired interface lifetime bindings, project `*Module` assembly scans, observed registration paths, and aggregate/repository bindings. |
 | Identity operations | DRN0014 reports provably uninitialized uses within its supported analysis. |
-| Persistence | DRNCV004 through DRNCV011, DRNCV017 and DRNCV020 check recognized contexts, construction, discarded provider options, omitted base setup, declared membership/discovery, repository bindings and migration identity. |
-| Services | DRNCV012 and DRNCV013 check registration on supported composition paths and aggregate/repository bindings. |
+| Exceptions | DRNCV018 rejects invalid, wildcarded, blank-reason, or due-review convention exceptions. |
 | SourceKnown HTTP actions | DRN0026 reports missing named policies and anonymous exposure on recognized actions. It does not verify policy registration or resource access. |
 
 Details: [identity rules](../DRN.Framework.SharedKernel/README.md) and [convention diagnostics](../DRN.Framework.SharedKernel/CONVENTION-DIAGNOSTICS.md).

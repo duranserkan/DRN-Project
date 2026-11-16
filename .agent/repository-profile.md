@@ -74,12 +74,13 @@ dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 
 ## Conventions
 
-- DI/configuration: use DRN attributes. Do not manually register attribute-decorated services. Follow `overview-drn-framework` and `drn-utils`.
+- DI/configuration: use DRN attributes, not duplicate manual registrations. See `overview-drn-framework` and `drn-utils`.
 - SharedKernel `CONVENTIONS.md` owns application conventions. Declare alternate or ambiguous context destinations. Shared dependencies need no naming root or custom properties.
-- Identity: explicit `NexusAppSettings:AppId` and `AppInstanceId` in every environment; zero is valid. Use Source-Known IDs and entity metadata. DTOs derive from `Dto`, live in `*.Contract`, and expose `Guid` IDs, not entities. `drn-sharedkernel` and `drn-utils` own identity formats, time configuration, and lifecycle contracts.
-- Runtime access: prefer `[UnsafeAccessor]` when target types are known and accessible at compile time. Reserve reflection for dynamically discovered types.
+- Identity: require explicit `NexusAppSettings:AppId` and `AppInstanceId` in all environments. Zero is valid. Use Source-Known IDs and entity metadata. DTOs derive from `Dto` in `*.Contract` and expose `Guid` IDs, not entities. `drn-sharedkernel` and `drn-utils` own identity, time and lifecycle contracts.
+- IDs: use `[Sensitive]` or `[Personal]` only when a contract, classification rule or reviewed use case requires it.
+- Runtime access: prefer `[UnsafeAccessor]` for compile-time accessible types. Reserve reflection for dynamically discovered types.
 - `drn-hosting` owns typed roots, `ConfigureEndpointCollection`, and automatic Razor detection.
-- Logging: use `IScopedLog` for request/operation diagnostics. Direct `ILogger` is for bootstrap, scope flushing, or dedicated audit events. Do not duplicate full request logs in audit events. Dynamic classification is the application's responsibility; backend runtime capture has no name-based redaction fallback.
+- Logging: use `IScopedLog` for request/operation diagnostics. Reserve `ILogger` for bootstrap, scope flushing or audit events. Avoid duplicating request logs in audits. Applications own dynamic classification. Backend capture has no name-based redaction fallback.
 - Testing: use `DrnTestContextUnit` in `DRN.Test.Unit`; full `DrnTestContext` belongs in integration tests. Reusable hosted test programs belong in `DRN.Test.Utils`, not MTP executables. `drn-testing` owns data attributes and fixture contracts. Do not weaken production invariants for tests.
 - Frontend: `Sample.Hosted/buildwww/` builds to `Sample.Hosted/wwwroot/`. See [assets](../Sample.Hosted/README.md#frontend-assets). Browser APIs use `window.DRN`. Preserve `DRN`, `Drn*`, and `DRN.Framework.*`. Hosting owns typed static-file header rules and robots.txt revalidation. See `drn-hosting`.
 - Sample behaviors: `buildwww/app/ts/behaviors/{layout,home,test}/` feed separate `layoutBehaviors.ts`, `homeBehaviors.ts`, and `testBehaviors.ts` entries. Load layout globally and page entries through their owning Razor `Scripts` sections. Use declarative data and idempotent mounting. `Sample.Hosted/README.md`, Independently updating component behaviors, owns aggregate/selective commands, nonce-fixture exceptions, and deployment/restart rules.
