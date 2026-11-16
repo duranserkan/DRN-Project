@@ -57,7 +57,7 @@ internal sealed class ClassificationContract
         return _modelTypes.GetOrAdd(type, ModelTypeFacts.Read, cancellation);
     }
 
-    internal bool PositiveInterfaceProperty(INamedTypeSymbol receiver, IPropertySymbol property, CancellationToken cancellation)
+    internal bool? PositiveInterfaceProperty(INamedTypeSymbol receiver, IPropertySymbol property, CancellationToken cancellation)
     {
         cancellation.ThrowIfCancellationRequested();
         return _receivers.GetOrAdd(receiver, _createReceiver).Positive(property, cancellation);
@@ -142,8 +142,9 @@ internal sealed class ClassificationContract
     {
         private readonly ClassificationContract _contract;
         private readonly INamedTypeSymbol _receiver;
-        private readonly SymbolFactCache<IPropertySymbol, bool> _properties = new(capacity: 4);
-        private readonly Func<IPropertySymbol, CancellationToken, bool> _calculate;
+        // Null retains an exhausted scan as incomplete, distinct from a proven negative.
+        private readonly SymbolFactCache<IPropertySymbol, bool?> _properties = new(capacity: 4);
+        private readonly Func<IPropertySymbol, CancellationToken, bool?> _calculate;
 
         internal ReceiverFacts(ClassificationContract contract, INamedTypeSymbol receiver)
         {
@@ -152,17 +153,17 @@ internal sealed class ClassificationContract
             _calculate = Calculate;
         }
 
-        internal bool Positive(IPropertySymbol property, CancellationToken cancellation) =>
+        internal bool? Positive(IPropertySymbol property, CancellationToken cancellation) =>
             _properties.GetOrAdd(property, _calculate, cancellation);
 
-        private bool Calculate(IPropertySymbol property, CancellationToken cancellation)
+        private bool? Calculate(IPropertySymbol property, CancellationToken cancellation)
         {
             var inspected = 0;
             foreach (var contract in _receiver.AllInterfaces)
             foreach (var member in contract.GetMembers().OfType<IPropertySymbol>())
             {
                 cancellation.ThrowIfCancellationRequested();
-                if (++inspected > LoggingCaptureAnalysis.MaxValues) return false;
+                if (++inspected > LoggingCaptureAnalysis.MaxValues) return null;
                 if (SymbolEqualityComparer.Default.Equals(_receiver.FindImplementationForInterfaceMember(member), property) &&
                     (_contract.Positive(member, cancellation) || _contract.Positive(member.ContainingType, cancellation) ||
                      _contract.Positive(member.Type, cancellation))) return true;

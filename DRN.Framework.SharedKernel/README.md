@@ -159,7 +159,7 @@ DRN0019 exempts EF migration column definitions and constraint selectors recogni
 
 Configured paths remain enforced at AddDictionary/SanitizeDictionary calls. Inline positive classification constructors with constant exact keys protect their whole entries. NonSensitive and unknown classification expressions cannot waive configured paths. Dictionary name checks, including ILogger scopes, accept known null, empty and exact `[redacted]` values.
 
-DRN0015 through DRN0020, DRN0022, and DRN0025 analyze generated sources without reporting diagnostics in generated code. Runtime classification remains active for DRN capture APIs.
+DRN0015 through DRN0020, DRN0022, DRN0025, and DRN0027 analyze generated sources without reporting diagnostics in generated code. Runtime classification remains active for DRN capture APIs.
 
 DRN0017 accepts the exact compile-time `[redacted]` value and checks AddIfNotNullOrEmpty except constant null/empty values. Exact adjacent comments acknowledge reviewed names. Configured analyzer paths, classified values, declarations, and children remain enforced. Backend runtime uses explicit classifications without scanning names again.
 
@@ -191,6 +191,7 @@ Diagnostic classification also applies to all public readable instance non-index
 | **DRN0014** | Error | Entity ID operations are not initialized | Rejects `GetEntityId`, `ToSecure`, or `ToPlain` calls on provably fresh entities in straight-line code, including simple local aliases and constructor `this` calls. |
 | **DRN0025** | Error | Incomplete model classification analysis | Rejects model captures that exceed the analysis work limit so configured paths cannot remain unchecked. Capture a smaller model or classify sensitive subtrees explicitly. |
 | **DRN0026** | Error | SourceKnown action requires an explicit authorization policy | Exposed actions on concrete SourceKnown controllers require a nonblank named policy on the controller or action and must not allow anonymous access. |
+| **DRN0027** | Error | Incomplete interface classification analysis | A direct property capture exceeds the 256 interface-property scan limit before classification can be determined. Remove the capture, explicitly redact its value, or declare classification directly on the captured property or type. |
 
 DRN0026 checks inherited and custom public actions, including actions hidden with `IgnoreApi`. `[NonAction]` methods are exempt. Inherited class and overridden-action policies count. Bare `[Authorize]`, roles-only declarations and blank policy names do not establish an explicit named policy. The analyzer checks declarations, not runtime policy registration or resource permissions. Register policies with ASP.NET Core and implement resource checks in application code. See [Source-Known Controllers](../DRN.Framework.Hosting/README.md#source-known-controllers).
 

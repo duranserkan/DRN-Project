@@ -38,7 +38,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 *   **Model Classification Enforcement**: Transitive compiler errors require matching public readable instance properties to declare classification or `[Sensitive(false)]`. This applies even when properties are not logged or use `[IgnoreLog]`. Move matching anonymous properties to annotated classes or records. Custom Microsoft classifications outside the DRN Personal/Sensitive families require a supported classification for compiler verification. Review models and anonymous configuration/schema projections when upgrading. See the [diagnostic guide](../DRN.Framework.Utils/Logging/Diagnostics/README.md) for capture rules and exemptions.
 
-*   **Logging Boundary Enforcement**: DRN0022 reports sensitive ILogger placeholders, scope dictionary keys, and direct classified-property captures, including inherited properties implementing classified interfaces on the receiver type. Remove or redact affected values before logging. Standard ILogger does not apply DRN runtime redaction.
+*   **Logging Boundary Enforcement**: DRN0022 reports sensitive ILogger placeholders, scope dictionary keys, and direct classified-property captures, including inherited properties implementing classified interfaces on the receiver type. DRN0027 rejects direct property captures when the 256 interface-property scan limit prevents a complete classification decision. Remove or redact affected values before logging. Standard ILogger does not apply DRN runtime redaction.
 
 ### New Features
 

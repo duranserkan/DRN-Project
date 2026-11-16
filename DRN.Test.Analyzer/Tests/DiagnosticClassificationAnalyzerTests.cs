@@ -19,7 +19,8 @@ public sealed class DiagnosticClassificationAnalyzerTests
             (DiagnosticClassificationAnalyzer.UnsafeLoggingCapture, ClassificationDiagnosticDescriptors.UnsafeLoggingCapture, "DRN0022"),
             (DiagnosticClassificationAnalyzer.InvalidNameExemptionComment, ClassificationDiagnosticDescriptors.InvalidNameExemptionComment, "DRN0023"),
             (DiagnosticClassificationAnalyzer.UnusedNameExemptionComment, ClassificationDiagnosticDescriptors.UnusedNameExemptionComment, "DRN0024"),
-            (DiagnosticClassificationAnalyzer.IncompleteModelAnalysis, ClassificationDiagnosticDescriptors.IncompleteModelAnalysis, "DRN0025")
+            (DiagnosticClassificationAnalyzer.IncompleteModelAnalysis, ClassificationDiagnosticDescriptors.IncompleteModelAnalysis, "DRN0025"),
+            (DiagnosticClassificationAnalyzer.IncompleteInterfaceAnalysis, ClassificationDiagnosticDescriptors.IncompleteInterfaceAnalysis, "DRN0027")
         };
 
         foreach (var (publicDescriptor, sharedDescriptor, id) in descriptors)

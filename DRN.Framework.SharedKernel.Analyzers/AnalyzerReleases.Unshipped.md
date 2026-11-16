@@ -31,6 +31,7 @@
 | DRN0024 | DRN.Classification | Warning | DiagnosticNameExemption comment suppresses no name diagnostic |
 | DRN0025 | DRN.Classification | Error | Model capture exceeds the analysis work limit and may leave configured paths unchecked |
 | DRN0026 | DRN.Security | Error | Source-Known controller actions require explicit named policies and cannot permit anonymous access |
+| DRN0027 | DRN.Classification | Error | Logging capture exceeds the interface-property analysis limit and may leave classifications unchecked |
 | DRNCV001 | DRN.Conventions.Configuration | Warning | Invalid or incomplete application convention input |
 | DRNCV002 | DRN.Conventions.Ownership | Warning | Declare unambiguous subdomain ownership |
 | DRNCV003 | DRN.Conventions.Structure | Warning | Align namespace and logical placement |

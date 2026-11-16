@@ -45,4 +45,8 @@ internal static class ClassificationDiagnosticDescriptors
     internal static readonly DiagnosticDescriptor IncompleteModelAnalysis = new("DRN0025", "Incomplete model classification analysis",
         "Model capture exceeds the analysis work limit. Configured paths may remain unchecked. Capture a smaller model or classify sensitive subtrees explicitly.",
         Category, DiagnosticSeverity.Error, true, helpLinkUri: Help);
+
+    internal static readonly DiagnosticDescriptor IncompleteInterfaceAnalysis = new("DRN0027", "Incomplete interface classification analysis",
+        "Logging capture exceeds the 256 interface-property analysis limit. Sensitive or personal classifications may remain unchecked. Remove the capture, explicitly redact its value, or declare its classification directly on the captured property or type.",
+        Category, DiagnosticSeverity.Error, true, helpLinkUri: Help);
 }

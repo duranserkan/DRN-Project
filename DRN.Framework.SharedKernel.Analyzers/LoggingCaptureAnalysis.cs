@@ -14,6 +14,7 @@ internal sealed class LoggingCaptureAnalysis(OperationAnalysisContext context, C
     private const int MaxTemplateLength = 65536;
     internal const int MaxValues = 256;
     private static DiagnosticDescriptor Descriptor => ClassificationDiagnosticDescriptors.UnsafeLoggingCapture;
+    private bool _interfaceLimitReported;
 
     internal static void Analyze(OperationAnalysisContext context, ClassificationContract contract,
         DiagnosticRedactionRules rules, IInvocationOperation call, DiagnosticNameExemption exemptions,
@@ -140,8 +141,17 @@ internal sealed class LoggingCaptureAnalysis(OperationAnalysisContext context, C
         // Concrete access can still carry an interface-only classification.
         // An inherited property can implement an interface introduced by the receiver's type.
         var receiverType = reference.Instance?.Type as INamedTypeSymbol ?? property.ContainingType;
-        if (contract.PositiveInterfaceProperty(receiverType, property, context.CancellationToken))
-            Report(property.ToDisplayString());
+        switch (contract.PositiveInterfaceProperty(receiverType, property, context.CancellationToken))
+        {
+            case true:
+                Report(property.ToDisplayString());
+                break;
+            case null when !_interfaceLimitReported:
+                _interfaceLimitReported = true;
+                context.ReportDiagnostic(Diagnostic.Create(ClassificationDiagnosticDescriptors.IncompleteInterfaceAnalysis,
+                    call.Syntax.GetLocation()));
+                break;
+        }
     }
 
     private void Report(string name) => context.ReportDiagnostic(Diagnostic.Create(Descriptor, call.Syntax.GetLocation(),

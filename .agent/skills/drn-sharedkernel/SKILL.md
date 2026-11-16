@@ -1,7 +1,7 @@
 ---
 name: drn-sharedkernel
 description: "DRN domain primitives, Source-Known identity and time, repository contracts, pagination, exceptions, and classification analyzers."
-last-updated: 2026-11-15
+last-updated: 2026-11-16
 difficulty: intermediate
 ---
 
@@ -69,6 +69,8 @@ DRNCV031 requires one lifetime attribute bound to the exact matching IName inter
 DRN0026 requires explicit nonblank authorization policies on exposed SourceKnown controller actions, including inherited actions. Anonymous actions are rejected. `[NonAction]` is exempt, `IgnoreApi` is not. Hosting owns runtime policies and application resource checks.
 
 Use `[Sensitive]`, `[Personal]` or their derived attributes for protected members. Mapped interface classifications cover concrete and nested captures. Scoped logging reads classified getters once. Direct sanitization skips them. `[IgnoreLog]` excludes capture but leaves declaration analysis active. Apply these rules to fixtures too. Use named annotated models for matching anonymous properties, including nested and inferred members.
+
+DRN0027 rejects direct property captures when the 256 interface-property scan limit prevents a complete classification decision. Remove or explicitly redact the capture, or declare classification directly on its property or type. DRN0025 remains specific to model traversal and configured paths. Name exemptions waive neither limit diagnostic.
 
 - Apply direct `[Sensitive(false)]` only to reviewed built-in name matches. It cannot override positive classification or explicit URL protection. Other Microsoft classifications can redact at runtime without satisfying the compiler's required classification family.
 - DRN0017, DRN0020 and DRN0022 support exact adjacent acknowledgements at the reported path or captured dictionary key. Preserve configured paths, declaration checks, classified values and child traversal. DRN0023 reports malformed comments and DRN0024 reports unused comments. Known safe scalar constants and direct NSubstitute verification chains have narrow exemptions. Ordinary substitute calls are checked.

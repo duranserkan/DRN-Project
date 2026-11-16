@@ -76,6 +76,33 @@ public sealed class ClassificationFactTests
     }
 
     [Fact]
+    public void Cached_Interface_Scan_Exhaustion_Should_Remain_Incomplete_And_Observe_Cancellation()
+    {
+        var members = string.Join("\n", Enumerable.Range(0, LoggingCaptureAnalysis.MaxValues + 1)
+            .Select(index => $"string P{index} {{ get; }}"));
+        var implementations = string.Join("\n", Enumerable.Range(0, LoggingCaptureAnalysis.MaxValues + 1)
+            .Select(index => $"public abstract string P{index} {{ get; }}"));
+        var compilation = Compilation($$"""
+            public interface IInput { {{members}} }
+            public abstract class Input : IInput
+            {
+                {{implementations}}
+                public string Value => "ordinary";
+            }
+            """);
+        var contract = CreateContract(compilation);
+        var receiver = compilation.GetTypeByMetadataName("Input")!;
+        var property = (IPropertySymbol)receiver.GetMembers("Value").Single();
+        Parallel.For(0, 8, _ =>
+            contract.PositiveInterfaceProperty(receiver, property, default).Should().BeNull());
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        Action hit = () => contract.PositiveInterfaceProperty(receiver, property, cancellation.Token);
+        hit.Should().Throw<OperationCanceledException>();
+        contract.PositiveInterfaceProperty(receiver, property, default).Should().BeNull();
+    }
+
+    [Fact]
     public void Cached_Model_Shapes_Should_Preserve_Constructed_Elements_And_Nullable_Scalars()
     {
         var compilation = Compilation("public struct Model;");
