@@ -5,7 +5,6 @@ using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.AspNetCore.Identity;
 using Sample.Domain.SampleIdentity;
 using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
-using Sample.Infra.SampleIdentity.Repositories;
 
 namespace Sample.Application.Services.SampleIdentity;
 

@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Sample.Domain;
 using Author = Sample.Domain.QA.Author.AuthorEntity;
+using ProfilePicture = Sample.Domain.SampleIdentity.ProfilePictures.ProfilePicture;
 using Question = Sample.Domain.QA.Question.QuestionEntity;
 using User = Sample.Domain.QA.User.UserEntity;
 using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
@@ -27,11 +28,11 @@ public sealed class SourceKnownNormalizationModelTests
     [DataInlineUnit("SampleIdentity")]
     [DataInlineUnit("NexusIdentity")]
     [DataInlineUnit("DataProtection")]
-    public void Existing_Snapshot_And_Current_Model_Must_Have_Equal_Relational_Identities_Before_Normalization(string contextName)
+    public void Existing_Snapshot_And_Current_Model_Must_Have_Equal_Relational_Identities_After_Normalization(string contextName)
     {
         using var context = CreateContext(contextName);
         var (snapshot, current) = Models(context);
-        // These assertions characterize the existing baseline. Existing drift must be reviewed before source moves.
+        // These assertions verify post-normalization compatibility with historical snapshots.
         RelationalIdentities(current.GetRelationalModel()).Should().Equal(RelationalIdentities(snapshot.GetRelationalModel()),
             "normalization requires unchanged schemas, tables, columns, keys, indexes and foreign keys");
     }
@@ -41,13 +42,14 @@ public sealed class SourceKnownNormalizationModelTests
     [DataInlineUnit("SampleIdentity")]
     [DataInlineUnit("NexusIdentity")]
     [DataInlineUnit("DataProtection")]
-    public void Existing_Snapshot_Should_Require_No_Migration_Operations_Before_Normalization(string contextName)
+    public void Existing_Snapshot_Should_Require_No_Migration_Operations_After_Normalization(string contextName)
     {
         using var context = CreateContext(contextName);
         var (snapshot, current) = Models(context);
         var differences = context.GetService<IMigrationsModelDiffer>().GetDifferences(
             snapshot.GetRelationalModel(), current.GetRelationalModel());
-        differences.Should().BeEmpty("any pre-existing snapshot drift needs a separate reviewed reconciliation before namespace normalization");
+        differences.Should().BeEmpty("post-normalization model must align with historical snapshots without pending migration operations");
+        context.Database.HasPendingModelChanges().Should().BeFalse();
     }
 
     [Theory]
@@ -62,6 +64,9 @@ public sealed class SourceKnownNormalizationModelTests
         context.GetType().FullName.Should().Be(contextName);
         var assembly = context.GetService<IMigrationsAssembly>();
         assembly.Assembly.Should().BeSameAs(context.GetType().Assembly);
+        assembly.Migrations.Should().NotBeEmpty();
+        foreach (var migrationType in assembly.Migrations.Values)
+            assembly.CreateMigration(migrationType, context.Database.ProviderName!).TargetModel.Should().NotBeNull();
         var snapshot = assembly.ModelSnapshot;
         snapshot.Should().NotBeNull();
         snapshot.GetType().FullName.Should().Be(snapshotName);
@@ -133,6 +138,23 @@ public sealed class SourceKnownNormalizationModelTests
         model.GetRelationalModel().Tables.Select(table => table.Name).Should().Contain(
             ["users", "user_tokens", "user_logins", "user_claims", "roles", "user_roles", "role_claims"]);
         context.GetService<IMigrationsAssembly>().ModelSnapshot!.Model.FindEntityType(historicalName).Should().NotBeNull();
+    }
+
+    [Fact]
+    public void Sample_Identity_Model_Should_Preserve_ProfilePicture_Mapping_And_Snapshot_Identity()
+    {
+        using var context = new SampleIdentityContext(Options<SampleIdentityContext>());
+        var model = context.GetService<IDesignTimeModel>().Model;
+        var picture = model.FindEntityType(typeof(ProfilePicture));
+        picture.Should().NotBeNull();
+        picture.GetTableName().Should().Be("profile_pictures");
+        picture.GetSchema().Should().Be("sample_identity_context");
+        picture.FindProperty(nameof(ProfilePicture.Id))!.ClrType.Should().Be(typeof(long));
+        picture.FindProperty(nameof(ProfilePicture.UserId))!.ClrType.Should().Be(typeof(string));
+        picture.FindProperty(nameof(ProfilePicture.ImageData))!.ClrType.Should().Be(typeof(byte[]));
+        picture.FindProperty(nameof(ProfilePicture.Version))!.ClrType.Should().Be(typeof(byte));
+        context.GetService<IMigrationsAssembly>().ModelSnapshot!.Model
+            .FindEntityType("Sample.Domain.Identity.ProfilePictures.ProfilePicture").Should().NotBeNull();
     }
 
     [Fact]
