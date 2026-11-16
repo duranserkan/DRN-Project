@@ -7,8 +7,8 @@ namespace DRN.Test.Analyzer.Tests;
 public sealed class ConventionFactsTests
 {
     [Theory]
-    [InlineData("Layers/Storage")]
-    [InlineData("Layers\\Storage")]
+    [DataInlineUnit("Layers/Storage")]
+    [DataInlineUnit("Layers\\Storage")]
     public void Role_Mapping_Should_Normalize_Logical_Path_Separators(string prefix)
     {
         var compilation = Compilation("namespace Sample.Storage.QA; public class Model;");
@@ -19,8 +19,8 @@ public sealed class ConventionFactsTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
     public void External_Constructed_Ownership_Should_Use_The_Generic_Definition(bool contradictory)
     {
         var producer = Compilation("namespace External; public class Row<T>;").WithAssemblyName("External.Library");

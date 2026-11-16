@@ -7,8 +7,8 @@ namespace DRN.Test.Analyzer.Tests;
 public sealed class ConventionRegistrationTests
 {
     [Theory]
-    [InlineData("typeof(ProjectModule).Assembly", true)]
-    [InlineData("typeof(IServiceCollection).Assembly", false)]
+    [DataInlineUnit("typeof(ProjectModule).Assembly", true)]
+    [DataInlineUnit("typeof(IServiceCollection).Assembly", false)]
     public void Reordered_Scan_Arguments_Should_Preserve_Registration_Evidence(string assembly, bool missing)
     {
         var facts = Analyze($$"""
@@ -30,21 +30,21 @@ public sealed class ConventionRegistrationTests
     }
 
     [Theory]
-    [InlineData("Hosted", "", true)]
-    [InlineData("Application", "", true)]
-    [InlineData("Infra", "", true)]
-    [InlineData("Utils", "", true)]
-    [InlineData("Domain", "", false)]
-    [InlineData("Contract", "", false)]
-    [InlineData("Application", "services.AddServicesWithAttributes();", false)]
-    [InlineData("Infra", "services.AddServicesWithAttributes(typeof(ProjectModule).Assembly);", false)]
-    [InlineData("Infra", "services.AddServicesWithAttributes(assembly: typeof(ProjectModule).Assembly);", false)]
-    [InlineData("Utils", "DRN.Framework.Utils.DependencyInjection.ServiceCollectionExtensions.AddServicesWithAttributes(assembly: typeof(ProjectModule).Assembly, sc: services);", false)]
-    [InlineData("Utils", "DRN.Framework.Utils.DependencyInjection.ServiceCollectionExtensions.AddServicesWithAttributes(assembly: typeof(IServiceCollection).Assembly, sc: services);", true)]
-    [InlineData("Utils", "DRN.Framework.Utils.DependencyInjection.ServiceCollectionExtensions.AddServicesWithAttributes(services);", false)]
-    [InlineData("Hosted", "services.AddServicesWithAttributes(typeof(IServiceCollection).Assembly);", true)]
-    [InlineData("Application", "System.Action unused = () => services.AddServicesWithAttributes();", true)]
-    [InlineData("Application", "new ServiceCollection().AddServicesWithAttributes();", true)]
+    [DataInlineUnit("Hosted", "", true)]
+    [DataInlineUnit("Application", "", true)]
+    [DataInlineUnit("Infra", "", true)]
+    [DataInlineUnit("Utils", "", true)]
+    [DataInlineUnit("Domain", "", false)]
+    [DataInlineUnit("Contract", "", false)]
+    [DataInlineUnit("Application", "services.AddServicesWithAttributes();", false)]
+    [DataInlineUnit("Infra", "services.AddServicesWithAttributes(typeof(ProjectModule).Assembly);", false)]
+    [DataInlineUnit("Infra", "services.AddServicesWithAttributes(assembly: typeof(ProjectModule).Assembly);", false)]
+    [DataInlineUnit("Utils", "DRN.Framework.Utils.DependencyInjection.ServiceCollectionExtensions.AddServicesWithAttributes(assembly: typeof(ProjectModule).Assembly, sc: services);", false)]
+    [DataInlineUnit("Utils", "DRN.Framework.Utils.DependencyInjection.ServiceCollectionExtensions.AddServicesWithAttributes(assembly: typeof(IServiceCollection).Assembly, sc: services);", true)]
+    [DataInlineUnit("Utils", "DRN.Framework.Utils.DependencyInjection.ServiceCollectionExtensions.AddServicesWithAttributes(services);", false)]
+    [DataInlineUnit("Hosted", "services.AddServicesWithAttributes(typeof(IServiceCollection).Assembly);", true)]
+    [DataInlineUnit("Application", "System.Action unused = () => services.AddServicesWithAttributes();", true)]
+    [DataInlineUnit("Application", "new ServiceCollection().AddServicesWithAttributes();", true)]
     public void Composition_Roles_Should_Require_A_Module_Scanning_Its_Own_Assembly(string role, string body, bool missing)
     {
         var facts = Analyze($$"""
@@ -66,11 +66,11 @@ public sealed class ConventionRegistrationTests
     }
 
     [Theory]
-    [InlineData("public static class Helper", "public static IServiceCollection", "return services;", true)]
-    [InlineData("internal static class ProjectModule", "public static IServiceCollection", "return services;", true)]
-    [InlineData("public static class ProjectModule", "private static IServiceCollection", "return services;", true)]
-    [InlineData("public static class ProjectModule", "public static void", "", true)]
-    [InlineData("public static class ProjectModule", "public static IServiceCollection", "return services;", false)]
+    [DataInlineUnit("public static class Helper", "public static IServiceCollection", "return services;", true)]
+    [DataInlineUnit("internal static class ProjectModule", "public static IServiceCollection", "return services;", true)]
+    [DataInlineUnit("public static class ProjectModule", "private static IServiceCollection", "return services;", true)]
+    [DataInlineUnit("public static class ProjectModule", "public static void", "", true)]
+    [DataInlineUnit("public static class ProjectModule", "public static IServiceCollection", "return services;", false)]
     public void Module_Scan_Should_Require_The_Public_Composition_Shape(string type, string method, string result, bool missing)
     {
         var facts = Analyze($$"""
@@ -92,11 +92,11 @@ public sealed class ConventionRegistrationTests
     }
 
     [Theory]
-    [InlineData("", "IWorker", "DRNCV031")]
-    [InlineData("[Scoped<object>]", "IWorker", "DRNCV031")]
-    [InlineData("[ScopedWithKey<IWorker>(\"read\")]", "IWorker", "DRNCV012")]
-    [InlineData("[Scoped<IWorker>]", "IOther", "DRNCV012")]
-    [InlineData("[Scoped<IWorker>]", "IWorker", "")]
+    [DataInlineUnit("", "IWorker", "DRNCV031")]
+    [DataInlineUnit("[Scoped<object>]", "IWorker", "DRNCV031")]
+    [DataInlineUnit("[ScopedWithKey<IWorker>(\"read\")]", "IWorker", "DRNCV012")]
+    [DataInlineUnit("[Scoped<IWorker>]", "IOther", "DRNCV012")]
+    [DataInlineUnit("[Scoped<IWorker>]", "IWorker", "")]
     public void Combined_Analysis_Should_Separate_Binding_Failures_From_Demand_Mismatches(
         string attribute, string dependency, string expected)
     {
@@ -120,12 +120,12 @@ public sealed class ConventionRegistrationTests
     }
 
     [Theory]
-    [InlineData("public class CustomAttribute() : LifetimeAttribute(ServiceLifetime.Scoped, typeof(IWorker), true, null);", "[Custom]", false)]
-    [InlineData("public class CustomAttribute : LifetimeAttribute { public CustomAttribute() : base(ServiceLifetime.Scoped, typeof(IWorker), true, null) { } }", "[Custom]", false)]
-    [InlineData("public class CustomAttribute(System.Type service) : LifetimeAttribute(ServiceLifetime.Scoped, service, true, null);", "[Custom(typeof(IWorker))]", false)]
-    [InlineData("public class CustomAttribute : LifetimeAttribute { public CustomAttribute() : this(typeof(IWorker)) { } private CustomAttribute(System.Type service) : base(key: null, tryAdd: true, serviceType: service, serviceLifetime: ServiceLifetime.Scoped) { } }", "[Custom]", false)]
-    [InlineData("public class CustomAttribute() : LifetimeAttribute(ServiceLifetime.Scoped, typeof(object), true, null);", "[Custom]", true)]
-    [InlineData("public class CustomAttribute() : LifetimeAttribute(ServiceLifetime.Scoped, Resolve(), true, null) { private static System.Type Resolve() => typeof(IWorker); }", "[Custom]", true)]
+    [DataInlineUnit("public class CustomAttribute() : LifetimeAttribute(ServiceLifetime.Scoped, typeof(IWorker), true, null);", "[Custom]", false)]
+    [DataInlineUnit("public class CustomAttribute : LifetimeAttribute { public CustomAttribute() : base(ServiceLifetime.Scoped, typeof(IWorker), true, null) { } }", "[Custom]", false)]
+    [DataInlineUnit("public class CustomAttribute(System.Type service) : LifetimeAttribute(ServiceLifetime.Scoped, service, true, null);", "[Custom(typeof(IWorker))]", false)]
+    [DataInlineUnit("public class CustomAttribute : LifetimeAttribute { public CustomAttribute() : this(typeof(IWorker)) { } private CustomAttribute(System.Type service) : base(key: null, tryAdd: true, serviceType: service, serviceLifetime: ServiceLifetime.Scoped) { } }", "[Custom]", false)]
+    [DataInlineUnit("public class CustomAttribute() : LifetimeAttribute(ServiceLifetime.Scoped, typeof(object), true, null);", "[Custom]", true)]
+    [DataInlineUnit("public class CustomAttribute() : LifetimeAttribute(ServiceLifetime.Scoped, Resolve(), true, null) { private static System.Type Resolve() => typeof(IWorker); }", "[Custom]", true)]
     public void Custom_Lifetime_Constructor_Bindings_Should_Be_Proven_And_Shared(string declaration, string attribute, bool missing)
     {
         var facts = Analyze($$"""
@@ -156,8 +156,8 @@ public sealed class ConventionRegistrationTests
     }
 
     [Theory]
-    [InlineData("")]
-    [InlineData("[Scoped<IWorker>]")]
+    [DataInlineUnit("")]
+    [DataInlineUnit("[Scoped<IWorker>]")]
     public void Shared_Candidates_Should_Preserve_Diagnostics_Without_Duplicate_Binding_Failures(string attribute)
     {
         var facts = Analyze($$"""
@@ -195,19 +195,19 @@ public sealed class ConventionRegistrationTests
     }
 
     [Theory]
-    [InlineData("", "Application", true)]
-    [InlineData("", "Infra", true)]
-    [InlineData("", "Domain", false)]
-    [InlineData("[Scoped<IWorker>]", "Application", false)]
-    [InlineData("[Transient<IWorker>]", "Application", false)]
-    [InlineData("[Singleton<IWorker>]", "Application", false)]
-    [InlineData("[CustomLifetime]", "Application", false)]
-    [InlineData("[Scoped]", "Application", true)]
-    [InlineData("[Scoped<Worker>]", "Application", true)]
-    [InlineData("[Scoped<IOther>]", "Application", true)]
-    [InlineData("[ScopedWithKey<IWorker>(\"worker\")]", "Application", false)]
-    [InlineData("[ScopedWithKey<IOther>(\"worker\")]", "Application", true)]
-    [InlineData("[Scoped<IWorker>, Transient<IWorker>]", "Application", true)]
+    [DataInlineUnit("", "Application", true)]
+    [DataInlineUnit("", "Infra", true)]
+    [DataInlineUnit("", "Domain", false)]
+    [DataInlineUnit("[Scoped<IWorker>]", "Application", false)]
+    [DataInlineUnit("[Transient<IWorker>]", "Application", false)]
+    [DataInlineUnit("[Singleton<IWorker>]", "Application", false)]
+    [DataInlineUnit("[CustomLifetime]", "Application", false)]
+    [DataInlineUnit("[Scoped]", "Application", true)]
+    [DataInlineUnit("[Scoped<Worker>]", "Application", true)]
+    [DataInlineUnit("[Scoped<IOther>]", "Application", true)]
+    [DataInlineUnit("[ScopedWithKey<IWorker>(\"worker\")]", "Application", false)]
+    [DataInlineUnit("[ScopedWithKey<IOther>(\"worker\")]", "Application", true)]
+    [DataInlineUnit("[Scoped<IWorker>, Transient<IWorker>]", "Application", true)]
     public void Paired_Implementations_Should_Declare_Lifetime_Without_Composition_Evidence(string attribute, string role, bool missing)
     {
         var facts = Analyze($$"""
@@ -250,8 +250,8 @@ public sealed class ConventionRegistrationTests
     }
 
     [Theory]
-    [InlineData("")]
-    [InlineData("[DRN.Framework.Utils.DependencyInjection.Attributes.Scoped<object>]")]
+    [DataInlineUnit("")]
+    [DataInlineUnit("[DRN.Framework.Utils.DependencyInjection.Attributes.Scoped<object>]")]
     public void Manual_And_Unknown_Composition_Should_Not_Waive_The_Lifetime_Convention(string attribute)
     {
         var facts = Analyze($$"""
@@ -275,10 +275,10 @@ public sealed class ConventionRegistrationTests
     }
 
     [Theory]
-    [InlineData("IWorker<int>", "", false)]
-    [InlineData("IWorker<string>", "", true)]
-    [InlineData("IWorker<int>", "[Scoped<IWorker<string>>]", true)]
-    [InlineData("IWorker<string>", "[Scoped<IWorker<int>>]", false)]
+    [DataInlineUnit("IWorker<int>", "", false)]
+    [DataInlineUnit("IWorker<string>", "", true)]
+    [DataInlineUnit("IWorker<int>", "[Scoped<IWorker<string>>]", true)]
+    [DataInlineUnit("IWorker<string>", "[Scoped<IWorker<int>>]", false)]
     public void Lifetime_Binding_Should_Preserve_Constructed_Interfaces_And_Direct_Precedence(
         string inheritedService, string directAttribute, bool missing)
     {
@@ -680,10 +680,10 @@ public sealed class ConventionRegistrationTests
     }
 
     [Theory]
-    [InlineData("DRNCV012", false)]
-    [InlineData("DRNCV012", true)]
-    [InlineData("DRNCV031", false)]
-    [InlineData("DRNCV031", true)]
+    [DataInlineUnit("DRNCV012", false)]
+    [DataInlineUnit("DRNCV012", true)]
+    [DataInlineUnit("DRNCV031", false)]
+    [DataInlineUnit("DRNCV031", true)]
     public async Task Production_Analyzer_Should_Check_Demand_Free_Services_And_Honor_Narrow_Suppression(string rule, bool suppressed)
     {
         var suppression = suppressed ? $$"""
@@ -909,10 +909,10 @@ public sealed class ConventionRegistrationTests
     }
 
     [Theory]
-    [InlineData("[HostedService]", "", false)]
-    [InlineData("", "", true)]
-    [InlineData("[HostedService]", "[FromKeyedServices(\"worker\")]", true)]
-    [InlineData("[Singleton<Worker>]", "", true)]
+    [DataInlineUnit("[HostedService]", "", false)]
+    [DataInlineUnit("", "", true)]
+    [DataInlineUnit("[HostedService]", "[FromKeyedServices(\"worker\")]", true)]
+    [DataInlineUnit("[Singleton<Worker>]", "", true)]
     public void Hosted_Lifetime_Should_Satisfy_Only_An_Unkeyed_Hosted_Service_Demand(string attribute, string key, bool missing)
     {
         var source = $$"""

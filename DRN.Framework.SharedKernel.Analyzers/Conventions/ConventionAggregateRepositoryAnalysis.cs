@@ -38,7 +38,6 @@ internal static class ConventionAggregateRepositoryAnalysis
         var reported = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
         var repositoryMatches = new Dictionary<INamedTypeSymbol, bool>(SymbolEqualityComparer.Default);
         var configurationEntities = new List<List<INamedTypeSymbol>>();
-        var configurationIndices = new Dictionary<INamedTypeSymbol, int>(SymbolEqualityComparer.Default);
         var defaultConfigurations = new Dictionary<INamespaceSymbol, List<int>>(SymbolEqualityComparer.Default);
         foreach (var configuration in facts.Types)
         {
@@ -49,9 +48,8 @@ internal static class ConventionAggregateRepositoryAnalysis
             foreach (var binding in ConventionSymbols.Bindings(configuration, facts.Symbols.Configuration, facts.Cancellation))
                 if (binding.TypeArguments is [INamedTypeSymbol entity]) entities.Add(entity);
             configurationEntities.Add(entities);
-            configurationIndices.Add(configuration, index);
             if (!ConventionPersistenceAnalysis.DefaultDiscoverable(facts, configuration, configuration)) continue;
-            // Append in source order so merging explicit and default applications preserves diagnostics.
+            // Preserve source order for default configuration discovery.
             for (var ns = configuration.ContainingNamespace; ns is not null; ns = ns.ContainingNamespace)
             {
                 facts.Cancellation.ThrowIfCancellationRequested();
@@ -87,7 +85,8 @@ internal static class ConventionAggregateRepositoryAnalysis
             foreach (var configuration in model.Applied)
             {
                 facts.Cancellation.ThrowIfCancellationRequested();
-                if (configurationIndices.TryGetValue(configuration, out var index)) selectedConfigurations.Add(index);
+                foreach (var binding in ConventionSymbols.Bindings(configuration, facts.Symbols.Configuration, facts.Cancellation))
+                    if (binding.TypeArguments is [INamedTypeSymbol entity]) assigned.Add(entity);
             }
             selectedConfigurations.Sort();
             var previousIndex = -1;

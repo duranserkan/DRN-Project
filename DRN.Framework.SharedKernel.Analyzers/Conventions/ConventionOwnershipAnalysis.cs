@@ -82,6 +82,18 @@ internal static class ConventionOwnershipAnalysis
     internal static bool HasEntityBinding(ConventionFacts facts, INamedTypeSymbol type)
     {
         if (facts.Symbols.IsTransport(type, facts.Cancellation)) return false;
+        if (HasDeclaredEntityBinding(facts, type)) return true;
+        if (type.TypeKind != TypeKind.Interface) return false;
+        foreach (var contract in type.AllInterfaces)
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            if (HasDeclaredEntityBinding(facts, contract)) return true;
+        }
+        return false;
+    }
+
+    private static bool HasDeclaredEntityBinding(ConventionFacts facts, INamedTypeSymbol type)
+    {
         foreach (var member in type.GetMembers())
         {
             facts.Cancellation.ThrowIfCancellationRequested();

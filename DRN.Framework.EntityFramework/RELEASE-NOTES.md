@@ -6,6 +6,8 @@ Targets .NET 11.
 
 ### Breaking Changes
 
+*   **Direct context options**: DRNCV030 requires concrete, closed DRN contexts to directly apply a custom attribute derived from `NpgsqlDbContextOptionsAttribute`. Contexts relying on inherited attributes or framework defaults must add this declaration to avoid warnings-as-errors failures. The custom attribute can retain the inherited settings without overrides.
+
 *   **Infrastructure layout**: DRNCV028 checks dedicated Repositories, Configurations and Migrations folders/namespaces. EF configuration names end in Config. DRNCV029 checks the context prefix and Options suffix on applied custom options attributes, excluding shared framework defaults.
 
 *   **Aggregate repositories**: DRNCV027 requires a concrete SourceKnownRepository implementing the aggregate's Domain subdomain interface for aggregates assigned to this Infra's contexts. One implementation can cover multiple contexts. Unassigned Domain aggregates are excluded.

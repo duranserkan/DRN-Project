@@ -110,8 +110,8 @@ public sealed class ConventionDiagnosticContractTests
     [InlineData("DRNCV017")]
     [InlineData("DRNCV019")]
     [InlineData("DRNCV020")]
-    [InlineData("DRNCV030")]
-    [InlineData("DRNCV031")]
+    [DataInlineUnit("DRNCV030")]
+    [DataInlineUnit("DRNCV031")]
     public async Task Real_Violation_Should_Have_Exact_Public_Diagnostic_Contract(string id)
     {
         var scenario = ScenarioFor(id);
@@ -163,8 +163,8 @@ public sealed class ConventionDiagnosticContractTests
     [InlineData("DRNCV017")]
     [InlineData("DRNCV019")]
     [InlineData("DRNCV020")]
-    [InlineData("DRNCV030")]
-    [InlineData("DRNCV031")]
+    [DataInlineUnit("DRNCV030")]
+    [DataInlineUnit("DRNCV031")]
     public async Task Reviewed_Exception_Should_Cover_Only_The_Exact_Real_Violation_And_Expire_On_Review_Day(string id)
     {
         var scenario = ScenarioFor(id);

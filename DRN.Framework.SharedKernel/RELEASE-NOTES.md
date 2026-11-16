@@ -56,6 +56,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Bug Fixes
 
+*   **Convention coverage**: DRNCV027 recognizes explicitly applied closed generic configurations, including referenced configurations. DRNCV010 validates destinations for bound repositories without DbSets and ignores generated partial declarations when checking logical placement. Entity-bound service contracts include inherited interface methods.
+
 *   **Pagination Refresh and Input**: Refresh results detect another page from an extra fetched row without requiring a known total or caller hint. Null page-size and cursor JSON members now use defaults instead of throwing during deserialization.
 
 *   **Path containment**: `GetPathWithinDirectory()` accepts missing child files and directories while checking existing ancestors for symbolic links.

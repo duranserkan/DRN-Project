@@ -52,11 +52,11 @@ public sealed class EntityDtoRefactoringTests
     }
 
     [Theory]
-    [InlineData("private string Name { get; set; } = \"\";")]
-    [InlineData("public static string Name { get; set; } = \"\";")]
-    [InlineData("public User Name { get; set; } = null!;")]
-    [InlineData("public string[] Name { get; set; } = [];")]
-    [InlineData("[System.Obsolete] public string Name { get; set; } = \"\";")]
+    [DataInlineUnit("private string Name { get; set; } = \"\";")]
+    [DataInlineUnit("public static string Name { get; set; } = \"\";")]
+    [DataInlineUnit("public User Name { get; set; } = null!;")]
+    [DataInlineUnit("public string[] Name { get; set; } = [];")]
+    [DataInlineUnit("[System.Obsolete] public string Name { get; set; } = \"\";")]
     public async Task Nonpublic_Persistence_Collection_Or_Unknown_Annotated_Selection_Should_Be_Declined(string property)
     {
         using var workspace = new AdhocWorkspace();
@@ -116,8 +116,8 @@ public sealed class EntityDtoRefactoringTests
     }
 
     [Theory]
-    [InlineData("Sample.Contract")]
-    [InlineData("Other.Contract")]
+    [DataInlineUnit("Sample.Contract")]
+    [DataInlineUnit("Other.Contract")]
     public async Task Missing_Direct_Contract_Reference_Should_Not_Create_An_Edge(string contractName)
     {
         using var workspace = new AdhocWorkspace();
@@ -125,8 +125,8 @@ public sealed class EntityDtoRefactoringTests
     }
 
     [Theory]
-    [InlineData("Other.Contract")]
-    [InlineData("Contract")]
+    [DataInlineUnit("Other.Contract")]
+    [DataInlineUnit("Contract")]
     public async Task Referenced_Contract_Should_Not_Require_A_Shared_Project_Prefix(string contractName)
     {
         using var workspace = new AdhocWorkspace();
@@ -169,8 +169,8 @@ public sealed class EntityDtoRefactoringTests
     }
 
     [Theory]
-    [InlineData("Sample.Contract", "/source/Sample.Contract/QA/userdto.cs")]
-    [InlineData("Sample.Domain", "/source/Sample.Domain/QA/userdtomapping.cs")]
+    [DataInlineUnit("Sample.Contract", "/source/Sample.Contract/QA/userdto.cs")]
+    [DataInlineUnit("Sample.Domain", "/source/Sample.Domain/QA/userdtomapping.cs")]
     public async Task Either_Destination_Collision_Should_Prevent_Both_Files(string projectName, string path)
     {
         using var workspace = new AdhocWorkspace();
@@ -232,10 +232,10 @@ public sealed class EntityDtoRefactoringTests
     }
 
     [Theory]
-    [InlineData("Sample.Contract", "Sample.Contract.QA.UserDto")]
-    [InlineData("Sample.Contract", "Sample.Contract.QA.userdto")]
-    [InlineData("Sample.Domain", "Sample.Domain.QA.UserDtoMapping")]
-    [InlineData("Sample.Domain", "Sample.Domain.QA.userdtomapping")]
+    [DataInlineUnit("Sample.Contract", "Sample.Contract.QA.UserDto")]
+    [DataInlineUnit("Sample.Contract", "Sample.Contract.QA.userdto")]
+    [DataInlineUnit("Sample.Domain", "Sample.Domain.QA.UserDtoMapping")]
+    [DataInlineUnit("Sample.Domain", "Sample.Domain.QA.userdtomapping")]
     public async Task Namespace_Collision_At_Either_Generated_Type_Should_Prevent_Both_Files(string projectName, string namespaceName)
     {
         using var workspace = new AdhocWorkspace();
@@ -253,8 +253,8 @@ public sealed class EntityDtoRefactoringTests
     }
 
     [Theory]
-    [InlineData("QA")]
-    [InlineData("qa")]
+    [DataInlineUnit("QA")]
+    [DataInlineUnit("qa")]
     public async Task Namespace_Segment_Type_Should_Prevent_Both_Dto_Files(string segment)
     {
         using var workspace = new AdhocWorkspace();
@@ -266,9 +266,9 @@ public sealed class EntityDtoRefactoringTests
     }
 
     [Theory]
-    [InlineData("Sample.Domain", "[module: DRN.Conventions.Version(\"1\")]")]
-    [InlineData("Sample.Contract", "[assembly: DRN.Conventions.Version(\"2\")]")]
-    [InlineData("Sample.Contract", "[assembly: DRN.Conventions.Context(\"Sample.Context\")]")]
+    [DataInlineUnit("Sample.Domain", "[module: DRN.Conventions.Version(\"1\")]")]
+    [DataInlineUnit("Sample.Contract", "[assembly: DRN.Conventions.Version(\"2\")]")]
+    [DataInlineUnit("Sample.Contract", "[assembly: DRN.Conventions.Context(\"Sample.Context\")]")]
     public async Task Invalid_Input_In_Either_Project_Should_Prevent_Dto_Generation(string projectName, string input)
     {
         using var workspace = new AdhocWorkspace();
@@ -290,8 +290,8 @@ public sealed class EntityDtoRefactoringTests
     }
 
     [Theory]
-    [InlineData("[assembly: DRN.Conventions.Role(\"Domain\", NamespacePrefix = \"Sample.Domain\", LogicalPathPrefix = \"Business\")]")]
-    [InlineData("[assembly: DRN.Conventions.Ownership(\"Sample.Domain.QA.User\", Subdomain = \"Identity\", Reason = \"Reviewed owner\")]")]
+    [DataInlineUnit("[assembly: DRN.Conventions.Role(\"Domain\", NamespacePrefix = \"Sample.Domain\", LogicalPathPrefix = \"Business\")]")]
+    [DataInlineUnit("[assembly: DRN.Conventions.Ownership(\"Sample.Domain.QA.User\", Subdomain = \"Identity\", Reason = \"Reviewed owner\")]")]
     public async Task Explicit_Role_Or_Ownership_Inputs_Should_Not_Be_Ignored_By_Dto_Placement(string record)
     {
         using var workspace = new AdhocWorkspace();
@@ -317,9 +317,9 @@ public sealed class EntityDtoRefactoringTests
     }
 
     [Theory]
-    [InlineData("", "", true)]
-    [InlineData("<T>", "<int>", false)]
-    [InlineData("<T>", "<Sample.Domain.QA.DomainOnly>", false)]
+    [DataInlineUnit("", "", true)]
+    [DataInlineUnit("<T>", "<int>", false)]
+    [DataInlineUnit("<T>", "<Sample.Domain.QA.DomainOnly>", false)]
     public async Task Nested_Enum_Selection_Should_Require_A_Type_Resolvable_In_Both_Projects(string declaration, string construction, bool offered)
     {
         using var workspace = new AdhocWorkspace();

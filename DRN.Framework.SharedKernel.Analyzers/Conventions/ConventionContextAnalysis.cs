@@ -142,7 +142,8 @@ internal static class ConventionContextAnalysis
         if (!ns.StartsWith(role.Namespace + ".", StringComparison.Ordinal)) return;
         var area = ns[(role.Namespace.Length + 1)..].Replace('.', '/');
         if (role.PathPrefix.Length > 0) area = role.PathPrefix + "/" + area;
-        if (HasAggregateDbSet(facts, type) || !string.IsNullOrWhiteSpace(input?.Get("Repositories"))) CheckDestination("Repositories");
+        if (HasAggregateDbSet(facts, type) || artifacts.Repositories.ContainsKey(type) ||
+            !string.IsNullOrWhiteSpace(input?.Get("Repositories"))) CheckDestination("Repositories");
         if (artifacts.Migrations.ContainsKey(type) || !string.IsNullOrWhiteSpace(input?.Get("Migrations")) ||
             !string.IsNullOrWhiteSpace(input?.Get("MigrationsAssembly")))
             CheckDestination("Migrations");
@@ -186,6 +187,7 @@ internal static class ConventionContextAnalysis
             foreach (var reference in symbol.DeclaringSyntaxReferences)
             {
                 facts.Cancellation.ThrowIfCancellationRequested();
+                if (facts.IsGenerated(reference.SyntaxTree)) continue;
                 if (facts.HasInvalidPath(reference.SyntaxTree) ||
                     facts.LogicalDirectory(reference.SyntaxTree)?.Directory != expected) return false;
             }

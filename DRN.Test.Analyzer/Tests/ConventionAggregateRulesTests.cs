@@ -267,6 +267,79 @@ public sealed class ConventionAggregateRulesTests
         facts.Diagnostics.Should().BeEmpty();
     }
 
+    [Theory]
+    [DataInlineUnit(false, false)]
+    [DataInlineUnit(true, false)]
+    [DataInlineUnit(false, true)]
+    [DataInlineUnit(true, true)]
+    public void Explicit_Closed_Generic_Configuration_Should_Assign_An_Aggregate_Without_A_DbSet(bool referenced, bool ignored)
+    {
+        var domain = Compilation(Domain + Contract).WithAssemblyName("Sample.Domain");
+        var domainReference = domain.ToMetadataReference();
+        const string configuration = """
+            public class GenericConfig<T> : Microsoft.EntityFrameworkCore.IEntityTypeConfiguration<T> where T : class
+            {
+                public void Configure(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<T> builder) { }
+            }
+            """;
+        var source = $$"""
+            using Microsoft.EntityFrameworkCore;
+            using Sample.Domain.QA.Order;
+            namespace Sample.Infra.QA;
+            public class QAContext() : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>(null)
+            {
+                protected override void OnModelCreating(ModelBuilder model)
+                {
+                    base.OnModelCreating(model);
+                    model.ApplyConfiguration(new GenericConfig<OrderEntity>());
+                    {{(ignored ? "model.Ignore<OrderEntity>();" : "")}}
+                }
+            }
+            """;
+        var compilation = Compilation(source + (referenced ? "" : configuration)).WithAssemblyName("Sample.Infra")
+            .AddReferences(domainReference, FrameworkReference, UtilsReference);
+        if (referenced)
+        {
+            var dependency = Compilation("namespace Sample.Infra.QA; " + configuration).WithAssemblyName("ConfigurationFixture");
+            using var image = new MemoryStream();
+            dependency.Emit(image).Success.Should().BeTrue();
+            compilation = compilation.AddReferences(MetadataReference.CreateFromImage(image.ToArray()));
+        }
+        var facts = Facts(compilation, "Infra");
+        ConventionAggregateRepositoryAnalysis.Analyze(facts);
+        if (ignored) facts.Diagnostics.Should().BeEmpty();
+        else facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV027");
+    }
+
+    [Theory]
+    [DataInlineUnit(false, false)]
+    [DataInlineUnit(true, false)]
+    [DataInlineUnit(false, true)]
+    [DataInlineUnit(true, true)]
+    public void Entity_Bound_Interface_Naming_Should_Include_Inherited_Methods(bool inherited, bool valid)
+    {
+        var domain = Compilation(Domain).WithAssemblyName("Sample.Domain");
+        var name = valid ? "IOrderService" : "IHandler";
+        var declaration = inherited ? ": IQuery<Sample.Domain.QA.Order.OrderEntity>;" :
+            "{ System.Threading.Tasks.Task<Sample.Domain.QA.Order.OrderEntity> Read(); }";
+        var source = $$"""
+            namespace Sample.Application.QA;
+            public interface IQuery<T> { System.Threading.Tasks.Task<T> Read(); }
+            public interface {{name}} {{declaration}}
+            public interface IUnrelated : IQuery<string>;
+            """;
+        var facts = Facts(Compilation(source).WithAssemblyName("Sample.Application")
+            .AddReferences(domain.ToMetadataReference()), "Application");
+        ConventionNamingAnalysis.Analyze(facts);
+        if (valid) facts.Diagnostics.Should().BeEmpty();
+        else
+        {
+            var diagnostic = facts.Diagnostics.Should().ContainSingle().Which;
+            diagnostic.Id.Should().Be("DRNCV024");
+            diagnostic.Properties["Target"].Should().Be("T:Sample.Application.QA.IHandler");
+        }
+    }
+
     private static ConventionFacts Facts(CSharpCompilation compilation, string role, string logicalPath = "QA/Models.cs")
     {
         compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);

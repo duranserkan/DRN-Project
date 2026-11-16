@@ -49,10 +49,11 @@ Production auto-migration and domain-event publishing are not implemented by thi
 
 ## QuickStart: Beginner
 
-Define a DbContext and entity with automatic ID generation:
+Define a DbContext and entity with automatic ID generation. DRNCV030 requires a directly applied custom attribute derived from `NpgsqlDbContextOptionsAttribute`, even when inherited defaults need no overrides. Name the attribute after the exact context name, ending in `Options` before the optional `Attribute` suffix:
 
 ```csharp
 using DRN.Framework.EntityFramework.Context;
+using DRN.Framework.EntityFramework.Attributes;
 using DRN.Framework.SharedKernel.Domain;
 using Microsoft.EntityFrameworkCore;
 
@@ -71,6 +72,9 @@ public class User : AggregateRoot
 }
 
 // 2. Create your context inheriting from DrnContext
+public sealed class AppContextNpgsqlDbContextOptionsAttribute : NpgsqlDbContextOptionsAttribute;
+
+[AppContextNpgsqlDbContextOptions]
 public class AppContext : DrnContext<AppContext>
 {
     public AppContext(DbContextOptions<AppContext> options) : base(options) { }
@@ -188,7 +192,7 @@ Derive from `DrnContext<TContext>` and provide both constructors shown in the be
 
 ### Standard Attributes (Inherited)
 
-Every `DrnContext` inherits registration, provider, and performance defaults. Customize database and performance settings with attributes derived from `NpgsqlDbContextOptionsAttribute` or `NpgsqlPerformanceSettingsAttribute`; service registration is inherited and should not be reapplied.
+Every `DrnContext` inherits registration, provider, and performance defaults. Concrete, closed DRN contexts must directly apply a custom `NpgsqlDbContextOptionsAttribute` descendant to satisfy DRNCV030. Inherited attributes and framework defaults do not satisfy this declaration requirement. The custom attribute can retain all defaults without overrides. Customize database and performance settings with attributes derived from `NpgsqlDbContextOptionsAttribute` or `NpgsqlPerformanceSettingsAttribute`. Service registration is inherited and should not be reapplied.
 
 ```csharp
 // The base class defines these defaults:

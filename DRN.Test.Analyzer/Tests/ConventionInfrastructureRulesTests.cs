@@ -11,10 +11,10 @@ public sealed class ConventionInfrastructureRulesTests
         typeof(DRN.Framework.Utils.Entity.IEntityUtils).Assembly.Location);
 
     [Theory]
-    [InlineData("Repositories", "QA/Repositories/Types.cs", false)]
-    [InlineData("Repositories", "QA/Types.cs", true)]
-    [InlineData("Other", "QA/Repositories/Types.cs", true)]
-    [InlineData("Repositories", "QA/Repositories/Nested/Types.cs", true)]
+    [DataInlineUnit("Repositories", "QA/Repositories/Types.cs", false)]
+    [DataInlineUnit("Repositories", "QA/Types.cs", true)]
+    [DataInlineUnit("Other", "QA/Repositories/Types.cs", true)]
+    [DataInlineUnit("Repositories", "QA/Repositories/Nested/Types.cs", true)]
     public void Repository_Implementations_Should_Use_Repositories(string ns, string path, bool invalid)
     {
         var facts = Facts($$"""
@@ -31,10 +31,10 @@ public sealed class ConventionInfrastructureRulesTests
     }
 
     [Theory]
-    [InlineData("OrderConfig", "Configurations", "QA/Configurations/Types.cs", false, false)]
-    [InlineData("OrderConfiguration", "Configurations", "QA/Configurations/Types.cs", true, false)]
-    [InlineData("OrderConfig", "Other", "QA/Configurations/Types.cs", false, true)]
-    [InlineData("OrderConfig", "Configurations", "QA/Types.cs", false, true)]
+    [DataInlineUnit("OrderConfig", "Configurations", "QA/Configurations/Types.cs", false, false)]
+    [DataInlineUnit("OrderConfiguration", "Configurations", "QA/Configurations/Types.cs", true, false)]
+    [DataInlineUnit("OrderConfig", "Other", "QA/Configurations/Types.cs", false, true)]
+    [DataInlineUnit("OrderConfig", "Configurations", "QA/Types.cs", false, true)]
     public void Configurations_Should_Use_Config_Suffix_And_Configurations_Folder(string name, string ns, string path,
         bool invalidName, bool invalidFolder)
     {
@@ -54,11 +54,11 @@ public sealed class ConventionInfrastructureRulesTests
     }
 
     [Theory]
-    [InlineData("QAContextOptions", false)]
-    [InlineData("QAContextNpgsqlDbContextOptionsAttribute", false)]
-    [InlineData("QAContextNpgsqlDbContextOptions", false)]
-    [InlineData("OtherContextOptionsAttribute", true)]
-    [InlineData("QAContextSettingsAttribute", true)]
+    [DataInlineUnit("QAContextOptions", false)]
+    [DataInlineUnit("QAContextNpgsqlDbContextOptionsAttribute", false)]
+    [DataInlineUnit("QAContextNpgsqlDbContextOptions", false)]
+    [DataInlineUnit("OtherContextOptionsAttribute", true)]
+    [DataInlineUnit("QAContextSettingsAttribute", true)]
     public void Custom_Options_Should_Start_With_Context_And_End_With_Options(string name, bool invalid)
     {
         var facts = Facts($$"""
@@ -73,10 +73,10 @@ public sealed class ConventionInfrastructureRulesTests
     }
 
     [Theory]
-    [InlineData("Migrations", "QA/Migrations/Snapshot.cs", false, false)]
-    [InlineData("Migrations", "QA/Other/Snapshot.cs", false, true)]
-    [InlineData("Other", "QA/Migrations/Snapshot.cs", false, true)]
-    [InlineData("Migrations", "QA/Other/Snapshot.cs", true, true)]
+    [DataInlineUnit("Migrations", "QA/Migrations/Snapshot.cs", false, false)]
+    [DataInlineUnit("Migrations", "QA/Other/Snapshot.cs", false, true)]
+    [DataInlineUnit("Other", "QA/Migrations/Snapshot.cs", false, true)]
+    [DataInlineUnit("Migrations", "QA/Other/Snapshot.cs", true, true)]
     public void Drn_Snapshots_Should_Use_Migrations_Including_Generated_Artifacts(string ns, string path, bool generated, bool invalid)
     {
         var compilation = Compilation("""
@@ -105,8 +105,8 @@ public sealed class ConventionInfrastructureRulesTests
     }
 
     [Theory]
-    [InlineData("QA/Migrations/Initial.cs", false)]
-    [InlineData("QA/Initial.cs", true)]
+    [DataInlineUnit("QA/Migrations/Initial.cs", false)]
+    [DataInlineUnit("QA/Initial.cs", true)]
     public void Drn_Migrations_Should_Use_Migrations_Folder(string path, bool invalid)
     {
         var facts = Facts("""
@@ -131,10 +131,10 @@ public sealed class ConventionInfrastructureRulesTests
     }
 
     [Theory]
-    [InlineData("", true)]
-    [InlineData("[QAContextNpgsqlDbContextOptions]", false)]
-    [InlineData("[Lookalike]", true)]
-    [InlineData("[DRN.Framework.EntityFramework.Attributes.DrnContextDefaults]", true)]
+    [DataInlineUnit("", true)]
+    [DataInlineUnit("[QAContextNpgsqlDbContextOptions]", false)]
+    [DataInlineUnit("[Lookalike]", true)]
+    [DataInlineUnit("[DRN.Framework.EntityFramework.Attributes.DrnContextDefaults]", true)]
     public void Concrete_Context_Should_Declare_Real_Custom_Options(string attribute, bool missing)
     {
         var facts = Facts($$"""
@@ -158,8 +158,8 @@ public sealed class ConventionInfrastructureRulesTests
     }
 
     [Theory]
-    [InlineData("", true)]
-    [InlineData("[QAContextNpgsqlDbContextOptions]", false)]
+    [DataInlineUnit("", true)]
+    [DataInlineUnit("[QAContextNpgsqlDbContextOptions]", false)]
     public void Inherited_Custom_Options_Should_Not_Replace_A_Direct_Declaration(string attribute, bool missing)
     {
         var facts = Facts($$"""

@@ -320,8 +320,8 @@ public sealed class ConventionPersistenceTests
     }
 
     [Theory]
-    [InlineData("base.OnModelCreating(model);", true)]
-    [InlineData("model.Ignore<Category>();", false)]
+    [DataInlineUnit("base.OnModelCreating(model);", true)]
+    [DataInlineUnit("model.Ignore<Category>();", false)]
     public void Shared_Model_Override_Chains_Should_Preserve_Default_Scan_Behavior(string body, bool defaultScan)
     {
         var facts = Analyze(Imports + $$"""
@@ -346,11 +346,11 @@ public sealed class ConventionPersistenceTests
     }
 
     [Theory]
-    [InlineData("DbSet", "")]
-    [InlineData("Membership", "")]
-    [InlineData("Repository", "")]
-    [InlineData("DbSet", "protected override void OnModelCreating(ModelBuilder model) { base.OnModelCreating(model); }")]
-    [InlineData("DbSet", "protected override void OnModelCreating(ModelBuilder model) => base.OnModelCreating(model);")]
+    [DataInlineUnit("DbSet", "")]
+    [DataInlineUnit("Membership", "")]
+    [DataInlineUnit("Repository", "")]
+    [DataInlineUnit("DbSet", "protected override void OnModelCreating(ModelBuilder model) { base.OnModelCreating(model); }")]
+    [DataInlineUnit("DbSet", "protected override void OnModelCreating(ModelBuilder model) => base.OnModelCreating(model);")]
     public void Unique_Positive_Membership_Should_Associate_An_Ordinary_Configuration_In_A_Sibling_Area(string evidence, string modelOverride)
     {
         var membership = evidence == "Membership" ? "[SourceKnownPersistence(typeof(Category))]" : "";
