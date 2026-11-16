@@ -28,7 +28,7 @@
         <None Update="CONVENTIONS.md;CONVENTION-DIAGNOSTICS.md;SCAFFOLDING.md" Pack="true" PackagePath="/" />
         <None Update="README.md">
             <Pack>True</Pack>
-            <PackagePath>\</PackagePath>
+            <PackagePath>/</PackagePath>
         </None>
         <None Update="RELEASE-NOTES.md">
           <Pack>True</Pack>

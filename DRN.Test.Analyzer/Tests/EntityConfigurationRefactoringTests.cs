@@ -392,6 +392,80 @@ public sealed class EntityConfigurationRefactoringTests
         (await Actions(entity)).Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task EntitySuffixed_Aggregate_Should_Generate_Stemmed_Config_And_Detect_Verbatim_And_Relative_Input_Rules()
+    {
+        var collisionCompilation = DiagnosticClassificationAnalyzerTests.Compilation("""
+            namespace Sample.@event { public class Order; }
+            namespace Sample.QA { public class @event; }
+            """);
+        ConventionGenerationPreflight.SymbolCollision(collisionCompilation, "Sample.@event", "Order", CancellationToken.None).Should().BeTrue();
+        ConventionGenerationPreflight.SymbolCollision(collisionCompilation, "Sample.QA", "@event", CancellationToken.None).Should().BeTrue();
+
+        using var workspace = new AdhocWorkspace();
+        var baseEntity = CreateDocuments(workspace);
+        var relativeInput = baseEntity.Project.AddAdditionalDocument(
+            "obj/Debug/net10.0/DrnConventionInputs.g.cs",
+            "[assembly: DRN.Conventions.Version(\"2\")]");
+        workspace.TryApplyChanges(relativeInput.Project.Solution).Should().BeTrue();
+        (await Actions(workspace.CurrentSolution.GetDocument(baseEntity.Id)!)).Should().BeEmpty();
+
+        using var entityWorkspace = new AdhocWorkspace();
+        var domain = entityWorkspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: "/source/Sample.Domain/Sample.Domain.csproj"))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References);
+        var entity = domain.AddDocument("OrderEntity.cs", """
+            namespace Sample.Domain.QA.Order;
+            [DRN.Framework.SharedKernel.Domain.EntityType<SampleApp>(1)]
+            public sealed class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+            public readonly struct SampleApp : DRN.Framework.SharedKernel.Domain.IAppId { public static byte AppId => 1; }
+            """, filePath: "/source/Sample.Domain/QA/Order/OrderEntity.cs");
+        entityWorkspace.TryApplyChanges(entity.Project.Solution).Should().BeTrue();
+
+        var infra = entityWorkspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                "Sample.Infra", "Sample.Infra", LanguageNames.CSharp, filePath: "/source/Sample.Infra/Sample.Infra.csproj"))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddProjectReference(new ProjectReference(domain.Id))
+            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
+            .AddMetadataReference(MetadataReference.CreateFromFile(typeof(DRN.Framework.EntityFramework.Context.DrnContext<>).Assembly.Location))
+            .AddMetadataReference(MetadataReference.CreateFromFile(typeof(DRN.Framework.Utils.Settings.IAppSettings).Assembly.Location));
+        var context = infra.AddDocument("QAContext.cs", """
+            namespace Sample.Infra.QA;
+            public sealed class QAContextNpgsqlDbContextOptionsAttribute : DRN.Framework.EntityFramework.Attributes.NpgsqlDbContextOptionsAttribute;
+            [QAContextNpgsqlDbContextOptions]
+            public class QAContext : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>
+            {
+                public QAContext() : base(null) { }
+                public QAContext(Microsoft.EntityFrameworkCore.DbContextOptions<QAContext> options) : base(options) { }
+                public Microsoft.EntityFrameworkCore.DbSet<Sample.Domain.QA.Order.OrderEntity> Orders { get; set; }
+            }
+            public static class InfraModule
+            {
+                public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddInfra(
+                    this Microsoft.Extensions.DependencyInjection.IServiceCollection services)
+                {
+                    DRN.Framework.Utils.DependencyInjection.ServiceCollectionExtensions.AddServicesWithAttributes(services);
+                    return services;
+                }
+            }
+            """, filePath: "/source/Sample.Infra/QA/QAContext.cs");
+        entityWorkspace.TryApplyChanges(context.Project.Solution).Should().BeTrue();
+
+        var actions = new List<CodeAction>();
+        var currentEntity = entityWorkspace.CurrentSolution.GetDocument(entity.Id)!;
+        var text = (await currentEntity.GetTextAsync()).ToString();
+        await new EntityConfigurationRefactoringProvider().ComputeRefactoringsAsync(new CodeRefactoringContext(currentEntity,
+            new TextSpan(text.IndexOf("OrderEntity :", StringComparison.Ordinal), 0), actions.Add, CancellationToken.None));
+        var action = actions.Should().ContainSingle().Which;
+        action.Title.Should().Contain("QA/Configurations/OrderConfig.cs");
+        var changed = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var added = changed.Projects.Single(project => project.Name == "Sample.Infra").Documents
+            .Single(document => document.Name == "OrderConfig.cs");
+        (await added.GetTextAsync()).ToString().Should().Contain("public sealed class OrderConfig : global::Microsoft.EntityFrameworkCore.IEntityTypeConfiguration<global::Sample.Domain.QA.Order.OrderEntity>");
+        (await added.Project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+    }
+
     private static Document CreateDocuments(AdhocWorkspace workspace, string? extraSource = null, string contextMembers = "")
     {
         var project = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),

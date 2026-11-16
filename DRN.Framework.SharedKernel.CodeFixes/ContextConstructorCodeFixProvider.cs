@@ -83,9 +83,22 @@ public sealed class ContextConstructorCodeFixProvider : CodeFixProvider
             if (constructor.DeclaringSyntaxReferences[0].GetSyntax(token) is not ConstructorDeclarationSyntax
                 {
                     Body.Statements.Count: 0, ExpressionBody: null, AttributeLists.Count: 0,
-                    Initializer: { RawKind: (int)SyntaxKind.BaseConstructorInitializer, ArgumentList.Arguments.Count: 1 } initializer
-                } || initializer.ArgumentList.Arguments[0].Expression is not LiteralExpressionSyntax literal ||
-                !literal.IsKind(SyntaxKind.NullLiteralExpression)) return null;
+                    Initializer: { RawKind: (int)SyntaxKind.BaseConstructorInitializer, ArgumentList.Arguments: [var argument] } initializer
+                } || argument.NameColon is not null || !argument.RefKindKeyword.IsKind(SyntaxKind.None)) return null;
+            var expression = argument.Expression is PostfixUnaryExpressionSyntax
+                {
+                    RawKind: (int)SyntaxKind.SuppressNullableWarningExpression
+                } postfix
+                ? postfix.Operand : argument.Expression;
+            if (expression is not (DefaultExpressionSyntax or LiteralExpressionSyntax
+                {
+                    RawKind: (int)SyntaxKind.NullLiteralExpression or (int)SyntaxKind.DefaultLiteralExpression
+                })) return null;
+            var constructorModel = ReferenceEquals(initializer.SyntaxTree, model.SyntaxTree)
+                ? model : model.Compilation.GetSemanticModel(initializer.SyntaxTree);
+            if (!SymbolEqualityComparer.Default.Equals(constructorModel.GetSymbolInfo(initializer, token).Symbol, baseConstructors[0])) return null;
+            if (expression is DefaultExpressionSyntax typedDefault &&
+                !SymbolEqualityComparer.Default.Equals(constructorModel.GetTypeInfo(typedDefault.Type, token).Type, options)) return null;
         }
         return (declaration, options);
     }

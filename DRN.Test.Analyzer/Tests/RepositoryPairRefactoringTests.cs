@@ -7,6 +7,11 @@ namespace DRN.Test.Analyzer.Tests;
 
 public sealed class RepositoryPairRefactoringTests
 {
+    private static readonly MetadataReference FrameworkReference = MetadataReference.CreateFromFile(
+        typeof(DRN.Framework.EntityFramework.Context.DrnContext<>).Assembly.Location);
+    private static readonly MetadataReference UtilsReference = MetadataReference.CreateFromFile(
+        typeof(DRN.Framework.Utils.Settings.IAppSettings).Assembly.Location);
+
     private const string EntitySource = """
         namespace Sample.Domain.QA.Orders;
         [System.ComponentModel.DataAnnotations.Schema.Table("orders")]
@@ -431,6 +436,109 @@ public sealed class RepositoryPairRefactoringTests
         (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task EntitySuffixed_Aggregate_Should_Generate_Stemmed_Bundle_Without_Convention_Diagnostics()
+    {
+        using var workspace = new AdhocWorkspace();
+        var domain = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: "/source/Sample.Domain/Sample.Domain.csproj"))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References);
+        var entity = domain.AddDocument("OrderEntity.cs", """
+            namespace Sample.Domain.QA.Order;
+            public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+            """, filePath: "/source/Sample.Domain/QA/Order/OrderEntity.cs");
+        workspace.TryApplyChanges(entity.Project.Solution).Should().BeTrue();
+
+        var infra = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                "Sample.Infra", "Sample.Infra", LanguageNames.CSharp, filePath: "/source/Sample.Infra/Sample.Infra.csproj"))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddProjectReference(new ProjectReference(domain.Id))
+            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
+            .AddMetadataReference(FrameworkReference)
+            .AddMetadataReference(UtilsReference);
+        infra = infra.AddDocument("QAContext.cs", """
+            namespace Sample.Infra.QA;
+            public sealed class QAContextNpgsqlDbContextOptionsAttribute : DRN.Framework.EntityFramework.Attributes.NpgsqlDbContextOptionsAttribute;
+            [QAContextNpgsqlDbContextOptions]
+            public class QAContext : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>
+            {
+                public QAContext() : base(null) { }
+                public QAContext(Microsoft.EntityFrameworkCore.DbContextOptions<QAContext> options) : base(options) { }
+                public Microsoft.EntityFrameworkCore.DbSet<Sample.Domain.QA.Order.OrderEntity> Orders { get; set; }
+            }
+            public static class InfraModule
+            {
+                public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddInfra(
+                    this Microsoft.Extensions.DependencyInjection.IServiceCollection services)
+                {
+                    DRN.Framework.Utils.DependencyInjection.ServiceCollectionExtensions.AddServicesWithAttributes(services);
+                    return services;
+                }
+            }
+            """, filePath: "/source/Sample.Infra/QA/QAContext.cs").Project;
+        workspace.TryApplyChanges(infra.Solution).Should().BeTrue();
+
+        var currentEntity = workspace.CurrentSolution.GetDocument(entity.Id)!;
+        var text = (await currentEntity.GetTextAsync()).ToString();
+        var actions = new List<CodeAction>();
+        await new RepositoryPairRefactoringProvider().ComputeRefactoringsAsync(new CodeRefactoringContext(currentEntity,
+            new TextSpan(text.IndexOf("OrderEntity :", StringComparison.Ordinal), 0), actions.Add, CancellationToken.None));
+        var bundle = actions.Single(action => action.EquivalenceKey!.StartsWith("DrnPersistenceBundle:", StringComparison.Ordinal));
+        var changed = await ChangedSolution(bundle);
+        var changedDomain = changed.Projects.Single(project => project.Name == "Sample.Domain");
+        var changedInfra = changed.Projects.Single(project => project.Name == "Sample.Infra");
+        changedDomain.Documents.Should().ContainSingle(document => document.Name == "IOrderRepository.cs");
+        changedInfra.Documents.Should().ContainSingle(document => document.Name == "OrderRepository.cs");
+        changedInfra.Documents.Should().ContainSingle(document => document.Name == "OrderConfig.cs");
+
+        var domainCompilation = (await changedDomain.GetCompilationAsync())!;
+        var (layeredDomain, domainLayerRecords) = ConventionTestDependencies.WithRequiredLayers(domainCompilation, "Domain");
+        layeredDomain.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+
+        using var domainImage = new MemoryStream();
+        domainCompilation.Emit(domainImage).Success.Should().BeTrue();
+        var domainReference = MetadataReference.CreateFromImage(domainImage.ToArray(), filePath: "/source/Sample.Domain/Sample.Domain.dll");
+        var infraCompilation = (await changedInfra.GetCompilationAsync())!;
+        var layeredInfra = infraCompilation.RemoveReferences(infraCompilation.References.OfType<CompilationReference>()).AddReferences(domainReference);
+        layeredInfra.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+
+        var domainInputs = new ProjectDiagnosticRulesTests.RuleFile(DRN.Framework.SharedKernel.Analyzers.Conventions.ConventionInputs.FileName, $$"""
+            [assembly: DRN.Conventions.Version("1")]
+            [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
+            {{ConventionTestDependencies.Serialize(domainLayerRecords)}}
+            [assembly: DRN.Conventions.Path("/source/Sample.Domain/QA/Order/OrderEntity.cs", LogicalPath = "QA/Order/OrderEntity.cs")]
+            [assembly: DRN.Conventions.Path("/source/Sample.Domain/QA/Order/IOrderRepository.cs", LogicalPath = "QA/Order/IOrderRepository.cs")]
+            """);
+        var infraInputs = new ProjectDiagnosticRulesTests.RuleFile(DRN.Framework.SharedKernel.Analyzers.Conventions.ConventionInputs.FileName, """
+            [assembly: DRN.Conventions.Version("1")]
+            [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
+            [assembly: DRN.Conventions.Reference("/source/Sample.Domain/Sample.Domain.csproj", Stage = "Project", Source = "/source/Sample.Domain/Sample.Domain.csproj")]
+            [assembly: DRN.Conventions.Reference("/source/Sample.Domain/Sample.Domain.dll", Stage = "Resolved", Project = "/source/Sample.Domain/Sample.Domain.csproj")]
+            [assembly: DRN.Conventions.Path("/source/Sample.Infra/QA/QAContext.cs", LogicalPath = "QA/QAContext.cs")]
+            [assembly: DRN.Conventions.Path("/source/Sample.Infra/QA/Repositories/OrderRepository.cs", LogicalPath = "QA/Repositories/OrderRepository.cs")]
+            [assembly: DRN.Conventions.Path("/source/Sample.Infra/QA/Configurations/OrderConfig.cs", LogicalPath = "QA/Configurations/OrderConfig.cs")]
+            """);
+        var analyzer = new DRN.Framework.SharedKernel.Analyzers.Conventions.SourceKnownConventionAnalyzer();
+        var domainDiagnostics = await layeredDomain.WithAnalyzers([analyzer],
+            new AnalyzerOptions([domainInputs], new Options("Domain"))).GetAnalyzerDiagnosticsAsync();
+        var infraDiagnostics = await layeredInfra.WithAnalyzers([analyzer],
+            new AnalyzerOptions([infraInputs], new Options("Infra"))).GetAnalyzerDiagnosticsAsync();
+        domainDiagnostics.Should().BeEmpty();
+        infraDiagnostics.Should().BeEmpty();
+    }
+
+    private sealed class Options(string role) : AnalyzerConfigOptionsProvider
+    {
+        public override AnalyzerConfigOptions GlobalOptions { get; } = new ConventionInputTests.Config(new()
+        {
+            ["build_property.MSBuildProjectName"] = "Sample." + role,
+            ["build_property.RootNamespace"] = "Sample." + role
+        });
+        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => GlobalOptions;
+        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => GlobalOptions;
+    }
+
     private static Document CreateDocuments(AdhocWorkspace workspace, bool membership = true, bool destination = true, bool cqrs = false,
         string contextMembers = "", string infraName = "Sample.Infra")
     {
@@ -445,8 +553,8 @@ public sealed class RepositoryPairRefactoringTests
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddProjectReference(new ProjectReference(domain.Id))
             .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
-            .AddMetadataReference(MetadataReference.CreateFromFile(typeof(DRN.Framework.EntityFramework.Context.DrnContext<>).Assembly.Location))
-            .AddMetadataReference(MetadataReference.CreateFromFile(typeof(DRN.Framework.Utils.Settings.IAppSettings).Assembly.Location));
+            .AddMetadataReference(FrameworkReference)
+            .AddMetadataReference(UtilsReference);
         var contexts = cqrs ? new[] { ("ReadContext", "QA.Read", "QA/Read"), ("WriteContext", "QA.Write", "QA/Write") }
             : new[] { ("QAContext", "QA", "QA") };
         var records = new List<string> { "[assembly: DRN.Conventions.Version(\"1\")]" };

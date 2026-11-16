@@ -346,7 +346,47 @@ public sealed class EntityDtoRefactoringTests
         (await dto.GetTextAsync()).ToString().Should().Contain("global::Sample.Contract.Types.Container.State Count");
     }
 
-    private static Document Create(AdhocWorkspace workspace, string source = Source, bool reference = true, string contractName = "Sample.Contract")
+    [Fact]
+    public async Task EntitySuffixed_Aggregate_Should_Generate_Stemmed_Dto_And_Mapping()
+    {
+        using var workspace = new AdhocWorkspace();
+        var document = Create(workspace, Source
+            .Replace("namespace Sample.Domain.QA;", "namespace Sample.Domain.QA.User;", StringComparison.Ordinal)
+            .Replace("class User :", "class UserEntity :", StringComparison.Ordinal),
+            entityPath: "/source/Sample.Domain/QA/User/UserEntity.cs");
+        var action = (await Actions(document)).Should().ContainSingle().Which;
+        action.Title.Should().Contain("QA/User/UserDto.cs");
+        var changed = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var contract = changed.Projects.Single(project => project.Name == "Sample.Contract");
+        var domain = changed.Projects.Single(project => project.Name == "Sample.Domain");
+        (await contract.Documents.Single(item => item.Name == "UserDto.cs").GetTextAsync()).ToString()
+            .Should().Contain("public sealed class UserDto");
+        (await domain.Documents.Single(item => item.Name == "UserDtoMapping.cs").GetTextAsync()).ToString()
+            .Should().Contain("ToUserDto(this global::Sample.Domain.QA.User.UserEntity entity)");
+        (await contract.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        (await domain.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Fact]
+    public async Task Case_Insensitive_Entity_Property_And_Partial_Property_Selection_Should_Be_Declined()
+    {
+        using var entityNameWorkspace = new AdhocWorkspace();
+        var entityNameDoc = Create(entityNameWorkspace, Source.Replace("public int Count", "public int ENTITY", StringComparison.Ordinal));
+        (await Actions(entityNameDoc)).Should().BeEmpty();
+
+        using var partialWorkspace = new AdhocWorkspace();
+        var partialDoc = Create(partialWorkspace);
+        var text = (await partialDoc.GetTextAsync()).ToString();
+        var start = text.IndexOf("public string Name", StringComparison.Ordinal);
+        var midCount = text.IndexOf("Count", StringComparison.Ordinal);
+        var actions = new List<CodeAction>();
+        await new EntityDtoRefactoringProvider().ComputeRefactoringsAsync(new CodeRefactoringContext(partialDoc,
+            TextSpan.FromBounds(start, midCount + 2), actions.Add, CancellationToken.None));
+        actions.Should().BeEmpty();
+    }
+
+    private static Document Create(AdhocWorkspace workspace, string source = Source, bool reference = true,
+        string contractName = "Sample.Contract", string entityPath = "/source/Sample.Domain/QA/User.cs")
     {
         var contract = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
                 contractName, contractName, LanguageNames.CSharp, filePath: "/source/" + contractName + "/" + contractName + ".csproj"))
@@ -358,7 +398,7 @@ public sealed class EntityDtoRefactoringTests
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References);
         if (reference) domain = domain.AddProjectReference(new ProjectReference(contract.Id));
-        var document = domain.AddDocument("User.cs", source, filePath: "/source/Sample.Domain/QA/User.cs");
+        var document = domain.AddDocument(Path.GetFileName(entityPath), source, filePath: entityPath);
         workspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
         return workspace.CurrentSolution.GetDocument(document.Id)!;
     }

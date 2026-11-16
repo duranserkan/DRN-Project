@@ -3,7 +3,7 @@
   <Import Project="$(DrnSourceRoot)/DRN.Framework.Hosting/buildTransitive/DRN.Framework.Hosting.targets"
           Condition="('$(MSBuildProjectName)' == 'ExternalSource' or '$(MSBuildProjectName)' == 'Consumer.Hosted.ExternalSource') and '$(DrnSourceRoot)' != ''" />
   <Import Project="$(DrnSourceRoot)/DRN.Framework.SharedKernel/buildTransitive/DRN.Framework.SharedKernel.targets"
-          Condition="('$(MSBuildProjectName)' == 'ExternalSource' or '$(MSBuildProjectName)' == 'Consumer.Hosted.ExternalSource') and '$(DrnSourceRoot)' != ''" />
+          Condition="('$(MSBuildProjectName)' == 'ExternalSource' or '$(MSBuildProjectName)' == 'Consumer.Hosted.ExternalSource' or '$(MSBuildProjectName)' == 'SourceBridge') and '$(DrnSourceRoot)' != ''" />
   <PropertyGroup Condition="$(MSBuildProjectName.StartsWith('Consumer.Hosted.'))">
     <_FixtureProbeLink>QA/ConventionProbe.cs</_FixtureProbeLink>
     <_FixtureProbeLink Condition="'$(DrnConventionLinkCase)' == 'Traversal'">../QA/ConventionProbe.cs</_FixtureProbeLink>

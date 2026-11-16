@@ -15,7 +15,8 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
     public override async Task ComputeRefactoringsAsync(CodeRefactoringContext context)
     {
         var snapshot = context.Document.Project.Solution;
-        if (context.Span.IsEmpty || !snapshot.Workspace.CanApplyChange(ApplyChangesKind.AddDocument)) return;
+        if (context.Span.IsEmpty || !snapshot.Workspace.CanApplyChange(ApplyChangesKind.AddDocument) ||
+            Identity(context.Document.Project).Role != "Domain") return;
         var selected = await Select(context.Document, context.Span, context.CancellationToken);
         if (selected is null) return;
         foreach (var target in snapshot.Projects)
@@ -50,8 +51,7 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
 
     private static async Task<Selection?> Select(Document document, TextSpan span, CancellationToken token)
     {
-        if (document.GetLinkedDocumentIds().Length != 0 || await HasRoleOverrides(document.Project, token) ||
-            await HasOwnershipInputs(document.Project, token)) return null;
+        if (document.GetLinkedDocumentIds().Length != 0 || await HasRoleOverrides(document.Project, token)) return null;
         var root = await ClassificationEdit.FindEditableRoot(document, span.Start, token);
         var model = await document.GetSemanticModelAsync(token);
         if (root is null || model is null || span.End > root.FullSpan.End) return null;
@@ -106,10 +106,13 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
         var domainIdentity = Identity(domain);
         var applicationIdentity = Identity(application);
         if (domainIdentity.Role != "Domain" || applicationIdentity.Role != "Application" || application.Language != LanguageNames.CSharp ||
+            !ValidNamespace(domainIdentity.Namespace) || !ValidNamespace(applicationIdentity.Namespace) ||
             !application.ProjectReferences.Any(reference => reference.ProjectId == domain.Id &&
                 (reference.Aliases.IsEmpty || reference.Aliases.Contains("global", StringComparer.Ordinal))) ||
-            application.FilePath is null || !TryFullPath(application.FilePath, out var projectPath) ||
-            await HasRoleOverrides(application, token) || await HasOwnershipInputs(application, token)) return null;
+            application.FilePath is null || !TryFullPath(application.FilePath, out var projectPath)) return null;
+        var domainInputs = await ConventionGenerationPreflight.ReadInputs(domain, required: false, token);
+        var applicationInputs = await ConventionGenerationPreflight.ReadInputs(application, required: false, token);
+        if (domainInputs is null || HasRoleOverride(domainInputs) || applicationInputs is null || HasRoleOverride(applicationInputs)) return null;
         var compilation = await application.GetCompilationAsync(token);
         var repository = compilation?.GetTypeByMetadataName(MetadataName(selected.Method.ContainingType));
         var entity = compilation?.GetTypeByMetadataName(MetadataName(selected.Entity));
@@ -125,16 +128,23 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
             source.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownService`1") is not { } sourceService ||
             !sourceService.ContainingAssembly.Identity.Equals(service.ContainingAssembly.Identity)) return null;
         var sourceNamespace = selected.Method.ContainingType.ContainingNamespace.ToDisplayString();
-        if (!sourceNamespace.StartsWith(domainIdentity.Namespace + ".", StringComparison.Ordinal)) return null;
+        if (!ValidNamespace(sourceNamespace) || !sourceNamespace.StartsWith(domainIdentity.Namespace + ".", StringComparison.Ordinal)) return null;
         var area = sourceNamespace[(domainIdentity.Namespace.Length + 1)..];
+        var owner = area.Split('.')[0];
+        var entityName = MetadataName(selected.Entity);
+        var repositoryName = MetadataName(selected.Method.ContainingType);
         if (!ConventionalOwner(selected.Method.ContainingType, domainIdentity.Namespace, source) ||
             !ConventionalOwner(selected.Entity, domainIdentity.Namespace, source) ||
             selected.Entity.ContainingNamespace.ToDisplayString().Split('.').Length <= domainIdentity.Namespace.Split('.').Length ||
-            selected.Entity.ContainingNamespace.ToDisplayString()[(domainIdentity.Namespace.Length + 1)..].Split('.')[0] != area.Split('.')[0]) return null;
+            selected.Entity.ContainingNamespace.ToDisplayString()[(domainIdentity.Namespace.Length + 1)..].Split('.')[0] != owner ||
+            !OwnershipCompatible(domainInputs, entityName, owner, token) ||
+            !OwnershipCompatible(domainInputs, repositoryName, owner, token) ||
+            !OwnershipCompatible(applicationInputs, entityName, owner, token) ||
+            !OwnershipCompatible(applicationInputs, repositoryName, owner, token)) return null;
         var ns = applicationIdentity.Namespace + ".Services." + area;
-        if (ns.Split('.').Any(part => !SyntaxFacts.IsValidIdentifier(part) || part.StartsWith('@') || SyntaxFacts.GetKeywordKind(part) != SyntaxKind.None)) return null;
+        if (!ValidNamespace(ns)) return null;
         var operation = selected.Method.Name.EndsWith("Async", StringComparison.Ordinal) ? selected.Method.Name[..^5] : selected.Method.Name;
-        var name = entity.Name + operation + "Service";
+        var name = ConventionGenerationPreflight.EntityStem(entity.Name) + operation + "Service";
         if (!SyntaxFacts.IsValidIdentifier(name) || name == selected.Method.Name || selected.Method.Name == "_repository" ||
             ConventionGenerationPreflight.SymbolCollision(compilation, ns, name, token)) return null;
         var constructed = service.Construct(entity);
@@ -154,7 +164,7 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
         var root = Path.GetDirectoryName(projectPath)!;
         var relative = "Services/" + area.Replace('.', '/') + "/" + name + ".cs";
         var path = Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar));
-        if (!SafeDestination(root, path) || WorkspaceDestinationConflict(application.Solution, path, token)) return null;
+        if (!SafeDestination(root, path) || WorkspaceDestinationConflict(application.Solution, path, application.Id, token)) return null;
         var format = SymbolDisplayFormat.FullyQualifiedFormat.WithMiscellaneousOptions(
             SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier | SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers);
         var parameters = string.Join(", ", selected.Method.Parameters.Select(parameter => parameter.Type.ToDisplayString(format) + " " + Escape(parameter.Name) +
@@ -216,13 +226,6 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
         var attributeType = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomainAttribute");
         return type.GetAttributes().Where(attribute => Same(attribute.AttributeClass, attributeType)).All(attribute =>
             attribute.ConstructorArguments is [{ Value: string declared }] && declared == owner);
-    }
-
-    private static async Task<bool> HasOwnershipInputs(Project project, CancellationToken token)
-    {
-        var root = await ConventionGenerationPreflight.ReadInputs(project, required: false, token);
-        return root is null || root.AttributeLists.SelectMany(list => list.Attributes).Any(attribute =>
-            attribute.Name.ToString() is "DRN.Conventions.Ownership" or "global::DRN.Conventions.Ownership");
     }
 
     private static (string Role, string Namespace) Identity(Project project) =>

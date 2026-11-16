@@ -46,11 +46,11 @@ public sealed class ControllerReviewPlanRefactoringProvider : CodeRefactoringPro
         var known = model.Compilation.GetTypeByMetadataName("DRN.Framework.Hosting.Controllers.SourceKnownControllerBase`2");
         if (known is null || !Chain(type).Any(item => Same(item, known))) return null;
         var directory = Path.GetDirectoryName(projectPath)!;
-        if (!sourcePath.StartsWith(directory + Path.DirectorySeparatorChar, StringComparison.Ordinal)) return null;
+        if (!ConventionGenerationPreflight.IsUnderDirectory(sourcePath, directory)) return null;
         var name = type.Name + ".controller-review.md";
         var path = Path.Combine(Path.GetDirectoryName(sourcePath)!, name);
-        if (!SafeDestination(directory, path) || WorkspaceDestinationConflict(document.Project.Solution, path, token)) return null;
-        var text = new StringBuilder("# Controller review plan\n\nPlan only. No controller, project metadata, identity or runtime behavior is changed.\n\n");
+        if (!SafeDestination(directory, path) || WorkspaceDestinationConflict(document.Project.Solution, path, document.Project.Id, token)) return null;
+        var text = new StringBuilder("# Controller review plan\n\nPlan only. Adds this Markdown AdditionalFiles review plan without modifying controller code, project metadata, references, identity or runtime behavior.\n\n");
         text.AppendLine("Selected symbol: " + Cell(type.ToDisplayString()));
         text.AppendLine("Project: " + Cell(projectPath));
         text.AppendLine("Plan destination: " + Cell(path));
@@ -61,7 +61,7 @@ public sealed class ControllerReviewPlanRefactoringProvider : CodeRefactoringPro
             var part = document.Project.GetDocument(reference.SyntaxTree);
             if (part?.FilePath is null || part.GetLinkedDocumentIds().Length != 0 ||
                 await ClassificationEdit.FindEditableRoot(part, reference.Span.Start, token) is null ||
-                !TryFullPath(part.FilePath, out var partPath) || !partPath.StartsWith(directory + Path.DirectorySeparatorChar, StringComparison.Ordinal)) return null;
+                !TryFullPath(part.FilePath, out var partPath) || !ConventionGenerationPreflight.IsUnderDirectory(partPath, directory)) return null;
             var content = await part.GetTextAsync(token);
             text.AppendLine("- " + Cell(partPath) + ": " + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content.ToString()))));
         }
@@ -118,7 +118,7 @@ public sealed class ControllerReviewPlanRefactoringProvider : CodeRefactoringPro
         }
         text.AppendLine("\nExcluded exact MVC ControllerBase helpers declared NonAction: " + excludedHelpers +
                         ". User overrides and SourceKnown methods remain listed. Object methods are excluded. Custom MVC conventions require separate review.");
-        text.AppendLine("\n## Required decisions before implementation\n\n- Select enabled operations and disable unwanted overridable actions with NonAction.\n- Confirm exact route and verb composition, including inherited metadata and application MVC conventions.\n- Supply named policies, authentication transport and per-resource authorization for each enabled action. AllowAnonymous is not a fallback.\n- Supply actual request/response fields, classification, validation and entity-to-DTO mapping.\n- Confirm creation invariants and deletion semantics. Inherited DeleteAsync performs direct deletion without entity lifecycle hooks.\n- Confirm repository visibility filters and cancellation propagation.\n- Select exact source destinations and any required project metadata changes. No executable output destinations have been selected by this plan.\n- Review all source/project/reference preimages again. This plan is evidence of the current loaded workspace, not an executable transaction.\n- Use a host capable of previewing and atomically applying every required source and project change. Unsupported project edits remain manual reviewed template work.\n\nNo IDs, policies, business logic, runnable endpoints, project references or project items were generated. Compilation, model compatibility and runtime authorization remain unverified.\n");
+        text.AppendLine("\n## Required decisions before implementation\n\n- Select enabled operations and disable unwanted overridable actions with NonAction.\n- Confirm exact route and verb composition, including inherited metadata and application MVC conventions.\n- Supply named policies, authentication transport and per-resource authorization for each enabled action. AllowAnonymous is not a fallback.\n- Supply actual request/response fields, classification, validation and entity-to-DTO mapping.\n- Confirm creation invariants and deletion semantics. Inherited DeleteAsync performs direct deletion without entity lifecycle hooks.\n- Confirm repository visibility filters and cancellation propagation.\n- Select exact source destinations and any required project metadata changes. No executable output destinations have been selected by this plan.\n- Review all source/project/reference preimages again. This plan is evidence of the current loaded workspace, not an executable transaction.\n- Use a host capable of previewing and atomically applying every required source and project change. Unsupported project edits remain manual reviewed template work.\n\nNo C# files, IDs, policies, business logic, runnable endpoints, project references or project items were generated. Compilation, model compatibility and runtime authorization remain unverified.\n");
         return text.Length >= 12000 ? null : new(name, path, text.ToString());
     }
 

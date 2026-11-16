@@ -42,7 +42,7 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         var domainNamespace = RoleNamespace(domain, "Domain");
         if (domainNamespace is null || document.FilePath is null || domain.FilePath is null || document.GetLinkedDocumentIds().Length != 0 ||
             !TryFullPath(document.FilePath, out var entityPath) || !TryFullPath(domain.FilePath, out var domainPath) ||
-            !entityPath.StartsWith(Path.GetDirectoryName(domainPath)! + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+            !ConventionGenerationPreflight.IsUnderDirectory(entityPath, Path.GetDirectoryName(domainPath)!) ||
             await HasRoleOverrides(domain, token)) return plans;
         var syntax = await ClassificationEdit.FindEditableRoot(document, span.Start, token);
         var model = await document.GetSemanticModelAsync(token);
@@ -56,7 +56,7 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         var entityNamespace = entity.ContainingNamespace.ToDisplayString();
         if (!entityNamespace.StartsWith(namespacePrefix, StringComparison.Ordinal)) return plans;
         var owner = entityNamespace[namespacePrefix.Length..].Split('.')[0];
-        if (!SyntaxFacts.IsValidIdentifier(owner)) return plans;
+        if (!ConventionGenerationPreflight.ValidNamespaceSegment(owner)) return plans;
         var ownership = model.Compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomainAttribute");
         if (entity.GetAttributes().Any(attribute => Same(attribute.AttributeClass, ownership)) ||
             entity.ContainingAssembly.GetAttributes().Any(attribute => Same(attribute.AttributeClass, ownership) &&
@@ -69,9 +69,12 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
             if (part?.FilePath is null || part.GetLinkedDocumentIds().Length != 0 ||
                 await ClassificationEdit.FindEditableRoot(part, reference.Span.Start, token) is null ||
                 !TryFullPath(part.FilePath, out var partPath) ||
-                !partPath.StartsWith(Path.GetDirectoryName(domainPath)! + Path.DirectorySeparatorChar, StringComparison.Ordinal)) return plans;
+                !ConventionGenerationPreflight.IsUnderDirectory(partPath, Path.GetDirectoryName(domainPath)!)) return plans;
             evidence.AppendLine("- Entity source: " + Escape(part.FilePath) + "; SHA-256 " + Fingerprint(await part.GetTextAsync(token)));
         }
+        var entityName = MetadataName(entity);
+        var domainInputs = await ReadProjectInputs(domain, token);
+        if (domainInputs is null || domainInputs.OwnershipTargets.Contains(entityName)) return plans;
         var identity = model.Compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.EntityTypeAttribute");
         var declarations = entity.GetAttributes().Where(attribute => attribute.AttributeClass is { } attributeType && Bases(attributeType).Any(type => Same(type, identity)));
         evidence.AppendLine("- Existing identity declarations (not evaluated or allocated): " + string.Join("; ", declarations.Select(attribute => Escape(attribute.ToString()))));
@@ -86,51 +89,33 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
             var compilation = await infra.GetCompilationAsync(token);
             var contract = compilation?.GetTypeByMetadataName("DRN.Framework.EntityFramework.Context.IDrnContext");
             if (compilation is null || contract is null) continue;
+            var infraInputs = await ReadProjectInputs(infra, token);
+            if (infraInputs is null || infraInputs.OwnershipTargets.Contains(entityName)) continue;
+            var contextOwners = new Dictionary<string, (string Owner, string Reason, string Declaration)>(domainInputs.Contexts, StringComparer.Ordinal);
+            var conflict = false;
+            foreach (var entry in infraInputs.Contexts)
+            {
+                if (contextOwners.TryGetValue(entry.Key, out var previous) &&
+                    (previous.Owner != entry.Value.Owner || previous.Reason != entry.Value.Reason))
+                {
+                    conflict = true;
+                    break;
+                }
+                contextOwners[entry.Key] = entry.Value;
+            }
+            if (conflict) continue;
+            var inputEvidence = domainInputs.Evidence + infraInputs.Evidence;
             var types = Types(compilation.Assembly.GlobalNamespace, token).ToArray();
             var contexts = types.Where(type => !type.IsAbstract && !IsOpen(type) &&
                 type.AllInterfaces.Any(item => Same(item, contract)) &&
                 (type.ContainingNamespace.ToDisplayString() == infraNamespace + "." + owner ||
                  type.ContainingNamespace.ToDisplayString().StartsWith(infraNamespace + "." + owner + ".", StringComparison.Ordinal))).ToArray();
-            var inputEvidence = new StringBuilder();
-            var contextOwners = new Dictionary<string, (string Owner, string Reason, string Declaration)>(StringComparer.Ordinal);
-            var unsupportedOwnership = new[] { domain, infra }.Any(project =>
-                project.AdditionalDocuments.Count(item => item.Name == "DrnConventionInputs.g.cs") > 1);
-            foreach (var project in new[] { domain, infra })
-            foreach (var input in project.AdditionalDocuments.Where(item => item.Name == "DrnConventionInputs.g.cs"))
-            {
-                var text = await input.GetTextAsync(token);
-                var inputRoot = ConventionInputSyntax.Parse(text, input.FilePath ?? input.Name, token, out _);
-                if (inputRoot is null) { unsupportedOwnership = true; break; }
-                var attributes = inputRoot.AttributeLists.SelectMany(list => list.Attributes).ToArray();
-                if (attributes.Any(attribute =>
-                        attribute.Name.ToString() is "DRN.Conventions.Ownership" or "global::DRN.Conventions.Ownership"))
-                { unsupportedOwnership = true; break; }
-                foreach (var attribute in inputRoot.DescendantNodes().OfType<AttributeSyntax>())
-                {
-                    var arguments = attribute.ArgumentList?.Arguments;
-                    if (attribute.Name.ToString() is not ("DRN.Conventions.Context" or "global::DRN.Conventions.Context")) continue;
-                    if (arguments is null || arguments.Value.Count < 1) { unsupportedOwnership = true; break; }
-                    var name = ConventionInputSyntax.String(arguments.Value[0].Expression, token);
-                    if (arguments.Value[0].NameEquals is not null || arguments.Value[0].NameColon is not null ||
-                        arguments.Value.Where(argument => argument.NameEquals is not null)
-                            .GroupBy(argument => argument.NameEquals!.Name.Identifier.ValueText).Any(group => group.Count() > 1))
-                    { unsupportedOwnership = true; break; }
-                    var ownerArgument = arguments.Value.FirstOrDefault(argument => argument.NameEquals?.Name.Identifier.ValueText == "Subdomain");
-                    var reasonArgument = arguments.Value.FirstOrDefault(argument => argument.NameEquals?.Name.Identifier.ValueText == "Reason");
-                    var declaredOwner = ownerArgument is null ? "" : ConventionInputSyntax.String(ownerArgument.Expression, token);
-                    var reason = reasonArgument is null ? "" : ConventionInputSyntax.String(reasonArgument.Expression, token);
-                    if (name is null || declaredOwner is null || reason is null ||
-                        contextOwners.TryGetValue(name, out var previous) && (previous.Owner != declaredOwner || previous.Reason != reason))
-                    { unsupportedOwnership = true; break; }
-                    contextOwners[name] = (declaredOwner, reason, attribute.ToString());
-                }
-                inputEvidence.AppendLine("- Supplied inputs for " + Escape(project.Name) + "; SHA-256 " + Fingerprint(text) +
-                    "; records: " + attributes.Length + ". Full inventory retained in DrnConventionInputs.g.cs.");
-            }
-            if (unsupportedOwnership) continue;
             var selections = contexts.Length == 0 ? new INamedTypeSymbol?[] { null } : contexts.Cast<INamedTypeSymbol?>();
             foreach (var selected in selections)
             {
+                if (selected is not null &&
+                    (domainInputs.OwnershipTargets.Contains(MetadataName(selected)) ||
+                     infraInputs.OwnershipTargets.Contains(MetadataName(selected)))) continue;
                 var infraDirectory = Path.GetDirectoryName(infraPath)!;
                 var contextName = selected?.Name ?? owner + "Context";
                 var contextNamespace = selected?.ContainingNamespace.ToDisplayString() ?? infraNamespace + "." + owner;
@@ -169,7 +154,7 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
                     var part = infra.GetDocument(reference.SyntaxTree);
                     if (part?.FilePath is null || part.GetLinkedDocumentIds().Length != 0 ||
                         !TryFullPath(part.FilePath, out var partPath) ||
-                        !partPath.StartsWith(infraDirectory + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+                        !ConventionGenerationPreflight.IsUnderDirectory(partPath, infraDirectory) ||
                         await ClassificationEdit.FindEditableRoot(part, reference.Span.Start, token) is null)
                     { editable = false; break; }
                     contextEvidence.AppendLine("Context source SHA-256: " + Fingerprint(await part.GetTextAsync(token)) + "; " + Escape(partPath));
@@ -182,14 +167,14 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
                         contextEvidence.AppendLine("Selected context input: <pre>" + Escape(selectedInput.Declaration) + "</pre>");
                 }
                 var contextPath = contextDocument?.FilePath ?? Path.Combine(infraDirectory, owner, contextName + ".cs");
-                if (!TryFullPath(contextPath, out contextPath) || !contextPath.StartsWith(infraDirectory + Path.DirectorySeparatorChar, StringComparison.Ordinal)) continue;
+                if (!TryFullPath(contextPath, out contextPath) || !ConventionGenerationPreflight.IsUnderDirectory(contextPath, infraDirectory)) continue;
                 if (selected is null && (types.Any(type => string.Equals(MetadataName(type), contextSymbol, StringComparison.OrdinalIgnoreCase)) ||
-                    !SafeDestination(infraDirectory, contextPath) || WorkspaceDestinationConflict(domain.Solution, contextPath, token))) continue;
+                    !SafeDestination(infraDirectory, contextPath) || WorkspaceDestinationConflict(domain.Solution, contextPath, infra.Id, token))) continue;
                 var planName = entity.Name + "." + contextName + ".aggregate-review.md";
                 var planPath = Path.Combine(Path.GetDirectoryName(contextPath)!, planName);
-                if (!SafeDestination(infraDirectory, planPath) || WorkspaceDestinationConflict(domain.Solution, planPath, token)) continue;
+                if (!SafeDestination(infraDirectory, planPath) || WorkspaceDestinationConflict(domain.Solution, planPath, infra.Id, token)) continue;
                 var relative = Path.GetRelativePath(infraDirectory, Path.GetDirectoryName(contextPath)!).Replace('\\', '/');
-                var body = new StringBuilder("# Aggregate review plan\n\nPlan only. No source, project metadata, membership or identity is changed.\n\n");
+                var body = new StringBuilder("# Aggregate review plan\n\nPlan only. Adds this Markdown AdditionalFiles review plan without modifying source, project metadata, references, membership or identity.\n\n");
                 body.AppendLine("Aggregate: " + Escape(entity.ToDisplayString()) + "\n\nDomain project: " + Escape(domainPath));
                 body.AppendLine("Infra project: " + Escape(infraPath) + "\n\nPlan destination: " + Escape(planPath));
                 body.AppendLine("Context: " + Escape(contextSymbol) + (selected is null ? " (proposed new context, not created)" : " (existing, preserve identity and configuration)"));
@@ -197,7 +182,7 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
                 body.AppendLine("Proposed Repositories destination: " + Escape(relative + "/Repositories"));
                 body.AppendLine("Proposed Migrations destination: " + Escape(relative + "/Migrations"));
                 body.AppendLine("Conventional destinations need no Context item when namespace and logical source homes agree. Declare alternate or ambiguous destinations explicitly, with a Reason for alternatives.");
-                body.AppendLine("\n## Existing evidence\n" + evidence + inputEvidence.ToString());
+                body.AppendLine("\n## Existing evidence\n" + evidence + inputEvidence);
                 body.Append(contextEvidence);
                 body.AppendLine("\n## Required review\n\n- Confirm namespace-derived ownership and every supplied input. Multiple contexts are valid. No membership is inferred from selection.\n- Reconcile proposed destinations with existing Context items. Reuse existing metadata; do not duplicate or replace it.\n- Select optional configuration, repository, DTO, service and transport artifacts independently. Attribute-only mapping remains valid.\n- Confirm entity inclusion and all shared configuration discovery paths. Cross-owner use requires a separate narrow reasoned exception.\n- Preserve existing entity ID declarations, context CLR name, connection keys, schema, migrations and runtime safeguards. Missing identity is unresolved, never allocated here.\n- For a new context, review the SCAFFOLDING.md DrnContext template and conventional options/parameterless constructors. No provider settings are inferred.\n- Review exact source and project preimages, path/case/symbol collisions and references before implementation. No required project reference is inferred or added.\n- Project-system atomic application is unsupported by this plan. Keep source and any explicit destination overrides together in a separately reviewed host transaction.\n- EF tooling alone owns generated migrations. No database operation, executable scaffold or empty directory placeholder is produced.\n\nCompilation, model compatibility and host atomic application remain unverified.\n");
                 if (body.Length < 12000) plans.Add(new(infra.Id, infra.Name, contextSymbol, planName, planPath, body.ToString()));
@@ -206,12 +191,62 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         return plans;
     }
 
+    private static async Task<ParsedInputs?> ReadProjectInputs(Project project, CancellationToken token)
+    {
+        var files = project.AdditionalDocuments.Where(ConventionGenerationPreflight.IsInputsDocument).Take(2).ToArray();
+        if (files.Length > 1) return null;
+        var contexts = new Dictionary<string, (string Owner, string Reason, string Declaration)>(StringComparer.Ordinal);
+        var ownershipTargets = new HashSet<string>(StringComparer.Ordinal);
+        var evidence = new StringBuilder();
+        foreach (var input in files)
+        {
+            var text = await input.GetTextAsync(token);
+            var inputRoot = ConventionInputSyntax.Parse(text, input.FilePath ?? input.Name, token, out _);
+            if (inputRoot is null) return null;
+            var attributes = inputRoot.AttributeLists.SelectMany(list => list.Attributes).ToArray();
+            foreach (var attribute in attributes)
+            {
+                token.ThrowIfCancellationRequested();
+                if (attribute.Name.ToString() is not ("DRN.Conventions.Ownership" or "global::DRN.Conventions.Ownership")) continue;
+                if (attribute.ArgumentList is not { Arguments.Count: > 0 } arguments ||
+                    arguments.Arguments[0].NameEquals is not null || arguments.Arguments[0].NameColon is not null ||
+                    ConventionInputSyntax.String(arguments.Arguments[0].Expression, token) is not { } target) return null;
+                ownershipTargets.Add(target);
+            }
+            foreach (var attribute in inputRoot.DescendantNodes().OfType<AttributeSyntax>())
+            {
+                token.ThrowIfCancellationRequested();
+                var arguments = attribute.ArgumentList?.Arguments;
+                if (attribute.Name.ToString() is not ("DRN.Conventions.Context" or "global::DRN.Conventions.Context")) continue;
+                if (arguments is null || arguments.Value.Count < 1) return null;
+                var name = ConventionInputSyntax.String(arguments.Value[0].Expression, token);
+                if (arguments.Value[0].NameEquals is not null || arguments.Value[0].NameColon is not null ||
+                    arguments.Value.Where(argument => argument.NameEquals is not null)
+                        .GroupBy(argument => argument.NameEquals!.Name.Identifier.ValueText).Any(group => group.Count() > 1))
+                    return null;
+                var ownerArgument = arguments.Value.FirstOrDefault(argument => argument.NameEquals?.Name.Identifier.ValueText == "Subdomain");
+                var reasonArgument = arguments.Value.FirstOrDefault(argument => argument.NameEquals?.Name.Identifier.ValueText == "Reason");
+                var declaredOwner = ownerArgument is null ? "" : ConventionInputSyntax.String(ownerArgument.Expression, token);
+                var reason = reasonArgument is null ? "" : ConventionInputSyntax.String(reasonArgument.Expression, token);
+                if (name is null || declaredOwner is null || reason is null ||
+                    contexts.TryGetValue(name, out var previous) && (previous.Owner != declaredOwner || previous.Reason != reason))
+                    return null;
+                contexts[name] = (declaredOwner, reason, attribute.ToString());
+            }
+            evidence.AppendLine("- Supplied inputs for " + Escape(project.Name) + "; SHA-256 " + Fingerprint(text) +
+                "; records: " + attributes.Length + ". Full inventory retained in DrnConventionInputs.g.cs.");
+        }
+        return new(evidence.ToString(), contexts, ownershipTargets);
+    }
+
     private static string? RoleNamespace(Project project, string role)
     {
         var identity = ConventionGenerationPreflight.Identity(project);
-        return identity.Role == role && identity.Namespace.Length > 0 && identity.Namespace.Split('.').All(SyntaxFacts.IsValidIdentifier)
-            ? identity.Namespace : null;
+        return identity.Role == role && ValidNamespace(identity.Namespace) ? identity.Namespace : null;
     }
+
+    private sealed record ParsedInputs(string Evidence, Dictionary<string, (string Owner, string Reason, string Declaration)> Contexts,
+        HashSet<string> OwnershipTargets);
 
     private static IEnumerable<INamedTypeSymbol> Bases(INamedTypeSymbol type)
     {

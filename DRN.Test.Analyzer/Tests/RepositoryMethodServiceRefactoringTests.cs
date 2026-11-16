@@ -202,6 +202,85 @@ public sealed class RepositoryMethodServiceRefactoringTests
         (await Actions(workspace.CurrentSolution.GetDocument(document.Id)!)).Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task EntitySuffixed_Aggregate_Should_Generate_Stemmed_Service_Without_Convention_Diagnostics()
+    {
+        using var workspace = new AdhocWorkspace();
+        var domain = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: "/source/Sample.Domain/Sample.Domain.csproj"))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References);
+        var document = domain.AddDocument("IOrderRepository.cs", $$"""
+            namespace Sample.Domain.QA.Order;
+            public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+            public interface IOrderRepository : DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<OrderEntity>
+            {
+                // select-start
+                {{Method}}
+                // select-end
+            }
+            """, filePath: "/source/Sample.Domain/QA/Order/IOrderRepository.cs");
+        workspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
+        var application = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                "Sample.Application", "Sample.Application", LanguageNames.CSharp, filePath: "/source/Sample.Application/Sample.Application.csproj"))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddProjectReference(new ProjectReference(domain.Id))
+            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
+            .AddMetadataReference(MetadataReference.CreateFromFile(typeof(DRN.Framework.Utils.Settings.IAppSettings).Assembly.Location));
+        application = application.AddDocument("ApplicationModule.cs", """
+            namespace Sample.Application;
+            public static class ApplicationModule
+            {
+                public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddApplication(
+                    this Microsoft.Extensions.DependencyInjection.IServiceCollection services)
+                {
+                    DRN.Framework.Utils.DependencyInjection.ServiceCollectionExtensions.AddServicesWithAttributes(services);
+                    return services;
+                }
+            }
+            """, filePath: "/source/Sample.Application/ApplicationModule.cs").Project;
+        workspace.TryApplyChanges(application.Solution).Should().BeTrue();
+
+        var action = (await Actions(workspace.CurrentSolution.GetDocument(document.Id)!))
+            .Single(item => item.Title.StartsWith("Add scoped", StringComparison.Ordinal));
+        action.Title.Should().Contain("OrderCountVisibleService.cs");
+        var changed = await Changed(action);
+        var changedApp = changed.Projects.Single(project => project.Name == "Sample.Application");
+        var service = changedApp.Documents.Single(item => item.Name == "OrderCountVisibleService.cs");
+        (await service.GetTextAsync()).ToString().Should().Contain("public sealed class OrderCountVisibleService");
+        var domainCompilation = (await changed.Projects.Single(project => project.Name == "Sample.Domain").GetCompilationAsync())!;
+        domainCompilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        using var domainImage = new MemoryStream();
+        domainCompilation.Emit(domainImage).Success.Should().BeTrue();
+        var domainReference = MetadataReference.CreateFromImage(domainImage.ToArray(), filePath: "/source/Sample.Domain/Sample.Domain.dll");
+        var compilation = (await changedApp.GetCompilationAsync())!;
+        var appCompilation = compilation.RemoveReferences(compilation.References.OfType<CompilationReference>()).AddReferences(domainReference);
+        appCompilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        var inputs = new ProjectDiagnosticRulesTests.RuleFile(DRN.Framework.SharedKernel.Analyzers.Conventions.ConventionInputs.FileName, """
+            [assembly: DRN.Conventions.Version("1")]
+            [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
+            [assembly: DRN.Conventions.Reference("/source/Sample.Domain/Sample.Domain.csproj", Stage = "Project", Source = "/source/Sample.Domain/Sample.Domain.csproj")]
+            [assembly: DRN.Conventions.Reference("/source/Sample.Domain/Sample.Domain.dll", Stage = "Resolved", Project = "/source/Sample.Domain/Sample.Domain.csproj")]
+            [assembly: DRN.Conventions.Path("/source/Sample.Application/ApplicationModule.cs", LogicalPath = "ApplicationModule.cs")]
+            [assembly: DRN.Conventions.Path("/source/Sample.Application/Services/QA/Order/OrderCountVisibleService.cs", LogicalPath = "Services/QA/Order/OrderCountVisibleService.cs")]
+            """);
+        var diagnostics = await appCompilation.WithAnalyzers(
+            [new DRN.Framework.SharedKernel.Analyzers.Conventions.SourceKnownConventionAnalyzer()],
+            new AnalyzerOptions([inputs], new Options("Application"))).GetAnalyzerDiagnosticsAsync();
+        diagnostics.Should().BeEmpty();
+    }
+
+    private sealed class Options(string role) : AnalyzerConfigOptionsProvider
+    {
+        public override AnalyzerConfigOptions GlobalOptions { get; } = new ConventionInputTests.Config(new()
+        {
+            ["build_property.MSBuildProjectName"] = "Sample." + role,
+            ["build_property.RootNamespace"] = "Sample." + role
+        });
+        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => GlobalOptions;
+        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => GlobalOptions;
+    }
+
     private static Document Create(AdhocWorkspace workspace, string method = Method, bool reference = true, string targetName = "Sample.Application")
     {
         var domain = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),

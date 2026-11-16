@@ -14,7 +14,8 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
 {
     public override async Task ComputeRefactoringsAsync(CodeRefactoringContext context)
     {
-        var entity = await SelectedEntity(context.Document, context.Span.Start, context.CancellationToken);
+        if (ConventionGenerationPreflight.Identity(context.Document.Project).Role != "Domain") return;
+        var entity = await SelectedEntity(context.Document, context.Span, context.CancellationToken);
         if (entity is null) return;
         var snapshot = context.Document.Project.Solution;
         if (!ReferenceEquals(snapshot, snapshot.Workspace.CurrentSolution) ||
@@ -101,7 +102,7 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
     {
         var result = new List<RepositoryCandidate>();
         var domainIdentity = ProjectIdentity(domain);
-        if (domainIdentity.Role != "Domain" || domain.FilePath is null ||
+        if (domainIdentity.Role != "Domain" || !ValidNamespace(domainIdentity.Namespace) || domain.FilePath is null ||
             !TryFullPath(domain.FilePath, out var domainProjectPath)) return result;
         var domainInputs = await ReadInputs(domain, required: false, token);
         if (domainInputs is null) return result;
@@ -111,19 +112,26 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
             !Inherits(entity, domainCompilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.AggregateRoot"))) return result;
         var domainDocument = await EditableHome(domain, entity, token);
         var owner = Owner(entity, domainIdentity.Namespace, domainCompilation);
-        if (domainDocument?.FilePath is null || owner is null || entity.ContainingNamespace.IsGlobalNamespace ||
+        if (domainDocument?.FilePath is null || !TryFullPath(domainDocument.FilePath, out var domainDocumentPath) ||
+            owner is null || entity.ContainingNamespace.IsGlobalNamespace ||
             NamespaceOwner(entity, domainIdentity.Namespace) != owner ||
             !OwnershipCompatible(domainInputs, entityName, owner, token)) return result;
+        var domainNamespace = entity.ContainingNamespace.ToDisplayString();
+        var domainRoot = Path.GetDirectoryName(domainProjectPath)!;
+        var expectedDomainRelative = domainNamespace[(domainIdentity.Namespace.Length + 1)..].Replace('.', '/');
+        if (!ValidNamespace(domainNamespace) ||
+            Path.GetRelativePath(domainRoot, Path.GetDirectoryName(domainDocumentPath)!).Replace('\\', '/') != expectedDomainRelative)
+            return result;
         var repositoryContract = domainCompilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository`1");
         if (repositoryContract is null) return result;
-        var interfaceName = "I" + entity.Name + "Repository";
-        var className = entity.Name + "Repository";
-        var domainNamespace = entity.ContainingNamespace.ToDisplayString();
+        var stem = ConventionGenerationPreflight.EntityStem(entity.Name);
+        var interfaceName = "I" + stem + "Repository";
+        var className = stem + "Repository";
+        if (!SyntaxFacts.IsValidIdentifier(interfaceName) || !SyntaxFacts.IsValidIdentifier(className)) return result;
         var domainTypes = Types(domainCompilation.Assembly.GlobalNamespace, token).ToArray();
         if (domainTypes.Any(type => RepositoryFor(type, repositoryContract, entity)) ||
             ConventionGenerationPreflight.SymbolCollision(domainCompilation, domainNamespace, interfaceName, token)) return result;
-        var domainRoot = Path.GetDirectoryName(domainProjectPath)!;
-        if (!TryFullPath(Path.Combine(Path.GetDirectoryName(domainDocument.FilePath)!, interfaceName + ".cs"), out var domainDestination) ||
+        if (!TryFullPath(Path.Combine(Path.GetDirectoryName(domainDocumentPath)!, interfaceName + ".cs"), out var domainDestination) ||
             !SafeDocumentDestination(domain, domainRoot, domainDestination, token)) return result;
         foreach (var infra in domain.Solution.Projects.Where(project => project.Language == LanguageNames.CSharp &&
                      project.ProjectReferences.Any(reference => reference.ProjectId == domain.Id &&
@@ -131,7 +139,7 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
         {
             token.ThrowIfCancellationRequested();
             var infraIdentity = ProjectIdentity(infra);
-            if (infraIdentity.Role != "Infra" || infra.FilePath is null ||
+            if (infraIdentity.Role != "Infra" || !ValidNamespace(infraIdentity.Namespace) || infra.FilePath is null ||
                 !TryFullPath(infra.FilePath, out var infraProjectPath)) continue;
             var infraInputs = await ReadInputs(infra, required: false, token);
             if (infraInputs is null) continue;
@@ -158,16 +166,17 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
                 if (!DefaultDiscovery(context, compilation, token) || !HasMembership(context, importedEntity, compilation) ||
                     Owner(context, infraIdentity.Namespace, compilation) != owner ||
                     NamespaceOwner(context, infraIdentity.Namespace) != owner ||
+                    !context.Name.EndsWith("Context", StringComparison.Ordinal) || context.Name.Length <= 7 ||
                     !OwnershipCompatible(infraInputs, MetadataName(context), owner, token)) continue;
                 var contextDocument = await EditableHome(infra, context, token);
                 if (contextDocument?.FilePath is null) continue;
                 var repositoryNamespace = context.ContainingNamespace.ToDisplayString() + ".Repositories";
-                if (ConventionGenerationPreflight.SymbolCollision(compilation, repositoryNamespace, className, token)) continue;
+                if (!ValidNamespace(repositoryNamespace) ||
+                    ConventionGenerationPreflight.SymbolCollision(compilation, repositoryNamespace, className, token)) continue;
                 if (!TryFullPath(Path.Combine(Path.GetDirectoryName(contextDocument.FilePath)!, "Repositories", className + ".cs"), out var destination) ||
                     !SafeDocumentDestination(infra, infraRoot, destination, token)) continue;
                 var relative = Path.GetRelativePath(infraRoot, destination).Replace('\\', '/');
-                var aliasRequired = context.Name.EndsWith("Context", StringComparison.Ordinal) && context.Name.Length > 7 &&
-                                    context.Name[..^7] != owner && !ReasonedSymbolOwner(context, owner, compilation);
+                var aliasRequired = context.Name[..^7] != owner && !ReasonedSymbolOwner(context, owner, compilation);
                 var conventionalDestination = context.ContainingNamespace.ToDisplayString()[(infraIdentity.Namespace.Length + 1)..]
                     .Replace('.', '/') + "/Repositories";
                 var declaredDestination = RepositoryDestination(infraInputs, MetadataName(context), owner, aliasRequired, conventionalDestination, token);
@@ -190,32 +199,16 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
     private static (string Role, string Namespace) ProjectIdentity(Project project) =>
         ConventionGenerationPreflight.Identity(project);
 
-    private static string? Owner(INamedTypeSymbol type, string rootNamespace, Compilation compilation)
-    {
-        var conventional = NamespaceOwner(type, rootNamespace);
-        var ownership = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomainAttribute");
-        var declarations = type.GetAttributes().Where(attribute => Same(attribute.AttributeClass, ownership)).ToArray();
-        if (declarations.Length == 0) return conventional;
-        if (declarations.Length != 1 || declarations[0].ConstructorArguments is not [{ Value: string owner }] ||
-            !SyntaxFacts.IsValidIdentifier(owner)) return null;
-        var reason = declarations[0].NamedArguments.FirstOrDefault(pair => pair.Key == "Reason").Value.Value as string;
-        return owner == conventional || !string.IsNullOrWhiteSpace(reason) ? owner : null;
-    }
-
-    private static string? NamespaceOwner(INamedTypeSymbol type, string rootNamespace)
-    {
-        var ns = type.ContainingNamespace.ToDisplayString();
-        return ns.StartsWith(rootNamespace + ".", StringComparison.Ordinal)
-            ? ns[(rootNamespace.Length + 1)..].Split('.')[0] : null;
-    }
+    private static string? Owner(INamedTypeSymbol type, string rootNamespace, Compilation compilation) =>
+        DeclaredSubdomain(type, NamespaceOwner(type, rootNamespace), compilation);
 
     private static bool ReasonedSymbolOwner(INamedTypeSymbol type, string owner, Compilation compilation)
     {
         var ownership = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomainAttribute");
         return type.GetAttributes().Any(attribute => Same(attribute.AttributeClass, ownership) &&
             attribute.ConstructorArguments is [{ Value: string value }] && value == owner &&
-            attribute.NamedArguments.Any(argument => argument.Key == "Reason" && argument.Value.Value is string reason &&
-                !string.IsNullOrWhiteSpace(reason)));
+            attribute.NamedArguments.Any(argument => argument is { Key: "Reason", Value.Value: string reason } &&
+                                                     !string.IsNullOrWhiteSpace(reason)));
     }
 
     private static async Task<Document?> EditableHome(Project project, INamedTypeSymbol type, CancellationToken token)
@@ -236,7 +229,7 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
     }
 
     private static bool SafeDocumentDestination(Project project, string root, string destination, CancellationToken token) => SafeDestination(root, destination) &&
-        !WorkspaceDestinationConflict(project.Solution, destination, token);
+        !WorkspaceDestinationConflict(project.Solution, destination, project.Id, token);
 
     private static bool RepositoryFor(INamedTypeSymbol type, INamedTypeSymbol contract, INamedTypeSymbol entity) =>
         type.AllInterfaces.Any(binding => Same(binding, contract) && SymbolEqualityComparer.Default.Equals(binding.TypeArguments[0], entity));
@@ -298,31 +291,14 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
         return aliasRequired && !declaredContext ? null : destination ?? conventionalDestination;
     }
 
-    private static bool OwnershipCompatible(CompilationUnitSyntax root, string typeName, string owner, CancellationToken token)
-    {
-        foreach (var attribute in root.AttributeLists.SelectMany(list => list.Attributes))
-        {
-            token.ThrowIfCancellationRequested();
-            if (attribute.Name.ToString() is not ("DRN.Conventions.Ownership" or "global::DRN.Conventions.Ownership") ||
-                attribute.ArgumentList is not { Arguments.Count: > 0 } arguments ||
-                Literal(arguments.Arguments[0].Expression, token) != typeName) continue;
-            var owners = arguments.Arguments.Where(argument => argument.NameEquals?.Name.Identifier.ValueText == "Subdomain").ToArray();
-            if (arguments.Arguments[0].NameEquals is not null || arguments.Arguments[0].NameColon is not null ||
-                owners.Length != 1 || Literal(owners[0].Expression, token) != owner) return false;
-        }
-        return true;
-    }
-
     private static async Task<CompilationUnitSyntax?> ReadInputs(Project project, bool required, CancellationToken token)
     {
         var root = await ConventionGenerationPreflight.ReadInputs(project, required, token);
-        if (root is null || root.AttributeLists.SelectMany(list => list.Attributes).Any(attribute =>
-            attribute.Name.ToString() is "DRN.Conventions.Role" or "global::DRN.Conventions.Role")) return null;
-        return root;
+        return root is null || HasRoleOverride(root) ? null : root;
     }
 
     private static string? Literal(ExpressionSyntax expression, CancellationToken token) =>
-        DRN.Framework.SharedKernel.Analyzers.Conventions.ConventionInputSyntax.String(expression, token);
+        Analyzers.Conventions.ConventionInputSyntax.String(expression, token);
 
     private sealed record RepositoryCandidate(ProjectId InfraProject, string ContextName, string ContextType, string EntityType,
         string InterfaceName, string ClassName, string DomainNamespace, string InfraNamespace, string DomainPath, string InfraPath,

@@ -58,6 +58,8 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         var model = await document.GetSemanticModelAsync(token);
         if (root is null || model is null || span.End > root.FullSpan.End ||
             model.GetDiagnostics(span, token).Any(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)) return null;
+        if (root.DescendantNodes().OfType<PropertyDeclarationSyntax>()
+            .Any(property => property.Span.IntersectsWith(span) && !span.Contains(property.Span))) return null;
         var declarations = root.DescendantNodes().OfType<PropertyDeclarationSyntax>()
             .Where(property => span.Contains(property.Span)).OrderBy(property => property.SpanStart).ToArray();
         if (declarations.Length == 0 || declarations.Length > 64) return null;
@@ -104,7 +106,7 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         if (await HasRoleOverrides(source, token) || await HasRoleOverrides(target, token)) return null;
         var sourceRoot = Path.GetDirectoryName(sourceProjectPath)!;
         var targetRoot = Path.GetDirectoryName(targetProjectPath)!;
-        if (!entityPath.StartsWith(sourceRoot + Path.DirectorySeparatorChar, StringComparison.Ordinal)) return null;
+        if (!ConventionGenerationPreflight.IsUnderDirectory(entityPath, sourceRoot)) return null;
         var sourceCompilation = await source.GetCompilationAsync(token);
         var targetCompilation = await target.GetCompilationAsync(token);
         if (sourceCompilation is null || targetCompilation is null ||
@@ -117,15 +119,15 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         var sourceNamespace = selection.Entity.ContainingNamespace.ToDisplayString();
         var roleNamespace = sourceIdentity.Namespace;
         var targetRoleNamespace = targetIdentity.Namespace;
-        if (roleNamespace.Split('.').Any(part => !SyntaxFacts.IsValidIdentifier(part)) ||
-            targetRoleNamespace.Split('.').Any(part => !SyntaxFacts.IsValidIdentifier(part))) return null;
+        if (!ValidNamespace(roleNamespace) || !ValidNamespace(targetRoleNamespace)) return null;
         if (!sourceNamespace.StartsWith(roleNamespace + ".", StringComparison.Ordinal)) return null;
         var area = sourceNamespace[(roleNamespace.Length + 1)..];
-        if (area.Split('.').Any(part => !SyntaxFacts.IsValidIdentifier(part))) return null;
+        if (!ValidNamespace(area)) return null;
         if (!await PreservesOwnership(source, selection.Entity, sourceCompilation, area.Split('.')[0], token)) return null;
         var dtoNamespace = targetRoleNamespace + "." + area;
-        var dtoName = selection.Entity.Name + "Dto";
-        var mapperName = selection.Entity.Name + "DtoMapping";
+        var stem = ConventionGenerationPreflight.EntityStem(selection.Entity.Name);
+        var dtoName = stem + "Dto";
+        var mapperName = stem + "DtoMapping";
         if (!SyntaxFacts.IsValidIdentifier(dtoName) || !SyntaxFacts.IsValidIdentifier(mapperName) ||
             targetCompilation.GetTypeByMetadataName(dtoNamespace + "." + dtoName) is not null ||
             sourceCompilation.GetTypeByMetadataName(sourceNamespace + "." + mapperName) is not null ||
@@ -135,14 +137,15 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         var dtoPath = Path.Combine(targetRoot, area.Replace('.', Path.DirectorySeparatorChar), dtoName + ".cs");
         var mapperPath = Path.Combine(Path.GetDirectoryName(entityPath)!, mapperName + ".cs");
         if (!SafeDestination(targetRoot, dtoPath) || !SafeDestination(sourceRoot, mapperPath) ||
-            WorkspaceDestinationConflict(source.Solution, dtoPath, token) ||
-            WorkspaceDestinationConflict(source.Solution, mapperPath, token)) return null;
+            WorkspaceDestinationConflict(source.Solution, dtoPath, target.Id, token) ||
+            WorkspaceDestinationConflict(source.Solution, mapperPath, source.Id, token)) return null;
         var typeAttributes = TypeClassifications(selection.Entity, sourceCompilation, targetCompilation);
         if (typeAttributes is null) return null;
         var fields = new List<(string Name, string Type, string Attributes, bool Required)>();
         foreach (var property in selection.Properties)
         {
-            if (property.Name is "entity" or "Entity" || property.Name == dtoName || Bases(dto).Any(type => type.GetMembers(property.Name).Length != 0) ||
+            if (string.Equals(property.Name, "entity", StringComparison.OrdinalIgnoreCase) ||
+                property.Name == dtoName || Bases(dto).Any(type => type.GetMembers(property.Name).Length != 0) ||
                 !ScalarAvailable(property.Type, sourceCompilation, targetCompilation)) return null;
             var attributes = ClassificationAttributes(property.GetAttributes(), sourceCompilation, targetCompilation);
             if (attributes is null) return null;
@@ -238,26 +241,7 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         foreach (var attribute in entity.GetAttributes().Where(attribute => Same(attribute.AttributeClass, ownership)))
             if (attribute.ConstructorArguments is not [{ Value: string declared }] || declared != owner) return false;
         var root = await ConventionGenerationPreflight.ReadInputs(source, required: false, token);
-        if (root is null) return false;
-        foreach (var attribute in root.AttributeLists.SelectMany(list => list.Attributes))
-        {
-            token.ThrowIfCancellationRequested();
-            if (attribute.Name.ToString() is not ("DRN.Conventions.Ownership" or "global::DRN.Conventions.Ownership")) continue;
-            if (attribute.ArgumentList is not { Arguments.Count: > 0 } arguments ||
-                !LiteralString(arguments.Arguments[0].Expression, token, out var target)) return false;
-            if (target != MetadataName(entity)) continue;
-            var owners = arguments.Arguments.Where(argument => argument.NameEquals?.Name.Identifier.ValueText == "Subdomain").ToArray();
-            if (arguments.Arguments[0].NameEquals is not null || arguments.Arguments[0].NameColon is not null || owners.Length != 1 ||
-                !LiteralString(owners[0].Expression, token, out var declaredOwner) || declaredOwner != owner) return false;
-        }
-        return true;
-    }
-
-    private static bool LiteralString(ExpressionSyntax expression, CancellationToken token, out string value)
-    {
-        var parsed = DRN.Framework.SharedKernel.Analyzers.Conventions.ConventionInputSyntax.String(expression, token);
-        value = parsed ?? "";
-        return parsed is not null;
+        return root is not null && !HasRoleOverride(root) && OwnershipCompatible(root, MetadataName(entity), owner, token);
     }
 
     private static IEnumerable<INamedTypeSymbol> Bases(INamedTypeSymbol type)

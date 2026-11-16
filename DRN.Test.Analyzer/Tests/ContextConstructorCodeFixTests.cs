@@ -126,6 +126,59 @@ public sealed class ContextConstructorCodeFixTests
         (await Actions(current)).Should().HaveCount(expectedActions);
     }
 
+    [Theory]
+    [DataInlineUnit("null")]
+    [DataInlineUnit("null!")]
+    [DataInlineUnit("default")]
+    [DataInlineUnit("default(Microsoft.EntityFrameworkCore.DbContextOptions<QAContext>)")]
+    public async Task Constructor_Action_Should_Accept_Equivalent_Empty_Base_Arguments(string baseArgument)
+    {
+        using var workspace = new AdhocWorkspace();
+        var document = CreateDocument(workspace, $$"""
+            public class QAContext : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>
+            {
+                public QAContext() : base({{baseArgument}}) { }
+            }
+            """);
+        var action = (await Actions(document)).Single();
+        var operations = await action.GetOperationsAsync(CancellationToken.None);
+        var changed = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution.GetDocument(document.Id)!;
+        var compilation = await changed.Project.GetCompilationAsync();
+        compilation!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        (await Actions(changed)).Should().BeEmpty();
+    }
+
+    [Theory]
+    [DataInlineUnit("default(int)", 0)]
+    [DataInlineUnit("default(Microsoft.EntityFrameworkCore.DbContextOptions<QAContext>)", 1)]
+    public async Task Constructor_Action_Should_Verify_Bound_Options_Overload_For_Typed_Defaults(string baseArgument, int expectedActions)
+    {
+        using var workspace = new AdhocWorkspace();
+        var document = CreateDocument(workspace, $$"""
+            public class QAContext : CustomContextBase
+            {
+                public QAContext() : base({{baseArgument}}) { }
+            }
+            public abstract class CustomContextBase : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>
+            {
+                protected CustomContextBase(Microsoft.EntityFrameworkCore.DbContextOptions<QAContext> options) : base(options) { }
+                protected CustomContextBase(int mode) : base(null) { }
+            }
+            """);
+        var compilation = await document.Project.GetCompilationAsync();
+        compilation!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+
+        var actions = await Actions(document);
+        actions.Should().HaveCount(expectedActions);
+        if (expectedActions == 0) return;
+
+        var operations = await actions.Single().GetOperationsAsync(CancellationToken.None);
+        var changed = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution.GetDocument(document.Id)!;
+        var changedCompilation = await changed.Project.GetCompilationAsync();
+        changedCompilation!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        (await Actions(changed)).Should().BeEmpty();
+    }
+
     private static Document CreateDocument(AdhocWorkspace workspace, string source, string name = "Context.cs")
     {
         var project = workspace.AddProject("Consumer", LanguageNames.CSharp)
