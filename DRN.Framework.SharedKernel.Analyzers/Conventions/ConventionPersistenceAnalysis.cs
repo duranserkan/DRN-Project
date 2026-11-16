@@ -117,17 +117,35 @@ internal static class ConventionPersistenceAnalysis
             .FirstOrDefault(method => OverridesModelContract(method, modelContract, facts.Cancellation));
         if (implementation is null) return result;
         result.DefaultScan = HasDefaultScan(facts, implementation);
+        var modelMethods = new Stack<IMethodSymbol>();
+        for (var current = implementation; current is not null; current = current.OverriddenMethod)
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            if (ConventionSymbols.Same(current.ContainingType, facts.Symbols.DrnContext) ||
+                ConventionSymbols.Same(current.ContainingType, facts.Symbols.DrnIdentityContext)) break;
+            modelMethods.Push(current);
+            if (!result.DefaultScan) break;
+        }
+        // Proven forwarding runs the base setup before each derived override's model calls.
+        while (modelMethods.TryPop(out var method)) ReadModelCalls(facts, method, result);
+        return result;
+    }
+
+    private static void ReadModelCalls(ConventionFacts facts, IMethodSymbol implementation, ContextModel result)
+    {
         if (implementation.DeclaringSyntaxReferences.Length != 1 ||
-            !facts.Compilation.ContainsSyntaxTree(implementation.DeclaringSyntaxReferences[0].SyntaxTree)) return result;
+            !facts.Compilation.ContainsSyntaxTree(implementation.DeclaringSyntaxReferences[0].SyntaxTree)) return;
         var declaration = implementation.DeclaringSyntaxReferences[0].GetSyntax(facts.Cancellation) as MethodDeclarationSyntax;
-        if (declaration?.Body is not { } body) return result;
-        if (body.Statements.Any(statement => statement is not ExpressionStatementSyntax)) return result;
+        if (declaration?.Body is not { } body) return;
+        if (body.Statements.Any(statement => statement is not ExpressionStatementSyntax)) return;
         var semantic = facts.Compilation.GetSemanticModel(body.SyntaxTree);
 
         // Only unconditional, top-level calls establish exclusion or application. Helpers remain unknown.
         foreach (var statement in body.Statements.OfType<ExpressionStatementSyntax>())
         {
             facts.Cancellation.ThrowIfCancellationRequested();
+            if (result.DefaultScan && statement.Expression is InvocationExpressionSyntax
+                { Expression: MemberAccessExpressionSyntax { Expression: BaseExpressionSyntax } }) continue;
             if (statement.Expression is not InvocationExpressionSyntax invocation ||
                 semantic.GetSymbolInfo(invocation, facts.Cancellation).Symbol is not IMethodSymbol method ||
                 invocation.Expression is not MemberAccessExpressionSyntax access ||
@@ -160,7 +178,6 @@ internal static class ConventionPersistenceAnalysis
                 configurations.Add(configuration);
             }
         }
-        return result;
     }
 
     private static bool HasDefaultScan(ConventionFacts facts, IMethodSymbol implementation)
@@ -181,16 +198,7 @@ internal static class ConventionPersistenceAnalysis
             if (current.DeclaringSyntaxReferences is not [var reference] ||
                 !facts.Compilation.ContainsSyntaxTree(reference.SyntaxTree) ||
                 reference.GetSyntax(facts.Cancellation) is not MethodDeclarationSyntax declaration) break;
-            var expression = declaration.ExpressionBody?.Expression ??
-                (declaration.Body?.Statements is [ExpressionStatementSyntax statement] ? statement.Expression : null);
-            if (expression is not InvocationExpressionSyntax
-                {
-                    Expression: MemberAccessExpressionSyntax { Expression: BaseExpressionSyntax },
-                    ArgumentList.Arguments: [var argument]
-                } invocation || current.Parameters is not [var parameter]) break;
-            var semantic = facts.Compilation.GetSemanticModel(reference.SyntaxTree);
-            if (!SymbolEqualityComparer.Default.Equals(semantic.GetSymbolInfo(invocation, facts.Cancellation).Symbol, current.OverriddenMethod) ||
-                !SymbolEqualityComparer.Default.Equals(semantic.GetSymbolInfo(argument.Expression, facts.Cancellation).Symbol, parameter)) break;
+            if (!ForwardsDefaultScan(facts, current, declaration)) break;
         }
         facts.Cancellation.ThrowIfCancellationRequested();
         if (pending is not null)
@@ -200,6 +208,43 @@ internal static class ConventionPersistenceAnalysis
                 facts.DefaultModelScans.Add(method, result);
             }
         return result;
+    }
+
+    private static bool ForwardsDefaultScan(ConventionFacts facts, IMethodSymbol method, MethodDeclarationSyntax declaration)
+    {
+        if (method.Parameters is not [var parameter]) return false;
+        var semantic = facts.Compilation.GetSemanticModel(declaration.SyntaxTree);
+        var forwarded = false;
+        if (declaration.ExpressionBody is { } expressionBody)
+            return SupportedCall(expressionBody.Expression) && forwarded;
+        if (declaration.Body is not { } body) return false;
+        foreach (var statement in body.Statements)
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            if (statement is not ExpressionStatementSyntax expression || !SupportedCall(expression.Expression)) return false;
+        }
+        return forwarded;
+
+        bool SupportedCall(ExpressionSyntax expression)
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            if (expression is not InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax access } invocation ||
+                semantic.GetSymbolInfo(invocation, facts.Cancellation).Symbol is not IMethodSymbol called) return false;
+            if (access.Expression is BaseExpressionSyntax && invocation.ArgumentList.Arguments is [var argument] &&
+                SymbolEqualityComparer.Default.Equals(called, method.OverriddenMethod) &&
+                SymbolEqualityComparer.Default.Equals(semantic.GetSymbolInfo(argument.Expression, facts.Cancellation).Symbol, parameter))
+            {
+                if (forwarded) return false;
+                forwarded = true;
+                return true;
+            }
+            var supportedModelCall = called.TypeArguments.Length == 1 &&
+                (called.Name == "ApplyConfiguration" ? invocation.ArgumentList.Arguments.Count == 1 :
+                    called.Name is ("Ignore" or "Entity") && invocation.ArgumentList.Arguments.Count == 0);
+            return forwarded && supportedModelCall &&
+                   ConventionSymbols.Same(called.ContainingType, facts.Symbols.ModelBuilder) &&
+                   SymbolEqualityComparer.Default.Equals(semantic.GetSymbolInfo(access.Expression, facts.Cancellation).Symbol, parameter);
+        }
     }
 
     private static bool OverridesModelContract(IMethodSymbol method, IMethodSymbol contract, CancellationToken cancellation)
@@ -321,17 +366,18 @@ internal static class ConventionPersistenceAnalysis
     private static void CheckConfiguration(ConventionFacts facts, INamedTypeSymbol configuration, INamedTypeSymbol context,
         ContextModel evidence, Lazy<ConfigurationUses> uses, Location fallback)
     {
-        if (facts.HasInvalidContext(context) || facts.Role(context).Role != "Infra" ||
-            evidence.Applied.Values.Any(configurations => configurations.Contains(configuration)) || !evidence.DefaultScan) return;
-        if (DefaultDiscoverable(facts, configuration, context) || HasPossibleApplication(facts, configuration, context, evidence, uses.Value)) return;
+        if (facts.HasInvalidContext(context) || facts.Role(context).Role != "Infra" || !evidence.DefaultScan ||
+            DefaultDiscoverable(facts, configuration, context)) return;
         foreach (var binding in facts.Symbols.Bindings(configuration, facts.Symbols.Configuration, facts.Cancellation)
                      .OrderBy(binding => ConventionSymbols.MetadataName(binding.TypeArguments[0] as INamedTypeSymbol ?? configuration), StringComparer.Ordinal))
         {
             if (binding.TypeArguments is not [INamedTypeSymbol entity] || evidence.Excluded.Contains(entity) || evidence.Ignored.Contains(entity)) continue;
+            if (evidence.Applied.TryGetValue(entity, out var applied) && applied.Contains(configuration)) continue;
             if (entity.GetAttributes().Any(attribute =>
                     ConventionSymbols.Same(attribute.AttributeClass, facts.Symbols.ConfigurationAttribute) &&
                     attribute.ConstructorArguments is [{ Value: INamedTypeSymbol attributed }] &&
                     SymbolEqualityComparer.Default.Equals(attributed, configuration))) continue;
+            if (HasPossibleApplication(facts, configuration, context, evidence, uses.Value)) return;
             var location = facts.Location(configuration);
             facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.Configuration,
                 location == Location.None ? fallback : location, Properties(configuration, context, entity), configuration.Name, entity.Name, context.Name));

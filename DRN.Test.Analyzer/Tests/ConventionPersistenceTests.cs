@@ -290,6 +290,98 @@ public sealed class ConventionPersistenceTests
     }
 
     [Theory]
+    [DataInlineUnit("Category", "", "", "Other")]
+    [DataInlineUnit("Other", "", "", "Category")]
+    [DataInlineUnit("Category", "model.ApplyConfiguration<Other>(new SharedConfig());", "", "")]
+    [DataInlineUnit("Other", "model.ApplyConfiguration<Category>(new SharedConfig());", "", "")]
+    [DataInlineUnit("Category", "model.Ignore<Other>();", "", "")]
+    [DataInlineUnit("Other", "model.Ignore<Category>();", "", "")]
+    [DataInlineUnit("Category", "", "Other", "")]
+    [DataInlineUnit("Other", "", "Category", "")]
+    [DataInlineUnit("Category", "model.Ignore<Category>();", "", "Other")]
+    [DataInlineUnit("Other", "model.Ignore<Other>();", "", "Category")]
+    [DataInlineUnit("Category", "Unknown(model);", "", "")]
+    public void Multi_Entity_Configuration_Should_Check_Application_For_Each_Binding(
+        string selectedEntity, string subsequentCall, string excludedEntity, string missingEntity)
+    {
+        var source = $$"""
+            using Microsoft.EntityFrameworkCore;
+            using Microsoft.EntityFrameworkCore.Metadata.Builders;
+            using DRN.Framework.EntityFramework.Attributes;
+            using DRN.Framework.EntityFramework.Context;
+            using DRN.Framework.SharedKernel.Domain;
+            using Sample.Infra.QA;
+            using Sample.Infra.QA.Configurations;
+            namespace Sample.Infra.QA
+            {
+                public class Category : AggregateRoot;
+                public class Other : AggregateRoot;
+            }
+            namespace Sample.Infra.QA.Read
+            {
+                {{(excludedEntity.Length == 0 ? "" : "[SourceKnownPersistence(typeof(" + excludedEntity + "), Inclusion = SourceKnownPersistenceInclusion.Exclude)]")}}
+                public class ReadContext() : DrnContext<ReadContext>(null)
+                {
+                    public DbSet<Category> Categories => Set<Category>();
+                    public DbSet<Other> Others => Set<Other>();
+                    protected override void OnModelCreating(ModelBuilder model)
+                    {
+                        base.OnModelCreating(model);
+                        model.ApplyConfiguration<{{selectedEntity}}>(new SharedConfig());
+                        {{subsequentCall}}
+                    }
+                    private static void Unknown(ModelBuilder model) { }
+                }
+            }
+            namespace Sample.Infra.QA.Configurations
+            {
+                public class SharedConfig : IEntityTypeConfiguration<Category>, IEntityTypeConfiguration<Other>
+                {
+                    public void Configure(EntityTypeBuilder<Category> builder) { }
+                    public void Configure(EntityTypeBuilder<Other> builder) { }
+                }
+            }
+            """;
+        var facts = Analyze(source, Input("Configuration", "Sample.Infra.QA.Configurations.SharedConfig",
+            ("Context", "Sample.Infra.QA.Read.ReadContext")));
+        if (missingEntity.Length == 0) facts.Diagnostics.Should().BeEmpty();
+        else
+        {
+            var diagnostic = facts.Diagnostics.Should().ContainSingle().Which;
+            diagnostic.Id.Should().Be("DRNCV009");
+            diagnostic.Properties["Entity"].Should().Be("Sample.Infra.QA." + missingEntity);
+            diagnostic.Properties["Context"].Should().Be("Sample.Infra.QA.Read.ReadContext");
+        }
+    }
+
+    [Theory]
+    [DataInlineUnit("base.OnModelCreating(model); model.Entity<Category>();", true)]
+    [DataInlineUnit("model.Entity<Category>(); base.OnModelCreating(model);", false)]
+    [DataInlineUnit("base.OnModelCreating(model); base.OnModelCreating(model);", false)]
+    [DataInlineUnit("base.OnModelCreating(new ModelBuilder());", false)]
+    [DataInlineUnit("if (System.DateTime.UtcNow.Ticks > 0) base.OnModelCreating(model);", false)]
+    [DataInlineUnit("base.OnModelCreating(model); Helper(model);", false)]
+    [DataInlineUnit("base.OnModelCreating(model); new ModelBuilder().Entity<Category>();", false)]
+    [DataInlineUnit("base.OnModelCreating(model); model.Ignore(typeof(Category));", false)]
+    [DataInlineUnit("base.OnModelCreating(model); model.Entity<Category>(builder => new CategoryConfig(1).Configure(builder));", false)]
+    public void Default_Scan_Proof_Should_Require_Supported_Calls_On_The_Original_Builder(string body, bool missing)
+    {
+        var facts = Analyze(Imports + $$"""
+            public class QAContext() : DrnContext<QAContext>(null)
+            {
+                protected override void OnModelCreating(ModelBuilder model) { {{body}} }
+                private static void Helper(ModelBuilder model) { }
+            }
+            public class CategoryConfig(int dependency) : IEntityTypeConfiguration<Category>
+            {
+                public void Configure(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<Category> builder) { }
+            }
+            """);
+        facts.Diagnostics.Select(diagnostic => diagnostic.Id).Should().Equal(
+            missing ? new[] { "DRNCV009" } : Array.Empty<string>());
+    }
+
+    [Theory]
     [InlineData("private CategoryConfiguration() { }", false)]
     [InlineData("public CategoryConfiguration(int dependency) { }", true)]
     public void Configuration_Scan_Should_Require_A_Parameterless_Constructor_Without_Rejecting_Private_Ones(string constructor, bool invalid)
@@ -346,6 +438,50 @@ public sealed class ConventionPersistenceTests
             var context = facts.Compilation.GetTypeByMetadataName("Sample.Infra.QA." + name)!;
             ConventionPersistenceAnalysis.GetModel(facts, context).DefaultScan.Should().Be(defaultScan);
         }
+    }
+
+    [Theory]
+    [DataInlineUnit("model.ApplyConfiguration(new CategoryConfiguration(1));", "=> base.OnModelCreating(model);", false)]
+    [DataInlineUnit("model.ApplyConfiguration(new CategoryConfiguration(1));", "{ base.OnModelCreating(model); model.Entity<Category>(); }", false)]
+    [DataInlineUnit("model.Ignore<Category>();", "=> base.OnModelCreating(model);", false)]
+    [DataInlineUnit("model.Ignore<Category>();", "{ base.OnModelCreating(model); model.Entity<Category>(); }", true)]
+    [DataInlineUnit("", "=> base.OnModelCreating(model);", true)]
+    [DataInlineUnit("", "{ base.OnModelCreating(model); model.ApplyConfiguration(new CategoryConfiguration(1)); }", false)]
+    public void Forwarded_Model_Overrides_Should_Preserve_Base_Evidence_And_Apply_Child_Changes(
+        string baseSetup, string derivedOverride, bool missing)
+    {
+        var facts = Analyze(Imports + $$"""
+            public class QAContext() : DrnContext<QAContext>(null)
+            {
+                protected override void OnModelCreating(ModelBuilder model)
+                {
+                    base.OnModelCreating(model);
+                    {{baseSetup}}
+                }
+            }
+            public class MiddleContext : QAContext
+            {
+                protected override void OnModelCreating(ModelBuilder model) => base.OnModelCreating(model);
+            }
+            public class ReadContext : MiddleContext
+            {
+                protected override void OnModelCreating(ModelBuilder model) {{derivedOverride}}
+            }
+            public class CategoryConfiguration(int dependency) : IEntityTypeConfiguration<Category>
+            {
+                public void Configure(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<Category> builder) { }
+            }
+            """, Input("Configuration", "Sample.Infra.QA.CategoryConfiguration", ("Context", "Sample.Infra.QA.ReadContext")));
+        var context = facts.Compilation.GetTypeByMetadataName("Sample.Infra.QA.ReadContext")!;
+        ConventionPersistenceAnalysis.GetModel(facts, context).DefaultScan.Should().BeTrue();
+        if (missing)
+        {
+            var diagnostic = facts.Diagnostics.Should().ContainSingle().Which;
+            diagnostic.Id.Should().Be("DRNCV009");
+            diagnostic.Properties["Entity"].Should().Be("Sample.Infra.QA.Category");
+            diagnostic.Properties["Context"].Should().Be("Sample.Infra.QA.ReadContext");
+        }
+        else facts.Diagnostics.Should().BeEmpty();
     }
 
     [Theory]

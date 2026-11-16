@@ -89,6 +89,11 @@ internal static class ConventionRegistrationAnalysis
                 if (selected is not null) return new(null, null, true);
                 selected = attribute;
             }
+        // Runtime hosted-service registration uses IHostedService rather than the attribute's object argument.
+        if (selected?.AttributeClass is { } selectedType &&
+            facts.Symbols.IsKnown(selectedType, facts.Symbols.HostedServiceAttribute, facts.Cancellation))
+            return new(selected, facts.Symbols.IsKnown(implementation, facts.Symbols.HostedService, facts.Cancellation)
+                ? facts.Symbols.HostedService : null, false);
         for (var type = selected?.AttributeClass; type is not null; type = type.BaseType)
         {
             facts.Cancellation.ThrowIfCancellationRequested();

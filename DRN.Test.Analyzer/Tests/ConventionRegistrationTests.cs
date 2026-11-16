@@ -100,6 +100,7 @@ public sealed class ConventionRegistrationTests
     [DataInlineUnit("[Scoped<object>]", "IWorker", "DRNCV031")]
     [DataInlineUnit("[ScopedWithKey<IWorker>(\"read\")]", "IWorker", "DRNCV012")]
     [DataInlineUnit("[Scoped<IWorker>]", "IOther", "DRNCV012")]
+    [DataInlineUnit("[HostedService]", "IWorker", "DRNCV031")]
     [DataInlineUnit("[Scoped<IWorker>]", "IWorker", "")]
     public void Combined_Analysis_Should_Separate_Binding_Failures_From_Demand_Mismatches(
         string attribute, string dependency, string expected)
@@ -963,6 +964,43 @@ public sealed class ConventionRegistrationTests
             public class Consumer({{key}} IHostedService worker) : IConsumer { public int Read() => 1; }
             """ + Scan;
         Analyze(source, includeDemand: false).Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV012").Should().Be(missing ? 1 : 0);
+    }
+
+    [Theory]
+    [DataInlineUnit("IHostedService", "[global::DRN.Framework.Utils.DependencyInjection.Attributes.HostedServiceAttribute]", "", "")]
+    [DataInlineUnit("BackgroundService", "[global::DRN.Framework.Utils.DependencyInjection.Attributes.HostedServiceAttribute]", "", "")]
+    [DataInlineUnit("IHostedService", "[CustomHosted]", "", "")]
+    [DataInlineUnit("InheritedWorker", "", "", "")]
+    [DataInlineUnit("IHostedService", "", "", "DRNCV031")]
+    [DataInlineUnit("IHostedService", "[Singleton<HostedService>]", "", "DRNCV031")]
+    [DataInlineUnit("IHostedService", "[global::DRN.Framework.Utils.DependencyInjection.Attributes.HostedServiceAttribute]", "[FromKeyedServices(\"worker\")]", "DRNCV012")]
+    public void Paired_Hosted_Service_Should_Use_The_Actual_Lifetime_Binding(
+        string baseType, string attribute, string selector, string expectedRule)
+    {
+        var source = $$"""
+            using DRN.Framework.Utils.DependencyInjection;
+            using DRN.Framework.Utils.DependencyInjection.Attributes;
+            using Microsoft.Extensions.DependencyInjection;
+            using Microsoft.Extensions.Hosting;
+            using System.Threading;
+            using System.Threading.Tasks;
+            namespace Sample.Application.QA;
+            public sealed class CustomHostedAttribute : global::DRN.Framework.Utils.DependencyInjection.Attributes.HostedServiceAttribute;
+            [global::DRN.Framework.Utils.DependencyInjection.Attributes.HostedServiceAttribute]
+            public abstract class InheritedWorker : BackgroundService;
+            {{attribute}}
+            public sealed class HostedService : {{baseType}}
+            {
+                {{(baseType == "IHostedService" ? "public Task StartAsync(CancellationToken token) => Task.CompletedTask; public Task StopAsync(CancellationToken token) => Task.CompletedTask;" :
+                    "protected override Task ExecuteAsync(CancellationToken token) => Task.CompletedTask;")}}
+            }
+            public interface IConsumer { void Run(); }
+            [Scoped<IConsumer>]
+            public sealed class Consumer({{selector}} IHostedService service) : IConsumer { public void Run() { } }
+            """ + Scan;
+        var facts = Analyze(source, includeDemand: false, includeLifetime: true);
+        facts.Diagnostics.Select(diagnostic => diagnostic.Id).Should().Equal(
+            expectedRule.Length == 0 ? Array.Empty<string>() : new[] { expectedRule });
     }
 
     [Fact]
