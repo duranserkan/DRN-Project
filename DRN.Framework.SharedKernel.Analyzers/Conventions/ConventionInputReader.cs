@@ -1,6 +1,8 @@
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Text;
 
 namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 
@@ -15,7 +17,6 @@ internal sealed record ConventionInputs(ImmutableArray<ConventionInput> Records,
 
     internal static ConventionInputs Read(AnalyzerOptions options, CancellationToken cancellation)
     {
-        var records = ImmutableArray.CreateBuilder<ConventionInput>();
         var diagnostics = ImmutableArray.CreateBuilder<Diagnostic>();
         var files = options.AdditionalFiles.Where(file =>
             ConventionProject.NormalizeSeparators(file.Path).Split('/')[^1] == FileName).Take(2).ToArray();
@@ -41,26 +42,44 @@ internal sealed record ConventionInputs(ImmutableArray<ConventionInput> Records,
             diagnostics.Add(ConventionProject.InputIssue(FileName, problem, "build-generated convention input"));
             return new([], diagnostics.ToImmutable());
         }
+
+        return new(CollectRecords(root, files[0].Path, text, cancellation), diagnostics.ToImmutable());
+    }
+
+    private static ImmutableArray<ConventionInput> CollectRecords(CompilationUnitSyntax root, string path,
+        SourceText text, CancellationToken cancellation)
+    {
+        var records = ImmutableArray.CreateBuilder<ConventionInput>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var list in root.AttributeLists)
-        foreach (var attribute in list.Attributes)
         {
-            cancellation.ThrowIfCancellationRequested();
-            var kind = ConventionInputSyntax.Kind(attribute);
-            var arguments = attribute.ArgumentList!.Arguments;
-            var identity = ConventionInputSyntax.String(arguments[0].Expression, cancellation)!;
-            var fields = arguments.Skip(1).ToImmutableDictionary(argument =>
+            foreach (var attribute in list.Attributes)
             {
-                var name = argument.NameEquals!.Name.Identifier.ValueText;
-                return kind == "Exception" && name == "SymbolTarget" ? "Target" : name;
-            }, argument => ConventionInputSyntax.String(argument.Expression, cancellation)!, StringComparer.Ordinal);
-            var location = Location.Create(files[0].Path, attribute.Span, text.Lines.GetLinePositionSpan(attribute.Span));
-
-            var key = kind.Length + ":" + kind + identity.Length + ":" + identity + string.Concat(fields.OrderBy(field => field.Key, StringComparer.Ordinal)
-                .Select(field => field.Key.Length + ":" + field.Key + field.Value.Length + ":" + field.Value));
-            if (seen.Add(key)) records.Add(new(kind, identity, fields, location));
+                cancellation.ThrowIfCancellationRequested();
+                var record = ReadAttributeRecord(attribute, path, text, cancellation, out var key);
+                if (seen.Add(key)) records.Add(record);
+            }
         }
+        return records.ToImmutable();
+    }
 
-        return new(records.ToImmutable(), diagnostics.ToImmutable());
+    private static ConventionInput ReadAttributeRecord(AttributeSyntax attribute, string path, SourceText text,
+        CancellationToken cancellation, out string key)
+    {
+        var kind = ConventionInputSyntax.Kind(attribute);
+        var arguments = attribute.ArgumentList!.Arguments;
+        var identity = ConventionInputSyntax.String(arguments[0].Expression, cancellation)!;
+        var fields = arguments.Skip(1).ToImmutableDictionary(argument =>
+        {
+            var name = argument.NameEquals!.Name.Identifier.ValueText;
+            return kind == ConventionInputSyntax.ExceptionKind && name == ConventionInputSyntax.SymbolTargetField
+                ? ConventionInputSyntax.TargetField
+                : name;
+        }, argument => ConventionInputSyntax.String(argument.Expression, cancellation)!, StringComparer.Ordinal);
+        var location = Location.Create(path, attribute.Span, text.Lines.GetLinePositionSpan(attribute.Span));
+        key = kind.Length + ":" + kind + identity.Length + ":" + identity + string.Concat(
+            fields.OrderBy(field => field.Key, StringComparer.Ordinal)
+                .Select(field => field.Key.Length + ":" + field.Key + field.Value.Length + ":" + field.Value));
+        return new(kind, identity, fields, location);
     }
 }

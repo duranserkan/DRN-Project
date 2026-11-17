@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.CodeAnalysis;
 
 namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
@@ -7,165 +8,263 @@ internal static class ConventionAggregateRepositoryAnalysis
 {
     internal static void Analyze(ConventionFacts facts)
     {
-        var contracts = new Dictionary<INamedTypeSymbol, List<INamedTypeSymbol>>(SymbolEqualityComparer.Default);
-        var indexed = new HashSet<IAssemblySymbol>(SymbolEqualityComparer.Default);
+        var contracts = new ContractIndex(facts);
+        var implementations = IndexRepositoryImplementations(facts);
+        AnalyzeDomainAggregateContracts(facts, contracts);
+        var configurations = IndexConfigurations(facts);
+        AnalyzeContextRepositories(facts, implementations, configurations, contracts);
+    }
+
+    private static Dictionary<INamedTypeSymbol, List<INamedTypeSymbol>> IndexRepositoryImplementations(ConventionFacts facts)
+    {
         var implementations = new Dictionary<INamedTypeSymbol, List<INamedTypeSymbol>>(SymbolEqualityComparer.Default);
         foreach (var type in facts.Types)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
             if (type.TypeKind != TypeKind.Class || type.IsAbstract || facts.Symbols.IsOpen(type, facts.Cancellation) ||
-                facts.Role(type).Role != "Infra") continue;
-            foreach (var binding in facts.Symbols.Bindings(type, facts.Symbols.Repository, facts.Cancellation))
-            {
-                if (binding.TypeArguments is not [_, INamedTypeSymbol entity]) continue;
-                if (!implementations.TryGetValue(entity, out var list)) implementations.Add(entity, list = []);
-                list.Add(type);
-            }
+                facts.Role(type).Role != ConventionArchitecture.Infra) continue;
+            CollectImplementationEntities(facts, type, implementations);
         }
+        return implementations;
+    }
 
+    private static void CollectImplementationEntities(ConventionFacts facts, INamedTypeSymbol type,
+        Dictionary<INamedTypeSymbol, List<INamedTypeSymbol>> implementations)
+    {
+        foreach (var binding in facts.Symbols.Bindings(type, facts.Symbols.Repository, facts.Cancellation))
+        {
+            if (binding.TypeArguments is not [_, INamedTypeSymbol entity]) continue;
+            if (!implementations.TryGetValue(entity, out var list))
+            {
+                list = [];
+                implementations.Add(entity, list);
+            }
+            list.Add(type);
+        }
+    }
+
+    private static void AnalyzeDomainAggregateContracts(ConventionFacts facts, ContractIndex contracts)
+    {
         foreach (var type in facts.Types)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
             if (type.IsAbstract || facts.Symbols.IsOpen(type, facts.Cancellation)) continue;
             var location = facts.Location(type);
             if (location == Location.None) continue;
-            if (facts.Role(type).Role == "Domain" && IsAggregate(type) && facts.Owner(type) is { } owner &&
-                FindContracts(type).Count == 0)
+            if (facts.Role(type).Role == ConventionArchitecture.Domain && IsAggregate(facts, type) &&
+                facts.Owner(type) is { } owner && contracts.FindContracts(type).Count == 0)
                 facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.AggregateContract, location,
                     Properties(type, type), type.Name, owner.Subdomain));
         }
+    }
 
-        var reported = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
-        var repositoryMatches = new Dictionary<INamedTypeSymbol, bool>(SymbolEqualityComparer.Default);
-        var configurationEntities = new List<List<INamedTypeSymbol>>();
-        var defaultConfigurations = new Dictionary<INamespaceSymbol, List<int>>(SymbolEqualityComparer.Default);
+    private static ConfigurationIndex IndexConfigurations(ConventionFacts facts)
+    {
+        var index = new ConfigurationIndex();
         foreach (var configuration in facts.Types)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
             if (!facts.Symbols.IsKnown(configuration, facts.Symbols.Configuration, facts.Cancellation)) continue;
-            var index = configurationEntities.Count;
+            var entryIndex = index.Entities.Count;
             var entities = new List<INamedTypeSymbol>();
             foreach (var binding in facts.Symbols.Bindings(configuration, facts.Symbols.Configuration, facts.Cancellation))
                 if (binding.TypeArguments is [INamedTypeSymbol entity]) entities.Add(entity);
-            configurationEntities.Add(entities);
-            if (!ConventionPersistenceAnalysis.DefaultDiscoverable(facts, configuration, configuration)) continue;
-            // Preserve source order for default configuration discovery.
-            for (var ns = configuration.ContainingNamespace; ns is not null; ns = ns.ContainingNamespace)
-            {
-                facts.Cancellation.ThrowIfCancellationRequested();
-                // IsNamespaceWithin treats the empty namespace as an exact match only.
-                if (ns.IsGlobalNamespace && !configuration.ContainingNamespace.IsGlobalNamespace) break;
-                if (!defaultConfigurations.TryGetValue(ns, out var list)) defaultConfigurations.Add(ns, list = []);
-                list.Add(index);
-            }
+            index.Entities.Add(entities);
+            if (ConventionPersistenceAnalysis.DefaultDiscoverable(facts, configuration, configuration))
+                IndexDefaultConfiguration(facts, configuration, entryIndex, index.ByNamespace);
         }
+        return index;
+    }
+
+    private static void IndexDefaultConfiguration(ConventionFacts facts, INamedTypeSymbol configuration, int entryIndex,
+        Dictionary<INamespaceSymbol, List<int>> byNamespace)
+    {
+        // Preserve source order for default configuration discovery.
+        for (var ns = configuration.ContainingNamespace; ns is not null; ns = ns.ContainingNamespace)
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            // IsNamespaceWithin treats the empty namespace as an exact match only.
+            if (ns.IsGlobalNamespace && !configuration.ContainingNamespace.IsGlobalNamespace) break;
+            if (!byNamespace.TryGetValue(ns, out var list))
+            {
+                list = [];
+                byNamespace.Add(ns, list);
+            }
+            list.Add(entryIndex);
+        }
+    }
+
+    private static void AnalyzeContextRepositories(ConventionFacts facts,
+        Dictionary<INamedTypeSymbol, List<INamedTypeSymbol>> implementations,
+        ConfigurationIndex configurations, ContractIndex contracts)
+    {
+        var reported = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
+        var repositoryMatches = new Dictionary<INamedTypeSymbol, bool>(SymbolEqualityComparer.Default);
         var selectedConfigurations = new List<int>();
         var assigned = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
         foreach (var context in facts.Types)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
             if (context.IsAbstract || facts.Symbols.IsOpen(context, facts.Cancellation) ||
-                facts.Role(context).Role != "Infra" || !facts.Symbols.IsContext(context, facts.Cancellation)) continue;
+                facts.Role(context).Role != ConventionArchitecture.Infra || !facts.Symbols.IsContext(context, facts.Cancellation))
+                continue;
             var location = facts.Location(context);
             if (location == Location.None || facts.HasInvalidContext(context)) continue;
             var model = ConventionPersistenceAnalysis.GetModel(facts, context);
-            assigned.Clear();
-            foreach (var entity in model.Candidates)
+            CollectContextEntities(facts, context, model, configurations, assigned, selectedConfigurations);
+            ReportMissingContextRepositories(facts, context, location, model, assigned,
+                implementations, repositoryMatches, reported, contracts);
+        }
+    }
+
+    private static void CollectContextEntities(ConventionFacts facts, INamedTypeSymbol context,
+        ConventionPersistenceAnalysis.ContextModel model, ConfigurationIndex configurations,
+        HashSet<INamedTypeSymbol> assigned, List<int> selectedConfigurations)
+    {
+        assigned.Clear();
+        foreach (var entity in model.Candidates)
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            assigned.Add(entity);
+        }
+        selectedConfigurations.Clear();
+        if (model.DefaultScan && configurations.ByNamespace.TryGetValue(context.ContainingNamespace, out var defaults))
+        {
+            foreach (var index in defaults)
             {
                 facts.Cancellation.ThrowIfCancellationRequested();
-                assigned.Add(entity);
+                selectedConfigurations.Add(index);
             }
-            selectedConfigurations.Clear();
-            if (model.DefaultScan && defaultConfigurations.TryGetValue(context.ContainingNamespace, out var defaults))
-                foreach (var index in defaults)
+        }
+        foreach (var entity in model.Applied.Keys)
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            assigned.Add(entity);
+        }
+        AddSelectedConfigurationEntities(facts, configurations.Entities, selectedConfigurations, assigned);
+    }
+
+    private static void AddSelectedConfigurationEntities(ConventionFacts facts, List<List<INamedTypeSymbol>> configurationEntities,
+        List<int> selectedConfigurations, HashSet<INamedTypeSymbol> assigned)
+    {
+        selectedConfigurations.Sort();
+        var previousIndex = -1;
+        foreach (var index in selectedConfigurations)
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            if (index == previousIndex) continue;
+            previousIndex = index;
+            foreach (var entity in configurationEntities[index]) assigned.Add(entity);
+        }
+    }
+
+    private static void ReportMissingContextRepositories(ConventionFacts facts, INamedTypeSymbol context, Location location,
+        ConventionPersistenceAnalysis.ContextModel model, HashSet<INamedTypeSymbol> assigned,
+        Dictionary<INamedTypeSymbol, List<INamedTypeSymbol>> implementations,
+        Dictionary<INamedTypeSymbol, bool> repositoryMatches, HashSet<INamedTypeSymbol> reported, ContractIndex contracts)
+    {
+        foreach (var entity in assigned)
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            if (!IsEligibleContextEntity(facts, context, entity, model) ||
+                HasRepository(facts, entity, implementations, repositoryMatches, contracts) ||
+                !reported.Add(entity)) continue;
+            facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.AggregateRepository, location,
+                Properties(context, entity, context), entity.Name, facts.Owner(entity)!.Subdomain));
+        }
+    }
+
+    private static bool IsEligibleContextEntity(ConventionFacts facts, INamedTypeSymbol context,
+        INamedTypeSymbol entity, ConventionPersistenceAnalysis.ContextModel model) =>
+        IsAggregate(facts, entity) && !entity.IsAbstract && !facts.Symbols.IsOpen(entity, facts.Cancellation) &&
+        !model.Excluded.Contains(entity) && !model.Ignored.Contains(entity) &&
+        facts.Role(entity).Role == ConventionArchitecture.Domain && facts.Owner(entity) is not null &&
+        facts.UsesOwnSubdomain(context, entity);
+
+    private static bool IsAggregate(ConventionFacts facts, INamedTypeSymbol type) =>
+        facts.Symbols.IsKnown(type, facts.Symbols.Aggregate, facts.Cancellation);
+
+    private static bool HasRepository(ConventionFacts facts, INamedTypeSymbol entity,
+        Dictionary<INamedTypeSymbol, List<INamedTypeSymbol>> implementations,
+        Dictionary<INamedTypeSymbol, bool> repositoryMatches, ContractIndex contracts)
+    {
+        facts.Cancellation.ThrowIfCancellationRequested();
+        if (repositoryMatches.TryGetValue(entity, out var cached)) return cached;
+        var required = contracts.FindContracts(entity);
+        var matches = implementations.TryGetValue(entity, out var candidates) &&
+            MatchesAnyCandidate(facts, entity, candidates, required);
+        facts.Cancellation.ThrowIfCancellationRequested();
+        repositoryMatches.Add(entity, matches);
+        return matches;
+    }
+
+    private static bool MatchesAnyCandidate(ConventionFacts facts, INamedTypeSymbol entity,
+        List<INamedTypeSymbol> candidates, IReadOnlyList<INamedTypeSymbol> required)
+    {
+        foreach (var repository in candidates)
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            if (!facts.UsesOwnSubdomain(repository, entity)) continue;
+            foreach (var contract in repository.AllInterfaces)
+            {
+                facts.Cancellation.ThrowIfCancellationRequested();
+                if (required.Contains(contract, SymbolEqualityComparer.Default)) return true;
+            }
+        }
+        return false;
+    }
+
+    private sealed class ConfigurationIndex
+    {
+        internal List<List<INamedTypeSymbol>> Entities { get; } = [];
+        internal Dictionary<INamespaceSymbol, List<int>> ByNamespace { get; } = new(SymbolEqualityComparer.Default);
+    }
+
+    private sealed class ContractIndex(ConventionFacts facts)
+    {
+        private readonly Dictionary<INamedTypeSymbol, List<INamedTypeSymbol>> _contracts = new(SymbolEqualityComparer.Default);
+        private readonly HashSet<IAssemblySymbol> _indexed = new(SymbolEqualityComparer.Default);
+
+        internal IReadOnlyList<INamedTypeSymbol> FindContracts(INamedTypeSymbol entity)
+        {
+            if (_indexed.Add(entity.ContainingAssembly)) IndexAssembly(entity.ContainingAssembly);
+            return _contracts.TryGetValue(entity, out var result) ? result : Array.Empty<INamedTypeSymbol>();
+        }
+
+        private void IndexAssembly(IAssemblySymbol assembly)
+        {
+            var pending = new Stack<INamespaceOrTypeSymbol>();
+            pending.Push(assembly.GlobalNamespace);
+            while (pending.TryPop(out var container))
+            {
+                facts.Cancellation.ThrowIfCancellationRequested();
+                foreach (var member in container.GetMembers())
                 {
-                    facts.Cancellation.ThrowIfCancellationRequested();
-                    selectedConfigurations.Add(index);
+                    if (member is INamespaceOrTypeSymbol child) pending.Push(child);
+                    if (member is INamedTypeSymbol { TypeKind: TypeKind.Interface } contract) IndexContractInterface(contract);
                 }
-            foreach (var entity in model.Applied.Keys)
-            {
-                facts.Cancellation.ThrowIfCancellationRequested();
-                assigned.Add(entity);
-            }
-            selectedConfigurations.Sort();
-            var previousIndex = -1;
-            foreach (var index in selectedConfigurations)
-            {
-                facts.Cancellation.ThrowIfCancellationRequested();
-                if (index == previousIndex) continue;
-                previousIndex = index;
-                foreach (var entity in configurationEntities[index]) assigned.Add(entity);
-            }
-            foreach (var entity in assigned)
-            {
-                facts.Cancellation.ThrowIfCancellationRequested();
-                if (!IsAggregate(entity) || entity.IsAbstract || facts.Symbols.IsOpen(entity, facts.Cancellation) ||
-                    model.Excluded.Contains(entity) || model.Ignored.Contains(entity) ||
-                    facts.Role(entity).Role != "Domain" || facts.Owner(entity) is not { } owner ||
-                    !facts.UsesOwnSubdomain(context, entity)) continue;
-                if (HasRepository(entity)) continue;
-                if (!reported.Add(entity)) continue;
-                facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.AggregateRepository, location,
-                    Properties(context, entity, context), entity.Name, owner.Subdomain));
             }
         }
 
-        bool IsAggregate(INamedTypeSymbol type) => facts.Symbols.IsKnown(type, facts.Symbols.Aggregate, facts.Cancellation);
-
-        bool HasRepository(INamedTypeSymbol entity)
+        private void IndexContractInterface(INamedTypeSymbol contract)
         {
-            facts.Cancellation.ThrowIfCancellationRequested();
-            if (repositoryMatches.TryGetValue(entity, out var cached)) return cached;
-            var required = FindContracts(entity);
-            var matches = false;
-            if (implementations.TryGetValue(entity, out var candidates))
-                foreach (var repository in candidates)
-                {
-                    facts.Cancellation.ThrowIfCancellationRequested();
-                    if (!facts.UsesOwnSubdomain(repository, entity)) continue;
-                    foreach (var contract in repository.AllInterfaces)
-                    {
-                        facts.Cancellation.ThrowIfCancellationRequested();
-                        if (!required.Contains(contract, SymbolEqualityComparer.Default)) continue;
-                        matches = true;
-                        break;
-                    }
-                    if (matches) break;
-                }
-            facts.Cancellation.ThrowIfCancellationRequested();
-            repositoryMatches.Add(entity, matches);
-            return matches;
-        }
-
-        IReadOnlyList<INamedTypeSymbol> FindContracts(INamedTypeSymbol entity)
-        {
-            if (indexed.Add(entity.ContainingAssembly))
+            if (facts.Symbols.IsOpen(contract, facts.Cancellation) ||
+                facts.Role(contract).Role != ConventionArchitecture.Domain ||
+                facts.Owner(contract) is not { } contractOwner) return;
+            foreach (var binding in facts.Symbols.Bindings(contract, facts.Symbols.RepositoryContract, facts.Cancellation))
             {
-                var pending = new Stack<INamespaceOrTypeSymbol>();
-                pending.Push(entity.ContainingAssembly.GlobalNamespace);
-                while (pending.TryPop(out var container))
+                if (binding.TypeArguments is not [INamedTypeSymbol aggregate] ||
+                    !SymbolEqualityComparer.Default.Equals(aggregate.ContainingAssembly, contract.ContainingAssembly) ||
+                    facts.Owner(aggregate)?.Subdomain != contractOwner.Subdomain ||
+                    !SymbolEqualityComparer.Default.Equals(aggregate.ContainingNamespace, contract.ContainingNamespace) ||
+                    !SharesLogicalDirectory(facts, aggregate, contract)) continue;
+                if (!_contracts.TryGetValue(aggregate, out var list))
                 {
-                    facts.Cancellation.ThrowIfCancellationRequested();
-                    foreach (var member in container.GetMembers())
-                    {
-                        if (member is INamespaceOrTypeSymbol child) pending.Push(child);
-                        if (member is not INamedTypeSymbol { TypeKind: TypeKind.Interface } contract ||
-                            facts.Symbols.IsOpen(contract, facts.Cancellation) || facts.Role(contract).Role != "Domain" ||
-                            facts.Owner(contract) is not { } contractOwner) continue;
-                        foreach (var binding in facts.Symbols.Bindings(contract, facts.Symbols.RepositoryContract, facts.Cancellation))
-                        {
-                            if (binding.TypeArguments is not [INamedTypeSymbol aggregate] ||
-                                !SymbolEqualityComparer.Default.Equals(aggregate.ContainingAssembly, contract.ContainingAssembly) ||
-                                facts.Owner(aggregate)?.Subdomain != contractOwner.Subdomain ||
-                                !SymbolEqualityComparer.Default.Equals(aggregate.ContainingNamespace, contract.ContainingNamespace) ||
-                                !SharesLogicalDirectory(facts, aggregate, contract)) continue;
-                            if (!contracts.TryGetValue(aggregate, out var list)) contracts.Add(aggregate, list = []);
-                            list.Add(contract);
-                        }
-                    }
+                    list = [];
+                    _contracts.Add(aggregate, list);
                 }
+                list.Add(contract);
             }
-            return contracts.TryGetValue(entity, out var result) ? result : Array.Empty<INamedTypeSymbol>();
         }
     }
 
@@ -174,23 +273,25 @@ internal static class ConventionAggregateRepositoryAnalysis
         // Referenced assemblies expose namespaces, not their producer's Compile/Link paths.
         if (!facts.IsLocal(aggregate)) return true;
         string? directory = null;
-        return Matches(aggregate) && Matches(contract);
+        return TryResolveLogicalDirectory(facts, aggregate, ref directory) &&
+               TryResolveLogicalDirectory(facts, contract, ref directory);
+    }
 
-        bool Matches(INamedTypeSymbol type)
+    [SuppressMessage("SonarQube", "S3267", Justification = "Iterating DeclaringSyntaxReferences directly avoids boxing ImmutableArray and preserves per-reference cancellation.")]
+    private static bool TryResolveLogicalDirectory(ConventionFacts facts, INamedTypeSymbol type, ref string? directory)
+    {
+        foreach (var reference in type.DeclaringSyntaxReferences)
         {
-            foreach (var reference in type.DeclaringSyntaxReferences)
-            {
-                facts.Cancellation.ThrowIfCancellationRequested();
-                var tree = reference.SyntaxTree;
-                if (facts.IsGenerated(tree) || facts.HasInvalidPath(tree)) continue;
-                var placement = facts.LogicalDirectory(tree);
-                if (placement is null) continue; // Ownership analysis reports missing logical paths.
-                var current = placement.Value.Directory;
-                if (directory is not null && !string.Equals(directory, current, StringComparison.Ordinal)) return false;
-                directory = current;
-            }
-            return true;
+            facts.Cancellation.ThrowIfCancellationRequested();
+            var tree = reference.SyntaxTree;
+            if (facts.IsGenerated(tree) || facts.HasInvalidPath(tree)) continue;
+            var placement = facts.LogicalDirectory(tree);
+            if (placement is null) continue; // Ownership analysis reports missing logical paths.
+            var current = placement.Value.Directory;
+            if (directory is not null && !string.Equals(directory, current, StringComparison.Ordinal)) return false;
+            directory = current;
         }
+        return true;
     }
 
     private static ImmutableDictionary<string, string?> Properties(ISymbol target, INamedTypeSymbol entity,

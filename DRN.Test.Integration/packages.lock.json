@@ -1040,7 +1040,8 @@
         "dependencies": {
           "DRN.Framework.Hosting": "[1.0.0, )",
           "DRN.Framework.Testing": "[1.0.0, )",
-          "DRN.Nexus.Application": "[1.0.0, )"
+          "DRN.Nexus.Application": "[1.0.0, )",
+          "DRN.Nexus.Infra": "[1.0.0, )"
         }
       },
       "drn.nexus.infra": {
@@ -1091,7 +1092,8 @@
           "DRN.Framework.Testing": "[1.0.0, )",
           "Microsoft.AspNetCore.Authentication.MicrosoftAccount": "[11.0.0, )",
           "QRCoder": "[1.8.1, )",
-          "Sample.Application": "[1.0.0, )"
+          "Sample.Application": "[1.0.0, )",
+          "Sample.Infra": "[1.0.0, )"
         }
       },
       "sample.infra": {

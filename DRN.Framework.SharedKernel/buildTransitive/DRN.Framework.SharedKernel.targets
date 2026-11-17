@@ -2,7 +2,19 @@
   <Import Project="$(MSBuildThisFileDirectory)Conventions/DRN.Framework.SharedKernel.Conventions.targets" />
   <PropertyGroup>
     <_DrnRuleTargetsFile>$(MSBuildThisFileFullPath)</_DrnRuleTargetsFile>
+    <_DrnSharedKernelPackagedAnalyzer Condition="'$(_DrnSharedKernelPackagedAnalyzer)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../analyzers/dotnet/cs/DRN.Framework.SharedKernel.Analyzers.dll'))</_DrnSharedKernelPackagedAnalyzer>
+    <_DrnSharedKernelPackagedCodeFixes Condition="'$(_DrnSharedKernelPackagedCodeFixes)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../analyzers/dotnet/cs/DRN.Framework.SharedKernel.CodeFixes.dll'))</_DrnSharedKernelPackagedCodeFixes>
   </PropertyGroup>
+
+  <Target Name="DrnSharedKernelAddPackagedAnalyzers" BeforeTargets="CoreCompile"
+          Condition="'$(MSBuildProjectExtension)' == '.csproj' and (Exists('$(_DrnSharedKernelPackagedAnalyzer)') or Exists('$(_DrnSharedKernelPackagedCodeFixes)'))">
+    <ItemGroup>
+      <Analyzer Remove="$(_DrnSharedKernelPackagedAnalyzer)" Condition="Exists('$(_DrnSharedKernelPackagedAnalyzer)')" />
+      <Analyzer Include="$(_DrnSharedKernelPackagedAnalyzer)" Condition="Exists('$(_DrnSharedKernelPackagedAnalyzer)')" />
+      <Analyzer Remove="$(_DrnSharedKernelPackagedCodeFixes)" Condition="Exists('$(_DrnSharedKernelPackagedCodeFixes)')" />
+      <Analyzer Include="$(_DrnSharedKernelPackagedCodeFixes)" Condition="Exists('$(_DrnSharedKernelPackagedCodeFixes)')" />
+    </ItemGroup>
+  </Target>
 
   <!-- Publish catalogs as assembly metadata so reference assemblies retain them for downstream analyzers. -->
   <Target Name="_PrepareDrnDataClassificationRules" BeforeTargets="CoreCompile" Condition="'$(MSBuildProjectExtension)' == '.csproj'">

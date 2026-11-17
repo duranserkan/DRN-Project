@@ -190,19 +190,46 @@ public sealed class ConventionOwnershipTests
     }
 
     [Theory]
-    [InlineData("namespaceanddescendants", "~N:Sample.Domain.QA", true)]
-    [InlineData("namespace", "~N:Sample.Domain.QA", true)]
-    [InlineData("member", "~T:Sample.Domain.QA.Thing", true)]
-    [InlineData("type", "~T:Sample.Domain.QA.Thing", false)]
+    [DataInlineUnit("namespaceanddescendants", "~N:Sample.Domain.QA", true)]
+    [DataInlineUnit("namespace", "~N:Sample.Domain.QA", true)]
+    [DataInlineUnit("member", "~T:Sample.Domain.QA.Thing", true)]
+    [DataInlineUnit("type", "~T:Sample.Domain.QA.Thing", false)]
+    [DataInlineUnit("Type", "~T:Sample.Domain.QA.Thing", false)]
+    [DataInlineUnit("Member", "~P:Sample.Domain.QA.Thing.Value", false)]
     public void Assembly_Suppression_Should_Require_An_Exact_Type_Or_Member(string scope, string target, bool invalid)
     {
         var facts = Facts($$"""
             [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("DRN.Conventions.Ownership", "DRNCV019",
                 Scope = "{{scope}}", Target = "{{target}}", Justification = "Reviewed exact compatibility dependency")]
-            namespace Sample.Domain.QA; public class Thing;
+            namespace Sample.Domain.QA;
+            public class Thing
+            {
+                public int Value { get; }
+            }
             """, "QA/Thing.cs");
         _ = new ConventionExceptions(facts, new DateOnly(2026, 11, 15));
         facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV018").Should().Be(invalid ? 1 : 0);
+    }
+
+    [Theory]
+    [DataInlineUnit("namespace", "~N:Sample.Domain.QA", "Reviewed exact compatibility dependency", 1)]
+    [DataInlineUnit("type", "~T:Sample.Domain.QA.Thing", "", 1)]
+    [DataInlineUnit("Type", "~T:Sample.Domain.QA.Thing", "Reviewed exact compatibility dependency", 0)]
+    [DataInlineUnit("Member", "~P:Sample.Domain.QA.Thing.Value", "Reviewed exact compatibility dependency", 0)]
+    public void Module_Suppression_Should_Follow_The_Same_Audit_Rules_As_Assembly_Suppression(
+        string scope, string target, string justification, int expectedErrors)
+    {
+        var facts = Facts($$"""
+            [module: System.Diagnostics.CodeAnalysis.SuppressMessage("DRN.Conventions.Ownership", "DRNCV019",
+                Scope = "{{scope}}", Target = "{{target}}", Justification = "{{justification}}")]
+            namespace Sample.Domain.QA;
+            public class Thing
+            {
+                public int Value { get; }
+            }
+            """, "QA/Thing.cs");
+        _ = new ConventionExceptions(facts, new DateOnly(2026, 11, 15));
+        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV018").Should().Be(expectedErrors);
     }
 
     [Theory]

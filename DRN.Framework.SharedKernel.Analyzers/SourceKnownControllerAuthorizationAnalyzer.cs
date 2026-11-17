@@ -17,23 +17,8 @@ public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnaly
         context.EnableConcurrentExecution();
         context.RegisterCompilationStartAction(start =>
         {
-            var foundation = start.Compilation.GetTypeByMetadataName("DRN.Framework.Hosting.Controllers.SourceKnownControllerBase`2");
-            var authorize = start.Compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Authorization.AuthorizeAttribute");
-            var anonymous = start.Compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Authorization.IAllowAnonymous");
-            var nonAction = start.Compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.NonActionAttribute");
-            var nonController = start.Compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.NonControllerAttribute");
-            var attributeUsage = start.Compilation.GetTypeByMetadataName("System.AttributeUsageAttribute");
-            var authorizeData = start.Compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Authorization.IAuthorizeData");
-            var policyProperty = authorizeData?.GetMembers("Policy").OfType<IPropertySymbol>().FirstOrDefault();
-            var conditional = start.Compilation.GetTypeByMetadataName("System.Diagnostics.ConditionalAttribute");
-            if (foundation is null || authorize is null || anonymous is null || nonAction is null ||
-                nonController is null || attributeUsage is null || policyProperty is null || conditional is null)
+            if (Contract.TryCreate(start.Compilation) is not { } contract)
                 return;
-
-            var dispose = start.Compilation.GetTypeByMetadataName("System.IDisposable")
-                ?.GetMembers("Dispose").OfType<IMethodSymbol>().FirstOrDefault();
-            var contract = new Contract(foundation, authorize, anonymous, nonAction, nonController, attributeUsage,
-                policyProperty, conditional, dispose);
             start.RegisterSymbolAction(symbol => AnalyzeController(symbol, contract), SymbolKind.NamedType);
         });
     }
@@ -272,31 +257,51 @@ public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnaly
         private readonly SymbolFactCache<INamedTypeSymbol, (bool Inherited, bool AllowMultiple)> _attributeUsage = new(capacity: 31);
         private readonly Func<INamedTypeSymbol, CancellationToken, (bool Inherited, bool AllowMultiple)> _calculateAttributeUsage;
 
-        internal Contract(INamedTypeSymbol foundation, INamedTypeSymbol authorize, INamedTypeSymbol anonymous,
-            INamedTypeSymbol nonAction, INamedTypeSymbol nonController, INamedTypeSymbol attributeUsageType,
-            IPropertySymbol policyProperty, INamedTypeSymbol conditional, IMethodSymbol? dispose)
+        private Contract()
         {
-            Foundation = foundation;
-            Authorize = authorize;
-            Anonymous = anonymous;
-            NonAction = nonAction;
-            NonController = nonController;
-            AttributeUsageType = attributeUsageType;
-            PolicyProperty = policyProperty;
-            Conditional = conditional;
-            Dispose = dispose;
             _calculateAttributeUsage = CalculateAttributeUsage;
         }
 
-        internal INamedTypeSymbol Foundation { get; }
-        internal INamedTypeSymbol Authorize { get; }
-        internal INamedTypeSymbol Anonymous { get; }
-        internal INamedTypeSymbol NonAction { get; }
-        internal INamedTypeSymbol NonController { get; }
-        internal INamedTypeSymbol AttributeUsageType { get; }
-        internal IPropertySymbol PolicyProperty { get; }
-        internal INamedTypeSymbol Conditional { get; }
-        internal IMethodSymbol? Dispose { get; }
+        internal required INamedTypeSymbol Foundation { get; init; }
+        internal required INamedTypeSymbol Authorize { get; init; }
+        internal required INamedTypeSymbol Anonymous { get; init; }
+        internal required INamedTypeSymbol NonAction { get; init; }
+        internal required INamedTypeSymbol NonController { get; init; }
+        internal required INamedTypeSymbol AttributeUsageType { get; init; }
+        internal required IPropertySymbol PolicyProperty { get; init; }
+        internal required INamedTypeSymbol Conditional { get; init; }
+        internal required IMethodSymbol? Dispose { get; init; }
+
+        internal static Contract? TryCreate(Compilation compilation)
+        {
+            var foundation = compilation.GetTypeByMetadataName("DRN.Framework.Hosting.Controllers.SourceKnownControllerBase`2");
+            var authorize = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Authorization.AuthorizeAttribute");
+            var anonymous = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Authorization.IAllowAnonymous");
+            var nonAction = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.NonActionAttribute");
+            var nonController = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.NonControllerAttribute");
+            var attributeUsage = compilation.GetTypeByMetadataName("System.AttributeUsageAttribute");
+            var authorizeData = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Authorization.IAuthorizeData");
+            var policyProperty = authorizeData?.GetMembers("Policy").OfType<IPropertySymbol>().FirstOrDefault();
+            var conditional = compilation.GetTypeByMetadataName("System.Diagnostics.ConditionalAttribute");
+            if (foundation is null || authorize is null || anonymous is null || nonAction is null ||
+                nonController is null || attributeUsage is null || policyProperty is null || conditional is null)
+                return null;
+
+            var dispose = compilation.GetTypeByMetadataName("System.IDisposable")
+                ?.GetMembers("Dispose").OfType<IMethodSymbol>().FirstOrDefault();
+            return new Contract
+            {
+                Foundation = foundation,
+                Authorize = authorize,
+                Anonymous = anonymous,
+                NonAction = nonAction,
+                NonController = nonController,
+                AttributeUsageType = attributeUsage,
+                PolicyProperty = policyProperty,
+                Conditional = conditional,
+                Dispose = dispose
+            };
+        }
 
         internal (bool Inherited, bool AllowMultiple) AttributeUsage(INamedTypeSymbol attributeType, CancellationToken cancellationToken) =>
             _attributeUsage.GetOrAdd(attributeType, _calculateAttributeUsage, cancellationToken);

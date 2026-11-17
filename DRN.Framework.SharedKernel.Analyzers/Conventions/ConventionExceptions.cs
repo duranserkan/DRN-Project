@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -9,6 +10,7 @@ namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 
 internal sealed class ConventionExceptions
 {
+    private static readonly string[] ScopedExceptionFields = [ConventionInputSyntax.EntityField, ConventionInputSyntax.ContextKind];
     private readonly ConventionFacts _facts;
     private readonly DateOnly _reviewDate;
     private readonly List<(ConventionInput Input, ISymbol? Symbol)> _valid = [];
@@ -20,55 +22,88 @@ internal sealed class ConventionExceptions
     {
         _facts = facts;
         _reviewDate = reviewDate;
-        foreach (var input in facts.Records.Where(input => input.Kind == "Exception")) Validate(input);
-        foreach (var type in facts.Types)
+        foreach (var input in facts.Records.Where(input => input.Kind == ConventionInputSyntax.ExceptionKind)) Validate(input);
+        ValidateSourceTypeAttributes();
+        ValidateGlobalAttributes(_facts.Compilation.Assembly);
+        ValidateGlobalAttributes(_facts.Compilation.SourceModule);
+        ValidatePragmas();
+    }
+
+    [SuppressMessage("SonarQube", "S3267", Justification = "Iterating GetMembers directly avoids boxing ImmutableArray for every source type.")]
+    private void ValidateSourceTypeAttributes()
+    {
+        foreach (var type in _facts.Types)
         {
             ValidateAttributes(type);
             foreach (var member in type.GetMembers())
                 if (member is not INamedTypeSymbol) ValidateAttributes(member);
         }
-        ValidateAssemblyAttributes();
-        ValidatePragmas();
     }
 
     private static bool IsRule(string id) => ConventionDiagnosticDescriptors.All.Any(rule => rule.Id == id);
 
     private void Validate(ConventionInput input)
     {
-        var target = input.Get("Target");
-        var symbol = target.StartsWith("~", StringComparison.Ordinal)
-            ? DocumentationCommentId.GetFirstSymbolForDeclarationId(target[1..], _facts.Compilation)
-            : DocumentationCommentId.GetFirstSymbolForDeclarationId(target, _facts.Compilation);
-        var edge = input.Identity == "DRNCV015" && _facts.Records.Any(record => record.Kind == "Reference" &&
-            record.Get("Stage") is "Project" or "Package" && record.Identity == target);
-        var prefix = _facts.Project.AssemblyName + ":";
-        var projectTarget = input.Identity switch
-        {
-            "DRNCV021" => target.StartsWith(prefix, StringComparison.Ordinal) &&
-                target[prefix.Length..] is "Application" or "Infra" or "Domain" or "Contract",
-            "DRNCV022" => target == prefix + "Domain",
-            "DRNCV032" => target == prefix + "Module",
-            _ => false
-        };
+        var target = input.Get(ConventionInputSyntax.TargetField);
+        var symbol = ResolveDeclarationSymbol(target);
         var valid = IsRule(input.Identity) && target.Length > 0 && !target.Contains('*') &&
-                    (IsSuppressionTarget(symbol) || edge || projectTarget) && !string.IsNullOrWhiteSpace(input.Get("Reason")) &&
-                    !string.IsNullOrWhiteSpace(input.Get("Owner")) &&
-                    DateOnly.TryParseExact(input.Get("Review"), "yyyy-MM-dd", CultureInfo.InvariantCulture,
-                        DateTimeStyles.None, out var review) && review > _reviewDate;
-        foreach (var field in new[] { "Entity", "Context" })
-        {
-            var name = input.Get(field);
-            if (name.Length > 0 && _facts.Compilation.GetTypeByMetadataName(name) is null) valid = false;
-        }
-        var fingerprint = input.Get("Fingerprint");
-        if (fingerprint.Length != 0)
-            valid &= symbol is not null && string.Equals(fingerprint, Fingerprint(symbol), StringComparison.Ordinal);
+                    IsValidTarget(input.Identity, target, symbol) &&
+                    !string.IsNullOrWhiteSpace(input.Get(ConventionInputSyntax.ReasonField)) &&
+                    !string.IsNullOrWhiteSpace(input.Get(ConventionInputSyntax.OwnerField)) &&
+                    DateOnly.TryParseExact(input.Get(ConventionInputSyntax.ReviewField), "yyyy-MM-dd",
+                        CultureInfo.InvariantCulture, DateTimeStyles.None, out var review) &&
+                    review > _reviewDate &&
+                    HasResolvableMetadataTypes(input) &&
+                    MatchesBaselineFingerprint(input, symbol);
         if (!valid)
         {
             Issue(input.Identity, "malformed, unresolved, review-due or changed since its baseline", input.Location);
             return;
         }
         _valid.Add((input, symbol));
+    }
+
+    private ISymbol? ResolveDeclarationSymbol(string target)
+    {
+        var id = target.StartsWith('~') ? target[1..] : target;
+        return DocumentationCommentId.GetFirstSymbolForDeclarationId(id, _facts.Compilation);
+    }
+
+    private bool IsValidTarget(string ruleId, string target, ISymbol? symbol)
+    {
+        if (IsSuppressionTarget(symbol)) return true;
+        if (ruleId == "DRNCV015" && _facts.Records.Any(record =>
+                record.Kind == ConventionInputSyntax.ReferenceKind &&
+                record.Get(ConventionInputSyntax.StageField) is ConventionInputSyntax.ProjectField or ConventionInputSyntax.PackageField &&
+                record.Identity == target))
+            return true;
+        var prefix = _facts.Project.AssemblyName + ":";
+        return ruleId switch
+        {
+            "DRNCV021" => target.StartsWith(prefix, StringComparison.Ordinal) &&
+                target[prefix.Length..] is ConventionArchitecture.Application or ConventionArchitecture.Infra or
+                    ConventionArchitecture.Domain or ConventionArchitecture.Contract,
+            "DRNCV022" => target == prefix + ConventionArchitecture.Domain,
+            "DRNCV032" => target == prefix + "Module",
+            _ => false
+        };
+    }
+
+    private bool HasResolvableMetadataTypes(ConventionInput input)
+    {
+        foreach (var field in ScopedExceptionFields)
+        {
+            var name = input.Get(field);
+            if (name.Length > 0 && _facts.Compilation.GetTypeByMetadataName(name) is null) return false;
+        }
+        return true;
+    }
+
+    private bool MatchesBaselineFingerprint(ConventionInput input, ISymbol? symbol)
+    {
+        var fingerprint = input.Get(ConventionInputSyntax.FingerprintField);
+        return fingerprint.Length == 0 ||
+               symbol is not null && string.Equals(fingerprint, Fingerprint(symbol), StringComparison.Ordinal);
     }
 
     private string? Fingerprint(ISymbol symbol)
@@ -147,24 +182,28 @@ internal sealed class ConventionExceptions
         }
     }
 
-    private void ValidateAssemblyAttributes()
+    private void ValidateGlobalAttributes(ISymbol container)
     {
-        ValidateAttributes(_facts.Compilation.Assembly);
-        foreach (var attribute in _facts.Compilation.Assembly.GetAttributes())
+        ValidateAttributes(container);
+        foreach (var attribute in container.GetAttributes())
         {
             if (!ConventionSymbols.Same(attribute.AttributeClass, _facts.Symbols.SuppressionAttribute) ||
                 attribute.ConstructorArguments.Length < 2 || attribute.ConstructorArguments[1].Value is not string check ||
                 !check.StartsWith("DRNCV", StringComparison.Ordinal)) continue;
-            var target = attribute.NamedArguments.FirstOrDefault(pair => pair.Key == "Target").Value.Value as string;
+            var target = attribute.NamedArguments.FirstOrDefault(pair => pair.Key == ConventionInputSyntax.TargetField).Value.Value as string;
             var scope = attribute.NamedArguments.FirstOrDefault(pair => pair.Key == "Scope").Value.Value as string;
             var symbol = target is not null && !target.Contains('*')
                 ? DocumentationCommentId.GetFirstSymbolForDeclarationId(target.TrimStart('~'), _facts.Compilation) : null;
-            if (symbol is INamedTypeSymbol && scope == "type" ||
-                IsSuppressionTarget(symbol) && symbol is not INamedTypeSymbol && scope == "member") continue;
+            if (IsValidScopedSymbol(symbol, scope)) continue;
             Issue(check.Split(':')[0], "not bound to one resolvable symbol",
                 attribute.ApplicationSyntaxReference?.GetSyntax(_facts.Cancellation).GetLocation() ?? Location.None);
         }
     }
+
+    private static bool IsValidScopedSymbol(ISymbol? symbol, string? scope) =>
+        symbol is INamedTypeSymbol && string.Equals(scope, "type", StringComparison.OrdinalIgnoreCase) ||
+        IsSuppressionTarget(symbol) && symbol is not INamedTypeSymbol &&
+        string.Equals(scope, "member", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsSuppressionTarget(ISymbol? symbol) =>
         symbol is INamedTypeSymbol or IMethodSymbol or IPropertySymbol or IFieldSymbol or IEventSymbol;
@@ -173,53 +212,77 @@ internal sealed class ConventionExceptions
     {
         foreach (var tree in _facts.Compilation.SyntaxTrees)
         {
-            if (_facts.IsGenerated(tree)) continue;
-            var active = new Dictionary<string, PragmaWarningDirectiveTriviaSyntax>(StringComparer.Ordinal);
-            var root = tree.GetRoot(_facts.Cancellation);
-            foreach (var pragma in root.DescendantTrivia(descendIntoTrivia: true)
-                         .Select(trivia => trivia.GetStructure()).OfType<PragmaWarningDirectiveTriviaSyntax>())
-            {
-                _facts.Cancellation.ThrowIfCancellationRequested();
-                if (!pragma.IsActive) continue;
-                if (pragma.ErrorCodes.Count == 0)
-                {
-                    if (pragma.DisableOrRestoreKeyword.IsKind(SyntaxKind.DisableKeyword))
-                        Issue("DRNCV*", "a blanket warning disable", pragma.GetLocation());
-                    continue;
-                }
-                foreach (var code in pragma.ErrorCodes)
-                {
-                    var id = code.ToString();
-                    if (!id.StartsWith("DRNCV", StringComparison.Ordinal)) continue;
-                    if (!IsRule(id)) { Issue(id, "unknown", code.GetLocation()); continue; }
-                    if (pragma.DisableOrRestoreKeyword.IsKind(SyntaxKind.DisableKeyword))
-                    {
-                        var text = tree.GetText(_facts.Cancellation);
-                        var line = text.Lines.GetLineFromPosition(pragma.SpanStart).LineNumber;
-                        var previous = line > 0 ? text.Lines[line - 1].ToString().Trim() : "";
-                        var current = text.Lines[line].ToString();
-                        var comment = current.IndexOf("//", StringComparison.Ordinal);
-                        var reason = comment >= 0 ? current[(comment + 2)..].Trim() :
-                            previous.StartsWith("//", StringComparison.Ordinal) ? previous[2..].Trim() : "";
-                        if (reason.Length == 0 || !active.TryAdd(id, pragma))
-                            Issue(id, "missing its adjacent reason or already disabled", pragma.GetLocation());
-                    }
-                    else if (!active.Remove(id, out var disabled))
-                        Issue(id, "restored without a matching local disable", pragma.GetLocation());
-                    else
-                    {
-                        var span = Microsoft.CodeAnalysis.Text.TextSpan.FromBounds(disabled.Span.End, pragma.SpanStart);
-                        var declarations = root.DescendantNodes(span).OfType<MemberDeclarationSyntax>()
-                            .Where(member => member is not BaseNamespaceDeclarationSyntax && span.Contains(member.Span) &&
-                                !member.Ancestors().OfType<MemberDeclarationSyntax>().Any(parent =>
-                                    parent is not BaseNamespaceDeclarationSyntax && span.Contains(parent.Span))).Take(2).Count();
-                        if (declarations > 1)
-                            Issue(id, "spanning multiple declarations", disabled.GetLocation());
-                    }
-                }
-            }
-            foreach (var (id, pragma) in active) Issue(id, "not restored in the same file", pragma.GetLocation());
+            if (!_facts.IsGenerated(tree)) ValidateTreePragmas(tree);
         }
+    }
+
+    private void ValidateTreePragmas(SyntaxTree tree)
+    {
+        var active = new Dictionary<string, PragmaWarningDirectiveTriviaSyntax>(StringComparer.Ordinal);
+        var root = tree.GetRoot(_facts.Cancellation);
+        foreach (var pragma in root.DescendantTrivia(descendIntoTrivia: true)
+                     .Select(trivia => trivia.GetStructure()).OfType<PragmaWarningDirectiveTriviaSyntax>())
+        {
+            _facts.Cancellation.ThrowIfCancellationRequested();
+            if (pragma.IsActive) ValidatePragmaDirective(tree, root, pragma, active);
+        }
+        foreach (var (id, pragma) in active) Issue(id, "not restored in the same file", pragma.GetLocation());
+    }
+
+    private void ValidatePragmaDirective(SyntaxTree tree, SyntaxNode root, PragmaWarningDirectiveTriviaSyntax pragma,
+        Dictionary<string, PragmaWarningDirectiveTriviaSyntax> active)
+    {
+        if (pragma.ErrorCodes.Count == 0)
+        {
+            if (pragma.DisableOrRestoreKeyword.IsKind(SyntaxKind.DisableKeyword))
+                Issue("DRNCV*", "a blanket warning disable", pragma.GetLocation());
+            return;
+        }
+        foreach (var code in pragma.ErrorCodes) ValidatePragmaCode(tree, root, pragma, code, active);
+    }
+
+    private void ValidatePragmaCode(SyntaxTree tree, SyntaxNode root, PragmaWarningDirectiveTriviaSyntax pragma,
+        ExpressionSyntax code, Dictionary<string, PragmaWarningDirectiveTriviaSyntax> active)
+    {
+        var id = code.ToString();
+        if (!id.StartsWith("DRNCV", StringComparison.Ordinal)) return;
+        if (!IsRule(id))
+        {
+            Issue(id, "unknown", code.GetLocation());
+            return;
+        }
+        if (pragma.DisableOrRestoreKeyword.IsKind(SyntaxKind.DisableKeyword))
+        {
+            if (ReadPragmaReason(tree, pragma).Length == 0 || !active.TryAdd(id, pragma))
+                Issue(id, "missing its adjacent reason or already disabled", pragma.GetLocation());
+            return;
+        }
+        if (!active.Remove(id, out var disabled))
+            Issue(id, "restored without a matching local disable", pragma.GetLocation());
+        else if (SpansMultipleDeclarations(root, disabled, pragma))
+            Issue(id, "spanning multiple declarations", disabled.GetLocation());
+    }
+
+    private string ReadPragmaReason(SyntaxTree tree, PragmaWarningDirectiveTriviaSyntax pragma)
+    {
+        var text = tree.GetText(_facts.Cancellation);
+        var line = text.Lines.GetLineFromPosition(pragma.SpanStart).LineNumber;
+        var current = text.Lines[line].ToString();
+        var comment = current.IndexOf("//", StringComparison.Ordinal);
+        if (comment >= 0) return current[(comment + 2)..].Trim();
+        var previous = line > 0 ? text.Lines[line - 1].ToString().Trim() : "";
+        return previous.StartsWith("//", StringComparison.Ordinal) ? previous[2..].Trim() : "";
+    }
+
+    private static bool SpansMultipleDeclarations(SyntaxNode root, PragmaWarningDirectiveTriviaSyntax disabled,
+        PragmaWarningDirectiveTriviaSyntax restored)
+    {
+        var span = Microsoft.CodeAnalysis.Text.TextSpan.FromBounds(disabled.Span.End, restored.SpanStart);
+        var declarations = root.DescendantNodes(span).OfType<MemberDeclarationSyntax>()
+            .Where(member => member is not BaseNamespaceDeclarationSyntax && span.Contains(member.Span) &&
+                !member.Ancestors().OfType<MemberDeclarationSyntax>().Any(parent =>
+                    parent is not BaseNamespaceDeclarationSyntax && span.Contains(parent.Span))).Take(2).Count();
+        return declarations > 1;
     }
 
     private void Issue(string id, string problem, Location location) =>

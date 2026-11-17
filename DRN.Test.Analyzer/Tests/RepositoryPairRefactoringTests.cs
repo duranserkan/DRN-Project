@@ -186,6 +186,49 @@ public sealed class RepositoryPairRefactoringTests
     }
 
     [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, false)]
+    [InlineData(true, false, true)]
+    [InlineData(true, true, true)]
+    public async Task DbSet_Membership_Should_Require_Exact_Declared_Type_Or_Explicit_Inclusion(
+        bool derivedSet, bool inherited, bool explicitInclusion)
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace);
+        var infra = workspace.CurrentSolution.Projects.Single(project => project.Name == "Sample.Infra");
+        var context = infra.Documents.Single(document => document.Name == "QAContext.cs");
+        var setType = derivedSet ? "CustomSet" : "Microsoft.EntityFrameworkCore.DbSet";
+        var member = $"public {setType}<Sample.Domain.QA.Orders.Order> Orders {{ get; set; }}";
+        var inclusion = explicitInclusion
+            ? "[DRN.Framework.EntityFramework.Attributes.SourceKnownPersistence(typeof(Sample.Domain.QA.Orders.Order))]"
+            : "";
+        var source = $$"""
+            namespace Sample.Infra.QA;
+            public abstract class CustomSet<TEntity> : Microsoft.EntityFrameworkCore.DbSet<TEntity> where TEntity : class { }
+            public abstract class BaseContext : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>
+            {
+                protected BaseContext() : base(null) { }
+                {{(inherited ? member : "")}}
+            }
+            {{inclusion}}
+            public class QAContext : BaseContext
+            {
+                {{(inherited ? "" : member)}}
+            }
+            """;
+        workspace.TryApplyChanges(context.WithText(SourceText.From(source)).Project.Solution).Should().BeTrue();
+        var current = workspace.CurrentSolution.GetDocument(entity.Id)!;
+        var currentInfra = workspace.CurrentSolution.GetProject(infra.Id)!;
+        (await currentInfra.GetCompilationAsync())!.GetDiagnostics().Should()
+            .NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        var expectedCount = !derivedSet || explicitInclusion ? 1 : 0;
+        (await Actions(current)).Should().HaveCount(expectedCount);
+        (await Actions(current, bundles: true)).Should().HaveCount(expectedCount);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task Conventional_Repository_Destination_Should_Not_Require_Explicit_Metadata(bool contextRecord)

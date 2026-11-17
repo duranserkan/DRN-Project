@@ -9,6 +9,7 @@ public sealed class ConventionPersistenceTests
 {
     private static readonly MetadataReference FrameworkReference = MetadataReference.CreateFromFile(typeof(DrnContext<>).Assembly.Location);
     private static readonly MetadataReference UtilsReference = MetadataReference.CreateFromFile(typeof(IEntityUtils).Assembly.Location);
+    private static readonly string[] MissingConfigurationDiagnostics = ["DRNCV009"];
 
     private const string Imports = """
         using Microsoft.EntityFrameworkCore;
@@ -378,7 +379,7 @@ public sealed class ConventionPersistenceTests
             }
             """);
         facts.Diagnostics.Select(diagnostic => diagnostic.Id).Should().Equal(
-            missing ? new[] { "DRNCV009" } : Array.Empty<string>());
+            missing ? MissingConfigurationDiagnostics : Array.Empty<string>());
     }
 
     [Theory]

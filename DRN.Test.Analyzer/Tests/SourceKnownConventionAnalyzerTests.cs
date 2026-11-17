@@ -6,6 +6,11 @@ namespace DRN.Test.Analyzer.Tests;
 
 public sealed class SourceKnownConventionAnalyzerTests
 {
+    private static readonly string[] MissingInputMessages =
+    [
+        "Convention input 'DrnConventionInputs.g.cs' is missing. Declare one valid build-generated convention input file.",
+        "Convention input 'Sample.Domain.QA.Payload' is missing logical source placement. Declare one valid Compile or Link path."
+    ];
     [Fact]
     public async Task Unidentified_Project_Should_Leave_Conventions_Inactive()
     {
@@ -158,11 +163,7 @@ public sealed class SourceKnownConventionAnalyzerTests
         var diagnostics = await compilation.WithAnalyzers([new SourceKnownConventionAnalyzer()],
             new AnalyzerOptions([], new Options())).GetAnalyzerDiagnosticsAsync();
         diagnostics.Should().NotContain(item => item.Id == "AD0001");
-        diagnostics.Where(item => item.Id == "DRNCV001").Select(item => item.GetMessage()).Should().BeEquivalentTo(new[]
-        {
-            "Convention input 'DrnConventionInputs.g.cs' is missing. Declare one valid build-generated convention input file.",
-            "Convention input 'Sample.Domain.QA.Payload' is missing logical source placement. Declare one valid Compile or Link path."
-        });
+        diagnostics.Where(item => item.Id == "DRNCV001").Select(item => item.GetMessage()).Should().BeEquivalentTo(MissingInputMessages);
         var role = diagnostics.Where(item => item.Id == "DRNCV016").Should().ContainSingle().Which;
         role.GetMessage().Should().Be("Implementation 'Payload' (DTO) belongs to role 'Contract'.");
         role.Severity.Should().Be(DiagnosticSeverity.Warning);

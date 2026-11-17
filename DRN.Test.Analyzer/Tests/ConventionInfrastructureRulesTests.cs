@@ -220,6 +220,46 @@ public sealed class ConventionInfrastructureRulesTests
         facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV030");
     }
 
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public async Task Inherited_Misnamed_Options_Should_Report_On_Derived_Context_And_Allow_Narrow_Suppression(bool suppressed)
+    {
+        var suppression = suppressed
+            ? "[System.Diagnostics.CodeAnalysis.SuppressMessage(\"DRN.Conventions.Context\", \"DRNCV029\", Justification = \"Reviewed inherited options name.\")]\n"
+            : "";
+        var facts = Facts($$"""
+            namespace Sample.Infra.QA;
+            public class LegacyOptionsAttribute : DRN.Framework.EntityFramework.Attributes.NpgsqlDbContextOptionsAttribute;
+            public class QAContextNpgsqlDbContextOptionsAttribute : DRN.Framework.EntityFramework.Attributes.NpgsqlDbContextOptionsAttribute;
+            [LegacyOptions]
+            public abstract class LegacyContextBase : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>
+            {
+                protected LegacyContextBase(Microsoft.EntityFrameworkCore.DbContextOptions<QAContext> options) : base(options) { }
+            }
+            {{suppression}}[QAContextNpgsqlDbContextOptions]
+            public class QAContext : LegacyContextBase
+            {
+                public QAContext(Microsoft.EntityFrameworkCore.DbContextOptions<QAContext> options) : base(options) { }
+                public QAContext() : base(null) { }
+            }
+            """, "QA/QAContext.cs");
+        ConventionInfrastructureAnalysis.Analyze(facts);
+        var inheritedDiagnostic = facts.Diagnostics.Where(item => item.Id == "DRNCV029").Should().ContainSingle().Which;
+        inheritedDiagnostic.Location.SourceTree!.GetText().ToString(inheritedDiagnostic.Location.SourceSpan).Should().Be("QAContext");
+
+        var analyzerCompilation = ConventionTestDependencies.WithModule((CSharpCompilation)facts.Compilation);
+        var inputs = new AnalyzerOptions([new ProjectDiagnosticRulesTests.RuleFile(ConventionInputs.FileName, """
+            [assembly: DRN.Conventions.Version("1")]
+            [assembly: DRN.Conventions.Path("Models.cs", LogicalPath = "QA/QAContext.cs")]
+            [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
+            """)], new Options());
+        var diagnostics = await analyzerCompilation.WithAnalyzers([new SourceKnownConventionAnalyzer()], inputs)
+            .GetAnalyzerDiagnosticsAsync();
+        diagnostics.Should().NotContain(item => item.Id == "AD0001" || item.Id == "DRNCV018" || item.Id == "DRNCV030");
+        diagnostics.Where(item => item.Id == "DRNCV029").Should().HaveCount(suppressed ? 0 : 1);
+    }
+
     private static ConventionFacts Facts(string source, string path) =>
         Facts(Compilation(source), [PathInput("Models.cs", path)]);
 

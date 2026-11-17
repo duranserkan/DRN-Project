@@ -99,9 +99,9 @@ public sealed class SourceKnownNormalizationModelTests
         typeof(NexusUser).IsAssignableTo(typeof(IdentityUser)).Should().BeTrue();
         typeof(SampleUser).IsAssignableTo(typeof(SourceKnownEntity)).Should().BeFalse();
         typeof(NexusUser).IsAssignableTo(typeof(SourceKnownEntity)).Should().BeFalse();
-        typeof(User).GetProperty(nameof(User.Id))!.PropertyType.Should().Be(typeof(long));
-        typeof(SampleUser).GetProperty(nameof(SampleUser.Id))!.PropertyType.Should().Be(typeof(string));
-        typeof(NexusUser).GetProperty(nameof(NexusUser.Id))!.PropertyType.Should().Be(typeof(string));
+        typeof(User).GetProperty(nameof(User.Id))!.PropertyType.Should().Be<long>();
+        typeof(SampleUser).GetProperty(nameof(SampleUser.Id))!.PropertyType.Should().Be<string>();
+        typeof(NexusUser).GetProperty(nameof(NexusUser.Id))!.PropertyType.Should().Be<string>();
     }
 
     [Fact]
@@ -113,7 +113,7 @@ public sealed class SourceKnownNormalizationModelTests
         user.Should().NotBeNull();
         user.GetTableName().Should().Be("users");
         user.GetSchema().Should().Be("qa_context");
-        user.FindPrimaryKey()!.Properties.Should().ContainSingle().Which.ClrType.Should().Be(typeof(long));
+        user.FindPrimaryKey()!.Properties.Should().ContainSingle().Which.ClrType.Should().Be<long>();
         var question = model.FindEntityType(typeof(Question))!;
         var relationship = question.GetForeignKeys().Single(key => key.Properties.Any(property => property.Name == nameof(Question.UserId)));
         relationship.PrincipalEntityType.Should().BeSameAs(user);
@@ -132,7 +132,7 @@ public sealed class SourceKnownNormalizationModelTests
         var model = context.GetService<IDesignTimeModel>().Model;
         var user = model.FindEntityType(userType)!;
         user.GetTableName().Should().Be("users");
-        user.FindPrimaryKey()!.Properties.Should().ContainSingle().Which.ClrType.Should().Be(typeof(string));
+        user.FindPrimaryKey()!.Properties.Should().ContainSingle().Which.ClrType.Should().Be<string>();
         model.FindEntityType(typeof(User)).Should().BeNull();
         model.FindEntityType(typeof(Author)).Should().BeNull();
         model.GetRelationalModel().Tables.Select(table => table.Name).Should().Contain(
@@ -149,10 +149,10 @@ public sealed class SourceKnownNormalizationModelTests
         picture.Should().NotBeNull();
         picture.GetTableName().Should().Be("profile_pictures");
         picture.GetSchema().Should().Be("sample_identity_context");
-        picture.FindProperty(nameof(ProfilePicture.Id))!.ClrType.Should().Be(typeof(long));
-        picture.FindProperty(nameof(ProfilePicture.UserId))!.ClrType.Should().Be(typeof(string));
-        picture.FindProperty(nameof(ProfilePicture.ImageData))!.ClrType.Should().Be(typeof(byte[]));
-        picture.FindProperty(nameof(ProfilePicture.Version))!.ClrType.Should().Be(typeof(byte));
+        picture.FindProperty(nameof(ProfilePicture.Id))!.ClrType.Should().Be<long>();
+        picture.FindProperty(nameof(ProfilePicture.UserId))!.ClrType.Should().Be<string>();
+        picture.FindProperty(nameof(ProfilePicture.ImageData))!.ClrType.Should().Be<byte[]>();
+        picture.FindProperty(nameof(ProfilePicture.Version))!.ClrType.Should().Be<byte>();
         context.GetService<IMigrationsAssembly>().ModelSnapshot!.Model
             .FindEntityType("Sample.Domain.Identity.ProfilePictures.ProfilePicture").Should().NotBeNull();
     }
@@ -177,7 +177,7 @@ public sealed class SourceKnownNormalizationModelTests
         var key = model.FindEntityType(typeof(DataProtectionKey))!;
         key.GetSchema().Should().Be("__drn_data_protection_context");
         key.GetTableName().Should().Be("data_protection_keys");
-        key.FindPrimaryKey()!.Properties.Should().ContainSingle().Which.ClrType.Should().Be(typeof(int));
+        key.FindPrimaryKey()!.Properties.Should().ContainSingle().Which.ClrType.Should().Be<int>();
         key.FindProperty(nameof(DataProtectionKey.Xml)).Should().NotBeNull();
     }
 

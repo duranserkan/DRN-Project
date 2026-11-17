@@ -179,6 +179,28 @@ public sealed class ContextConstructorCodeFixTests
         (await Actions(changed)).Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task Constructor_Action_Should_Convert_Semicolon_Bodied_Partial_Context_To_Valid_Braced_Class()
+    {
+        using var workspace = new AdhocWorkspace();
+        var document = CreateDocument(workspace,
+            "public partial class QAContext : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>;\n",
+            "A_QAContext.cs");
+        var other = document.Project.AddDocument("B_QAContext.cs",
+            "public partial class QAContext { public QAContext() : base(null) { } }");
+        workspace.TryApplyChanges(other.Project.Solution).Should().BeTrue();
+        var current = workspace.CurrentSolution.GetDocument(document.Id)!;
+
+        var action = (await Actions(current)).Should().ContainSingle().Which;
+        var operations = await action.GetOperationsAsync(CancellationToken.None);
+        var changed = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution.GetDocument(document.Id)!;
+        var compilation = await changed.Project.GetCompilationAsync();
+        compilation!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        var text = (await changed.GetTextAsync()).ToString();
+        text.Should().Contain("DbContextOptions<global::QAContext> options").And.Contain(": base(options)");
+        (await Actions(changed)).Should().BeEmpty();
+    }
+
     private static Document CreateDocument(AdhocWorkspace workspace, string source, string name = "Context.cs")
     {
         var project = workspace.AddProject("Consumer", LanguageNames.CSharp)

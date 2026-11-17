@@ -1,4 +1,6 @@
+using System.Xml.Linq;
 using DRN.Framework.SharedKernel.Analyzers.Conventions;
+using Microsoft.CodeAnalysis.Emit;
 using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
 
 namespace DRN.Test.Analyzer.Tests;
@@ -286,6 +288,105 @@ public sealed class ConventionDependencyTests
         var resolved = ConventionDependencyAnalysis.ReadDirectProjects(facts, references);
         resolved.Should().NotBeNull();
         resolved!.Select(item => item.Project.AssemblyName).Should().Equal("Commerce.Domain", "Finance.Domain");
+    }
+
+    [Fact]
+    public void Reference_Assembly_Paths_Should_Satisfy_ReadDirectProjects_Dependency_And_Boundary_Checks()
+    {
+        var location = Location.Create(ConventionInputs.FileName, new(0, 1), new(new(0, 0), new(0, 1)));
+        var domain = Compilation("""
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Commerce.Domain")]
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Commerce.Domain")]
+            namespace Commerce.Domain.Sales;
+            public class SaleEntity;
+            """).WithAssemblyName("Commerce.Domain");
+        var hosted = Compilation("""
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Web.Hosted")]
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Web.Hosted")]
+            namespace Web.Hosted;
+            public class HomeMarker;
+            """).WithAssemblyName("Web.Hosted");
+        using var domainImage = new MemoryStream();
+        domain.Emit(domainImage, options: new EmitOptions(metadataOnly: true)).Success.Should().BeTrue();
+        using var hostedImage = new MemoryStream();
+        hosted.Emit(hostedImage, options: new EmitOptions(metadataOnly: true)).Success.Should().BeTrue();
+
+        var domainRefPath = "/dependency-tests/Commerce.Domain/obj/Debug/net11.0/ref/Commerce.Domain.dll";
+        var hostedRefPath = "/dependency-tests/Web.Hosted/obj/Debug/net11.0/ref/Web.Hosted.dll";
+        var compilation = Compilation("""
+            namespace Storage.Infra.Sales;
+            public class SalesContext : Microsoft.EntityFrameworkCore.DbContext;
+            """, "Sales/SalesContext.cs").WithAssemblyName("Storage.Infra")
+            .AddReferences(MetadataReference.CreateFromFile(typeof(DRN.Framework.EntityFramework.Context.IDrnContext).Assembly.Location))
+            .AddReferences(
+                MetadataReference.CreateFromImage(domainImage.ToArray(), filePath: domainRefPath),
+                MetadataReference.CreateFromImage(hostedImage.ToArray(), filePath: hostedRefPath));
+        ConventionInput[] records =
+        [
+            new("Reference", "Inventory", ImmutableDictionary<string, string>.Empty.Add("Stage", "Complete"), location),
+            new("Reference", ProjectPath("Commerce.Domain"), ImmutableDictionary<string, string>.Empty
+                .Add("Stage", "Project").Add("Source", ProjectPath("Commerce.Domain")), location),
+            new("Reference", ProjectPath("Web.Hosted"), ImmutableDictionary<string, string>.Empty
+                .Add("Stage", "Project").Add("Source", ProjectPath("Web.Hosted")), location),
+            new("Reference", domainRefPath, ImmutableDictionary<string, string>.Empty
+                .Add("Stage", "Resolved").Add("Project", ProjectPath("Commerce.Domain")), location),
+            new("Reference", hostedRefPath, ImmutableDictionary<string, string>.Empty
+                .Add("Stage", "Resolved").Add("Project", ProjectPath("Web.Hosted")), location)
+        ];
+
+        var facts = Facts(new Fixture("Storage.Infra", compilation, [.. records]));
+        ConventionDependencyAnalysis.Analyze(facts);
+        ConventionBoundaryAnalysis.Analyze(facts);
+        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNCV021" || item.Id == "DRNCV022");
+        var edge = facts.Diagnostics.Where(item => item.Id == "DRNCV015").Should().ContainSingle().Which;
+        edge.Properties["Target"].Should().Be(ProjectPath("Web.Hosted"));
+    }
+
+    [Fact]
+    public void SharedKernel_Conventions_Targets_And_Props_Should_Capture_Direct_Projects_RefAssemblies_And_Deduplicate_Analyzers()
+    {
+        var conventionsTargets = XDocument.Load(FindSharedKernelFile("buildTransitive", "Conventions", "DRN.Framework.SharedKernel.Conventions.targets"));
+        var captureTarget = conventionsTargets.Descendants("Target")
+            .Single(target => target.Attribute("Name")?.Value == "_CaptureDrnDirectProjectReferences");
+        captureTarget.Attribute("BeforeTargets")?.Value.Split(';').Should().Contain("IncludeTransitiveProjectReferences");
+        captureTarget.Descendants("_DrnDirectProjectReference").Should().ContainSingle()
+            .Which.Attribute("Condition")?.Value.Should().Contain("ReferenceOutputAssembly");
+
+        var prepareTarget = conventionsTargets.Descendants("Target")
+            .Single(target => target.Attribute("Name")?.Value == "_PrepareDrnConventionInputs");
+        prepareTarget.Attribute("DependsOnTargets")?.Value.Split(';')
+            .Should().Contain(["_CaptureDrnDirectProjectReferences", "ResolveReferences", "FindReferenceAssembliesForReferences"]);
+        prepareTarget.Descendants("_DrnConventionInput")
+            .Where(item => item.Elements("Stage").Any(stage => stage.Value == "Project"))
+            .Should().ContainSingle().Which.Attribute("_Parameter1")?.Value.Should().BeNull();
+        prepareTarget.Descendants("_DrnConventionInput")
+            .Single(item => item.Elements("Stage").Any(stage => stage.Value == "Project"))
+            .Element("_Parameter1")!.Value.Should().Contain("_DrnDirectProjectReference");
+        prepareTarget.Descendants("_DrnResolvedReference")
+            .Select(item => item.Attribute("Include")?.Value)
+            .Should().Equal("@(ReferencePathWithRefAssemblies)", "@(ReferencePath)");
+
+        var props = XDocument.Load(FindSharedKernelFile("buildTransitive", "DRN.Framework.SharedKernel.props"));
+        props.Descendants("Analyzer").Select(item => item.Attribute("Remove")?.Value)
+            .Where(value => value is not null).Should().HaveCount(2);
+
+        var targets = XDocument.Load(FindSharedKernelFile("buildTransitive", "DRN.Framework.SharedKernel.targets"));
+        var addAnalyzersTarget = targets.Descendants("Target")
+            .Single(target => target.Attribute("Name")?.Value == "DrnSharedKernelAddPackagedAnalyzers");
+        addAnalyzersTarget.Descendants("Analyzer").Select(item => item.Attribute("Remove")?.Value)
+            .Where(value => value is not null).Should().HaveCount(2);
+    }
+
+    private static string FindSharedKernelFile(params string[] pathSegments)
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            var path = Path.Combine([directory.FullName, "DRN.Framework.SharedKernel", .. pathSegments]);
+            if (File.Exists(path)) return path;
+            directory = directory.Parent;
+        }
+        throw new FileNotFoundException($"Could not find {Path.Combine(pathSegments)} from the test output directory.");
     }
 
     private static ConventionFacts Facts(Fixture fixture)

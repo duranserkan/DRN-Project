@@ -38,65 +38,116 @@ internal sealed partial class ConventionFacts
     {
         var result = new Dictionary<string, ProducerOwnership>(StringComparer.Ordinal);
         if (ReferenceProject(assembly) is null) return result;
-        var records = new Dictionary<(string Kind, string Type), Dictionary<string, string>>();
         var invalid = new HashSet<string>(StringComparer.Ordinal);
+        var records = CollectMetadataRecords(assembly, invalid);
+        BuildReferenceOwners(assembly, records, result, invalid);
+        InvalidateConflictingOwners(assembly, result, invalid);
+        return result;
+    }
+
+    private Dictionary<(string Kind, string Type), Dictionary<string, string>> CollectMetadataRecords(
+        IAssemblySymbol assembly, HashSet<string> invalid)
+    {
+        var records = new Dictionary<(string Kind, string Type), Dictionary<string, string>>();
         var malformedKeys = new HashSet<string>(StringComparer.Ordinal);
         foreach (var (key, value) in AssemblyMetadata(assembly))
         {
             Cancellation.ThrowIfCancellationRequested();
-            var kind = key.StartsWith(ConventionProject.MetadataPrefix + "Ownership.", StringComparison.Ordinal) ? "Ownership" :
-                key.StartsWith(ConventionProject.MetadataPrefix + "Context.", StringComparison.Ordinal) ? "Context" : null;
-            if (kind is null) continue;
-            var suffix = key[(ConventionProject.MetadataPrefix.Length + kind.Length + 1)..];
-            var separator = suffix.LastIndexOf('.');
-            if (separator <= 0)
-            {
-                if (malformedKeys.Add(key))
-                    Diagnostics.Add(ConventionProject.InputIssue(assembly.Name + ":" + key,
-                        "malformed", "typed producer ownership metadata"));
-                continue;
-            }
-            var name = suffix[..separator];
-            var field = suffix[(separator + 1)..];
-            // An assembly can publish facts about its own declarations, not relabel a dependency for other consumers.
-            if (assembly.GetTypeByMetadataName(name) is not { } type ||
-                !SymbolEqualityComparer.Default.Equals(type.ContainingAssembly, assembly)) continue;
-            if (field is not ("Subdomain" or "Reason" or "Kind") || kind == "Context" && field == "Kind")
+            if (!TryParseMetadataRecord(assembly, key, malformedKeys, out var kind, out var name, out var field)) continue;
+            if (field is not (ConventionInputSyntax.SubdomainField or ConventionInputSyntax.ReasonField or ConventionInputSyntax.KindField) ||
+                kind == ConventionInputSyntax.ContextKind && field == ConventionInputSyntax.KindField)
             {
                 invalid.Add(name);
                 continue;
             }
-            if (!records.TryGetValue((kind, name), out var fields)) records.Add((kind, name), fields = new(StringComparer.Ordinal));
+            if (!records.TryGetValue((kind, name), out var fields))
+            {
+                fields = new(StringComparer.Ordinal);
+                records.Add((kind, name), fields);
+            }
             if (fields.TryGetValue(field, out var previous) && previous != value) invalid.Add(name);
             else fields[field] = value;
         }
+        return records;
+    }
 
+    private bool TryParseMetadataRecord(IAssemblySymbol assembly, string key, HashSet<string> malformedKeys,
+        out string kind, out string name, out string field)
+    {
+        kind = MetadataRecordKind(key) ?? "";
+        name = "";
+        field = "";
+        if (kind.Length == 0) return false;
+        var suffix = key[(ConventionProject.MetadataPrefix.Length + kind.Length + 1)..];
+        var separator = suffix.LastIndexOf('.');
+        if (separator <= 0)
+        {
+            if (malformedKeys.Add(key))
+                Diagnostics.Add(ConventionProject.InputIssue(assembly.Name + ":" + key,
+                    "malformed", "typed producer ownership metadata"));
+            return false;
+        }
+        name = suffix[..separator];
+        field = suffix[(separator + 1)..];
+        // An assembly can publish facts about its own declarations, not relabel a dependency for other consumers.
+        return assembly.GetTypeByMetadataName(name) is { } type &&
+               SymbolEqualityComparer.Default.Equals(type.ContainingAssembly, assembly);
+    }
+
+    private static string? MetadataRecordKind(string key)
+    {
+        if (key.StartsWith(ConventionProject.MetadataPrefix + ConventionInputSyntax.OwnershipKind + ".", StringComparison.Ordinal))
+            return ConventionInputSyntax.OwnershipKind;
+        if (key.StartsWith(ConventionProject.MetadataPrefix + ConventionInputSyntax.ContextKind + ".", StringComparison.Ordinal))
+            return ConventionInputSyntax.ContextKind;
+        return null;
+    }
+
+    private void BuildReferenceOwners(IAssemblySymbol assembly,
+        Dictionary<(string Kind, string Type), Dictionary<string, string>> records,
+        Dictionary<string, ProducerOwnership> result, HashSet<string> invalid)
+    {
         foreach (var ((kind, name), fields) in records)
         {
             Cancellation.ThrowIfCancellationRequested();
             var type = assembly.GetTypeByMetadataName(name)!;
-            fields.TryGetValue("Subdomain", out var subdomain);
-            fields.TryGetValue("Reason", out var reason);
-            fields.TryGetValue("Kind", out var classification);
-            if (subdomain is null || !SyntaxFacts.IsValidIdentifier(subdomain) || classification is not (null or "" or "Entity" or "Value") ||
-                classification == "Value" && Symbols.IsPersistenceType(type, Cancellation) ||
-                kind == "Context" && Symbols.Context is not null && !Symbols.IsContext(type, Cancellation))
+            fields.TryGetValue(ConventionInputSyntax.SubdomainField, out var subdomain);
+            fields.TryGetValue(ConventionInputSyntax.ReasonField, out var reason);
+            fields.TryGetValue(ConventionInputSyntax.KindField, out var classification);
+            if (!IsValidProducerRecord(type, kind, subdomain, reason, classification))
             {
                 invalid.Add(name);
                 continue;
             }
-            var role = Role(type);
-            var conventional = InferOwner(type, role.Role, role.Namespace);
-            if (subdomain != conventional && string.IsNullOrWhiteSpace(reason)) invalid.Add(name);
-            foreach (var attribute in type.GetAttributes())
-                if (ConventionSymbols.Same(attribute.AttributeClass, Symbols.OwnershipAttribute) &&
-                    attribute.ConstructorArguments is [{ Value: string attributed }] && attributed != subdomain)
-                    invalid.Add(name);
-            if (!result.TryGetValue(name, out var owner)) result.Add(name, owner = new());
+            if (!result.TryGetValue(name, out var owner))
+            {
+                owner = new();
+                result.Add(name, owner);
+            }
             if (owner.Declarations.Any(declaration => declaration.Subdomain != subdomain)) invalid.Add(name);
-            owner.Declarations.Add((subdomain, reason ?? ""));
-            if (kind == "Ownership") owner.Kind = classification ?? "";
+            owner.Declarations.Add((subdomain!, reason ?? ""));
+            if (kind == ConventionInputSyntax.OwnershipKind) owner.Kind = classification ?? "";
         }
+    }
+
+    private bool IsValidProducerRecord(INamedTypeSymbol type, string kind, string? subdomain,
+        string? reason, string? classification)
+    {
+        if (subdomain is null || !SyntaxFacts.IsValidIdentifier(subdomain) ||
+            classification is not (null or "" or ConventionInputSyntax.EntityField or "Value") ||
+            classification == "Value" && Symbols.IsPersistenceType(type, Cancellation) ||
+            kind == ConventionInputSyntax.ContextKind && Symbols.Context is not null && !Symbols.IsContext(type, Cancellation))
+            return false;
+        var role = Role(type);
+        var conventional = InferOwner(type, role.Role, role.Namespace);
+        if (subdomain != conventional && string.IsNullOrWhiteSpace(reason)) return false;
+        return !type.GetAttributes().Any(attribute =>
+            ConventionSymbols.Same(attribute.AttributeClass, Symbols.OwnershipAttribute) &&
+            attribute.ConstructorArguments is [{ Value: string attributed }] && attributed != subdomain);
+    }
+
+    private void InvalidateConflictingOwners(IAssemblySymbol assembly, Dictionary<string, ProducerOwnership> result, HashSet<string> invalid)
+    {
         foreach (var name in invalid)
         {
             Cancellation.ThrowIfCancellationRequested();
@@ -105,7 +156,6 @@ internal sealed partial class ConventionFacts
             InvalidOwner(type, assembly.Name + ":" + name, "malformed or contradictory producer ownership metadata",
                 Microsoft.CodeAnalysis.Location.None);
         }
-        return result;
     }
 
     private sealed class ProducerOwnership

@@ -20,6 +20,6 @@
     <DefineConstants Condition="'$(DrnConventionFixtureSuppress)' == 'true'">$(DefineConstants);DRN_CONVENTION_EXCEPTION</DefineConstants>
     <BaseIntermediateOutputPath Condition="'$(DrnConventionIntermediateLayout)' == 'Relative'">obj/convention-paths/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
     <BaseIntermediateOutputPath Condition="'$(DrnConventionIntermediateLayout)' == 'Rooted'">$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', 'obj/convention-paths/$(MSBuildProjectName)/'))</BaseIntermediateOutputPath>
-    <BaseIntermediateOutputPath Condition="'$(DrnConventionIntermediateLayout)' == 'Parent'">../obj-convention-paths/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
+    <BaseIntermediateOutputPath Condition="'$(DrnConventionIntermediateLayout)' == 'Parent'">../obj/convention-paths/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
   </PropertyGroup>
 </Project>

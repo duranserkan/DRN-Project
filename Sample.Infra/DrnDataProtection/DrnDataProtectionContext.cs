@@ -8,6 +8,8 @@ namespace Sample.Infra.DrnDataProtection;
 //https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/configuration/overview
 //https://www.nuget.org/packages/Microsoft.AspNetCore.DataProtection.EntityFrameworkCore/
 [DrnDataProtectionContextOptions]
+[SuppressMessage("DRN.Conventions.Architecture", "DRNCV022",
+    Justification = "DrnDataProtectionContext persists ASP.NET Core Data Protection key rings only and has no Domain subdomain entities.")]
 public class DrnDataProtectionContext : DrnContext<DrnDataProtectionContext>, IDataProtectionKeyContext
 {
     public DrnDataProtectionContext(DbContextOptions<DrnDataProtectionContext> options) : base(options)

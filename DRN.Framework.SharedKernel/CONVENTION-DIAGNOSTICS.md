@@ -196,7 +196,7 @@ Category: `DRN.Conventions.Exceptions`.
 
 > Exception for '{0}' is {1}; provide an exact target, meaningful reason and required ownership metadata.
 
-A project exception needs an exact target, meaningful reason, owner and future review date. Standard symbol SuppressMessage declarations need an exact diagnostic and justification but do not require project owner/date fields. Wildcards, namespace-wide assembly suppressions, blank reasons, due project review dates and changed fingerprints are invalid. Unrelated diagnostic suppressions are left alone. Named paired pragmas need a concrete adjacent reason and a narrow region.
+A project exception needs an exact target, meaningful reason, owner and future review date. Standard symbol SuppressMessage declarations need an exact diagnostic and justification but do not require project owner/date fields. Wildcards, namespace-wide assembly or module suppressions, blank reasons, due project review dates and changed fingerprints are invalid. Unrelated diagnostic suppressions are left alone. Named paired pragmas need a concrete adjacent reason and a narrow region.
 
 Correct or remove the exception. Never fabricate a justification. Optional fingerprints bind reviewed declaration text and logical paths, so moves/edits need review. CI/editorconfig/command-line disabling cannot be universally audited. This rule is not a tamper-proof security boundary, and suppressing it does not make an invalid exception valid.
 
