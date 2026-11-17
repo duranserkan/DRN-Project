@@ -9,16 +9,18 @@ namespace DRN.Test.Analyzer.Tests;
 
 public sealed class ContextConstructorCodeFixTests
 {
-    [Fact]
-    public async Task Constructor_Action_Should_Forward_Exact_Options_Preserve_Content_And_Be_Idempotent()
+    [Theory]
+    [DataInlineUnit("")]
+    [DataInlineUnit(";")]
+    public async Task Constructor_Action_Should_Forward_Exact_Options_Preserve_Content_And_Be_Idempotent(string trailingSemicolon)
     {
         using var workspace = new AdhocWorkspace();
-        var document = CreateDocument(workspace, """
+        var document = CreateDocument(workspace, $$"""
             // Retain the operational context identity.
             public class QAContext : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>
-            {
+            { // Retain opening brace trivia.
                 public QAContext() : base(null) { /* retain */ }
-            }
+            /* Retain closing brace trivia. */ }{{trailingSemicolon}}
             """);
         var action = (await Actions(document)).Single();
         action.Title.Should().Be("Add context options constructor");
@@ -28,8 +30,11 @@ public sealed class ContextConstructorCodeFixTests
         compilation!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
         var text = (await changed.GetTextAsync()).ToString();
         text.Should().Contain("/* retain */").And.Contain("Retain the operational context identity.")
+            .And.Contain("// Retain opening brace trivia.").And.Contain("/* Retain closing brace trivia. */")
             .And.Contain("global::Microsoft.EntityFrameworkCore.DbContextOptions<global::QAContext> options")
             .And.Contain(": base(options)");
+        var declaration = (await changed.GetSyntaxRootAsync())!.DescendantNodes().OfType<ClassDeclarationSyntax>().Single();
+        declaration.SemicolonToken.Text.Should().Be(trailingSemicolon);
         (await Actions(changed)).Should().BeEmpty();
         new ContextConstructorCodeFixProvider().GetFixAllProvider().Should().BeNull();
     }

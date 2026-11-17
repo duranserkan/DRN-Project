@@ -63,12 +63,12 @@ public sealed class EntityConfigurationRefactoringTests
     }
 
     [Theory]
-    [InlineData(false, false, false)]
-    [InlineData(false, true, false)]
-    [InlineData(true, false, false)]
-    [InlineData(true, true, false)]
-    [InlineData(true, false, true)]
-    [InlineData(true, true, true)]
+    [DataInlineUnit(false, false, false)]
+    [DataInlineUnit(false, true, false)]
+    [DataInlineUnit(true, false, false)]
+    [DataInlineUnit(true, true, false)]
+    [DataInlineUnit(true, false, true)]
+    [DataInlineUnit(true, true, true)]
     public async Task DbSet_Membership_Should_Require_Exact_Declared_Type_Or_Explicit_Inclusion(
         bool derivedSet, bool inherited, bool explicitInclusion)
     {

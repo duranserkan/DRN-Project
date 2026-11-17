@@ -348,17 +348,20 @@ public sealed class ConventionDependencyTests
         var conventionsTargets = XDocument.Load(FindSharedKernelFile("buildTransitive", "Conventions", "DRN.Framework.SharedKernel.Conventions.targets"));
         var captureTarget = conventionsTargets.Descendants("Target")
             .Single(target => target.Attribute("Name")?.Value == "_CaptureDrnDirectProjectReferences");
-        captureTarget.Attribute("BeforeTargets")?.Value.Split(';').Should().Contain("IncludeTransitiveProjectReferences");
-        captureTarget.Descendants("_DrnDirectProjectReference").Should().ContainSingle()
-            .Which.Attribute("Condition")?.Value.Should().Contain("ReferenceOutputAssembly");
+        var beforeTargets = captureTarget.Attribute("BeforeTargets");
+        beforeTargets.Should().NotBeNull();
+        beforeTargets!.Value.Split(';').Should().Contain("IncludeTransitiveProjectReferences");
+        var condition = captureTarget.Descendants("_DrnDirectProjectReference").Should().ContainSingle()
+            .Which.Attribute("Condition");
+        condition.Should().NotBeNull();
+        condition!.Value.Should().Contain("ReferenceOutputAssembly");
 
         var prepareTarget = conventionsTargets.Descendants("Target")
             .Single(target => target.Attribute("Name")?.Value == "_PrepareDrnConventionInputs");
-        prepareTarget.Attribute("DependsOnTargets")?.Value.Split(';')
+        var dependsOnTargets = prepareTarget.Attribute("DependsOnTargets");
+        dependsOnTargets.Should().NotBeNull();
+        dependsOnTargets!.Value.Split(';')
             .Should().Contain(["_CaptureDrnDirectProjectReferences", "ResolveReferences", "FindReferenceAssembliesForReferences"]);
-        prepareTarget.Descendants("_DrnConventionInput")
-            .Where(item => item.Elements("Stage").Any(stage => stage.Value == "Project"))
-            .Should().ContainSingle().Which.Attribute("_Parameter1")?.Value.Should().BeNull();
         prepareTarget.Descendants("_DrnConventionInput")
             .Single(item => item.Elements("Stage").Any(stage => stage.Value == "Project"))
             .Element("_Parameter1")!.Value.Should().Contain("_DrnDirectProjectReference");

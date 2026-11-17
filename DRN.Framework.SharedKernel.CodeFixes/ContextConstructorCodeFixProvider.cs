@@ -44,7 +44,7 @@ public sealed class ContextConstructorCodeFixProvider : CodeFixProvider
         token.ThrowIfCancellationRequested();
         current = snapshot.Workspace.CurrentSolution;
         if (!ReferenceEquals(current, snapshot)) return current;
-        var updatedDeclaration = declaration.SemicolonToken.IsKind(SyntaxKind.None)
+        var updatedDeclaration = declaration.OpenBraceToken.IsKind(SyntaxKind.OpenBraceToken)
             ? declaration.AddMembers(constructor)
             : declaration
                 .WithSemicolonToken(default)
