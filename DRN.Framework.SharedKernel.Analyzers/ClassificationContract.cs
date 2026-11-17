@@ -72,20 +72,33 @@ internal sealed class ClassificationContract
 
     private bool CalculatePositive(ISymbol symbol, CancellationToken cancellation)
     {
-        for (ISymbol? current = symbol; current != null; current = current switch
-             { IPropertySymbol property => property.OverriddenProperty, INamedTypeSymbol type => type.BaseType, _ => null })
+        for (ISymbol? current = symbol; current != null; current = NextClassifiedSymbol(current))
         {
             cancellation.ThrowIfCancellationRequested();
+            var directSymbol = SymbolEqualityComparer.Default.Equals(current, symbol);
             foreach (var attribute in current.GetAttributes())
             {
-                if (attribute.AttributeClass is not { } attributeType) continue;
-                var facts = _attributes.GetOrAdd(attributeType, _calculateAttribute, cancellation);
-                if ((SymbolEqualityComparer.Default.Equals(current, symbol) || facts.Inherited) &&
-                    (facts.Personal || facts.Sensitive &&
-                    (!SymbolEqualityComparer.Default.Equals(attributeType, Sensitive) || !IsFalse(attribute)))) return true;
+                if (IsPositiveAttribute(attribute, directSymbol, cancellation))
+                    return true;
             }
         }
         return false;
+    }
+
+    private static ISymbol? NextClassifiedSymbol(ISymbol symbol) => symbol switch
+    {
+        IPropertySymbol property => property.OverriddenProperty,
+        INamedTypeSymbol type => type.BaseType,
+        _ => null
+    };
+
+    private bool IsPositiveAttribute(AttributeData attribute, bool directSymbol, CancellationToken cancellation)
+    {
+        if (attribute.AttributeClass is not { } attributeType) return false;
+        var facts = _attributes.GetOrAdd(attributeType, _calculateAttribute, cancellation);
+        if (!directSymbol && !facts.IsInherited) return false;
+        if (facts.IsPersonal) return true;
+        return facts.IsSensitive && (!SymbolEqualityComparer.Default.Equals(attributeType, Sensitive) || !IsFalse(attribute));
     }
 
     internal ImmutableArray<IPropertySymbol> DeclaredProperties(INamedTypeSymbol type, CancellationToken cancellation) =>
@@ -111,7 +124,7 @@ internal sealed class ClassificationContract
 
     private static bool IsFalse(AttributeData attribute) => attribute.ConstructorArguments is [{ Value: false }];
 
-    private readonly record struct AttributeFacts(bool Personal, bool Sensitive, bool Inherited);
+    private readonly record struct AttributeFacts(bool IsPersonal, bool IsSensitive, bool IsInherited);
 
     private AttributeFacts CalculateAttribute(INamedTypeSymbol type, CancellationToken cancellation) =>
         new(Derives(type, _personal, cancellation), Derives(type, Sensitive, cancellation), Inherited(type, cancellation));
@@ -160,16 +173,21 @@ internal sealed class ClassificationContract
         {
             var inspected = 0;
             foreach (var contract in _receiver.AllInterfaces)
-            foreach (var member in contract.GetMembers().OfType<IPropertySymbol>())
             {
-                cancellation.ThrowIfCancellationRequested();
-                if (++inspected > LoggingCaptureAnalysis.MaxValues) return null;
-                if (SymbolEqualityComparer.Default.Equals(_receiver.FindImplementationForInterfaceMember(member), property) &&
-                    (_contract.Positive(member, cancellation) || _contract.Positive(member.ContainingType, cancellation) ||
-                     _contract.Positive(member.Type, cancellation))) return true;
+                foreach (var member in contract.GetMembers().OfType<IPropertySymbol>())
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    if (++inspected > LoggingCaptureAnalysis.MaxValues) return null;
+                    if (IsPositiveInterfaceMember(property, member, cancellation)) return true;
+                }
             }
             return false;
         }
+
+        private bool IsPositiveInterfaceMember(IPropertySymbol property, IPropertySymbol member, CancellationToken cancellation) =>
+            SymbolEqualityComparer.Default.Equals(_receiver.FindImplementationForInterfaceMember(member), property) &&
+            (_contract.Positive(member, cancellation) || _contract.Positive(member.ContainingType, cancellation) ||
+             _contract.Positive(member.Type, cancellation));
     }
 
     private static IEnumerable<INamedTypeSymbol> Ancestors(INamedTypeSymbol? type)

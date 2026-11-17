@@ -33,12 +33,20 @@
                                 Condition="$([System.String]::Copy('%(Compile.FullPath)').StartsWith('$(_DrnConventionIntermediateDirectory)', System.StringComparison.$(_DrnConventionPathComparison)))" />
       <_FixtureMissingCompile Include="@(_FixtureOriginalCompile)" />
       <_FixtureMissingCompile Remove="@(Compile)" />
+      <_FixtureDirectProject Include="@(_DrnConventionInput)"
+                             Condition="'%(_DrnConventionInput.Identity)' == 'DRN.Conventions.Reference' and '%(_DrnConventionInput.Stage)' == 'Project'" />
+      <_FixtureResolvedReference Include="@(_DrnConventionInput)"
+                                 Condition="'%(_DrnConventionInput.Identity)' == 'DRN.Conventions.Reference' and '%(_DrnConventionInput.Stage)' == 'Resolved'" />
     </ItemGroup>
     <Error Condition="'@(_FixturePathProbe->Count())' != '1'" Text="In-project source must have one normalized project-relative Path record." />
     <Error Condition="'@(_FixtureLinkedProbe->Count())' != '1'" Text="Handwritten linked source must retain its explicit logical path." />
     <Error Condition="'@(_FixtureGeneratedPath)' != ''" Text="Intermediate generated source must not contribute logical-path records." />
     <Error Condition="'@(_FixtureGeneratedCompile)' == ''" Text="Generated sources must remain in Compile for semantic analysis." />
     <Error Condition="'@(_FixtureMissingCompile)' != ''" Text="Logical-path filtering must not remove any original Compile item." />
+    <Error Condition="('$(MSBuildProjectName)' == 'Consumer.Hosted.ExternalSource' or '$(MSBuildProjectName)' == 'Consumer.Hosted.TransitivePackage') and '@(_FixtureDirectProject->Count())' != '1'"
+           Text="Direct ProjectReference capture must exclude transitive project references." />
+    <Error Condition="'@(ReferencePathWithRefAssemblies)' != '' and '@(_FixtureResolvedReference->Count())' != '@(ReferencePathWithRefAssemblies->Count())'"
+           Text="Resolved reference records must match ReferencePathWithRefAssemblies." />
   </Target>
   <Target Name="ValidateConsumerFixtureInputs" BeforeTargets="CollectPackageReferences;PrepareForBuild">
     <Error Condition="('$(MSBuildProjectName)' == 'DirectPackage' or '$(MSBuildProjectName)' == 'Consumer.Hosted.DirectPackage' or '$(MSBuildProjectName)' == 'PackageBridge') and '$(DrnHostingPackageVersion)' == ''"

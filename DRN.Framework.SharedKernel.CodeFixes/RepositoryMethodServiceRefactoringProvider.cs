@@ -12,6 +12,13 @@ namespace DRN.Framework.SharedKernel.CodeFixes;
 [ExportCodeRefactoringProvider(LanguageNames.CSharp, Name = nameof(RepositoryMethodServiceRefactoringProvider)), Shared]
 public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoringProvider
 {
+    private static readonly bool[] ScopedOptions = [false, true];
+    private static readonly string[] AsyncReturnTypeNames =
+    [
+        "System.Threading.Tasks.Task", "System.Threading.Tasks.Task`1",
+        "System.Threading.Tasks.ValueTask", "System.Threading.Tasks.ValueTask`1"
+    ];
+
     public override async Task ComputeRefactoringsAsync(CodeRefactoringContext context)
     {
         var snapshot = context.Document.Project.Solution;
@@ -20,16 +27,18 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
         var selected = await Select(context.Document, context.Span, context.CancellationToken);
         if (selected is null) return;
         foreach (var target in snapshot.Projects)
-        foreach (var scoped in new[] { false, true })
         {
-            var plan = await Plan(context.Document.Project, selected, target, scoped, context.CancellationToken);
-            if (plan is null) continue;
-            if (!ReferenceEquals(snapshot.Workspace.CurrentSolution, snapshot)) return;
-            context.RegisterRefactoring(CodeAction.Create(
-                "Add " + (scoped ? "scoped" : "unregistered") + " forwarding service: " + target.Name + " / " + plan.RelativePath +
-                " for " + selected.Method.Name,
-                token => Apply(context.Document, context.Span, target.Id, scoped, plan, snapshot, token),
-                "DrnRepositoryMethodService:" + target.Id + ":" + selected.Method.GetDocumentationCommentId() + ":" + scoped));
+            foreach (var scoped in ScopedOptions)
+            {
+                var plan = await Plan(context.Document.Project, selected, target, scoped, context.CancellationToken);
+                if (plan is null) continue;
+                if (!ReferenceEquals(snapshot.Workspace.CurrentSolution, snapshot)) return;
+                context.RegisterRefactoring(CodeAction.Create(
+                    "Add " + (scoped ? "scoped" : "unregistered") + " forwarding service: " + target.Name + " / " + plan.RelativePath +
+                    " for " + selected.Method.Name,
+                    token => Apply(context.Document, context.Span, target.Id, scoped, plan, snapshot, token),
+                    "DrnRepositoryMethodService:" + target.Id + ":" + selected.Method.GetDocumentationCommentId() + ":" + scoped));
+            }
         }
     }
 
@@ -51,57 +60,132 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
 
     private static async Task<Selection?> Select(Document document, TextSpan span, CancellationToken token)
     {
-        if (document.GetLinkedDocumentIds().Length != 0 || await HasRoleOverrides(document.Project, token)) return null;
-        var root = await ClassificationEdit.FindEditableRoot(document, span.Start, token);
-        var model = await document.GetSemanticModelAsync(token);
-        if (root is null || model is null || span.End > root.FullSpan.End) return null;
-        var declarations = root.DescendantNodes().OfType<MethodDeclarationSyntax>().Where(method => span.Contains(method.Span)).Take(2).ToArray();
-        if (declarations is not [var declaration] || declaration.Body is not null || declaration.ExpressionBody is not null ||
-            declaration.ContainsDirectives || model.GetDeclaredSymbol(declaration, token) is not IMethodSymbol method ||
-            method.ContainingType.TypeKind != TypeKind.Interface || method.IsStatic || method.IsGenericMethod ||
-            method.DeclaredAccessibility != Accessibility.Public || method.ReturnsByRef || method.ReturnsByRefReadonly ||
-            method.GetAttributes().Length != 0 || method.GetReturnTypeAttributes().Length != 0 ||
-            IsOpen(method.ContainingType) || !PublicType(method.ContainingType) ||
-            model.GetDiagnostics(declaration.Span, token).Any(item => item.Severity == DiagnosticSeverity.Error)) return null;
-        foreach (var parameter in method.Parameters)
-        {
-            token.ThrowIfCancellationRequested();
-            if (parameter.RefKind != RefKind.None || parameter.IsParams || parameter.GetAttributes().Length != 0) return null;
-            var syntax = declaration.ParameterList.Parameters[parameter.Ordinal];
-            if (syntax.Modifiers.Count != 0) return null;
-            if (syntax.Default is not null && (!Same(parameter.Type as INamedTypeSymbol,
-                    model.Compilation.GetTypeByMetadataName("System.Threading.CancellationToken")) ||
-                syntax.Default.Value is not (DefaultExpressionSyntax or LiteralExpressionSyntax { RawKind: (int)SyntaxKind.DefaultLiteralExpression }))) return null;
-        }
+        var found = await FindSelectedInterfaceMethodAsync(document, span, token);
+        if (found is null) return null;
+        var (declaration, model, method) = found.Value;
+        if (!IsEligibleInterfaceMethod(method, model, declaration, token)) return null;
         var contract = model.Compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository`1");
         var bindings = method.ContainingType.AllInterfaces.Where(item => Same(item, contract)).ToArray();
         if (bindings is not [{ TypeArguments: [INamedTypeSymbol entity] }] || IsOpen(entity) || !PublicType(entity) ||
-            !Bases(entity).Any(type => Same(type, model.Compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.AggregateRoot")))) return null;
-        foreach (var type in method.ContainingType.AllInterfaces.Append(method.ContainingType))
-        foreach (var attribute in type.GetAttributes())
-        {
-            if (attribute.AttributeClass is not { } attributeType) return null;
-            var name = MetadataName(attributeType);
-            if (name is not ("DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomainAttribute" or
-                "System.Runtime.CompilerServices.NullableAttribute" or "System.Runtime.CompilerServices.NullableContextAttribute")) return null;
-        }
+            !Bases(entity).Any(type => Same(type, model.Compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.AggregateRoot"))))
+            return null;
+        if (!HasOnlySupportedTypeAttributes(method.ContainingType) || !HasRequiredAsyncCancellation(method, model.Compilation))
+            return null;
+        return await AreInterfacePartsEditableAsync(document, method.ContainingType, token)
+            ? new(method, entity, declaration)
+            : null;
+    }
+
+    private static async Task<(MethodDeclarationSyntax Declaration, SemanticModel Model, IMethodSymbol Method)?> FindSelectedInterfaceMethodAsync(
+        Document document, TextSpan span, CancellationToken token)
+    {
+        if (document.GetLinkedDocumentIds().Length != 0) return null;
+        var syntaxRoot = await document.GetSyntaxRootAsync(token);
+        if (syntaxRoot is null || span.End > syntaxRoot.FullSpan.End) return null;
+        var declarations = syntaxRoot.DescendantNodes(span).OfType<MethodDeclarationSyntax>()
+            .Where(method => span.Contains(method.Span)).Take(2).ToArray();
+        if (declarations is not [var declaration] || declaration.Body is not null || declaration.ExpressionBody is not null ||
+            declaration.ContainsDirectives || declaration.Parent is not InterfaceDeclarationSyntax) return null;
+        if (await HasRoleOverrides(document.Project, token)) return null;
+        var root = await ClassificationEdit.FindEditableRoot(document, span.Start, token);
+        var model = await document.GetSemanticModelAsync(token);
+        if (root is null || model is null || model.GetDeclaredSymbol(declaration, token) is not IMethodSymbol method) return null;
+        return (declaration, model, method);
+    }
+
+    private static bool IsEligibleInterfaceMethod(IMethodSymbol method, SemanticModel model,
+        MethodDeclarationSyntax declaration, CancellationToken token)
+    {
+        if (method.ContainingType.TypeKind != TypeKind.Interface || method.IsStatic || method.IsGenericMethod ||
+            method.DeclaredAccessibility != Accessibility.Public || method.ReturnsByRef || method.ReturnsByRefReadonly ||
+            method.GetAttributes().Length != 0 || method.GetReturnTypeAttributes().Length != 0 ||
+            IsOpen(method.ContainingType) || !PublicType(method.ContainingType) ||
+            model.GetDiagnostics(declaration.Span, token).Any(item => item.Severity == DiagnosticSeverity.Error))
+            return false;
+        return AreParametersSupported(method, model, declaration, token);
+    }
+
+    private static bool AreParametersSupported(IMethodSymbol method, SemanticModel model,
+        MethodDeclarationSyntax declaration, CancellationToken token)
+    {
         var cancellation = model.Compilation.GetTypeByMetadataName("System.Threading.CancellationToken");
+        foreach (var parameter in method.Parameters)
+        {
+            token.ThrowIfCancellationRequested();
+            if (parameter.RefKind != RefKind.None || parameter.IsParams || parameter.GetAttributes().Length != 0) return false;
+            var syntax = declaration.ParameterList.Parameters[parameter.Ordinal];
+            if (syntax.Modifiers.Count != 0) return false;
+            if (syntax.Default is not null && (!Same(parameter.Type as INamedTypeSymbol, cancellation) ||
+                syntax.Default.Value is not (DefaultExpressionSyntax or LiteralExpressionSyntax { RawKind: (int)SyntaxKind.DefaultLiteralExpression })))
+                return false;
+        }
+        return true;
+    }
+
+    private static bool HasOnlySupportedTypeAttributes(INamedTypeSymbol interfaceType)
+    {
+        foreach (var type in interfaceType.AllInterfaces.Append(interfaceType))
+        {
+            foreach (var attribute in type.GetAttributes())
+            {
+                if (attribute.AttributeClass is not { } attributeType) return false;
+                var name = MetadataName(attributeType);
+                if (name is not ("DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomainAttribute" or
+                    "System.Runtime.CompilerServices.NullableAttribute" or "System.Runtime.CompilerServices.NullableContextAttribute"))
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    private static bool HasRequiredAsyncCancellation(IMethodSymbol method, Compilation compilation)
+    {
+        var cancellation = compilation.GetTypeByMetadataName("System.Threading.CancellationToken");
         var task = method.ReturnType as INamedTypeSymbol;
-        var asyncReturn = task is not null && new[] { "System.Threading.Tasks.Task", "System.Threading.Tasks.Task`1",
-            "System.Threading.Tasks.ValueTask", "System.Threading.Tasks.ValueTask`1" }.Any(name => Same(task, model.Compilation.GetTypeByMetadataName(name)));
-        if (asyncReturn && !method.Parameters.Any(parameter => Same(parameter.Type as INamedTypeSymbol, cancellation))) return null;
-        foreach (var reference in method.ContainingType.DeclaringSyntaxReferences)
+        var asyncReturn = task is not null && AsyncReturnTypeNames.Any(name => Same(task, compilation.GetTypeByMetadataName(name)));
+        return !asyncReturn || method.Parameters.Any(parameter => Same(parameter.Type as INamedTypeSymbol, cancellation));
+    }
+
+    private static async Task<bool> AreInterfacePartsEditableAsync(Document document, INamedTypeSymbol interfaceType,
+        CancellationToken token)
+    {
+        foreach (var reference in interfaceType.DeclaringSyntaxReferences)
         {
             var part = document.Project.GetDocument(reference.SyntaxTree);
             if (part is null || part.GetLinkedDocumentIds().Length != 0 ||
-                await ClassificationEdit.FindEditableRoot(part, reference.Span.Start, token) is null) return null;
+                await ClassificationEdit.FindEditableRoot(part, reference.Span.Start, token) is null) return false;
             var partModel = await part.GetSemanticModelAsync(token);
-            if (partModel is null || partModel.GetDiagnostics(reference.Span, token).Any(item => item.Severity == DiagnosticSeverity.Error)) return null;
+            if (partModel is null || partModel.GetDiagnostics(reference.Span, token).Any(item => item.Severity == DiagnosticSeverity.Error))
+                return false;
         }
-        return new(method, entity, declaration);
+        return true;
     }
 
     private static async Task<ServicePlan?> Plan(Project domain, Selection selected, Project application, bool scoped, CancellationToken token)
+    {
+        var context = await ResolveServiceContextAsync(domain, application, selected, token);
+        if (context is null) return null;
+        if (!HasMatchingConventionalOwnership(selected, context.DomainNamespace, context.SourceCompilation,
+                context.DomainInputs, context.ApplicationInputs, context.Owner, token)) return null;
+        var ns = context.ApplicationNamespace + ".Services." + context.Area;
+        if (!ValidNamespace(ns)) return null;
+        var operation = selected.Method.Name.EndsWith("Async", StringComparison.Ordinal) ? selected.Method.Name[..^5] : selected.Method.Name;
+        var name = ConventionGenerationPreflight.EntityStem(context.Entity.Name) + operation + "Service";
+        if (!SyntaxFacts.IsValidIdentifier(name) || name == selected.Method.Name || selected.Method.Name == "_repository" ||
+            ConventionGenerationPreflight.SymbolCollision(context.Compilation, ns, name, token)) return null;
+        var constructed = context.Service.Construct(context.Entity);
+        if (!CanConstructForwardingService(constructed, context.Repository, context.Compilation, selected, scoped, token))
+            return null;
+        var root = Path.GetDirectoryName(context.ProjectPath)!;
+        var relative = "Services/" + context.Area.Replace('.', '/') + "/" + name + ".cs";
+        var path = Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar));
+        if (!SafeDestination(root, path) || WorkspaceDestinationConflict(application.Solution, path, application.Id, token))
+            return null;
+        return RenderForwardingService(selected, context.Repository, constructed, ns, name, relative, path, scoped);
+    }
+
+    private static async Task<ServiceContext?> ResolveServiceContextAsync(Project domain, Project application,
+        Selection selected, CancellationToken token)
     {
         var domainIdentity = Identity(domain);
         var applicationIdentity = Identity(application);
@@ -112,7 +196,16 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
             application.FilePath is null || !TryFullPath(application.FilePath, out var projectPath)) return null;
         var domainInputs = await ConventionGenerationPreflight.ReadInputs(domain, required: false, token);
         var applicationInputs = await ConventionGenerationPreflight.ReadInputs(application, required: false, token);
-        if (domainInputs is null || HasRoleOverride(domainInputs) || applicationInputs is null || HasRoleOverride(applicationInputs)) return null;
+        if (domainInputs is null || HasRoleOverride(domainInputs) || applicationInputs is null || HasRoleOverride(applicationInputs))
+            return null;
+        return await ResolveServiceSymbolsAsync(domain, application, selected, domainIdentity.Namespace,
+            applicationIdentity.Namespace, projectPath, domainInputs, applicationInputs, token);
+    }
+
+    private static async Task<ServiceContext?> ResolveServiceSymbolsAsync(Project domain, Project application,
+        Selection selected, string domainNamespace, string applicationNamespace, string projectPath,
+        CompilationUnitSyntax domainInputs, CompilationUnitSyntax applicationInputs, CancellationToken token)
+    {
         var compilation = await application.GetCompilationAsync(token);
         var repository = compilation?.GetTypeByMetadataName(MetadataName(selected.Method.ContainingType));
         var entity = compilation?.GetTypeByMetadataName(MetadataName(selected.Entity));
@@ -128,43 +221,49 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
             source.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownService`1") is not { } sourceService ||
             !sourceService.ContainingAssembly.Identity.Equals(service.ContainingAssembly.Identity)) return null;
         var sourceNamespace = selected.Method.ContainingType.ContainingNamespace.ToDisplayString();
-        if (!ValidNamespace(sourceNamespace) || !sourceNamespace.StartsWith(domainIdentity.Namespace + ".", StringComparison.Ordinal)) return null;
-        var area = sourceNamespace[(domainIdentity.Namespace.Length + 1)..];
-        var owner = area.Split('.')[0];
+        if (!ValidNamespace(sourceNamespace) || !sourceNamespace.StartsWith(domainNamespace + ".", StringComparison.Ordinal))
+            return null;
+        var area = sourceNamespace[(domainNamespace.Length + 1)..];
+        return new(compilation, source, repository, entity, service, domainInputs, applicationInputs,
+            domainNamespace, applicationNamespace, projectPath, area, area.Split('.')[0]);
+    }
+
+    private static bool HasMatchingConventionalOwnership(Selection selected, string domainNamespace, Compilation source,
+        CompilationUnitSyntax domainInputs, CompilationUnitSyntax applicationInputs, string owner, CancellationToken token)
+    {
         var entityName = MetadataName(selected.Entity);
         var repositoryName = MetadataName(selected.Method.ContainingType);
-        if (!ConventionalOwner(selected.Method.ContainingType, domainIdentity.Namespace, source) ||
-            !ConventionalOwner(selected.Entity, domainIdentity.Namespace, source) ||
-            selected.Entity.ContainingNamespace.ToDisplayString().Split('.').Length <= domainIdentity.Namespace.Split('.').Length ||
-            selected.Entity.ContainingNamespace.ToDisplayString()[(domainIdentity.Namespace.Length + 1)..].Split('.')[0] != owner ||
-            !OwnershipCompatible(domainInputs, entityName, owner, token) ||
-            !OwnershipCompatible(domainInputs, repositoryName, owner, token) ||
-            !OwnershipCompatible(applicationInputs, entityName, owner, token) ||
-            !OwnershipCompatible(applicationInputs, repositoryName, owner, token)) return null;
-        var ns = applicationIdentity.Namespace + ".Services." + area;
-        if (!ValidNamespace(ns)) return null;
-        var operation = selected.Method.Name.EndsWith("Async", StringComparison.Ordinal) ? selected.Method.Name[..^5] : selected.Method.Name;
-        var name = ConventionGenerationPreflight.EntityStem(entity.Name) + operation + "Service";
-        if (!SyntaxFacts.IsValidIdentifier(name) || name == selected.Method.Name || selected.Method.Name == "_repository" ||
-            ConventionGenerationPreflight.SymbolCollision(compilation, ns, name, token)) return null;
-        var constructed = service.Construct(entity);
+        return ConventionalOwner(selected.Method.ContainingType, domainNamespace, source) &&
+               ConventionalOwner(selected.Entity, domainNamespace, source) &&
+               selected.Entity.ContainingNamespace.ToDisplayString().Split('.').Length > domainNamespace.Split('.').Length &&
+               selected.Entity.ContainingNamespace.ToDisplayString()[(domainNamespace.Length + 1)..].Split('.')[0] == owner &&
+               OwnershipCompatible(domainInputs, entityName, owner, token) &&
+               OwnershipCompatible(domainInputs, repositoryName, owner, token) &&
+               OwnershipCompatible(applicationInputs, entityName, owner, token) &&
+               OwnershipCompatible(applicationInputs, repositoryName, owner, token);
+    }
+
+    private static bool CanConstructForwardingService(INamedTypeSymbol constructed, INamedTypeSymbol repository,
+        Compilation compilation, Selection selected, bool scoped, CancellationToken token)
+    {
         if (Bases(constructed).Any(type => type.GetMembers(selected.Method.Name).Length != 0) ||
             !constructed.InstanceConstructors.Any(constructor => constructor.Parameters is [{ Type: { } parameter }] &&
                 compilation.ClassifyCommonConversion(repository, parameter).IsImplicit &&
-                constructor.DeclaredAccessibility is Accessibility.Public or Accessibility.Protected or Accessibility.ProtectedOrInternal)) return null;
+                constructor.DeclaredAccessibility is Accessibility.Public or Accessibility.Protected or Accessibility.ProtectedOrInternal))
+            return false;
         if (!Available(selected.Method.ReturnType, compilation, token) ||
-            selected.Method.Parameters.Any(parameter => !Available(parameter.Type, compilation, token))) return null;
-        if (scoped)
-        {
-            var attribute = compilation.GetTypeByMetadataName("DRN.Framework.Utils.DependencyInjection.Attributes.ScopedAttribute`1");
-            if (attribute is null || !compilation.IsSymbolAccessibleWithin(attribute, compilation.Assembly) ||
-                !attribute.InstanceConstructors.Any(constructor => constructor.DeclaredAccessibility == Accessibility.Public &&
-                    constructor.Parameters.All(parameter => parameter.IsOptional))) return null;
-        }
-        var root = Path.GetDirectoryName(projectPath)!;
-        var relative = "Services/" + area.Replace('.', '/') + "/" + name + ".cs";
-        var path = Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar));
-        if (!SafeDestination(root, path) || WorkspaceDestinationConflict(application.Solution, path, application.Id, token)) return null;
+            selected.Method.Parameters.Any(parameter => !Available(parameter.Type, compilation, token)))
+            return false;
+        if (!scoped) return true;
+        var attribute = compilation.GetTypeByMetadataName("DRN.Framework.Utils.DependencyInjection.Attributes.ScopedAttribute`1");
+        return attribute is not null && compilation.IsSymbolAccessibleWithin(attribute, compilation.Assembly) &&
+               attribute.InstanceConstructors.Any(constructor => constructor.DeclaredAccessibility == Accessibility.Public &&
+                   constructor.Parameters.All(parameter => parameter.IsOptional));
+    }
+
+    private static ServicePlan RenderForwardingService(Selection selected, INamedTypeSymbol repository,
+        INamedTypeSymbol constructed, string ns, string name, string relative, string path, bool scoped)
+    {
         var format = SymbolDisplayFormat.FullyQualifiedFormat.WithMiscellaneousOptions(
             SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier | SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers);
         var parameters = string.Join(", ", selected.Method.Parameters.Select(parameter => parameter.Type.ToDisplayString(format) + " " + Escape(parameter.Name) +
@@ -204,19 +303,30 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
             if (!seen.Add(current)) continue;
             if (seen.Count > 128) return false;
             if (current is IArrayTypeSymbol array) { pending.Push(array.ElementType); continue; }
-            if (current is not INamedTypeSymbol named || named.TypeKind == TypeKind.Error) return false;
-            if (compilation.GetTypeByMetadataName(MetadataName(named)) is not { } available ||
-                !available.ContainingAssembly.Identity.Equals(named.ContainingAssembly.Identity) ||
-                !compilation.IsSymbolAccessibleWithin(available, compilation.Assembly)) return false;
-            if (!SymbolEqualityComparer.Default.Equals(available.ContainingAssembly, compilation.Assembly) &&
-                !compilation.References.Any(reference => (reference.Properties.Aliases.IsEmpty || reference.Properties.Aliases.Contains("global", StringComparer.Ordinal)) &&
-                    compilation.GetAssemblyOrModuleSymbol(reference) is IAssemblySymbol assembly &&
-                    assembly.Identity.Equals(available.ContainingAssembly.Identity))) return false;
+            if (current is not INamedTypeSymbol named || named.TypeKind == TypeKind.Error ||
+                !IsTypeAvailableInCompilation(named, compilation)) return false;
             if (named.ContainingType is { } containing) pending.Push(containing);
             foreach (var argument in named.TypeArguments) pending.Push(argument);
         }
         return true;
     }
+
+    private static bool IsTypeAvailableInCompilation(INamedTypeSymbol named, Compilation compilation)
+    {
+        if (compilation.GetTypeByMetadataName(MetadataName(named)) is not { } available ||
+            !available.ContainingAssembly.Identity.Equals(named.ContainingAssembly.Identity) ||
+            !compilation.IsSymbolAccessibleWithin(available, compilation.Assembly)) return false;
+        return SymbolEqualityComparer.Default.Equals(available.ContainingAssembly, compilation.Assembly) ||
+               compilation.References.Any(reference =>
+                   (reference.Properties.Aliases.IsEmpty || reference.Properties.Aliases.Contains("global", StringComparer.Ordinal)) &&
+                   compilation.GetAssemblyOrModuleSymbol(reference) is IAssemblySymbol assembly &&
+                   assembly.Identity.Equals(available.ContainingAssembly.Identity));
+    }
+
+    private sealed record ServiceContext(Compilation Compilation, Compilation SourceCompilation, INamedTypeSymbol Repository,
+        INamedTypeSymbol Entity, INamedTypeSymbol Service, CompilationUnitSyntax DomainInputs,
+        CompilationUnitSyntax ApplicationInputs, string DomainNamespace, string ApplicationNamespace,
+        string ProjectPath, string Area, string Owner);
 
     private static bool ConventionalOwner(INamedTypeSymbol type, string root, Compilation compilation)
     {

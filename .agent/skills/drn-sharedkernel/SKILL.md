@@ -23,7 +23,7 @@ Configure the epoch and minimum UTC before startup or the first ID/epoch operati
 
 ### Validation Approaches
 
-Validate external GUIDs through injected `ISourceKnownEntityIdOperations`, such as `ids.Validate<Order>(externalGuid)`, or `ISourceKnownRepository<Order>.GetEntityId(externalGuid)`. Use the application's entity type and check installed overloads. Parsed records are caller-constructible and validate stored metadata only. `Validate<TEntity>()` or `EntityTypeId(entityType, appId)` checks both identity components. Supply both even when one is zero. `ValidateId()` checks validity alone.
+Validate external GUIDs through injected `ISourceKnownEntityIdOperations`, such as `ids.Validate<OrderEntity>(externalGuid)`, or `ISourceKnownRepository<OrderEntity>.GetEntityId(externalGuid)`. Use the application's entity type and check installed overloads. Parsed records are caller-constructible and validate stored metadata only. `Validate<TEntity>()` or `EntityTypeId(entityType, appId)` checks both identity components. Supply both even when one is zero. `ValidateId()` checks validity alone.
 
 GUID helpers default to `ConfiguredDefault`. Implementations expose an immutable Secure or Plain default. Explicit Auto accepts both forms. Conversions reauthenticate using Auto, so enforce the required input format before conversion. Unsupported formats reject null GUIDs and empty GUID batches too. Record reads, deletes and validation accept either parsed representation. Use records only within trusted code. [Utils ID formats](../drn-utils/SKILL.md#id-generation)
 

@@ -63,6 +63,45 @@ public sealed class EntityConfigurationRefactoringTests
     }
 
     [Theory]
+    [DataInlineUnit(false, false, false)]
+    [DataInlineUnit(false, true, false)]
+    [DataInlineUnit(true, false, false)]
+    [DataInlineUnit(true, true, false)]
+    [DataInlineUnit(true, false, true)]
+    [DataInlineUnit(true, true, true)]
+    public async Task DbSet_Membership_Should_Require_Exact_Declared_Type_Or_Explicit_Inclusion(
+        bool derivedSet, bool inherited, bool explicitInclusion)
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace);
+        var context = entity.Project.Documents.Single(document => document.Name == "QAContext.cs");
+        var setType = derivedSet ? "CustomSet" : "Microsoft.EntityFrameworkCore.DbSet";
+        var member = $"public {setType}<Sample.Domain.QA.User> Users {{ get; set; }}";
+        var inclusion = explicitInclusion
+            ? "[DRN.Framework.EntityFramework.Attributes.SourceKnownPersistence(typeof(Sample.Domain.QA.User))]"
+            : "";
+        var source = $$"""
+            namespace Sample.Infra.QA;
+            public abstract class CustomSet<TEntity> : Microsoft.EntityFrameworkCore.DbSet<TEntity> where TEntity : class { }
+            public abstract class BaseContext : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>
+            {
+                protected BaseContext() : base(null) { }
+                {{(inherited ? member : "")}}
+            }
+            {{inclusion}}
+            public class QAContext : BaseContext
+            {
+                {{(inherited ? "" : member)}}
+            }
+            """;
+        workspace.TryApplyChanges(context.WithText(SourceText.From(source)).Project.Solution).Should().BeTrue();
+        var current = workspace.CurrentSolution.GetDocument(entity.Id)!;
+        (await current.Project.GetCompilationAsync())!.GetDiagnostics().Should()
+            .NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        (await Actions(current)).Should().HaveCount(!derivedSet || explicitInclusion ? 1 : 0);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task Nonpublic_Entity_Or_Containing_Type_Should_Decline_Public_Configuration(bool nested)
@@ -464,6 +503,73 @@ public sealed class EntityConfigurationRefactoringTests
             .Single(document => document.Name == "OrderConfig.cs");
         (await added.GetTextAsync()).ToString().Should().Contain("public sealed class OrderConfig : global::Microsoft.EntityFrameworkCore.IEntityTypeConfiguration<global::Sample.Domain.QA.Order.OrderEntity>");
         (await added.Project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Fact]
+    public async Task Alias_Only_Domain_Reference_Cross_Owner_Context_And_Errored_Inclusion_Should_Decline()
+    {
+        using var aliasWorkspace = new AdhocWorkspace();
+        var domain = aliasWorkspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: "/source/Sample.Domain/Sample.Domain.csproj"))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References);
+        var entityDoc = domain.AddDocument("OrderEntity.cs", """
+            namespace Sample.Domain.QA.Order;
+            public sealed class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+            """, filePath: "/source/Sample.Domain/QA/Order/OrderEntity.cs");
+        aliasWorkspace.TryApplyChanges(entityDoc.Project.Solution).Should().BeTrue();
+        var infra = aliasWorkspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                "Sample.Infra", "Sample.Infra", LanguageNames.CSharp, filePath: "/source/Sample.Infra/Sample.Infra.csproj"))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddProjectReference(new ProjectReference(domain.Id, ["DomainAlias"]))
+            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
+            .AddMetadataReference(MetadataReference.CreateFromFile(typeof(DRN.Framework.EntityFramework.Context.DrnContext<>).Assembly.Location))
+            .AddMetadataReference(MetadataReference.CreateFromFile(typeof(DRN.Framework.Utils.Settings.IAppSettings).Assembly.Location));
+        var aliasedContext = infra.AddDocument("QAContext.cs", """
+            extern alias DomainAlias;
+            namespace Sample.Infra.QA;
+            public class QAContext : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>
+            {
+                public QAContext() : base(null) { }
+                public Microsoft.EntityFrameworkCore.DbSet<DomainAlias::Sample.Domain.QA.Order.OrderEntity> Orders { get; set; }
+            }
+            """, filePath: "/source/Sample.Infra/QA/QAContext.cs");
+        aliasWorkspace.TryApplyChanges(aliasedContext.Project.Solution).Should().BeTrue();
+        var currentEntity = aliasWorkspace.CurrentSolution.GetDocument(entityDoc.Id)!;
+        var entityText = (await currentEntity.GetTextAsync()).ToString();
+        var aliasActions = new List<CodeAction>();
+        await new EntityConfigurationRefactoringProvider().ComputeRefactoringsAsync(new CodeRefactoringContext(currentEntity,
+            new TextSpan(entityText.IndexOf("OrderEntity :", StringComparison.Ordinal), 0), aliasActions.Add, CancellationToken.None));
+        aliasActions.Should().BeEmpty();
+
+        using var crossOwnerWorkspace = new AdhocWorkspace();
+        var crossEntity = CreateDocuments(crossOwnerWorkspace);
+        var contextDoc = crossEntity.Project.Documents.Single(document => document.Name == "QAContext.cs");
+        var crossSource = (await contextDoc.GetTextAsync()).ToString().Replace("namespace Sample.Infra.QA;",
+            "namespace Sample.Infra.Legacy;\n[DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomain(\"QA\", Reason = \"Legacy context namespace\")]",
+            StringComparison.Ordinal);
+        crossOwnerWorkspace.TryApplyChanges(contextDoc.WithText(SourceText.From(crossSource)).Project.Solution).Should().BeTrue();
+        (await Actions(crossOwnerWorkspace.CurrentSolution.GetDocument(crossEntity.Id)!)).Should().BeEmpty();
+
+        using var erroredWorkspace = new AdhocWorkspace();
+        var erroredEntity = CreateDocuments(erroredWorkspace);
+        var erroredContextDoc = erroredEntity.Project.Documents.Single(document => document.Name == "QAContext.cs");
+        var erroredContextSource = """
+            namespace Sample.Infra.QA;
+            [DRN.Framework.EntityFramework.Attributes.SourceKnownPersistence(typeof(Sample.Domain.QA.User), Inclusion = MissingInclusionValue)]
+            public class QAContext : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>
+            {
+                public QAContext() : base(null) { }
+            }
+            """;
+        erroredWorkspace.TryApplyChanges(erroredContextDoc.WithText(SourceText.From(erroredContextSource)).Project.Solution).Should().BeTrue();
+        var erroredCurrent = erroredWorkspace.CurrentSolution.GetDocument(erroredEntity.Id)!;
+        var erroredCompilation = (await erroredCurrent.Project.GetCompilationAsync())!;
+        EntityConfigurationRefactoringProvider.HasMembership(
+            erroredCompilation.GetTypeByMetadataName("Sample.Infra.QA.QAContext")!,
+            erroredCompilation.GetTypeByMetadataName("Sample.Domain.QA.User")!,
+            erroredCompilation).Should().BeFalse();
+        (await Actions(erroredCurrent)).Should().BeEmpty();
     }
 
     private static Document CreateDocuments(AdhocWorkspace workspace, string? extraSource = null, string contextMembers = "")

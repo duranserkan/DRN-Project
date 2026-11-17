@@ -80,7 +80,7 @@ public class AppContext : DrnContext<AppContext>
     public AppContext(DbContextOptions<AppContext> options) : base(options) { }
     public AppContext() : base(null) { } // Required for migrations
 
-    public DbSet<UserEntity> Users => Set<UserEntity>();
+    public DbSet<UserEntity> Users { get; set; }
 }
 
 // 3. Save a new entity
@@ -678,7 +678,7 @@ public class MyDbContext : DrnContext<MyDbContext>
     public MyDbContext(DbContextOptions<MyDbContext> options) : base(options) { }
     public MyDbContext() : base(null) { }
 
-    public DbSet<UserEntity> Users => Set<UserEntity>();
+    public DbSet<UserEntity> Users { get; set; }
 }
 ```
 

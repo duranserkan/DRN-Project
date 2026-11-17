@@ -51,18 +51,18 @@ using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Domain;
 
 [EntityType<DefaultApp>(1)] // Unique byte identifier for this entity type
-public class User : AggregateRoot
+public class UserEntity : AggregateRoot
 {
     public string Name { get; private set; }
 
-    public User(string name)
+    public UserEntity(string name)
     {
         Name = name;
         AddDomainEvent(new UserCreated(this)); // Collected on the entity for infrastructure handling
     }
 }
 
-public class UserCreated(User user) : EntityCreated(user)
+public class UserCreated(UserEntity user) : EntityCreated(user)
 {
     [Personal]
     public string UserName => user.Name;
@@ -73,7 +73,7 @@ The constructor alone does not assign `EntityId` or `CreatedAt`. The event reads
 
 ## QuickStart: Advanced
 
-Use the `User` above with a repository implementation. This service maps entities to DTOs, filters by creation date, and reports missing users:
+Use the `UserEntity` above with a repository implementation. This service maps entities to DTOs, filters by creation date, and reports missing users:
 
 ```csharp
 using System;
@@ -88,7 +88,7 @@ public class UserDto(SourceKnownEntity? entity = null) : Dto(entity)
     public string Name { get; init; } = string.Empty;
 }
 
-public class UserService(ISourceKnownRepository<User> repository)
+public class UserService(ISourceKnownRepository<UserEntity> repository)
 {
     public async Task<PaginationResultModel<UserDto>> GetUsersAsync(PaginationRequest request)
     {
@@ -207,17 +207,17 @@ SourceKnownEntity.GetEntityTypeId(aggregate);
 
 Usage checks apply to test projects too. `DRN0009` and `DRN0010` inspect constants without propagating mutable local values; use non-constant inputs for runtime rejection tests. Dynamic values still require runtime validation.
 
-`DRN0013` allows runtime-instance metadata overloads, application-only `Validate<TApp>`, unresolved type parameters, and unbound generic definitions. It does not trace dynamic `Type` values or consumer wrappers. Use concrete bindings such as `ISourceKnownRepository<Order>`: forwarding `TEntity` through `SourceKnownRepository<AppDbContext, TEntity>` is valid, but later binding it to `AggregateRoot` is rejected. No public parameterless constructor is required.
+`DRN0013` allows runtime-instance metadata overloads, application-only `Validate<TApp>`, unresolved type parameters, and unbound generic definitions. It does not trace dynamic `Type` values or consumer wrappers. Use concrete bindings such as `ISourceKnownRepository<OrderEntity>`: forwarding `TEntity` through `SourceKnownRepository<AppDbContext, TEntity>` is valid, but later binding it to `AggregateRoot` is rejected. No public parameterless constructor is required.
 
 Entity ID operations are attached during EF materialization or while saving an Added entity, before the database save succeeds. Constructing an entity with an existing numeric ID, calling `Add`, or obtaining an ID record through the utility does not itself attach operations. Initialization and `IsPendingInsert` do not prove persistence.
 
 ```csharp
-var order = new Order(); // Constructor must be available and provably passive.
+var order = new OrderEntity(); // Constructor must be available and provably passive.
 var alias = order;
-alias.GetEntityId<Customer>(customerGuid); // DRN0014
+alias.GetEntityId<CustomerEntity>(customerGuid); // DRN0014
 
 // Use injected operations when working before entity initialization.
-var customerId = ids.Validate<Customer>(customerGuid);
+var customerId = ids.Validate<CustomerEntity>(customerGuid);
 ```
 
 `DRN0014` recognizes source constructor chains with empty bodies or instance-field/auto-property assignments from constants/parameters, constant member initializers, and empty standard `List<T>` initializers. Compiled constructors and object initializers are unknown. Tracking stops at unknown calls, arbitrary getters/setters, control flow, awaits, captures, or ref aliases. Potentially null inputs and static metadata helpers are excluded. No diagnostic proves initialization; runtime guards remain required.
@@ -345,9 +345,9 @@ The default minimum is the same in every build configuration. It detects clocks 
 
 | Context | Call | Requirement |
 |---|---|---|
-| Service | `sourceKnownEntityIdUtils.Validate<User>(externalGuid)` | Inject the Utils ID utility |
-| Repository | `userRepository.GetEntityId(externalGuid)` | Use `ISourceKnownRepository<User>` |
-| Domain entity | `userInstance.GetEntityId<User>(externalGuid)` | Entity ID assigned and ID operations wired |
+| Service | `sourceKnownEntityIdUtils.Validate<UserEntity>(externalGuid)` | Inject the Utils ID utility |
+| Repository | `userRepository.GetEntityId(externalGuid)` | Use `ISourceKnownRepository<UserEntity>` |
+| Domain entity | `userInstance.GetEntityId<UserEntity>(externalGuid)` | Entity ID assigned and ID operations wired |
 
 `GetEntityId` helpers throw `UnprocessableEntityException` while the current entity is pending insertion. Missing ID operations cause `ConfigurationException`. For a parsed `SourceKnownEntityId`, choose validation by the expected boundary:
 
@@ -363,7 +363,7 @@ Identity validation requires an expected application partition: use `Validate<TE
 
 Domain helpers follow the same contract for GUID and numeric IDs: use `GetEntityId<TEntity>(id)` or `GetEntityId(id, new EntityTypeId(entityType, expectedAppId))`, including nullable forms. The former byte-only helpers are removed. The low-level `GetEntityId(Guid, bool validate = true)` helper checks parsing validity only, like `ValidateId()`. SharedKernel does not read application configuration; Utils supplies configured expectations and EF repositories supply the target entity's declared identity.
 
-All domain GUID helpers and repository single/batch/enumerable GUID helpers accept an optional final `format` argument. It reaches the injected parser; omission uses its configured default. For example, `entity.GetEntityId<User>(guid, SourceKnownEntityIdFormat.Plain)` and `repository.GetEntityIds(guids, format: SourceKnownEntityIdFormat.Auto)`. Undefined formats are rejected for null inputs and empty batches too. Numeric generation and conversions retain their existing behavior. Ordinary calls still compile, but changed signatures require binary consumers to rebuild and custom implementations/method-group bindings to update.
+All domain GUID helpers and repository single/batch/enumerable GUID helpers accept an optional final `format` argument. It reaches the injected parser; omission uses its configured default. For example, `entity.GetEntityId<UserEntity>(guid, SourceKnownEntityIdFormat.Plain)` and `repository.GetEntityIds(guids, format: SourceKnownEntityIdFormat.Auto)`. Undefined formats are rejected for null inputs and empty batches too. Numeric generation and conversions retain their existing behavior. Ordinary calls still compile, but changed signatures require binary consumers to rebuild and custom implementations/method-group bindings to update.
 
 ### Secure ↔ Plain Conversion
 
@@ -515,7 +515,7 @@ The three-argument `PageSize` constructor can override the maximum threshold for
 
 For flat first-page input, bind `PaginationOptions` from a query or JSON body and convert it with `PaginationRequest.DefaultWith(options)`. Set `updateTotalCount` to request a server-side count. JSON enum values follow the application's serializer configuration. Use the returned metadata for continuation requests.
 
-`PaginationRequest` supports query-string model binding. This controller uses the quickstart's `User` and `UserDto`:
+`PaginationRequest` supports query-string model binding. This controller uses the quickstart's `UserEntity` and `UserDto`:
 
 ```csharp
 using System.Threading.Tasks;
@@ -525,7 +525,7 @@ using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
 [Route("users")]
-public class UsersController(ISourceKnownRepository<User> repository) : ControllerBase
+public class UsersController(ISourceKnownRepository<UserEntity> repository) : ControllerBase
 {
     [HttpGet]
     public async Task<PaginationResultModel<UserDto>> GetAsync([FromQuery] PaginationRequest request)

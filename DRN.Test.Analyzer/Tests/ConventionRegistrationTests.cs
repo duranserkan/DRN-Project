@@ -9,6 +9,7 @@ public sealed class ConventionRegistrationTests
     private static readonly MetadataReference UtilsReference = MetadataReference.CreateFromFile(typeof(LifetimeAttribute).Assembly.Location);
     private static readonly MetadataReference FrameworkReference = MetadataReference.CreateFromFile(
         typeof(DRN.Framework.EntityFramework.Context.IDrnContext).Assembly.Location);
+    private static readonly string[] MissingLifetimeDiagnostics = ["DRNCV031"];
 
     [Theory]
     [DataInlineUnit("typeof(ProjectModule).Assembly", true)]
@@ -188,7 +189,7 @@ public sealed class ConventionRegistrationTests
             (diagnostic.Id, diagnostic.GetMessage(), diagnostic.Location.SourceSpan, diagnostic.Severity,
                 diagnostic.Properties["Target"])).Should().Equal(expected);
         facts.Diagnostics.Select(diagnostic => diagnostic.Id).Should().Equal(
-            attribute.Length == 0 ? new[] { "DRNCV031" } : Array.Empty<string>());
+            attribute.Length == 0 ? MissingLifetimeDiagnostics : Array.Empty<string>());
 
         using var cancellation = new CancellationTokenSource();
         var canceledFacts = new ConventionFacts(facts.Compilation, facts.Project, new([], []),

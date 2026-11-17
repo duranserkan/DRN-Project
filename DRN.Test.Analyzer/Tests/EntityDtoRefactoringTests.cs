@@ -385,6 +385,111 @@ public sealed class EntityDtoRefactoringTests
         actions.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task Interface_Level_Unresolved_Or_False_Class_Classification_Should_Decline_And_Literal_Justification_Should_Preserve_Spacing()
+    {
+        using var interfaceWorkspace = new AdhocWorkspace();
+        var interfaceSource = """
+            namespace Sample.Domain.QA;
+            [DRN.Framework.SharedKernel.Attributes.Personal]
+            public interface IUserProfile { string Name { get; } }
+            public class User : DRN.Framework.SharedKernel.Domain.SourceKnownEntity, IUserProfile
+            {
+                // select-start
+                public string Name { get; private set; } = "";
+                // select-end
+            }
+            """;
+        (await Actions(Create(interfaceWorkspace, interfaceSource))).Should().BeEmpty();
+
+        using var unresolvedWorkspace = new AdhocWorkspace();
+        var unresolvedSource = Source.Replace("public class User", "[MissingClassification]\npublic class User", StringComparison.Ordinal);
+        (await Actions(Create(unresolvedWorkspace, unresolvedSource))).Should().BeEmpty();
+
+        using var falseSensitiveWorkspace = new AdhocWorkspace();
+        var falseSensitiveSource = Source.Replace("public class User",
+            "[DRN.Framework.SharedKernel.Attributes.Sensitive(false, Justification = \"False class exemption.\")]\npublic class User",
+            StringComparison.Ordinal);
+        (await Actions(Create(falseSensitiveWorkspace, falseSensitiveSource))).Should().BeEmpty();
+
+        using var literalWorkspace = new AdhocWorkspace();
+        var literalSource = Source.Replace("public class User",
+            "[DRN.Framework.SharedKernel.Attributes.Sensitive(Justification = \"Retain    [literal] spacing\")]\npublic class User",
+            StringComparison.Ordinal);
+        var action = (await Actions(Create(literalWorkspace, literalSource))).Should().ContainSingle().Which;
+        var changed = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var dto = changed.Projects.Single(project => project.Name == "Sample.Contract").Documents.Single();
+        (await dto.GetTextAsync()).ToString().Should().Contain("Justification = \"Retain    [literal] spacing\"");
+        (await dto.Project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Theory]
+    [DataInlineUnit("public long UserId { get; private set; }", false)]
+    [DataInlineUnit("public long? QuestionId { get; private set; }", false)]
+    [DataInlineUnit("public long Score { get; private set; }", true)]
+    public async Task Internal_Numeric_Foreign_Key_Ids_Should_Decline_While_NonId_Int64_Remains_Allowed(string property, bool allowed)
+    {
+        using var workspace = new AdhocWorkspace();
+        var source = $$"""
+            namespace Sample.Domain.QA;
+            public class User : DRN.Framework.SharedKernel.Domain.SourceKnownEntity
+            {
+                // select-start
+                {{property}}
+                // select-end
+            }
+            """;
+        var actions = await Actions(Create(workspace, source));
+        if (!allowed)
+        {
+            actions.Should().BeEmpty();
+            return;
+        }
+        var changed = (await actions.Should().ContainSingle().Which.GetOperationsAsync(CancellationToken.None))
+            .OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var dto = changed.Projects.Single(project => project.Name == "Sample.Contract").Documents.Single();
+        (await dto.GetTextAsync()).ToString().Should().Contain("public global::System.Int64 Score { get; init; }");
+    }
+
+    [Fact]
+    public async Task Partial_Property_Should_Decline_And_Sibling_Mapper_Name_Should_Not_Block()
+    {
+        using var partialWorkspace = new AdhocWorkspace();
+        var partialSource = """
+            #nullable enable
+            namespace Sample.Domain.QA;
+            public partial class User : DRN.Framework.SharedKernel.Domain.SourceKnownEntity
+            {
+                private string _name = "";
+                // select-start
+                public partial string Name { get; set; }
+                // select-end
+                public partial string Name { get => _name; set => _name = value; }
+            }
+            """;
+        (await Actions(Create(partialWorkspace, partialSource))).Should().BeEmpty();
+
+        using var workspace = new AdhocWorkspace();
+        var document = Create(workspace, Source
+            .Replace("namespace Sample.Domain.QA;", "namespace Sample.Domain.QA.User;", StringComparison.Ordinal)
+            .Replace("class User :", "class UserEntity :", StringComparison.Ordinal),
+            entityPath: "/source/Sample.Domain/QA/User/UserEntity.cs");
+        var sibling = document.Project.AddDocument("BillingMapper.cs", """
+            namespace Sample.Domain.Billing.User;
+            public class UserEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+            public static class BillingUserMapper
+            {
+                public static object ToUserDto(this UserEntity entity) => entity;
+            }
+            """, filePath: "/source/Sample.Domain/Billing/User/BillingMapper.cs");
+        workspace.TryApplyChanges(sibling.Project.Solution).Should().BeTrue();
+        var current = workspace.CurrentSolution.GetDocument(document.Id)!;
+        var action = (await Actions(current)).Should().ContainSingle().Which;
+        var changed = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        (await changed.GetProject(document.Project.Id)!.GetCompilationAsync())!.GetDiagnostics()
+            .Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+    }
+
     private static Document Create(AdhocWorkspace workspace, string source = Source, bool reference = true,
         string contractName = "Sample.Contract", string entityPath = "/source/Sample.Domain/QA/User.cs")
     {

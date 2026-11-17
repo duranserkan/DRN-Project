@@ -4,10 +4,19 @@
     <CompilerVisibleProperty Include="RootNamespace" />
   </ItemGroup>
 
+  <Target Name="_CaptureDrnDirectProjectReferences"
+          BeforeTargets="IncludeTransitiveProjectReferences;AssignProjectConfiguration;ResolveProjectReferences;ResolveReferences;_PrepareDrnConventionInputs"
+          Condition="'$(MSBuildProjectExtension)' == '.csproj'">
+    <ItemGroup>
+      <_DrnDirectProjectReference Include="@(ProjectReference)"
+                                  Condition="'%(ProjectReference.Identity)' != '' and '%(ProjectReference.ReferenceOutputAssembly)' != 'false'" />
+    </ItemGroup>
+  </Target>
+
   <!-- The analyzer infers application identity from standard project metadata. The fragment is data,
        not executable source. WriteCodeFragment preserves string escaping. -->
   <Target Name="_PrepareDrnConventionInputs" BeforeTargets="GenerateMSBuildEditorConfigFile;CoreCompile"
-          DependsOnTargets="ResolveReferences"
+          DependsOnTargets="_CaptureDrnDirectProjectReferences;ResolveReferences;FindReferenceAssembliesForReferences"
           Condition="'$(MSBuildProjectExtension)' == '.csproj'">
     <PropertyGroup>
       <_DrnConventionInputPath>$(IntermediateOutputPath)DrnConventionInputs.g.cs</_DrnConventionInputPath>
@@ -118,12 +127,12 @@
         <Reason_TypeName>System.String</Reason_TypeName>
       </_DrnConventionInput>
       <_DrnConventionInput Include="DRN.Conventions.Reference"
-                           Condition="'%(ProjectReference.Identity)' != '' and '%(ProjectReference.ReferenceOutputAssembly)' != 'false'">
-        <_Parameter1>%(ProjectReference.FullPath)</_Parameter1>
+                           Condition="'%(_DrnDirectProjectReference.Identity)' != ''">
+        <_Parameter1>%(_DrnDirectProjectReference.FullPath)</_Parameter1>
         <_Parameter1_TypeName>System.String</_Parameter1_TypeName>
         <Stage>Project</Stage>
         <Stage_TypeName>System.String</Stage_TypeName>
-        <Source>%(ProjectReference.Identity)</Source>
+        <Source>%(_DrnDirectProjectReference.Identity)</Source>
         <Source_TypeName>System.String</Source_TypeName>
       </_DrnConventionInput>
       <_DrnConventionInput Include="DRN.Conventions.Reference" Condition="'%(PackageReference.Identity)' != ''">
@@ -132,16 +141,18 @@
         <Stage>Package</Stage>
         <Stage_TypeName>System.String</Stage_TypeName>
       </_DrnConventionInput>
-      <_DrnConventionInput Include="DRN.Conventions.Reference" Condition="'%(ReferencePath.Identity)' != ''">
-        <_Parameter1>%(ReferencePath.FullPath)</_Parameter1>
+      <_DrnResolvedReference Include="@(ReferencePathWithRefAssemblies)" />
+      <_DrnResolvedReference Include="@(ReferencePath)" Condition="'@(_DrnResolvedReference)' == ''" />
+      <_DrnConventionInput Include="DRN.Conventions.Reference" Condition="'%(_DrnResolvedReference.Identity)' != ''">
+        <_Parameter1>%(_DrnResolvedReference.FullPath)</_Parameter1>
         <_Parameter1_TypeName>System.String</_Parameter1_TypeName>
         <Stage>Resolved</Stage>
         <Stage_TypeName>System.String</Stage_TypeName>
-        <Project>%(ReferencePath.MSBuildSourceProjectFile)</Project>
+        <Project>%(_DrnResolvedReference.MSBuildSourceProjectFile)</Project>
         <Project_TypeName>System.String</Project_TypeName>
-        <OriginalProject>%(ReferencePath.OriginalProjectReferenceItemSpec)</OriginalProject>
+        <OriginalProject>%(_DrnResolvedReference.OriginalProjectReferenceItemSpec)</OriginalProject>
         <OriginalProject_TypeName>System.String</OriginalProject_TypeName>
-        <Package>%(ReferencePath.NuGetPackageId)</Package>
+        <Package>%(_DrnResolvedReference.NuGetPackageId)</Package>
         <Package_TypeName>System.String</Package_TypeName>
       </_DrnConventionInput>
     </ItemGroup>

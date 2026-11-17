@@ -33,7 +33,7 @@ public class OrdersContext : DrnContext<OrdersContext>
 {
     public OrdersContext(DbContextOptions<OrdersContext> options) : base(options) { }
     public OrdersContext() : base(null) { }
-    public DbSet<Order> Orders => Set<Order>();
+    public DbSet<OrderEntity> Orders { get; set; }
 }
 ```
 

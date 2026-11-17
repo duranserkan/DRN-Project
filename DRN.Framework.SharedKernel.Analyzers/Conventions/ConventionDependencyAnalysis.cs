@@ -8,13 +8,15 @@ internal static class ConventionDependencyAnalysis
     internal static void Analyze(ConventionFacts facts)
     {
         if (facts.Diagnostics.Any(diagnostic => diagnostic.Id == "DRNCV001")) return;
-        var references = facts.Records.Where(record => record.Kind == "Reference").ToArray();
-        var inventories = references.Where(record => record.Identity == "Inventory" && record.Get("Stage") == "Complete").ToArray();
+        var references = facts.Records.Where(record => record.Kind == ConventionInputSyntax.ReferenceKind).ToArray();
+        var inventories = references.Where(record =>
+            record.Identity == ConventionInputSyntax.InventoryIdentity &&
+            record.Get(ConventionInputSyntax.StageField) == ConventionInputSyntax.CompleteStage).ToArray();
         if (inventories is not [var inventory]) return;
         var direct = ReadDirectProjects(facts, references);
         // An unresolved declared edge is incomplete evidence, not proof that a layer is absent.
         if (direct is null || facts.Diagnostics.Any(diagnostic => diagnostic.Id == "DRNCV001")) return;
-        var roles = facts.Records.Where(record => record.Kind == "Role").Select(record => record.Identity)
+        var roles = facts.Records.Where(record => record.Kind == ConventionInputSyntax.RoleKind).Select(record => record.Identity)
             .Append(facts.Project.Role).Distinct(StringComparer.Ordinal);
         foreach (var role in roles)
         {
@@ -25,7 +27,7 @@ internal static class ConventionDependencyAnalysis
                     facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.RequiredReference, inventory.Location,
                         ImmutableDictionary<string, string?>.Empty.Add("Target", facts.Project.AssemblyName + ":" + dependency),
                         facts.Project.Name, dependency));
-                else if (role == "Infra") AnalyzeSubdomains(facts, matches, inventory.Location);
+                else if (role == ConventionArchitecture.Infra) AnalyzeSubdomains(facts, matches, inventory.Location);
             }
         }
     }
@@ -38,48 +40,100 @@ internal static class ConventionDependencyAnalysis
             .Where(reference => reference.FilePath is not null)
             .GroupBy(reference => ConventionProject.NormalizeSeparators(reference.FilePath!), StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+        var (byProject, byOriginalProject) = IndexResolvedReferences(facts, references);
+        var matched = new List<(int Index, ConventionInput Record)>();
+        foreach (var declared in references.Where(record =>
+                     record.Get(ConventionInputSyntax.StageField) == ConventionInputSyntax.ProjectField))
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            if (!TryAppendMatchedAssemblies(facts, declared, byProject, byOriginalProject, metadata, matched, result))
+                return null;
+        }
+        return result;
+    }
+
+    private static (Dictionary<string, List<(int Index, ConventionInput Record)>> ByProject,
+        Dictionary<string, List<(int Index, ConventionInput Record)>> ByOriginalProject) IndexResolvedReferences(
+        ConventionFacts facts, ConventionInput[] references)
+    {
         var byProject = new Dictionary<string, List<(int Index, ConventionInput Record)>>(StringComparer.Ordinal);
         var byOriginalProject = new Dictionary<string, List<(int Index, ConventionInput Record)>>(StringComparer.Ordinal);
         for (var index = 0; index < references.Length; index++)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
             var record = references[index];
-            if (record.Get("Stage") != "Resolved") continue;
-            var projectPath = ConventionProject.NormalizeSeparators(record.Get("Project"));
-            if (!byProject.TryGetValue(projectPath, out var projectList)) byProject.Add(projectPath, projectList = []);
+            if (record.Get(ConventionInputSyntax.StageField) != "Resolved") continue;
+            var projectPath = ConventionProject.NormalizeSeparators(record.Get(ConventionInputSyntax.ProjectField));
+            if (!byProject.TryGetValue(projectPath, out var projectList))
+            {
+                projectList = [];
+                byProject.Add(projectPath, projectList);
+            }
             projectList.Add((index, record));
-            var originalPath = ConventionProject.NormalizeSeparators(record.Get("OriginalProject"));
+            var originalPath = ConventionProject.NormalizeSeparators(record.Get(ConventionInputSyntax.OriginalProjectField));
             if (!byOriginalProject.TryGetValue(originalPath, out var originalList))
-                byOriginalProject.Add(originalPath, originalList = []);
+            {
+                originalList = [];
+                byOriginalProject.Add(originalPath, originalList);
+            }
             originalList.Add((index, record));
         }
-        var matched = new List<(int Index, ConventionInput Record)>();
-        foreach (var declared in references.Where(record => record.Get("Stage") == "Project"))
+        return (byProject, byOriginalProject);
+    }
+
+    private static bool TryAppendMatchedAssemblies(ConventionFacts facts, ConventionInput declared,
+        Dictionary<string, List<(int Index, ConventionInput Record)>> byProject,
+        Dictionary<string, List<(int Index, ConventionInput Record)>> byOriginalProject,
+        Dictionary<string, PortableExecutableReference> metadata,
+        List<(int Index, ConventionInput Record)> matched,
+        List<(IAssemblySymbol Assembly, ConventionProject Project)> result)
+    {
+        matched.Clear();
+        if (byProject.TryGetValue(ConventionProject.NormalizeSeparators(declared.Identity), out var projectMatches))
+            matched.AddRange(projectMatches);
+        var source = declared.Get(ConventionInputSyntax.SourceField);
+        if (source.Length > 0 && byOriginalProject.TryGetValue(ConventionProject.NormalizeSeparators(source), out var originalMatches))
+            matched.AddRange(originalMatches);
+        if (matched.Count == 0) return false;
+        matched.Sort(static (left, right) => left.Index.CompareTo(right.Index));
+        var previousIndex = -1;
+        foreach (var (index, record) in matched)
         {
-            facts.Cancellation.ThrowIfCancellationRequested();
-            matched.Clear();
-            if (byProject.TryGetValue(ConventionProject.NormalizeSeparators(declared.Identity), out var projectMatches))
-                matched.AddRange(projectMatches);
-            var source = declared.Get("Source");
-            if (source.Length > 0 && byOriginalProject.TryGetValue(ConventionProject.NormalizeSeparators(source), out var originalMatches))
-                matched.AddRange(originalMatches);
-            if (matched.Count == 0) return null;
-            matched.Sort(static (left, right) => left.Index.CompareTo(right.Index));
-            var previousIndex = -1;
-            foreach (var (index, record) in matched)
-            {
-                if (index == previousIndex) continue;
-                previousIndex = index;
-                if (!metadata.TryGetValue(ConventionProject.NormalizeSeparators(record.Identity), out var reference) ||
-                    facts.Compilation.GetAssemblyOrModuleSymbol(reference) is not IAssemblySymbol assembly) return null;
-                if (facts.ReferenceProject(assembly) is { } project) result.Add((assembly, project));
-            }
+            if (index == previousIndex) continue;
+            previousIndex = index;
+            if (!metadata.TryGetValue(ConventionProject.NormalizeSeparators(record.Identity), out var reference) ||
+                facts.Compilation.GetAssemblyOrModuleSymbol(reference) is not IAssemblySymbol assembly) return false;
+            if (facts.ReferenceProject(assembly) is { } project) result.Add((assembly, project));
         }
-        return result;
+        return true;
     }
 
     private static void AnalyzeSubdomains(ConventionFacts facts,
         (IAssemblySymbol Assembly, ConventionProject Project)[] domains, Location inventoryLocation)
+    {
+        var subdomains = CollectPopulatedSubdomains(facts, domains);
+        if (subdomains.Count == 0)
+        {
+            facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.DomainSubdomain, inventoryLocation,
+                ImmutableDictionary<string, string?>.Empty.Add(ConventionInputSyntax.TargetField,
+                    facts.Project.AssemblyName + ":" + ConventionArchitecture.Domain),
+                facts.Project.Name, "<any>"));
+            return;
+        }
+        foreach (var type in facts.Types)
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            if (!IsMissingDomainSubdomain(facts, type, subdomains, out var owner)) continue;
+            var location = facts.Location(type);
+            if (location == Location.None) continue;
+            facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.DomainSubdomain, location,
+                ImmutableDictionary<string, string?>.Empty.Add(ConventionInputSyntax.TargetField, type.GetDocumentationCommentId()),
+                type.Name, owner ?? "<unowned>"));
+        }
+    }
+
+    private static HashSet<string> CollectPopulatedSubdomains(ConventionFacts facts,
+        (IAssemblySymbol Assembly, ConventionProject Project)[] domains)
     {
         var subdomains = new HashSet<string>(StringComparer.Ordinal);
         foreach (var (assembly, project) in domains)
@@ -95,26 +149,17 @@ internal static class ConventionDependencyAnalysis
                 subdomains.Add(name[(project.RootNamespace.Length + 1)..].Split('.')[0]);
             }
         }
-        if (subdomains.Count == 0)
-        {
-            facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.DomainSubdomain, inventoryLocation,
-                ImmutableDictionary<string, string?>.Empty.Add("Target", facts.Project.AssemblyName + ":Domain"),
-                facts.Project.Name, "<any>"));
-            return;
-        }
-        foreach (var type in facts.Types)
-        {
-            facts.Cancellation.ThrowIfCancellationRequested();
-            if (type.TypeKind != TypeKind.Class || type.IsAbstract || facts.Symbols.IsOpen(type, facts.Cancellation) ||
-                facts.Role(type).Role != "Infra" || facts.HasInvalidOwner(type) ||
-                !(facts.Symbols.IsContext(type, facts.Cancellation) ||
-                  facts.Symbols.IsKnown(type, facts.Symbols.RepositoryContract, facts.Cancellation))) continue;
-            var owner = facts.Owner(type)?.Subdomain;
-            var location = facts.Location(type);
-            if (location == Location.None || owner is not null && subdomains.Contains(owner)) continue;
-            facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.DomainSubdomain, location,
-                ImmutableDictionary<string, string?>.Empty.Add("Target", type.GetDocumentationCommentId()),
-                type.Name, owner ?? "<unowned>"));
-        }
+        return subdomains;
+    }
+
+    private static bool IsMissingDomainSubdomain(ConventionFacts facts, INamedTypeSymbol type, HashSet<string> subdomains, out string? owner)
+    {
+        owner = null;
+        if (type.TypeKind != TypeKind.Class || type.IsAbstract || facts.Symbols.IsOpen(type, facts.Cancellation) ||
+            facts.Role(type).Role != ConventionArchitecture.Infra || facts.HasInvalidOwner(type)) return false;
+        if (!facts.Symbols.IsContext(type, facts.Cancellation) &&
+            !facts.Symbols.IsKnown(type, facts.Symbols.RepositoryContract, facts.Cancellation)) return false;
+        owner = facts.Owner(type)?.Subdomain;
+        return owner is null || !subdomains.Contains(owner);
     }
 }

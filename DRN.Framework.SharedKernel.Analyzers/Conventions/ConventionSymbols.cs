@@ -69,7 +69,10 @@ internal sealed class ConventionSymbols(Compilation compilation)
         cancellation.ThrowIfCancellationRequested();
         if (target is null) return false;
         if (!_classifications.TryGetValue(target, out var types))
-            _classifications.Add(target, types = new(SymbolEqualityComparer.Default));
+        {
+            types = new(SymbolEqualityComparer.Default);
+            _classifications.Add(target, types);
+        }
         if (types.TryGetValue(type, out var cached)) return cached;
         var result = Is(type, target, cancellation);
         cancellation.ThrowIfCancellationRequested();
@@ -114,8 +117,11 @@ internal sealed class ConventionSymbols(Compilation compilation)
         if (target is null) return [];
         if (_bindings.TryGetValue(target, out var types) && types.TryGetValue(type, out var cached)) return cached;
         var bindings = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
-        foreach (var current in Bases(type, cancellation))
+        for (var current = type; current is not null; current = current.BaseType)
+        {
+            cancellation.ThrowIfCancellationRequested();
             if (Same(current, target)) bindings.Add(current);
+        }
         foreach (var current in type.AllInterfaces)
         {
             cancellation.ThrowIfCancellationRequested();
@@ -123,7 +129,11 @@ internal sealed class ConventionSymbols(Compilation compilation)
         }
         var result = bindings.ToImmutable();
         cancellation.ThrowIfCancellationRequested();
-        if (types is null) _bindings.Add(target, types = new(SymbolEqualityComparer.Default));
+        if (types is null)
+        {
+            types = new(SymbolEqualityComparer.Default);
+            _bindings.Add(target, types);
+        }
         types.Add(type, result);
         return result;
     }
@@ -138,14 +148,20 @@ internal sealed class ConventionSymbols(Compilation compilation)
         {
             foreach (var attribute in current.GetAttributes())
             {
-                if (attribute.AttributeClass is not { } attributeType || !IsKnown(attributeType, target, cancellation)) continue;
-                var (inherited, multiple) = ReadAttributeUsage(attributeType, cancellation);
-                if (!first && !inherited) continue;
-                if (!multiple && !singleAttributes.Add(attribute.AttributeClass!)) continue;
-                yield return attribute;
+                if (TryAcceptEffectiveAttribute(attribute, target, first, singleAttributes, cancellation))
+                    yield return attribute;
             }
             first = false;
         }
+    }
+
+    private bool TryAcceptEffectiveAttribute(AttributeData attribute, INamedTypeSymbol target, bool direct,
+        HashSet<ISymbol> singleAttributes, CancellationToken cancellation)
+    {
+        if (attribute.AttributeClass is not { } attributeType || !IsKnown(attributeType, target, cancellation)) return false;
+        var (inherited, multiple) = ReadAttributeUsage(attributeType, cancellation);
+        if (!direct && !inherited) return false;
+        return multiple || singleAttributes.Add(attributeType);
     }
 
     private (bool Inherited, bool Multiple) ReadAttributeUsage(INamedTypeSymbol type, CancellationToken cancellation)

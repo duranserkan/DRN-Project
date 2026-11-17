@@ -169,23 +169,29 @@ internal sealed partial class ConventionFacts
         if (project is null || !ConventionProject.IsRole(project.Role) ||
             !ConventionProject.IsNamespace(project.RootNamespace)) return ("", "", "");
         var ns = type.ContainingNamespace.ToDisplayString();
-        if (IsLocal(type))
+        return IsLocal(type) ? ResolveLocalRole(ns, project) : ResolveReferencedRole(type.ContainingAssembly, ns, project);
+    }
+
+    private (string Role, string Namespace, string PathPrefix) ResolveLocalRole(string ns, ConventionProject project)
+    {
+        if (_invalidRoles.Any(item => ConventionProject.IsNamespaceWithin(ns, item.Get(ConventionInputSyntax.NamespacePrefixField))))
+            return ("", "", "");
+        var mapping = _roles.FirstOrDefault(item => ConventionProject.IsNamespaceWithin(ns, item.Get(ConventionInputSyntax.NamespacePrefixField)));
+        if (mapping is null) return (project.Role, project.RootNamespace, "");
+        return (mapping.Identity, mapping.Get(ConventionInputSyntax.NamespacePrefixField),
+            ConventionProject.NormalizeSeparators(mapping.Get(ConventionInputSyntax.LogicalPathPrefixField)));
+    }
+
+    private (string Role, string Namespace, string PathPrefix) ResolveReferencedRole(
+        IAssemblySymbol assembly, string ns, ConventionProject project)
+    {
+        foreach (var metadata in AssemblyMetadata(assembly))
         {
-            if (_invalidRoles.Any(item => ConventionProject.IsNamespaceWithin(ns, item.Get("NamespacePrefix"))))
-                return ("", "", "");
-            var mapping = _roles.FirstOrDefault(item => ConventionProject.IsNamespaceWithin(ns, item.Get("NamespacePrefix")));
-            if (mapping is not null) return (mapping.Identity, mapping.Get("NamespacePrefix"),
-                ConventionProject.NormalizeSeparators(mapping.Get("LogicalPathPrefix")));
-        }
-        else
-        {
-            foreach (var metadata in AssemblyMetadata(type.ContainingAssembly))
-            {
-                if (!metadata.Key.StartsWith(ConventionProject.MetadataPrefix + "Role.", StringComparison.Ordinal)) continue;
-                var role = metadata.Key[(ConventionProject.MetadataPrefix.Length + 5)..];
-                if (ConventionProject.IsRole(role) && ConventionProject.IsNamespaceWithin(ns, metadata.Value))
-                    return (role, metadata.Value, "");
-            }
+            if (!metadata.Key.StartsWith(ConventionProject.MetadataPrefix + ConventionInputSyntax.RoleKind + ".", StringComparison.Ordinal))
+                continue;
+            var role = metadata.Key[(ConventionProject.MetadataPrefix.Length + 5)..];
+            if (ConventionProject.IsRole(role) && ConventionProject.IsNamespaceWithin(ns, metadata.Value))
+                return (role, metadata.Value, "");
         }
         return (project.Role, project.RootNamespace, "");
     }
@@ -202,14 +208,69 @@ internal sealed partial class ConventionFacts
     private ConventionOwner? ResolveOwner(INamedTypeSymbol type)
     {
         if (HasInvalidOwner(type)) return null;
-        var project = IsLocal(type) ? Project : ReferenceProject(type.ContainingAssembly);
+        var local = IsLocal(type);
+        var project = local ? Project : ReferenceProject(type.ContainingAssembly);
         var role = Role(type);
         var conventional = project is null ? null : InferOwner(type, role.Role, role.Namespace);
-        var producer = IsLocal(type) ? null : ReferenceOwnership(type);
+        var (declarations, hasDirectAttribute, hasProducerDeclaration) = CollectDeclaredOwners(type, local, ref project);
+
+        var nameKey = ConventionSymbols.MetadataName(type);
+        ValidateDeclaredOwners(type, nameKey, conventional, declarations);
+        if (IsInvalidConsumerRedefinition(type, local, conventional, nameKey, declarations, hasDirectAttribute, hasProducerDeclaration))
+            InvalidOwner(type, nameKey, "a consumer redefinition of referenced ownership", declarations[0].Location);
+
+        _ = DeclaredKind(type);
+
+        if (_invalidOwners.Contains(type)) return null;
+        var owner = declarations.Count > 0 ? declarations[0].Name : conventional;
+        if (owner is null || project is null) return null;
+        return new(type.ContainingAssembly.Name, owner, role.Role, role.Namespace);
+    }
+
+    private (List<(string Name, string Reason, Location Location, bool ConsumerOverride)> Declarations,
+        bool HasDirectAttribute, bool HasProducerDeclaration) CollectDeclaredOwners(
+        INamedTypeSymbol type, bool local, ref ConventionProject? project)
+    {
         var declarations = new List<(string Name, string Reason, Location Location, bool ConsumerOverride)>();
-        var attributes = type.GetAttributes().Where(attribute => ConventionSymbols.Same(attribute.AttributeClass, Symbols.OwnershipAttribute));
-        foreach (var attribute in attributes)
+        var hasDirectAttribute = CollectAttributeOwners(type, declarations);
+        var producer = local ? null : ReferenceOwnership(type);
+        var hasProducerDeclaration = producer is { Declarations.Count: > 0 };
+        if (producer is not null)
         {
+            foreach (var declaration in producer.Declarations)
+                declarations.Add((declaration.Subdomain, declaration.Reason, Microsoft.CodeAnalysis.Location.None, false));
+        }
+
+        var nameKey = ConventionSymbols.MetadataName(type);
+        if (_contexts.TryGetValue(nameKey, out var context) && context.Get(ConventionInputSyntax.SubdomainField).Length > 0)
+            declarations.Insert(0, (context.Get(ConventionInputSyntax.SubdomainField),
+                context.Get(ConventionInputSyntax.ReasonField), context.Location, !local));
+        if (_ownership.TryGetValue(nameKey, out var ownership))
+        {
+            declarations.Insert(0, (ownership.Get(ConventionInputSyntax.SubdomainField),
+                ownership.Get(ConventionInputSyntax.ReasonField), ownership.Location, !local));
+            project ??= Project;
+        }
+
+        // A consumer may fill a missing external fact, but cannot redefine an established owner.
+        if (_externalOwners.TryGetValue(type, out var external))
+        {
+            var externalName = (string)external.ConstructorArguments[1].Value!;
+            declarations.Add((externalName, Reason(external), AttributeLocation(external, type), true));
+            project ??= Project;
+        }
+
+        return (declarations, hasDirectAttribute, hasProducerDeclaration);
+    }
+
+    private bool CollectAttributeOwners(INamedTypeSymbol type,
+        List<(string Name, string Reason, Location Location, bool ConsumerOverride)> declarations)
+    {
+        var hasDirectAttribute = false;
+        foreach (var attribute in type.GetAttributes())
+        {
+            if (!ConventionSymbols.Same(attribute.AttributeClass, Symbols.OwnershipAttribute)) continue;
+            hasDirectAttribute = true;
             if (attribute.AttributeConstructor is null || attribute.ConstructorArguments.Any(argument => argument.Kind == TypedConstantKind.Error))
             {
                 _invalidOwners.Add(type);
@@ -222,28 +283,12 @@ internal sealed partial class ConventionFacts
             }
             declarations.Add((name, Reason(attribute), AttributeLocation(attribute, type), false));
         }
+        return hasDirectAttribute;
+    }
 
-        if (producer is not null)
-            foreach (var declaration in producer.Declarations)
-                declarations.Add((declaration.Subdomain, declaration.Reason, Microsoft.CodeAnalysis.Location.None, false));
-
-        var nameKey = ConventionSymbols.MetadataName(type);
-        if (_contexts.TryGetValue(nameKey, out var context) && context.Get("Subdomain").Length > 0)
-            declarations.Insert(0, (context.Get("Subdomain"), context.Get("Reason"), context.Location, !IsLocal(type)));
-        if (_ownership.TryGetValue(nameKey, out var ownership))
-        {
-            declarations.Insert(0, (ownership.Get("Subdomain"), ownership.Get("Reason"), ownership.Location, !IsLocal(type)));
-            project ??= Project;
-        }
-
-        // A consumer may fill a missing external fact, but cannot redefine an established owner.
-        if (_externalOwners.TryGetValue(type, out var external))
-        {
-            var externalName = (string)external.ConstructorArguments[1].Value!;
-            declarations.Add((externalName, Reason(external), AttributeLocation(external, type), true));
-            project ??= Project;
-        }
-
+    private void ValidateDeclaredOwners(INamedTypeSymbol type, string nameKey, string? conventional,
+        List<(string Name, string Reason, Location Location, bool ConsumerOverride)> declarations)
+    {
         if (declarations.Select(item => item.Name).Distinct(StringComparer.Ordinal).Skip(1).Any())
             InvalidOwner(type, nameKey, "contradictory", declarations[0].Location, declarations.Select(item => item.Location));
         foreach (var declaration in declarations)
@@ -252,20 +297,14 @@ internal sealed partial class ConventionFacts
                 (declaration.Name != conventional || declaration.ConsumerOverride) && string.IsNullOrWhiteSpace(declaration.Reason))
                 InvalidOwner(type, nameKey, "malformed or missing its exceptional reason", declaration.Location);
         }
-
-        if (!IsLocal(type) && conventional is not null &&
-            (_ownership.ContainsKey(nameKey) || _contexts.ContainsKey(nameKey) || _externalOwners.ContainsKey(type)) &&
-            declarations.Any(declaration => declaration.ConsumerOverride && declaration.Name != conventional) &&
-            !attributes.Any() && producer is not { Declarations.Count: > 0 })
-            InvalidOwner(type, nameKey, "a consumer redefinition of referenced ownership", declarations[0].Location);
-
-        _ = DeclaredKind(type);
-
-        if (_invalidOwners.Contains(type)) return null;
-        var owner = declarations.Count > 0 ? declarations[0].Name : conventional;
-        if (owner is null || project is null) return null;
-        return new(type.ContainingAssembly.Name, owner, role.Role, role.Namespace);
     }
+
+    private bool IsInvalidConsumerRedefinition(INamedTypeSymbol type, bool local, string? conventional, string nameKey,
+        List<(string Name, string Reason, Location Location, bool ConsumerOverride)> declarations,
+        bool hasDirectAttribute, bool hasProducerDeclaration) =>
+        !local && conventional is not null && !hasDirectAttribute && !hasProducerDeclaration &&
+        (_ownership.ContainsKey(nameKey) || _contexts.ContainsKey(nameKey) || _externalOwners.ContainsKey(type)) &&
+        declarations.Any(declaration => declaration.ConsumerOverride && declaration.Name != conventional);
 
     internal bool UsesOwnSubdomain(INamedTypeSymbol consumer, INamedTypeSymbol entity)
     {
@@ -292,12 +331,13 @@ internal sealed partial class ConventionFacts
         return reachable.Contains(entity.ContainingAssembly);
     }
 
-    private string? InferOwner(INamedTypeSymbol type, string role, string rootNamespace)
+    private static string? InferOwner(INamedTypeSymbol type, string role, string rootNamespace)
     {
         var ns = type.ContainingNamespace.ToDisplayString();
         if (rootNamespace.Length == 0 || !ns.StartsWith(rootNamespace + ".", StringComparison.Ordinal)) return null;
         var parts = ns[(rootNamespace.Length + 1)..].Split('.');
-        var prefix = role == "Hosted" && parts[0] is "Controllers" or "Pages" || role == "Application" && parts[0] == "Services";
+        var prefix = role == ConventionArchitecture.Hosted && parts[0] is "Controllers" or "Pages" ||
+                     role == ConventionArchitecture.Application && parts[0] == "Services";
         var index = prefix ? 1 : 0;
         return index < parts.Length ? parts[index] : null;
     }
@@ -361,10 +401,12 @@ internal sealed partial class ConventionFacts
             prefixes[value] = role;
         }
         foreach (var prefix in prefixes.Keys)
-        for (var end = prefix.LastIndexOf('.'); end >= 0; end = end == 0 ? -1 : prefix.LastIndexOf('.', end - 1))
         {
-            Cancellation.ThrowIfCancellationRequested();
-            if (prefixes.ContainsKey(prefix[..end])) return false;
+            for (var end = prefix.LastIndexOf('.'); end >= 0; end = end == 0 ? -1 : prefix.LastIndexOf('.', end - 1))
+            {
+                Cancellation.ThrowIfCancellationRequested();
+                if (prefixes.ContainsKey(prefix[..end])) return false;
+            }
         }
         return true;
     }

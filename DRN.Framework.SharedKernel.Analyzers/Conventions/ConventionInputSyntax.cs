@@ -9,6 +9,44 @@ namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 // Shared source keeps IDE generation and diagnostics on the same data-only input contract.
 internal static class ConventionInputSyntax
 {
+    internal const string VersionKind = "Version";
+    internal const string PathKind = "Path";
+    internal const string RoleKind = "Role";
+    internal const string ContextKind = "Context";
+    internal const string OwnershipKind = "Ownership";
+    internal const string ExceptionKind = "Exception";
+    internal const string ReferenceKind = "Reference";
+    internal const string RegistrationKind = "Registration";
+    internal const string ConfigurationKind = "Configuration";
+
+    internal const string LogicalPathField = "LogicalPath";
+    internal const string NamespacePrefixField = "NamespacePrefix";
+    internal const string LogicalPathPrefixField = "LogicalPathPrefix";
+    internal const string ReasonField = "Reason";
+    internal const string SubdomainField = "Subdomain";
+    internal const string RepositoriesField = "Repositories";
+    internal const string MigrationsField = "Migrations";
+    internal const string MigrationsAssemblyField = "MigrationsAssembly";
+    internal const string FactoryField = "Factory";
+    internal const string ProviderField = "Provider";
+    internal const string KindField = "Kind";
+    internal const string TargetField = "Target";
+    internal const string SymbolTargetField = "SymbolTarget";
+    internal const string EntityField = "Entity";
+    internal const string OwnerField = "Owner";
+    internal const string ReviewField = "Review";
+    internal const string FingerprintField = "Fingerprint";
+    internal const string StageField = "Stage";
+    internal const string SourceField = "Source";
+    internal const string ProjectField = "Project";
+    internal const string OriginalProjectField = "OriginalProject";
+    internal const string PackageField = "Package";
+    internal const string ServiceField = "Service";
+    internal const string KeyField = "Key";
+
+    internal const string CompleteStage = "Complete";
+    internal const string InventoryIdentity = "Inventory";
+
     internal static CompilationUnitSyntax? Parse(SourceText text, string path, CancellationToken token, out string problem)
     {
         problem = "malformed";
@@ -29,48 +67,9 @@ internal static class ConventionInputSyntax
         var versions = 0;
         var unique = new Dictionary<(string Kind, string Identity), Dictionary<string, string>>();
         foreach (var list in root.AttributeLists)
-        foreach (var attribute in list.Attributes)
         {
-            token.ThrowIfCancellationRequested();
-            if (++count > ConventionInputLimits.MaxRecords)
-            {
-                problem = "over the record limit";
+            if (!TryParseAttributeList(list, unique, ref count, ref versions, token, ref problem))
                 return null;
-            }
-            var kind = Kind(attribute);
-            if (list.Target?.Identifier.ValueText != "assembly" ||
-                kind is not ("Version" or "Path" or "Role" or "Context" or "Ownership" or "Exception" or "Reference" or "Registration" or "Configuration") ||
-                attribute.ArgumentList is not { Arguments.Count: > 0 } arguments) return null;
-            var first = arguments.Arguments[0];
-            var identity = String(first.Expression, token);
-            if (identity is null || first.NameEquals is not null || first.NameColon is not null) return null;
-            var fields = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (var argument in arguments.Arguments.Skip(1))
-            {
-                if (argument.NameEquals is not { } named || argument.NameColon is not null ||
-                    String(argument.Expression, token) is not { } value) return null;
-                var field = named.Name.Identifier.ValueText;
-                if (kind == "Exception" && field == "SymbolTarget") field = "Target";
-                if (!IsField(kind, field) || !fields.TryAdd(field, value)) return null;
-            }
-            if (kind == "Version")
-            {
-                if (++versions != 1 || identity != "1" || fields.Count != 0)
-                {
-                    problem = "missing or conflicting supported version";
-                    return null;
-                }
-            }
-            // Other kinds support multiple records for one identity (for example keyed services).
-            if (kind is not ("Context" or "Ownership" or "Path")) continue;
-            var key = (kind, kind == "Path" ? identity.Replace('\\', '/') : identity);
-            if (unique.TryGetValue(key, out var previous) &&
-                (previous.Count != fields.Count || previous.Any(field => !fields.TryGetValue(field.Key, out var value) || value != field.Value)))
-            {
-                problem = "contradictory";
-                return null;
-            }
-            unique[key] = fields;
         }
         if (versions != 1)
         {
@@ -80,6 +79,93 @@ internal static class ConventionInputSyntax
         problem = "";
         return root;
     }
+
+    private static bool TryParseAttributeList(AttributeListSyntax list,
+        Dictionary<(string Kind, string Identity), Dictionary<string, string>> unique,
+        ref int count, ref int versions, CancellationToken token, ref string problem)
+    {
+        var isAssembly = list.Target?.Identifier.ValueText == "assembly";
+        foreach (var attribute in list.Attributes)
+        {
+            token.ThrowIfCancellationRequested();
+            if (++count > ConventionInputLimits.MaxRecords)
+            {
+                problem = "over the record limit";
+                return false;
+            }
+            if (!isAssembly || !TryReadAttributeRecord(attribute, token, out var kind, out var identity, out var fields))
+                return false;
+            if (!ValidateVersionRecord(kind, identity, fields, ref versions, ref problem))
+                return false;
+            if (HasContradictoryRecord(unique, kind, identity, fields))
+            {
+                problem = "contradictory";
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static bool TryReadAttributeRecord(AttributeSyntax attribute, CancellationToken token,
+        out string kind, out string identity, out Dictionary<string, string> fields)
+    {
+        kind = Kind(attribute);
+        identity = "";
+        fields = new(StringComparer.Ordinal);
+        if (!IsSupportedKind(kind) || attribute.ArgumentList is not { Arguments.Count: > 0 } arguments)
+            return false;
+        var first = arguments.Arguments[0];
+        var parsedIdentity = String(first.Expression, token);
+        if (parsedIdentity is null || first.NameEquals is not null || first.NameColon is not null)
+            return false;
+        identity = parsedIdentity;
+        foreach (var argument in arguments.Arguments.Skip(1))
+        {
+            if (!TryAddAttributeField(kind, argument, fields, token))
+                return false;
+        }
+        return true;
+    }
+
+    private static bool TryAddAttributeField(string kind, AttributeArgumentSyntax argument,
+        Dictionary<string, string> fields, CancellationToken token)
+    {
+        if (argument.NameEquals is not { } named || argument.NameColon is not null ||
+            String(argument.Expression, token) is not { } value)
+            return false;
+        var field = named.Name.Identifier.ValueText;
+        if (kind == ExceptionKind && field == SymbolTargetField) field = TargetField;
+        return IsField(kind, field) && fields.TryAdd(field, value);
+    }
+
+    private static bool ValidateVersionRecord(string kind, string identity, Dictionary<string, string> fields,
+        ref int versions, ref string problem)
+    {
+        if (kind != VersionKind) return true;
+        versions++;
+        if (versions == 1 && identity == "1" && fields.Count == 0) return true;
+        problem = "missing or conflicting supported version";
+        return false;
+    }
+
+    private static bool HasContradictoryRecord(
+        Dictionary<(string Kind, string Identity), Dictionary<string, string>> unique,
+        string kind, string identity, Dictionary<string, string> fields)
+    {
+        // Other kinds support multiple records for one identity (for example keyed services).
+        if (kind is not (ContextKind or OwnershipKind or PathKind)) return false;
+        var key = (kind, kind == PathKind ? identity.Replace('\\', '/') : identity);
+        if (unique.TryGetValue(key, out var previous) && !SameFields(previous, fields))
+            return true;
+        unique[key] = fields;
+        return false;
+    }
+
+    private static bool SameFields(Dictionary<string, string> left, Dictionary<string, string> right) =>
+        left.Count == right.Count && left.All(field => right.TryGetValue(field.Key, out var value) && value == field.Value);
+
+    private static bool IsSupportedKind(string kind) => kind is VersionKind or PathKind or RoleKind or ContextKind or
+        OwnershipKind or ExceptionKind or ReferenceKind or RegistrationKind or ConfigurationKind;
 
     internal static string Kind(AttributeSyntax attribute)
     {
@@ -96,43 +182,82 @@ internal static class ConventionInputSyntax
         foreach (var attribute in root.AttributeLists.SelectMany(list => list.Attributes))
         {
             token.ThrowIfCancellationRequested();
-            var arguments = attribute.ArgumentList!.Arguments;
-            var identity = String(arguments[0].Expression, token)!;
-            var fields = arguments.Skip(1).ToDictionary(argument => argument.NameEquals!.Name.Identifier.ValueText,
-                argument => String(argument.Expression, token)!, StringComparer.Ordinal);
-            string Field(string name) => fields.TryGetValue(name, out var value) ? value : "";
-            bool OptionalPath(string name) => Field(name).Length == 0 || IsLogicalPath(Field(name));
-            if (string.IsNullOrWhiteSpace(identity)) return false;
-            var supported = Kind(attribute) switch
-            {
-                "Version" => true,
-                "Path" => IsLogicalPath(Field("LogicalPath")),
-                "Reference" => Field("Stage") is "Project" or "Package" or "Resolved" ||
-                    Field("Stage") == "Complete" && identity == "Inventory",
-                "Ownership" => SyntaxFacts.IsValidIdentifier(Field("Subdomain")) && Field("Kind") is "" or "Entity" or "Value",
-                "Context" => (Field("Subdomain").Length == 0 || SyntaxFacts.IsValidIdentifier(Field("Subdomain"))) &&
-                    OptionalPath("Repositories") && OptionalPath("Migrations") &&
-                    (string.IsNullOrWhiteSpace(Field("Factory")) && string.IsNullOrWhiteSpace(Field("Provider")) ||
-                     !string.IsNullOrWhiteSpace(Field("Reason"))),
-                "Role" => identity is "Domain" or "Contract" or "Infra" or "Application" or "Hosted" or "SharedKernel" or "Utils" &&
-                    Field("NamespacePrefix").Length > 0 && Field("NamespacePrefix").Split('.').All(SyntaxFacts.IsValidIdentifier) &&
-                    IsLogicalPath(Field("LogicalPathPrefix")),
-                "Registration" => !string.IsNullOrWhiteSpace(Field("Service")),
-                "Configuration" => !string.IsNullOrWhiteSpace(Field("Context")),
-                // Semantic target/fingerprint validity remains analyzer-owned. This never authorizes generation.
-                "Exception" => identity.StartsWith("DRNCV", StringComparison.Ordinal) && identity.Length == 8 &&
-                    identity[5..].All(char.IsAsciiDigit) &&
-                    (Field("SymbolTarget").Length > 0 ? Field("SymbolTarget") : Field("Target")) is { Length: > 0 } target &&
-                    !string.IsNullOrWhiteSpace(target) && !target.Contains('*') &&
-                    !string.IsNullOrWhiteSpace(Field("Reason")) && !string.IsNullOrWhiteSpace(Field("Owner")) &&
-                    DateOnly.TryParseExact(Field("Review"), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var review) &&
-                    review > DateOnly.FromDateTime(DateTime.UtcNow) &&
-                    (Field("Fingerprint").Length == 0 || Field("Fingerprint").Length == 64 && Field("Fingerprint").All(char.IsAsciiHexDigit)),
-                _ => false
-            };
-            if (!supported) return false;
+            if (!SupportsAttributeRecord(attribute, token)) return false;
         }
         return true;
+    }
+
+    private static bool SupportsAttributeRecord(AttributeSyntax attribute, CancellationToken token)
+    {
+        var arguments = attribute.ArgumentList!.Arguments;
+        var identity = String(arguments[0].Expression, token)!;
+        if (string.IsNullOrWhiteSpace(identity)) return false;
+        var fields = arguments.Skip(1).ToDictionary(argument => argument.NameEquals!.Name.Identifier.ValueText,
+            argument => String(argument.Expression, token)!, StringComparer.Ordinal);
+        return Kind(attribute) switch
+        {
+            VersionKind => true,
+            PathKind => IsLogicalPath(Field(fields, LogicalPathField)),
+            ReferenceKind => SupportsReferenceRecord(identity, fields),
+            OwnershipKind => SyntaxFacts.IsValidIdentifier(Field(fields, SubdomainField)) &&
+                Field(fields, KindField) is "" or EntityField or "Value",
+            ContextKind => SupportsContextRecord(fields),
+            RoleKind => SupportsRoleRecord(identity, fields),
+            RegistrationKind => !string.IsNullOrWhiteSpace(Field(fields, ServiceField)),
+            ConfigurationKind => !string.IsNullOrWhiteSpace(Field(fields, ContextKind)),
+            // Semantic target/fingerprint validity remains analyzer-owned. This never authorizes generation.
+            ExceptionKind => SupportsExceptionRecord(identity, fields),
+            _ => false
+        };
+    }
+
+    private static string Field(Dictionary<string, string> fields, string name) =>
+        fields.TryGetValue(name, out var value) ? value : "";
+
+    private static bool OptionalLogicalPath(Dictionary<string, string> fields, string name)
+    {
+        var value = Field(fields, name);
+        return value.Length == 0 || IsLogicalPath(value);
+    }
+
+    private static bool SupportsReferenceRecord(string identity, Dictionary<string, string> fields)
+    {
+        var stage = Field(fields, StageField);
+        return stage is ProjectField or PackageField or "Resolved" ||
+               stage == CompleteStage && identity == InventoryIdentity;
+    }
+
+    private static bool SupportsContextRecord(Dictionary<string, string> fields)
+    {
+        var subdomain = Field(fields, SubdomainField);
+        if (subdomain.Length != 0 && !SyntaxFacts.IsValidIdentifier(subdomain)) return false;
+        if (!OptionalLogicalPath(fields, RepositoriesField) || !OptionalLogicalPath(fields, MigrationsField)) return false;
+        return string.IsNullOrWhiteSpace(Field(fields, FactoryField)) &&
+               string.IsNullOrWhiteSpace(Field(fields, ProviderField)) ||
+               !string.IsNullOrWhiteSpace(Field(fields, ReasonField));
+    }
+
+    private static bool SupportsRoleRecord(string identity, Dictionary<string, string> fields) =>
+        identity is "Domain" or "Contract" or "Infra" or "Application" or "Hosted" or "SharedKernel" or "Utils" &&
+        Field(fields, NamespacePrefixField) is { Length: > 0 } namespacePrefix &&
+        namespacePrefix.Split('.').All(SyntaxFacts.IsValidIdentifier) &&
+        IsLogicalPath(Field(fields, LogicalPathPrefixField));
+
+    private static bool SupportsExceptionRecord(string identity, Dictionary<string, string> fields)
+    {
+        if (!identity.StartsWith("DRNCV", StringComparison.Ordinal) || identity.Length != 8 || !identity[5..].All(char.IsAsciiDigit))
+            return false;
+        var symbolTarget = Field(fields, SymbolTargetField);
+        var target = symbolTarget.Length > 0 ? symbolTarget : Field(fields, TargetField);
+        if (string.IsNullOrWhiteSpace(target) || target.Contains('*'))
+            return false;
+        if (string.IsNullOrWhiteSpace(Field(fields, ReasonField)) || string.IsNullOrWhiteSpace(Field(fields, OwnerField)))
+            return false;
+        if (!DateOnly.TryParseExact(Field(fields, ReviewField), "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out var review) || review <= DateOnly.FromDateTime(DateTime.UtcNow))
+            return false;
+        var fingerprint = Field(fields, FingerprintField);
+        return fingerprint.Length == 0 || fingerprint.Length == 64 && fingerprint.All(char.IsAsciiHexDigit);
     }
 
     internal static bool IsLogicalPath(string value)
@@ -162,16 +287,16 @@ internal static class ConventionInputSyntax
         return value.ToString();
     }
 
-    private static bool IsField(string kind, string field) => kind switch
+    internal static bool IsField(string kind, string field) => kind switch
     {
-        "Path" => field == "LogicalPath",
-        "Role" => field is "NamespacePrefix" or "LogicalPathPrefix" or "Reason",
-        "Context" => field is "Subdomain" or "Repositories" or "Migrations" or "MigrationsAssembly" or "Factory" or "Provider" or "Reason",
-        "Ownership" => field is "Subdomain" or "Kind" or "Reason",
-        "Exception" => field is "Target" or "Entity" or "Context" or "Reason" or "Owner" or "Review" or "Fingerprint",
-        "Reference" => field is "Stage" or "Source" or "Project" or "OriginalProject" or "Package",
-        "Registration" => field is "Service" or "Key" or "Reason",
-        "Configuration" => field is "Context" or "Reason",
+        PathKind => field == LogicalPathField,
+        RoleKind => field is NamespacePrefixField or LogicalPathPrefixField or ReasonField,
+        ContextKind => field is SubdomainField or RepositoriesField or MigrationsField or MigrationsAssemblyField or FactoryField or ProviderField or ReasonField,
+        OwnershipKind => field is SubdomainField or KindField or ReasonField,
+        ExceptionKind => field is TargetField or EntityField or ContextKind or ReasonField or OwnerField or ReviewField or FingerprintField,
+        ReferenceKind => field is StageField or SourceField or ProjectField or OriginalProjectField or PackageField,
+        RegistrationKind => field is ServiceField or KeyField or ReasonField,
+        ConfigurationKind => field is ContextKind or ReasonField,
         _ => false
     };
 }

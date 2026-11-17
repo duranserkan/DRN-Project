@@ -36,7 +36,7 @@ Concrete application-owned EF `DbContext` subclasses must implement `IDrnContext
 
 Business subdomain checks apply to Domain types and entities, persistence contexts/configurations, repository and service bindings, DI-registered Application/Infra services, and SourceKnown controllers. Nested helper types retain their owning type's boundary. Ordinary MVC controllers, Razor page models, tag helpers and unclassified helpers do not acquire business ownership from navigation or utility namespaces. Razor page models may use domain entities; their folders represent navigation. Public API contract checks still apply to MVC controllers, and project dependency and implementation-role checks remain independent. Existing DRN0026 enforcement still applies to SourceKnown controllers.
 
-The first namespace segment beneath the role owns the subdomain. Hosted may first use `Controllers` or `Pages`, Application may use `Services`. `Shop.Domain.Sales.Orders.Order` and `Shop.Application.Services.Sales.OrderService` belong to Sales. Feature folders do not change ownership.
+The first namespace segment beneath the role owns the subdomain. Hosted may first use `Controllers` or `Pages`, Application may use `Services`. `Shop.Domain.Sales.Order.OrderEntity` and `Shop.Application.Services.Sales.OrderService` belong to Sales. Feature folders do not change ownership.
 
 Ownership retains the declaring assembly and symbol. Bound Infra, Application or Hosted use of a referenced Domain entity can share its subdomain across naming prefixes. Two Domain assemblies remain distinct owners even when their subdomain names match.
 
@@ -44,9 +44,9 @@ Use `[SourceKnownSubdomain("Identity", Reason = "Authentication account ownershi
 
 Assembly-level `SourceKnownSubdomain(typeof(ExternalType), "Owner", Reason = "...")` identifies one external type. It cannot redefine an established referenced owner.
 
-`SourceKnownPersistence(typeof(Order))` declares context membership evidence. `Inclusion = SourceKnownPersistenceInclusion.Exclude` declares exclusion. Neither changes EF's model or suppresses DRNCV019. Missing DbSets do not prove exclusion. Attribute-only mappings need no configuration class or suppression.
+`SourceKnownPersistence(typeof(OrderEntity))` declares context membership evidence. `Inclusion = SourceKnownPersistenceInclusion.Exclude` declares exclusion. Neither changes EF's model or suppresses DRNCV019. Missing DbSets do not prove exclusion. Attribute-only mappings need no configuration class or suppression.
 
-`SalesReadContext` and `SalesWriteContext` may share Order within Sales. Context stems differing from their namespace owner need reasoned explicit ownership. Declare isolated destinations where intended. No runtime read-only guarantee or storage change is implied.
+`SalesReadContext` and `SalesWriteContext` may share OrderEntity within Sales. Context stems differing from their namespace owner need reasoned explicit ownership. Declare isolated destinations where intended. No runtime read-only guarantee or storage change is implied.
 
 ## Declared inputs
 
@@ -112,8 +112,8 @@ DRNCV rules default to Warning in enabled application projects, affecting warnin
 | ID | Why and ordinary remedy | Valid / invalid example | Exception and limit |
 |---|---|---|---|
 | DRNCV001 | Supply unambiguous project identity and consistent facts. | `Shop.Infrastructure.Sql` / `Shop.Domain.Infra`, conflicting owners or invalid logical path. | Unknown names do not activate application checks. Missing evidence is not guessed. |
-| DRNCV002 | Give relevant entities and bound services a clear owner. | `Domain.Sales.Order` / unowned `Domain.Order`. | Reasoned exact owner, including technical Identity. Abstract/open intermediates are excluded. |
-| DRNCV003 | Align namespace and logical source home. | `Sales/Order.cs` under `Domain.Sales` / divergent partial home. | Exact placement exception or split-role mapping. No automatic move. |
+| DRNCV002 | Give relevant entities and bound services a clear owner. | `Domain.Sales.Order.OrderEntity` / unowned `Domain.OrderEntity`. | Reasoned exact owner, including technical Identity. Abstract/open intermediates are excluded. |
+| DRNCV003 | Align namespace and logical source home. | `Sales/Order/OrderEntity.cs` under `Domain.Sales.Order` / divergent partial home. | Exact placement exception or split-role mapping. No automatic move. |
 | DRNCV004 | Make context names recognizable without changing ownership. | `SalesReadContext` / `Store` or `Context`. | Narrow legacy operational exception. Plain DbContext subclasses count; unrelated name lookalikes do not. |
 | DRNCV005 | Provide the options constructor for a supported construction path. | Public `DbContextOptions<SalesContext>` constructor / DRN context with only a parameterless constructor. | Reasoned custom factory. Existing equivalent generic constraint errors are not duplicated. Guarded additive fix only. |
 | DRNCV006 | Preserve Npgsql on the selected construction path. | Forwarded convention options / direct DRN options constructor discards them for null or fresh empty options. | Custom OnConfiguring/factory/helper paths remain unknown. Empty local options delegates do not prove absence. |
@@ -121,9 +121,9 @@ DRNCV rules default to Warning in enabled application projects, affecting warnin
 | DRNCV008 | Resolve contradictory persistence declarations. | One explicit inclusion / simultaneous include and exclude. | Shared/external membership is valid. No complete EF model inference or missing-DbSet warning. |
 | DRNCV009 | Make intended configurations discoverable. | Same assembly, exact/child context namespace / declared sibling configuration with a proven default scan. | Explicit associations and unambiguous context-area/membership evidence count. Ambiguous CQRS associations need selection. Attribute-only code is valid. |
 | DRNCV010 | Infer conventional repository and migration destinations. Require explicit destinations for alternate or ambiguous layouts. Validate explicit destinations even without artifacts. | `Sales/Repositories`, `Sales/Migrations` without metadata / conflicting logical homes without a declaration. | Reasoned alternate output. No directory scanning or fake initial migration. |
-| DRNCV011 | Keep repository binding compatible with persistence. | Repository uses included Order / repository targets explicitly excluded Order. | Exact intentional exception with model evidence. Current reporting focuses on explicit exclusion and supported Ignore evidence. |
+| DRNCV011 | Keep repository binding compatible with persistence. | Repository uses included OrderEntity / repository targets explicitly excluded OrderEntity. | Exact intentional exception with model evidence. Current reporting focuses on explicit exclusion and supported Ignore evidence. |
 | DRNCV012 | Establish effective registration for explicit or inferred service relationships. | Matching supported registration / eligible service on an observed scan without matching lifetime binding. | Reasoned custom registration. Eligibility and unknown composition limits are described above. |
-| DRNCV013 | Keep service and repository aggregate bindings consistent. | Order service returns Order repository / resolved incompatible repository expression. | Exact reviewed adaptation. Current proof is bounded to supported repository expressions. |
+| DRNCV013 | Keep service and repository aggregate bindings consistent. | OrderService returns OrderRepository / resolved incompatible repository expression. | Exact reviewed adaptation. Current proof is bounded to supported repository expressions. |
 | DRNCV014 | Keep external contracts free of persistence objects. | Dto/Guid / public collection containing an entity. | Approved neutral value model. Dto mapping constructors may accept their source entity. Complex or external graphs remain bounded. |
 | DRNCV015 | Respect direct application-role edges. | Application to Infra / Domain to Infra. | Exact reasoned integration edge. Direct provenance and resolved assembly/project identity are required. Package IDs do not establish roles. |
 | DRNCV016 | Put semantic implementations in their owning role. | Context in Infra, controller in Hosted / context or EntityTypeBuilder use in Domain. | Exact reasoned role exception. Known declaration and bound-use families count. Lightweight EF mapping attributes remain valid. |

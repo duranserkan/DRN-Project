@@ -276,6 +276,50 @@ public sealed class AggregateReviewPlanRefactoringTests
     }
 
     [Fact]
+    public async Task Plan_Document_Should_Populate_Folders_And_Normalize_Root_Context_Destinations()
+    {
+        using var nestedWorkspace = new AdhocWorkspace();
+        var nestedDoc = Create(nestedWorkspace);
+        var nestedAction = (await Actions(nestedDoc)).Should().ContainSingle().Which;
+        var nestedChanged = (await nestedAction.GetOperationsAsync(CancellationToken.None))
+            .OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        nestedChanged.Projects.Single(project => project.Name == "Sample.Infra").AdditionalDocuments.Single()
+            .Folders.Should().Equal("Sales");
+
+        using var rootWorkspace = new AdhocWorkspace();
+        var domain = rootWorkspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: "/source/Sample.Domain/Sample.Domain.csproj"))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References);
+        var document = domain.AddDocument("Order.cs", Source, filePath: "/source/Sample.Domain/Sales/Order.cs");
+        rootWorkspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
+        var infra = rootWorkspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                "Sample.Infra", "Sample.Infra", LanguageNames.CSharp, filePath: "/source/Sample.Infra/Sample.Infra.csproj"))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
+            .AddMetadataReference(MetadataReference.CreateFromFile(typeof(Framework.EntityFramework.Context.IDrnContext).Assembly.Location))
+            .AddProjectReference(new ProjectReference(domain.Id))
+            .AddDocument("SalesContext.cs", """
+                namespace Sample.Infra.Sales;
+                public class SalesContext : DRN.Framework.EntityFramework.Context.DrnContext<SalesContext>
+                {
+                    public SalesContext() : base(null) { }
+                }
+                """, filePath: "/source/Sample.Infra/SalesContext.cs").Project;
+        rootWorkspace.TryApplyChanges(infra.Solution).Should().BeTrue();
+        var rootAction = (await Actions(rootWorkspace.CurrentSolution.GetDocument(document.Id)!)).Should().ContainSingle().Which;
+        var rootChanged = (await rootAction.GetOperationsAsync(CancellationToken.None))
+            .OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var rootPlan = rootChanged.Projects.Single(project => project.Name == "Sample.Infra").AdditionalDocuments.Single();
+        rootPlan.Folders.Should().BeEmpty();
+        var content = (await rootPlan.GetTextAsync()).ToString();
+        content.Should().Contain("Proposed Repositories destination: Repositories" + Environment.NewLine)
+            .And.Contain("Proposed Migrations destination: Migrations" + Environment.NewLine)
+            .And.NotContain("./Repositories")
+            .And.NotContain("./Migrations");
+    }
+
+    [Fact]
     public async Task Unreferenced_Infrastructure_Should_Not_Be_Proposed_From_A_Matching_Name()
     {
         using var workspace = new AdhocWorkspace();
