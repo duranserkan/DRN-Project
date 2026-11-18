@@ -1,9 +1,11 @@
-import type { TestContext } from 'node:test';
-
-export function installBrowserGlobals(t: TestContext, globals: Record<string, unknown>) {
+import { onTestFinished } from 'vitest';
+export function installBrowserGlobals(
+    globals: Record<string, unknown>,
+    cleanup: (restore: () => void) => void = onTestFinished,
+) {
     for (const [key, value] of Object.entries(globals)) {
         const original = Object.getOwnPropertyDescriptor(globalThis, key);
-        t.after(() => {
+        cleanup(() => {
             if (original) Object.defineProperty(globalThis, key, original);
             else Reflect.deleteProperty(globalThis, key);
         });

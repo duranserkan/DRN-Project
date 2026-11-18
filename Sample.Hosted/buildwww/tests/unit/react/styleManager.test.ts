@@ -1,10 +1,10 @@
+import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
-import test from 'node:test';
 import { ensureDocumentStyles, initSharedStyleSheet, resolveMountContainer } from '../../../lib/react/styleManager.ts';
 import { installBrowserGlobals } from '../browserGlobals.ts';
 import { islandDocument, IslandNode } from './islandDocument.ts';
 
-test('a rejected shared sheet falls back to nonce-bearing styles once per document and shadow root', (t) => {
+test('a rejected shared sheet falls back to nonce-bearing styles once per document and shadow root', () => {
     class UnsupportedSheet {
         replaceSync() {
             throw new Error('unsupported');
@@ -17,12 +17,12 @@ test('a rejected shared sheet falls back to nonce-bearing styles once per docume
             content: JSON.stringify({ inlineStyleNonce: 'style-token', inlineScriptNonce: 'script-token' }),
         }),
     };
-    installBrowserGlobals(t, {
+    installBrowserGlobals({
         document,
         window: { CSSStyleSheet: UnsupportedSheet },
         CSSStyleSheet: UnsupportedSheet,
     });
-    t.mock.method(console, 'warn', () => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
     const css = '.island { color: red }';
     assert.equal(initSharedStyleSheet(css), null);
     const host = new IslandNode();
@@ -40,7 +40,7 @@ test('a rejected shared sheet falls back to nonce-bearing styles once per docume
     assert.equal(window.__webpack_nonce__, 'style-token');
 });
 
-test('adopting the shared sheet twice preserves existing document styles', (t) => {
+test('adopting the shared sheet twice preserves existing document styles', () => {
     class Sheet {
         css = '';
         replaceSync(css: string) {
@@ -49,7 +49,7 @@ test('adopting the shared sheet twice preserves existing document styles', (t) =
     }
     const existing = new Sheet();
     const document = { ...islandDocument(), adoptedStyleSheets: [existing] };
-    installBrowserGlobals(t, { window: { CSSStyleSheet: Sheet }, CSSStyleSheet: Sheet, document });
+    installBrowserGlobals({ window: { CSSStyleSheet: Sheet }, CSSStyleSheet: Sheet, document });
     const css = '.island { color: green }';
     const shared = initSharedStyleSheet(css);
     assert.ok(shared instanceof Sheet);

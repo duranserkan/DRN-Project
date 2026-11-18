@@ -1,9 +1,9 @@
+import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
-import test from 'node:test';
 import problem from '../../../app/ts/drn/drnProblem.ts';
 import { installBrowserGlobals } from '../browserGlobals.ts';
 
-test('field validation focuses the enabled control and restores prior accessibility attributes only for the matching request', (t) => {
+test('field validation focuses the enabled control and restores prior accessibility attributes only for the matching request', () => {
     class Node extends EventTarget {
         id = '';
         dataset = {};
@@ -11,7 +11,7 @@ test('field validation focuses the enabled control and restores prior accessibil
         attributes = new Map<string, string>();
         textContent = '';
         parentElement?: Node;
-        focus = t.mock.fn();
+        focus = vi.fn();
         get childElementCount() {
             return this.children.length;
         }
@@ -62,7 +62,7 @@ test('field validation focuses the enabled control and restores prior accessibil
     field.setAttribute('aria-invalid', 'false');
     field.setAttribute('aria-describedby', 'hint');
     const buttons: Node[] = [];
-    const publish = t.mock.fn();
+    const publish = vi.fn();
     const document = {
         createElement(tag: string) {
             const node = new Node();
@@ -70,7 +70,7 @@ test('field validation focuses the enabled control and restores prior accessibil
             return node;
         },
     };
-    installBrowserGlobals(t, {
+    installBrowserGlobals({
         Element: Node,
         HTMLElement: Node,
         HTMLFormElement: Form,
@@ -89,12 +89,12 @@ test('field validation focuses the enabled control and restores prior accessibil
     );
     const context = { element: form as unknown as Element, operation: 'save', focus: true };
     problem.show(failure, context);
-    assert.equal(form.children[0]?.focus.mock.callCount(), 1);
+    assert.equal(form.children[0]?.focus.mock.calls.length, 1);
     assert.equal(buttons[0]?.textContent, 'Input.Name: Required');
     buttons[0]?.dispatchEvent(new Event('click'));
-    assert.equal(field.focus.mock.callCount(), 1);
-    assert.equal(disabled.focus.mock.callCount(), 0);
-    assert.equal(publish.mock.callCount(), 1);
+    assert.equal(field.focus.mock.calls.length, 1);
+    assert.equal(disabled.focus.mock.calls.length, 0);
+    assert.equal(publish.mock.calls.length, 1);
     problem.clear({ ...context, operation: 'older' });
     assert.equal(field.getAttribute('aria-invalid'), 'true');
     assert.match(field.getAttribute('aria-describedby') ?? '', /^hint drn-field-error-/);

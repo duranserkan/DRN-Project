@@ -1,6 +1,6 @@
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
-import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { createContext, Script } from 'node:vm';
 import { build, type Plugin } from 'vite';

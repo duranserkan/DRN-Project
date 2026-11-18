@@ -1,9 +1,9 @@
+import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
-import test from 'node:test';
 import panel from '../../../app/ts/drn/drnNotificationPanel.ts';
 import { installBrowserGlobals } from '../browserGlobals.ts';
 
-test('HTMX cleanup of a panel being opened waits for Bootstrap to finish showing and hiding before disposal', (t) => {
+test('HTMX cleanup of a panel being opened waits for Bootstrap to finish showing and hiding before disposal', () => {
     const id = 'offCanvasSidebarActionCanvasNotifications';
     class Element extends EventTarget {
         contains(node: Element) {
@@ -20,9 +20,9 @@ test('HTMX cleanup of a panel being opened waits for Bootstrap to finish showing
         getElementById: (key: string) => (key === id ? view : null),
         querySelectorAll: () => [],
     });
-    const instance = { hide: t.mock.fn(), dispose: t.mock.fn() };
-    const store = { subscribe: t.mock.fn(), list: () => [], markSeen: t.mock.fn() };
-    installBrowserGlobals(t, {
+    const instance = { hide: vi.fn(), dispose: vi.fn() };
+    const store = { subscribe: vi.fn(), list: () => [], markSeen: vi.fn() };
+    installBrowserGlobals({
         Element,
         document,
         window: { DRN: { Notifications: store }, bootstrap: { Offcanvas: { getInstance: () => instance } } },
@@ -33,14 +33,14 @@ test('HTMX cleanup of a panel being opened waits for Bootstrap to finish showing
         document.dispatchEvent(new CustomEvent('htmx:beforeCleanupElement', { detail: { elt } }));
     cleanup(new Element());
     view.dispatchEvent(new Event('shown.bs.offcanvas'));
-    assert.equal(instance.hide.mock.callCount(), 0);
+    assert.equal(instance.hide.mock.calls.length, 0);
     cleanup(view);
-    assert.equal(instance.hide.mock.callCount(), 0);
-    assert.equal(instance.dispose.mock.callCount(), 0);
+    assert.equal(instance.hide.mock.calls.length, 0);
+    assert.equal(instance.dispose.mock.calls.length, 0);
     view.dispatchEvent(new Event('shown.bs.offcanvas'));
-    assert.equal(instance.hide.mock.callCount(), 1);
-    assert.equal(instance.dispose.mock.callCount(), 0);
+    assert.equal(instance.hide.mock.calls.length, 1);
+    assert.equal(instance.dispose.mock.calls.length, 0);
     view.dispatchEvent(new Event('hidden.bs.offcanvas'));
     view.dispatchEvent(new Event('hidden.bs.offcanvas'));
-    assert.equal(instance.dispose.mock.callCount(), 1);
+    assert.equal(instance.dispose.mock.calls.length, 1);
 });

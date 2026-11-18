@@ -1,9 +1,9 @@
+import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
-import test from 'node:test';
 import utils from '../../../app/ts/drn/drnUtils.ts';
 import { installBrowserGlobals } from '../browserGlobals.ts';
 
-test('diagnostic selectors include data attributes and omit ordinary attribute values', (t) => {
+test('diagnostic selectors include data attributes and omit ordinary attribute values', () => {
     class Control {
         tagName = 'INPUT';
         id = 'email';
@@ -13,7 +13,7 @@ test('diagnostic selectors include data attributes and omit ordinary attribute v
             { name: 'data-action', value: 'save' },
         ];
     }
-    installBrowserGlobals(t, { Element: Control });
+    installBrowserGlobals({ Element: Control });
     assert.equal(
         utils.getRequestElementSelector(new Control() as unknown as Element),
         'INPUT#email.form-control.required[data-action="save"]',
@@ -21,9 +21,9 @@ test('diagnostic selectors include data attributes and omit ordinary attribute v
     assert.equal(utils.getRequestElementSelector(null), 'Unknown Element');
 });
 
-test('base64 helpers reject non-string inputs and preserve text that btoa cannot encode', (t) => {
-    t.mock.method(console, 'warn', () => {});
-    t.mock.method(console, 'error', () => {});
+test('base64 helpers reject non-string inputs and preserve text that btoa cannot encode', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     // @ts-expect-error Exercise the untyped runtime boundary.
     assert.equal(utils.urlSafeBase64Encode(null), '');
     // @ts-expect-error Exercise the untyped runtime boundary.

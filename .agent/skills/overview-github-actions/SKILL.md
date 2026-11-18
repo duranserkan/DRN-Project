@@ -1,7 +1,7 @@
 ---
 name: overview-github-actions
 description: Use when reviewing or modifying GitHub Actions workflows, composite actions, CI gates, release pipelines, Docker publishing, package publishing, or security scanning.
-last-updated: 2026-11-13
+last-updated: 2026-11-17
 difficulty: intermediate
 ---
 
@@ -29,6 +29,7 @@ difficulty: intermediate
 - Pin third-party actions to full immutable Git commit SHAs with version comments. Verify tag-to-commit alignment from the official upstream repository. Dereference annotated tags. Container bases require verified registry content digests.
 - Protect `.github/workflows/**`, `.github/actions/**`, and `CODEOWNERS` with code-owner review.
 - Gate publishing credentials behind build/test/security-scan success.
+- When a quality gate covers multiple languages, collect coverage in the owning jobs. Pass reports as artifacts when they cross jobs and submit one analysis after all required reports are available.
 - Upload scanner results when supported. A custom SARIF verifier must fail on missing, empty, malformed, or unparsable results. If platform code-scanning merge protection replaces it, require that protection in branch rulesets.
 - Feed global project guidelines to review tools through their guideline-file mechanism instead of duplicating portable rules into long path instructions.
 

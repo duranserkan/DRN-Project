@@ -26,3 +26,22 @@ runs:
       env:
         TESTINGPLATFORM_TELEMETRY_OPTOUT: "1"
       run: dotnet tool run dotnet-coverage collect "dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj --no-build --verbosity minimal --configuration Release -- --report-gh" -f xml -o "coverage-integration.xml"
+    - name: Require line coverage from every backend suite
+      shell: pwsh
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        $lineCoverage = @'
+        (/results//module//range[
+          normalize-space(@covered) != '' and
+          translate(@start_line, '0123456789', '') = '' and
+          number(@start_line) > 0 and number(@start_line) <= 2147483647 and
+          @source_id = ancestor::module[1]/source_files/source_file[
+            normalize-space(@id) != '' and normalize-space(@path) != ''
+          ]/@id
+        ])[1]
+        '@
+        foreach ($report in 'coverage-unit.xml', 'coverage-analyzer.xml', 'coverage-integration.xml') {
+          if (!(Select-Xml -LiteralPath $report -XPath $lineCoverage)) {
+            throw "Missing backend line coverage in $report"
+          }
+        }

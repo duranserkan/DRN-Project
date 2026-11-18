@@ -1,9 +1,9 @@
+import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
-import test, { type TestContext } from 'node:test';
 import { installActionbarEvents } from '../../../app/ts/drn/drnActionbar.ts';
 import { installBrowserGlobals } from '../browserGlobals.ts';
 
-function actionbar(t: TestContext) {
+function actionbar() {
     const marker = { dataset: { notificationApp: '/', notificationOwner: 'alice' } };
     const badge = { textContent: ' 2 ' };
     const classes = new Set<string>();
@@ -26,7 +26,7 @@ function actionbar(t: TestContext) {
         getItem: (key: string) => saved.get(key) ?? null,
         setItem: (k: string, v: string) => saved.set(k, v),
     };
-    installBrowserGlobals(t, { document, window, localStorage: storage });
+    installBrowserGlobals({ document, window, localStorage: storage });
     installActionbarEvents();
     return {
         document,
@@ -45,8 +45,8 @@ function actionbar(t: TestContext) {
     };
 }
 
-test('actionbar acknowledgments follow the attention version and belong to the current account', (t) => {
-    const bar = actionbar(t);
+test('actionbar acknowledgments follow the attention version and belong to the current account', () => {
+    const bar = actionbar();
     bar.document.dispatchEvent(new Event('DOMContentLoaded'));
     assert.equal(bar.highlighted(), true);
     bar.open();
@@ -63,15 +63,15 @@ test('actionbar acknowledgments follow the attention version and belong to the c
     assert.equal(bar.highlighted(), true);
 });
 
-test('actionbar restores legacy attendance and retains failed writes only within the active account', (t) => {
-    const bar = actionbar(t);
+test('actionbar restores legacy attendance and retains failed writes only within the active account', () => {
+    const bar = actionbar();
     bar.saved.set('drn.actionbar.v2:["/","alice"]', JSON.stringify({ owner: 'alice', entries: [['#messages', '2']] }));
     bar.document.dispatchEvent(new Event('DOMContentLoaded'));
     assert.equal(bar.highlighted(), false);
     bar.badge.textContent = '3';
     bar.document.dispatchEvent(new Event('htmx:load'));
     assert.equal(bar.highlighted(), true);
-    t.mock.method(bar.storage, 'setItem', () => {
+    vi.spyOn(bar.storage, 'setItem').mockImplementation(() => {
         throw new Error('storage blocked');
     });
     bar.open();

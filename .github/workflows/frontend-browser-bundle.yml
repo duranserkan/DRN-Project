@@ -2,6 +2,11 @@ name: Frontend browser bundle
 
 on:
   workflow_call:
+    inputs:
+      collect-coverage:
+        description: "Collect Sample unit coverage for the Sonar quality gate."
+        type: boolean
+        default: false
     outputs:
       artifact-id:
         description: "Artifact containing the complete built Sample web root."
@@ -16,6 +21,7 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     env:
+      COVERAGE_REPORT: coverage-frontend.info
       SOURCE: ${{ github.event_name == 'pull_request' && 'src' || '.' }}
     steps:
       - name: Checkout CI code
@@ -29,12 +35,21 @@ jobs:
         with:
           path: src
           persist-credentials: false
-      - name: Install audited frontend dependencies
+      - name: Validate frontend dependencies and collect requested coverage
         uses: ./.github/actions/frontend-validation
         with:
           repository-directory: ${{ env.SOURCE }}
           working-directory: ${{ env.SOURCE }}/Sample.Hosted
           build-assets: "false"
+          coverage-report: ${{ inputs.collect-coverage && env.COVERAGE_REPORT || '' }}
+      - name: Upload frontend coverage
+        if: inputs.collect-coverage
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sample-frontend-coverage
+          path: ${{ env.SOURCE }}/Sample.Hosted/${{ env.COVERAGE_REPORT }}
+          if-no-files-found: error
+          overwrite: true
       - name: Build Vite assets
         working-directory: ${{ env.SOURCE }}/Sample.Hosted
         run: npm run build

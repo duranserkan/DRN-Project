@@ -95,7 +95,7 @@ dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 
 ## Frontend Test Scope
 
-In `Sample.Hosted/buildwww/tests/`, Node discovers `.test.js` and `.test.ts` recursively. CI reports frontend and TSX coverage. Master and release require LCOV and the Sonar gate. Playwright runs `browser/` fixtures against the built assets in a separate required job. `hosted/` needs a running Sample. See `Sample.Hosted/README.md`, Frontend Tests. Execution requires explicit permission.
+`Sample.Hosted/README.md`, Frontend tests, owns CI gates, coverage and commands. On master and verified release tags, the frontend bundle job supplies LCOV and the built web root. Sonar imports frontend and .NET coverage in one required analysis. Playwright and hosted integration tests exercise the built assets.
 
 ## DRN Framework Source Overlay
 

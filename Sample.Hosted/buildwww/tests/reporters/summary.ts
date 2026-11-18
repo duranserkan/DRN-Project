@@ -8,7 +8,7 @@ function publishSummary(markdown: string) {
     return output;
 }
 
-export type Failure = { name: string; message: string; duration?: number };
+export type Failure = { name: string; message: string; duration?: number | undefined };
 
 export function printCoverageReport(report?: string, requiredSources: readonly string[] = []) {
     if (!report) return true;

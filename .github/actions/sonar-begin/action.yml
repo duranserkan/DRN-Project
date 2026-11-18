@@ -93,12 +93,34 @@ runs:
         if ($env:FRONTEND_LCOV) {
           $reports = $env:FRONTEND_LCOV.Split(',', [StringSplitOptions]::TrimEntries)
           # The JS/TS sensor resolves relative report paths from each .NET module.
+          $sourceRecordPrefix = 'SF:'
           $resolvedReports = foreach ($report in $reports) {
             if (!$report) { throw "Empty path in frontend-lcov" }
-            if (!(Select-String -LiteralPath $report -Pattern '^DA:[1-9][0-9]*,[0-9]+(,.*)?$' -Quiet)) {
-              throw "Expected frontend line coverage in $report"
+            # LCOV artifacts travel between runners. Resolve their repository-relative
+            # source records here, where the scanner indexes the .NET modules.
+            $sourceRoot = (Get-Location).ProviderPath
+            $localReport = Join-Path $env:RUNNER_TEMP ("frontend-" + [guid]::NewGuid() + ".info")
+            $hasSource = $false
+            $hasLineCoverage = $false
+            $normalized = foreach ($line in [IO.File]::ReadLines((Resolve-Path -LiteralPath $report).ProviderPath)) {
+              if ($line.StartsWith($sourceRecordPrefix)) {
+                $source = $line.Substring($sourceRecordPrefix.Length)
+                if ([IO.Path]::IsPathRooted($source)) { throw "Expected repository-relative LCOV source: $source" }
+                $absolute = [IO.Path]::GetFullPath($source, $sourceRoot)
+                if (!$absolute.StartsWith($sourceRoot + [IO.Path]::DirectorySeparatorChar) -or
+                    !(Test-Path -LiteralPath $absolute -PathType Leaf)) { throw "Unresolved LCOV source: $source" }
+                $hasSource = $true
+                "$sourceRecordPrefix$absolute"
+              } else {
+                if ($line -ceq 'end_of_record') { $hasSource = $false }
+                if ($hasSource -and $line -cmatch '^DA:[1-9][0-9]*,[0-9]+(,.*)?$') { $hasLineCoverage = $true }
+                $line
+              }
             }
-            (Resolve-Path -LiteralPath $report).ProviderPath
+            if (!$hasLineCoverage) { throw "Expected frontend line coverage in $report" }
+            [IO.File]::WriteAllLines($localReport, [string[]]$normalized)
+            Write-Host "Using $report from $sourceRoot for Sonar JS/TS coverage"
+            $localReport
           }
           $scannerArgs += "/d:sonar.javascript.lcov.reportPaths=$($resolvedReports -join ',')"
         }

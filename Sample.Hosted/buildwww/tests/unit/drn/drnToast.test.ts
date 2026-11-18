@@ -1,13 +1,13 @@
+import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
-import test from 'node:test';
 import toast from '../../../app/ts/drn/drnToast.ts';
 import utils from '../../../app/ts/drn/drnUtils.ts';
 import { installBrowserGlobals } from '../browserGlobals.ts';
 
-test('toast bursts retain history, evict the oldest visible toast and recover at exactly ten seconds', (t) => {
+test('toast bursts retain history, evict the oldest visible toast and recover at exactly ten seconds', () => {
     let now = 0;
-    t.mock.method(Date, 'now', () => now);
-    t.mock.method(utils, 'escapeHtml', (text: string) => text);
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+    vi.spyOn(utils, 'escapeHtml').mockImplementation((text: string) => text);
     const published: string[] = [];
     const shown: string[] = [];
     const visible = new Set<string>();
@@ -33,20 +33,20 @@ test('toast bursts retain history, evict the oldest visible toast and recover at
             visible.delete(this.message);
         }
     }
-    installBrowserGlobals(t, {
+    installBrowserGlobals({
         window: { DRN: { Notifications: { publish: ({ message }: { message: string }) => published.push(message) } } },
         bootstrap: { Toast },
         document: {
             getElementById: () => live,
             querySelector: () => null,
-            body: { contains: () => true, appendChild: t.mock.fn() },
+            body: { contains: () => true, appendChild: vi.fn() },
             createElement: () =>
                 Object.assign(new EventTarget(), {
                     style: {},
                     dataset: {},
-                    setAttribute: t.mock.fn(),
-                    appendChild: t.mock.fn(),
-                    remove: t.mock.fn(),
+                    setAttribute: vi.fn(),
+                    appendChild: vi.fn(),
+                    remove: vi.fn(),
                     contains: () => false,
                 }),
         },

@@ -35,6 +35,8 @@ jobs:
     permissions:
       contents: read
     uses: ./.github/workflows/frontend-browser-bundle.yml
+    with:
+      collect-coverage: true
 
   playwright:
     needs: [verify-release-tag, frontend-assets]
@@ -70,12 +72,16 @@ jobs:
           merge-multiple: true
           path: Sample.Hosted/wwwroot
 
-      - name: Collect frontend unit coverage
+      - name: Download frontend unit coverage
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sample-frontend-coverage
+          path: Sample.Hosted
+      - name: Install frontend types for Sonar analysis
         uses: $/.github/actions/frontend-validation
         with:
           working-directory: Sample.Hosted
-          unit-tests-only: "true"
-          coverage-report: coverage-frontend.info
+          build-assets: "false"
 
       - name: Run Sonar preview gate
         uses: $/.github/actions/dotnet-sonar-scan

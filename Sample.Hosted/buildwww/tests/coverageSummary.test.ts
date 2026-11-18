@@ -1,13 +1,28 @@
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempDisposableSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+    copyFileSync,
+    cpSync,
+    mkdirSync,
+    mkdtempDisposableSync,
+    readFileSync,
+    symlinkSync,
+    writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, relative } from 'node:path';
-import test from 'node:test';
-import { coverageReportPath, coverageSummary } from '../../../.github/actions/frontend-validation/coverage.mts';
+import { dirname, join, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import {
+    coverageReportPath,
+    coverageSummary,
+    readCoverageSummary,
+} from '../../../.github/actions/frontend-validation/coverage.mts';
+
+const unitRunnerPath = fileURLToPath(new URL('./run-tests.ts', import.meta.url));
 
 test('unit test selectors cannot add a Node option', () => {
-    const result = spawnSync(process.execPath, ['buildwww/tests/run-tests.ts', '--', '--version'], {
+    const result = spawnSync(process.execPath, [unitRunnerPath, '--', '--version'], {
         cwd: new URL('../../', import.meta.url),
         encoding: 'utf8',
     });
@@ -18,11 +33,60 @@ test('unit test selectors cannot add a Node option', () => {
 test('a matching unit test cannot mask an unmatched selector', () => {
     const result = spawnSync(
         process.execPath,
-        ['buildwww/tests/run-tests.ts', 'buildwww/tests/reporters/summary.test.ts', 'missing.test.ts'],
+        [unitRunnerPath, 'buildwww/tests/reporters/summary.test.ts', 'missing.test.ts'],
         { cwd: new URL('../../', import.meta.url), encoding: 'utf8' },
     );
     assert.equal(result.status, 1);
     assert.match(result.stderr, /No matching frontend unit tests found for missing\.test\.ts/);
+});
+
+test('filtered coverage respects source globs and excludes unselected unit tests', () => {
+    using directory = mkdtempDisposableSync(join(process.cwd(), '.coverage-test-'));
+    const report = join(directory.path, 'report.info');
+    const component = 'buildwww/lib/react/components/HelloReact.tsx';
+    const testFile = 'buildwww/tests/unit/react/reactIslands.test.ts';
+    const selectedFile = join(directory.path, testFile);
+    mkdirSync(dirname(selectedFile), { recursive: true });
+    copyFileSync(testFile, selectedFile);
+    cpSync('buildwww/lib/react', join(directory.path, 'buildwww/lib/react'), { recursive: true });
+    copyFileSync('tsconfig.json', join(directory.path, 'tsconfig.json'));
+    copyFileSync('vitest.config.ts', join(directory.path, 'vitest.config.ts'));
+    symlinkSync(resolve('buildwww/tests/reporters'), join(directory.path, 'buildwww/tests/reporters'), 'junction');
+    // A Vitest positional filter would also match this nested test path.
+    const unselectedFile = join(directory.path, 'buildwww/tests/nested', testFile);
+    mkdirSync(dirname(unselectedFile), { recursive: true });
+    writeFileSync(unselectedFile, "throw new Error('Unselected unit test was executed');\n");
+    const result = spawnSync(
+        process.execPath,
+        [
+            unitRunnerPath,
+            testFile,
+            '--coverage',
+            '--include',
+            component,
+            '--include',
+            'buildwww/lib/react/Island*.tsx',
+            '--include',
+            'buildwww/tests/nested/**/*.ts',
+            '--exclude',
+            '**/*.d.ts',
+            '--report',
+            report,
+        ],
+        {
+            cwd: directory.path,
+            encoding: 'utf8',
+            env: { ...process.env, GITHUB_STEP_SUMMARY: '' },
+            timeout: 30_000,
+            killSignal: 'SIGKILL',
+        },
+    );
+    if (result.error) throw result.error;
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    readCoverageSummary(report, [component, 'buildwww/lib/react/IslandErrorBoundary.tsx']);
+    const lcov = readFileSync(report, 'utf8');
+    assert.doesNotMatch(lcov, /^SF:(?:.*[/\\])?PortalContext\.tsx\r?$/m);
+    assert.doesNotMatch(lcov, /^SF:.*\.test\.(?:js|ts)\r?$/m);
 });
 
 test('coverage paths stay inside the package for both reads and writes', () => {
