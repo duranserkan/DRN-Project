@@ -48,9 +48,11 @@ For a public prefix such as `/app`, deploy the file with `Allow: /app/User/Login
 
 ## Swagger and test pages
 
-Signed-in users who complete MFA can access `/swagger`, `/Test/Htmx`, and `/Test/DeveloperView` in Development. In Staging and Production, `SystemAdmin` grants access to Swagger and Test Pages. Other users need a `SwaggerAccess` claim set to `true` for Swagger or a `TestPagesAccess` claim set to `true` for Test Pages. MFA is required in every environment. Navigation uses the same policies as the endpoints.
+Use `Get.Policy.SwaggerAccess`, `Get.Policy.TestPagesAccess`, `Get.Policy.DeveloperException`, and `Get.Policy.QaApi` wherever Sample code needs a policy name. Use `UserClaims` when issuing or reading a claim.
 
-Developer View is an explicit diagnostics preview. Ordinary Staging and Production errors remain redacted.
+Developer tools require completed MFA in every environment. In Development, signed-in users can access `/swagger` and `/Test/Htmx`. In Staging and Production, `SystemAdmin` grants access to both. Other users need a `SwaggerAccess` claim set to `true` for Swagger or a `TestPagesAccess` claim set to `true` for HTMX test pages. Navigation uses the same policies as the endpoints.
+
+The HTML preview at `/Test/DeveloperView` and the JSON model at `/Api/Sample/Exception/GetErrorPageModel` require Development, completed MFA, and either `SystemAdmin` or `TestPagesAccess=true`. Both send `Cache-Control: no-store`. The `[DeveloperExceptionPreview]` attribute preserves those checks when a host replaces the named policy. The navbar checks preview access using the current request and the policy's authentication schemes.
 
 `SampleDrnExceptionFilter` is an opt-in demonstration, registered explicitly by its integration test. It is not registered in the normal application, so its empty post-creation callback does not force diagnostic model collection for ordinary errors.
 
@@ -76,7 +78,7 @@ Migration: the former Tag `PaginateWithOptions`, `PaginateWithQuery`, and `Pagin
 
 ## Error pages and API failures
 
-The sample provides anonymous, non-cacheable `/BadRequest` (400), `/AccessDenied` (403), `/NotFound` (404), and `/SomethingWentWrong` (500) pages. Staging and Production HTML server errors preserve their 5xx status and show only a request reference. HTML bad-request and not-found responses preserve 400 and 404. API failures for all 4xx and 5xx statuses use [Problem Details JSON](../DRN.Framework.Hosting/README.md#api-failure-responses) with a `requestId` in every environment. The sample configures `/Api` to identify unmatched API routes.
+The sample provides anonymous, non-cacheable `/BadRequest` (400), `/AccessDenied` (403), `/NotFound` (404), and `/SomethingWentWrong` (500) pages. Viewers without diagnostic access receive redacted HTML server errors with the original 5xx status and a request reference, including in Development. HTML bad-request and not-found responses preserve 400 and 404. API failures for all 4xx and 5xx statuses use [Problem Details JSON](../DRN.Framework.Hosting/README.md#api-failure-responses) with a `requestId` in every environment. The sample configures `/Api` to identify unmatched API routes.
 
 Each error page displays recovery guidance and a request reference for support. Cookie-authentication redirects to `/AccessDenied` preserve the denied request's reference for the next visit. Direct visits use the page request's reference. Browser authentication redirects to login for 401 responses.
 

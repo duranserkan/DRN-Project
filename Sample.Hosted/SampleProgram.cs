@@ -3,7 +3,6 @@ using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
-using Sample.Domain.SampleIdentity;
 
 namespace Sample.Hosted;
 
@@ -21,7 +20,7 @@ public class SampleProgram : DrnProgramBase<SampleProgram>, IDrnProgram
     {
         base.ConfigureSwaggerOptions(options, appSettings);
         options.AddSwagger = true;
-        options.AuthorizationPolicy = UserClaims.SwaggerAccess;
+        options.AuthorizationPolicy = Get.Policy.SwaggerAccess;
     }
 
     protected override MfaRedirectionConfig ConfigureMFARedirection()

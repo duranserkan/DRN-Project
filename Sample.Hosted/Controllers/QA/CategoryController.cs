@@ -1,12 +1,11 @@
 using DRN.Framework.Hosting.Controllers;
 using Sample.Contract.QA.Categories;
 using Sample.Domain.QA.Category;
-using Sample.Hosted.Settings;
 
 namespace Sample.Hosted.Controllers.QA;
 
 [Route(ControllerRoutes.QA)]
-[Authorize(Policy = IdentitySettings.QaApiPolicy)]
+[Authorize(Policy = Get.Policy.QaApi)]
 public class CategoryController(ICategoryRepository repository)
     : SourceKnownController<CategoryEntity, CategoryDto, CategoryPostRequest>(repository)
 {

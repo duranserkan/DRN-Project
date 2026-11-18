@@ -1,23 +1,28 @@
 using System.Net;
+using Sample.Hosted;
+using Sample.Hosted.Helpers;
 using System.Security.Claims;
 using System.Text.Json;
+using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
 using DRN.Framework.Utils.Auth.MFA;
 using DRN.Test.Integration.Helpers;
 using DRN.Test.Integration.Tests.Sample.Pages.Helpers;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Sample.Domain.SampleIdentity;
 using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
-using Sample.Hosted;
-using Sample.Hosted.Helpers;
 
 namespace DRN.Test.Integration.Tests.Sample.Pages;
 
 public class DeveloperToolsAuthorizationTests
 {
+    private const string HostPreviewGrant = "HostPreviewAccess";
+
     [Theory]
     [DataInline("Development", "", null, true, true)]
     [DataInline("Development", "/gateway", UserRoles.SystemAdmin, true, true)]
+    [DataInline("Development", "/gateway", UserClaims.TestPagesAccess, true, true)]
     [DataInline("Staging", "/gateway", UserRoles.SystemAdmin, true, true)]
     [DataInline("Production", "/gateway", UserRoles.SystemAdmin, true, true)]
     [DataInline("Staging", "/gateway", UserClaims.SwaggerAccess, true, false)]
@@ -26,8 +31,20 @@ public class DeveloperToolsAuthorizationTests
     [DataInline("Production", "/gateway", UserClaims.TestPagesAccess, false, true)]
     [DataInline("Staging", "/gateway", null, false, false)]
     [DataInline("Production", "/gateway", null, false, false)]
-    public async Task Mfa_Login_Should_Enforce_Developer_Tool_Policies_And_Preserve_Prefixed_Links(
+    public Task Mfa_Login_Should_Enforce_Developer_Tool_Policies_And_Preserve_Prefixed_Links(
         DrnTestContext context, string environment, string pathBase, string? grant, bool swaggerAllowed, bool testPagesAllowed)
+        => VerifyDeveloperToolsAsync(context, environment, pathBase, grant, swaggerAllowed, testPagesAllowed);
+
+    [Theory]
+    [DataInline(HostPreviewGrant, "Identity.BearerAndApplication")]
+    [DataInline(UserClaims.TestPagesAccess, "Identity.BearerAndApplication")]
+    [DataInline(UserClaims.TestPagesAccess, "Identity.Bearer")]
+    public Task Preview_Endpoints_And_Navigation_Should_Require_Both_Host_And_Built_In_Access(
+        DrnTestContext context, string grant, string scheme)
+        => VerifyDeveloperToolsAsync(context, "Development", "/gateway", grant, true, true, scheme);
+
+    private static async Task VerifyDeveloperToolsAsync(DrnTestContext context, string environment, string pathBase,
+        string? grant, bool swaggerAllowed, bool testPagesAllowed, string? previewScheme = null)
     {
         context.AddToConfiguration("Environment", environment);
         context.AddToConfiguration("AllowedHosts", "localhost");
@@ -37,7 +54,14 @@ public class DeveloperToolsAuthorizationTests
         output?.WriteLine($"Developer tools authorization: environment={environment}, pathBase='{pathBase}', grant='{grant ?? "none"}'");
         var application = context.ApplicationContext.CreateApplicationCore<SampleProgram>(output, builder =>
             builder.ConfigureServices(services =>
-                services.AddSingleton<IStartupFilter>(new PathBaseStartupFilter(pathBase))));
+            {
+                services.AddSingleton<IStartupFilter>(new PathBaseStartupFilter(pathBase));
+                if (previewScheme != null)
+                    services.PostConfigure<AuthorizationOptions>(options => options.AddPolicy(Get.Policy.DeveloperException, policy =>
+                        policy.AddAuthenticationSchemes(previewScheme).RequireClaim(HostPreviewGrant)
+                            .RequireAssertion(check => check.Resource is Microsoft.AspNetCore.Http.HttpContext http &&
+                                                       http.Request.PathBase.Value == pathBase)));
+            }));
         await context.ContainerContext.BindExternalDependenciesAsync();
         application.Server.PreserveExecutionContext = true;
         using var client = application.CreateClient(new()
@@ -46,12 +70,15 @@ public class DeveloperToolsAuthorizationTests
             BaseAddress = new Uri("https://localhost")
         });
         application.Services.GetRequiredService<IAppSettings>().Environment.ToString().Should().Be(environment);
+        var cookieAccepted = previewScheme != IdentityConstants.BearerScheme;
+        var previewAllowed = cookieAccepted && environment == "Development" && grant is UserRoles.SystemAdmin or UserClaims.TestPagesAccess;
+        var modelPath = "/" + Get.Endpoint.Sample.Exception.GetErrorPageModel.Path().TrimStart('/');
         var toolPaths = new[]
         {
             ("/swagger/index.html", swaggerAllowed), ("/swagger/swagger-ui.css", swaggerAllowed),
             ("/swagger/swagger-ui-bundle.js", swaggerAllowed), ("/swagger/v1/swagger.json", swaggerAllowed),
             ("/swagger/v1/swagger.yaml", swaggerAllowed), (Get.Page.Test.Htmx, testPagesAllowed),
-            (Get.Page.Test.DeveloperView, testPagesAllowed)
+            (Get.Page.Test.DeveloperView, previewAllowed), (modelPath, previewAllowed)
         };
         foreach (var (path, _) in toolPaths)
         {
@@ -71,6 +98,8 @@ public class DeveloperToolsAuthorizationTests
                 : new Claim(grant, bool.TrueString);
             (await manager.AddClaimAsync(user, claim)).Succeeded.Should().BeTrue();
         }
+        if (previewScheme != null && grant != HostPreviewGrant)
+            (await manager.AddClaimAsync(user, new Claim(HostPreviewGrant, bool.TrueString))).Succeeded.Should().BeTrue();
 
         var loginPath = pathBase + Get.Page.User.Login;
         var landingPage = testPagesAllowed ? Get.Page.Test.Htmx : Get.Page.Root.Home;
@@ -132,16 +161,40 @@ public class DeveloperToolsAuthorizationTests
             .And.Contain($"src=\"{pathBase}{Get.Endpoint.User.Profile.ProfilePicture.ControllerRoute}/{user.Id}?v=")
             .And.NotContain("hx-post=\"~/");
         html.Contains($"href=\"{pathBase}{Get.Page.Root.Swagger}\"").Should().Be(swaggerAllowed);
-        html.Contains($"href=\"{pathBase}{Get.Page.Test.DeveloperView}\"").Should().Be(testPagesAllowed);
+        html.Contains($"href=\"{pathBase}{Get.Page.Test.DeveloperView}\"").Should().Be(previewAllowed);
         if (testPagesAllowed)
+        {
             html.Should().Contain($"hx-post=\"{pathBase}{Get.Page.Test.Htmx}?handler=Auto\"");
+            const string menuLabel = "aria-labelledby=\"navbarTestPages\"";
+            var menuStart = html.IndexOf(menuLabel, StringComparison.Ordinal);
+            menuStart.Should().BeGreaterThanOrEqualTo(0);
+            var menuEnd = html.IndexOf("</ul>", menuStart, StringComparison.Ordinal);
+            html[menuStart..menuEnd].Contains("dropdown-divider").Should().Be(previewAllowed);
+        }
 
         foreach (var (path, allowed) in toolPaths)
         {
             using var response = await client.GetAsync(pathBase + path);
+            if (!cookieAccepted && (path == Get.Page.Test.DeveloperView || path == modelPath))
+            {
+                if (path == modelPath)
+                    response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+                else
+                    response.StatusCode.Should().BeOneOf(HttpStatusCode.Unauthorized, HttpStatusCode.SeeOther);
+                (await response.Content.ReadAsStringAsync()).Should().NotContain("Developer diagnostics preview.")
+                    .And.NotContain("class=\"frame\"");
+                continue;
+            }
             // Identity's default cookie/bearer composite forwards forbid responses to the bearer handler.
             response.StatusCode.Should().Be(allowed ? HttpStatusCode.OK : HttpStatusCode.Forbidden,
                 $"the {environment} policy should enforce the user's permission for {path}");
+            if (allowed && path == modelPath)
+            {
+                response.Headers.CacheControl!.NoStore.Should().BeTrue();
+                var model = await response.Content.ReadFromJsonAsync<DrnExceptionModel>();
+                model.Should().NotBeNull();
+                model!.RequestPath.Should().Be(pathBase + modelPath);
+            }
             if (allowed && path == "/swagger/v1/swagger.json")
             {
                 using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
@@ -200,7 +253,9 @@ public class DeveloperToolsAuthorizationTests
                     }
                 }
             }
-
+        }
+        if (previewAllowed)
+        {
             using var preview = await client.GetAsync(pathBase + Get.Page.Test.DeveloperView);
             (await preview.Content.ReadAsStringAsync()).Should().Contain("Developer diagnostics preview.")
                 .And.Contain("class=\"frame\"")

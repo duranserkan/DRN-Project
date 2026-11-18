@@ -1,4 +1,6 @@
 using System.Net;
+using Sample.Hosted;
+using Sample.Hosted.Helpers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using DRN.Framework.SharedKernel.Domain.Pagination;
@@ -13,10 +15,7 @@ using Microsoft.AspNetCore.Identity;
 using Sample.Contract.QA.Categories;
 using Sample.Domain.QA.Category;
 using Sample.Domain.QA.Tag;
-using Sample.Hosted;
 using Sample.Hosted.Controllers.QA;
-using Sample.Hosted.Helpers;
-using Sample.Hosted.Settings;
 using Sample.Infra.QA;
 using Swashbuckle.AspNetCore.Swagger;
 
@@ -38,7 +37,7 @@ public class CategoryControllerTests
         application.Server.PreserveExecutionContext = true;
         using var client = application.CreateClient(new() { AllowAutoRedirect = false });
         var policies = application.Services.GetRequiredService<IAuthorizationPolicyProvider>();
-        var policy = await policies.GetPolicyAsync(IdentitySettings.QaApiPolicy);
+        var policy = await policies.GetPolicyAsync(Get.Policy.QaApi);
         policy.Should().NotBeNull();
         policy.AuthenticationSchemes.Should().Equal(IdentityConstants.BearerScheme);
 

@@ -49,8 +49,8 @@ public class DeveloperToolsTests
 
         var authorization = provider.GetRequiredService<IAuthorizationService>();
         var user = new ClaimsPrincipal(identity);
-        (await authorization.AuthorizeAsync(user, null, UserClaims.SwaggerAccess)).Succeeded.Should().Be(swaggerAllowed);
-        (await authorization.AuthorizeAsync(user, null, UserClaims.TestPagesAccess)).Succeeded.Should().Be(testPagesAllowed);
+        (await authorization.AuthorizeAsync(user, null, Get.Policy.SwaggerAccess)).Succeeded.Should().Be(swaggerAllowed);
+        (await authorization.AuthorizeAsync(user, null, Get.Policy.TestPagesAccess)).Succeeded.Should().Be(testPagesAllowed);
     }
 
     [Fact]

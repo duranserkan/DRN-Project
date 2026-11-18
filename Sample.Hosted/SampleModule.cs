@@ -46,16 +46,16 @@ public static class SampleModule
             options.BadRequestPage = Get.Page.Root.BadRequest;
         });
         services.AddAuthorizationBuilder()
-            .AddPolicy(IdentitySettings.QaApiPolicy, policy => policy
+            .AddPolicy(Get.Policy.QaApi, policy => policy
                 .AddAuthenticationSchemes(IdentityConstants.BearerScheme)
                 .RequireAuthenticatedUser())
-            .AddPolicy(UserClaims.SwaggerAccess, policy => policy
+            .AddPolicy(Get.Policy.SwaggerAccess, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireAssertion(context => settings.IsDevelopmentEnvironment ||
                     context.User.IsInRole(UserRoles.SystemAdmin) ||
                     context.User.HasClaim(claim => claim.Type == UserClaims.SwaggerAccess &&
                         bool.TryParse(claim.Value, out var enabled) && enabled)))
-            .AddPolicy(UserClaims.TestPagesAccess, policy => policy
+            .AddPolicy(Get.Policy.TestPagesAccess, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireAssertion(context => settings.IsDevelopmentEnvironment ||
                     context.User.IsInRole(UserRoles.SystemAdmin) ||

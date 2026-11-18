@@ -1060,6 +1060,12 @@ Disable the publish item injection when an application owns this behavior itself
 
 Request logging and diagnostic buffering apply wherever `HttpScopeMiddleware` runs. Detailed exception pages and startup reports are Development features.
 
+Detailed HTTP exception responses require completed MFA and either the `SystemAdmin` role or a `TestPagesAccess` claim set to `true`, including failures on anonymous endpoints. The same check protects the diagnostic JSON fallback. Both responses set `Cache-Control: no-store`. Apply `[DeveloperExceptionPreview]` to preview endpoints and use `DeveloperExceptionAccess.AllowsAsync(settings, httpContext)` for their navigation links.
+
+Hosts can configure `DeveloperExceptionAccess.Policy` with additional requirements or authentication schemes. Replacing the named policy preserves the built-in checks on attributed endpoints. Navigation evaluates the policy against the current page request. If policy evaluation fails during exception handling, the viewer receives a redacted response.
+
+The role check accepts the exact claim types configured in `AuthenticationClaimConfig.Roles`, including its aliases. The role value `SystemAdmin` and permission claim type `TestPagesAccess` are case-sensitive.
+
 Development exception pages opt out of redaction for their log viewer and request details, including headers, cookies, URLs, route values, and buffered bodies. The log viewer uses `ScopedLog.GetLogs(redact: false)`. Emitted diagnostics remain redacted, while scope events retain their contents. Diagnostic capture limits, `[IgnoreLog]`, HTML encoding, access rules, and configuration debug-view protections remain active. Keep these pages and saved startup reports private.
 
 Failures while generating startup reports record the exception type, stack trace, and fixed `ReportGenerationFailed` category in scoped diagnostics. Their exception messages are omitted.
@@ -1188,7 +1194,7 @@ The framework includes built-in Razor Pages for developer-time exception handlin
 -   **RuntimeExceptionPage**: Detailed breakdown of unhandled exceptions with request state and logs.
 -   **CompilationExceptionPage**: Visualizes Razor or code compilation errors with line-specific highlighting.
 
-Production responses and eligible API/HTMX Problem Details skip diagnostic model collection when no post-creation exception filter needs the model. Pre-creation filters still run before response selection. Registered post-creation filters retain the populated model and their existing order, unless a pre-filter sets `SkipPostCreationFilter`. Development HTML diagnostics and explicit `GetExceptionPageModel` calls still create the model.
+Requests from viewers without diagnostic access and eligible API/HTMX Problem Details skip diagnostic model collection when no post-creation exception filter needs the model. Pre-creation filters run before response selection. Registered post-creation filters receive the populated model in their existing order, unless a pre-filter sets `SkipPostCreationFilter`. Authorized Development HTML diagnostics and explicit `GetExceptionPageModel` calls create the model.
 
 Configure application-owned error pages with Hosting's `DrnPageOptions`:
 
@@ -1205,11 +1211,11 @@ services.Configure<DrnPageOptions>(options =>
 
 The application's Razor page uses `@model DRN.Framework.Hosting.Middlewares.ExceptionHandler.ServerErrorPageModel`. This anonymous, non-cacheable model exposes only `RequestId` and returns HTTP 500 on direct GET requests. Keep its content generic and use a layout that does not require authentication or depend on application data.
 
-Hosting renders the configured page internally for Staging/Production browser 5xx exceptions and bodyless HTML 5xx responses, preserving the status, request reference, and deployment prefix. It requires an explicit `text/html` Accept value and excludes API requests described above. Browser Development exception diagnostics remain unchanged. Browser rendering failures before the response starts fall back to redacted plain text.
+Hosting renders the configured page for browser 5xx exceptions when the viewer lacks diagnostic access, and for bodyless HTML 5xx responses. This includes Development requests. Rendering requires an explicit `text/html` Accept value and preserves the status, request reference, and deployment prefix. If rendering the configured page fails before the response starts, viewers without diagnostic access receive redacted plain text.
 
-`NotFoundPage` uses `@model DRN.Framework.Hosting.Middlewares.ExceptionHandler.NotFoundPageModel`. This anonymous, non-cacheable model returns 404 on direct GET. Hosting renders it for bodyless browser HTML 404 responses and Staging/Production browser exceptions mapped to 404, preserving the status without redirecting. Existing response bodies remain unchanged. API failures use Problem Details JSON. Missing routes still pass through the application's authorization and fallback policies before they can return 404; the option does not bypass authentication.
+`NotFoundPage` uses `@model DRN.Framework.Hosting.Middlewares.ExceptionHandler.NotFoundPageModel`. This anonymous, non-cacheable model returns 404 on direct GET. Hosting renders it for bodyless browser HTML 404 responses and for browser exceptions mapped to 404 when the viewer lacks diagnostic access. It preserves the status and request reference. API failures use Problem Details JSON. Missing routes pass through the application's authorization and fallback policies before they can return 404.
 
-`BadRequestPage` uses `BadRequestPageModel` and follows the same opt-in HTML rendering rules for bodyless browser 400 responses and Staging/Production browser exceptions mapped to 400. Direct GET requests return 400. API validation retains its errors and gains the common request reference. Existing validation messages and browser Development exception diagnostics remain unchanged.
+`BadRequestPage` uses `BadRequestPageModel` and follows the same HTML rendering rules for bodyless browser 400 responses and browser exceptions mapped to 400. Direct GET requests return 400. API validation retains its errors and includes the common request reference.
 
 All three models expose `RequestId` from `HttpContext.TraceIdentifier`. Internally rendered pages retain the original request's reference; direct visits use the page request's reference. Display it as a request reference for support, without exception details.
 

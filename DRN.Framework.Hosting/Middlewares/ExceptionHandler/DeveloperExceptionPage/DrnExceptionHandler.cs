@@ -3,6 +3,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
+using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.Middlewares.ApiErrors;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
@@ -119,8 +120,11 @@ public class DrnExceptionHandler(
             if (apiErrors != null && await apiErrors.TryWriteAsync(context))
                 return;
 
-            if (appSettings.IsDevelopmentEnvironment)
+            if (await DeveloperExceptionAccess.AllowsAsync(appSettings, context))
+            {
+                context.Response.Headers.CacheControl = "no-store";
                 await context.Response.WriteAsJsonAsync(scopedLog.GetLogs(), context.RequestAborted);
+            }
             else
                 await WriteSafeErrorResponseAsync(context);
         }
@@ -142,7 +146,7 @@ public class DrnExceptionHandler(
         var apiErrors = context.RequestServices?.GetService<DrnApiErrorResponse>();
         if (apiErrors != null && await apiErrors.TryWriteAsync(context))
             return;
-        if (!appSettings.IsDevelopmentEnvironment)
+        if (model == null || !await DeveloperExceptionAccess.AllowsAsync(appSettings, context))
         {
             await WriteProductionErrorResponseAsync(context);
             return;
@@ -152,6 +156,7 @@ public class DrnExceptionHandler(
         var result = await GetExceptionContentResult(exceptionPageModel, exception);
         if (result != null)
         {
+            context.Response.Headers.CacheControl = "no-store";
             context.Response.ContentType = result.ContentType;
             await context.Response.WriteAsync(result.Content, context.RequestAborted);
             return;
@@ -206,8 +211,8 @@ public class DrnExceptionHandler(
 
         // Evaluate after pre-filters, which can change the response status or endpoint metadata.
         if (skipUnusedModel && (!hasFilters || skipPostCreationFilter) &&
-            (!appSettings.IsDevelopmentEnvironment ||
-             context.RequestServices?.GetService<DrnApiErrorResponse>()?.CanHandle(context) == true))
+            (context.RequestServices?.GetService<DrnApiErrorResponse>()?.CanHandle(context) == true ||
+             !await DeveloperExceptionAccess.AllowsAsync(appSettings, context)))
             return null;
 
         var model = await exceptionUtils.CreateErrorPageModelAsync(context, exception);

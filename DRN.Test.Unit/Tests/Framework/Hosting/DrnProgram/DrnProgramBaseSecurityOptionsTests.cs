@@ -1,13 +1,16 @@
+using DRN.Framework.Utils.Logging;
+using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Utils.Auth;
-using DRN.Framework.Utils.Logging;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.AspNetCore.HostFiltering;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -55,6 +58,36 @@ public class DrnProgramBaseSecurityOptionsTests
 
         if (encoding != null)
             encoding.EncoderFallback.Should().BeSameAs(fallback);
+    }
+
+    [Theory]
+    [DataInlineUnit(true, "app-role", "SystemAdmin", true)]
+    [DataInlineUnit(true, ClaimTypes.Role, "SystemAdmin", false)]
+    [DataInlineUnit(true, "roles", "SystemAdmin", false)]
+    [DataInlineUnit(false, ClaimTypes.Role, "SystemAdmin", true)]
+    [DataInlineUnit(false, "roles", "SystemAdmin", true)]
+    [DataInlineUnit(false, "ROLES", "SystemAdmin", false)]
+    [DataInlineUnit(false, "roles", "systemadmin", false)]
+    [DataInlineUnit(false, "TestPagesAccess", "true", true)]
+    [DataInlineUnit(false, "TestPagesAccess", "false", false)]
+    [DataInlineUnit(false, "TestPagesAccess", "invalid", false)]
+    [DataInlineUnit(false, "testpagesaccess", "true", false)]
+    public async Task Developer_Exception_Policy_Should_Honor_Configured_Claims(
+        bool customMapping, string type, string value, bool allowed)
+    {
+        using var settings = SettingsProvider.Development();
+        var builder = WebApplication.CreateEmptyBuilder(new WebApplicationOptions());
+        using var configuration = builder.Configuration;
+        new TestProgram().RegisterDefaults(builder, settings);
+        if (!customMapping) builder.Services.AddSingleton(AuthenticationClaimConfig.Default);
+        await using var provider = builder.Services.BuildServiceProvider();
+        var identity = new ClaimsIdentity([new Claim("uid", "viewer"), new Claim("amr", "mfa"), new Claim(type, value)], "Test");
+        var user = new ClaimsPrincipal(identity);
+        var context = new DefaultHttpContext { User = user, RequestServices = provider };
+
+        (await DeveloperExceptionAccess.AllowsAsync(settings, context)).Should().Be(allowed);
+        var authorization = provider.GetRequiredService<IAuthorizationService>();
+        (await authorization.AuthorizeAsync(user, context, DeveloperExceptionAccess.Policy)).Succeeded.Should().Be(allowed);
     }
 
     [Fact]

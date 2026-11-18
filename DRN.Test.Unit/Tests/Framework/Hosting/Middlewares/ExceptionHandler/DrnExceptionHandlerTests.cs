@@ -1,12 +1,16 @@
+using DRN.Framework.Utils.Logging;
+using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
 using System.Diagnostics;
 using DRN.Framework.Hosting;
+using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Middlewares.ApiErrors;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
-using DRN.Framework.Utils.Logging;
-using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting.Middlewares.ExceptionHandler;
@@ -73,6 +77,7 @@ public class DrnExceptionHandlerTests
             Response = { Body = body, StatusCode = StatusCodes.Status503ServiceUnavailable }
         };
         context.Request.Path = "/Api/test";
+        context.User = DiagnosticsUser();
         var exception = new InvalidOperationException("private-original-error");
         var appSettings = Substitute.For<IAppSettings>();
         appSettings.IsDevelopmentEnvironment.Returns(development);
@@ -158,7 +163,7 @@ public class DrnExceptionHandlerTests
     [DataInlineUnit(true)]
     public async Task Development_Browser_And_Opted_Out_Responses_Should_Keep_Diagnostics(bool disableApiInPreFilter)
     {
-        using var services = new ServiceCollection().AddSingleton(new DrnApiErrorResponse(
+        using var services = DiagnosticsServices().AddSingleton(new DrnApiErrorResponse(
             Options.Create(new DrnApiErrorOptions { PathPrefixes = ["/Api"] }))).BuildServiceProvider();
         await using var body = new MemoryStream();
         var context = new DefaultHttpContext
@@ -167,6 +172,9 @@ public class DrnExceptionHandlerTests
             Response = { Body = body, StatusCode = StatusCodes.Status500InternalServerError }
         };
         context.Request.Path = disableApiInPreFilter ? "/Api/test" : "/Browser";
+        context.Response.Headers.CacheControl = "public, max-age=600";
+        context.User = DiagnosticsUser();
+        context.SetEndpoint(new Endpoint(null, new EndpointMetadataCollection(new Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute()), "Public"));
         var exception = new InvalidOperationException("original");
         var appSettings = Substitute.For<IAppSettings>();
         appSettings.IsDevelopmentEnvironment.Returns(true);
@@ -190,6 +198,7 @@ public class DrnExceptionHandlerTests
         await handler.HandleExceptionAsync(context, exception);
 
         context.Response.ContentType.Should().Be("text/html");
+        context.Response.Headers.CacheControl.ToString().Should().Be("no-store");
         await exceptionUtils.Received(1).CreateErrorPageModelAsync(context, exception);
         await contentProvider.Received(1).CreateErrorContentResult(context, exception, model);
         await filter.DidNotReceive().HandleExceptionAsync(context, exception, Arg.Any<DrnExceptionModel>());
@@ -213,8 +222,11 @@ public class DrnExceptionHandlerTests
         await exceptionUtils.Received(1).CreateErrorPageModelAsync(result.HttpContext, exception);
     }
 
-    [Fact]
-    public async Task Production_Rendering_Failure_Should_Use_Redacted_Fallback_Without_Retrying_Override()
+    [Theory]
+    [DataInlineUnit(false, false)]
+    [DataInlineUnit(true, false)]
+    [DataInlineUnit(false, true)]
+    public async Task Rendering_Failure_Should_Withhold_Diagnostic_Logs_Without_Viewer_Access(bool development, bool hasViewerGrant)
     {
         await using var body = new MemoryStream();
         var context = new DefaultHttpContext
@@ -222,15 +234,19 @@ public class DrnExceptionHandlerTests
             TraceIdentifier = "safe-reference",
             Response = { Body = body, StatusCode = StatusCodes.Status503ServiceUnavailable }
         };
+        if (hasViewerGrant) context.User = DiagnosticsUser();
         var exception = new InvalidOperationException("private-original-error");
         var exceptionUtils = Substitute.For<IExceptionUtils>();
         exceptionUtils.CreateErrorPageModelAsync(context, exception).Returns(new DrnExceptionModel());
         using var diagnosticSource = new DiagnosticListener(nameof(DrnExceptionHandlerTests));
-        var handler = new FailingProductionHandler(exceptionUtils, diagnosticSource);
+        var settings = Substitute.For<IAppSettings>();
+        settings.IsDevelopmentEnvironment.Returns(development);
+        var handler = new FailingProductionHandler(settings, exceptionUtils, diagnosticSource);
 
         await handler.HandleExceptionAsync(context, exception);
 
         handler.RenderAttempts.Should().Be(1);
+        await exceptionUtils.DidNotReceive().CreateErrorPageModelAsync(context, exception);
         context.Response.StatusCode.Should().Be(StatusCodes.Status503ServiceUnavailable);
         context.Response.ContentType.Should().Be("text/plain; charset=utf-8");
         body.Position = 0;
@@ -239,8 +255,8 @@ public class DrnExceptionHandlerTests
             .And.NotContain("private-original-error").And.NotContain("private-render-error");
     }
 
-    private sealed class FailingProductionHandler(IExceptionUtils exceptionUtils, DiagnosticSource diagnosticSource)
-        : DrnExceptionHandler(Substitute.For<IScopedLog>(), Substitute.For<IAppSettings>(), exceptionUtils,
+    private sealed class FailingProductionHandler(IAppSettings settings, IExceptionUtils exceptionUtils, DiagnosticSource diagnosticSource)
+        : DrnExceptionHandler(Substitute.For<IScopedLog>(), settings, exceptionUtils,
             [], Substitute.For<IExceptionPageContentProvider>(), diagnosticSource)
     {
         public int RenderAttempts { get; private set; }
@@ -255,9 +271,10 @@ public class DrnExceptionHandlerTests
     [Fact]
     public async Task HandleExceptionAsync_Should_Not_Throw_When_Request_Is_Aborted_During_Error_Rendering()
     {
+        using var services = DiagnosticsServices().BuildServiceProvider();
         using var requestCancellation = new CancellationTokenSource();
         await requestCancellation.CancelAsync();
-        var context = new DefaultHttpContext { RequestAborted = requestCancellation.Token };
+        var context = new DefaultHttpContext { RequestServices = services, RequestAborted = requestCancellation.Token, User = DiagnosticsUser() };
         var exception = new InvalidOperationException("original");
         var scopedLog = Substitute.For<IScopedLog>();
         var appSettings = Substitute.For<IAppSettings>();
@@ -284,11 +301,14 @@ public class DrnExceptionHandlerTests
     [Fact]
     public async Task HandleExceptionAsync_Should_Not_Throw_When_Request_Is_Aborted_During_Fallback_Write()
     {
+        using var services = DiagnosticsServices().BuildServiceProvider();
         using var requestCancellation = new CancellationTokenSource();
         await using var responseBody = new AbortOnWriteStream(requestCancellation);
         var context = new DefaultHttpContext
         {
             RequestAborted = requestCancellation.Token,
+            RequestServices = services,
+            User = DiagnosticsUser(),
             Response = { Body = responseBody }
         };
         var exception = new InvalidOperationException("original");
@@ -313,6 +333,128 @@ public class DrnExceptionHandlerTests
         await action.Should().NotThrowAsync();
         requestCancellation.IsCancellationRequested.Should().BeTrue();
         await exceptionUtils.Received(1).CreateErrorPageModelAsync(context, exception);
+    }
+
+    [Fact]
+    public async Task Diagnostic_Json_Fallback_Should_Override_Public_Cache_Control()
+    {
+        using var services = DiagnosticsServices().BuildServiceProvider();
+        using var body = new MemoryStream();
+        var context = new DefaultHttpContext { RequestServices = services, User = DiagnosticsUser(), Response = { Body = body, StatusCode = 500 } };
+        context.Response.Headers.CacheControl = "public, max-age=600";
+        var exception = new InvalidOperationException("original");
+        var model = new DrnExceptionModel();
+        var utils = Substitute.For<IExceptionUtils>();
+        utils.CreateErrorPageModelAsync(context, exception).Returns(model);
+        var renderer = Substitute.For<IExceptionPageContentProvider>();
+        renderer.CreateErrorContentResult(context, exception, model)
+            .Returns(Task.FromException<ExceptionContentResult>(new InvalidOperationException("rendering")));
+        var settings = Substitute.For<IAppSettings>();
+        settings.IsDevelopmentEnvironment.Returns(true);
+        var log = Substitute.For<IScopedLog>();
+        log.GetLogs().Returns(new Dictionary<string, object> { ["Diagnostic"] = "fallback-probe" });
+        using var source = new DiagnosticListener(nameof(DrnExceptionHandlerTests));
+        var handler = new DrnExceptionHandler(log, settings, utils, [], renderer, source);
+
+        await handler.HandleExceptionAsync(context, exception);
+
+        context.Response.Headers.CacheControl.ToString().Should().Be("no-store");
+        context.Response.ContentType.Should().StartWith("application/json");
+        body.Position = 0;
+        using var reader = new StreamReader(body);
+        (await reader.ReadToEndAsync()).Should().Contain("fallback-probe");
+    }
+
+    private static ClaimsPrincipal DiagnosticsUser() => new(new ClaimsIdentity(
+        [new Claim("amr", "mfa"), new Claim("TestPagesAccess", "true")], "Test"));
+
+    private static IServiceCollection DiagnosticsServices() =>
+        new ServiceCollection().AddLogging().AddAuthorizationCore(options =>
+            options.AddPolicy(DeveloperExceptionAccess.Policy, policy => policy.RequireAuthenticatedUser()));
+
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public async Task Host_Policy_Denial_Or_Failure_Should_Withhold_Model_And_Fallback_Logs(bool policyThrows)
+    {
+        var registrations = DiagnosticsServices();
+        registrations.Configure<AuthorizationOptions>(options => options.AddPolicy(DeveloperExceptionAccess.Policy, policy =>
+        {
+            policy.RequireClaim("HostDiagnosticAccess");
+            if (policyThrows)
+                policy.RequireAssertion(_ => Task.FromException<bool>(new InvalidOperationException("policy unavailable")));
+        }));
+        using var services = registrations.BuildServiceProvider();
+        using var body = new MemoryStream();
+        var context = new DefaultHttpContext
+        {
+            RequestServices = services, User = DiagnosticsUser(), TraceIdentifier = "safe-reference",
+            Response = { Body = body, StatusCode = StatusCodes.Status503ServiceUnavailable }
+        };
+        var settings = Substitute.For<IAppSettings>();
+        settings.IsDevelopmentEnvironment.Returns(true);
+        var utils = Substitute.For<IExceptionUtils>();
+        using var source = new DiagnosticListener(nameof(DrnExceptionHandlerTests));
+        var handler = new FailingProductionHandler(settings, utils, source);
+        var exception = new InvalidOperationException("private");
+
+        await handler.HandleExceptionAsync(context, exception);
+
+        await utils.DidNotReceive().CreateErrorPageModelAsync(context, exception);
+        handler.RenderAttempts.Should().Be(1);
+        context.Response.ContentType.Should().Be("text/plain; charset=utf-8");
+        body.Position = 0;
+        using var reader = new StreamReader(body);
+        (await reader.ReadToEndAsync()).Should().Be("ServiceUnavailable 503 TraceId: safe-reference");
+    }
+
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public async Task Diagnostics_Should_Use_The_Policy_Scheme_And_Preserve_The_Request_User(bool authenticatedByScheme)
+    {
+        const string scheme = "Diagnostics";
+        var authentication = Substitute.For<IAuthenticationService>();
+        var registrations = DiagnosticsServices().AddSingleton(authentication);
+        registrations.Configure<AuthorizationOptions>(options => options.AddPolicy(DeveloperExceptionAccess.Policy,
+            policy => policy.AddAuthenticationSchemes(scheme).RequireAuthenticatedUser()));
+        using var services = registrations.BuildServiceProvider();
+        var original = DiagnosticsUser();
+        var context = new DefaultHttpContext { RequestServices = services, User = original };
+        authentication.AuthenticateAsync(context, scheme).Returns(authenticatedByScheme
+            ? AuthenticateResult.Success(new AuthenticationTicket(DiagnosticsUser(), scheme))
+            : AuthenticateResult.NoResult());
+        var settings = Substitute.For<IAppSettings>();
+        settings.IsDevelopmentEnvironment.Returns(true);
+
+        (await DeveloperExceptionAccess.AllowsAsync(settings, context)).Should().Be(authenticatedByScheme);
+        context.User.Should().BeSameAs(original);
+    }
+
+    [Theory]
+    [DataInlineUnit(false, false)]
+    [DataInlineUnit(true, false)]
+    [DataInlineUnit(false, true)]
+    public async Task Development_Error_Should_Withhold_Diagnostics_Without_Mfa_And_Permission(bool mfa, bool permission)
+    {
+        var identity = new ClaimsIdentity(mfa || permission ? "Test" : null);
+        if (mfa) identity.AddClaim(new Claim("amr", "mfa"));
+        if (permission) identity.AddClaim(new Claim(ClaimTypes.Role, "SystemAdmin"));
+        using var services = DiagnosticsServices().BuildServiceProvider();
+        using var body = new MemoryStream();
+        var context = new DefaultHttpContext { RequestServices = services, User = new ClaimsPrincipal(identity), Response = { Body = body, StatusCode = 500 } };
+        context.SetEndpoint(new Endpoint(null, new EndpointMetadataCollection(new Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute()), "Public"));
+        var settings = Substitute.For<IAppSettings>();
+        settings.IsDevelopmentEnvironment.Returns(true);
+        var utils = Substitute.For<IExceptionUtils>();
+        using var source = new DiagnosticListener(nameof(DrnExceptionHandlerTests));
+        var handler = new DrnExceptionHandler(Substitute.For<IScopedLog>(), settings, utils, [], Substitute.For<IExceptionPageContentProvider>(), source);
+        var exception = new InvalidOperationException("private");
+
+        await handler.HandleExceptionAsync(context, exception);
+
+        context.Response.ContentType.Should().Be("text/plain; charset=utf-8");
+        await utils.DidNotReceive().CreateErrorPageModelAsync(context, exception);
     }
 }
 

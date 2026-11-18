@@ -1,12 +1,11 @@
 using DRN.Framework.Hosting.Controllers;
 using Sample.Contract.QA.Tags;
 using Sample.Domain.QA.Tag;
-using Sample.Hosted.Settings;
 
 namespace Sample.Hosted.Controllers.QA;
 
 [Route(ControllerRoutes.QA)]
-[Authorize(Policy = IdentitySettings.QaApiPolicy)]
+[Authorize(Policy = Get.Policy.QaApi)]
 public class TagController(ITagRepository repository)
     : SourceKnownController<TagEntity, TagDto, TagPostRequest>(repository)
 {
