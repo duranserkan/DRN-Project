@@ -111,7 +111,7 @@ services:
   # Source codes under this folder is obtained/derived from https://github.com/Graylog2/docker-compose/blob/main/open-core/docker-compose.yml
   # and have same license restrictions with original source codes.
   mongodb:
-    image: "mongo:8.3.17@sha256:05b334b0a7a78fe913caac0cd2e1ecccf4da515d9a3a44be911b6ea3734c17cd"
+    image: "mongo:8.2.12@sha256:e0ce8c35124d4a9f9785532d1f268f39e9728ffa1cb38f46fa482436424c4bd3"
     restart: "on-failure"
     container_name: drn-infra-graylog-mongo
     networks:
