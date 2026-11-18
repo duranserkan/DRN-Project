@@ -28,7 +28,7 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
     public static readonly DiagnosticDescriptor IncompleteModelAnalysis = ClassificationDiagnosticDescriptors.IncompleteModelAnalysis;
     public static readonly DiagnosticDescriptor IncompleteInterfaceAnalysis = ClassificationDiagnosticDescriptors.IncompleteInterfaceAnalysis;
 
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
         [MissingClassification, InvalidExemption, PathClassification, UnknownClassification, AnonymousClassification, DictionaryClassification, InvalidRuleFile, UnsafeLoggingCapture, InvalidNameExemptionComment, UnusedNameExemptionComment, IncompleteModelAnalysis, IncompleteInterfaceAnalysis];
 
     public override void Initialize(AnalysisContext context)
@@ -37,13 +37,15 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.Analyze);
         context.RegisterCompilationStartAction(start =>
         {
-            var rules = LoadRules(start.Compilation, start.Options, start.CancellationToken, out var ruleError);
-            if (ruleError != null)
-                start.RegisterCompilationEndAction(end => end.ReportDiagnostic(ruleError));
             var sensitive = start.Compilation.GetTypeByMetadataName(AttributeNamespace + "SensitiveAttribute");
             var personal = start.Compilation.GetTypeByMetadataName(AttributeNamespace + "PersonalAttribute");
-            if (sensitive == null || personal == null) return;
-            var contract = new ClassificationContract(sensitive, personal);
+            var hasAttributes = sensitive != null && personal != null;
+            var rules = LoadRules(start.Compilation, start.Options, hasAttributes, start.CancellationToken, out var ruleError);
+            if (ruleError != null)
+                start.RegisterCompilationEndAction(end => end.ReportDiagnostic(ruleError));
+            if (!hasAttributes) return;
+
+            var contract = new ClassificationContract(sensitive!, personal!, start.Compilation);
             var captureApis = new CaptureApis(start.Compilation);
             var exemptions = new DiagnosticNameExemption();
             var dictionaryTypes = new DictionaryCaptureAnalysis.DictionaryTypeFacts();
@@ -73,50 +75,73 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
         if (call.TargetMethod.Name is not ("Add" or "AddToList" or "AddIfNotNullOrEmpty" or "AddProperties" or
             "AddWithPolicy" or "AddPropertiesWithPolicy" or "SanitizeValue" or "SanitizeWithPolicy" or
             "AddDictionary" or "SanitizeDictionary" or "Log" or "LogTrace" or "LogDebug" or "LogInformation" or
-            "LogWarning" or "LogError" or "LogCritical" or "BeginScope") || IsSubstituteVerification(call)) return;
+            "LogWarning" or "LogError" or "LogCritical" or "BeginScope")) return;
 
-        var api = captureApis.Find(call.TargetMethod.ContainingType);
-        if (api != CaptureApi.None)
+        var targetMethod = call.TargetMethod.ReducedFrom ?? call.TargetMethod;
+        var api = captureApis.Find(targetMethod.ContainingType);
+        if (api == CaptureApi.None || IsSubstituteVerification(call, api, captureApis)) return;
+
+        if (api is CaptureApi.ScopedLog or CaptureApi.Sanitizer or CaptureApi.Extensions)
         {
             AnalyzeCapture(context, contract, rules, exemptions, call, api);
             AnalyzeDictionaryCapture(context, rules, exemptions, call, localWrites);
         }
-        LoggingCaptureAnalysis.Analyze(context, contract, rules, call, exemptions, localWrites);
+        LoggingCaptureAnalysis.Analyze(context, contract, rules, call, targetMethod, api, exemptions, localWrites);
     }
 
-    private enum CaptureApi { None, ScopedLog, Sanitizer, Extensions }
+    internal enum CaptureApi { None, ScopedLog, Sanitizer, Extensions, Logger, LoggerExtensions }
 
-    private sealed class CaptureApis(Compilation compilation)
+    internal sealed class CaptureApis(Compilation compilation)
     {
+        private const string LoggingAssembly = "Microsoft.Extensions.Logging.Abstractions";
         private readonly ConcurrentDictionary<INamedTypeSymbol, CaptureApi> _otherTypes = new(SymbolEqualityComparer.Default);
         private readonly INamedTypeSymbol? _log = compilation.GetTypeByMetadataName("DRN.Framework.Utils.Logging.IScopedLog");
         private readonly INamedTypeSymbol? _concreteLog = compilation.GetTypeByMetadataName("DRN.Framework.Utils.Logging.ScopedLog");
         private readonly INamedTypeSymbol? _sanitizer = compilation.GetTypeByMetadataName("DRN.Framework.Utils.Logging.Diagnostics.IDiagnosticSanitizer");
         private readonly INamedTypeSymbol? _concreteSanitizer = compilation.GetTypeByMetadataName("DRN.Framework.Utils.Logging.Diagnostics.DiagnosticSanitizer");
         private readonly INamedTypeSymbol? _extensions = compilation.GetTypeByMetadataName("DRN.Framework.Utils.Logging.Diagnostics.DiagnosticCaptureExtensions");
+        private readonly INamedTypeSymbol? _logger = compilation.GetTypeByMetadataName("Microsoft.Extensions.Logging.ILogger");
+        private readonly INamedTypeSymbol? _loggerExtensions = compilation.GetTypeByMetadataName("Microsoft.Extensions.Logging.LoggerExtensions");
+        private readonly INamedTypeSymbol? _substituteExtensions = compilation.GetTypeByMetadataName("NSubstitute.SubstituteExtensions");
+        private readonly INamedTypeSymbol? _receivedExtensions = compilation.GetTypeByMetadataName("NSubstitute.ReceivedExtensions.ReceivedExtensions");
 
         public CaptureApi Find(INamedTypeSymbol type)
         {
-            if (type.Name is not ("IScopedLog" or "ScopedLog" or "IDiagnosticSanitizer" or "DiagnosticSanitizer" or "DiagnosticCaptureExtensions"))
+            if (type.Name is not ("IScopedLog" or "ScopedLog" or "IDiagnosticSanitizer" or "DiagnosticSanitizer" or
+                "DiagnosticCaptureExtensions" or "ILogger" or "LoggerExtensions"))
                 return CaptureApi.None;
+            if (type.Name is ("ILogger" or "LoggerExtensions") && type.ContainingAssembly.Name != LoggingAssembly)
+                return CaptureApi.None;
+
             if (SymbolEqualityComparer.Default.Equals(type, _log) || SymbolEqualityComparer.Default.Equals(type, _concreteLog))
                 return CaptureApi.ScopedLog;
             if (SymbolEqualityComparer.Default.Equals(type, _sanitizer) || SymbolEqualityComparer.Default.Equals(type, _concreteSanitizer))
                 return CaptureApi.Sanitizer;
             if (SymbolEqualityComparer.Default.Equals(type, _extensions)) return CaptureApi.Extensions;
+            if (SymbolEqualityComparer.Default.Equals(type, _logger)) return CaptureApi.Logger;
+            if (SymbolEqualityComparer.Default.Equals(type, _loggerExtensions)) return CaptureApi.LoggerExtensions;
             // Preserve name-based coverage for ambiguous references and extern aliases.
             return _otherTypes.GetOrAdd(type, static candidate => candidate.ToDisplayString() switch
             {
                 "DRN.Framework.Utils.Logging.IScopedLog" or "DRN.Framework.Utils.Logging.ScopedLog" => CaptureApi.ScopedLog,
                 "DRN.Framework.Utils.Logging.Diagnostics.IDiagnosticSanitizer" or "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticSanitizer" => CaptureApi.Sanitizer,
                 "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticCaptureExtensions" => CaptureApi.Extensions,
+                "Microsoft.Extensions.Logging.ILogger" => CaptureApi.Logger,
+                "Microsoft.Extensions.Logging.LoggerExtensions" => CaptureApi.LoggerExtensions,
                 _ => CaptureApi.None
             });
         }
+
+        public bool IsSubstituteVerificationType(INamedTypeSymbol type) =>
+            type.ContainingAssembly.Name == "NSubstitute" &&
+            (SymbolEqualityComparer.Default.Equals(type, _substituteExtensions) ||
+             SymbolEqualityComparer.Default.Equals(type, _receivedExtensions) ||
+             type.Name is ("SubstituteExtensions" or "ReceivedExtensions") &&
+             type.ToDisplayString() is ("NSubstitute.SubstituteExtensions" or "NSubstitute.ReceivedExtensions.ReceivedExtensions"));
     }
 
     private static DiagnosticRedactionRules LoadRules(Compilation compilation, AnalyzerOptions options,
-        CancellationToken cancellationToken, out Diagnostic? error)
+        bool includeInheritedGraph, CancellationToken cancellationToken, out Diagnostic? error)
     {
         error = null;
         var files = options.AdditionalFiles.Where(file =>
@@ -125,14 +150,21 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
         var errorLocation = Location.None;
         try
         {
-            var inherited = DiagnosticRedactionRules.FromGraph<IAssemblySymbol>(compilation.Assembly,
-                assembly => assembly.Name,
-                assembly => assembly.Modules.SelectMany(module => module.ReferencedAssemblySymbols),
-                assembly => SymbolEqualityComparer.Default.Equals(assembly, compilation.Assembly) && files.Length > 0 ? [] :
-                    assembly.GetAttributes().Where(attribute =>
-                        attribute.AttributeClass?.ToDisplayString() == DiagnosticRedactionRules.MetadataName &&
-                        attribute.ConstructorArguments.Length == 1)
-                    .Select(attribute => attribute.ConstructorArguments[0].Value as string), SymbolEqualityComparer.Default, cancellationToken);
+            var rulesAttribute = includeInheritedGraph
+                ? compilation.GetTypeByMetadataName(DiagnosticRedactionRules.MetadataName)
+                : null;
+            var inherited = includeInheritedGraph
+                ? DiagnosticRedactionRules.FromGraph<IAssemblySymbol>(compilation.Assembly,
+                    assembly => assembly.Name,
+                    assembly => assembly.Modules.SelectMany(module => module.ReferencedAssemblySymbols),
+                    assembly => SymbolEqualityComparer.Default.Equals(assembly, compilation.Assembly) && files.Length > 0 ? [] :
+                        assembly.GetAttributes().Where(attribute =>
+                            attribute.AttributeClass?.Name == "DataClassificationRulesAttribute" &&
+                            (SymbolEqualityComparer.Default.Equals(attribute.AttributeClass, rulesAttribute) ||
+                             attribute.AttributeClass.ToDisplayString() == DiagnosticRedactionRules.MetadataName) &&
+                            attribute.ConstructorArguments.Length == 1)
+                        .Select(attribute => attribute.ConstructorArguments[0].Value as string), SymbolEqualityComparer.Default, cancellationToken)
+                : DiagnosticRedactionRules.Empty;
             if (files.Length == 0) return inherited;
             errorLocation = Location.Create(files[0].Path, new TextSpan(0, 0), new LinePositionSpan(new(0, 0), new(0, 0)));
             if (files.Length > 1)
@@ -158,7 +190,7 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
         if (!ClassificationContract.Eligible(property) || !rules.MatchesField(property.Name) || contract.Accepted(property, context.CancellationToken)) return;
         var location = property.Locations.FirstOrDefault(item => item.IsInSource);
         if (location == null) return;
-        context.ReportDiagnostic(Diagnostic.Create(ClassificationContract.HasUnknown(property) ? UnknownClassification : MissingClassification,
+        context.ReportDiagnostic(Diagnostic.Create(contract.HasUnknown(property, context.CancellationToken) ? UnknownClassification : MissingClassification,
             location, property.Name));
     }
 
@@ -283,7 +315,7 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
     private static ITypeSymbol? GetCaptureType(IInvocationOperation call, bool flat, int offset)
     {
         var value = GetArgumentValue(call, 1 + offset);
-        while (value is IConversionOperation conversion) value = conversion.Operand;
+        while (value is IConversionOperation { OperatorMethod: null } conversion) value = conversion.Operand;
         // Conditional string capture never stores a constant null or empty value.
         if (call.TargetMethod.Name == "AddIfNotNullOrEmpty" &&
             value?.ConstantValue is { HasValue: true, Value: null or "" }) return null;
@@ -292,19 +324,18 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
         return flat ? call.TargetMethod.TypeArguments.FirstOrDefault() : value?.Type;
     }
 
-    private static bool IsSubstituteVerification(IInvocationOperation call)
+    private static bool IsSubstituteVerification(IInvocationOperation call, CaptureApi api, CaptureApis captureApis)
     {
         var receiver = call.Instance;
-        if (receiver == null && call.TargetMethod.ContainingAssembly.Name == "Microsoft.Extensions.Logging.Abstractions" &&
-            call.TargetMethod.ContainingType.ToDisplayString() == "Microsoft.Extensions.Logging.LoggerExtensions")
+        if (receiver == null && api == CaptureApi.LoggerExtensions)
             receiver = call.Arguments.FirstOrDefault(argument => argument.Parameter?.Name == "logger")?.Value;
         while (receiver is IConversionOperation conversion) receiver = conversion.Operand;
         if (receiver is not IInvocationOperation verification) return false;
         var method = verification.TargetMethod.ReducedFrom ?? verification.TargetMethod;
         // Only the immediate verification receiver is exempt, never other calls on a substitute.
-        return method.IsExtensionMethod && method.ContainingAssembly.Name == "NSubstitute" &&
-            method.ContainingType.ToDisplayString() is "NSubstitute.SubstituteExtensions" or "NSubstitute.ReceivedExtensions.ReceivedExtensions" &&
-            method.Name is "Received" or "DidNotReceive" or "ReceivedWithAnyArgs" or "DidNotReceiveWithAnyArgs";
+        return method.IsExtensionMethod &&
+            method.Name is "Received" or "DidNotReceive" or "ReceivedWithAnyArgs" or "DidNotReceiveWithAnyArgs" &&
+            captureApis.IsSubstituteVerificationType(method.ContainingType);
     }
 
 }

@@ -1,8 +1,6 @@
-using System.Collections.Concurrent;
-using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 using DRN.Framework.CompilerTools;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace DRN.Framework.SharedKernel.Analyzers;
 
@@ -11,10 +9,10 @@ internal static class EntityAnalyzerHelper
     internal const string SourceKnownEntityMetadataName = "DRN.Framework.SharedKernel.Domain.SourceKnownEntity";
     internal const string EntityTypeAttributeMetadataName = "DRN.Framework.SharedKernel.Domain.EntityTypeAttribute";
     internal const byte MaxAppId = 127;
-    private const string AppIdName = "AppId";
 
     internal sealed class EntityTypeFacts
     {
+        private static readonly ConditionalWeakTable<Compilation, EntityTypeFacts> PerCompilation = new();
         private readonly INamedTypeSymbol _entity;
         private readonly SymbolFactCache<INamedTypeSymbol, bool> _derivedTypes = new();
         private readonly Func<INamedTypeSymbol, CancellationToken, bool> _calculateInheritance;
@@ -24,6 +22,9 @@ internal static class EntityAnalyzerHelper
             _entity = entity;
             _calculateInheritance = CalculateInheritance;
         }
+
+        internal static EntityTypeFacts For(Compilation compilation, INamedTypeSymbol sourceKnownEntity) =>
+            PerCompilation.GetValue(compilation, _ => new(sourceKnownEntity));
 
         internal bool IsDerived(INamedTypeSymbol type, CancellationToken cancellation)
         {
@@ -37,148 +38,33 @@ internal static class EntityAnalyzerHelper
             SymbolEqualityComparer.Default.Equals(type, _entity) || IsDerived(type, cancellation);
 
         private bool CalculateInheritance(INamedTypeSymbol type, CancellationToken cancellation) =>
-            DerivesFrom(type, _entity, cancellation);
+            IsOrDerivesFrom(type.BaseType, _entity, cancellation);
     }
+
+    internal enum MetadataStatus { Resolved, UnsupportedAttribute, Unresolvable }
 
     internal sealed class CompilationMetadata(Compilation compilation)
     {
-        private readonly ConcurrentDictionary<INamedTypeSymbol, bool> _contracts = new(SymbolEqualityComparer.Default);
-        private readonly ConcurrentDictionary<INamedTypeSymbol, (bool Resolved, byte AppId)> _appIds = new(SymbolEqualityComparer.Default);
+        private readonly SymbolFactCache<INamedTypeSymbol, bool> _contracts = new(capacity: 31);
+        private readonly SymbolFactCache<INamedTypeSymbol, byte?> _appIds = new(capacity: 31);
+        private readonly Func<INamedTypeSymbol, CancellationToken, bool> _checkContract =
+            (type, cancellation) => EntityAttributeContract.IsSupported(type, compilation, cancellation);
+        private readonly Func<INamedTypeSymbol, CancellationToken, byte?> _resolveAppId = new EntityAppIdResolver(compilation).Resolve;
 
-        internal bool IsSupported(INamedTypeSymbol? attribute, CancellationToken cancellation)
+        internal bool IsSupported(INamedTypeSymbol? attribute, CancellationToken cancellation) =>
+            attribute != null && _contracts.GetOrAdd(attribute, _checkContract, cancellation);
+
+        internal MetadataStatus Read(AttributeData attribute, CancellationToken cancellation, out byte value, out byte appId)
         {
             cancellation.ThrowIfCancellationRequested();
-            if (attribute == null) return false;
-            if (_contracts.TryGetValue(attribute, out var supported)) return supported;
-            supported = EntityAttributeContract.IsSupported(attribute, compilation, cancellation);
-            _contracts.TryAdd(attribute, supported);
-            return supported;
+            value = 0;
+            appId = 0;
+            if (attribute.AttributeClass is not { } type || !IsSupported(type, cancellation)) return MetadataStatus.UnsupportedAttribute;
+            if (attribute.ConstructorArguments is not [var argument] || !TryExtractByte(argument.Value, out value) ||
+                _appIds.GetOrAdd(type, _resolveAppId, cancellation) is not { } partition) return MetadataStatus.Unresolvable;
+            appId = partition;
+            return MetadataStatus.Resolved;
         }
-
-        internal bool TryGetAppId(INamedTypeSymbol attribute, CancellationToken cancellation, out byte appId)
-        {
-            cancellation.ThrowIfCancellationRequested();
-            if (!_appIds.TryGetValue(attribute, out var result))
-            {
-                var resolved = TryExtractAppIdFromClassHierarchy(attribute, compilation, cancellation, out var value);
-                result = (resolved, value);
-                _appIds.TryAdd(attribute, result);
-            }
-            appId = result.AppId;
-            return result.Resolved;
-        }
-    }
-
-    internal static ConcurrentBag<INamedTypeSymbol> ScanReferencedAssemblies(
-        Compilation compilation,
-        INamedTypeSymbol sourceKnownEntitySymbol,
-        CancellationToken cancellationToken)
-    {
-        var collectedEntities = new ConcurrentBag<INamedTypeSymbol>();
-        var targetAssembly = sourceKnownEntitySymbol.ContainingAssembly;
-
-        foreach (var referencedAssembly in compilation.SourceModule.ReferencedAssemblySymbols)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (IsFrameworkAssembly(referencedAssembly.Name))
-                continue;
-
-            var visitedAssemblies = new HashSet<IAssemblySymbol>(SymbolEqualityComparer.Default);
-            if (!ReferencesAssembly(referencedAssembly, targetAssembly, visitedAssemblies, cancellationToken))
-                continue;
-
-            ScanNamespace(referencedAssembly.GlobalNamespace, sourceKnownEntitySymbol, collectedEntities, cancellationToken);
-        }
-
-        return collectedEntities;
-    }
-
-    private static bool IsFrameworkAssembly(string name) =>
-        name.StartsWith("System.", StringComparison.OrdinalIgnoreCase) ||
-        name.StartsWith("Microsoft.", StringComparison.OrdinalIgnoreCase) ||
-        name.Equals("System", StringComparison.OrdinalIgnoreCase) ||
-        name.Equals("mscorlib", StringComparison.OrdinalIgnoreCase) ||
-        name.Equals("netstandard", StringComparison.OrdinalIgnoreCase);
-
-    private static bool ReferencesAssembly(IAssemblySymbol assembly, IAssemblySymbol? targetAssembly, HashSet<IAssemblySymbol> visitedAssemblies, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        if (targetAssembly == null || !visitedAssemblies.Add(assembly))
-            return false;
-
-        if (SymbolEqualityComparer.Default.Equals(assembly, targetAssembly))
-            return true;
-
-        foreach (var module in assembly.Modules)
-        {
-            if (ModuleDirectlyReferencesTarget(module, targetAssembly))
-                return true;
-
-            if (ModuleTransitivelyReferencesTarget(module, targetAssembly, visitedAssemblies, cancellationToken))
-                return true;
-        }
-
-        return false;
-    }
-
-    private static bool ModuleDirectlyReferencesTarget(IModuleSymbol module, IAssemblySymbol targetAssembly)
-    {
-        if (module.ReferencedAssemblySymbols.Any(referencedAssemblySymbol => SymbolEqualityComparer.Default.Equals(referencedAssemblySymbol, targetAssembly)))
-            return true;
-
-        var targetIdentity = targetAssembly.Identity;
-
-        return module.ReferencedAssemblies.Any(referencedIdentity =>
-            AssemblyIdentityComparer.Default.ReferenceMatchesDefinition(referencedIdentity, targetIdentity) ||
-            string.Equals(referencedIdentity.Name, targetIdentity.Name, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static bool ModuleTransitivelyReferencesTarget(IModuleSymbol module, IAssemblySymbol targetAssembly, HashSet<IAssemblySymbol> visitedAssemblies, CancellationToken cancellationToken)
-    {
-        foreach (var referencedAssemblySymbol in module.ReferencedAssemblySymbols)
-        {
-            if (IsFrameworkAssembly(referencedAssemblySymbol.Name))
-                continue;
-
-            if (ReferencesAssembly(referencedAssemblySymbol, targetAssembly, visitedAssemblies, cancellationToken))
-                return true;
-        }
-
-        return false;
-    }
-
-    private static void ScanNamespace(
-        INamespaceSymbol namespaceSymbol,
-        INamedTypeSymbol sourceKnownEntitySymbol,
-        ConcurrentBag<INamedTypeSymbol> collectedEntities,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        foreach (var type in namespaceSymbol.GetTypeMembers())
-            ScanType(type, sourceKnownEntitySymbol, collectedEntities, cancellationToken);
-
-        foreach (var nestedNamespace in namespaceSymbol.GetNamespaceMembers())
-            ScanNamespace(nestedNamespace, sourceKnownEntitySymbol, collectedEntities, cancellationToken);
-    }
-
-    private static void ScanType(
-        INamedTypeSymbol typeSymbol,
-        INamedTypeSymbol sourceKnownEntitySymbol,
-        ConcurrentBag<INamedTypeSymbol> collectedEntities,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        if (IsEffectivelyPrivate(typeSymbol))
-            return;
-
-        if (typeSymbol is { TypeKind: TypeKind.Class, IsAbstract: false } && DerivesFrom(typeSymbol, sourceKnownEntitySymbol, cancellationToken))
-            collectedEntities.Add(typeSymbol);
-
-        foreach (var nestedType in typeSymbol.GetTypeMembers())
-            ScanType(nestedType, sourceKnownEntitySymbol, collectedEntities, cancellationToken);
     }
 
     internal static bool IsEffectivelyPrivate(INamedTypeSymbol typeSymbol)
@@ -190,438 +76,38 @@ internal static class EntityAnalyzerHelper
         return false;
     }
 
-    internal static bool DerivesFrom(INamedTypeSymbol typeSymbol, INamedTypeSymbol baseTargetSymbol,
-        CancellationToken cancellation = default)
+    internal static bool IsOrDerivesFrom(INamedTypeSymbol? type, INamedTypeSymbol target, CancellationToken cancellation)
     {
-        var current = typeSymbol.BaseType;
-        while (current != null)
+        for (var current = type; current != null; current = current.BaseType)
         {
             cancellation.ThrowIfCancellationRequested();
-            if (SymbolEqualityComparer.Default.Equals(current, baseTargetSymbol) ||
-                current.ToDisplayString() == SourceKnownEntityMetadataName)
-                return true;
-
-            current = current.BaseType;
+            if (SymbolEqualityComparer.Default.Equals(current, target)) return true;
         }
-
         return false;
     }
 
-    internal static AttributeData? FindAttribute(INamedTypeSymbol typeSymbol, INamedTypeSymbol attributeSymbol)
+    internal static AttributeData? FindAttribute(INamedTypeSymbol type, INamedTypeSymbol attribute, CancellationToken cancellation)
     {
-        foreach (var attribute in typeSymbol.GetAttributes())
-        {
-            var attrClass = attribute.AttributeClass;
-            if (attrClass == null)
-                continue;
-
-            if (SymbolEqualityComparer.Default.Equals(attrClass, attributeSymbol) ||
-                attrClass.ToDisplayString() == EntityTypeAttributeMetadataName ||
-                IsOrDerivesFromEntityTypeAttribute(attrClass, attributeSymbol))
-                return attribute;
-        }
-
+        foreach (var candidate in type.GetAttributes())
+            if (IsOrDerivesFrom(candidate.AttributeClass, attribute, cancellation)) return candidate;
         return null;
     }
 
-    internal static bool IsOrDerivesFromEntityTypeAttribute(INamedTypeSymbol attrClass, INamedTypeSymbol baseAttributeSymbol)
-    {
-        var current = attrClass;
-        while (current != null)
-        {
-            if (SymbolEqualityComparer.Default.Equals(current, baseAttributeSymbol) ||
-                current.ToDisplayString() == EntityTypeAttributeMetadataName ||
-                (current.IsGenericType && current.ConstructedFrom.ToDisplayString().StartsWith("DRN.Framework.SharedKernel.Domain.EntityTypeAttribute<", StringComparison.Ordinal)))
-            {
-                return true;
-            }
-
-            current = current.BaseType;
-        }
-
-        return false;
-    }
-
-    internal static bool TryGetEntityType(AttributeData attributeData, Compilation compilation, CancellationToken cancellationToken,
-        out byte entityTypeValue, out byte appId, CompilationMetadata? metadata = null)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        entityTypeValue = 0;
-        appId = 0;
-
-        var supported = metadata?.IsSupported(attributeData.AttributeClass, cancellationToken)
-                        ?? EntityAttributeContract.IsSupported(attributeData.AttributeClass, compilation, cancellationToken);
-        if (!supported ||
-            attributeData.ConstructorArguments.Length != 1 || !TryExtractByte(attributeData.ConstructorArguments[0].Value, out entityTypeValue))
-            return false;
-
-        return metadata != null
-            ? metadata.TryGetAppId(attributeData.AttributeClass!, cancellationToken, out appId)
-            : TryExtractAppIdFromClassHierarchy(attributeData.AttributeClass, compilation, cancellationToken, out appId);
-    }
-
-    private static bool TryExtractAppIdFromClassHierarchy(INamedTypeSymbol? attributeClass, Compilation? compilation, CancellationToken cancellationToken, out byte appId)
-    {
-        var current = attributeClass;
-        while (current != null)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (current.OriginalDefinition.MetadataName == "EntityTypeAttribute`1" &&
-                current.ContainingNamespace.ToDisplayString() == "DRN.Framework.SharedKernel.Domain" &&
-                TryExtractAppIdFromType(current.TypeArguments[0], compilation, cancellationToken, out appId))
-                return true;
-
-            current = current.BaseType;
-        }
-
-        appId = 0;
-        return false;
-    }
-
-    private static bool TryExtractAppIdFromType(ITypeSymbol appTypeSymbol, Compilation? compilation, CancellationToken cancellationToken, out byte appId)
-    {
-        if (TryExtractAppIdFromKnownTypeName(appTypeSymbol.ToDisplayString(), out appId))
-            return true;
-
-        if (!TryExtractAppIdFromConstantMembers(appTypeSymbol, out var constantAppId))
-        {
-            appId = 0;
-            return false;
-        }
-
-        if (HasPropertySyntax(appTypeSymbol) &&
-            (!TryExtractAppIdFromPropertySyntax(appTypeSymbol, compilation, cancellationToken, out var propertyAppId) || propertyAppId != constantAppId))
-        {
-            appId = 0;
-            return false;
-        }
-
-        appId = constantAppId;
-        return true;
-    }
-
-    private static bool HasPropertySyntax(ITypeSymbol appTypeSymbol)
-    {
-        foreach (var member in appTypeSymbol.GetMembers())
-        {
-            if (member is IPropertySymbol prop &&
-                (prop.Name == AppIdName || prop.Name.EndsWith("." + AppIdName, StringComparison.Ordinal)) &&
-                prop.DeclaringSyntaxReferences.Length > 0)
-                return true;
-        }
-
-        return false;
-    }
-
-    private static bool TryExtractAppIdFromKnownTypeName(string fullName, out byte appId)
-    {
-        switch (fullName)
-        {
-            case "DRN.Framework.SharedKernel.Domain.DefaultApp":
-                appId = 0;
-                return true;
-            case "DRN.Framework.SharedKernel.Domain.NexusApp":
-                appId = 126;
-                return true;
-            case "DRN.Framework.SharedKernel.Domain.TestApp":
-                appId = 127;
-                return true;
-            default:
-                appId = 0;
-                return false;
-        }
-    }
-
-    private static bool TryExtractAppIdFromConstantMembers(ITypeSymbol appTypeSymbol, out byte appId)
-    {
-        foreach (var member in appTypeSymbol.GetMembers())
-        {
-            if (member is IFieldSymbol
-                {
-                    HasConstantValue: true,
-                    DeclaredAccessibility: Accessibility.Public,
-                    Name: AppIdName or "Value"
-                } field && TryExtractByte(field.ConstantValue, out appId))
-                return true;
-        }
-
-        appId = 0;
-        return false;
-    }
-
-    private static bool TryExtractAppIdFromPropertySyntax(ITypeSymbol appTypeSymbol, Compilation? compilation, CancellationToken cancellationToken, out byte appId)
-    {
-        var visitedProps = ImmutableHashSet<IPropertySymbol>.Empty.WithComparer(SymbolEqualityComparer.Default);
-        foreach (var member in appTypeSymbol.GetMembers())
-        {
-            if (member is not IPropertySymbol prop)
-                continue;
-
-            if (prop.Name != AppIdName && !prop.Name.EndsWith("." + AppIdName, StringComparison.Ordinal))
-                continue;
-
-            if (TryExtractAppIdFromPropertySymbol(prop, appTypeSymbol, compilation, visitedProps, cancellationToken, out appId))
-                return true;
-        }
-
-        appId = 0;
-        return false;
-    }
-
-    private static bool TryExtractAppIdFromPropertySymbol(
-        IPropertySymbol prop,
-        ITypeSymbol appTypeSymbol,
-        Compilation? compilation,
-        ImmutableHashSet<IPropertySymbol> visitedProps,
-        CancellationToken cancellationToken,
-        out byte appId)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        if (visitedProps.Contains(prop))
-        {
-            appId = 0;
-            return false;
-        }
-
-        var nextVisited = visitedProps.Add(prop);
-
-        foreach (var syntaxRef in prop.DeclaringSyntaxReferences)
-        {
-            if (syntaxRef.GetSyntax(cancellationToken) is PropertyDeclarationSyntax propSyntax &&
-                TryExtractExpressionFromProperty(propSyntax, out var expr) &&
-                TryExtractByteFromSyntax(expr!, appTypeSymbol, compilation, nextVisited, cancellationToken, out appId))
-                return true;
-        }
-
-        appId = 0;
-        return false;
-    }
-
-    private static bool TryExtractByteFromSyntax(
-        ExpressionSyntax expr,
-        ITypeSymbol appTypeSymbol,
-        Compilation? compilation,
-        ImmutableHashSet<IPropertySymbol> visitedProps,
-        CancellationToken cancellationToken,
-        out byte byteValue)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        if (compilation != null && TryExtractByteFromSemanticModel(expr, appTypeSymbol, compilation, visitedProps, cancellationToken, out byteValue))
-            return true;
-
-        switch (expr)
-        {
-            case LiteralExpressionSyntax { Token.Value: { } val }:
-                return TryExtractByte(val, out byteValue);
-            case ParenthesizedExpressionSyntax paren:
-                return TryExtractByteFromSyntax(paren.Expression, appTypeSymbol, compilation, visitedProps, cancellationToken, out byteValue);
-            case CastExpressionSyntax cast:
-                return TryExtractByteFromSyntax(cast.Expression, appTypeSymbol, compilation, visitedProps, cancellationToken, out byteValue);
-            case IdentifierNameSyntax idName:
-                return TryExtractConstantFromTypeOrContainers(appTypeSymbol, idName.Identifier.Text, out byteValue);
-            case MemberAccessExpressionSyntax memberAccess:
-                return TryExtractByteFromMemberAccess(memberAccess, appTypeSymbol, out byteValue);
-            default:
-                byteValue = 0;
-                return false;
-        }
-    }
-
-    private static bool TryExtractByteFromSemanticModel(
-        ExpressionSyntax expr,
-        ITypeSymbol appTypeSymbol,
-        Compilation compilation,
-        ImmutableHashSet<IPropertySymbol> visitedProps,
-        CancellationToken cancellationToken,
-        out byte byteValue)
-    {
-        if (!compilation.ContainsSyntaxTree(expr.SyntaxTree))
-        {
-            byteValue = 0;
-            return false;
-        }
-
-        var semanticModel = compilation.GetSemanticModel(expr.SyntaxTree);
-        var constantVal = semanticModel.GetConstantValue(expr, cancellationToken);
-        if (constantVal.HasValue && TryExtractByte(constantVal.Value, out byteValue))
-            return true;
-
-        var symbolInfo = semanticModel.GetSymbolInfo(expr, cancellationToken);
-        switch (symbolInfo.Symbol)
-        {
-            case IFieldSymbol { HasConstantValue: true } field when TryExtractByte(field.ConstantValue, out byteValue):
-            case ILocalSymbol { HasConstantValue: true } local when TryExtractByte(local.ConstantValue, out byteValue):
-            case IPropertySymbol prop when TryExtractAppIdFromPropertySymbol(prop, prop.ContainingType ?? appTypeSymbol, compilation, visitedProps, cancellationToken, out byteValue):
-                return true;
-            default:
-                byteValue = 0;
-                return false;
-        }
-    }
-
-    private static bool TryExtractByteFromMemberAccess(
-        MemberAccessExpressionSyntax memberAccess,
-        ITypeSymbol appTypeSymbol,
-        out byte byteValue)
-    {
-        if (memberAccess.Expression is IdentifierNameSyntax typeIdentifier)
-        {
-            var targetTypeName = typeIdentifier.Identifier.Text;
-            var memberName = memberAccess.Name.Identifier.Text;
-            if (TryFindTypeInNamespaceOrContainers(appTypeSymbol, targetTypeName, out var targetType) &&
-                TryExtractConstantFromType(targetType, memberName, out byteValue))
-                return true;
-        }
-
-        byteValue = 0;
-        return false;
-    }
-
-    private static bool TryExtractExpressionFromProperty(PropertyDeclarationSyntax propSyntax, out ExpressionSyntax? expression)
-    {
-        expression = propSyntax.ExpressionBody?.Expression ?? propSyntax.Initializer?.Value;
-        if (expression != null)
-            return true;
-
-        return propSyntax.AccessorList != null && TryExtractExpressionFromAccessors(propSyntax.AccessorList.Accessors, out expression);
-    }
-
-    private static bool TryExtractExpressionFromAccessors(SyntaxList<AccessorDeclarationSyntax> accessors, out ExpressionSyntax? expression)
-    {
-        foreach (var accessor in accessors)
-        {
-            expression = accessor.ExpressionBody?.Expression;
-            if (expression != null)
-                return true;
-
-            if (accessor.Body != null && TryExtractReturnExpression(accessor.Body.Statements, out expression))
-                return true;
-        }
-
-        expression = null;
-        return false;
-    }
-
-    private static bool TryExtractReturnExpression(SyntaxList<StatementSyntax> statements, out ExpressionSyntax? expression)
-    {
-        foreach (var stmt in statements)
-        {
-            if (stmt is not ReturnStatementSyntax { Expression: not null } returnStmt)
-                continue;
-            expression = returnStmt.Expression;
-            return true;
-        }
-
-        expression = null;
-        return false;
-    }
-
-    private static bool TryFindTypeInNamespaceOrContainers(ITypeSymbol appTypeSymbol, string typeName, out ITypeSymbol targetType)
-    {
-        var containingType = appTypeSymbol.ContainingType;
-        while (containingType != null)
-        {
-            if (containingType.Name == typeName)
-            {
-                targetType = containingType;
-                return true;
-            }
-
-            var typeMembers = containingType.GetTypeMembers(typeName);
-            if (typeMembers.Length > 0)
-            {
-                targetType = typeMembers[0];
-                return true;
-            }
-
-            containingType = containingType.ContainingType;
-        }
-
-        var ns = appTypeSymbol.ContainingNamespace;
-        while (ns != null)
-        {
-            var typeMembers = ns.GetTypeMembers(typeName);
-            if (typeMembers.Length > 0)
-            {
-                targetType = typeMembers[0];
-                return true;
-            }
-
-            ns = ns.ContainingNamespace;
-        }
-
-        targetType = null!;
-        return false;
-    }
-
-    private static bool TryExtractConstantFromType(ITypeSymbol typeSymbol, string memberName, out byte byteValue)
-    {
-        foreach (var member in typeSymbol.GetMembers(memberName))
-        {
-            if (member is IFieldSymbol { HasConstantValue: true } field && TryExtractByte(field.ConstantValue, out byteValue))
-                return true;
-        }
-
-        byteValue = 0;
-        return false;
-    }
-
-    private static bool TryExtractConstantFromTypeOrContainers(ITypeSymbol appTypeSymbol, string memberName, out byte byteValue)
-    {
-        foreach (var member in appTypeSymbol.GetMembers(memberName))
-        {
-            if (member is IFieldSymbol { HasConstantValue: true } field && TryExtractByte(field.ConstantValue, out byteValue))
-                return true;
-        }
-
-        var containingType = appTypeSymbol.ContainingType;
-        while (containingType != null)
-        {
-            foreach (var member in containingType.GetMembers(memberName))
-            {
-                if (member is IFieldSymbol { HasConstantValue: true } field && TryExtractByte(field.ConstantValue, out byteValue))
-                    return true;
-            }
-
-            containingType = containingType.ContainingType;
-        }
-
-        byteValue = 0;
-        return false;
-    }
-
-    private static bool TryExtractByte(object? rawValue, out byte byteValue)
+    internal static bool TryExtractByte(object? rawValue, out byte value)
     {
         switch (rawValue)
         {
-            case byte b:
-                byteValue = b;
-                return true;
+            case byte b: value = b; return true;
             case sbyte or short or ushort or int or uint or long or ulong:
-                try
+                var number = Convert.ToDecimal(rawValue);
+                if (number is >= byte.MinValue and <= byte.MaxValue)
                 {
-                    byteValue = Convert.ToByte(rawValue);
+                    value = (byte)number;
                     return true;
                 }
-                catch (Exception ex) when (ex is OverflowException or InvalidCastException)
-                {
-                    // Ignored - value outside byte range or unsupported cast
-                }
-
                 break;
         }
-
-        byteValue = 0;
+        value = 0;
         return false;
     }
-
-    internal static List<INamedTypeSymbol> OrderSymbols(IEnumerable<INamedTypeSymbol> symbols) => symbols
-        .OrderBy(s => s.ContainingAssembly.Name, StringComparer.Ordinal)
-        .ThenBy(s => s.ToDisplayString(), StringComparer.Ordinal).ToList();
-
-    internal static List<T> OrderByLocation<T>(IEnumerable<T> items, Func<T, Location> locationSelector) => items
-        .OrderBy(d => locationSelector(d).SourceTree?.FilePath, StringComparer.Ordinal)
-        .ThenBy(d => locationSelector(d).SourceSpan.Start)
-        .ThenBy(d => locationSelector(d).SourceSpan.Length)
-        .ToList();
 }

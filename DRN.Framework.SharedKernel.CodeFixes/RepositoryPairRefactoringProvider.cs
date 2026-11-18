@@ -5,7 +5,8 @@ using Microsoft.CodeAnalysis.CodeRefactorings;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
-using static DRN.Framework.SharedKernel.CodeFixes.EntityConfigurationRefactoringProvider;
+using static DRN.Framework.SharedKernel.CodeFixes.CodeFixDestinationGuard;
+using static DRN.Framework.SharedKernel.CodeFixes.CodeFixSymbolFacts;
 
 namespace DRN.Framework.SharedKernel.CodeFixes;
 
@@ -15,13 +16,14 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
     public override async Task ComputeRefactoringsAsync(CodeRefactoringContext context)
     {
         if (ConventionGenerationPreflight.Identity(context.Document.Project).Role != "Domain") return;
-        var entity = await SelectedEntity(context.Document, context.Span, context.CancellationToken);
+        var entity = await EntityConfigurationRefactoringProvider.SelectedEntity(context.Document, context.Span, context.CancellationToken);
         if (entity is null) return;
         var snapshot = context.Document.Project.Solution;
         if (!ReferenceEquals(snapshot, snapshot.Workspace.CurrentSolution) ||
             !snapshot.Workspace.CanApplyChange(ApplyChangesKind.AddDocument)) return;
-        var candidates = await Candidates(context.Document.Project, MetadataName(entity), context.CancellationToken);
-        var configurations = new Dictionary<ProjectId, List<ConfigurationCandidate>>();
+        var entityName = MetadataName(entity);
+        var candidates = await Candidates(context.Document.Project, entityName, context.CancellationToken);
+        var configurations = new Dictionary<ProjectId, List<EntityConfigurationRefactoringProvider.ConfigurationCandidate>>();
         foreach (var candidate in candidates)
         {
             context.CancellationToken.ThrowIfCancellationRequested();
@@ -29,11 +31,11 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
             context.RegisterRefactoring(CodeAction.Create(
                 "Add scoped repository pair: " + candidate.InterfaceName + " + " + candidate.ClassName +
                 " for " + candidate.ContextName + " (" + candidate.DomainPath + ", " + candidate.InfraPath + ")",
-                token => Apply(snapshot, context.Document.Project.Id, MetadataName(entity), candidate, entity.ContainingAssembly.Identity, null, token),
-                "DrnRepositoryPair:" + candidate.InfraProject + ":" + candidate.ContextName + ":" + MetadataName(entity)));
+                token => Apply(snapshot, context.Document.Project.Id, entityName, candidate, entity.ContainingAssembly.Identity, null, token),
+                "DrnRepositoryPair:" + candidate.InfraProject + ":" + candidate.ContextName + ":" + entityName));
             if (!configurations.TryGetValue(candidate.InfraProject, out var options))
             {
-                options = await ConfigurationCandidates(snapshot.GetProject(candidate.InfraProject)!, MetadataName(entity),
+                options = await EntityConfigurationRefactoringProvider.ConfigurationCandidates(snapshot.GetProject(candidate.InfraProject)!, entityName,
                     entity.ContainingAssembly.Identity, context.CancellationToken);
                 configurations.Add(candidate.InfraProject, options);
             }
@@ -45,14 +47,14 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
                     "Add scoped repository pair and entity configuration: " + candidate.InterfaceName + " + " + candidate.ClassName +
                     " + " + configuration.ClassName + " for " + candidate.ContextName + " (" + candidate.DomainPath + ", " +
                     candidate.InfraPath + ", " + configuration.RelativePath + ")",
-                    token => Apply(snapshot, context.Document.Project.Id, MetadataName(entity), candidate, entity.ContainingAssembly.Identity, configuration, token),
-                    "DrnPersistenceBundle:" + candidate.InfraProject + ":" + candidate.ContextName + ":" + MetadataName(entity)));
+                    token => Apply(snapshot, context.Document.Project.Id, entityName, candidate, entity.ContainingAssembly.Identity, configuration, token),
+                    "DrnPersistenceBundle:" + candidate.InfraProject + ":" + candidate.ContextName + ":" + entityName));
             }
         }
     }
 
     private static async Task<Solution> Apply(Solution snapshot, ProjectId domainId, string entityName, RepositoryCandidate candidate,
-        AssemblyIdentity entityAssembly, ConfigurationCandidate? configuration, CancellationToken token)
+        AssemblyIdentity entityAssembly, EntityConfigurationRefactoringProvider.ConfigurationCandidate? configuration, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
         var current = snapshot.Workspace.CurrentSolution;
@@ -60,7 +62,7 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
         if (!(await Candidates(domain, entityName, token)).Contains(candidate)) return snapshot.Workspace.CurrentSolution;
         if (configuration is not null && (snapshot.GetProject(candidate.InfraProject) is not { } infra ||
             configuration.SingleContextName != candidate.ContextName || !CompatibleDestinations(candidate, configuration) ||
-            !(await ConfigurationCandidates(infra, entityName, entityAssembly, token)).Contains(configuration)))
+            !(await EntityConfigurationRefactoringProvider.ConfigurationCandidates(infra, entityName, entityAssembly, token)).Contains(configuration)))
             return snapshot.Workspace.CurrentSolution;
         var contract = $$"""
             namespace {{candidate.DomainNamespace}};
@@ -89,12 +91,12 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
                 candidate.DomainPath.Split('/')[..^1], candidate.DomainFullPath)
             .AddDocument(DocumentId.CreateNewId(candidate.InfraProject), candidate.ClassName + ".cs", SourceText.From(implementation),
                 candidate.InfraPath.Split('/')[..^1], candidate.InfraFullPath);
-        if (configuration is not null) changed = AddConfigurationDocument(changed, candidate.InfraProject, configuration);
+        if (configuration is not null) changed = EntityConfigurationRefactoringProvider.AddConfigurationDocument(changed, candidate.InfraProject, configuration);
         token.ThrowIfCancellationRequested();
         return ReferenceEquals(snapshot.Workspace.CurrentSolution, snapshot) ? changed : snapshot.Workspace.CurrentSolution;
     }
 
-    private static bool CompatibleDestinations(RepositoryCandidate repository, ConfigurationCandidate configuration) =>
+    private static bool CompatibleDestinations(RepositoryCandidate repository, EntityConfigurationRefactoringProvider.ConfigurationCandidate configuration) =>
         !WorkspacePathConflict(repository.DomainFullPath, configuration.FullPath) &&
         !WorkspacePathConflict(repository.InfraFullPath, configuration.FullPath);
 
@@ -115,13 +117,13 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
 
     private static async Task<DomainAggregateInfo?> ResolveDomainAggregateAsync(Project domain, string entityName, CancellationToken token)
     {
-        var domainIdentity = ProjectIdentity(domain);
+        var domainIdentity = ConventionGenerationPreflight.Identity(domain);
         if (domainIdentity.Role != "Domain" || !ValidNamespace(domainIdentity.Namespace) || domain.FilePath is null ||
             !TryFullPath(domain.FilePath, out var domainProjectPath)) return null;
-        var domainInputs = await ReadInputs(domain, required: false, token);
+        var domainInputs = await ReadInputsWithoutRoleOverrideAsync(domain, required: false, token);
         if (domainInputs is null) return null;
         var domainCompilation = await domain.GetCompilationAsync(token);
-        if (domainCompilation?.GetTypeByMetadataName(entityName) is not { IsAbstract: false } entity || IsOpen(entity) || !PublicType(entity) ||
+        if (domainCompilation?.GetTypeByMetadataName(entityName) is not { IsAbstract: false } entity || IsOpen(entity) || !IsPublicType(entity) ||
             !SymbolEqualityComparer.Default.Equals(entity.ContainingAssembly, domainCompilation.Assembly) ||
             !Inherits(entity, domainCompilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.AggregateRoot"))) return null;
         return await ResolveDomainDestinationAsync(domain, domainIdentity.Namespace, domainProjectPath, domainInputs,
@@ -132,7 +134,7 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
         string domainProjectPath, CompilationUnitSyntax domainInputs, Compilation domainCompilation,
         INamedTypeSymbol entity, string entityName, CancellationToken token)
     {
-        var domainDocument = await EditableHome(domain, entity, token);
+        var domainDocument = await ResolveEditableHomeAsync(domain, entity, rejectSpanErrors: true, token);
         var owner = Owner(entity, domainRoleNamespace, domainCompilation);
         if (domainDocument?.FilePath is null || !TryFullPath(domainDocument.FilePath, out var domainDocumentPath) ||
             owner is null || entity.ContainingNamespace.IsGlobalNamespace ||
@@ -161,10 +163,10 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
     private static async Task CollectInfraProjectCandidatesAsync(DomainAggregateInfo domainAggregate, Project infra,
         List<RepositoryCandidate> result, CancellationToken token)
     {
-        var infraIdentity = ProjectIdentity(infra);
+        var infraIdentity = ConventionGenerationPreflight.Identity(infra);
         if (infraIdentity.Role != "Infra" || !ValidNamespace(infraIdentity.Namespace) || infra.FilePath is null ||
             !TryFullPath(infra.FilePath, out var infraProjectPath)) return;
-        var infraInputs = await ReadInputs(infra, required: false, token);
+        var infraInputs = await ReadInputsWithoutRoleOverrideAsync(infra, required: false, token);
         if (infraInputs is null) return;
         var compilation = await infra.GetCompilationAsync(token);
         var importedEntity = compilation?.GetTypeByMetadataName(domainAggregate.EntityName);
@@ -178,7 +180,7 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
         if (types.Any(type => RepositoryFor(type, symbols.ImportedContract, importedEntity))) return;
         var infraRoot = Path.GetDirectoryName(infraProjectPath)!;
         foreach (var context in types.Where(type => !type.IsAbstract && !IsOpen(type) &&
-                     PublicType(type) && type.AllInterfaces.Any(contractType => Same(contractType, symbols.ContextContract))))
+                     IsPublicType(type) && type.AllInterfaces.Any(contractType => Same(contractType, symbols.ContextContract))))
         {
             token.ThrowIfCancellationRequested();
             if (await TryCreateRepositoryCandidateAsync(domainAggregate, infra, infraIdentity.Namespace, infraRoot,
@@ -192,12 +194,12 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
         Compilation compilation, INamedTypeSymbol importedEntity, InfraSymbols symbols,
         INamedTypeSymbol context, CancellationToken token)
     {
-        if (!DefaultDiscovery(context, compilation, token) || !HasMembership(context, importedEntity, compilation) ||
+        if (!DefaultDiscovery(context, compilation, token) || !EntityConfigurationRefactoringProvider.HasMembership(context, importedEntity, compilation) ||
             Owner(context, infraRoleNamespace, compilation) != domainAggregate.Owner ||
             NamespaceOwner(context, infraRoleNamespace) != domainAggregate.Owner ||
             !context.Name.EndsWith("Context", StringComparison.Ordinal) || context.Name.Length <= 7 ||
             !OwnershipCompatible(infraInputs, MetadataName(context), domainAggregate.Owner, token)) return null;
-        var contextDocument = await EditableHome(infra, context, token);
+        var contextDocument = await ResolveEditableHomeAsync(infra, context, rejectSpanErrors: true, token);
         if (contextDocument?.FilePath is null) return null;
         var repositoryNamespace = context.ContainingNamespace.ToDisplayString() + ".Repositories";
         if (!ValidNamespace(repositoryNamespace) ||
@@ -249,9 +251,6 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
         }
     }
 
-    private static (string Role, string Namespace) ProjectIdentity(Project project) =>
-        ConventionGenerationPreflight.Identity(project);
-
     private static string? Owner(INamedTypeSymbol type, string rootNamespace, Compilation compilation) =>
         DeclaredSubdomain(type, NamespaceOwner(type, rootNamespace), compilation);
 
@@ -264,42 +263,8 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
                                                      !string.IsNullOrWhiteSpace(reason)));
     }
 
-    private static async Task<Document?> EditableHome(Project project, INamedTypeSymbol type, CancellationToken token)
-    {
-        Document? home = null;
-        foreach (var reference in type.DeclaringSyntaxReferences)
-        {
-            token.ThrowIfCancellationRequested();
-            var document = project.GetDocument(reference.SyntaxTree);
-            if (document?.FilePath is null || !TryFullPath(document.FilePath, out _) || document.GetLinkedDocumentIds().Length != 0 ||
-                await ClassificationEdit.FindEditableRoot(document, reference.Span.Start, token) is null) return null;
-            var model = await document.GetSemanticModelAsync(token);
-            if (model is null || model.GetDiagnostics(reference.Span, token).Any(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)) return null;
-            if (home is not null && Path.GetDirectoryName(home.FilePath) != Path.GetDirectoryName(document.FilePath)) return null;
-            home = document;
-        }
-        return home;
-    }
-
-    private static bool SafeDocumentDestination(Project project, string root, string destination, CancellationToken token) => SafeDestination(root, destination) &&
-        !WorkspaceDestinationConflict(project.Solution, destination, project.Id, token);
-
     private static bool RepositoryFor(INamedTypeSymbol type, INamedTypeSymbol contract, INamedTypeSymbol entity) =>
         type.AllInterfaces.Any(binding => Same(binding, contract) && SymbolEqualityComparer.Default.Equals(binding.TypeArguments[0], entity));
-
-    private static bool Inherits(INamedTypeSymbol type, INamedTypeSymbol? target)
-    {
-        for (var current = type; current is not null; current = current.BaseType)
-            if (Same(current, target)) return true;
-        return false;
-    }
-
-    private static bool PublicType(INamedTypeSymbol type)
-    {
-        for (var current = type; current is not null; current = current.ContainingType)
-            if (current.DeclaredAccessibility != Accessibility.Public) return false;
-        return true;
-    }
 
     private static string? RepositoryDestination(CompilationUnitSyntax root, string contextName, string owner, bool aliasRequired,
         string conventionalDestination, CancellationToken token)
@@ -363,12 +328,6 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
     {
         var matches = arguments.Where(argument => argument.NameEquals?.Name.Identifier.ValueText == name).ToArray();
         return matches.Length == 1 && !string.IsNullOrWhiteSpace(Literal(matches[0].Expression, token));
-    }
-
-    private static async Task<CompilationUnitSyntax?> ReadInputs(Project project, bool required, CancellationToken token)
-    {
-        var root = await ConventionGenerationPreflight.ReadInputs(project, required, token);
-        return root is null || HasRoleOverride(root) ? null : root;
     }
 
     private static string? Literal(ExpressionSyntax expression, CancellationToken token) =>

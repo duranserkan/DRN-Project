@@ -58,7 +58,7 @@ public class DiagnosticSanitizerTests
     }
 
     [Fact]
-    [SuppressMessage("DRN.Classification", "DRN0017", Justification = "Unclassified Password capture verifies free text is preserved without runtime name matching.")]
+    [SuppressMessage("DRN.Classification", "DRNCLASSIFICATION003", Justification = "Unclassified Password capture verifies free text is preserved without runtime name matching.")]
     public void Free_Text_Should_Preserve_Content_Across_Capture_Paths()
     {
         string[] cases =
@@ -180,6 +180,7 @@ public class DiagnosticSanitizerTests
             nested[name].Should().Be(DiagnosticSanitizer.Redacted);
             snapshot[$"Flat.{name}"].Should().Be(DiagnosticSanitizer.Redacted);
         }
+
         nested["Ignored"].Should().Be(ScopedLogConventions.IgnoredLogValue);
         snapshot["Flat.Ignored"].Should().Be(ScopedLogConventions.IgnoredLogValue);
         nested["Outcome"].Should().Be("Processed");
@@ -199,22 +200,63 @@ public class DiagnosticSanitizerTests
     }
 
     private sealed class ConfidentialAttribute() : DataClassificationAttribute(new DataClassification("Test", "Confidential"));
+
     private sealed class UnclassifiedAttribute() : DataClassificationAttribute(DataClassification.None);
 
     [Personal]
-    private sealed class PersonalRecord { }
+    private sealed class PersonalRecord
+    {
+    }
 
     private sealed class ComplianceData
     {
         public int GetterReads { get; private set; }
-        [Personal] public string Contact { get { GetterReads++; return "contact-probe"; } }
-        [Confidential] public string Custom { get { GetterReads++; return "custom-probe"; } }
-        public PersonalRecord Typed { get { GetterReads++; return new PersonalRecord(); } }
-        [IgnoreLog, Personal] public string Ignored { get { GetterReads++; return "ignored-probe"; } }
+
+        [Personal]
+        public string Contact
+        {
+            get
+            {
+                GetterReads++;
+                return "contact-probe";
+            }
+        }
+
+        [Confidential]
+        public string Custom
+        {
+            get
+            {
+                GetterReads++;
+                return "custom-probe";
+            }
+        }
+
+        public PersonalRecord Typed
+        {
+            get
+            {
+                GetterReads++;
+                return new PersonalRecord();
+            }
+        }
+
+        [IgnoreLog, Personal]
+        public string Ignored
+        {
+            get
+            {
+                GetterReads++;
+                return "ignored-probe";
+            }
+        }
+
         [SuppressMessage("Performance", "CA1822", Justification = "Instance property exercises reflection capture of an unclassified value.")]
         public string Outcome => "Processed";
+
         [SuppressMessage("Performance", "CA1822", Justification = "Instance property exercises capture with an empty classification.")]
-        [Unclassified] public string Hint => "Retry available";
+        [Unclassified]
+        public string Hint => "Retry available";
     }
 
     [Fact]
@@ -298,17 +340,23 @@ public class DiagnosticSanitizerTests
     private sealed class SensitiveProperties
     {
         [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies sensitive classification prevents reads.")]
-        [Sensitive] public string Value => throw new InvalidOperationException("Sensitive getter must not execute.");
+        [Sensitive]
+        public string Value => throw new InvalidOperationException("Sensitive getter must not execute.");
+
         [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies personal classification prevents reads.")]
-        [Personal] public string Contact => throw new InvalidOperationException("Personal getter must not execute.");
+        [Personal]
+        public string Contact => throw new InvalidOperationException("Personal getter must not execute.");
+
         [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies IgnoreLog takes precedence over classification.")]
-        [IgnoreLog, Sensitive] public string Ignored => throw new InvalidOperationException("Ignored getter must not execute.");
+        [IgnoreLog, Sensitive]
+        public string Ignored => throw new InvalidOperationException("Ignored getter must not execute.");
     }
 
     [Fact]
-    [SuppressMessage("DRN.Classification", "DRN0017", Justification = "Unclassified Password entry is the control for explicitly classified object properties.")]
-    [SuppressMessage("DRN.Classification", "DRN0019", Justification = "Anonymous Password fixture verifies JsonElement projection independently of classified model capture.")]
-    [SuppressMessage("DRN.Classification", "DRN0020", Justification = "Unclassified Password dictionary entry is the control for classified nested properties.")]
+    [SuppressMessage("DRN.Classification", "DRNCLASSIFICATION003", Justification = "Unclassified Password entry is the control for explicitly classified object properties.")]
+    [SuppressMessage("DRN.Classification", "DRNCLASSIFICATION005",
+        Justification = "Anonymous Password fixture verifies JsonElement projection independently of classified model capture.")]
+    [SuppressMessage("DRN.Classification", "DRNCLASSIFICATION006", Justification = "Unclassified Password dictionary entry is the control for classified nested properties.")]
     public void Object_Logging_Should_Omit_Fields_And_Preserve_Explicit_Classification()
     {
         var input = new PropertyCapture();
@@ -342,23 +390,39 @@ public class DiagnosticSanitizerTests
 
     private sealed class PropertyCapture
     {
+#pragma warning disable CS0414 // Field is assigned but its value is never used
         public readonly string PublicValue = "public-field-probe";
-        [Sensitive] public readonly string ClassifiedValue = "classified-field-probe";
-        [IgnoreLog] public readonly string IgnoredValue = "ignored-field-probe";
+
+        [Sensitive]
+        public readonly string ClassifiedValue = "classified-field-probe";
+
+        [IgnoreLog]
+        public readonly string IgnoredValue = "ignored-field-probe";
+
         [SuppressMessage("Performance", "CA1822", Justification = "Instance property verifies capture includes properties while omitting fields.")]
         public string Description => "available";
+
         [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies classified properties are not read.")]
-        [Sensitive] public string Password => throw new InvalidOperationException("Classified getter must not execute.");
+        [Sensitive]
+        public string Password => throw new InvalidOperationException("Classified getter must not execute.");
+
+#pragma warning restore CS0414 // Field is assigned but its value is never used
     }
 
     private sealed class Classified
     {
         [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies sensitive classification prevents reads.")]
-        [Sensitive] public string Code => throw new InvalidOperationException("secret-getter");
+        [Sensitive]
+        public string Code => throw new InvalidOperationException("secret-getter");
+
         [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies IgnoreLog prevents reads.")]
-        [IgnoreLog] public string Ignored => throw new InvalidOperationException("ignored-getter");
+        [IgnoreLog]
+        public string Ignored => throw new InvalidOperationException("ignored-getter");
+
         [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies classified Boolean properties are protected.")]
-        [Sensitive] public bool HasRecoveryCodes => throw new InvalidOperationException("Classified getter must not execute.");
+        [Sensitive]
+        public bool HasRecoveryCodes => throw new InvalidOperationException("Classified getter must not execute.");
+
         [SuppressMessage("Performance", "CA1822", Justification = "Instance getter exercises capture failure handling.")]
         public string Failure => throw new InvalidOperationException("getter-message-probe");
     }
@@ -401,17 +465,46 @@ public class DiagnosticSanitizerTests
 
     private class ClassifiedBase
     {
-        [Sensitive] public virtual string Code => "base-probe";
-        [Personal] public virtual string Contact => "base-probe";
-        [IgnoreLog, Sensitive] public virtual string Ignored => "base-probe";
+        [Sensitive]
+        public virtual string Code => "base-probe";
+
+        [Personal]
+        public virtual string Contact => "base-probe";
+
+        [IgnoreLog, Sensitive]
+        public virtual string Ignored => "base-probe";
     }
 
     private sealed class ClassifiedOverride : ClassifiedBase
     {
         public int GetterReads { get; private set; }
-        public override string Code { get { GetterReads++; return "override-probe"; } }
-        public override string Contact { get { GetterReads++; return "override-probe"; } }
-        public override string Ignored { get { GetterReads++; return "override-probe"; } }
+
+        public override string Code
+        {
+            get
+            {
+                GetterReads++;
+                return "override-probe";
+            }
+        }
+
+        public override string Contact
+        {
+            get
+            {
+                GetterReads++;
+                return "override-probe";
+            }
+        }
+
+        public override string Ignored
+        {
+            get
+            {
+                GetterReads++;
+                return "override-probe";
+            }
+        }
     }
 
     [Fact]
@@ -506,7 +599,10 @@ public class DiagnosticSanitizerTests
                 reentrantResult = policy.SanitizeValue("Items", root);
                 return 42;
             }
-            finally { reading = false; }
+            finally
+            {
+                reading = false;
+            }
         }));
 
         var result = JsonSerializer.SerializeToElement(policy.SanitizeValue("Items", root));
@@ -579,13 +675,15 @@ public class DiagnosticSanitizerTests
 
         var capture = policy.Capture("TargetUrl", new Uri("https://example.test/?first=one&second=two"), deferRedaction: deferred);
 
-        capture.Value.Should().Be(deferred ? DiagnosticSanitizer.Limited
+        capture.Value.Should().Be(deferred
+            ? DiagnosticSanitizer.Limited
             : "https://example.test/?first=one&_diagnostic=" + DiagnosticSanitizer.Limited);
         policy.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(ScopeWorkLimitWarnings);
     }
 
     [Fact]
-    [SuppressMessage("DRN.Classification", "DRN0020", Justification = "Unclassified Password dictionary entry verifies detached copies preserve captured values without name matching.")]
+    [SuppressMessage("DRN.Classification", "DRNCLASSIFICATION006",
+        Justification = "Unclassified Password dictionary entry verifies detached copies preserve captured values without name matching.")]
     public void Scoped_Entries_Should_Be_Detached_And_Protect_All_Capture_Paths()
     {
         var policy = Policy();
@@ -611,7 +709,7 @@ public class DiagnosticSanitizerTests
     }
 
     [Fact]
-    [SuppressMessage("DRN.Classification", "DRN0020", Justification = "Unclassified key-probe entries verify key length validation without runtime name matching.")]
+    [SuppressMessage("DRN.Classification", "DRNCLASSIFICATION006", Justification = "Unclassified key-probe entries verify key length validation without runtime name matching.")]
     public void Unsafe_Keys_And_External_Snapshots_Should_Not_Bypass_Policy()
     {
         var policy = Policy();
@@ -656,6 +754,7 @@ public class DiagnosticSanitizerTests
     {
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
         public bool IsEnabled(LogLevel logLevel) => true;
+
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
             => throw new InvalidOperationException("sink-probe");
     }

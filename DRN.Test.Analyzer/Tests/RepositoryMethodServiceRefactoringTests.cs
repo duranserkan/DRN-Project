@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.CodeFixes;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeRefactorings;
@@ -5,6 +6,7 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace DRN.Test.Analyzer.Tests;
 
+[SuppressMessage("ReSharper", "AccessToDisposedClosure")]
 public sealed class RepositoryMethodServiceRefactoringTests
 {
     private const string Method = "System.Threading.Tasks.Task<int> CountVisibleAsync(string filter, System.Threading.CancellationToken cancellationToken = default);";
@@ -167,7 +169,7 @@ public sealed class RepositoryMethodServiceRefactoringTests
         var action = (await Actions(document)).First();
         var current = workspace.CurrentSolution;
         using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
+        await cancellation.CancelAsync();
         var apply = async () => await action.GetOperationsAsync(cancellation.Token);
         await apply.Should().ThrowAsync<OperationCanceledException>();
         workspace.CurrentSolution.Should().BeSameAs(current);
@@ -226,7 +228,7 @@ public sealed class RepositoryMethodServiceRefactoringTests
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddProjectReference(new ProjectReference(domain.Id))
             .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
-            .AddMetadataReference(MetadataReference.CreateFromFile(typeof(DRN.Framework.Utils.Settings.IAppSettings).Assembly.Location));
+            .AddMetadataReference(AnalyzerTestCompilation.UtilsReference);
         application = application.AddDocument("ApplicationModule.cs", """
             namespace Sample.Application;
             public static class ApplicationModule
@@ -256,7 +258,7 @@ public sealed class RepositoryMethodServiceRefactoringTests
         var compilation = (await changedApp.GetCompilationAsync())!;
         var appCompilation = compilation.RemoveReferences(compilation.References.OfType<CompilationReference>()).AddReferences(domainReference);
         appCompilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
-        var inputs = new ProjectDiagnosticRulesTests.RuleFile(DRN.Framework.SharedKernel.Analyzers.Conventions.ConventionInputs.FileName, """
+        var inputs = new ProjectDiagnosticRulesTests.RuleFile(Framework.SharedKernel.Analyzers.Conventions.ConventionInputs.FileName, """
             [assembly: DRN.Conventions.Version("1")]
             [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
             [assembly: DRN.Conventions.Reference("/source/Sample.Domain/Sample.Domain.csproj", Stage = "Project", Source = "/source/Sample.Domain/Sample.Domain.csproj")]
@@ -265,7 +267,7 @@ public sealed class RepositoryMethodServiceRefactoringTests
             [assembly: DRN.Conventions.Path("/source/Sample.Application/Services/QA/Order/OrderCountVisibleService.cs", LogicalPath = "Services/QA/Order/OrderCountVisibleService.cs")]
             """);
         var diagnostics = await appCompilation.WithAnalyzers(
-            [new DRN.Framework.SharedKernel.Analyzers.Conventions.SourceKnownConventionAnalyzer()],
+            [new Framework.SharedKernel.Analyzers.Conventions.SourceKnownConventionAnalyzer()],
             new AnalyzerOptions([inputs], new Options("Application"))).GetAnalyzerDiagnosticsAsync();
         diagnostics.Should().BeEmpty();
     }
@@ -302,7 +304,7 @@ public sealed class RepositoryMethodServiceRefactoringTests
                 targetName, targetName, LanguageNames.CSharp, filePath: "/source/" + targetName + "/" + targetName + ".csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
-            .AddMetadataReference(MetadataReference.CreateFromFile(typeof(DRN.Framework.Utils.Settings.IAppSettings).Assembly.Location));
+            .AddMetadataReference(AnalyzerTestCompilation.UtilsReference);
         if (reference) application = application.AddProjectReference(new ProjectReference(domain.Id));
         workspace.TryApplyChanges(application.Solution).Should().BeTrue();
         return workspace.CurrentSolution.GetDocument(document.Id)!;

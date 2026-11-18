@@ -1,5 +1,5 @@
-using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using DRN.Framework.CompilerTools;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -18,22 +18,34 @@ internal sealed class SourceKnownEntityUsageAnalysis
     private readonly INamedTypeSymbol? _format;
     private readonly INamedTypeSymbol? _repositoryInterface;
     private readonly INamedTypeSymbol? _repositoryBase;
-    private readonly HashSet<object> _formats;
+    private readonly HashSet<long> _formats;
+    private readonly bool _hasId;
+    private readonly bool _hasEntityId;
+    private readonly bool _hasEntityIdSource;
     private readonly HashSet<ISymbol> _metadataMethods = new(SymbolEqualityComparer.Default);
-    private readonly ConcurrentDictionary<INamedTypeSymbol, ImmutableArray<INamedTypeSymbol>> _repositoryBindings = new(SymbolEqualityComparer.Default);
+    private readonly SymbolFactCache<INamedTypeSymbol, ImmutableArray<INamedTypeSymbol>> _repositoryBindings = new();
+    private readonly Func<INamedTypeSymbol, CancellationToken, ImmutableArray<INamedTypeSymbol>> _findBindings;
 
     private SourceKnownEntityUsageAnalysis(Compilation compilation, INamedTypeSymbol entity,
         EntityAnalyzerHelper.EntityTypeFacts entityFacts)
     {
         _entity = entity;
         _entityFacts = entityFacts;
+        _findBindings = FindRepositoryBindings;
         _repositoryInterface = compilation.GetTypeByMetadataName(Domain + "Repository.ISourceKnownRepository`1");
         _repositoryBase = compilation.GetTypeByMetadataName("DRN.Framework.EntityFramework.Domain.SourceKnownRepository`2");
         _identity = compilation.GetTypeByMetadataName(Domain + "EntityTypeId");
         _format = compilation.GetTypeByMetadataName(Domain + "SourceKnownEntityIdFormat");
-        _formats = _format?.GetMembers().OfType<IFieldSymbol>()
-            .Where(field => field.HasConstantValue && field.ConstantValue != null)
-            .Select(field => field.ConstantValue!).ToHashSet() ?? [];
+        _formats = [];
+        if (_format != null)
+        {
+            foreach (var field in _format.GetMembers().OfType<IFieldSymbol>())
+                if (field.HasConstantValue && TryToInt64(field.ConstantValue, out var value))
+                    _formats.Add(value);
+        }
+        _hasId = _entity.GetMembers("Id").OfType<IPropertySymbol>().Any();
+        _hasEntityId = _entity.GetMembers("EntityId").OfType<IPropertySymbol>().Any();
+        _hasEntityIdSource = _entity.GetMembers("EntityIdSource").OfType<IPropertySymbol>().Any();
 
         AddMethods(compilation, Domain + "SourceKnownEntity", "GetEntityType", "GetEntityTypeId", "GetAppId", "GetEntityId");
         AddMethods(compilation, Domain + "EntityTypeRegistry", "GetEntityTypeId");
@@ -47,7 +59,7 @@ internal sealed class SourceKnownEntityUsageAnalysis
         AddMethods(compilation, "DRN.Framework.Utils.Ids.SourceKnownIdUtils", "Next");
     }
 
-    internal static void Register(CompilationStartAnalysisContext context, INamedTypeSymbol entity,
+    internal static SourceKnownEntityUsageAnalysis Register(CompilationStartAnalysisContext context, INamedTypeSymbol entity,
         EntityAnalyzerHelper.EntityTypeFacts entityFacts)
     {
         var analysis = new SourceKnownEntityUsageAnalysis(context.Compilation, entity, entityFacts);
@@ -55,25 +67,86 @@ internal sealed class SourceKnownEntityUsageAnalysis
         context.RegisterOperationAction(analysis.AnalyzeAssignment, OperationKind.SimpleAssignment);
         context.RegisterOperationAction(analysis.AnalyzeInvocation, OperationKind.Invocation);
         context.RegisterOperationAction(analysis.AnalyzeMethodReference, OperationKind.MethodReference);
-        context.RegisterSymbolAction(analysis.AnalyzeType, SymbolKind.NamedType);
-        context.RegisterSyntaxNodeAction(analysis.AnalyzeRepositoryType, SyntaxKind.GenericName, SyntaxKind.IdentifierName);
+        if (analysis._repositoryInterface != null || analysis._repositoryBase != null)
+            context.RegisterSyntaxNodeAction(analysis.AnalyzeRepositoryType, SyntaxKind.GenericName, SyntaxKind.IdentifierName);
+        return analysis;
     }
 
     private void AnalyzeRepositoryType(SyntaxNodeAnalysisContext context)
     {
-        if (_repositoryInterface == null && _repositoryBase == null) return;
-        if (context.Node.Parent is NameEqualsSyntax) return; // Alias declaration name; its target is checked separately.
+        if (!MayBindRepositoryType(context.Node)) return;
         var symbol = context.SemanticModel.GetSymbolInfo(context.Node, context.CancellationToken).Symbol;
         if (symbol is IAliasSymbol alias) symbol = alias.Target;
         if (symbol is not INamedTypeSymbol type || type.IsUnboundGenericType) return;
+        // Roslyn binds an inferred var to its initializer's type. Only explicit repository names are use sites.
+        if (context.Node is IdentifierNameSyntax { IsVar: true } identifier && type.Name != "var" &&
+            context.SemanticModel.GetAliasInfo(identifier, context.CancellationToken) is null) return;
 
-        if (!_repositoryBindings.TryGetValue(type, out var bindings))
-        {
-            bindings = FindRepositoryBindings(type, context.CancellationToken);
-            _repositoryBindings.TryAdd(type, bindings);
-        }
+        var bindings = _repositoryBindings.GetOrAdd(type, _findBindings, context.CancellationToken);
         foreach (var binding in bindings)
             ReportRepositoryBinding(context, type, binding);
+    }
+
+    private static bool MayBindRepositoryType(SyntaxNode node)
+    {
+        if (node is not IdentifierNameSyntax identifier)
+            return node.Parent is not NameEqualsSyntax;
+
+        var current = ClimbQualifiedName(identifier, out var parent);
+        if (parent is BaseNamespaceDeclarationSyntax or NameEqualsSyntax or NameColonSyntax)
+            return false;
+        if (parent is UsingDirectiveSyntax usingDirective && usingDirective.Alias is null &&
+            usingDirective.StaticKeyword.RawKind == 0)
+            return false;
+
+        if (ReferenceEquals(current, identifier))
+        {
+            if (parent is InvocationExpressionSyntax invocation && invocation.Expression == identifier)
+                return false;
+            if (parent is MemberAccessExpressionSyntax access && access.Name == identifier &&
+                access.Parent is not (MemberAccessExpressionSyntax or ConstantPatternSyntax or BinaryExpressionSyntax) &&
+                !IsInsideNameof(access.Parent))
+                return false;
+        }
+
+        if (parent is ArgumentSyntax) return IsInsideNameof(parent);
+        if (parent is BinaryExpressionSyntax binary)
+            return binary.Right == current && binary.Kind() is SyntaxKind.IsExpression or SyntaxKind.AsExpression;
+
+        return parent is not (
+            AssignmentExpressionSyntax or EqualsValueClauseSyntax or ReturnStatementSyntax or
+            ArrowExpressionClauseSyntax or ThrowStatementSyntax or IfStatementSyntax or WhileStatementSyntax or
+            ConditionalExpressionSyntax or PrefixUnaryExpressionSyntax or PostfixUnaryExpressionSyntax or
+            AwaitExpressionSyntax or InterpolationSyntax or InitializerExpressionSyntax or
+            ElementAccessExpressionSyntax or ExpressionStatementSyntax);
+    }
+
+    private static SyntaxNode ClimbQualifiedName(SyntaxNode node, out SyntaxNode? parent)
+    {
+        var current = node;
+        while (current.Parent is QualifiedNameSyntax or AliasQualifiedNameSyntax)
+            current = current.Parent;
+        parent = current.Parent;
+        return current;
+    }
+
+    private static bool IsInsideNameof(SyntaxNode? node)
+    {
+        for (; node is not null; node = node.Parent)
+        {
+            if (node is ArgumentSyntax &&
+                node.Parent is ArgumentListSyntax
+                {
+                    Parent: InvocationExpressionSyntax
+                    {
+                        Expression: IdentifierNameSyntax { Identifier.ValueText: "nameof" }
+                    }
+                })
+                return true;
+            if (node is StatementSyntax or MemberDeclarationSyntax or LambdaExpressionSyntax)
+                return false;
+        }
+        return false;
     }
 
     private ImmutableArray<INamedTypeSymbol> FindRepositoryBindings(INamedTypeSymbol type, CancellationToken cancellation)
@@ -150,40 +223,97 @@ internal sealed class SourceKnownEntityUsageAnalysis
 
     private void CheckConstant(OperationAnalysisContext context, IOperation value, ITypeSymbol? type, bool isAppId)
     {
-        if (!value.ConstantValue.HasValue || value.ConstantValue.Value is not { } constant) return;
+        var isFormat = _format != null && SymbolEqualityComparer.Default.Equals(UnderlyingType(type), _format);
+        if ((!isAppId && !isFormat) || ReadConstant(value) is not { } constant) return;
         if (isAppId && constant is byte appId && appId > EntityAnalyzerHelper.MaxAppId)
             context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.InvalidAppIdArgument, value.Syntax.GetLocation(), appId));
-        else if (_format != null && SymbolEqualityComparer.Default.Equals(type, _format) && !_formats.Contains(constant))
+        else if (isFormat && TryToInt64(constant, out var formatValue) && !_formats.Contains(formatValue))
             context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.InvalidEntityIdFormatArgument, value.Syntax.GetLocation(), constant));
     }
 
-    private void AnalyzeType(SymbolAnalysisContext context)
+    private static ITypeSymbol? UnderlyingType(ITypeSymbol? type) =>
+        type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable
+            ? nullable.TypeArguments[0] : type;
+
+    private static object? ReadConstant(IOperation value, int depth = 0)
     {
-        var type = (INamedTypeSymbol)context.Symbol;
-        if (type.TypeKind != TypeKind.Class || !_entityFacts.IsDerived(type, context.CancellationToken)) return;
+        if (value.ConstantValue.HasValue) return value.ConstantValue.Value;
+        if (depth == 32 || value is not IConversionOperation { OperatorMethod: null, IsTryCast: false } conversion ||
+            conversion.Operand.Type?.IsValueType != true) return null;
 
-        if (!type.IsAbstract && !EntityAnalyzerHelper.IsEffectivelyPrivate(type) && HasGenericContainerOrParameters(type))
-            context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.GenericConcreteEntity,
-                type.Locations.FirstOrDefault(), type.ToDisplayString()));
+        var target = UnderlyingType(conversion.Type);
+        var operand = ReadConstant(conversion.Operand, depth + 1);
+        if (operand is null || SymbolEqualityComparer.Default.Equals(target, UnderlyingType(conversion.Operand.Type)))
+            return operand;
 
+        // Roslyn leaves lifted casts unfolded. The two identity contracts use int and byte storage.
+        var storage = target is INamedTypeSymbol { EnumUnderlyingType: { } storageType } ? storageType : target;
+        if (storage?.SpecialType is not (SpecialType.System_Byte or SpecialType.System_Int32)) return null;
+        return ConvertIdentityConstant(operand, storage.SpecialType == SpecialType.System_Byte, conversion.IsChecked);
+    }
+
+    private static object? ConvertIdentityConstant(object operand, bool isByte, bool isChecked)
+    {
+        var min = isByte ? byte.MinValue : int.MinValue;
+        var max = isByte ? byte.MaxValue : int.MaxValue;
+        if (operand is double or float)
+        {
+            var truncated = Math.Truncate(operand is double d ? d : (float)operand);
+            if (!(truncated >= min && truncated <= max)) return null;
+            return isByte ? (object)(byte)truncated : (int)truncated;
+        }
+
+        decimal number;
+        if (operand is decimal dec) number = decimal.Truncate(dec);
+        else if (operand is char character) number = character;
+        else if (operand is ulong unsigned) number = unsigned;
+        else if (TryToInt64(operand, out var integer)) number = integer;
+        else return null;
+
+        if (number < min || number > max)
+        {
+            if (isChecked || operand is decimal) return null;
+            number %= isByte ? 256L : 1L << 32;
+        }
+        return isByte ? (object)unchecked((byte)(long)number) : unchecked((int)(long)number);
+    }
+
+    private static bool TryToInt64(object? rawValue, out long value)
+    {
+        switch (rawValue)
+        {
+            case sbyte v: value = v; return true;
+            case byte v: value = v; return true;
+            case short v: value = v; return true;
+            case ushort v: value = v; return true;
+            case int v: value = v; return true;
+            case uint v: value = v; return true;
+            case long v: value = v; return true;
+            case ulong v when v <= long.MaxValue: value = (long)v; return true;
+            default: value = 0; return false;
+        }
+    }
+
+    internal void AnalyzeHiddenIdentityMembers(SymbolAnalysisContext context, INamedTypeSymbol type)
+    {
         foreach (var member in type.GetMembers())
         {
             context.CancellationToken.ThrowIfCancellationRequested();
-            if (member.IsImplicitlyDeclared || member.Name is not ("Id" or "EntityId" or "EntityIdSource") ||
-                member is not (IPropertySymbol or IFieldSymbol or IMethodSymbol or IEventSymbol or INamedTypeSymbol) ||
-                !_entity.GetMembers(member.Name).OfType<IPropertySymbol>().Any()) continue;
+            if (member.IsImplicitlyDeclared || !IsIdentityMember(member.Name) ||
+                member is not (IPropertySymbol or IFieldSymbol or IMethodSymbol or IEventSymbol or INamedTypeSymbol)) continue;
 
             context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.HiddenEntityIdentityMember,
                 member.Locations.FirstOrDefault(), member.ToDisplayString(), member.Name));
         }
     }
 
-    private static bool HasGenericContainerOrParameters(INamedTypeSymbol type)
+    private bool IsIdentityMember(string name) => name switch
     {
-        for (var current = type; current != null; current = current.ContainingType)
-            if (current.Arity > 0) return true;
-        return false;
-    }
+        "Id" => _hasId,
+        "EntityId" => _hasEntityId,
+        "EntityIdSource" => _hasEntityIdSource,
+        _ => false
+    };
 
     private void AnalyzeInvocation(OperationAnalysisContext context)
     {

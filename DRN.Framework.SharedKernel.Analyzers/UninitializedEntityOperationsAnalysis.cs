@@ -14,27 +14,44 @@ internal sealed class UninitializedEntityOperationsAnalysis
         internal bool Fresh = true;
     }
 
-    private readonly OperationBlockAnalysisContext _context;
-    private readonly INamedTypeSymbol _entity;
-    private readonly EntityAnalyzerHelper.EntityTypeFacts _entityFacts;
-    private readonly ConcurrentDictionary<IMethodSymbol, bool> _passiveConstructors;
+    private sealed class OperationsFacts(Compilation compilation, INamedTypeSymbol entity,
+        EntityAnalyzerHelper.EntityTypeFacts entityFacts)
+    {
+        internal INamedTypeSymbol Entity { get; } = entity;
+        internal EntityAnalyzerHelper.EntityTypeFacts EntityFacts { get; } = entityFacts;
+        internal INamedTypeSymbol? EntityGeneric { get; } =
+            compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity`1");
+        internal INamedTypeSymbol? Aggregate { get; } =
+            compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.AggregateRoot");
+        internal INamedTypeSymbol? AggregateGeneric { get; } =
+            compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.AggregateRoot`1");
+        internal INamedTypeSymbol? ListType { get; } =
+            compilation.GetTypeByMetadataName("System.Collections.Generic.List`1");
+        internal ConcurrentDictionary<IMethodSymbol, bool> PassiveConstructors { get; } =
+            new(SymbolEqualityComparer.Default);
+    }
+
+    private readonly Compilation _compilation;
+    private readonly CancellationToken _cancellation;
+    private readonly Action<Diagnostic> _reportDiagnostic;
+    private readonly OperationsFacts _facts;
     private readonly Dictionary<ILocalSymbol, FreshEntity?> _locals = new(SymbolEqualityComparer.Default);
     private readonly List<FreshEntity> _origins = [];
     private FreshEntity? _this;
 
-    private UninitializedEntityOperationsAnalysis(OperationBlockAnalysisContext context, INamedTypeSymbol entity,
-        EntityAnalyzerHelper.EntityTypeFacts entityFacts, ConcurrentDictionary<IMethodSymbol, bool> passiveConstructors)
+    private UninitializedEntityOperationsAnalysis(Compilation compilation, CancellationToken cancellation,
+        Action<Diagnostic> reportDiagnostic, OperationsFacts facts)
     {
-        _context = context;
-        _entity = entity;
-        _entityFacts = entityFacts;
-        _passiveConstructors = passiveConstructors;
+        _compilation = compilation;
+        _cancellation = cancellation;
+        _reportDiagnostic = reportDiagnostic;
+        _facts = facts;
     }
 
     internal static void Register(CompilationStartAnalysisContext context, INamedTypeSymbol entity,
         EntityAnalyzerHelper.EntityTypeFacts entityFacts)
     {
-        var passiveConstructors = new ConcurrentDictionary<IMethodSymbol, bool>(SymbolEqualityComparer.Default);
+        var facts = new OperationsFacts(context.Compilation, entity, entityFacts);
         context.RegisterOperationBlockStartAction(start =>
         {
             if (start.OwningSymbol is not IMethodSymbol method) return;
@@ -42,16 +59,26 @@ internal sealed class UninitializedEntityOperationsAnalysis
             start.RegisterOperationAction(operation =>
             {
                 var invocation = (IInvocationOperation)operation.Operation;
-                if (IsOperationsMethod(invocation.TargetMethod, entity)) Volatile.Write(ref hasOperationsCall, 1);
+                if (IsOperationsMethod(invocation.TargetMethod, facts.Entity)) Volatile.Write(ref hasOperationsCall, 1);
             }, OperationKind.Invocation);
-            start.RegisterOperationBlockEndAction(blockContext =>
+
+            // Each diagnostic belongs to the block, including calls outside the first matching invocation.
+            start.RegisterOperationBlockEndAction(end =>
             {
                 if (Volatile.Read(ref hasOperationsCall) == 0) return;
-                foreach (var block in blockContext.OperationBlocks)
+                IOperation? previousRoot = null;
+                foreach (var block in end.OperationBlocks)
                 {
-                    var analysis = new UninitializedEntityOperationsAnalysis(blockContext, entity, entityFacts, passiveConstructors);
+                    var root = block;
+                    while (root.Parent is { } parent) root = parent;
+                    // The constructor initializer and body can share the same root operation.
+                    if (ReferenceEquals(root, previousRoot)) continue;
+                    previousRoot = root;
+
+                    var analysis = new UninitializedEntityOperationsAnalysis(
+                        end.Compilation, end.CancellationToken, end.ReportDiagnostic, facts);
                     analysis.InitializeConstructorReceiver(method);
-                    analysis.Evaluate(block);
+                    analysis.Evaluate(root);
                 }
             });
         });
@@ -60,7 +87,7 @@ internal sealed class UninitializedEntityOperationsAnalysis
     private void InitializeConstructorReceiver(IMethodSymbol method)
     {
         if (method.MethodKind == MethodKind.Constructor && IsEntity(method.ContainingType) &&
-            HasPassiveInitialization(method, new HashSet<ISymbol>(SymbolEqualityComparer.Default)))
+            IsConstructorInitializationPassive(method, new HashSet<ISymbol>(SymbolEqualityComparer.Default), out _))
             _this = NewOrigin();
     }
 
@@ -80,7 +107,7 @@ internal sealed class UninitializedEntityOperationsAnalysis
 
     private FreshEntity? Evaluate(IOperation? operation)
     {
-        _context.CancellationToken.ThrowIfCancellationRequested();
+        _cancellation.ThrowIfCancellationRequested();
         switch (operation)
         {
             case null: return null;
@@ -165,10 +192,10 @@ internal sealed class UninitializedEntityOperationsAnalysis
     {
         var receiver = Evaluate(invocation.Instance);
         foreach (var argument in invocation.Arguments) Evaluate(argument.Value);
-        if (IsOperationsMethod(invocation.TargetMethod, _entity))
+        if (IsOperationsMethod(invocation.TargetMethod, _facts.Entity))
         {
             if (receiver is { Fresh: true } && RequiresOperations(invocation))
-                _context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.UninitializedEntityOperations,
+                _reportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.UninitializedEntityOperations,
                     invocation.Syntax.GetLocation(), invocation.TargetMethod.Name));
             return;
         }
@@ -192,28 +219,37 @@ internal sealed class UninitializedEntityOperationsAnalysis
     }
 
     private bool IsEntity(INamedTypeSymbol type) =>
-        _entityFacts.IsEntity(type, _context.CancellationToken);
+        _facts.EntityFacts.IsEntity(type, _cancellation);
 
     private bool IsFrameworkConstructor(IMethodSymbol constructor)
     {
-        var type = constructor.ContainingType;
-        if (!SymbolEqualityComparer.Default.Equals(type.ContainingAssembly, _entity.ContainingAssembly)) return false;
-        return type.OriginalDefinition.ToDisplayString() is
-            "DRN.Framework.SharedKernel.Domain.SourceKnownEntity" or
-            "DRN.Framework.SharedKernel.Domain.SourceKnownEntity<TModel>" or
-            "DRN.Framework.SharedKernel.Domain.AggregateRoot" or
-            "DRN.Framework.SharedKernel.Domain.AggregateRoot<TModel>";
+        var definition = constructor.ContainingType.OriginalDefinition;
+        return SymbolEqualityComparer.Default.Equals(definition, _facts.Entity) ||
+               SymbolEqualityComparer.Default.Equals(definition, _facts.EntityGeneric) ||
+               SymbolEqualityComparer.Default.Equals(definition, _facts.Aggregate) ||
+               SymbolEqualityComparer.Default.Equals(definition, _facts.AggregateGeneric);
     }
 
-    private bool IsPassiveConstructor(IMethodSymbol constructor, HashSet<ISymbol>? visited = null)
+    private bool IsPassiveConstructor(IMethodSymbol constructor) =>
+        IsPassiveConstructor(constructor, visited: null, out _);
+
+    private bool IsPassiveConstructor(IMethodSymbol constructor, HashSet<ISymbol>? visited, out bool cycleDetected)
     {
-        _context.CancellationToken.ThrowIfCancellationRequested();
+        _cancellation.ThrowIfCancellationRequested();
+        cycleDetected = false;
         if (IsFrameworkConstructor(constructor)) return true;
-        if (_passiveConstructors.TryGetValue(constructor, out var passive)) return passive;
+        if (_facts.PassiveConstructors.TryGetValue(constructor, out var passive)) return passive;
         visited ??= new(SymbolEqualityComparer.Default);
-        if (!visited.Add(constructor.OriginalDefinition)) return false;
-        passive = HasPassiveInitialization(constructor, visited) && HasPassiveConstructorBodies(constructor);
-        _passiveConstructors.TryAdd(constructor, passive);
+        if (!visited.Add(constructor.OriginalDefinition))
+        {
+            cycleDetected = true;
+            return false;
+        }
+        passive = IsConstructorInitializationPassive(constructor, visited, out cycleDetected) &&
+                  HasPassiveConstructorBodies(constructor);
+        _cancellation.ThrowIfCancellationRequested();
+        if (!cycleDetected || passive)
+            _facts.PassiveConstructors.TryAdd(constructor, passive);
         return passive;
     }
 
@@ -221,7 +257,7 @@ internal sealed class UninitializedEntityOperationsAnalysis
     {
         foreach (var reference in constructor.DeclaringSyntaxReferences)
         {
-            var syntax = reference.GetSyntax(_context.CancellationToken);
+            var syntax = reference.GetSyntax(_cancellation);
             if (!HasPassiveConstructorBody(syntax)) return false;
         }
         return true;
@@ -231,23 +267,24 @@ internal sealed class UninitializedEntityOperationsAnalysis
     {
         if (syntax is ClassDeclarationSyntax) return true; // Primary constructor has no separate body.
         if (syntax is not ConstructorDeclarationSyntax declaration) return false;
-        var model = _context.Compilation.GetSemanticModel(syntax.SyntaxTree);
+        var model = _compilation.GetSemanticModel(syntax.SyntaxTree);
         if (declaration.ExpressionBody != null &&
-            (model.GetOperation(declaration.ExpressionBody.Expression, _context.CancellationToken) is not ISimpleAssignmentOperation expressionAssignment ||
+            (model.GetOperation(declaration.ExpressionBody.Expression, _cancellation) is not ISimpleAssignmentOperation expressionAssignment ||
              !IsPassiveAssignment(expressionAssignment)))
             return false;
         if (declaration.Body == null) return true;
         return declaration.Body.Statements.All(statement =>
-            model.GetOperation(statement, _context.CancellationToken) is IExpressionStatementOperation
+            model.GetOperation(statement, _cancellation) is IExpressionStatementOperation
                 { Operation: ISimpleAssignmentOperation assignment } && IsPassiveAssignment(assignment));
     }
 
-    private bool HasPassiveInitialization(IMethodSymbol constructor, HashSet<ISymbol> visited)
+    private bool IsConstructorInitializationPassive(IMethodSymbol constructor, HashSet<ISymbol> visited, out bool cycleDetected)
     {
+        cycleDetected = false;
         if (IsFrameworkConstructor(constructor)) return true;
         var type = constructor.ContainingType;
         if (!HasPassiveMemberInitializers(type)) return false;
-        return HasPassiveConstructorInitializer(constructor, visited);
+        return HasPassiveConstructorInitializer(constructor, visited, out cycleDetected);
     }
 
     private bool HasPassiveMemberInitializers(INamedTypeSymbol type)
@@ -255,8 +292,8 @@ internal sealed class UninitializedEntityOperationsAnalysis
         if (type.DeclaringSyntaxReferences.Length == 0) return false;
         foreach (var reference in type.DeclaringSyntaxReferences)
         {
-            var syntax = reference.GetSyntax(_context.CancellationToken);
-            if (!_context.Compilation.ContainsSyntaxTree(syntax.SyntaxTree)) return false;
+            var syntax = reference.GetSyntax(_cancellation);
+            if (!_compilation.ContainsSyntaxTree(syntax.SyntaxTree)) return false;
             var initializers = syntax.ChildNodes().OfType<MemberDeclarationSyntax>()
                 .SelectMany(GetMemberInitializers).Where(initializer => initializer != null);
             if (!initializers.All(initializer => IsPassiveInitializer(initializer!))) return false;
@@ -272,9 +309,10 @@ internal sealed class UninitializedEntityOperationsAnalysis
         _ => []
     };
 
-    private bool HasPassiveConstructorInitializer(IMethodSymbol constructor, HashSet<ISymbol> visited)
+    private bool HasPassiveConstructorInitializer(IMethodSymbol constructor, HashSet<ISymbol> visited, out bool cycleDetected)
     {
-        var declaration = constructor.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax(_context.CancellationToken);
+        cycleDetected = false;
+        var declaration = constructor.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax(_cancellation);
         if (declaration is not (null or ConstructorDeclarationSyntax or ClassDeclarationSyntax)) return false;
         SyntaxNode? initializerSyntax = declaration switch
         {
@@ -284,21 +322,21 @@ internal sealed class UninitializedEntityOperationsAnalysis
         };
         if (initializerSyntax != null)
         {
-            var model = _context.Compilation.GetSemanticModel(initializerSyntax.SyntaxTree);
+            var model = _compilation.GetSemanticModel(initializerSyntax.SyntaxTree);
             var arguments = initializerSyntax is ConstructorInitializerSyntax ordinary
                 ? ordinary.ArgumentList.Arguments
                 : ((PrimaryConstructorBaseTypeSyntax)initializerSyntax).ArgumentList.Arguments;
-            if (arguments.Any(argument => !IsPassiveValue(model.GetOperation(argument.Expression, _context.CancellationToken)))) return false;
-            return model.GetSymbolInfo(initializerSyntax, _context.CancellationToken).Symbol is IMethodSymbol target &&
-                   IsPassiveConstructor(target, visited);
+            if (arguments.Any(argument => !IsPassiveValue(model.GetOperation(argument.Expression, _cancellation)))) return false;
+            return model.GetSymbolInfo(initializerSyntax, _cancellation).Symbol is IMethodSymbol target &&
+                   IsPassiveConstructor(target, visited, out cycleDetected);
         }
         var type = constructor.ContainingType;
         var candidates = type.BaseType?.InstanceConstructors.Where(candidate =>
-            _context.Compilation.IsSymbolAccessibleWithin(candidate, type) &&
+            _compilation.IsSymbolAccessibleWithin(candidate, type) &&
             candidate.Parameters.All(parameter => parameter.IsOptional)).ToArray() ?? [];
         var implicitBase = candidates.FirstOrDefault(candidate => candidate.Parameters.Length == 0)
                            ?? (candidates.Length == 1 ? candidates[0] : null);
-        return implicitBase != null && IsPassiveConstructor(implicitBase, visited);
+        return implicitBase != null && IsPassiveConstructor(implicitBase, visited, out cycleDetected);
     }
 
     private bool IsPassiveAssignment(ISimpleAssignmentOperation assignment)
@@ -311,7 +349,7 @@ internal sealed class UninitializedEntityOperationsAnalysis
             IPropertyReferenceOperation { Instance: IInstanceReferenceOperation } property =>
                 !property.Property.IsVirtual && !property.Property.IsOverride &&
                 property.Property.DeclaringSyntaxReferences.Any(reference =>
-                    reference.GetSyntax(_context.CancellationToken) is PropertyDeclarationSyntax
+                    reference.GetSyntax(_cancellation) is PropertyDeclarationSyntax
                     { AccessorList: not null } syntax && syntax.AccessorList.Accessors.All(accessor => accessor.Body == null && accessor.ExpressionBody == null)),
             _ => false
         };
@@ -319,13 +357,13 @@ internal sealed class UninitializedEntityOperationsAnalysis
 
     private bool IsPassiveInitializer(EqualsValueClauseSyntax initializer)
     {
-        var model = _context.Compilation.GetSemanticModel(initializer.SyntaxTree);
-        if (model.GetConstantValue(initializer.Value, _context.CancellationToken).HasValue) return true;
+        var model = _compilation.GetSemanticModel(initializer.SyntaxTree);
+        if (model.GetConstantValue(initializer.Value, _cancellation).HasValue) return true;
         // The standard empty List<T> initializer cannot expose or initialize its owning entity.
-        return initializer.Value is CollectionExpressionSyntax { Elements.Count: 0 } &&
-               model.GetTypeInfo(initializer.Value, _context.CancellationToken).ConvertedType is INamedTypeSymbol type &&
-               SymbolEqualityComparer.Default.Equals(type.OriginalDefinition,
-                   _context.Compilation.GetTypeByMetadataName("System.Collections.Generic.List`1"));
+        return _facts.ListType != null &&
+               initializer.Value is CollectionExpressionSyntax { Elements.Count: 0 } &&
+               model.GetTypeInfo(initializer.Value, _cancellation).ConvertedType is INamedTypeSymbol type &&
+               SymbolEqualityComparer.Default.Equals(type.OriginalDefinition, _facts.ListType);
     }
 
     private static bool IsPassiveValue(IOperation? value) => value switch

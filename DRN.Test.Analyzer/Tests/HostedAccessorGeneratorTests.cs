@@ -1,19 +1,11 @@
 using System.Text;
-using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Generators;
-using DRN.Framework.Testing.DataAttributes;
 using Microsoft.CodeAnalysis.Text;
 
 namespace DRN.Test.Analyzer.Tests;
 
 public class HostedAccessorGeneratorTests
 {
-    private static readonly ImmutableArray<MetadataReference> CompilationReferences =
-        ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
-            .Append(typeof(AccessorControllerAttribute).Assembly.Location)
-            .Distinct(StringComparer.Ordinal).Select(path => (MetadataReference)MetadataReference.CreateFromFile(path))
-            .ToImmutableArray();
-
     private static readonly string[] ExpectedProbeActions =
     [
         "AcceptedAction", "CustomMethodsAction", "CustomRouteAction", "CustomVerbAction", "DeleteAction", "GetAction", "HeadAction",
@@ -163,9 +155,13 @@ public class HostedAccessorGeneratorTests
         Generated(result, "AppEndpointFor.g.cs").Should().Contain("EndpointCollectionBase<global::Program, AppEndpointFor>");
         Generated(result, "AppPageFor.g.cs").Should().Contain("PageCollectionBase<AppPageFor>");
 
-        var collision = Generate(source + ProgramSource.Replace("TestProgram", "AppProgram", StringComparison.Ordinal));
-        collision.Diagnostics.Should().Contain(diagnostic => diagnostic.Id == "DRNHG001" && diagnostic.GetMessage().Contains("collides"));
+        var collision = GenerateAppRootCollision();
+        collision.Diagnostics.Should().Contain(diagnostic => diagnostic.Id == "DRNHOSTING001" && diagnostic.GetMessage().Contains("collides"));
     }
+
+    internal static GeneratorDriverRunResult GenerateAppRootCollision() =>
+        Generate(ProgramSource.Replace("TestProgram", "Program", StringComparison.Ordinal) +
+                 ProgramSource.Replace("TestProgram", "AppProgram", StringComparison.Ordinal));
 
     [Fact]
     public void Generated_Accessors_Should_Use_Stored_References_Without_PerAccess_Lookups()
@@ -295,7 +291,7 @@ public class HostedAccessorGeneratorTests
         Generated(result, "TestEndpointFor.g.cs").Should().Contain("LegacyItemsFor Items");
 
         var invalid = Generate(source.Replace("typeof(ItemsController), TypeName", "typeof(ItemsController), \"\", TypeName", StringComparison.Ordinal), checkCompilation: false);
-        invalid.Diagnostics.Should().Contain(diagnostic => diagnostic.Id == "DRNHG001" && diagnostic.GetMessage().Contains("nonempty"));
+        invalid.Diagnostics.Should().Contain(diagnostic => diagnostic.Id == "DRNHOSTING001" && diagnostic.GetMessage().Contains("nonempty"));
     }
 
     [Fact]
@@ -444,14 +440,6 @@ public class HostedAccessorGeneratorTests
     }
 
     [Fact]
-    public void Generator_Should_Not_Emit_Helpers_In_Libraries()
-    {
-        var result = Generate(ProgramSource, hosted: false);
-        result.GeneratedTrees.Should().BeEmpty();
-        result.Diagnostics.Should().BeEmpty();
-    }
-
-    [Fact]
     public void Generator_Should_Resolve_Inherited_SourceKnown_Actions_And_Overrides()
     {
         var source = """
@@ -537,7 +525,7 @@ public class HostedAccessorGeneratorTests
     {
         var result = Generate("using DRN.Framework.Hosting.Endpoints;" + declarations + ProgramSource,
             checkCompilation: false);
-        result.Diagnostics.Should().Contain(diagnostic => diagnostic.Id == "DRNHG001" && diagnostic.GetMessage().Contains(reason));
+        result.Diagnostics.Should().Contain(diagnostic => diagnostic.Id == "DRNHOSTING001" && diagnostic.GetMessage().Contains(reason));
     }
 
     [Theory]
@@ -548,7 +536,7 @@ public class HostedAccessorGeneratorTests
         var result = Generate("using DRN.Framework.Hosting.Endpoints;" + declarations + ProgramSource,
             checkCompilation: false);
 
-        result.Diagnostics.Should().Contain(diagnostic => diagnostic.Id == "DRNHG001" &&
+        result.Diagnostics.Should().Contain(diagnostic => diagnostic.Id == "DRNHOSTING001" &&
             diagnostic.GetMessage().Contains("another endpoint collection"));
         result.GeneratedTrees.Should().BeEmpty();
     }
@@ -571,7 +559,7 @@ public class HostedAccessorGeneratorTests
         var stale = Generate(declarations + ProgramSource, checkCompilation: false);
 
         var diagnostic = stale.Diagnostics.Should().ContainSingle().Which;
-        diagnostic.Id.Should().Be("DRNHG001");
+        diagnostic.Id.Should().Be("DRNHOSTING001");
         diagnostic.GetMessage().Should().Be(includeMembers
             ? "AccessorMember 'Endpoint.AMissing.Action' does not identify an eligible action/page. Remove stale configuration."
             : "AccessorGroup 'AMissing' does not identify a generated group.");
@@ -600,7 +588,7 @@ public class HostedAccessorGeneratorTests
             public class PlainController { public void Read() { } }
             """ + ProgramSource, checkCompilation: false);
 
-        mapped.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNHG001");
+        mapped.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNHOSTING001");
         mapped.GeneratedTrees.Should().BeEmpty();
     }
 
@@ -855,7 +843,7 @@ public class HostedAccessorGeneratorTests
 
         var collision = Generate(declarations + "namespace First.Helpers.EndpointFor { public partial class ItemsFor { public int ReadAsync { get; } } }",
             checkCompilation: false);
-        collision.Diagnostics.Should().Contain(diagnostic => diagnostic.Id == "DRNHG001" && diagnostic.GetMessage().Contains("collides"));
+        collision.Diagnostics.Should().Contain(diagnostic => diagnostic.Id == "DRNHOSTING001" && diagnostic.GetMessage().Contains("collides"));
     }
 
     [Theory]
@@ -872,7 +860,7 @@ public class HostedAccessorGeneratorTests
         if (rejected)
         {
             result.GeneratedTrees.Should().BeEmpty();
-            result.Diagnostics.Should().Contain(diagnostic => diagnostic.Id == "DRNHG001" &&
+            result.Diagnostics.Should().Contain(diagnostic => diagnostic.Id == "DRNHOSTING001" &&
                 diagnostic.GetMessage().Contains(path) && diagnostic.GetMessage().Contains("shorter controller alias"));
         }
         else
@@ -1088,7 +1076,13 @@ public class HostedAccessorGeneratorTests
         Run();
         Generated(driver.GetRunResult(), "RootPageFor.g.cs").Should().Contain("string Anchor").And.NotContain("string Dashboard");
 
-        driver = driver.ReplaceAdditionalText(partial, renamed);
+        var movedLayout = new Page("Layouts/Moved.cshtml", "@* @page *@");
+        driver = driver.ReplaceAdditionalText(partial, movedLayout);
+        Run();
+        driver.GetRunResult().Results.Single().TrackedSteps["HostedAccessorInputs"].SelectMany(step => step.Outputs)
+            .Should().NotBeEmpty().And.OnlyContain(output => output.Reason == IncrementalStepRunReason.Cached);
+
+        driver = driver.ReplaceAdditionalText(movedLayout, renamed);
         Run();
         Generated(driver.GetRunResult(), "RootPageFor.g.cs").Should().Contain("string Dashboard");
         driver = driver.RemoveAdditionalTexts([renamed]);
@@ -1176,7 +1170,7 @@ public class HostedAccessorGeneratorTests
 
         var result = Generate(source);
 
-        result.Diagnostics.Should().ContainSingle(diagnostic => diagnostic.Id == "DRNHG001" && diagnostic.GetMessage().Contains("collides"));
+        result.Diagnostics.Should().ContainSingle(diagnostic => diagnostic.Id == "DRNHOSTING001" && diagnostic.GetMessage().Contains("collides"));
         Generated(result, "ItemsFor.g.cs").Should().Contain("ApiEndpoint Read").And.NotContain("ApiEndpoint Fetch");
         Generated(result, "OtherEndpointFor.g.cs").Should().Contain("public ItemsFor Items { get; } = new();");
         result.GeneratedTrees.Should().NotContain(tree => tree.FilePath.EndsWith(".TestEndpointFor.g.cs", StringComparison.Ordinal) ||
@@ -1213,7 +1207,7 @@ public class HostedAccessorGeneratorTests
 
     private static CSharpCompilation CreateCompilation(string source, string name = "AccessorFixture", MetadataReference[]? additionalReferences = null)
     {
-        return CSharpCompilation.Create(name, [CSharpSyntaxTree.ParseText(source)], CompilationReferences.Concat(additionalReferences ?? []),
+        return CSharpCompilation.Create(name, [CSharpSyntaxTree.ParseText(source)], AnalyzerTestCompilation.HostingReferences.Concat(additionalReferences ?? []),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
     }
 

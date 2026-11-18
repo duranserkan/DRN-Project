@@ -9,10 +9,8 @@ internal static class ConventionAggregateRepositoryAnalysis
     internal static void Analyze(ConventionFacts facts)
     {
         var contracts = new ContractIndex(facts);
-        var implementations = IndexRepositoryImplementations(facts);
         AnalyzeDomainAggregateContracts(facts, contracts);
-        var configurations = IndexConfigurations(facts);
-        AnalyzeContextRepositories(facts, implementations, configurations, contracts);
+        AnalyzeContextRepositories(facts, contracts);
     }
 
     private static Dictionary<INamedTypeSymbol, List<INamedTypeSymbol>> IndexRepositoryImplementations(ConventionFacts facts)
@@ -94,10 +92,10 @@ internal static class ConventionAggregateRepositoryAnalysis
         }
     }
 
-    private static void AnalyzeContextRepositories(ConventionFacts facts,
-        Dictionary<INamedTypeSymbol, List<INamedTypeSymbol>> implementations,
-        ConfigurationIndex configurations, ContractIndex contracts)
+    private static void AnalyzeContextRepositories(ConventionFacts facts, ContractIndex contracts)
     {
+        Dictionary<INamedTypeSymbol, List<INamedTypeSymbol>>? implementations = null;
+        ConfigurationIndex? configurations = null;
         var reported = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
         var repositoryMatches = new Dictionary<INamedTypeSymbol, bool>(SymbolEqualityComparer.Default);
         var selectedConfigurations = new List<int>();
@@ -111,9 +109,10 @@ internal static class ConventionAggregateRepositoryAnalysis
             var location = facts.Location(context);
             if (location == Location.None || facts.HasInvalidContext(context)) continue;
             var model = ConventionPersistenceAnalysis.GetModel(facts, context);
-            CollectContextEntities(facts, context, model, configurations, assigned, selectedConfigurations);
+            CollectContextEntities(facts, context, model, configurations ??= IndexConfigurations(facts), assigned, selectedConfigurations);
+            if (assigned.Count == 0) continue;
             ReportMissingContextRepositories(facts, context, location, model, assigned,
-                implementations, repositoryMatches, reported, contracts);
+                implementations ??= IndexRepositoryImplementations(facts), repositoryMatches, reported, contracts);
         }
     }
 

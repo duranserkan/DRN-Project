@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.CodeFixes;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeRefactorings;
@@ -5,6 +6,7 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace DRN.Test.Analyzer.Tests;
 
+[SuppressMessage("ReSharper", "AccessToDisposedClosure")]
 public sealed class AggregateReviewPlanRefactoringTests
 {
     private const string Source = "namespace Sample.Domain.Sales; public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot;";
@@ -297,7 +299,7 @@ public sealed class AggregateReviewPlanRefactoringTests
                 "Sample.Infra", "Sample.Infra", LanguageNames.CSharp, filePath: "/source/Sample.Infra/Sample.Infra.csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
-            .AddMetadataReference(MetadataReference.CreateFromFile(typeof(Framework.EntityFramework.Context.IDrnContext).Assembly.Location))
+            .AddMetadataReference(AnalyzerTestCompilation.EntityFrameworkReference)
             .AddProjectReference(new ProjectReference(domain.Id))
             .AddDocument("SalesContext.cs", """
                 namespace Sample.Infra.Sales;
@@ -338,7 +340,7 @@ public sealed class AggregateReviewPlanRefactoringTests
                 infraName, infraName, LanguageNames.CSharp, filePath: "/source/" + infraName + "/" + infraName + ".csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
-            .AddMetadataReference(MetadataReference.CreateFromFile(typeof(Framework.EntityFramework.Context.IDrnContext).Assembly.Location));
+            .AddMetadataReference(AnalyzerTestCompilation.EntityFrameworkReference);
         if (reference) infra = infra.AddProjectReference(new ProjectReference(domain.Id));
         if (contexts.Length > 0) infra = infra.AddDocument("Contexts.cs", contexts, filePath: "/source/" + infraName + "/Sales/Contexts.cs").Project;
         workspace.TryApplyChanges(infra.Solution).Should().BeTrue();

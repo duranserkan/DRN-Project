@@ -43,11 +43,11 @@ internal static class ConventionOwnershipAnalysis
         var symbols = facts.Symbols;
         entity = facts.IsEntity(type);
         var context = symbols.IsContext(type, facts.Cancellation);
-        configuration = ConventionSymbols.Is(type, symbols.Configuration, facts.Cancellation);
-        repository = ConventionSymbols.Is(type, symbols.RepositoryContract, facts.Cancellation);
-        service = ConventionSymbols.Is(type, symbols.ServiceContract, facts.Cancellation) ||
+        configuration = symbols.IsKnown(type, symbols.Configuration, facts.Cancellation);
+        repository = symbols.IsKnown(type, symbols.RepositoryContract, facts.Cancellation);
+        service = symbols.IsKnown(type, symbols.ServiceContract, facts.Cancellation) ||
                   role == ConventionArchitecture.Application && HasEntityBinding(facts, type);
-        var dto = ConventionSymbols.Is(type, symbols.Dto, facts.Cancellation);
+        var dto = symbols.IsKnown(type, symbols.Dto, facts.Cancellation);
         var transport = symbols.IsKnown(type, symbols.SourceKnownController, facts.Cancellation);
         return entity || context || configuration || repository || service || dto || transport;
     }
@@ -88,12 +88,9 @@ internal static class ConventionOwnershipAnalysis
         {
             facts.Cancellation.ThrowIfCancellationRequested();
             if (facts.IsGenerated(reference.SyntaxTree) || facts.HasInvalidPath(reference.SyntaxTree)) continue;
-            var path = facts.LogicalPath(reference.SyntaxTree);
-            if (path is null) { missing = true; continue; }
-            path = ConventionProject.NormalizeSeparators(path);
-            var separator = path.LastIndexOf('/');
-            var directory = separator < 0 ? "" : path[..separator];
-            if (directory == expectedDirectory && ns == expectedNamespace) continue;
+            var placement = facts.LogicalDirectory(reference.SyntaxTree);
+            if (placement is null) { missing = true; continue; }
+            if (placement.Value.Directory == expectedDirectory && ns == expectedNamespace) continue;
             conflict = true;
             var part = type.Locations.FirstOrDefault(candidate => candidate.SourceTree == reference.SyntaxTree &&
                 reference.Span.Contains(candidate.SourceSpan)) ?? reference.GetSyntax(facts.Cancellation).GetLocation();

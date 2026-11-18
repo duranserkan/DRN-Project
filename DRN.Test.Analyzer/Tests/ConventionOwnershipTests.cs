@@ -21,7 +21,7 @@ public sealed class ConventionOwnershipTests
             .Add("LogicalPath", "QA/Category.cs"), Location.None);
         var facts = new ConventionFacts(compilation, Project(compilation), new([input], []), new Options(), CancellationToken.None);
         ConventionOwnershipAnalysis.Analyze(facts);
-        var ownership = facts.Diagnostics.Where(item => item.Id == "DRNCV002").ToArray();
+        var ownership = facts.Diagnostics.Where(item => item.Id == "DRNOWNERSHIP001").ToArray();
         ownership.Should().HaveCount(missing ? 1 : 0);
         if (!missing) return;
         ownership[0].Severity.Should().Be(DiagnosticSeverity.Warning);
@@ -36,13 +36,13 @@ public sealed class ConventionOwnershipTests
             namespace Sample.Domain.QA;
             public class Thing
             {
-                [System.Diagnostics.CodeAnalysis.SuppressMessage("DRN.Conventions.Structure", "DRNCV003")]
+                [System.Diagnostics.CodeAnalysis.SuppressMessage("DRN.Conventions.Structure", "DRNSTRUCTURE001")]
                 public class Nested;
             }
             """, "QA/Thing.cs");
         _ = new ConventionExceptions(facts, new DateOnly(2026, 11, 15));
         var diagnostic = facts.Diagnostics.Should().ContainSingle().Which;
-        diagnostic.Id.Should().Be("DRNCV018");
+        diagnostic.Id.Should().Be("DRNCONVENTIONEXCEPTION001");
         diagnostic.GetMessage().Should().Contain("missing its justification");
         diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan).Should().Contain("SuppressMessage");
     }
@@ -51,10 +51,12 @@ public sealed class ConventionOwnershipTests
     public void Unrelated_And_Lookalike_Suppression_Attributes_Should_Not_Be_Audited()
     {
         var facts = Facts("""
+            [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("DRN.Classification", "DRNCLASSIFICATION003")]
             namespace Sample.Domain.QA;
             public class SuppressMessageAttribute(string category, string check) : System.Attribute;
-            [SuppressMessage("DRN.Conventions.Structure", "DRNCV003")]
+            [SuppressMessage("DRN.Conventions.Structure", "DRNSTRUCTURE001")]
             [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822")]
+            [System.Diagnostics.CodeAnalysis.SuppressMessage("DRN.Domain", "DRNENTITY013")]
             public class Thing;
             """, "QA/Thing.cs");
         _ = new ConventionExceptions(facts, new DateOnly(2026, 11, 15));
@@ -62,9 +64,10 @@ public sealed class ConventionOwnershipTests
     }
 
     [Theory]
-    [InlineData("disable DRNCV003 // Reviewed compatibility declaration", "not restored")]
-    [InlineData("restore DRNCV003", "without a matching")]
-    public void Unpaired_Local_Pragmas_Should_Remain_Visible(string pragma, string message)
+    [InlineData("disable DRNSTRUCTURE001 // Reviewed compatibility declaration", "not restored")]
+    [InlineData("restore DRNSTRUCTURE001", "without a matching")]
+    [InlineData("disable DRNOWNERSHIP999", "unknown")]
+    public void Invalid_Local_Pragmas_Should_Remain_Visible(string pragma, string message)
     {
         var facts = Facts($$"""
             namespace Sample.Domain.QA;
@@ -73,7 +76,7 @@ public sealed class ConventionOwnershipTests
             """, "QA/Thing.cs");
         _ = new ConventionExceptions(facts, new DateOnly(2026, 11, 15));
         var diagnostic = facts.Diagnostics.Should().ContainSingle().Which;
-        diagnostic.Id.Should().Be("DRNCV018");
+        diagnostic.Id.Should().Be("DRNCONVENTIONEXCEPTION001");
         diagnostic.GetMessage().Should().Contain(message);
     }
 
@@ -86,7 +89,7 @@ public sealed class ConventionOwnershipTests
     {
         var facts = Facts("namespace Sample.Domain.QA; public class Thing;", path);
         ConventionOwnershipAnalysis.Analyze(facts);
-        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNCV003").ToArray();
+        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNSTRUCTURE001").ToArray();
         diagnostics.Should().HaveCount(violation ? 1 : 0);
         if (violation)
         {
@@ -101,7 +104,7 @@ public sealed class ConventionOwnershipTests
     {
         var facts = Facts("namespace Sample.Domain.QA; public class Thing;", null);
         ConventionOwnershipAnalysis.Analyze(facts);
-        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV001");
+        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCONVENTIONINPUT001");
     }
 
     [Fact]
@@ -117,12 +120,12 @@ public sealed class ConventionOwnershipTests
     public void Exact_Project_Exception_Should_Not_Waive_Another_Type_Or_Rule()
     {
         var facts = Facts("namespace Sample.Domain.QA; public class Thing;", "Other/Thing.cs",
-            new ConventionInput("Exception", "DRNCV003", ImmutableDictionary<string, string>.Empty
+            new ConventionInput("Exception", "DRNSTRUCTURE001", ImmutableDictionary<string, string>.Empty
                 .Add("Target", "T:Sample.Domain.QA.Thing").Add("Reason", "Linked compatibility source remains in its existing logical home.")
                 .Add("Owner", "Application maintainers").Add("Review", "2027-01-01"), Location.None));
         var exceptions = new ConventionExceptions(facts, new DateOnly(2026, 11, 15));
         ConventionOwnershipAnalysis.Analyze(facts);
-        var placement = facts.Diagnostics.Single(item => item.Id == "DRNCV003");
+        var placement = facts.Diagnostics.Single(item => item.Id == "DRNSTRUCTURE001");
         exceptions.Applies(placement).Should().BeTrue();
         exceptions.Applies(Diagnostic.Create(ConventionDiagnosticDescriptors.MissingOwnership, placement.Location, "Thing"))
             .Should().BeFalse();
@@ -135,10 +138,10 @@ public sealed class ConventionOwnershipTests
     public void Invalid_Project_Exception_Should_Remain_Visible(string reason, string target)
     {
         var facts = Facts("namespace Sample.Domain.QA; public class Thing;", "QA/Thing.cs",
-            new ConventionInput("Exception", "DRNCV003", ImmutableDictionary<string, string>.Empty.Add("Target", target)
+            new ConventionInput("Exception", "DRNSTRUCTURE001", ImmutableDictionary<string, string>.Empty.Add("Target", target)
                 .Add("Reason", reason).Add("Owner", "Maintainers").Add("Review", "2027-01-01"), Location.None));
         _ = new ConventionExceptions(facts, new DateOnly(2026, 11, 15));
-        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV018");
+        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCONVENTIONEXCEPTION001");
     }
 
     [Fact]
@@ -149,7 +152,7 @@ public sealed class ConventionOwnershipTests
             .DeclaringSyntaxReferences.Single().GetSyntax().ToFullString();
         var fingerprint = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
             System.Text.Encoding.UTF8.GetBytes("Other/Thing.cs\n" + declaration))).ToLowerInvariant();
-        var input = new ConventionInput("Exception", "DRNCV003", ImmutableDictionary<string, string>.Empty
+        var input = new ConventionInput("Exception", "DRNSTRUCTURE001", ImmutableDictionary<string, string>.Empty
             .Add("Target", "T:Sample.Domain.QA.Thing").Add("Reason", "Reviewed linked compatibility declaration")
             .Add("Owner", "Maintainers").Add("Review", "2027-01-01").Add("Fingerprint", fingerprint), Location.None);
         var valid = Facts(source, "Other/Thing.cs", input);
@@ -159,15 +162,15 @@ public sealed class ConventionOwnershipTests
 
         var due = Facts(source, "Other/Thing.cs", input);
         _ = new ConventionExceptions(due, new DateOnly(2027, 1, 1));
-        due.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV018");
+        due.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCONVENTIONEXCEPTION001");
 
         var changed = Facts("namespace Sample.Domain.QA; public class Thing { public int Added; }", "Other/Thing.cs", input);
         _ = new ConventionExceptions(changed, new DateOnly(2026, 11, 15));
-        changed.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV018");
+        changed.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCONVENTIONEXCEPTION001");
 
         var moved = Facts(source, "Legacy/Thing.cs", input);
         _ = new ConventionExceptions(moved, new DateOnly(2026, 11, 15));
-        moved.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV018");
+        moved.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCONVENTIONEXCEPTION001");
     }
 
     [Fact]
@@ -178,12 +181,12 @@ public sealed class ConventionOwnershipTests
             public class Thing;
             public class AddedAggregate : DRN.Framework.SharedKernel.Domain.AggregateRoot;
             """, "Wrong/Thing.cs",
-            new ConventionInput("Exception", "DRNCV003", ImmutableDictionary<string, string>.Empty
+            new ConventionInput("Exception", "DRNSTRUCTURE001", ImmutableDictionary<string, string>.Empty
                 .Add("Target", "T:Sample.Domain.QA.Thing").Add("Reason", "Reviewed linked declaration only.")
                 .Add("Owner", "Maintainers").Add("Review", "2027-01-01"), Location.None));
         var exceptions = new ConventionExceptions(facts, new DateOnly(2026, 11, 15));
         ConventionOwnershipAnalysis.Analyze(facts);
-        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNCV003").ToArray();
+        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNSTRUCTURE001").ToArray();
         diagnostics.Should().HaveCount(2);
         exceptions.Applies(diagnostics.Single(item => item.GetMessage().StartsWith("'Thing'", StringComparison.Ordinal))).Should().BeTrue();
         exceptions.Applies(diagnostics.Single(item => item.GetMessage().StartsWith("'AddedAggregate'", StringComparison.Ordinal))).Should().BeFalse();
@@ -199,7 +202,7 @@ public sealed class ConventionOwnershipTests
     public void Assembly_Suppression_Should_Require_An_Exact_Type_Or_Member(string scope, string target, bool invalid)
     {
         var facts = Facts($$"""
-            [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("DRN.Conventions.Ownership", "DRNCV019",
+            [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("DRN.Conventions.Ownership", "DRNOWNERSHIP002",
                 Scope = "{{scope}}", Target = "{{target}}", Justification = "Reviewed exact compatibility dependency")]
             namespace Sample.Domain.QA;
             public class Thing
@@ -208,7 +211,7 @@ public sealed class ConventionOwnershipTests
             }
             """, "QA/Thing.cs");
         _ = new ConventionExceptions(facts, new DateOnly(2026, 11, 15));
-        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV018").Should().Be(invalid ? 1 : 0);
+        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCONVENTIONEXCEPTION001").Should().Be(invalid ? 1 : 0);
     }
 
     [Theory]
@@ -220,7 +223,7 @@ public sealed class ConventionOwnershipTests
         string scope, string target, string justification, int expectedErrors)
     {
         var facts = Facts($$"""
-            [module: System.Diagnostics.CodeAnalysis.SuppressMessage("DRN.Conventions.Ownership", "DRNCV019",
+            [module: System.Diagnostics.CodeAnalysis.SuppressMessage("DRN.Conventions.Ownership", "DRNOWNERSHIP002",
                 Scope = "{{scope}}", Target = "{{target}}", Justification = "{{justification}}")]
             namespace Sample.Domain.QA;
             public class Thing
@@ -229,12 +232,13 @@ public sealed class ConventionOwnershipTests
             }
             """, "QA/Thing.cs");
         _ = new ConventionExceptions(facts, new DateOnly(2026, 11, 15));
-        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV018").Should().Be(expectedErrors);
+        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCONVENTIONEXCEPTION001").Should().Be(expectedErrors);
     }
 
     [Theory]
-    [InlineData("DRNCV003", "", false)]
-    [InlineData("DRNCV003", "public class Other;", true)]
+    [InlineData("DRNSTRUCTURE001", "", false)]
+    [InlineData("DRNSTRUCTURE001", "public class Other;", true)]
+    [InlineData("DRNAUTHORIZATION001", "public class Other;", false)]
     [InlineData("", "", true)]
     public void Pragma_Audit_Should_Reject_Blanket_And_Multiple_Declaration_Scopes(string rule, string other, bool invalid)
     {
@@ -247,7 +251,7 @@ public sealed class ConventionOwnershipTests
             #pragma warning restore {{rule}}
             """, "QA/Thing.cs");
         _ = new ConventionExceptions(facts, new DateOnly(2026, 11, 15));
-        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV018").Should().Be(invalid ? 1 : 0);
+        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCONVENTIONEXCEPTION001").Should().Be(invalid ? 1 : 0);
     }
 
     [Theory]
@@ -286,7 +290,7 @@ public sealed class ConventionOwnershipTests
             new(true, "Sample.Application", "Application", "Sample.Application", compilation.AssemblyName!, []),
             new([input, domain, domainPath], []), new Options(), CancellationToken.None);
         ConventionOwnershipAnalysis.Analyze(facts);
-        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV002").Should().Be(missingOwners,
+        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNOWNERSHIP001").Should().Be(missingOwners,
             "only the service and its contract may lack ownership. Diagnostics: {0}",
             string.Join(Environment.NewLine, facts.Diagnostics));
         facts.Diagnostics.Select(diagnostic => diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan))
@@ -311,7 +315,7 @@ public sealed class ConventionOwnershipTests
         var facts = new ConventionFacts(compilation, Project(compilation), new([.. records], []), new Options(), CancellationToken.None);
         ConventionOwnershipAnalysis.Analyze(facts);
         var diagnostic = facts.Diagnostics.Should().ContainSingle().Which;
-        diagnostic.Id.Should().Be("DRNCV003");
+        diagnostic.Id.Should().Be("DRNSTRUCTURE001");
         diagnostic.Severity.Should().Be(DiagnosticSeverity.Warning);
         diagnostic.GetMessage().Should().Be("'Thing' belongs in 'QA' with namespace 'Sample.Domain.QA'; current logical placement conflicts.");
         diagnostic.Location.SourceTree!.FilePath.Should().Be("/outside/first.cs");

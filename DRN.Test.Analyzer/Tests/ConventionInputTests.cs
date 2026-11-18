@@ -1,5 +1,5 @@
 extern alias SharedKernelAnalyzers;
-
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Analyzers.Conventions;
 using Microsoft.CodeAnalysis.Emit;
 using ConventionInputLimits = SharedKernelAnalyzers::DRN.Framework.SharedKernel.Analyzers.Conventions.ConventionInputLimits;
@@ -9,6 +9,7 @@ using static DRN.Test.Analyzer.Tests.ProjectDiagnosticRulesTests;
 
 namespace DRN.Test.Analyzer.Tests;
 
+[SuppressMessage("ReSharper", "AccessToDisposedClosure")]
 public sealed class ConventionInputTests
 {
     [Theory]
@@ -90,7 +91,7 @@ public sealed class ConventionInputTests
             ["build_property.RootNamespace"] = "Sample"
         }));
         project.Enabled.Should().Be(expected);
-        project.Diagnostics.Should().HaveCount(errors).And.OnlyContain(diagnostic => diagnostic.Id == "DRNCV001");
+        project.Diagnostics.Should().HaveCount(errors).And.OnlyContain(diagnostic => diagnostic.Id == "DRNCONVENTIONINPUT001");
     }
 
     [Fact]
@@ -131,7 +132,7 @@ public sealed class ConventionInputTests
     {
         var input = Read("""
             [assembly: DRN.Conventions.Version("1")]
-            [assembly: DRN.Conventions.Exception("DRNCV019", SymbolTarget = "M:Shop.Application.Sales.Reader.Read", Reason = "Reviewed coupling")]
+            [assembly: DRN.Conventions.Exception("DRNOWNERSHIP002", SymbolTarget = "M:Shop.Application.Sales.Reader.Read", Reason = "Reviewed coupling")]
             """);
         input.Diagnostics.Should().BeEmpty();
         input.Records[1].Get("Target").Should().Be("M:Shop.Application.Sales.Reader.Read");
@@ -143,9 +144,9 @@ public sealed class ConventionInputTests
     {
         var input = Read("""
             [assembly: DRN.Conventions.Version("1")]
-            [assembly: DRN.Conventions.Exception("DRNCV019", SymbolTarget = "T:Shop.Reader", Target = "T:Shop.Other")]
+            [assembly: DRN.Conventions.Exception("DRNOWNERSHIP002", SymbolTarget = "T:Shop.Reader", Target = "T:Shop.Other")]
             """);
-        input.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV001");
+        input.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCONVENTIONINPUT001");
         input.Records.Should().NotContain(record => record.Kind == "Exception");
     }
 
@@ -171,7 +172,7 @@ public sealed class ConventionInputTests
     [InlineData("[assembly: Other.Context(\"1\")]")]
     [InlineData("class Executable { }")]
     public void Malformed_Or_Nonliteral_Input_Should_Report_Incomplete_Evidence(string source) =>
-        Read(source).Diagnostics.Should().NotBeEmpty().And.OnlyContain(diagnostic => diagnostic.Id == "DRNCV001");
+        Read(source).Diagnostics.Should().NotBeEmpty().And.OnlyContain(diagnostic => diagnostic.Id == "DRNCONVENTIONINPUT001");
 
     [Fact]
     public void Wrapped_String_Literals_Should_Preserve_Build_Fragment_Data()
@@ -271,11 +272,27 @@ public sealed class ConventionInputTests
     [InlineData("[assembly: DRN.Conventions.Registration(\"Sample.Service\", Service = \"\")]", false)]
     [InlineData("[assembly: DRN.Conventions.Configuration(\"Sample.Mapping\", Context = \"\")]", false)]
     public void Generation_Should_Reject_Invalid_Structural_Field_Values(string record, bool supported)
+        => SupportsGeneration(record).Should().Be(supported);
+
+    [Fact]
+    public void Exception_Records_Should_Accept_Each_Convention_Prefix_And_Require_Three_Digits()
+    {
+        static string ExceptionRecord(string rule) => $$"""
+            [assembly: DRN.Conventions.Exception("{{rule}}", SymbolTarget = "T:Sample.User",
+                Reason = "Reviewed legacy boundary", Owner = "Domain team", Review = "9999-12-31")]
+            """;
+        foreach (var descriptor in ConventionDiagnosticDescriptors.All)
+            SupportsGeneration(ExceptionRecord(descriptor.Id)).Should().BeTrue(descriptor.Id);
+        foreach (var invalid in new[] { "DRNENTITY013", "DRNUNKNOWN001", "DRNARCHITECTURE01", "DRNARCHITECTURE0001", "DRNPERSISTENCE00A" })
+            SupportsGeneration(ExceptionRecord(invalid)).Should().BeFalse(invalid);
+    }
+
+    private static bool SupportsGeneration(string record)
     {
         var text = Microsoft.CodeAnalysis.Text.SourceText.From("[assembly: DRN.Conventions.Version(\"1\")]" + record);
         var root = ConventionInputSyntax.Parse(text, "DrnConventionInputs.g.cs", CancellationToken.None, out _);
         root.Should().NotBeNull();
-        ConventionInputSyntax.SupportsGeneration(root!, CancellationToken.None).Should().Be(supported);
+        return ConventionInputSyntax.SupportsGeneration(root, CancellationToken.None);
     }
 
     private static ConventionInputs Read(string source) => ConventionInputs.Read(

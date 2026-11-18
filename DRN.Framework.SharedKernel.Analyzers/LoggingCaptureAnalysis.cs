@@ -10,27 +10,23 @@ namespace DRN.Framework.SharedKernel.Analyzers;
 internal sealed class LoggingCaptureAnalysis(OperationAnalysisContext context, ClassificationContract contract,
     DiagnosticRedactionRules rules, IInvocationOperation call, DiagnosticNameExemption exemptions)
 {
-    private const string LoggingAssembly = "Microsoft.Extensions.Logging.Abstractions";
     private const int MaxTemplateLength = 65536;
     internal const int MaxValues = 256;
     private static DiagnosticDescriptor Descriptor => ClassificationDiagnosticDescriptors.UnsafeLoggingCapture;
     private bool _interfaceLimitReported;
 
     internal static void Analyze(OperationAnalysisContext context, ClassificationContract contract,
-        DiagnosticRedactionRules rules, IInvocationOperation call, DiagnosticNameExemption exemptions,
+        DiagnosticRedactionRules rules, IInvocationOperation call, IMethodSymbol targetMethod,
+        DiagnosticClassificationAnalyzer.CaptureApi api, DiagnosticNameExemption exemptions,
         DictionaryCaptureAnalysis.LocalWriteIndex localWrites)
     {
-        var method = call.TargetMethod.ReducedFrom ?? call.TargetMethod;
-        switch (method.ContainingType.Name, method.Name)
+        switch (api)
         {
-            case ("LoggerExtensions", "Log" or "LogTrace" or "LogDebug" or "LogInformation" or "LogWarning" or "LogError" or "LogCritical" or "BeginScope")
-                when method.ContainingAssembly.Name == LoggingAssembly &&
-                     method.ContainingType.ToDisplayString() == "Microsoft.Extensions.Logging.LoggerExtensions":
+            case DiagnosticClassificationAnalyzer.CaptureApi.LoggerExtensions
+                when targetMethod.Name is "Log" or "LogTrace" or "LogDebug" or "LogInformation" or "LogWarning" or "LogError" or "LogCritical" or "BeginScope":
                 new LoggingCaptureAnalysis(context, contract, rules, call, exemptions).AnalyzeTemplate();
                 break;
-            case ("ILogger", "BeginScope")
-                when method.ContainingAssembly.Name == LoggingAssembly &&
-                     method.ContainingType.ToDisplayString() == "Microsoft.Extensions.Logging.ILogger":
+            case DiagnosticClassificationAnalyzer.CaptureApi.Logger when targetMethod.Name == "BeginScope":
             {
                 var analysis = new LoggingCaptureAnalysis(context, contract, rules, call, exemptions);
                 var state = analysis.Argument("state");
@@ -41,10 +37,8 @@ internal sealed class LoggingCaptureAnalysis(OperationAnalysisContext context, C
                 }
                 break;
             }
-            case ("IScopedLog" or "ScopedLog" or "DiagnosticCaptureExtensions", "Add" or "AddToList" or "AddIfNotNullOrEmpty" or "AddWithPolicy")
-                when method.ContainingAssembly.Name != LoggingAssembly && method.ContainingType.ToDisplayString() is
-                    "DRN.Framework.Utils.Logging.IScopedLog" or "DRN.Framework.Utils.Logging.ScopedLog" or
-                    "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticCaptureExtensions":
+            case DiagnosticClassificationAnalyzer.CaptureApi.ScopedLog or DiagnosticClassificationAnalyzer.CaptureApi.Extensions
+                when targetMethod.Name is "Add" or "AddToList" or "AddIfNotNullOrEmpty" or "AddWithPolicy":
             {
                 var analysis = new LoggingCaptureAnalysis(context, contract, rules, call, exemptions);
                 var value = analysis.Argument("value");

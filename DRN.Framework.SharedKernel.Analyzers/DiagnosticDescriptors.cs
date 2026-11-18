@@ -10,42 +10,12 @@ public static class DiagnosticDescriptors
     public const string HelpLinkUri = "https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/README.md#compile-time-roslyn-analyzers";
 
     public static readonly DiagnosticDescriptor SourceKnownControllerPolicyRequired = new(
-        "DRN0026", "Declare a named policy for Source-Known controller actions",
+        "DRNAUTHORIZATION001", "Declare a named policy for Source-Known controller actions",
         "Source-Known controller '{0}' action '{1}' requires an explicit named authorization policy: {2}",
         "DRN.Security", DiagnosticSeverity.Error, true, helpLinkUri: HelpLinkUri);
 
-    public static readonly DiagnosticDescriptor InvalidAppIdArgument = new(
-        "DRN0009", "Invalid constant application partition",
-        "AppId value '{0}' must be between 0 and 127", Category,
-        DiagnosticSeverity.Error, true, helpLinkUri: HelpLinkUri);
-
-    public static readonly DiagnosticDescriptor InvalidEntityIdFormatArgument = new(
-        "DRN0010", "Undefined constant entity ID format",
-        "Entity ID format value '{0}' is not a defined SourceKnownEntityIdFormat", Category,
-        DiagnosticSeverity.Error, true, helpLinkUri: HelpLinkUri);
-
-    public static readonly DiagnosticDescriptor HiddenEntityIdentityMember = new(
-        "DRN0011", "Hidden entity identity member",
-        "Member '{0}' hides SourceKnownEntity.{1}; framework and consumer code can observe different identities", Category,
-        DiagnosticSeverity.Warning, true, helpLinkUri: HelpLinkUri);
-
-    public static readonly DiagnosticDescriptor GenericConcreteEntity = new(
-        "DRN0012", "Concrete generic entity shares identity across constructed types",
-        "Entity '{0}' has generic type parameters of its own or a containing type; use an abstract generic base and separately attributed concrete descendants", Category,
-        DiagnosticSeverity.Warning, true, helpLinkUri: HelpLinkUri);
-
-    public static readonly DiagnosticDescriptor AbstractEntityMetadataArgument = new(
-        "DRN0013", "Concrete entity type required",
-        "Abstract entity '{0}' cannot be used with '{1}'; a concrete entity type is required", Category,
-        DiagnosticSeverity.Error, true, helpLinkUri: HelpLinkUri);
-
-    public static readonly DiagnosticDescriptor UninitializedEntityOperations = new(
-        "DRN0014", "Entity ID operations are not initialized",
-        "'{0}' is called on an entity whose ID operations are not initialized; use the injected ID utility before entity initialization", Category,
-        DiagnosticSeverity.Error, true, helpLinkUri: HelpLinkUri);
-
     public static readonly DiagnosticDescriptor MissingEntityTypeAttribute = new(
-        id: "DRN0001",
+        id: "DRNENTITY001",
         title: "Missing [EntityType] attribute on SourceKnownEntity descendant",
         messageFormat: "Class '{0}' inherits from SourceKnownEntity but does not have the [EntityType] attribute",
         category: Category,
@@ -55,7 +25,7 @@ public static class DiagnosticDescriptors
         helpLinkUri: HelpLinkUri);
 
     public static readonly DiagnosticDescriptor DuplicateEntityTypeValue = new(
-        id: "DRN0002",
+        id: "DRNENTITY002",
         title: "Duplicate EntityType value",
         messageFormat: "EntityType value '{0}' with AppId '{1}' on '{2}' is already used by '{3}'. EntityType values must be unique per AppId across the domain dependency graph, including referenced assemblies.",
         category: Category,
@@ -66,7 +36,7 @@ public static class DiagnosticDescriptors
         WellKnownDiagnosticTags.CompilationEnd);
 
     public static readonly DiagnosticDescriptor InvalidEntityTypeAttributeUsage = new(
-        id: "DRN0003",
+        id: "DRNENTITY003",
         title: "Invalid [EntityType] attribute usage",
         messageFormat: "Class '{0}' is decorated with [EntityType] attribute but is abstract, effectively private, or does not inherit from SourceKnownEntity",
         category: Category,
@@ -76,7 +46,7 @@ public static class DiagnosticDescriptors
         helpLinkUri: HelpLinkUri);
 
     public static readonly DiagnosticDescriptor DuplicateEntityName = new(
-        id: "DRN0004",
+        id: "DRNENTITY004",
         title: "Duplicate entity class name",
         messageFormat: "Entity class name '{0}' is already used by '{1}' within AppId '{2}'. Duplicate entity names within the same AppId can cause EF Core mapping or messaging ambiguity.",
         category: Category,
@@ -87,7 +57,7 @@ public static class DiagnosticDescriptors
         WellKnownDiagnosticTags.CompilationEnd);
 
     public static readonly DiagnosticDescriptor MultipleAppIdsNotPermitted = new(
-        id: "DRN0005",
+        id: "DRNENTITY005",
         title: "Multiple AppIds in single application compilation",
         messageFormat: "Project '{0}' contains entity types declaring multiple distinct AppIds ({1}). Production projects must only declare a single AppId unless <AllowMultipleAppIds>true</AllowMultipleAppIds> is set in the project file.",
         category: Category,
@@ -98,7 +68,7 @@ public static class DiagnosticDescriptors
         WellKnownDiagnosticTags.CompilationEnd);
 
     public static readonly DiagnosticDescriptor UnresolvableAppId = new(
-        id: "DRN0006",
+        id: "DRNENTITY006",
         title: "Unresolvable or non-constant AppId in [EntityType] declaration",
         messageFormat: "AppId on entity '{0}' could not be statically determined. Types implementing IAppId must declare a constant value ('public const byte Value = ...;' or 'public const byte AppId = ...;') so they can be read from metadata across assemblies.",
         category: Category,
@@ -109,7 +79,7 @@ public static class DiagnosticDescriptors
         WellKnownDiagnosticTags.CompilationEnd);
 
     public static readonly DiagnosticDescriptor AppIdOutOfRange = new(
-        id: "DRN0007",
+        id: "DRNENTITY007",
         title: "AppId is outside the supported range",
         messageFormat: "AppId value '{1}' on entity '{0}' must be between 0 and 127",
         category: Category,
@@ -120,7 +90,7 @@ public static class DiagnosticDescriptors
         WellKnownDiagnosticTags.CompilationEnd);
 
     public static readonly DiagnosticDescriptor UnsupportedEntityAttribute = new(
-        id: "DRN0008",
+        id: "DRNENTITY008",
         title: "Unsupported entity attribute constructor",
         messageFormat: "Entity attribute '{0}' must derive from EntityTypeAttribute<TApp> and declare one constructor with one byte or byte-backed enum parameter forwarded unchanged to its base constructor",
         category: Category,
@@ -129,4 +99,34 @@ public static class DiagnosticDescriptors
         description: "Derived entity attributes must preserve their constructor argument as the entity type. Compiled references must satisfy the same forwarding contract.",
         helpLinkUri: HelpLinkUri,
         WellKnownDiagnosticTags.CompilationEnd);
+
+    public static readonly DiagnosticDescriptor InvalidAppIdArgument = new(
+        "DRNENTITY009", "Invalid constant application partition",
+        "AppId value '{0}' must be between 0 and 127", Category,
+        DiagnosticSeverity.Error, true, helpLinkUri: HelpLinkUri);
+
+    public static readonly DiagnosticDescriptor InvalidEntityIdFormatArgument = new(
+        "DRNENTITY010", "Undefined constant entity ID format",
+        "Entity ID format value '{0}' is not a defined SourceKnownEntityIdFormat", Category,
+        DiagnosticSeverity.Error, true, helpLinkUri: HelpLinkUri);
+
+    public static readonly DiagnosticDescriptor HiddenEntityIdentityMember = new(
+        "DRNENTITY011", "Hidden entity identity member",
+        "Member '{0}' hides SourceKnownEntity.{1}; framework and consumer code can observe different identities", Category,
+        DiagnosticSeverity.Warning, true, helpLinkUri: HelpLinkUri);
+
+    public static readonly DiagnosticDescriptor GenericConcreteEntity = new(
+        "DRNENTITY012", "Concrete generic entity shares identity across constructed types",
+        "Entity '{0}' has generic type parameters of its own or a containing type; use an abstract generic base and separately attributed concrete descendants", Category,
+        DiagnosticSeverity.Warning, true, helpLinkUri: HelpLinkUri);
+
+    public static readonly DiagnosticDescriptor AbstractEntityMetadataArgument = new(
+        "DRNENTITY013", "Use a concrete entity type",
+        "Abstract entity '{0}' cannot be used with '{1}'; a concrete entity type is required", Category,
+        DiagnosticSeverity.Error, true, helpLinkUri: HelpLinkUri);
+
+    public static readonly DiagnosticDescriptor UninitializedEntityOperations = new(
+        "DRNENTITY014", "Entity ID operations are not initialized",
+        "'{0}' is called on an entity whose ID operations are not initialized; use the injected ID utility before entity initialization", Category,
+        DiagnosticSeverity.Error, true, helpLinkUri: HelpLinkUri);
 }

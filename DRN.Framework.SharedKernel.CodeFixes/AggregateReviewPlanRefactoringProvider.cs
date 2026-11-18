@@ -8,7 +8,8 @@ using Microsoft.CodeAnalysis.CodeRefactorings;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
-using static DRN.Framework.SharedKernel.CodeFixes.EntityConfigurationRefactoringProvider;
+using static DRN.Framework.SharedKernel.CodeFixes.CodeFixDestinationGuard;
+using static DRN.Framework.SharedKernel.CodeFixes.CodeFixSymbolFacts;
 
 namespace DRN.Framework.SharedKernel.CodeFixes;
 
@@ -86,7 +87,7 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
             entity.ContainingAssembly.GetAttributes().Any(attribute => Same(attribute.AttributeClass, ownership) &&
                 attribute.ConstructorArguments.FirstOrDefault().Value is INamedTypeSymbol target &&
                 SymbolEqualityComparer.Default.Equals(target, entity))) return null;
-        var entityName = MetadataName(entity);
+        var entityName = CodeFixSymbolFacts.MetadataName(entity);
         return domainInputs.OwnershipTargets.Contains(entityName)
             ? null
             : new(domain, compilation, domainPath, domainInputs, entity, entityName, owner);
@@ -163,8 +164,8 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         ParsedInputs infraInputs, string inputEvidence, INamedTypeSymbol? selected, CancellationToken token)
     {
         if (selected is not null &&
-            (target.DomainInputs.OwnershipTargets.Contains(MetadataName(selected)) ||
-             infraInputs.OwnershipTargets.Contains(MetadataName(selected)))) return null;
+            (target.DomainInputs.OwnershipTargets.Contains(CodeFixSymbolFacts.MetadataName(selected)) ||
+             infraInputs.OwnershipTargets.Contains(CodeFixSymbolFacts.MetadataName(selected)))) return null;
         var infraDirectory = Path.GetDirectoryName(infraPath)!;
         var contextName = selected?.Name ?? target.Owner + "Context";
         var contextNamespace = selected?.ContainingNamespace.ToDisplayString() ?? infraNamespace + "." + target.Owner;
@@ -202,9 +203,8 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         var contextPath = contextDocument?.FilePath ?? Path.Combine(infraDirectory, target.Owner, contextName + ".cs");
         if (!TryFullPath(contextPath, out contextPath) ||
             !ConventionGenerationPreflight.IsUnderDirectory(contextPath, infraDirectory)) return null;
-        if (selected is null && (types.Any(type => string.Equals(MetadataName(type), contextSymbol, StringComparison.OrdinalIgnoreCase)) ||
-                !SafeDestination(infraDirectory, contextPath) ||
-                WorkspaceDestinationConflict(target.Domain.Solution, contextPath, infra.Id, token))) return null;
+        if (selected is null && (types.Any(type => string.Equals(CodeFixSymbolFacts.MetadataName(type), contextSymbol, StringComparison.OrdinalIgnoreCase)) ||
+                !SafeDocumentDestination(infra, infraDirectory, contextPath, token))) return null;
         return contextPath;
     }
 
@@ -221,7 +221,7 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
                 attribute.ConstructorArguments[0].Value as string != owner)) return false;
         var reasonedOwner = declaredOwners.Any(attribute => attribute.NamedArguments.Any(argument =>
             argument.Key == "Reason" && argument.Value.Value is string reason && !string.IsNullOrWhiteSpace(reason)));
-        if (contextOwners.TryGetValue(MetadataName(selected), out var declared))
+        if (contextOwners.TryGetValue(CodeFixSymbolFacts.MetadataName(selected), out var declared))
         {
             if (declared.Owner.Length > 0 && declared.Owner != owner) return false;
             reasonedOwner |= declared.Owner == owner && !string.IsNullOrWhiteSpace(declared.Reason);
@@ -246,9 +246,9 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
     {
         var contextEvidence = new StringBuilder();
         if (selected is null) return contextEvidence.ToString();
-        if (contextOwners.TryGetValue(MetadataName(selected), out var selectedOwnership))
-            contextEvidence.AppendLine("Selected context ownership input: " + Escape(selectedOwnership.Owner) +
-                "; reason: " + Escape(selectedOwnership.Reason));
+        if (contextOwners.TryGetValue(CodeFixSymbolFacts.MetadataName(selected), out var selectedOwnership))
+            contextEvidence.AppendLine("Selected context ownership input: " + EscapeMarkdown(selectedOwnership.Owner) +
+                "; reason: " + EscapeMarkdown(selectedOwnership.Reason));
         string? contextDirectory = null;
         foreach (var reference in selected.DeclaringSyntaxReferences)
         {
@@ -262,11 +262,11 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
             if (contextDirectory is null) contextDirectory = partDirectory;
             else if (!string.Equals(contextDirectory, partDirectory, ConventionGenerationPreflight.RootComparison))
                 return null;
-            contextEvidence.AppendLine("Context source SHA-256: " + Fingerprint(await part.GetTextAsync(token)) + "; " + Escape(partPath));
+            contextEvidence.AppendLine("Context source SHA-256: " + Fingerprint(await part.GetTextAsync(token)) + "; " + EscapeMarkdown(partPath));
         }
-        contextEvidence.AppendLine("Context declared attributes: " + string.Join("; ", selected.GetAttributes().Select(attribute => Escape(attribute.ToString()))));
-        if (contextOwners.TryGetValue(MetadataName(selected), out var selectedInput))
-            contextEvidence.AppendLine("Selected context input: <pre>" + Escape(selectedInput.Declaration) + "</pre>");
+        contextEvidence.AppendLine("Context declared attributes: " + string.Join("; ", selected.GetAttributes().Select(attribute => EscapeMarkdown(attribute.ToString()))));
+        if (contextOwners.TryGetValue(CodeFixSymbolFacts.MetadataName(selected), out var selectedInput))
+            contextEvidence.AppendLine("Selected context input: <pre>" + EscapeMarkdown(selectedInput.Declaration) + "</pre>");
         return contextEvidence.ToString();
     }
 
@@ -380,15 +380,7 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
     private sealed record ParsedInputs(string Evidence, Dictionary<string, (string Owner, string Reason, string Declaration)> Contexts,
         HashSet<string> OwnershipTargets);
 
-    private static IEnumerable<INamedTypeSymbol> Bases(INamedTypeSymbol type)
-    {
-        for (var current = type; current is not null; current = current.BaseType) yield return current;
-    }
-
     private static string Fingerprint(SourceText text) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString())));
-    private static string Escape(string? value) => (value ?? "<unavailable metadata>").Replace("&", "&amp;", StringComparison.Ordinal).Replace("<", "&lt;", StringComparison.Ordinal)
-        .Replace(">", "&gt;", StringComparison.Ordinal).Replace("\r", "&#13;", StringComparison.Ordinal).Replace("\n", "&#10;", StringComparison.Ordinal)
-        .Replace("\\", "&#92;", StringComparison.Ordinal).Replace("`", "&#96;", StringComparison.Ordinal).Replace("[", "&#91;", StringComparison.Ordinal).Replace("]", "&#93;", StringComparison.Ordinal)
-        .Replace("*", "&#42;", StringComparison.Ordinal).Replace("_", "&#95;", StringComparison.Ordinal);
+    private static string Escape(string? value) => EscapeMarkdown(value);
     private sealed record Plan(ProjectId Project, string ProjectName, string Context, string Name, string Path, string RelativePath, string Content);
 }

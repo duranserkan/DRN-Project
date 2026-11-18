@@ -14,6 +14,7 @@ public sealed class ClassificationCodeFixTests
 
     private static async Task<List<CodeAction>> GetActions(Document document, Diagnostic diagnostic, CodeFixProvider provider)
     {
+        provider.FixableDiagnosticIds.Should().Contain(diagnostic.Id);
         var actions = new List<CodeAction>();
         await provider.RegisterCodeFixesAsync(new CodeFixContext(document, diagnostic,
             (action, _) => actions.Add(action), CancellationToken.None));
@@ -33,6 +34,24 @@ public sealed class ClassificationCodeFixTests
         ? new NameExemptionCodeFixProvider() : new ClassificationCodeFixProvider();
 
     [Fact]
+    public async Task Unsupported_Classification_Should_Offer_The_Positive_Classification_Fix()
+    {
+        using var workspace = new AdhocWorkspace();
+        var document = CreateProject(workspace).AddDocument("Model.cs", """
+            using Microsoft.Extensions.Compliance.Classification;
+            public class CustomAttribute() : DataClassificationAttribute(DataClassification.None);
+            public class Model { [Custom] public string Password { get; set; } = ""; }
+            """);
+        var diagnostic = (await DiagnosticClassificationAnalyzerTests.Analyze(
+            (CSharpCompilation)(await document.Project.GetCompilationAsync())!)).Single();
+        diagnostic.Id.Should().Be("DRNCLASSIFICATION004");
+        var actions = await GetActions(document, diagnostic, new ClassificationCodeFixProvider());
+        var changed = await Apply(document, actions.Single(action => action.EquivalenceKey == "Sensitive"));
+        (await DiagnosticClassificationAnalyzerTests.Analyze((CSharpCompilation)(await changed.Project.GetCompilationAsync())!))
+            .Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Project_Rule_Diagnostic_Should_Offer_A_Compiling_Classification_Fix()
     {
         using var workspace = new AdhocWorkspace();
@@ -41,7 +60,7 @@ public sealed class ClassificationCodeFixTests
         var file = new ProjectDiagnosticRulesTests.RuleFile("data-classification-rules.json", ProjectDiagnosticRulesTests.Fixture());
         var diagnostic = (await DiagnosticClassificationAnalyzerTests.Analyze(
             (CSharpCompilation)(await document.Project.GetCompilationAsync())!, file)).Single();
-        diagnostic.Id.Should().Be("DRN0015");
+        diagnostic.Id.Should().Be("DRNCLASSIFICATION001");
         var actions = await GetActions(document, diagnostic, new ClassificationCodeFixProvider());
         var changed = await Apply(document, actions.Single(action => action.EquivalenceKey == "Personal"));
         var after = (CSharpCompilation)(await changed.Project.GetCompilationAsync())!;
@@ -67,7 +86,7 @@ public sealed class ClassificationCodeFixTests
                 "public class Model { public string " + name + " { get; set; } = \"\"; }");
             var diagnostic = (await DiagnosticClassificationAnalyzerTests.Analyze(
                 (CSharpCompilation)(await document.Project.GetCompilationAsync())!)).Single();
-            diagnostic.Id.Should().Be("DRN0015");
+            diagnostic.Id.Should().Be("DRNCLASSIFICATION001");
             var actions = await GetActions(document, diagnostic, new ClassificationCodeFixProvider());
             var changed = await Apply(document, actions.Single(action => action.EquivalenceKey == classification));
             var after = (CSharpCompilation)(await changed.Project.GetCompilationAsync())!;
@@ -95,7 +114,7 @@ public sealed class ClassificationCodeFixTests
             var document = record.Project.GetDocument(model.Id)!;
             var before = await DiagnosticClassificationAnalyzerTests.Analyze(
                 (CSharpCompilation)(await document.Project.GetCompilationAsync())!);
-            before.Should().HaveCount(2).And.OnlyContain(diagnostic => diagnostic.Id == "DRN0015");
+            before.Should().HaveCount(2).And.OnlyContain(diagnostic => diagnostic.Id == "DRNCLASSIFICATION001");
             var provider = new ClassificationCodeFixProvider();
             var context = new FixAllContext(document, provider, FixAllScope.Project, classification,
                 provider.FixableDiagnosticIds, new ClassificationDiagnostics(), CancellationToken.None);
@@ -133,7 +152,7 @@ public sealed class ClassificationCodeFixTests
             var document = project.AddDocument("Model.cs", "using DRN.Framework.SharedKernel.Attributes;\n" + declaration);
             var diagnostic = (await DiagnosticClassificationAnalyzerTests.Analyze(
                 (CSharpCompilation)(await document.Project.GetCompilationAsync())!)).Single();
-            diagnostic.Id.Should().Be("DRN0016");
+            diagnostic.Id.Should().Be("DRNCLASSIFICATION002");
             var provider = new InvalidExemptionCodeFixProvider();
             provider.GetFixAllProvider().Should().BeNull();
             var actions = await GetActions(document, diagnostic, provider);
@@ -193,7 +212,7 @@ public sealed class ClassificationCodeFixTests
             var document = project.AddDocument("Model.cs", source);
             var compilation = (CSharpCompilation)(await document.Project.GetCompilationAsync())!;
             var diagnostic = (await DiagnosticClassificationAnalyzerTests.Analyze(compilation)).Single();
-            diagnostic.Id.Should().Be("DRN0015");
+            diagnostic.Id.Should().Be("DRNCLASSIFICATION001");
             var provider = ClassificationProvider(selection);
             var actions = await GetActions(document, diagnostic, provider);
             var action = actions.Single(item => item.EquivalenceKey == selection);

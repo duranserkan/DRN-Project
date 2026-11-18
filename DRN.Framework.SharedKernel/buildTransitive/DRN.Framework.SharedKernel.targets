@@ -27,14 +27,14 @@
     <RemoveDuplicates Inputs="@(_DrnRuleSource->'%(FullPath)')">
       <Output TaskParameter="Filtered" ItemName="_DrnRulePath" />
     </RemoveDuplicates>
-    <Error Condition="@(_DrnRulePath->Count()) &gt; 1" Text="DRN0021: Register exactly one data classification catalog per project." />
-    <Error Condition="'@(_DrnRulePath)' != '' and !Exists('@(_DrnRulePath)')" Text="DRN0021: The data classification catalog is missing." />
+    <Error Condition="@(_DrnRulePath->Count()) &gt; 1" Text="DRNCLASSIFICATION007: Register exactly one data classification catalog per project." />
+    <Error Condition="'@(_DrnRulePath)' != '' and !Exists('@(_DrnRulePath)')" Text="DRNCLASSIFICATION007: The data classification catalog is missing." />
     <PropertyGroup Condition="'@(_DrnRulePath)' != ''">
       <_DrnRuleFilePath>@(_DrnRulePath)</_DrnRuleFilePath>
       <_DrnRuleJson>$([System.IO.File]::ReadAllText('$(_DrnRuleFilePath)'))</_DrnRuleJson>
       <_DrnRuleSourceFile>$(IntermediateOutputPath)DrnDataClassificationRules.g.cs</_DrnRuleSourceFile>
     </PropertyGroup>
-    <Error Condition="'@(_DrnRulePath)' != '' and $(_DrnRuleJson.Length) &gt; 65536" Text="DRN0021: A data classification catalog must contain at most 65536 characters." />
+    <Error Condition="'@(_DrnRulePath)' != '' and $(_DrnRuleJson.Length) &gt; 65536" Text="DRNCLASSIFICATION007: A data classification catalog must contain at most 65536 characters." />
     <ItemGroup Condition="'@(_DrnRulePath)' != ''">
       <AdditionalFiles Remove="@(_DrnRuleSource)" />
       <AdditionalFiles Include="@(_DrnRulePath)" />

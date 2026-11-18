@@ -6,7 +6,8 @@ using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeRefactorings;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
-using static DRN.Framework.SharedKernel.CodeFixes.EntityConfigurationRefactoringProvider;
+using static DRN.Framework.SharedKernel.CodeFixes.CodeFixDestinationGuard;
+using static DRN.Framework.SharedKernel.CodeFixes.CodeFixSymbolFacts;
 
 namespace DRN.Framework.SharedKernel.CodeFixes;
 
@@ -65,10 +66,10 @@ public sealed class ControllerReviewPlanRefactoringProvider : CodeRefactoringPro
             model.GetDeclaredSymbol(declaration, token) is not INamedTypeSymbol type || IsOpen(type) ||
             model.GetDiagnostics(declaration.Span, token).Any(item => item.Severity == DiagnosticSeverity.Error)) return null;
         var known = model.Compilation.GetTypeByMetadataName("DRN.Framework.Hosting.Controllers.SourceKnownControllerBase`2");
-        if (known is null || !Chain(type).Any(item => Same(item, known))) return null;
+        if (known is null || !NonObjectBases(type).Any(item => Same(item, known))) return null;
         var name = type.Name + ".controller-review.md";
         var path = Path.Combine(Path.GetDirectoryName(sourcePath)!, name);
-        if (!SafeDestination(directory, path) || WorkspaceDestinationConflict(document.Project.Solution, path, document.Project.Id, token))
+        if (!SafeDocumentDestination(document.Project, directory, path, token))
             return null;
         return new(type, model, projectPath, directory, name, path, Path.GetRelativePath(directory, path).Replace('\\', '/'));
     }
@@ -94,7 +95,7 @@ public sealed class ControllerReviewPlanRefactoringProvider : CodeRefactoringPro
         StringBuilder text, CancellationToken token)
     {
         text.AppendLine("\n## Inheritance and declared metadata\n");
-        foreach (var ancestor in Chain(type))
+        foreach (var ancestor in NonObjectBases(type))
         {
             token.ThrowIfCancellationRequested();
             text.AppendLine("- " + Cell(ancestor.ToDisplayString()) + ": " + Attributes(ancestor));
@@ -129,7 +130,7 @@ public sealed class ControllerReviewPlanRefactoringProvider : CodeRefactoringPro
         var nonAction = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.NonActionAttribute");
         var excludedHelpers = 0;
         var count = 0;
-        foreach (var ancestor in Chain(type))
+        foreach (var ancestor in NonObjectBases(type))
         {
             foreach (var method in ancestor.GetMembers().OfType<IMethodSymbol>())
             {
@@ -170,18 +171,7 @@ public sealed class ControllerReviewPlanRefactoringProvider : CodeRefactoringPro
     private sealed record ControllerTarget(INamedTypeSymbol Type, SemanticModel Model, string ProjectPath,
         string Directory, string Name, string Path, string RelativePath);
 
-    private static IEnumerable<INamedTypeSymbol> Chain(INamedTypeSymbol type)
-    {
-        for (var current = type; current is not null && current.SpecialType != SpecialType.System_Object; current = current.BaseType)
-            yield return current;
-    }
-
     private static string Attributes(ISymbol symbol) => string.Join("; ", symbol.GetAttributes().Select(attribute => Cell(attribute.ToString())));
-    private static string Cell(string? value) => (value ?? "<unavailable metadata>").Replace("&", "&amp;", StringComparison.Ordinal)
-        .Replace("<", "&lt;", StringComparison.Ordinal).Replace(">", "&gt;", StringComparison.Ordinal)
-        .Replace("\r", "&#13;", StringComparison.Ordinal).Replace("\n", "&#10;", StringComparison.Ordinal)
-        .Replace("\\", "&#92;", StringComparison.Ordinal).Replace("`", "&#96;", StringComparison.Ordinal)
-        .Replace("[", "&#91;", StringComparison.Ordinal).Replace("]", "&#93;", StringComparison.Ordinal)
-        .Replace("*", "&#42;", StringComparison.Ordinal).Replace("_", "&#95;", StringComparison.Ordinal);
+    private static string Cell(string? value) => EscapeMarkdown(value);
     private sealed record Plan(string Name, string Path, string RelativePath, string Content);
 }

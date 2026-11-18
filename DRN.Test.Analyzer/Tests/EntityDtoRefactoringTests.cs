@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.CodeFixes;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeRefactorings;
@@ -5,6 +6,7 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace DRN.Test.Analyzer.Tests;
 
+[SuppressMessage("ReSharper", "AccessToDisposedClosure")]
 public sealed class EntityDtoRefactoringTests
 {
     private const string Source = """
@@ -203,7 +205,7 @@ public sealed class EntityDtoRefactoringTests
         var action = (await Actions(document)).Single();
         var current = workspace.CurrentSolution;
         using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
+        await cancellation.CancelAsync();
         var apply = async () => await action.GetOperationsAsync(cancellation.Token);
         await apply.Should().ThrowAsync<OperationCanceledException>();
         workspace.CurrentSolution.Should().BeSameAs(current);
@@ -391,7 +393,10 @@ public sealed class EntityDtoRefactoringTests
         using var interfaceWorkspace = new AdhocWorkspace();
         var interfaceSource = """
             namespace Sample.Domain.QA;
-            [DRN.Framework.SharedKernel.Attributes.Personal]
+            [System.AttributeUsage(System.AttributeTargets.Interface | System.AttributeTargets.Property)]
+            public sealed class InterfacePersonalAttribute() : Microsoft.Extensions.Compliance.Classification.DataClassificationAttribute(
+                new Microsoft.Extensions.Compliance.Classification.DataClassification("Test", "Personal"));
+            [InterfacePersonal]
             public interface IUserProfile { string Name { get; } }
             public class User : DRN.Framework.SharedKernel.Domain.SourceKnownEntity, IUserProfile
             {
@@ -400,7 +405,10 @@ public sealed class EntityDtoRefactoringTests
                 // select-end
             }
             """;
-        (await Actions(Create(interfaceWorkspace, interfaceSource))).Should().BeEmpty();
+        var interfaceDocument = Create(interfaceWorkspace, interfaceSource);
+        (await interfaceDocument.Project.GetCompilationAsync())!.GetDiagnostics()
+            .Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        (await Actions(interfaceDocument)).Should().BeEmpty();
 
         using var unresolvedWorkspace = new AdhocWorkspace();
         var unresolvedSource = Source.Replace("public class User", "[MissingClassification]\npublic class User", StringComparison.Ordinal);

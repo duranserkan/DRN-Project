@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.CodeFixes;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeRefactorings;
@@ -5,12 +6,11 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace DRN.Test.Analyzer.Tests;
 
+[SuppressMessage("ReSharper", "AccessToDisposedClosure")]
 public sealed class RepositoryPairRefactoringTests
 {
-    private static readonly MetadataReference FrameworkReference = MetadataReference.CreateFromFile(
-        typeof(DRN.Framework.EntityFramework.Context.DrnContext<>).Assembly.Location);
-    private static readonly MetadataReference UtilsReference = MetadataReference.CreateFromFile(
-        typeof(DRN.Framework.Utils.Settings.IAppSettings).Assembly.Location);
+    private static MetadataReference FrameworkReference => AnalyzerTestCompilation.EntityFrameworkReference;
+    private static MetadataReference UtilsReference => AnalyzerTestCompilation.UtilsReference;
 
     private const string EntitySource = """
         namespace Sample.Domain.QA.Orders;
@@ -105,7 +105,7 @@ public sealed class RepositoryPairRefactoringTests
         var action = (await Actions(entity, bundles: true)).Single();
         var snapshot = workspace.CurrentSolution;
         using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
+        await cancellation.CancelAsync();
         var apply = async () => await action.GetOperationsAsync(cancellation.Token);
         await apply.Should().ThrowAsync<OperationCanceledException>();
         workspace.CurrentSolution.Should().BeSameAs(snapshot);
@@ -299,7 +299,7 @@ public sealed class RepositoryPairRefactoringTests
         var action = (await Actions(entity)).Single();
         var snapshot = workspace.CurrentSolution;
         using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
+        await cancellation.CancelAsync();
         var apply = async () => await action.GetOperationsAsync(cancellation.Token);
         await apply.Should().ThrowAsync<OperationCanceledException>();
         workspace.CurrentSolution.Should().BeSameAs(snapshot);
@@ -546,14 +546,14 @@ public sealed class RepositoryPairRefactoringTests
         var layeredInfra = infraCompilation.RemoveReferences(infraCompilation.References.OfType<CompilationReference>()).AddReferences(domainReference);
         layeredInfra.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
 
-        var domainInputs = new ProjectDiagnosticRulesTests.RuleFile(DRN.Framework.SharedKernel.Analyzers.Conventions.ConventionInputs.FileName, $$"""
+        var domainInputs = new ProjectDiagnosticRulesTests.RuleFile(Framework.SharedKernel.Analyzers.Conventions.ConventionInputs.FileName, $$"""
             [assembly: DRN.Conventions.Version("1")]
             [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
             {{ConventionTestDependencies.Serialize(domainLayerRecords)}}
             [assembly: DRN.Conventions.Path("/source/Sample.Domain/QA/Order/OrderEntity.cs", LogicalPath = "QA/Order/OrderEntity.cs")]
             [assembly: DRN.Conventions.Path("/source/Sample.Domain/QA/Order/IOrderRepository.cs", LogicalPath = "QA/Order/IOrderRepository.cs")]
             """);
-        var infraInputs = new ProjectDiagnosticRulesTests.RuleFile(DRN.Framework.SharedKernel.Analyzers.Conventions.ConventionInputs.FileName, """
+        var infraInputs = new ProjectDiagnosticRulesTests.RuleFile(Framework.SharedKernel.Analyzers.Conventions.ConventionInputs.FileName, """
             [assembly: DRN.Conventions.Version("1")]
             [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
             [assembly: DRN.Conventions.Reference("/source/Sample.Domain/Sample.Domain.csproj", Stage = "Project", Source = "/source/Sample.Domain/Sample.Domain.csproj")]
@@ -562,7 +562,7 @@ public sealed class RepositoryPairRefactoringTests
             [assembly: DRN.Conventions.Path("/source/Sample.Infra/QA/Repositories/OrderRepository.cs", LogicalPath = "QA/Repositories/OrderRepository.cs")]
             [assembly: DRN.Conventions.Path("/source/Sample.Infra/QA/Configurations/OrderConfig.cs", LogicalPath = "QA/Configurations/OrderConfig.cs")]
             """);
-        var analyzer = new DRN.Framework.SharedKernel.Analyzers.Conventions.SourceKnownConventionAnalyzer();
+        var analyzer = new Framework.SharedKernel.Analyzers.Conventions.SourceKnownConventionAnalyzer();
         var domainDiagnostics = await layeredDomain.WithAnalyzers([analyzer],
             new AnalyzerOptions([domainInputs], new Options("Domain"))).GetAnalyzerDiagnosticsAsync();
         var infraDiagnostics = await layeredInfra.WithAnalyzers([analyzer],

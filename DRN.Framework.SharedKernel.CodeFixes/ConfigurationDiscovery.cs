@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using static DRN.Framework.SharedKernel.CodeFixes.EntityConfigurationRefactoringProvider;
+using static DRN.Framework.SharedKernel.CodeFixes.CodeFixSymbolFacts;
 
 namespace DRN.Framework.SharedKernel.CodeFixes;
 

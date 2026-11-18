@@ -72,7 +72,7 @@ internal sealed class ConventionExceptions
     private bool IsValidTarget(string ruleId, string target, ISymbol? symbol)
     {
         if (IsSuppressionTarget(symbol)) return true;
-        if (ruleId == "DRNCV015" && _facts.Records.Any(record =>
+        if (ruleId == "DRNARCHITECTURE003" && _facts.Records.Any(record =>
                 record.Kind == ConventionInputSyntax.ReferenceKind &&
                 record.Get(ConventionInputSyntax.StageField) is ConventionInputSyntax.ProjectField or ConventionInputSyntax.PackageField &&
                 record.Identity == target))
@@ -80,11 +80,11 @@ internal sealed class ConventionExceptions
         var prefix = _facts.Project.AssemblyName + ":";
         return ruleId switch
         {
-            "DRNCV021" => target.StartsWith(prefix, StringComparison.Ordinal) &&
+            "DRNARCHITECTURE006" => target.StartsWith(prefix, StringComparison.Ordinal) &&
                 target[prefix.Length..] is ConventionArchitecture.Application or ConventionArchitecture.Infra or
                     ConventionArchitecture.Domain or ConventionArchitecture.Contract,
-            "DRNCV022" => target == prefix + ConventionArchitecture.Domain,
-            "DRNCV032" => target == prefix + "Module",
+            "DRNOWNERSHIP003" => target == prefix + ConventionArchitecture.Domain,
+            "DRNDEPENDENCYINJECTION003" => target == prefix + "Module",
             _ => false
         };
     }
@@ -130,7 +130,7 @@ internal sealed class ConventionExceptions
 
     internal bool Applies(Diagnostic diagnostic)
     {
-        if (diagnostic.Id == "DRNCV018" || _valid.Count == 0) return false;
+        if (diagnostic.Id == "DRNCONVENTIONEXCEPTION001" || _valid.Count == 0) return false;
         ISymbol? source = null;
         var sourceResolved = false;
         foreach (var (input, symbol) in _valid)
@@ -158,7 +158,7 @@ internal sealed class ConventionExceptions
     private ISymbol? ResolveSourceSymbol(Diagnostic diagnostic)
     {
         if (diagnostic.Location.SourceTree is not { } tree) return null;
-        var model = _facts.Compilation.GetSemanticModel(tree);
+        var model = _facts.SemanticModel(tree);
         var node = tree.GetRoot(_facts.Cancellation).FindNode(diagnostic.Location.SourceSpan, getInnermostNodeForTie: true);
         return node.AncestorsAndSelf().Select(candidate => model.GetDeclaredSymbol(candidate, _facts.Cancellation))
             .FirstOrDefault(symbol => symbol is not null) ?? model.GetEnclosingSymbol(diagnostic.Location.SourceSpan.Start, _facts.Cancellation);
@@ -175,7 +175,7 @@ internal sealed class ConventionExceptions
             if (!ConventionSymbols.Same(attribute.AttributeClass, _facts.Symbols.SuppressionAttribute) ||
                 attribute.ConstructorArguments.Length < 2 || attribute.ConstructorArguments[1].Value is not string check) continue;
             var id = check.Split(':')[0];
-            if (!id.StartsWith("DRNCV", StringComparison.Ordinal)) continue;
+            if (ConventionInputSyntax.ConventionRulePrefix(id) is null) continue;
             var reason = attribute.NamedArguments.FirstOrDefault(pair => pair.Key == "Justification").Value.Value as string;
             var location = attribute.ApplicationSyntaxReference?.GetSyntax(_facts.Cancellation).GetLocation() ?? _facts.Location(symbol);
             if (!IsRule(id) || string.IsNullOrWhiteSpace(reason)) Issue(id, "unknown or missing its justification", location);
@@ -189,7 +189,7 @@ internal sealed class ConventionExceptions
         {
             if (!ConventionSymbols.Same(attribute.AttributeClass, _facts.Symbols.SuppressionAttribute) ||
                 attribute.ConstructorArguments.Length < 2 || attribute.ConstructorArguments[1].Value is not string check ||
-                !check.StartsWith("DRNCV", StringComparison.Ordinal)) continue;
+                ConventionInputSyntax.ConventionRulePrefix(check) is null) continue;
             var target = attribute.NamedArguments.FirstOrDefault(pair => pair.Key == ConventionInputSyntax.TargetField).Value.Value as string;
             var scope = attribute.NamedArguments.FirstOrDefault(pair => pair.Key == "Scope").Value.Value as string;
             var symbol = target is not null && !target.Contains('*')
@@ -235,7 +235,7 @@ internal sealed class ConventionExceptions
         if (pragma.ErrorCodes.Count == 0)
         {
             if (pragma.DisableOrRestoreKeyword.IsKind(SyntaxKind.DisableKeyword))
-                Issue("DRNCV*", "a blanket warning disable", pragma.GetLocation());
+                Issue("all warnings", "a blanket warning disable", pragma.GetLocation());
             return;
         }
         foreach (var code in pragma.ErrorCodes) ValidatePragmaCode(tree, root, pragma, code, active);
@@ -245,7 +245,7 @@ internal sealed class ConventionExceptions
         ExpressionSyntax code, Dictionary<string, PragmaWarningDirectiveTriviaSyntax> active)
     {
         var id = code.ToString();
-        if (!id.StartsWith("DRNCV", StringComparison.Ordinal)) return;
+        if (ConventionInputSyntax.ConventionRulePrefix(id) is null) return;
         if (!IsRule(id))
         {
             Issue(id, "unknown", code.GetLocation());

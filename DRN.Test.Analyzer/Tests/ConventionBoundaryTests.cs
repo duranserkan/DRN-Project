@@ -27,12 +27,12 @@ public sealed class ConventionBoundaryTests
             namespace Sample.{{role}}.Billing { {{declaration}} { {{member}} } }
             """, role);
         ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Any(item => item.Id == "DRNCV019").Should().Be(scoped);
+        facts.Diagnostics.Any(item => item.Id == "DRNOWNERSHIP002").Should().Be(scoped);
         if (declaration.Contains("PageModel", StringComparison.Ordinal))
         {
-            facts.Diagnostics.Should().NotContain(item => item.Id == "DRNCV014");
+            facts.Diagnostics.Should().NotContain(item => item.Id == "DRNARCHITECTURE002");
             ConventionOwnershipAnalysis.Analyze(facts);
-            facts.Diagnostics.Should().NotContain(item => item.Id == "DRNCV002" || item.Id == "DRNCV003");
+            facts.Diagnostics.Should().NotContain(item => item.Id == "DRNOWNERSHIP001" || item.Id == "DRNSTRUCTURE001");
         }
     }
 
@@ -52,11 +52,11 @@ public sealed class ConventionBoundaryTests
                     protected override Sample.Hosted.QA.UserDto ToDto(Sample.Hosted.QA.User entity) => new();
                 }
             }
-            """).AddReferences(MetadataReference.CreateFromFile(typeof(DRN.Framework.Hosting.Controllers.SourceKnownControllerBase<,>).Assembly.Location));
+            """).AddReferences(AnalyzerTestCompilation.HostingReference);
         compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
         var facts = CreateFacts(compilation, "Hosted");
         ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Should().Contain(item => item.Id == "DRNCV019");
+        facts.Diagnostics.Should().Contain(item => item.Id == "DRNOWNERSHIP002");
     }
 
     [Theory]
@@ -79,7 +79,7 @@ public sealed class ConventionBoundaryTests
             }
             """);
         ConventionBoundaryAnalysis.Analyze(facts);
-        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNCV019").ToArray();
+        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNOWNERSHIP002").ToArray();
         diagnostics.Should().HaveCount(count);
         if (count == 0) return;
         diagnostics[0].GetMessage().Should().Contain("Billing").And.Contain("QA")
@@ -106,7 +106,7 @@ public sealed class ConventionBoundaryTests
             }
             """);
         ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNCV019");
+        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNOWNERSHIP002");
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public sealed class ConventionBoundaryTests
             }
             """);
         ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Where(item => item.Id == "DRNCV019").Should().ContainSingle()
+        facts.Diagnostics.Where(item => item.Id == "DRNOWNERSHIP002").Should().ContainSingle()
             .Which.Properties["Consumer"].Should().Be("P:Sample.Domain.Billing.Reader.Users");
     }
 
@@ -148,7 +148,7 @@ public sealed class ConventionBoundaryTests
             """);
         var facts = CreateFacts(compilation, "Domain");
         ConventionBoundaryAnalysis.Analyze(facts);
-        var diagnostics = facts.Diagnostics.Where(diagnostic => diagnostic.Id == "DRNCV019").ToArray();
+        var diagnostics = facts.Diagnostics.Where(diagnostic => diagnostic.Id == "DRNOWNERSHIP002").ToArray();
         diagnostics.Should().HaveCount(count);
         if (count == 0) return;
         diagnostics[0].Properties["Consumer"].Should().Be("T:Sample.Domain.Billing.Reader");
@@ -183,7 +183,7 @@ public sealed class ConventionBoundaryTests
             """);
         var facts = CreateFacts(compilation, "Domain");
         ConventionBoundaryAnalysis.Analyze(facts);
-        var diagnostic = facts.Diagnostics.Where(item => item.Id == "DRNCV019").Should().ContainSingle().Which;
+        var diagnostic = facts.Diagnostics.Where(item => item.Id == "DRNOWNERSHIP002").Should().ContainSingle().Which;
         diagnostic.Properties["Consumer"].Should().Be("M:Sample.Domain.Billing.Reader.Read");
         diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan).Should().Be("Read");
         diagnostic.AdditionalLocations.Should().NotBeEmpty().And.OnlyContain(location => location.SourceTree != null && facts.IsGenerated(location.SourceTree));
@@ -207,7 +207,7 @@ public sealed class ConventionBoundaryTests
             """);
         var facts = CreateFacts(compilation, "Domain");
         ConventionBoundaryAnalysis.Analyze(facts);
-        var diagnostic = facts.Diagnostics.Where(item => item.Id == "DRNCV019").Should().ContainSingle().Which;
+        var diagnostic = facts.Diagnostics.Where(item => item.Id == "DRNOWNERSHIP002").Should().ContainSingle().Which;
         diagnostic.Location.SourceTree!.FilePath.Should().Be("User.cs");
         diagnostic.Properties["Consumer"].Should().Be("M:Sample.Domain.Billing.Reader.Read");
         diagnostic.AdditionalLocations.Should().Contain(location => location.SourceTree != null && facts.IsGenerated(location.SourceTree));
@@ -222,7 +222,7 @@ public sealed class ConventionBoundaryTests
             {
                 public partial class Reader
                 {
-                    [System.Diagnostics.CodeAnalysis.SuppressMessage("DRN.Conventions.Ownership", "DRNCV019",
+                    [System.Diagnostics.CodeAnalysis.SuppressMessage("DRN.Conventions.Ownership", "DRNOWNERSHIP002",
                         Justification = "Reviewed billing reconciliation uses the QA identifier.")]
                     public partial long Allowed();
                     public partial long Other();
@@ -240,7 +240,7 @@ public sealed class ConventionBoundaryTests
             }
             """);
         var diagnostics = await AnalyzeWithConventions(compilation);
-        diagnostics.Where(item => item.Id == "DRNCV019").Should().ContainSingle()
+        diagnostics.Where(item => item.Id == "DRNOWNERSHIP002").Should().ContainSingle()
             .Which.Properties["Consumer"].Should().Be("M:Sample.Domain.Billing.Reader.Other");
     }
 
@@ -264,7 +264,7 @@ public sealed class ConventionBoundaryTests
         var facts = new ConventionFacts(compilation, new(true, "Sample.Domain", "Domain", "Sample.Domain", compilation.AssemblyName!, []),
             new(declaredOwner ? [input] : [], []), new Options(), CancellationToken.None);
         ConventionBoundaryAnalysis.Analyze(facts);
-        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNCV019").ToArray();
+        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNOWNERSHIP002").ToArray();
         diagnostics.Should().HaveCount(declaredOwner ? 1 : 0);
         if (declaredOwner)
         {
@@ -297,7 +297,7 @@ public sealed class ConventionBoundaryTests
         consumer.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
         var facts = CreateFacts(consumer, "Domain");
         ConventionBoundaryAnalysis.Analyze(facts);
-        var diagnostic = facts.Diagnostics.Where(item => item.Id == "DRNCV019").Should().ContainSingle().Which;
+        var diagnostic = facts.Diagnostics.Where(item => item.Id == "DRNOWNERSHIP002").Should().ContainSingle().Which;
         diagnostic.Properties["Consumer"].Should().Be("T:Sample.Domain.Billing.Reader");
         diagnostic.Properties["Entity"].Should().Be("Sample.Domain.QA.User");
         diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan).Should().Be("Reader");
@@ -318,7 +318,7 @@ public sealed class ConventionBoundaryTests
             }
             """);
         ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Where(item => item.Id == "DRNCV019").Should().ContainSingle()
+        facts.Diagnostics.Where(item => item.Id == "DRNOWNERSHIP002").Should().ContainSingle()
             .Which.Properties["Consumer"].Should().Be("T:Sample.Domain.Billing.Reader");
     }
 
@@ -336,7 +336,7 @@ public sealed class ConventionBoundaryTests
             """);
         var facts = CreateFacts(compilation, "Domain");
         ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNCV019");
+        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNOWNERSHIP002");
     }
 
     [Fact]
@@ -360,7 +360,7 @@ public sealed class ConventionBoundaryTests
             {
                 public class Reader
                 {
-                    [System.Diagnostics.CodeAnalysis.SuppressMessage("DRN.Conventions.Ownership", "DRNCV019",
+                    [System.Diagnostics.CodeAnalysis.SuppressMessage("DRN.Conventions.Ownership", "DRNOWNERSHIP002",
                         Justification = "Reviewed billing reconciliation consumes the QA account identifier")]
                     public Sample.Domain.QA.User Allowed() => new();
                     public Sample.Domain.QA.User Other() => new();
@@ -369,7 +369,7 @@ public sealed class ConventionBoundaryTests
             """);
         compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
         var diagnostics = await AnalyzeWithConventions(compilation);
-        diagnostics.Where(item => item.Id == "DRNCV019").Should().ContainSingle()
+        diagnostics.Where(item => item.Id == "DRNOWNERSHIP002").Should().ContainSingle()
             .Which.Properties["Consumer"].Should().Be("M:Sample.Domain.Billing.Reader.Other");
     }
 
@@ -385,7 +385,7 @@ public sealed class ConventionBoundaryTests
             public class Response { public {{shape}} Payload { get; set; } }
             """);
         ConventionBoundaryAnalysis.Analyze(facts);
-        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNCV014").ToArray();
+        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").ToArray();
         diagnostics.Should().HaveCount(violation ? 1 : 0);
         if (violation)
         {
@@ -411,7 +411,7 @@ public sealed class ConventionBoundaryTests
             }
             """, "Hosted");
         ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Count(item => item.Id == "DRNCV014").Should().Be(violation ? 1 : 0);
+        facts.Diagnostics.Count(item => item.Id == "DRNARCHITECTURE002").Should().Be(violation ? 1 : 0);
     }
 
     [Fact]
@@ -427,7 +427,7 @@ public sealed class ConventionBoundaryTests
             }
             """);
         ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNCV014");
+        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNARCHITECTURE002");
     }
 
     [Fact]
@@ -441,7 +441,7 @@ public sealed class ConventionBoundaryTests
             }
             """);
         ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Where(item => item.Id == "DRNCV014").Should().ContainSingle();
+        facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").Should().ContainSingle();
     }
 
     [Theory]
@@ -454,7 +454,7 @@ public sealed class ConventionBoundaryTests
             public class Response({{parameters}}) : DRN.Framework.SharedKernel.Domain.Dto(user);
             """);
         ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Where(item => item.Id == "DRNCV014").Should().HaveCount(count);
+        facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").Should().HaveCount(count);
     }
 
     [Theory]
@@ -475,7 +475,7 @@ public sealed class ConventionBoundaryTests
         compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
         var diagnostics = await AnalyzeWithConventions(compilation, "Contract");
         diagnostics.Should().NotContain(item => item.Id == "AD0001");
-        var diagnostic = diagnostics.Where(item => item.Id == "DRNCV014").Should().ContainSingle().Which;
+        var diagnostic = diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").Should().ContainSingle().Which;
         diagnostic.GetMessage().Should().Contain("BaseResponse.Payload").And.Contain("Upstream.Models.User");
         (await diagnostic.Location.SourceTree!.GetTextAsync()).ToString(diagnostic.Location.SourceSpan).Should().Be("Response");
         diagnostic.AdditionalLocations.Should().OnlyContain(location => location.SourceTree == null || compilation.ContainsSyntaxTree(location.SourceTree));
@@ -500,7 +500,7 @@ public sealed class ConventionBoundaryTests
         compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
         var diagnostics = await AnalyzeWithConventions(compilation, "Contract");
         diagnostics.Should().NotContain(item => item.Id == "AD0001");
-        var diagnostic = diagnostics.Where(item => item.Id == "DRNCV014").Should().ContainSingle().Which;
+        var diagnostic = diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").Should().ContainSingle().Which;
         diagnostic.GetMessage().Should().Contain("Response.View").And.Contain("Upstream.Contract.QA.User");
         (await diagnostic.Location.SourceTree!.GetTextAsync()).ToString(diagnostic.Location.SourceSpan).Should().Be("View");
     }
@@ -515,7 +515,7 @@ public sealed class ConventionBoundaryTests
             public class Response { public Model View { get; set; } }
             """);
         ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNCV014");
+        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNARCHITECTURE002");
     }
 
     [Theory]
@@ -543,8 +543,8 @@ public sealed class ConventionBoundaryTests
         var facts = new ConventionFacts(compilation, new(true, "Sample." + from, from, "Sample." + from, compilation.AssemblyName!, []),
             new([.. records], []), new Options(), CancellationToken.None);
         ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Where(item => item.Id == "DRNCV015").Should().HaveCount(violation ? 1 : 0);
-        if (violation) facts.Diagnostics.Single(item => item.Id == "DRNCV015").Properties["Target"].Should().Be("App.Dependency");
+        facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE003").Should().HaveCount(violation ? 1 : 0);
+        if (violation) facts.Diagnostics.Single(item => item.Id == "DRNARCHITECTURE003").Properties["Target"].Should().Be("App.Dependency");
     }
 
     [Theory]
@@ -559,7 +559,7 @@ public sealed class ConventionBoundaryTests
             public class Repository;
             """, role);
         ConventionBoundaryAnalysis.Analyze(facts);
-        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNCV016").ToArray();
+        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE004").ToArray();
         diagnostics.Should().HaveCount(violation ? 1 : 0);
         if (violation) diagnostics[0].GetMessage().Should().Contain("role '" + expected + "'");
     }
@@ -573,7 +573,7 @@ public sealed class ConventionBoundaryTests
             public class Node { public Node Next { get; set; } public System.Guid Id { get; set; } }
             """, "Contract");
         ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNCV014" || item.Id == "DRNCV001");
+        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNARCHITECTURE002" || item.Id == "DRNARCHITECTURE001");
     }
 
     [Fact]
@@ -585,7 +585,7 @@ public sealed class ConventionBoundaryTests
             public class Response : Envelope<User>;
             """);
         ConventionBoundaryAnalysis.Analyze(facts);
-        var diagnostic = facts.Diagnostics.Where(item => item.Id == "DRNCV014").Should().ContainSingle().Which;
+        var diagnostic = facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").Should().ContainSingle().Which;
         diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan).Should().Be("Response");
     }
 
@@ -597,7 +597,7 @@ public sealed class ConventionBoundaryTests
             public class Envelope<T> where T : User { public T Payload { get; set; } }
             """);
         ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Where(item => item.Id == "DRNCV014").Should().ContainSingle()
+        facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").Should().ContainSingle()
             .Which.GetMessage().Should().Contain("Envelope<T>.Payload").And.Contain("Sample.Domain.QA.User");
     }
 
@@ -609,19 +609,35 @@ public sealed class ConventionBoundaryTests
             public class Response { public void Read<T>() where T : User { } }
             """);
         ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Where(item => item.Id == "DRNCV014").Should().ContainSingle()
+        facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").Should().ContainSingle()
             .Which.GetMessage().Should().Contain("Response.Read<T>()").And.Contain("Sample.Domain.QA.User");
     }
 
-    [Fact]
-    public void Wide_Public_Model_Should_Report_Exhausted_Evidence_Instead_Of_An_Unbounded_Scan()
+    [Theory]
+    [InlineData("Domain", true, true, true)]
+    [InlineData("Contract", true, false, true)]
+    [InlineData("Domain", false, true, false)]
+    [InlineData("Contract", false, false, false)]
+    public async Task Dto_Placement_And_Persistence_Dependencies_Should_Report_Independently(
+        string role, bool usesContext, bool misplaced, bool forbidden)
     {
-        var members = string.Join("\n", Enumerable.Range(0, 4097).Select(index => "public int Field" + index + ";"));
-        var facts = Facts("namespace Sample.Contract.QA; public class Response { public Wide Payload { get; set; } } " +
-                          "public class Wide { " + members + " }", "Contract");
-        ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Where(item => item.Id == "DRNCV001").Should().ContainSingle()
-            .Which.GetMessage().Should().Contain("public model analysis bound");
+        var members = usesContext ? "private DbContext First; private DbContext Second;" : "";
+        var compilation = Compilation($$"""
+            using Microsoft.EntityFrameworkCore;
+            namespace Sample.{{role}}.QA;
+            public class Response : DRN.Framework.SharedKernel.Domain.Dto { {{members}} }
+            """);
+        var diagnostics = await AnalyzeWithConventions(compilation, role);
+        diagnostics.Where(item => item.Id == "DRNARCHITECTURE004").Should().HaveCount(misplaced ? 1 : 0);
+        var dependencies = diagnostics.Where(item => item.Id == "DRNARCHITECTURE005").ToArray();
+        dependencies.Should().HaveCount(forbidden ? 1 : 0);
+        if (forbidden)
+        {
+            var evidence = dependencies.Single().AdditionalLocations;
+            evidence.Should().HaveCount(2).And.OnlyHaveUniqueItems();
+            evidence.Select(location => location.SourceTree!.GetText().ToString(location.SourceSpan))
+                .Should().OnlyContain(text => text == "DbContext");
+        }
     }
 
     [Theory]
@@ -636,8 +652,8 @@ public sealed class ConventionBoundaryTests
             public class Consumer { {{body}} }
             """, role);
         ConventionBoundaryAnalysis.Analyze(facts);
-        var diagnostic = facts.Diagnostics.Where(item => item.Id == "DRNCV016").Should().ContainSingle().Which;
-        diagnostic.GetMessage().Should().Contain("persistence-dependent").And.Contain("role 'Infra'");
+        var diagnostic = facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE005").Should().ContainSingle().Which;
+        diagnostic.GetMessage().Should().Be($"Type 'Consumer' in layer '{role}' uses persistence APIs. Remove this dependency.");
         diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan).Should().Be("Consumer");
         diagnostic.AdditionalLocations.Should().NotBeEmpty();
     }
@@ -658,7 +674,7 @@ public sealed class ConventionBoundaryTests
             }
             """);
         ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNCV016");
+        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNARCHITECTURE005" || item.Id == "DRNARCHITECTURE004");
     }
 
     [Fact]
@@ -673,7 +689,7 @@ public sealed class ConventionBoundaryTests
             }
             """);
         ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNCV016");
+        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNARCHITECTURE005" || item.Id == "DRNARCHITECTURE004");
     }
 
     [Fact]
@@ -686,13 +702,13 @@ public sealed class ConventionBoundaryTests
                 public System.Type Repository => typeof(DRN.Framework.EntityFramework.Domain.SourceKnownRepository<,>);
             }
             """).AddReferences(
-            MetadataReference.CreateFromFile(typeof(Framework.EntityFramework.Context.DrnContext<>).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(Framework.Utils.Settings.IAppSettings).Assembly.Location));
+            AnalyzerTestCompilation.EntityFrameworkReference,
+            AnalyzerTestCompilation.UtilsReference);
         compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
         var facts = CreateFacts(compilation, "Domain");
         ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Where(item => item.Id == "DRNCV016").Should().ContainSingle()
-            .Which.GetMessage().Should().Contain("role 'Infra'");
+        facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE005").Should().ContainSingle()
+            .Which.GetMessage().Should().Contain("uses persistence APIs");
     }
 
     [Fact]
@@ -706,23 +722,23 @@ public sealed class ConventionBoundaryTests
             }
             """);
         ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Where(item => item.Id == "DRNCV016").Should().ContainSingle()
-            .Which.GetMessage().Should().Contain("transport-dependent").And.Contain("role 'Hosted'");
+        facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE005").Should().ContainSingle()
+            .Which.GetMessage().Should().Contain("uses transport APIs");
     }
 
     [Fact]
-    public async Task Role_Suppression_Should_Not_Suppress_Public_Contract_Leakage()
+    public async Task Dependency_Suppression_Should_Not_Suppress_Public_Contract_Leakage()
     {
         var compilation = Compilation("""
             namespace Sample.Contract.QA;
-            [System.Diagnostics.CodeAnalysis.SuppressMessage("DRN.Conventions.Architecture", "DRNCV016",
+            [System.Diagnostics.CodeAnalysis.SuppressMessage("DRN.Conventions.Architecture", "DRNARCHITECTURE005",
                 Justification = "Reviewed compatibility adapter scheduled for removal")]
             public class Consumer { public Microsoft.EntityFrameworkCore.DbContext Context { get; set; } }
             """);
         compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
         var diagnostics = await AnalyzeWithConventions(compilation, "Contract");
-        diagnostics.Should().NotContain(item => item.Id == "DRNCV016");
-        diagnostics.Where(item => item.Id == "DRNCV014").Should().ContainSingle();
+        diagnostics.Should().NotContain(item => item.Id == "DRNARCHITECTURE005");
+        diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").Should().ContainSingle();
     }
 
     [Theory]
@@ -743,7 +759,7 @@ public sealed class ConventionBoundaryTests
         var facts = new ConventionFacts(compilation, new(true, "Sample." + role, role, "Sample." + role, compilation.AssemblyName!, []),
             new([input], []), new Options(), CancellationToken.None);
         ConventionBoundaryAnalysis.Analyze(facts);
-        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNCV015").ToArray();
+        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE003").ToArray();
         diagnostics.Should().HaveCount(violation ? 1 : 0);
         if (violation) diagnostics[0].Properties["Target"].Should().Be(package);
     }
@@ -752,7 +768,7 @@ public sealed class ConventionBoundaryTests
     public void Source_Framework_Reference_Should_Apply_The_Same_Rule_As_Its_Package()
     {
         var path = typeof(Framework.EntityFramework.Context.DrnContext<>).Assembly.Location;
-        var compilation = Compilation("public class Consumer;").AddReferences(MetadataReference.CreateFromFile(path));
+        var compilation = Compilation("public class Consumer;").AddReferences(AnalyzerTestCompilation.EntityFrameworkReference);
         var direct = new ConventionInput("Reference", "/projects/framework.csproj",
             ImmutableDictionary<string, string>.Empty.Add("Stage", "Project").Add("Source", "../framework.csproj"), Location.None);
         var resolved = new ConventionInput("Reference", path, ImmutableDictionary<string, string>.Empty
@@ -760,7 +776,7 @@ public sealed class ConventionBoundaryTests
         var facts = new ConventionFacts(compilation, new(true, "Sample.Contract", "Contract", "Sample.Contract", compilation.AssemblyName!, []),
             new([direct, resolved], []), new Options(), CancellationToken.None);
         ConventionBoundaryAnalysis.Analyze(facts);
-        var diagnostic = facts.Diagnostics.Where(item => item.Id == "DRNCV015").Should().ContainSingle().Which;
+        var diagnostic = facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE003").Should().ContainSingle().Which;
         diagnostic.GetMessage().Should().Contain("Direct project").And.Contain("DRN.Framework.EntityFramework");
         diagnostic.Properties["Target"].Should().Be(direct.Identity);
     }
@@ -771,15 +787,15 @@ public sealed class ConventionBoundaryTests
         var compilation = Compilation("public class Consumer;");
         var direct = new ConventionInput("Reference", "DRN.Framework.Hosting",
             ImmutableDictionary<string, string>.Empty.Add("Stage", "Package"), Location.None);
-        var exception = new ConventionInput("Exception", "DRNCV015", ImmutableDictionary<string, string>.Empty
+        var exception = new ConventionInput("Exception", "DRNARCHITECTURE003", ImmutableDictionary<string, string>.Empty
             .Add("Target", direct.Identity).Add("Reason", "Reviewed compatibility integration")
             .Add("Owner", "Contract team").Add("Review", "2099-01-01"), Location.None);
         var facts = new ConventionFacts(compilation, new(true, "Sample.Contract", "Contract", "Sample.Contract", compilation.AssemblyName!, []),
             new([direct, exception], []), new Options(), CancellationToken.None);
         ConventionBoundaryAnalysis.Analyze(facts);
         var exceptions = new ConventionExceptions(facts, new DateOnly(2026, 11, 15));
-        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNCV018");
-        exceptions.Applies(facts.Diagnostics.Single(item => item.Id == "DRNCV015")).Should().BeTrue();
+        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNCONVENTIONEXCEPTION001");
+        exceptions.Applies(facts.Diagnostics.Single(item => item.Id == "DRNARCHITECTURE003")).Should().BeTrue();
     }
 
     [Theory]
@@ -795,7 +811,7 @@ public sealed class ConventionBoundaryTests
             public class Response { public {{shape}} Payload { get; init; } }
             """);
         ConventionBoundaryAnalysis.Analyze(facts);
-        var diagnostic = facts.Diagnostics.Where(item => item.Id == "DRNCV014").Should().ContainSingle().Which;
+        var diagnostic = facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").Should().ContainSingle().Which;
         diagnostic.Severity.Should().Be(DiagnosticSeverity.Warning);
         diagnostic.GetMessage().Should().Be("Public contract member 'Sample.Contract.QA.Response.Payload' exposes persistence/domain type '" +
             exposed + "'; expose an approved DTO or value model.");
@@ -838,7 +854,7 @@ public sealed class ConventionBoundaryTests
             public class Response { public {{shape}} Persistence { get; init; } }
             """);
         ConventionBoundaryAnalysis.Analyze(facts);
-        var diagnostic = facts.Diagnostics.Where(item => item.Id == "DRNCV014").Should().ContainSingle().Which;
+        var diagnostic = facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").Should().ContainSingle().Which;
         diagnostic.GetMessage().Should().Be("Public contract member 'Sample.Contract.QA.Response.Persistence' exposes persistence/domain type '" +
             exposed + "'; expose an approved DTO or value model.");
         diagnostic.Severity.Should().Be(DiagnosticSeverity.Warning);
@@ -888,8 +904,8 @@ public sealed class ConventionBoundaryTests
         compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
         var facts = CreateFacts(compilation, "Contract");
         ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNCV001");
-        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNCV014").ToArray();
+        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNCONVENTIONINPUT001");
+        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").ToArray();
         diagnostics.Should().HaveCount(exposesEntity ? 1 : 0);
         if (!exposesEntity) return;
         diagnostics[0].GetMessage().Should().Be("Public contract member 'Sample.Contract.QA.Response.Value' exposes persistence/domain type 'Shared.Utils.Entity'; expose an approved DTO or value model.");
@@ -907,7 +923,7 @@ public sealed class ConventionBoundaryTests
             """, "Contract");
         ConventionBoundaryAnalysis.Analyze(facts);
         // Absence of a statically bound entity is not serializer or runtime safety certification.
-        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNCV014");
+        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNARCHITECTURE002");
     }
 
     private static Compilation GeneratedCompilation(string source, string generated)
@@ -970,7 +986,7 @@ public sealed class ConventionBoundaryTests
             string.Join("\n", paths) + "\n" + ConventionTestDependencies.Serialize(fixture.Records));
         var diagnostics = await fixture.Compilation.WithAnalyzers([new SourceKnownConventionAnalyzer()], new AnalyzerOptions([input], new ApplicationOptions(role)))
             .GetAnalyzerDiagnosticsAsync();
-        diagnostics.Should().NotContain(item => item.Id == "AD0001" || item.Id == "DRNCV001");
+        diagnostics.Should().NotContain(item => item.Id == "AD0001" || item.Id == "DRNCONVENTIONINPUT001");
         return diagnostics;
     }
 

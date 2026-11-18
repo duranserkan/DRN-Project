@@ -1,6 +1,8 @@
+using static DRN.Test.Analyzer.Tests.SourceKnownEntityTypeAnalyzerTests;
+
 namespace DRN.Test.Analyzer.Tests;
 
-public partial class SourceKnownEntityTypeAnalyzerTests
+public sealed class UninitializedEntityOperationsAnalyzerTests
 {
     private const string FreshEntityStubs = """
         using DRN.Framework.SharedKernel.Domain;
@@ -36,7 +38,35 @@ public partial class SourceKnownEntityTypeAnalyzerTests
 
         var diagnostics = await RunAnalyzerAsync(FreshEntityStubs, source);
         diagnostics.Should().HaveCount(5);
-        diagnostics.Should().OnlyContain(d => d.Id == "DRN0014" && d.Severity == DiagnosticSeverity.Error);
+        diagnostics.Should().OnlyContain(d => d.Id == "DRNENTITY014" && d.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Fact]
+    public async Task File_Level_Analysis_Reports_Errors_On_Each_Fresh_Receiver()
+    {
+        const string source = """
+            using DRN.Framework.SharedKernel.Domain;
+            public class Consumer
+            {
+                public void Run(Order initialized, SourceKnownEntityId id)
+                {
+                    initialized.ToSecure(id);
+                    new Order().ToSecure(id);
+                    new Order().ToPlain(id);
+                }
+            }
+            """;
+
+        var compilation = CreateEntityCompilation([FreshEntityStubs, source]);
+        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        var tree = compilation.SyntaxTrees.Last();
+        var analyzers = compilation.WithAnalyzers([new SourceKnownEntityTypeAnalyzer()]);
+        var diagnostics = await analyzers.GetAnalyzerSemanticDiagnosticsAsync(
+            analyzers.Compilation.GetSemanticModel(tree), filterSpan: null, cancellationToken: CancellationToken.None);
+
+        diagnostics.Should().HaveCount(2).And.OnlyContain(item => item.Id == "DRNENTITY014");
+        diagnostics.Select(AnalyzerTestCompilation.LocationText).Should().BeEquivalentTo(
+            "new Order().ToSecure(id)", "new Order().ToPlain(id)");
     }
 
     [Fact]
@@ -61,9 +91,14 @@ public partial class SourceKnownEntityTypeAnalyzerTests
 
         var diagnostics = await RunAnalyzerAsync(FreshEntityStubs, source);
 
-        diagnostics.Should().HaveCount(3).And.OnlyContain(diagnostic => diagnostic.Id == "DRN0014");
-        diagnostics.Count(diagnostic => diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan) == "new Order().ToPlain(id)")
+        diagnostics.Should().HaveCount(3).And.OnlyContain(diagnostic => diagnostic.Id == "DRNENTITY014");
+        diagnostics.Count(diagnostic => AnalyzerTestCompilation.LocationText(diagnostic) == "new Order().ToPlain(id)")
             .Should().Be(2);
+        var initializeLine = source.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n')
+            .ToList().FindIndex(line => line.Contains("Initialize(order);", StringComparison.Ordinal));
+        diagnostics.Should().ContainSingle(diagnostic =>
+            AnalyzerTestCompilation.LocationText(diagnostic) == "order.ToPlain(id)" &&
+            diagnostic.Location.GetLineSpan().StartLinePosition.Line < initializeLine);
     }
 
     [Fact]
@@ -84,7 +119,7 @@ public partial class SourceKnownEntityTypeAnalyzerTests
 
         var diagnostics = await RunAnalyzerAsync(FreshEntityStubs, source);
         diagnostics.Should().HaveCount(2);
-        diagnostics.Should().OnlyContain(d => d.Id == "DRN0014");
+        diagnostics.Should().OnlyContain(d => d.Id == "DRNENTITY014");
     }
 
     [Fact]
@@ -220,7 +255,7 @@ public partial class SourceKnownEntityTypeAnalyzerTests
             """;
 
         var diagnostics = await RunAnalyzerAsync(FreshEntityStubs, source);
-        diagnostics.Should().ContainSingle(d => d.Id == "DRN0014");
+        diagnostics.Should().ContainSingle(d => d.Id == "DRNENTITY014");
         (await diagnostics[0].Location.SourceTree!.GetTextAsync()).ToString(diagnostics[0].Location.SourceSpan).Should().Be("order.ToPlain(id)");
     }
 
@@ -280,6 +315,6 @@ public partial class SourceKnownEntityTypeAnalyzerTests
             """;
 
         var diagnostics = await RunAnalyzerAsync(source);
-        diagnostics.Should().ContainSingle(d => d.Id == "DRN0014");
+        diagnostics.Should().ContainSingle(d => d.Id == "DRNENTITY014");
     }
 }

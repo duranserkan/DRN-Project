@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using DRN.Framework.CompilerTools;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 
@@ -8,22 +9,7 @@ namespace DRN.Framework.SharedKernel.Analyzers;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
 {
-    private sealed record EntityTypeDeclaration(
-        byte EntityTypeValue,
-        byte AppId,
-        INamedTypeSymbol Symbol,
-        Location Location);
-
-    private sealed record EntityNameDeclaration(
-        string Name,
-        byte AppId,
-        INamedTypeSymbol Symbol,
-        Location Location);
-
-    private readonly record struct ReferencedEntityInfo(INamedTypeSymbol Symbol, bool HasValue, byte Value, byte AppId,
-        bool Unresolvable, bool Unsupported);
-
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
     [
         DiagnosticDescriptors.MissingEntityTypeAttribute,
         DiagnosticDescriptors.DuplicateEntityTypeValue,
@@ -45,546 +31,87 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
-
-        context.RegisterCompilationStartAction(compilationContext =>
+        context.RegisterCompilationStartAction(start =>
         {
-            var sourceKnownEntitySymbol = compilationContext.Compilation.GetTypeByMetadataName(EntityAnalyzerHelper.SourceKnownEntityMetadataName);
-            var entityTypeAttributeSymbol = compilationContext.Compilation.GetTypeByMetadataName(EntityAnalyzerHelper.EntityTypeAttributeMetadataName);
+            var entity = start.Compilation.GetTypeByMetadataName(EntityAnalyzerHelper.SourceKnownEntityMetadataName);
+            var attribute = start.Compilation.GetTypeByMetadataName(EntityAnalyzerHelper.EntityTypeAttributeMetadataName);
+            if (entity == null || attribute == null) return;
 
-            if (sourceKnownEntitySymbol == null || entityTypeAttributeSymbol == null)
-                return;
-
-            var entityFacts = new EntityAnalyzerHelper.EntityTypeFacts(sourceKnownEntitySymbol);
-            SourceKnownEntityUsageAnalysis.Register(compilationContext, sourceKnownEntitySymbol, entityFacts);
-            UninitializedEntityOperationsAnalysis.Register(compilationContext, sourceKnownEntitySymbol, entityFacts);
-
-            var collectedEntityTypeDeclarations = new ConcurrentBag<EntityTypeDeclaration>();
-            var collectedEntityNameDeclarations = new ConcurrentBag<EntityNameDeclaration>();
-            var metadata = new EntityAnalyzerHelper.CompilationMetadata(compilationContext.Compilation);
-
-            var referencedEntitySymbols = EntityAnalyzerHelper.ScanReferencedAssemblies(
-                compilationContext.Compilation,
-                sourceKnownEntitySymbol,
-                compilationContext.CancellationToken);
-
-            compilationContext.RegisterSymbolAction(
-                symbolContext => AnalyzeNamedType(
-                    symbolContext,
-                    entityFacts,
-                    entityTypeAttributeSymbol,
-                    collectedEntityTypeDeclarations,
-                    collectedEntityNameDeclarations,
-                    metadata),
-                SymbolKind.NamedType);
-
-            compilationContext.RegisterCompilationEndAction(
-                endContext => AnalyzeCompilationEnd(
-                    endContext,
-                    referencedEntitySymbols,
-                    collectedEntityTypeDeclarations,
-                    collectedEntityNameDeclarations,
-                    entityTypeAttributeSymbol,
-                    metadata));
+            var facts = EntityAnalyzerHelper.EntityTypeFacts.For(start.Compilation, entity);
+            var usage = SourceKnownEntityUsageAnalysis.Register(start, entity, facts);
+            UninitializedEntityOperationsAnalysis.Register(start, entity, facts);
+            var metadata = new EntityAnalyzerHelper.CompilationMetadata(start.Compilation);
+            var declarations = new ConcurrentBag<EntityDeclaration>();
+            start.RegisterSymbolAction(symbol => AnalyzeNamedType(symbol, facts, usage, attribute, metadata, declarations), SymbolKind.NamedType);
+            start.RegisterCompilationEndAction(end => AnalyzeCompilationEnd(end, entity, facts, attribute, metadata, declarations));
         });
     }
 
-    private static void AnalyzeNamedType(
-        SymbolAnalysisContext symbolContext,
-        EntityAnalyzerHelper.EntityTypeFacts entityFacts,
-        INamedTypeSymbol entityTypeAttributeSymbol,
-        ConcurrentBag<EntityTypeDeclaration> collectedEntityTypeDeclarations,
-        ConcurrentBag<EntityNameDeclaration> collectedEntityNameDeclarations,
-        EntityAnalyzerHelper.CompilationMetadata metadata)
+    private static void AnalyzeNamedType(SymbolAnalysisContext context, EntityAnalyzerHelper.EntityTypeFacts facts,
+        SourceKnownEntityUsageAnalysis usage, INamedTypeSymbol attributeType,
+        EntityAnalyzerHelper.CompilationMetadata metadata, ConcurrentBag<EntityDeclaration> declarations)
     {
-        var namedType = (INamedTypeSymbol)symbolContext.Symbol;
-        symbolContext.CancellationToken.ThrowIfCancellationRequested();
-        if (namedType.TypeKind != TypeKind.Class)
+        var type = (INamedTypeSymbol)context.Symbol;
+        context.CancellationToken.ThrowIfCancellationRequested();
+        if (type.TypeKind != TypeKind.Class) return;
+
+        // Validate attribute producers even when no entity uses their attribute yet.
+        var unsupportedProducer = EntityAnalyzerHelper.IsOrDerivesFrom(type.BaseType, attributeType, context.CancellationToken) &&
+            !metadata.IsSupported(type, context.CancellationToken);
+        var derived = facts.IsDerived(type, context.CancellationToken);
+        if (derived) usage.AnalyzeHiddenIdentityMembers(context, type);
+        var eligible = derived && !type.IsAbstract && !EntityAnalyzerHelper.IsEffectivelyPrivate(type);
+        var attribute = EntityAnalyzerHelper.FindAttribute(type, attributeType, context.CancellationToken);
+        if (!unsupportedProducer && !eligible && attribute == null) return;
+        if (GeneratedSource.FirstUserLocation(type, context) is not { } location) return;
+        if (unsupportedProducer)
+            context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.UnsupportedEntityAttribute, location, type.Name));
+        if (eligible && type.IsGenericType)
+            context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.GenericConcreteEntity, location, type.ToDisplayString()));
+        if (attribute == null)
+        {
+            if (eligible) context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.MissingEntityTypeAttribute, location, type.Name));
             return;
-
-        // Validate producers even if no entity in their assembly uses the attribute yet.
-        if (!SymbolEqualityComparer.Default.Equals(namedType, entityTypeAttributeSymbol) &&
-            EntityAnalyzerHelper.IsOrDerivesFromEntityTypeAttribute(namedType, entityTypeAttributeSymbol) &&
-            !metadata.IsSupported(namedType, symbolContext.CancellationToken))
+        }
+        var attributeLocation = location;
+        if (attribute.ApplicationSyntaxReference is { } reference && (reference.SyntaxTree == location.SourceTree ||
+            !GeneratedSource.IsGenerated(reference.SyntaxTree, context.Compilation, context.Options.AnalyzerConfigOptionsProvider, context.CancellationToken)))
+            attributeLocation = reference.GetSyntax(context.CancellationToken).GetLocation();
+        if (!eligible)
         {
-            symbolContext.ReportDiagnostic(Diagnostic.Create(
-                DiagnosticDescriptors.UnsupportedEntityAttribute,
-                namedType.Locations.FirstOrDefault() ?? Location.None,
-                namedType.Name));
+            context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.InvalidEntityTypeAttributeUsage, attributeLocation, type.Name));
+            return;
         }
 
-        var inheritsSourceKnownEntity = entityFacts.IsDerived(namedType, symbolContext.CancellationToken);
-        var entityTypeAttribute = EntityAnalyzerHelper.FindAttribute(namedType, entityTypeAttributeSymbol);
-        var isPrivate = EntityAnalyzerHelper.IsEffectivelyPrivate(namedType);
-
-        if (inheritsSourceKnownEntity && !namedType.IsAbstract && !isPrivate)
-        {
-            ProcessValidCandidateEntity(
-                symbolContext,
-                namedType,
-                entityTypeAttribute,
-                collectedEntityTypeDeclarations,
-                collectedEntityNameDeclarations,
-                metadata);
-        }
-        else if (entityTypeAttribute != null)
-        {
-            // EntityTypeAttribute applied to abstract class, private class, or non-SourceKnownEntity (DRN0003)
-            var location = entityTypeAttribute.ApplicationSyntaxReference?.GetSyntax(symbolContext.CancellationToken).GetLocation()
-                           ?? (namedType.Locations.Length > 0 ? namedType.Locations[0] : Location.None);
-
-            symbolContext.ReportDiagnostic(Diagnostic.Create(
-                DiagnosticDescriptors.InvalidEntityTypeAttributeUsage,
-                location,
-                namedType.Name));
-        }
+        var declaration = EntityDeclaration.Read(type, attribute, location, attributeLocation, metadata, context.CancellationToken, out var problem);
+        if (problem != null) context.ReportDiagnostic(problem);
+        if (declaration != null) declarations.Add(declaration);
     }
 
-    private static void ProcessValidCandidateEntity(
-        SymbolAnalysisContext symbolContext,
-        INamedTypeSymbol namedType,
-        AttributeData? entityTypeAttribute,
-        ConcurrentBag<EntityTypeDeclaration> collectedEntityTypeDeclarations,
-        ConcurrentBag<EntityNameDeclaration> collectedEntityNameDeclarations,
-        EntityAnalyzerHelper.CompilationMetadata metadata)
+    private static void AnalyzeCompilationEnd(CompilationAnalysisContext context, INamedTypeSymbol entity,
+        EntityAnalyzerHelper.EntityTypeFacts facts, INamedTypeSymbol attributeType,
+        EntityAnalyzerHelper.CompilationMetadata metadata, ConcurrentBag<EntityDeclaration> localDeclarations)
     {
-        var location = namedType.Locations.Length > 0 ? namedType.Locations[0] : Location.None;
-
-        if (entityTypeAttribute == null)
+        var declarations = localDeclarations.ToList();
+        Dictionary<Compilation, (INamedTypeSymbol? Attribute, EntityAnalyzerHelper.CompilationMetadata Metadata)>? producerContracts = null;
+        foreach (var (type, producer) in ReferencedEntityDiscovery.Find(context.Compilation, entity, facts, context.CancellationToken))
         {
-            symbolContext.ReportDiagnostic(Diagnostic.Create(
-                DiagnosticDescriptors.MissingEntityTypeAttribute,
-                location,
-                namedType.Name));
-            return;
-        }
-
-        if (!metadata.IsSupported(entityTypeAttribute.AttributeClass, symbolContext.CancellationToken))
-        {
-            symbolContext.ReportDiagnostic(Diagnostic.Create(
-                DiagnosticDescriptors.UnsupportedEntityAttribute,
-                entityTypeAttribute.ApplicationSyntaxReference?.GetSyntax(symbolContext.CancellationToken).GetLocation() ?? location,
-                entityTypeAttribute.AttributeClass?.Name ?? namedType.Name));
-            return;
-        }
-
-        if (!EntityAnalyzerHelper.TryGetEntityType(entityTypeAttribute, symbolContext.Compilation, symbolContext.CancellationToken,
-                out var entityTypeValue, out var declaredAppId, metadata))
-        {
-            var attrLocation = entityTypeAttribute.ApplicationSyntaxReference?.GetSyntax(symbolContext.CancellationToken).GetLocation() ?? location;
-            symbolContext.ReportDiagnostic(Diagnostic.Create(
-                DiagnosticDescriptors.UnresolvableAppId,
-                attrLocation,
-                namedType.Name));
-            return;
-        }
-
-        if (declaredAppId > EntityAnalyzerHelper.MaxAppId)
-        {
-            var attrLocation = entityTypeAttribute.ApplicationSyntaxReference?.GetSyntax(symbolContext.CancellationToken).GetLocation() ?? location;
-            symbolContext.ReportDiagnostic(Diagnostic.Create(
-                DiagnosticDescriptors.AppIdOutOfRange,
-                attrLocation,
-                namedType.Name,
-                declaredAppId));
-            return;
-        }
-
-        // 1. Buffer non-private entity class names for compilation end analysis (DRN0004 - Warning)
-        collectedEntityNameDeclarations.Add(new EntityNameDeclaration(namedType.Name, declaredAppId, namedType, location));
-
-        // 2. Collect for compilation end (DRN0002 & DRN0005)
-        var validAttrLocation = entityTypeAttribute.ApplicationSyntaxReference?.GetSyntax(symbolContext.CancellationToken).GetLocation() ?? location;
-        collectedEntityTypeDeclarations.Add(new EntityTypeDeclaration(entityTypeValue, declaredAppId, namedType, validAttrLocation));
-    }
-
-    private static void AnalyzeCompilationEnd(
-        CompilationAnalysisContext endContext,
-        ConcurrentBag<INamedTypeSymbol> referencedEntitySymbols,
-        ConcurrentBag<EntityTypeDeclaration> collectedEntityTypeDeclarations,
-        ConcurrentBag<EntityNameDeclaration> collectedEntityNameDeclarations,
-        INamedTypeSymbol entityTypeAttributeSymbol,
-        EntityAnalyzerHelper.CompilationMetadata metadata)
-    {
-        var distinctReferencedEntities = referencedEntitySymbols
-            .Distinct(SymbolEqualityComparer.Default)
-            .OfType<INamedTypeSymbol>()
-            .Select(symbol => ExtractEntityTypeInfo(symbol, entityTypeAttributeSymbol, endContext.Compilation, metadata, endContext.CancellationToken))
-            .ToArray();
-
-        AnalyzeDuplicateEntityTypeValues(endContext, distinctReferencedEntities, collectedEntityTypeDeclarations, entityTypeAttributeSymbol);
-        AnalyzeDuplicateEntityNames(endContext, distinctReferencedEntities, collectedEntityNameDeclarations);
-        AnalyzeMultipleAppIds(endContext, distinctReferencedEntities, collectedEntityTypeDeclarations);
-    }
-
-    private static void AnalyzeDuplicateEntityTypeValues(
-        CompilationAnalysisContext endContext,
-        IReadOnlyList<ReferencedEntityInfo> distinctReferencedEntities,
-        ConcurrentBag<EntityTypeDeclaration> collectedEntityTypeDeclarations,
-        INamedTypeSymbol entityTypeAttributeSymbol)
-    {
-        var referencedEntityTypeMap = BuildAndReportReferencedEntityTypeCollisions(
-            endContext,
-            distinctReferencedEntities,
-            entityTypeAttributeSymbol);
-
-        CheckLocalEntityTypeCollisions(
-            endContext,
-            collectedEntityTypeDeclarations,
-            referencedEntityTypeMap);
-    }
-
-    private static Dictionary<(byte AppId, byte EntityTypeValue), List<INamedTypeSymbol>> BuildAndReportReferencedEntityTypeCollisions(
-        CompilationAnalysisContext endContext,
-        IReadOnlyList<ReferencedEntityInfo> extractedInfo,
-        INamedTypeSymbol entityTypeAttributeSymbol)
-    {
-        foreach (var info in extractedInfo)
-        {
-            endContext.CancellationToken.ThrowIfCancellationRequested();
-            if (info.Unsupported)
+            var contract = (Attribute: (INamedTypeSymbol?)attributeType, Metadata: metadata);
+            if (producer is not null)
             {
-                var attributeName = EntityAnalyzerHelper.FindAttribute(info.Symbol, entityTypeAttributeSymbol)?.AttributeClass?.ToDisplayString();
-                endContext.ReportDiagnostic(Diagnostic.Create(
-                    DiagnosticDescriptors.UnsupportedEntityAttribute,
-                    Location.None,
-                    attributeName ?? info.Symbol.Name));
+                producerContracts ??= new();
+                if (!producerContracts.TryGetValue(producer, out contract))
+                {
+                    contract = (producer.GetTypeByMetadataName(EntityAnalyzerHelper.EntityTypeAttributeMetadataName), new(producer));
+                    producerContracts.Add(producer, contract);
+                }
             }
-            else if (info.Unresolvable)
-            {
-                endContext.ReportDiagnostic(Diagnostic.Create(
-                    DiagnosticDescriptors.UnresolvableAppId,
-                    Location.None,
-                    $"{info.Symbol.ContainingAssembly.Name}::{info.Symbol.Name}"));
-            }
-            else if (info.HasValue && info.AppId > EntityAnalyzerHelper.MaxAppId)
-            {
-                endContext.ReportDiagnostic(Diagnostic.Create(
-                    DiagnosticDescriptors.AppIdOutOfRange,
-                    Location.None,
-                    $"{info.Symbol.ContainingAssembly.Name}::{info.Symbol.Name}",
-                    info.AppId));
-            }
+            if (contract.Attribute is null ||
+                EntityAnalyzerHelper.FindAttribute(type, contract.Attribute, context.CancellationToken) is not { } attribute) continue;
+            var declaration = EntityDeclaration.Read(type, attribute, Location.None, Location.None, contract.Metadata, context.CancellationToken, out var problem);
+            if (problem != null) context.ReportDiagnostic(problem);
+            if (declaration != null) declarations.Add(declaration);
         }
-
-        var referencedByValue = extractedInfo
-            .Where(x => x.HasValue && x.AppId <= EntityAnalyzerHelper.MaxAppId)
-            .GroupBy(x => (x.AppId, x.Value));
-
-        var referencedEntityTypeMap = new Dictionary<(byte AppId, byte EntityTypeValue), List<INamedTypeSymbol>>();
-        foreach (var refGroup in referencedByValue)
-        {
-            var groupKey = refGroup.Key; // (AppId, Value)
-            var orderedRefGroup = EntityAnalyzerHelper.OrderSymbols(refGroup.Select(x => x.Symbol));
-            referencedEntityTypeMap[groupKey] = orderedRefGroup;
-
-            ReportReferencedEntityTypeCollisions(endContext, groupKey, orderedRefGroup);
-        }
-
-        return referencedEntityTypeMap;
-    }
-
-    private static ReferencedEntityInfo ExtractEntityTypeInfo(
-        INamedTypeSymbol symbol,
-        INamedTypeSymbol entityTypeAttributeSymbol,
-        Compilation compilation,
-        EntityAnalyzerHelper.CompilationMetadata metadata,
-        CancellationToken cancellationToken)
-    {
-        var attr = EntityAnalyzerHelper.FindAttribute(symbol, entityTypeAttributeSymbol);
-        if (attr == null)
-            return new(symbol, HasValue: false, Value: 0, AppId: 0, Unresolvable: false, Unsupported: false);
-
-        if (!metadata.IsSupported(attr.AttributeClass, cancellationToken))
-            return new(symbol, HasValue: false, Value: 0, AppId: 0, Unresolvable: false, Unsupported: true);
-
-        if (EntityAnalyzerHelper.TryGetEntityType(attr, compilation, cancellationToken, out var val, out var refAppId, metadata))
-            return new(symbol, HasValue: true, Value: val, AppId: refAppId, Unresolvable: false, Unsupported: false);
-
-        return new(symbol, HasValue: false, Value: 0, AppId: 0, Unresolvable: true, Unsupported: false);
-    }
-
-    private static void ReportReferencedEntityTypeCollisions(
-        CompilationAnalysisContext endContext,
-        (byte AppId, byte EntityTypeValue) groupKey,
-        List<INamedTypeSymbol> orderedRefGroup)
-    {
-        if (orderedRefGroup.Count <= 1)
-            return;
-
-        var firstRefSymbol = orderedRefGroup[0];
-        var firstTargetName = $"{firstRefSymbol.ContainingAssembly.Name}::{firstRefSymbol.Name}";
-
-        for (var i = 1; i < orderedRefGroup.Count; i++)
-        {
-            var duplicateRefSymbol = orderedRefGroup[i];
-            var duplicateTargetName = $"{duplicateRefSymbol.ContainingAssembly.Name}::{duplicateRefSymbol.Name}";
-
-            endContext.ReportDiagnostic(Diagnostic.Create(
-                DiagnosticDescriptors.DuplicateEntityTypeValue,
-                Location.None,
-                groupKey.EntityTypeValue,
-                groupKey.AppId,
-                duplicateTargetName,
-                firstTargetName));
-        }
-    }
-
-    private static void CheckLocalEntityTypeCollisions(
-        CompilationAnalysisContext endContext,
-        ConcurrentBag<EntityTypeDeclaration> collectedEntityTypeDeclarations,
-        Dictionary<(byte AppId, byte EntityTypeValue), List<INamedTypeSymbol>> referencedEntityTypeMap)
-    {
-        var localGroupedByValue = collectedEntityTypeDeclarations.GroupBy(d => (d.AppId, d.EntityTypeValue));
-
-        foreach (var group in localGroupedByValue)
-        {
-            var groupKey = group.Key; // (AppId, EntityTypeValue)
-            var orderedDeclarations = EntityAnalyzerHelper.OrderByLocation(group, d => d.Location);
-
-            if (referencedEntityTypeMap.TryGetValue(groupKey, out var refSymbols) && refSymbols.Count > 0)
-                ReportLocalAgainstReferencedEntityTypeCollisions(endContext, groupKey, orderedDeclarations, refSymbols[0]);
-            else if (orderedDeclarations.Count > 1)
-                ReportLocalDuplicateEntityTypeCollisions(endContext, groupKey, orderedDeclarations);
-        }
-    }
-
-    private static void ReportLocalAgainstReferencedEntityTypeCollisions(
-        CompilationAnalysisContext endContext,
-        (byte AppId, byte EntityTypeValue) groupKey,
-        List<EntityTypeDeclaration> orderedDeclarations,
-        INamedTypeSymbol firstRefSymbol)
-    {
-        var referencedTargetName = $"{firstRefSymbol.ContainingAssembly.Name}::{firstRefSymbol.Name}";
-
-        foreach (var decl in orderedDeclarations.Where(decl => !SymbolEqualityComparer.Default.Equals(firstRefSymbol, decl.Symbol)))
-        {
-            endContext.ReportDiagnostic(Diagnostic.Create(
-                DiagnosticDescriptors.DuplicateEntityTypeValue,
-                decl.Location,
-                groupKey.EntityTypeValue,
-                groupKey.AppId,
-                decl.Symbol.Name,
-                referencedTargetName));
-        }
-    }
-
-    private static void ReportLocalDuplicateEntityTypeCollisions(
-        CompilationAnalysisContext endContext,
-        (byte AppId, byte EntityTypeValue) groupKey,
-        List<EntityTypeDeclaration> orderedDeclarations)
-    {
-        var firstDecl = orderedDeclarations[0];
-        for (var i = 1; i < orderedDeclarations.Count; i++)
-        {
-            var duplicateDecl = orderedDeclarations[i];
-            if (!SymbolEqualityComparer.Default.Equals(firstDecl.Symbol, duplicateDecl.Symbol))
-            {
-                endContext.ReportDiagnostic(Diagnostic.Create(
-                    DiagnosticDescriptors.DuplicateEntityTypeValue,
-                    duplicateDecl.Location,
-                    groupKey.EntityTypeValue,
-                    groupKey.AppId,
-                    duplicateDecl.Symbol.Name,
-                    firstDecl.Symbol.Name));
-            }
-        }
-    }
-
-    private static void AnalyzeDuplicateEntityNames(
-        CompilationAnalysisContext endContext,
-        IReadOnlyList<ReferencedEntityInfo> distinctReferencedEntities,
-        ConcurrentBag<EntityNameDeclaration> collectedEntityNameDeclarations)
-    {
-        var referencedEntityNameMap = BuildAndReportReferencedEntityNameCollisions(
-            endContext,
-            distinctReferencedEntities);
-
-        CheckLocalEntityNameCollisions(
-            endContext,
-            collectedEntityNameDeclarations,
-            referencedEntityNameMap);
-    }
-
-    private static Dictionary<(byte AppId, string Name), List<INamedTypeSymbol>> BuildAndReportReferencedEntityNameCollisions(
-        CompilationAnalysisContext endContext,
-        IReadOnlyList<ReferencedEntityInfo> distinctReferencedEntities)
-    {
-        var referencedByName = distinctReferencedEntities
-            .Where(x => x.HasValue && x.AppId <= EntityAnalyzerHelper.MaxAppId)
-            .GroupBy(x => (x.AppId, x.Symbol.Name), x => x.Symbol);
-
-        var referencedEntityNameMap = new Dictionary<(byte AppId, string Name), List<INamedTypeSymbol>>();
-        foreach (var refNameGroup in referencedByName)
-        {
-            var groupKey = refNameGroup.Key; // (AppId, Name)
-            var orderedRefGroup = EntityAnalyzerHelper.OrderSymbols(refNameGroup);
-            referencedEntityNameMap[groupKey] = orderedRefGroup;
-
-            ReportReferencedEntityNameCollisions(endContext, groupKey.AppId, orderedRefGroup);
-        }
-
-        return referencedEntityNameMap;
-    }
-
-    private static void ReportReferencedEntityNameCollisions(
-        CompilationAnalysisContext endContext,
-        byte appId,
-        List<INamedTypeSymbol> orderedRefGroup)
-    {
-        if (orderedRefGroup.Count <= 1)
-            return;
-
-        var firstRefSymbol = orderedRefGroup[0];
-        var firstName = firstRefSymbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
-
-        for (var i = 1; i < orderedRefGroup.Count; i++)
-        {
-            var duplicateRefSymbol = orderedRefGroup[i];
-            var duplicateName = duplicateRefSymbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
-
-            endContext.ReportDiagnostic(Diagnostic.Create(
-                DiagnosticDescriptors.DuplicateEntityName,
-                Location.None,
-                duplicateName,
-                firstName,
-                appId));
-        }
-    }
-
-    private static void CheckLocalEntityNameCollisions(
-        CompilationAnalysisContext endContext,
-        ConcurrentBag<EntityNameDeclaration> collectedEntityNameDeclarations,
-        Dictionary<(byte AppId, string Name), List<INamedTypeSymbol>> referencedEntityNameMap)
-    {
-        var localGroupedByName = collectedEntityNameDeclarations.GroupBy(d => (d.AppId, d.Name));
-
-        foreach (var group in localGroupedByName)
-        {
-            var groupKey = group.Key; // (AppId, Name)
-            var orderedDeclarations = EntityAnalyzerHelper.OrderByLocation(group, d => d.Location);
-
-            if (orderedDeclarations.Count == 0)
-                continue;
-
-            var firstDecl = orderedDeclarations[0];
-
-            ReportLocalAgainstReferencedEntityNameCollision(endContext, groupKey, firstDecl, referencedEntityNameMap);
-            ReportLocalDuplicateEntityNameCollisions(endContext, groupKey.AppId, firstDecl, orderedDeclarations);
-        }
-    }
-
-    private static void ReportLocalAgainstReferencedEntityNameCollision(
-        CompilationAnalysisContext endContext,
-        (byte AppId, string Name) groupKey,
-        EntityNameDeclaration firstDecl,
-        Dictionary<(byte AppId, string Name), List<INamedTypeSymbol>> referencedEntityNameMap)
-    {
-        if (referencedEntityNameMap.TryGetValue(groupKey, out var refSymbols)
-            && refSymbols.Count > 0
-            && !SymbolEqualityComparer.Default.Equals(refSymbols[0], firstDecl.Symbol))
-        {
-            endContext.ReportDiagnostic(Diagnostic.Create(
-                DiagnosticDescriptors.DuplicateEntityName,
-                firstDecl.Location,
-                firstDecl.Symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
-                refSymbols[0].ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
-                groupKey.AppId));
-        }
-    }
-
-    private static void ReportLocalDuplicateEntityNameCollisions(
-        CompilationAnalysisContext endContext,
-        byte appId,
-        EntityNameDeclaration firstDecl,
-        List<EntityNameDeclaration> orderedDeclarations)
-    {
-        for (var i = 1; i < orderedDeclarations.Count; i++)
-        {
-            var duplicateDecl = orderedDeclarations[i];
-            if (!SymbolEqualityComparer.Default.Equals(firstDecl.Symbol, duplicateDecl.Symbol))
-            {
-                endContext.ReportDiagnostic(Diagnostic.Create(
-                    DiagnosticDescriptors.DuplicateEntityName,
-                    duplicateDecl.Location,
-                    duplicateDecl.Symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
-                    firstDecl.Symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
-                    appId));
-            }
-        }
-    }
-
-    private const byte TestAppId = 127;
-
-    private static void AnalyzeMultipleAppIds(
-        CompilationAnalysisContext endContext,
-        IReadOnlyList<ReferencedEntityInfo> distinctReferencedEntities,
-        ConcurrentBag<EntityTypeDeclaration> collectedEntityTypeDeclarations)
-    {
-        if (IsMultiAppPermitted(endContext))
-            return;
-
-        var localAppIds = collectedEntityTypeDeclarations
-            .Select(d => d.AppId);
-
-        var referencedAppIds = distinctReferencedEntities
-            .Where(x => x.HasValue && x.AppId <= EntityAnalyzerHelper.MaxAppId)
-            .Select(x => x.AppId);
-
-        var distinctNonTestAppIds = localAppIds
-            .Concat(referencedAppIds)
-            .Where(appId => appId != TestAppId)
-            .Distinct()
-            .OrderBy(appId => appId)
-            .ToList();
-
-        if (distinctNonTestAppIds.Count <= 1)
-            return;
-
-        var assemblyName = endContext.Compilation.AssemblyName ?? "Assembly";
-        var appIdsSummary = string.Join(", ", distinctNonTestAppIds);
-
-        var location = EntityAnalyzerHelper.OrderByLocation(collectedEntityTypeDeclarations, d => d.Location)
-            .FirstOrDefault()?.Location ?? Location.None;
-
-        endContext.ReportDiagnostic(Diagnostic.Create(
-            DiagnosticDescriptors.MultipleAppIdsNotPermitted,
-            location,
-            assemblyName,
-            appIdsSummary));
-    }
-
-    private static bool IsMultiAppPermitted(CompilationAnalysisContext context)
-    {
-        var options = context.Options.AnalyzerConfigOptionsProvider.GlobalOptions;
-
-        if (options.TryGetValue("build_property.AllowMultipleAppIds", out var allowMulti) &&
-            string.Equals(allowMulti, "true", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        if (options.TryGetValue("build_property.IsTestProject", out var isTest) &&
-            string.Equals(isTest, "true", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        if (options.TryGetValue("build_property.UseMicrosoftTestingPlatformRunner", out var isMtp) &&
-            string.Equals(isMtp, "true", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        var assemblyName = context.Compilation.AssemblyName;
-        if (assemblyName != null &&
-            (assemblyName.Contains(".Test.", StringComparison.OrdinalIgnoreCase) ||
-             assemblyName.StartsWith("Test.", StringComparison.OrdinalIgnoreCase) ||
-             assemblyName.EndsWith(".Tests", StringComparison.OrdinalIgnoreCase) ||
-             assemblyName.EndsWith(".Test", StringComparison.OrdinalIgnoreCase)))
-        {
-            return true;
-        }
-
-        return false;
+        EntityCollisionAnalysis.Report(context, declarations);
     }
 }

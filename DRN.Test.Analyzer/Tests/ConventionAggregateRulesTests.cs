@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Analyzers.Conventions;
 using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
 
@@ -5,10 +6,17 @@ namespace DRN.Test.Analyzer.Tests;
 
 public sealed class ConventionAggregateRulesTests
 {
-    private static readonly MetadataReference FrameworkReference = MetadataReference.CreateFromFile(
-        typeof(DRN.Framework.EntityFramework.Context.DrnContext<>).Assembly.Location);
-    private static readonly MetadataReference UtilsReference = MetadataReference.CreateFromFile(
-        typeof(DRN.Framework.Utils.Entity.IEntityUtils).Assembly.Location);
+    private static MetadataReference FrameworkReference => AnalyzerTestCompilation.EntityFrameworkReference;
+    private static MetadataReference UtilsReference => AnalyzerTestCompilation.UtilsReference;
+    private static readonly Lazy<MetadataReference> OrderDomainReference = new(() =>
+    {
+        var domain = Compilation(Domain + Contract).WithAssemblyName("Sample.Domain");
+        domain.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        return domain.ToMetadataReference();
+    });
+    private static readonly Lazy<MetadataReference> GenericConfigurationReference = new(() =>
+        AnalyzerTestCompilation.EmitReference(Compilation("namespace Sample.Infra.QA; " + GenericConfiguration)
+            .WithAssemblyName("ConfigurationFixture")));
     private static readonly Lazy<ImmutableArray<MetadataReference>> MultiEntityConfigurationReferences =
         new(CreateMultiEntityConfigurationReferences);
     private const string Domain = """
@@ -17,6 +25,12 @@ public sealed class ConventionAggregateRulesTests
         """;
     private const string Contract = """
         public interface IOrderRepository : DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<OrderEntity>;
+        """;
+    private const string GenericConfiguration = """
+        public class GenericConfig<T> : Microsoft.EntityFrameworkCore.IEntityTypeConfiguration<T> where T : class
+        {
+            public void Configure(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<T> builder) { }
+        }
         """;
     private const string Infra = """
         using DRN.Framework.EntityFramework.Context;
@@ -33,10 +47,10 @@ public sealed class ConventionAggregateRulesTests
 
     [Theory]
     [InlineData("OrderEntity", "Order", "QA/Order/OrderEntity.cs", null)]
-    [InlineData("Order", "Order", "QA/Order/Order.cs", "DRNCV024")]
-    [InlineData("Entity", "Order", "QA/Order/Entity.cs", "DRNCV024")]
-    [InlineData("OrderEntity", "Orders", "QA/Orders/OrderEntity.cs", "DRNCV025")]
-    [InlineData("OrderEntity", "Order", "QA/Orders/OrderEntity.cs", "DRNCV025")]
+    [InlineData("Order", "Order", "QA/Order/Order.cs", "DRNSTRUCTURE004")]
+    [InlineData("Entity", "Order", "QA/Order/Entity.cs", "DRNSTRUCTURE004")]
+    [InlineData("OrderEntity", "Orders", "QA/Orders/OrderEntity.cs", "DRNSTRUCTURE005")]
+    [InlineData("OrderEntity", "Order", "QA/Orders/OrderEntity.cs", "DRNSTRUCTURE005")]
     public void Aggregate_Name_And_Placement_Should_Match(string name, string area, string path, string? expected)
     {
         var source = $"namespace Sample.Domain.QA.{area}; public class {name} : DRN.Framework.SharedKernel.Domain.AggregateRoot;";
@@ -66,7 +80,7 @@ public sealed class ConventionAggregateRulesTests
             facts.Diagnostics.Should().BeEmpty();
             return;
         }
-        facts.Diagnostics.Should().HaveCount(3).And.OnlyContain(item => item.Id == "DRNCV024");
+        facts.Diagnostics.Should().HaveCount(3).And.OnlyContain(item => item.Id == "DRNSTRUCTURE004");
         facts.Diagnostics.Select(item => item.GetMessage()).Should().BeEquivalentTo(
             "Rename 'IStore' to end with 'Repository' and include a name before the suffix.",
             "Rename 'IHandler' to end with 'Service' and include a name before the suffix.",
@@ -81,7 +95,7 @@ public sealed class ConventionAggregateRulesTests
         var facts = Facts(Compilation(Domain + (declared ? Contract : "")).WithAssemblyName("Sample.Domain"), "Domain");
         ConventionAggregateRepositoryAnalysis.Analyze(facts);
         if (declared) facts.Diagnostics.Should().BeEmpty();
-        else facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV026");
+        else facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNREPOSITORY003");
     }
 
     [Theory]
@@ -90,17 +104,15 @@ public sealed class ConventionAggregateRulesTests
     [InlineData(true, true, false)]
     public void Infra_Should_Require_A_Concrete_Repository_Implementing_The_Domain_Interface(bool repository, bool implements, bool missing)
     {
-        var domain = Compilation(Domain + Contract).WithAssemblyName("Sample.Domain");
-        domain.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
         var source = Infra + (repository ? """
             public class OrderRepository(QAContext context, IEntityUtils utils)
                 : SourceKnownRepository<QAContext, OrderEntity>(context, utils)
             """ + (implements ? ", IOrderRepository;" : ";") : "");
-        var compilation = Compilation(source).WithAssemblyName("Sample.Infra").AddReferences(domain.ToMetadataReference(),
+        var compilation = Compilation(source).WithAssemblyName("Sample.Infra").AddReferences(OrderDomainReference.Value,
             FrameworkReference, UtilsReference);
         var facts = Facts(compilation, "Infra");
         ConventionAggregateRepositoryAnalysis.Analyze(facts);
-        if (missing) facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV027");
+        if (missing) facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNREPOSITORY004");
         else facts.Diagnostics.Should().BeEmpty();
     }
 
@@ -125,7 +137,7 @@ public sealed class ConventionAggregateRulesTests
                     .Add("LogicalPath", folder + "/IOrderRepository.cs"), Location.None)
             ], []), new Options(), CancellationToken.None);
         ConventionAggregateRepositoryAnalysis.Analyze(facts);
-        if (missing) facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV026");
+        if (missing) facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNREPOSITORY003");
         else facts.Diagnostics.Should().BeEmpty();
     }
 
@@ -148,7 +160,6 @@ public sealed class ConventionAggregateRulesTests
     [InlineData("configuration", true)]
     public void Repository_Requirement_Should_Use_Explicit_And_Configuration_Assignment(string evidence, bool missing)
     {
-        var domain = Compilation(Domain + Contract).WithAssemblyName("Sample.Domain");
         var attribute = evidence == "configuration" ? "" :
             "[DRN.Framework.EntityFramework.Attributes.SourceKnownPersistence(typeof(OrderEntity)" +
             (evidence == "exclude" ? ", Inclusion = DRN.Framework.EntityFramework.Attributes.SourceKnownPersistenceInclusion.Exclude" : "") + ")]";
@@ -165,9 +176,9 @@ public sealed class ConventionAggregateRulesTests
             }
             """;
         var facts = Facts(Compilation(source).WithAssemblyName("Sample.Infra")
-            .AddReferences(domain.ToMetadataReference(), FrameworkReference, UtilsReference), "Infra");
+            .AddReferences(OrderDomainReference.Value, FrameworkReference, UtilsReference), "Infra");
         ConventionAggregateRepositoryAnalysis.Analyze(facts);
-        if (missing) facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV027");
+        if (missing) facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNREPOSITORY004");
         else facts.Diagnostics.Should().BeEmpty();
     }
 
@@ -179,7 +190,6 @@ public sealed class ConventionAggregateRulesTests
     [InlineData("Sample.Infra.QA.Configurations", true, false)]
     public void Configuration_Assignment_Should_Respect_Namespace_And_Deduplicate_Contexts(string ns, bool abstractConfiguration, bool missing)
     {
-        var domain = Compilation(Domain + Contract).WithAssemblyName("Sample.Domain");
         var source = $$"""
             using DRN.Framework.EntityFramework.Context;
             using Microsoft.EntityFrameworkCore;
@@ -198,9 +208,9 @@ public sealed class ConventionAggregateRulesTests
             }
             """;
         var facts = Facts(Compilation(source).WithAssemblyName("Sample.Infra")
-            .AddReferences(domain.ToMetadataReference(), FrameworkReference, UtilsReference), "Infra");
+            .AddReferences(OrderDomainReference.Value, FrameworkReference, UtilsReference), "Infra");
         ConventionAggregateRepositoryAnalysis.Analyze(facts);
-        if (missing) facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV027");
+        if (missing) facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNREPOSITORY004");
         else facts.Diagnostics.Should().BeEmpty();
     }
 
@@ -216,16 +226,17 @@ public sealed class ConventionAggregateRulesTests
             """).WithAssemblyName("Sample.Domain");
         var facts = Facts(compilation, "Domain");
         ConventionAggregateRepositoryAnalysis.Analyze(facts);
-        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV026");
+        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNREPOSITORY003");
     }
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    [SuppressMessage("ReSharper", "RedundantArgumentDefaultValue")]
     public async Task Production_Analyzer_Should_Report_New_Rules_And_Respect_Narrow_Suppression(bool suppress)
     {
         var attribute = suppress
-            ? "[System.Diagnostics.CodeAnalysis.SuppressMessage(\"DRN.Conventions.Structure\", \"DRNCV024\", Justification = \"Preserve published aggregate name during migration.\")]"
+            ? "[System.Diagnostics.CodeAnalysis.SuppressMessage(\"DRN.Conventions.Structure\", \"DRNSTRUCTURE004\", Justification = \"Preserve published aggregate name during migration.\")]"
             : "";
         var compilation = Compilation("namespace Sample.Domain.QA; " + attribute +
             "public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot;").WithAssemblyName("Sample.Domain");
@@ -233,8 +244,8 @@ public sealed class ConventionAggregateRulesTests
         var diagnostics = await compilation.WithAnalyzers([new SourceKnownConventionAnalyzer()],
             new AnalyzerOptions([], new Options("Domain"))).GetAnalyzerDiagnosticsAsync();
         diagnostics.Should().NotContain(item => item.Id == "AD0001");
-        diagnostics.Count(item => item.Id == "DRNCV024").Should().Be(suppress ? 0 : 1);
-        diagnostics.Count(item => item.Id == "DRNCV026").Should().Be(1);
+        diagnostics.Count(item => item.Id == "DRNSTRUCTURE004").Should().Be(suppress ? 0 : 1);
+        diagnostics.Count(item => item.Id == "DRNREPOSITORY003").Should().Be(1);
     }
 
     [Fact]
@@ -245,7 +256,7 @@ public sealed class ConventionAggregateRulesTests
             public class FrameworkStorage;
             public class QAContext() : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>(null)
             {
-                [System.Diagnostics.CodeAnalysis.SuppressMessage("DRN.Conventions.Persistence", "DRNCV023",
+                [System.Diagnostics.CodeAnalysis.SuppressMessage("DRN.Conventions.Persistence", "DRNPERSISTENCE008",
                     Justification = "This integration property must expose the framework-owned storage contract.")]
                 public Microsoft.EntityFrameworkCore.DbSet<FrameworkStorage> IntegrationKeys => Set<FrameworkStorage>();
                 public Microsoft.EntityFrameworkCore.DbSet<FrameworkStorage> OtherRows => Set<FrameworkStorage>();
@@ -254,17 +265,16 @@ public sealed class ConventionAggregateRulesTests
         compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
         var diagnostics = await compilation.WithAnalyzers([new SourceKnownConventionAnalyzer()],
             new AnalyzerOptions([], new Options("Infra"))).GetAnalyzerDiagnosticsAsync();
-        diagnostics.Should().NotContain(item => item.Id == "AD0001" || item.Id == "DRNCV018");
-        var diagnostic = diagnostics.Where(item => item.Id == "DRNCV023").Should().ContainSingle().Which;
+        diagnostics.Should().NotContain(item => item.Id == "AD0001" || item.Id == "DRNCONVENTIONEXCEPTION001");
+        var diagnostic = diagnostics.Where(item => item.Id == "DRNPERSISTENCE008").Should().ContainSingle().Which;
         diagnostic.GetMessage().Should().Contain("OtherRows");
     }
 
     [Fact]
     public void Unassigned_Aggregates_Should_Not_Require_A_Repository_In_Every_Infra()
     {
-        var domain = Compilation(Domain + Contract).WithAssemblyName("Sample.Domain");
         var facts = Facts(Compilation("namespace Sample.Infra.QA; public class Marker;").WithAssemblyName("Sample.Infra")
-            .AddReferences(domain.ToMetadataReference()), "Infra");
+            .AddReferences(OrderDomainReference.Value), "Infra");
         ConventionAggregateRepositoryAnalysis.Analyze(facts);
         facts.Diagnostics.Should().BeEmpty();
     }
@@ -276,14 +286,6 @@ public sealed class ConventionAggregateRulesTests
     [DataInlineUnit(true, true)]
     public void Explicit_Closed_Generic_Configuration_Should_Assign_An_Aggregate_Without_A_DbSet(bool referenced, bool ignored)
     {
-        var domain = Compilation(Domain + Contract).WithAssemblyName("Sample.Domain");
-        var domainReference = domain.ToMetadataReference();
-        const string configuration = """
-            public class GenericConfig<T> : Microsoft.EntityFrameworkCore.IEntityTypeConfiguration<T> where T : class
-            {
-                public void Configure(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<T> builder) { }
-            }
-            """;
         var source = $$"""
             using Microsoft.EntityFrameworkCore;
             using Sample.Domain.QA.Order;
@@ -298,19 +300,13 @@ public sealed class ConventionAggregateRulesTests
                 }
             }
             """;
-        var compilation = Compilation(source + (referenced ? "" : configuration)).WithAssemblyName("Sample.Infra")
-            .AddReferences(domainReference, FrameworkReference, UtilsReference);
-        if (referenced)
-        {
-            var dependency = Compilation("namespace Sample.Infra.QA; " + configuration).WithAssemblyName("ConfigurationFixture");
-            using var image = new MemoryStream();
-            dependency.Emit(image).Success.Should().BeTrue();
-            compilation = compilation.AddReferences(MetadataReference.CreateFromImage(image.ToArray()));
-        }
+        var compilation = Compilation(source + (referenced ? "" : GenericConfiguration)).WithAssemblyName("Sample.Infra")
+            .AddReferences(OrderDomainReference.Value, FrameworkReference, UtilsReference);
+        if (referenced) compilation = compilation.AddReferences(GenericConfigurationReference.Value);
         var facts = Facts(compilation, "Infra");
         ConventionAggregateRepositoryAnalysis.Analyze(facts);
         if (ignored) facts.Diagnostics.Should().BeEmpty();
-        else facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV027");
+        else facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNREPOSITORY004");
     }
 
     [Theory]
@@ -337,7 +333,7 @@ public sealed class ConventionAggregateRulesTests
         else
         {
             var diagnostic = facts.Diagnostics.Should().ContainSingle().Which;
-            diagnostic.Id.Should().Be("DRNCV024");
+            diagnostic.Id.Should().Be("DRNSTRUCTURE004");
             diagnostic.Properties["Target"].Should().Be("T:Sample.Application.QA.IHandler");
         }
     }
@@ -373,7 +369,7 @@ public sealed class ConventionAggregateRulesTests
         else
         {
             var diagnostic = facts.Diagnostics.Should().ContainSingle().Which;
-            diagnostic.Id.Should().Be("DRNCV027");
+            diagnostic.Id.Should().Be("DRNREPOSITORY004");
             diagnostic.Properties["Entity"].Should().Be("Sample.Domain.QA.Order." + expected);
         }
     }

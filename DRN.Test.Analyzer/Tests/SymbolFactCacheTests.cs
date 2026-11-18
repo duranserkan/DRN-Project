@@ -1,8 +1,10 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.CompilerTools;
 using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
 
 namespace DRN.Test.Analyzer.Tests;
 
+[SuppressMessage("ReSharper", "AccessToDisposedClosure")]
 public sealed class SymbolFactCacheTests
 {
     [Fact]
@@ -21,14 +23,14 @@ public sealed class SymbolFactCacheTests
             return type.TypeArguments[0].SpecialType == SpecialType.System_String;
         }
 
-        cache.GetOrAdd(integer, Calculate, default).Should().BeFalse();
-        cache.GetOrAdd(text, Calculate, default).Should().BeTrue();
-        cache.GetOrAdd(definition.Construct(compilation.GetSpecialType(SpecialType.System_Int32)), Calculate, default)
+        cache.GetOrAdd(integer, Calculate, CancellationToken.None).Should().BeFalse();
+        cache.GetOrAdd(text, Calculate, CancellationToken.None).Should().BeTrue();
+        cache.GetOrAdd(definition.Construct(compilation.GetSpecialType(SpecialType.System_Int32)), Calculate, CancellationToken.None)
             .Should().BeFalse();
-        cache.GetOrAdd(text, Calculate, default).Should().BeTrue();
+        cache.GetOrAdd(text, Calculate, CancellationToken.None).Should().BeTrue();
         calls.Should().Be(2);
 
-        new SymbolFactCache<INamedTypeSymbol, bool>().GetOrAdd(integer, Calculate, default).Should().BeFalse();
+        new SymbolFactCache<INamedTypeSymbol, bool>().GetOrAdd(integer, Calculate, CancellationToken.None).Should().BeFalse();
         calls.Should().Be(3);
     }
 
@@ -46,13 +48,13 @@ public sealed class SymbolFactCacheTests
         canceledCalculation.Should().Throw<OperationCanceledException>();
 
         Action failedCalculation = () => cache.GetOrAdd(type,
-            static (_, _) => throw new InvalidOperationException("Calculation failed."), default);
+            static (_, _) => throw new InvalidOperationException("Calculation failed."), CancellationToken.None);
         failedCalculation.Should().Throw<InvalidOperationException>();
 
-        cache.GetOrAdd(type, static (_, _) => false, default).Should().BeFalse();
+        cache.GetOrAdd(type, static (_, _) => false, CancellationToken.None).Should().BeFalse();
         Action canceledHit = () => cache.GetOrAdd(type, static (_, _) => true, cancellation.Token);
         canceledHit.Should().Throw<OperationCanceledException>();
-        cache.GetOrAdd(type, static (_, _) => throw new InvalidOperationException("Unexpected recalculation."), default)
+        cache.GetOrAdd(type, static (_, _) => throw new InvalidOperationException("Unexpected recalculation."), CancellationToken.None)
             .Should().BeFalse();
     }
 
@@ -63,10 +65,10 @@ public sealed class SymbolFactCacheTests
         var cache = new SymbolFactCache<INamedTypeSymbol, object>();
         var results = new object[32];
         Parallel.For(0, results.Length, index =>
-            results[index] = cache.GetOrAdd(type, static (_, _) => new object(), default));
+            results[index] = cache.GetOrAdd(type, static (_, _) => new object(), CancellationToken.None));
 
         foreach (var result in results) result.Should().BeSameAs(results[0]);
-        cache.GetOrAdd(type, static (_, _) => throw new InvalidOperationException("Unexpected recalculation."), default)
+        cache.GetOrAdd(type, static (_, _) => throw new InvalidOperationException("Unexpected recalculation."), CancellationToken.None)
             .Should().BeSameAs(results[0]);
     }
 
@@ -85,13 +87,13 @@ public sealed class SymbolFactCacheTests
         foreach (var name in names)
         {
             var symbol = compilation.GetTypeByMetadataName(name)!;
-            cache.GetOrAdd(symbol, static (item, _) => item.Name, default).Should().Be(name);
+            cache.GetOrAdd(symbol, static (item, _) => item.Name, CancellationToken.None).Should().Be(name);
         }
 
         foreach (var name in names)
         {
             var symbol = compilation.GetTypeByMetadataName(name)!;
-            cache.GetOrAdd(symbol, static (_, _) => throw new InvalidOperationException("Unexpected recalculation."), default)
+            cache.GetOrAdd(symbol, static (_, _) => throw new InvalidOperationException("Unexpected recalculation."), CancellationToken.None)
                 .Should().Be(name);
         }
     }

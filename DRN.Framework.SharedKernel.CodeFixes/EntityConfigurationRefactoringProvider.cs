@@ -5,6 +5,8 @@ using Microsoft.CodeAnalysis.CodeRefactorings;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
+using static DRN.Framework.SharedKernel.CodeFixes.CodeFixDestinationGuard;
+using static DRN.Framework.SharedKernel.CodeFixes.CodeFixSymbolFacts;
 
 namespace DRN.Framework.SharedKernel.CodeFixes;
 
@@ -17,7 +19,7 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
         if (!solution.Workspace.CanApplyChange(ApplyChangesKind.AddDocument)) return;
         var entity = await SelectedEntity(context.Document, context.Span, context.CancellationToken);
         if (entity is null) return;
-        var entityName = MetadataName(entity);
+        var entityName = CodeFixSymbolFacts.MetadataName(entity);
         var entityAssembly = entity.ContainingAssembly.Identity;
         foreach (var project in solution.Projects.Where(project => project.Language == LanguageNames.CSharp))
         {
@@ -147,8 +149,7 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
                 return null;
         }
         // The generated public Configure method exposes the entity in its parameter type.
-        for (var containing = entity; containing is not null; containing = containing.ContainingType)
-            if (containing.DeclaredAccessibility != Accessibility.Public) return null;
+        if (!IsPublicType(entity)) return null;
         var entityOwner = await EntityOwner(project, compilation, entity, entityName, infraNamespace, infraInputs, token);
         return entityOwner is null ? null : (compilation, entity, entityOwner);
     }
@@ -184,19 +185,18 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
             .Select(item => item.Context).ToArray();
         if (!AreAffectedContextsCompatible(affected, context, entity, infraNamespace, entityOwner, infraInputs, compilation, token))
             return null;
-        var contextDocument = await ResolveEditableContextDocumentAsync(project, context, token);
+        var contextDocument = await ResolveEditableHomeAsync(project, context, rejectSpanErrors: false, token);
         if (contextDocument?.FilePath is null) return null;
         var className = ConventionGenerationPreflight.EntityStem(entity.Name) + "Config";
         if (!SyntaxFacts.IsValidIdentifier(className) ||
             ConventionGenerationPreflight.SymbolCollision(compilation, configurationNamespace, className, token)) return null;
         if (!TryFullPath(Path.Combine(Path.GetDirectoryName(contextDocument.FilePath)!, "Configurations", className + ".cs"), out var destination))
             return null;
-        if (!SafeDestination(projectDirectory, destination) ||
-            WorkspaceDestinationConflict(project.Solution, destination, project.Id, token)) return null;
+        if (!SafeDocumentDestination(project, projectDirectory, destination, token)) return null;
         var relative = Path.GetRelativePath(projectDirectory, destination).Replace('\\', '/');
-        return new(string.Join(", ", affected.Select(MetadataName).OrderBy(name => name, StringComparer.Ordinal)),
+        return new(string.Join(", ", affected.Select(CodeFixSymbolFacts.MetadataName).OrderBy(name => name, StringComparer.Ordinal)),
             configurationNamespace, className, entity.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), relative, destination,
-            affected.Length == 1 ? MetadataName(affected[0]) : null);
+            affected.Length == 1 ? CodeFixSymbolFacts.MetadataName(affected[0]) : null);
     }
 
     private static bool AreAffectedContextsCompatible(INamedTypeSymbol[] affected, INamedTypeSymbol context,
@@ -206,23 +206,6 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
         !affected.Any(item => !HasMembership(item, entity, compilation) ||
             NamespaceOwner(item, infraNamespace) != entityOwner ||
             !ContextOwnershipCompatible(item, infraNamespace, entityOwner, infraInputs, compilation, token));
-
-    private static async Task<Document?> ResolveEditableContextDocumentAsync(Project project, INamedTypeSymbol context,
-        CancellationToken token)
-    {
-        Document? contextDocument = null;
-        foreach (var reference in context.DeclaringSyntaxReferences)
-        {
-            var part = project.GetDocument(reference.SyntaxTree);
-            if (part is null || part.FilePath is null || !TryFullPath(part.FilePath, out _) || part.GetLinkedDocumentIds().Length != 0 ||
-                await ClassificationEdit.FindEditableRoot(part, reference.Span.Start, token) is null)
-                return null;
-            if (contextDocument is not null && Path.GetDirectoryName(contextDocument.FilePath) != Path.GetDirectoryName(part.FilePath))
-                return null;
-            contextDocument = part;
-        }
-        return contextDocument;
-    }
 
     private static async Task<bool> HasUnknownDependentDiscovery(Project project, CancellationToken token)
     {
@@ -247,183 +230,6 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
             if (ConfigurationDiscovery.Read(context, compilation, token) is null) return true;
         }
         return false;
-    }
-
-    internal static bool SafeDestination(string root, string destination)
-    {
-        try
-        {
-            var trimmedRoot = Path.TrimEndingDirectorySeparator(root);
-            if (!ConventionGenerationPreflight.IsUnderDirectory(destination, trimmedRoot) || File.Exists(destination) ||
-                Directory.Exists(destination) || new FileInfo(destination).LinkTarget is not null) return false;
-            var destinationDirectory = Path.GetDirectoryName(destination)!;
-            if (Directory.Exists(destinationDirectory) && Directory.EnumerateFileSystemEntries(destinationDirectory)
-                .Any(entry => string.Equals(Path.GetFileName(entry), Path.GetFileName(destination), StringComparison.OrdinalIgnoreCase))) return false;
-            return AreParentDirectoriesSafe(destinationDirectory, trimmedRoot);
-        }
-        catch (IOException) { return false; }
-        catch (UnauthorizedAccessException) { return false; }
-        catch (ArgumentException) { return false; }
-        catch (NotSupportedException) { return false; }
-    }
-
-    private static bool AreParentDirectoriesSafe(string destinationDirectory, string trimmedRoot)
-    {
-        for (var directory = new DirectoryInfo(destinationDirectory); directory is not null; directory = directory.Parent)
-        {
-            if (string.Equals(Path.TrimEndingDirectorySeparator(directory.FullName), trimmedRoot, ConventionGenerationPreflight.RootComparison))
-                return !File.Exists(directory.FullName);
-            if (File.Exists(directory.FullName) || directory.LinkTarget is not null || HasDirectoryCaseMismatch(directory))
-                return false;
-        }
-        return false;
-    }
-
-    private static bool HasDirectoryCaseMismatch(DirectoryInfo directory) =>
-        directory.Parent is { Exists: true } parent &&
-        Directory.EnumerateFileSystemEntries(parent.FullName).Any(entry =>
-            string.Equals(Path.GetFileName(entry), directory.Name, StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(Path.GetFileName(entry), directory.Name, StringComparison.Ordinal));
-
-    internal static bool TryFullPath(string path, out string fullPath)
-    {
-        fullPath = "";
-        try
-        {
-            if (!Path.IsPathFullyQualified(path)) return false;
-            fullPath = Path.GetFullPath(path);
-            return true;
-        }
-        catch (ArgumentException) { return false; }
-        catch (NotSupportedException) { return false; }
-        catch (IOException) { return false; }
-    }
-
-    internal static bool WorkspaceDestinationConflict(Solution solution, string destination, ProjectId targetProjectId, CancellationToken token = default)
-    {
-        var destinationName = Path.GetFileName(destination);
-        foreach (var project in solution.Projects)
-        {
-            if (ProjectConflictsWithDestination(project, destination, destinationName, targetProjectId, token))
-                return true;
-        }
-        return false;
-    }
-
-    private static bool ProjectConflictsWithDestination(Project project, string destination, string destinationName,
-        ProjectId targetProjectId, CancellationToken token)
-    {
-        var projectDirectory = project.FilePath is { } projectPath && TryFullPath(projectPath, out var fullProject)
-            ? Path.GetDirectoryName(fullProject) : null;
-        foreach (var document in project.Documents.Cast<TextDocument>().Concat(project.AdditionalDocuments).Concat(project.AnalyzerConfigDocuments))
-        {
-            token.ThrowIfCancellationRequested();
-            if (DocumentConflictsWithDestination(project, document, projectDirectory, destination, destinationName, targetProjectId))
-                return true;
-        }
-        return false;
-    }
-
-    private static bool DocumentConflictsWithDestination(Project project, TextDocument document, string? projectDirectory,
-        string destination, string destinationName, ProjectId targetProjectId)
-    {
-        if (document.FilePath is not { } path)
-            return string.Equals(document.Name, destinationName, StringComparison.OrdinalIgnoreCase);
-        if (TryFullPath(path, out var existing) ||
-            projectDirectory is not null && !Path.IsPathFullyQualified(path) &&
-            TryFullPath(Path.Combine(projectDirectory, path), out existing))
-            return WorkspacePathConflict(existing, destination);
-        if (project.Id == targetProjectId) return true;
-        var fallbackName = SafeFileName(path);
-        return string.Equals(string.IsNullOrEmpty(fallbackName) ? document.Name : fallbackName,
-            destinationName, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static string SafeFileName(string path)
-    {
-        try { return Path.GetFileName(path); }
-        catch (ArgumentException) { return ""; }
-    }
-
-    internal static bool WorkspacePathConflict(string path, string destination)
-    {
-        if (!TryFullPath(path, out var existing)) return true;
-        if (string.Equals(existing, destination, StringComparison.OrdinalIgnoreCase)) return true;
-        if (destination.StartsWith(existing + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
-            existing.StartsWith(destination + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) return true;
-        var existingParts = existing.Split(Path.DirectorySeparatorChar);
-        var destinationParts = destination.Split(Path.DirectorySeparatorChar);
-        for (var index = 0; index < Math.Min(existingParts.Length, destinationParts.Length) - 1; index++)
-        {
-            if (!string.Equals(existingParts[index], destinationParts[index], StringComparison.OrdinalIgnoreCase)) return false;
-            var comparison = index == 0 ? ConventionGenerationPreflight.RootComparison : StringComparison.Ordinal;
-            if (!string.Equals(existingParts[index], destinationParts[index], comparison)) return true;
-        }
-        return false;
-    }
-
-    internal static bool DefaultDiscovery(INamedTypeSymbol context, Compilation compilation, CancellationToken token = default)
-    {
-        var drn = compilation.GetTypeByMetadataName("DRN.Framework.EntityFramework.Context.DrnContext`1");
-        var identity = compilation.GetTypeByMetadataName("DRN.Framework.EntityFramework.Context.Identity.DrnContextIdentity`2");
-        for (var current = context; current is not null; current = current.BaseType)
-        {
-            token.ThrowIfCancellationRequested();
-            if (Same(current, drn) || Same(current, identity)) return true;
-            foreach (var method in current.GetMembers("OnModelCreating").OfType<IMethodSymbol>())
-                if (!ForwardsSingleBaseOnModelCreating(method, compilation, token)) return false;
-        }
-        return false;
-    }
-
-    private static bool ForwardsSingleBaseOnModelCreating(IMethodSymbol method, Compilation compilation, CancellationToken token)
-    {
-        if (method.OverriddenMethod is null || method.Parameters.Length != 1 || method.DeclaringSyntaxReferences.Length != 1 ||
-            method.DeclaringSyntaxReferences[0].GetSyntax(token) is not MethodDeclarationSyntax declaration ||
-            !compilation.ContainsSyntaxTree(declaration.SyntaxTree)) return false;
-        var expression = declaration.ExpressionBody?.Expression ??
-            (declaration.Body?.Statements is { Count: 1 } statements && statements[0] is ExpressionStatementSyntax statement
-                ? statement.Expression : null);
-        if (expression is not InvocationExpressionSyntax
-            {
-                Expression: MemberAccessExpressionSyntax { Expression: BaseExpressionSyntax },
-                ArgumentList.Arguments.Count: 1
-            } invocation) return false;
-        var model = compilation.GetSemanticModel(declaration.SyntaxTree);
-        return SymbolEqualityComparer.Default.Equals(model.GetSymbolInfo(invocation, token).Symbol, method.OverriddenMethod) &&
-               SymbolEqualityComparer.Default.Equals(model.GetSymbolInfo(invocation.ArgumentList.Arguments[0].Expression, token).Symbol,
-                   method.Parameters[0]);
-    }
-
-    internal static async Task<bool> HasRoleOverrides(Project project, CancellationToken token)
-    {
-        var root = await ConventionGenerationPreflight.ReadInputs(project, required: false, token);
-        return root is null || HasRoleOverride(root);
-    }
-
-    internal static bool HasRoleOverride(CompilationUnitSyntax root) =>
-        root.AttributeLists.SelectMany(list => list.Attributes).Any(attribute =>
-            attribute.Name.ToString() is "DRN.Conventions.Role" or "global::DRN.Conventions.Role");
-
-    internal static bool ValidNamespace(string ns) =>
-        !string.IsNullOrEmpty(ns) && ns.Split('.').All(ConventionGenerationPreflight.ValidNamespaceSegment);
-
-    internal static bool OwnershipCompatible(CompilationUnitSyntax root, string typeName, string owner, CancellationToken token)
-    {
-        foreach (var attribute in root.AttributeLists.SelectMany(list => list.Attributes))
-        {
-            token.ThrowIfCancellationRequested();
-            if (attribute.Name.ToString() is not ("DRN.Conventions.Ownership" or "global::DRN.Conventions.Ownership")) continue;
-            if (attribute.ArgumentList is not { Arguments.Count: > 0 } arguments ||
-                arguments.Arguments[0].NameEquals is not null || arguments.Arguments[0].NameColon is not null ||
-                DRN.Framework.SharedKernel.Analyzers.Conventions.ConventionInputSyntax.String(arguments.Arguments[0].Expression, token) is not { } target)
-                return false;
-            if (target != typeName) continue;
-            var owners = arguments.Arguments.Where(argument => argument.NameEquals?.Name.Identifier.ValueText == "Subdomain").ToArray();
-            if (owners.Length != 1 ||
-                DRN.Framework.SharedKernel.Analyzers.Conventions.ConventionInputSyntax.String(owners[0].Expression, token) != owner) return false;
-        }
-        return true;
     }
 
     private static async Task<string?> EntityOwner(Project project, Compilation compilation, INamedTypeSymbol entity,
@@ -484,28 +290,10 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
         return ns.StartsWith("Domain.", StringComparison.Ordinal) ? ns["Domain.".Length..].Split('.')[0] : null;
     }
 
-    internal static string? NamespaceOwner(INamedTypeSymbol type, string rootNamespace)
-    {
-        if (type.ContainingNamespace.IsGlobalNamespace) return null;
-        var ns = type.ContainingNamespace.ToDisplayString();
-        return ns.StartsWith(rootNamespace + ".", StringComparison.Ordinal) ? ns[(rootNamespace.Length + 1)..].Split('.')[0] : null;
-    }
-
-    internal static string? DeclaredSubdomain(INamedTypeSymbol type, string? conventional, Compilation compilation)
-    {
-        var ownership = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomainAttribute");
-        var declarations = type.GetAttributes().Where(attribute => Same(attribute.AttributeClass, ownership)).ToArray();
-        if (declarations.Length == 0) return conventional;
-        if (declarations.Length != 1 || declarations[0].ConstructorArguments is not [{ Value: string owner }] ||
-            !ConventionGenerationPreflight.ValidNamespaceSegment(owner)) return null;
-        var reason = declarations[0].NamedArguments.FirstOrDefault(pair => pair.Key == "Reason").Value.Value as string;
-        return owner == conventional || !string.IsNullOrWhiteSpace(reason) ? owner : null;
-    }
-
     private static bool ContextOwnershipCompatible(INamedTypeSymbol context, string infraNamespace, string owner,
         CompilationUnitSyntax inputs, Compilation compilation, CancellationToken token)
     {
-        var contextName = MetadataName(context);
+        var contextName = CodeFixSymbolFacts.MetadataName(context);
         var conventional = NamespaceOwner(context, infraNamespace);
         if (DeclaredSubdomain(context, conventional, compilation) != owner) return false;
         if (!OwnershipCompatible(inputs, contextName, owner, token)) return false;
@@ -573,38 +361,8 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
     {
         var entity = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity");
         var identity = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Identity.IdentityUser`1");
-        for (var current = type; current is not null; current = current.BaseType)
-            if (Same(current, entity) || Same(current, identity)) return true;
-        return false;
+        return Inherits(type, entity) || Inherits(type, identity);
     }
-
-    internal static bool IsOpen(INamedTypeSymbol type)
-    {
-        for (var current = type; current is not null; current = current.ContainingType)
-            if (current.TypeParameters.Length != 0) return true;
-        return false;
-    }
-
-    internal static bool Same(INamedTypeSymbol? left, INamedTypeSymbol? right) => left is not null && right is not null &&
-        SymbolEqualityComparer.Default.Equals(left.OriginalDefinition, right.OriginalDefinition);
-
-    internal static IEnumerable<INamedTypeSymbol> Types(INamespaceOrTypeSymbol container, CancellationToken token)
-    {
-        var pending = new Stack<INamespaceOrTypeSymbol>();
-        pending.Push(container);
-        while (pending.TryPop(out var current))
-        {
-            token.ThrowIfCancellationRequested();
-            foreach (var member in current.GetMembers())
-            {
-                token.ThrowIfCancellationRequested();
-                if (member is INamedTypeSymbol type) yield return type;
-                if (member is INamespaceOrTypeSymbol nested) pending.Push(nested);
-            }
-        }
-    }
-
-    internal static string MetadataName(INamedTypeSymbol type) => ConventionGenerationPreflight.MetadataName(type);
 
     internal sealed record ConfigurationCandidate(string ContextName, string Namespace, string ClassName, string EntityType,
         string RelativePath, string FullPath, string? SingleContextName);

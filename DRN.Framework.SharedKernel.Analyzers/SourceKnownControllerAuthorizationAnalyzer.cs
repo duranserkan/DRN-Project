@@ -8,7 +8,7 @@ namespace DRN.Framework.SharedKernel.Analyzers;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnalyzer
 {
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
         [DiagnosticDescriptors.SourceKnownControllerPolicyRequired];
 
     public override void Initialize(AnalysisContext context)
@@ -30,38 +30,47 @@ public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnaly
             !DerivesFrom(controller, contract.Foundation))
             return;
 
-        var controllerAttributes = EffectiveAttributes(controller, contract, context.CancellationToken).ToArray();
-        if (controllerAttributes.Any(attribute => DerivesFrom(attribute.AttributeClass, contract.NonController)))
-            return;
-
-        var classAllowsAnonymous = controllerAttributes.Any(attribute => AllowsAnonymous(attribute, contract));
-        var classHasPolicy = controllerAttributes.Any(attribute => HasNamedPolicy(attribute, contract));
+        var classAccess = ReadAuthorization(controller, contract.NonController, contract, context.CancellationToken);
+        if (classAccess.Excluded) return;
         foreach (var method in EffectivePublicMethods(controller, context.CancellationToken))
         {
             context.CancellationToken.ThrowIfCancellationRequested();
             if (!IsAction(method, contract))
                 continue;
 
-            AnalyzeAction(context, contract, controller, method, classAllowsAnonymous, classHasPolicy);
+            AnalyzeAction(context, contract, controller, method, classAccess);
         }
     }
 
     private static void AnalyzeAction(SymbolAnalysisContext context, Contract contract, INamedTypeSymbol controller,
-        IMethodSymbol method, bool classAllowsAnonymous, bool classHasPolicy)
+        IMethodSymbol method, AuthorizationFacts classAccess)
     {
-        var methodAttributes = EffectiveAttributes(method, contract, context.CancellationToken).ToArray();
-        if (methodAttributes.Any(attribute => DerivesFrom(attribute.AttributeClass, contract.NonAction)))
-            return;
+        var declaredHere = SymbolEqualityComparer.Default.Equals(method.ContainingType, controller);
+        var methodAccess = declaredHere ? ReadAuthorization(method, contract.NonAction, contract, context.CancellationToken)
+            : contract.InheritedAction(method, context.CancellationToken);
+        var allowsAnonymous = classAccess.Anonymous || methodAccess.Anonymous;
+        if (methodAccess.Excluded || !allowsAnonymous && (classAccess.NamedPolicy || methodAccess.NamedPolicy)) return;
 
-        var allowsAnonymous = classAllowsAnonymous || methodAttributes.Any(attribute => AllowsAnonymous(attribute, contract));
-        if (!allowsAnonymous && (classHasPolicy || methodAttributes.Any(attribute => HasNamedPolicy(attribute, contract))))
-            return;
-
-        var owner = SymbolEqualityComparer.Default.Equals(method.ContainingType, controller) ? (ISymbol)method : controller;
+        var owner = declaredHere ? (ISymbol)method : controller;
         var location = owner.Locations.FirstOrDefault(item => item.IsInSource) ?? Location.None;
         context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.SourceKnownControllerPolicyRequired,
             location, controller.Name, method.Name,
             allowsAnonymous ? "anonymous access bypasses authorization" : "no explicit nonblank named policy is declared"));
+    }
+
+    private readonly record struct AuthorizationFacts(bool Excluded, bool Anonymous, bool NamedPolicy);
+
+    private static AuthorizationFacts ReadAuthorization(ISymbol symbol, INamedTypeSymbol exclusion, Contract contract, CancellationToken cancellation)
+    {
+        var anonymous = false;
+        var policy = false;
+        foreach (var attribute in EffectiveAttributes(symbol, contract, cancellation))
+        {
+            if (DerivesFrom(attribute.AttributeClass, exclusion)) return new(true, false, false);
+            anonymous |= AllowsAnonymous(attribute, contract);
+            if (!anonymous && !policy) policy = HasNamedPolicy(attribute, contract);
+        }
+        return new(false, anonymous, policy);
     }
 
     private static bool IsPublicClosedType(INamedTypeSymbol type)
@@ -180,7 +189,7 @@ public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnaly
                 cancellationToken.ThrowIfCancellationRequested();
                 if (attribute.AttributeClass is not { } attributeType)
                     continue;
-                var usage = contract.AttributeUsage(attributeType, cancellationToken);
+                var usage = contract.AttributeUsage.Get(attributeType, cancellationToken);
                 if (inherited && !usage.Inherited)
                     continue;
                 if (!seen.Add(attributeType) && !usage.AllowMultiple)
@@ -254,20 +263,21 @@ public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnaly
 
     private sealed class Contract
     {
-        private readonly SymbolFactCache<INamedTypeSymbol, (bool Inherited, bool AllowMultiple)> _attributeUsage = new(capacity: 31);
-        private readonly Func<INamedTypeSymbol, CancellationToken, (bool Inherited, bool AllowMultiple)> _calculateAttributeUsage;
+        private readonly SymbolFactCache<IMethodSymbol, AuthorizationFacts> _inheritedActions = new(capacity: 31);
+        private readonly Func<IMethodSymbol, CancellationToken, AuthorizationFacts> _readAction;
 
-        private Contract()
+        private Contract(INamedTypeSymbol nonAction)
         {
-            _calculateAttributeUsage = CalculateAttributeUsage;
+            NonAction = nonAction;
+            _readAction = (method, token) => ReadAuthorization(method, NonAction, this, token);
         }
 
         internal required INamedTypeSymbol Foundation { get; init; }
         internal required INamedTypeSymbol Authorize { get; init; }
         internal required INamedTypeSymbol Anonymous { get; init; }
-        internal required INamedTypeSymbol NonAction { get; init; }
+        internal INamedTypeSymbol NonAction { get; }
         internal required INamedTypeSymbol NonController { get; init; }
-        internal required INamedTypeSymbol AttributeUsageType { get; init; }
+        internal required AttributeUsageFacts.Cache AttributeUsage { get; init; }
         internal required IPropertySymbol PolicyProperty { get; init; }
         internal required INamedTypeSymbol Conditional { get; init; }
         internal required IMethodSymbol? Dispose { get; init; }
@@ -275,56 +285,35 @@ public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnaly
         internal static Contract? TryCreate(Compilation compilation)
         {
             var foundation = compilation.GetTypeByMetadataName("DRN.Framework.Hosting.Controllers.SourceKnownControllerBase`2");
+            if (foundation is null) return null;
             var authorize = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Authorization.AuthorizeAttribute");
             var anonymous = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Authorization.IAllowAnonymous");
             var nonAction = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.NonActionAttribute");
             var nonController = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.NonControllerAttribute");
-            var attributeUsage = compilation.GetTypeByMetadataName("System.AttributeUsageAttribute");
+            var attributeUsage = AttributeUsageFacts.Cache.For(compilation);
             var authorizeData = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Authorization.IAuthorizeData");
             var policyProperty = authorizeData?.GetMembers("Policy").OfType<IPropertySymbol>().FirstOrDefault();
             var conditional = compilation.GetTypeByMetadataName("System.Diagnostics.ConditionalAttribute");
-            if (foundation is null || authorize is null || anonymous is null || nonAction is null ||
-                nonController is null || attributeUsage is null || policyProperty is null || conditional is null)
+            if (authorize is null || anonymous is null || nonAction is null ||
+                nonController is null || attributeUsage.UsageAttribute is null || policyProperty is null || conditional is null)
                 return null;
 
             var dispose = compilation.GetTypeByMetadataName("System.IDisposable")
                 ?.GetMembers("Dispose").OfType<IMethodSymbol>().FirstOrDefault();
-            return new Contract
+            return new Contract(nonAction)
             {
                 Foundation = foundation,
                 Authorize = authorize,
                 Anonymous = anonymous,
-                NonAction = nonAction,
                 NonController = nonController,
-                AttributeUsageType = attributeUsage,
+                AttributeUsage = attributeUsage,
                 PolicyProperty = policyProperty,
                 Conditional = conditional,
                 Dispose = dispose
             };
         }
 
-        internal (bool Inherited, bool AllowMultiple) AttributeUsage(INamedTypeSymbol attributeType, CancellationToken cancellationToken) =>
-            _attributeUsage.GetOrAdd(attributeType, _calculateAttributeUsage, cancellationToken);
-
-        private (bool Inherited, bool AllowMultiple) CalculateAttributeUsage(INamedTypeSymbol attributeType, CancellationToken cancellationToken)
-        {
-            for (var current = attributeType; current is not null; current = current.BaseType)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var usage = current.GetAttributes().FirstOrDefault(attribute =>
-                    SymbolEqualityComparer.Default.Equals(attribute.AttributeClass, AttributeUsageType));
-                if (usage is null)
-                    continue;
-                var inherited = true;
-                var multiple = false;
-                foreach (var argument in usage.NamedArguments)
-                {
-                    if (argument.Key == "Inherited" && argument.Value.Value is bool inherits) inherited = inherits;
-                    if (argument.Key == "AllowMultiple" && argument.Value.Value is bool allowsMultiple) multiple = allowsMultiple;
-                }
-                return (inherited, multiple);
-            }
-            return (true, false);
-        }
+        internal AuthorizationFacts InheritedAction(IMethodSymbol method, CancellationToken cancellation) =>
+            _inheritedActions.GetOrAdd(method, _readAction, cancellation);
     }
 }

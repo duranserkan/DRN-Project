@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Text;
 
 namespace DRN.Framework.SharedKernel.Analyzers;
 
@@ -45,11 +46,11 @@ internal sealed class DiagnosticNameExemption
     internal void Collect(SyntaxTreeAnalysisContext context)
     {
         if (context.IsGeneratedCode) return;
+        context.Tree.TryGetText(out var text);
         foreach (var comment in context.Tree.GetRoot(context.CancellationToken).DescendantTrivia())
         {
             context.CancellationToken.ThrowIfCancellationRequested();
-            if (!comment.IsKind(SyntaxKind.SingleLineCommentTrivia) ||
-                !comment.ToString().AsSpan(2).TrimStart().StartsWith(Marker, StringComparison.Ordinal)) continue;
+            if (!IsExemptionCandidate(comment, text)) continue;
             if (Parse(context.Tree, comment).Target is null)
                 context.ReportDiagnostic(Diagnostic.Create(ClassificationDiagnosticDescriptors.InvalidNameExemptionComment,
                     comment.GetLocation()));
@@ -75,6 +76,7 @@ internal sealed class DiagnosticNameExemption
     {
         // Only the adjacent leading comment block belongs to this statement. Blank lines end it.
         var newLines = 0;
+        statement.SyntaxTree.TryGetText(out var text);
         foreach (var trivia in statement.GetLeadingTrivia().Reverse())
         {
             if (trivia.IsKind(SyntaxKind.WhitespaceTrivia)) continue;
@@ -85,9 +87,25 @@ internal sealed class DiagnosticNameExemption
             }
             if (!trivia.IsKind(SyntaxKind.SingleLineCommentTrivia)) yield break;
             newLines = 0;
-            if (trivia.ToString().AsSpan(2).TrimStart().StartsWith(Marker, StringComparison.Ordinal))
+            if (IsExemptionCandidate(trivia, text))
                 yield return trivia;
         }
+    }
+
+    private static bool IsExemptionCandidate(SyntaxTrivia comment, SourceText? text)
+    {
+        if (!comment.IsKind(SyntaxKind.SingleLineCommentTrivia) || comment.Span.Length < 2 + Marker.Length)
+            return false;
+        if (text is null)
+            return comment.ToString().AsSpan(2).TrimStart().StartsWith(Marker, StringComparison.Ordinal);
+
+        var index = comment.SpanStart + 2;
+        var end = Math.Min(comment.Span.End, text.Length);
+        while (index < end && char.IsWhiteSpace(text[index])) index++;
+        if (end - index < Marker.Length) return false;
+        for (var i = 0; i < Marker.Length; i++)
+            if (text[index + i] != Marker[i]) return false;
+        return true;
     }
 
     private static bool TryParse(string comment, out string name)

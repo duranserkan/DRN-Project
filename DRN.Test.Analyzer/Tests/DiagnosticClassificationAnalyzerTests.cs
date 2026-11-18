@@ -1,5 +1,3 @@
-using DRN.Framework.SharedKernel.Attributes;
-
 namespace DRN.Test.Analyzer.Tests;
 
 public sealed class DiagnosticClassificationAnalyzerTests
@@ -9,18 +7,18 @@ public sealed class DiagnosticClassificationAnalyzerTests
     {
         var descriptors = new[]
         {
-            (DiagnosticClassificationAnalyzer.MissingClassification, ClassificationDiagnosticDescriptors.MissingClassification, "DRN0015"),
-            (DiagnosticClassificationAnalyzer.InvalidExemption, ClassificationDiagnosticDescriptors.InvalidExemption, "DRN0016"),
-            (DiagnosticClassificationAnalyzer.PathClassification, ClassificationDiagnosticDescriptors.PathClassification, "DRN0017"),
-            (DiagnosticClassificationAnalyzer.UnknownClassification, ClassificationDiagnosticDescriptors.UnknownClassification, "DRN0018"),
-            (DiagnosticClassificationAnalyzer.AnonymousClassification, ClassificationDiagnosticDescriptors.AnonymousClassification, "DRN0019"),
-            (DiagnosticClassificationAnalyzer.DictionaryClassification, ClassificationDiagnosticDescriptors.DictionaryClassification, "DRN0020"),
-            (DiagnosticClassificationAnalyzer.InvalidRuleFile, ClassificationDiagnosticDescriptors.InvalidRuleFile, "DRN0021"),
-            (DiagnosticClassificationAnalyzer.UnsafeLoggingCapture, ClassificationDiagnosticDescriptors.UnsafeLoggingCapture, "DRN0022"),
-            (DiagnosticClassificationAnalyzer.InvalidNameExemptionComment, ClassificationDiagnosticDescriptors.InvalidNameExemptionComment, "DRN0023"),
-            (DiagnosticClassificationAnalyzer.UnusedNameExemptionComment, ClassificationDiagnosticDescriptors.UnusedNameExemptionComment, "DRN0024"),
-            (DiagnosticClassificationAnalyzer.IncompleteModelAnalysis, ClassificationDiagnosticDescriptors.IncompleteModelAnalysis, "DRN0025"),
-            (DiagnosticClassificationAnalyzer.IncompleteInterfaceAnalysis, ClassificationDiagnosticDescriptors.IncompleteInterfaceAnalysis, "DRN0027")
+            (DiagnosticClassificationAnalyzer.MissingClassification, ClassificationDiagnosticDescriptors.MissingClassification, "DRNCLASSIFICATION001"),
+            (DiagnosticClassificationAnalyzer.InvalidExemption, ClassificationDiagnosticDescriptors.InvalidExemption, "DRNCLASSIFICATION002"),
+            (DiagnosticClassificationAnalyzer.PathClassification, ClassificationDiagnosticDescriptors.PathClassification, "DRNCLASSIFICATION003"),
+            (DiagnosticClassificationAnalyzer.UnknownClassification, ClassificationDiagnosticDescriptors.UnknownClassification, "DRNCLASSIFICATION004"),
+            (DiagnosticClassificationAnalyzer.AnonymousClassification, ClassificationDiagnosticDescriptors.AnonymousClassification, "DRNCLASSIFICATION005"),
+            (DiagnosticClassificationAnalyzer.DictionaryClassification, ClassificationDiagnosticDescriptors.DictionaryClassification, "DRNCLASSIFICATION006"),
+            (DiagnosticClassificationAnalyzer.InvalidRuleFile, ClassificationDiagnosticDescriptors.InvalidRuleFile, "DRNCLASSIFICATION007"),
+            (DiagnosticClassificationAnalyzer.UnsafeLoggingCapture, ClassificationDiagnosticDescriptors.UnsafeLoggingCapture, "DRNCLASSIFICATION008"),
+            (DiagnosticClassificationAnalyzer.InvalidNameExemptionComment, ClassificationDiagnosticDescriptors.InvalidNameExemptionComment, "DRNCLASSIFICATION009"),
+            (DiagnosticClassificationAnalyzer.UnusedNameExemptionComment, ClassificationDiagnosticDescriptors.UnusedNameExemptionComment, "DRNCLASSIFICATION010"),
+            (DiagnosticClassificationAnalyzer.IncompleteModelAnalysis, ClassificationDiagnosticDescriptors.IncompleteModelAnalysis, "DRNCLASSIFICATION011"),
+            (DiagnosticClassificationAnalyzer.IncompleteInterfaceAnalysis, ClassificationDiagnosticDescriptors.IncompleteInterfaceAnalysis, "DRNCLASSIFICATION012")
         };
 
         foreach (var (publicDescriptor, sharedDescriptor, id) in descriptors)
@@ -60,7 +58,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
             """{"sensitiveFieldPaths":["Payload"]}"""));
 
         var diagnostic = diagnostics.Should().ContainSingle().Which;
-        diagnostic.Id.Should().Be("DRN0017");
+        diagnostic.Id.Should().Be("DRNCLASSIFICATION003");
         (await diagnostic.Location.SourceTree!.GetTextAsync()).ToString(diagnostic.Location.SourceSpan)
             .Should().Be("log.Add(\"Payload\", 42)");
     }
@@ -93,7 +91,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
             """), new ProjectDiagnosticRulesTests.RuleFile("data-classification-rules.json",
             """{"sensitiveFieldPaths":["Duration_Seconds"]}"""));
 
-        diagnostics.Should().HaveCount(3).And.OnlyContain(item => item.Id == "DRN0017");
+        diagnostics.Should().HaveCount(3).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION003");
         diagnostics.Select(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan))
             .Should().BeEquivalentTo("log.Add(\"Duration\", System.TimeSpan.Zero)",
                 "log.Add(\"Duration\", duration)", "log.AddProperties(\"Metrics\", new Model())");
@@ -130,9 +128,9 @@ public sealed class DiagnosticClassificationAnalyzerTests
             """));
 
         diagnostics.Should().HaveCount(2);
-        var declaration = diagnostics.Should().ContainSingle(item => item.Id == "DRN0015").Which;
+        var declaration = diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION001").Which;
         declaration.GetMessage().Should().Contain("'Email'");
-        var capture = diagnostics.Should().ContainSingle(item => item.Id == "DRN0017").Which;
+        var capture = diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION003").Which;
         capture.GetMessage().Should().Contain("'Records.Count'");
         (await capture.Location.SourceTree!.GetTextAsync()).ToString(capture.Location.SourceSpan).Should().Be("log.Add(\"Records\", model)");
     }
@@ -166,8 +164,8 @@ public sealed class DiagnosticClassificationAnalyzerTests
             """));
         diagnostics.Should().HaveCount(expectedCount);
         if (expectedCount == 0) return;
-        diagnostics.Should().ContainSingle(item => item.Id == "DRN0017");
-        diagnostics.Should().ContainSingle(item => item.Id == "DRN0020");
+        diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION003");
+        diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION006");
     }
 
     [Theory]
@@ -211,7 +209,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
             diagnostics.Should().BeEmpty();
             return;
         }
-        diagnostics.Should().HaveCount(4).And.OnlyContain(item => item.Id == "DRN0017");
+        diagnostics.Should().HaveCount(4).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION003");
         diagnostics.Select(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan))
             .Should().BeEquivalentTo(
                 "log.AddIfNotNullOrEmpty(\"Password\", value)",
@@ -241,7 +239,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
                 }
             }
             """));
-        diagnostics.Should().HaveCount(3).And.OnlyContain(item => item.Id == "DRN0017");
+        diagnostics.Should().HaveCount(3).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION003");
     }
 
     [Fact]
@@ -267,8 +265,8 @@ public sealed class DiagnosticClassificationAnalyzerTests
         var configured = await Analyze(compilation, new ProjectDiagnosticRulesTests.RuleFile("data-classification-rules.json",
             """{"personalFields":["ipadd"]}"""));
         configured.Should().HaveCount(3);
-        configured.Should().ContainSingle(item => item.Id == "DRN0015");
-        configured.Count(item => item.Id == "DRN0017").Should().Be(2);
+        configured.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION001");
+        configured.Count(item => item.Id == "DRNCLASSIFICATION003").Should().Be(2);
     }
 
     [Fact]
@@ -331,8 +329,8 @@ public sealed class DiagnosticClassificationAnalyzerTests
                 public static void CreateTable<T>(Func<ColumnsBuilder, T> columns) => throw new NotSupportedException();
             }
             """, "Migrations/InitialMigration.cs"));
-        diagnostics.Count(item => item.Id == "DRN0019").Should().Be(5);
-        diagnostics.Should().ContainSingle(item => item.Id == "DRN0017");
+        diagnostics.Count(item => item.Id == "DRNCLASSIFICATION005").Should().Be(5);
+        diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION003");
         diagnostics.Should().HaveCount(6);
     }
 
@@ -375,8 +373,8 @@ public sealed class DiagnosticClassificationAnalyzerTests
             """);
         var diagnostics = await Analyze(compilation);
         diagnostics.Should().HaveCount(2);
-        diagnostics.Should().ContainSingle(item => item.Id == "DRN0017");
-        diagnostics.Should().ContainSingle(item => item.Id == "DRN0020");
+        diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION003");
+        diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION006");
         diagnostics.Should().OnlyContain(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan).StartsWith("log.Add(", StringComparison.Ordinal));
     }
 
@@ -403,8 +401,8 @@ public sealed class DiagnosticClassificationAnalyzerTests
             }
             """));
         diagnostics.Should().HaveCount(2);
-        diagnostics.Should().ContainSingle(item => item.Id == "DRN0017");
-        diagnostics.Should().ContainSingle(item => item.Id == "DRN0019");
+        diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION003");
+        diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION005");
     }
 
     [Fact]
@@ -434,7 +432,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
             }
             """);
         var diagnostics = await Analyze(compilation);
-        diagnostics.Should().HaveCount(2).And.OnlyContain(item => item.Id == "DRN0020");
+        diagnostics.Should().HaveCount(2).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION006");
         diagnostics.Should().OnlyContain(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan) ==
             "log.Add(\"Response\", values)");
     }
@@ -454,7 +452,8 @@ public sealed class DiagnosticClassificationAnalyzerTests
                 {
                     var values = new Dictionary<string, object> { { "Password", "private" } };
                     values["Email"] = "private";
-                    values.Add("StatusCode", 200);
+                    values.Add(value: 200, key: "StatusCode");
+                    values.Add(value: "Secret", key: "Harmless");
                     log.Add(prefix, values);
                     log.AddWithPolicy(prefix, values, new object());
                     log.Add(prefix, new Dictionary<string, object>
@@ -464,7 +463,9 @@ public sealed class DiagnosticClassificationAnalyzerTests
                 }
             }
             """));
-        diagnostics.Should().HaveCount(7).And.OnlyContain(item => item.Id == "DRN0020");
+        diagnostics.Should().HaveCount(7).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION006");
+        diagnostics.Count(item => item.GetMessage().Contains("'StatusCode'", StringComparison.Ordinal)).Should().Be(2);
+        diagnostics.Should().NotContain(item => item.GetMessage().Contains("'Secret'", StringComparison.Ordinal));
         diagnostics.Should().OnlyContain(item => item.GetMessage().Contains("AddDictionary", StringComparison.Ordinal));
     }
 
@@ -500,7 +501,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
                 }
             }
             """));
-        diagnostics.Should().HaveCount(2).And.OnlyContain(item => item.Id == "DRN0020");
+        diagnostics.Should().HaveCount(2).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION006");
         diagnostics.Should().ContainSingle(item => item.GetMessage().Contains("'Password'", StringComparison.Ordinal) &&
             item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan) == "log.Add(\"Response\", values)");
         diagnostics.Should().ContainSingle(item => item.GetMessage().Contains("'StatusCode'", StringComparison.Ordinal) &&
@@ -530,7 +531,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
             }
             """));
 
-        diagnostics.Should().HaveCount(3).And.OnlyContain(diagnostic => diagnostic.Id == "DRN0020");
+        diagnostics.Should().HaveCount(3).And.OnlyContain(diagnostic => diagnostic.Id == "DRNCLASSIFICATION006");
         var captures = diagnostics.Select(diagnostic => diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan)).ToArray();
         captures.Should().NotContain("log.Add(\"Before\", values)");
         captures.Count(capture => capture == "log.Add(\"Middle\", values)").Should().Be(1);
@@ -562,7 +563,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
                 }
             }
             """));
-        diagnostics.Should().HaveCount(2).And.OnlyContain(item => item.Id == "DRN0020");
+        diagnostics.Should().HaveCount(2).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION006");
         diagnostics.Should().ContainSingle(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan) ==
             "log.Add(\"Lambda\", values)");
         diagnostics.Should().ContainSingle(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan) ==
@@ -597,7 +598,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
                 }
             }
             """));
-        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRN0020");
+        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCLASSIFICATION006");
     }
 
     [Fact]
@@ -639,7 +640,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
             }
             """;
         var diagnostics = await Analyze(Compilation(source));
-        diagnostics.Should().HaveCount(8).And.OnlyContain(item => item.Id == "DRN0019" && item.Severity == DiagnosticSeverity.Error);
+        diagnostics.Should().HaveCount(8).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION005" && item.Severity == DiagnosticSeverity.Error);
         foreach (var name in new[] { "StatusCode", "Password", "Email", "S_e_C_r_E_t" })
             diagnostics.Count(item => item.GetMessage().Contains("Anonymous property '" + name + "'", StringComparison.Ordinal))
                 .Should().Be(2);
@@ -664,7 +665,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
                 }
             }
             """));
-        diagnostics.Should().HaveCount(3).And.OnlyContain(item => item.Id == "DRN0019");
+        diagnostics.Should().HaveCount(3).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION005");
     }
 
     [Fact]
@@ -692,7 +693,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
                 }
             }
             """));
-        diagnostics.Should().HaveCount(3).And.OnlyContain(item => item.Id == "DRN0019");
+        diagnostics.Should().HaveCount(3).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION005");
     }
 
     [Fact]
@@ -730,27 +731,29 @@ public sealed class DiagnosticClassificationAnalyzerTests
     [Fact]
     public async Task Catalog_Normalization_Should_Match_Browser_Name_Vectors()
     {
-        foreach (var name in new[]
-                 {
-                     "Response_StatusCode", "Secret", "S_e_C_r_E_t", "CancellationToken", "Keyboard",
-                     "E_m_a_i_l", "ClientSecret", "Client_Assertion", "Client", "ClientId", "ClientErrorId", "Request_l5d_client_id",
-                     "IpAddress", "Remote_IpAddr", "PreAuthReplenishmentSeconds", "PostAuthReplenishmentSeconds",
-                     "ControllerClassName", "DiagnosticRedacted", "C_V_V", "Cvc", "Pin_Code",
-                     "User_Name", "FirstName", "Last_Name", "DateOfBirth", "Birth_Date", "IBAN"
-                 })
-        {
-            var source = "public class Model { public string " + name + " { get; set; } = \"\"; }";
-            (await Analyze(Compilation(source))).Should().ContainSingle().Which.Id.Should().Be("DRN0015");
-        }
-        (await Analyze(Compilation("public class Model { public string Émail { get; set; } = \"\"; }"))).Should().BeEmpty();
-        foreach (var name in new[]
-                 {
-                     "Sec", "ElapsedSeconds", "Section", "FlurlEx_ResponseCaptureLimited",
-                     "DriftSeconds", "ReplenishmentSeconds", "MaxProcessingMilliseconds", "Secure",
-                     "UseSecureSourceKnownIds", "SecondEntities", "DisposeCount", "SecureId",
-                     "NullableSecureId", "FileName", "ServiceAddress", "ShippingMethod", "Panel", "RootPath"
-                 })
-            (await Analyze(Compilation("public class Model { public int " + name + " { get; set; } }"))).Should().BeEmpty();
+        string[] flaggedNames =
+        [
+            "Response_StatusCode", "Secret", "S_e_C_r_E_t", "CancellationToken", "Keyboard",
+            "E_m_a_i_l", "ClientSecret", "Client_Assertion", "Client", "ClientId", "ClientErrorId", "Request_l5d_client_id",
+            "IpAddress", "Remote_IpAddr", "PreAuthReplenishmentSeconds", "PostAuthReplenishmentSeconds",
+            "ControllerClassName", "DiagnosticRedacted", "C_V_V", "Cvc", "Pin_Code",
+            "User_Name", "FirstName", "Last_Name", "DateOfBirth", "Birth_Date", "IBAN"
+        ];
+        var flaggedProperties = string.Concat(flaggedNames.Select(name => $"public string {name} {{ get; set; }} = \"\";\n"));
+        var flaggedDiagnostics = await Analyze(Compilation("public class Model {\n" + flaggedProperties + "}"));
+        flaggedDiagnostics.Should().HaveCount(flaggedNames.Length).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION001");
+        flaggedDiagnostics.Select(AnalyzerTestCompilation.LocationText).Should().BeEquivalentTo(flaggedNames);
+
+        string[] allowedIntNames =
+        [
+            "Sec", "ElapsedSeconds", "Section", "FlurlEx_ResponseCaptureLimited",
+            "DriftSeconds", "ReplenishmentSeconds", "MaxProcessingMilliseconds", "Secure",
+            "UseSecureSourceKnownIds", "SecondEntities", "DisposeCount", "SecureId",
+            "NullableSecureId", "FileName", "ServiceAddress", "ShippingMethod", "Panel", "RootPath"
+        ];
+        var allowedProperties = "public string Émail { get; set; } = \"\";\n" +
+                                string.Concat(allowedIntNames.Select(name => $"public int {name} {{ get; set; }}\n"));
+        (await Analyze(Compilation("public class Model {\n" + allowedProperties + "}"))).Should().BeEmpty();
     }
 
     [Fact]
@@ -784,26 +787,14 @@ public sealed class DiagnosticClassificationAnalyzerTests
         diagnostics.Should().BeEmpty();
     }
 
-    internal static ImmutableArray<MetadataReference> References { get; } = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
-        .Split(Path.PathSeparator).Where(path => !Path.GetFileName(path).StartsWith("DRN.", StringComparison.Ordinal))
-        .Append(typeof(SensitiveAttribute).Assembly.Location)
-        .Append(typeof(NSubstitute.SubstituteExtensions).Assembly.Location)
-        .Append(typeof(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder).Assembly.Location)
-        .Append(typeof(Microsoft.EntityFrameworkCore.DbContext).Assembly.Location)
-        .Append(typeof(Microsoft.Extensions.Compliance.Classification.DataClassificationAttribute).Assembly.Location)
-        .Append(typeof(Microsoft.Extensions.Logging.ILogger).Assembly.Location)
-        .Distinct(StringComparer.Ordinal).Select(path => (MetadataReference)MetadataReference.CreateFromFile(path)).ToImmutableArray();
+    internal static ImmutableArray<MetadataReference> References => AnalyzerTestCompilation.ClassificationReferences;
 
     internal static CSharpCompilation Compilation(string source, string path = "Models.cs") => CSharpCompilation.Create(
         "DiagnosticModelConsumer", [CSharpSyntaxTree.ParseText(source, path: path)], References,
         new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
-    internal static async Task<ImmutableArray<Diagnostic>> Analyze(CSharpCompilation compilation, params AdditionalText[] files)
-    {
-        compilation.GetDiagnostics().Where(item => item.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
-        return await compilation.WithAnalyzers([new DiagnosticClassificationAnalyzer()], new AnalyzerOptions([.. files]))
-            .GetAnalyzerDiagnosticsAsync();
-    }
+    internal static Task<ImmutableArray<Diagnostic>> Analyze(CSharpCompilation compilation, params AdditionalText[] files) =>
+        AnalyzerTestCompilation.Analyze(compilation, new DiagnosticClassificationAnalyzer(), new AnalyzerOptions([.. files]));
 
     [Fact]
     public async Task All_Models_Should_Be_Checked_Without_Logging_And_IgnoreLog_Should_Not_Suppress()
@@ -823,7 +814,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
                 public string this[int index] => "";
             }
             """));
-        diagnostics.Should().HaveCount(3).And.OnlyContain(item => item.Id == "DRN0015" && item.Severity == DiagnosticSeverity.Error);
+        diagnostics.Should().HaveCount(3).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION001" && item.Severity == DiagnosticSeverity.Error);
     }
 
     [Fact]
@@ -867,7 +858,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
             public class Box<T> { public T AccessToken { get; set; } = default!; }
             public interface IInput { string Password { get; } }
             """, path));
-        diagnostics.Select(item => item.Id).Should().Equal(Enumerable.Repeat("DRN0015", expectedCount));
+        diagnostics.Select(item => item.Id).Should().Equal(Enumerable.Repeat("DRNCLASSIFICATION001", expectedCount));
     }
 
     [Fact]
@@ -898,7 +889,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
             public class CustomAttribute() : DataClassificationAttribute(DataClassification.None);
             public class Model { [Custom] public string Password { get; set; } = ""; }
             """));
-        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRN0018");
+        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCLASSIFICATION004");
     }
 
     [Fact]
@@ -908,7 +899,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
             using DRN.Framework.SharedKernel.Attributes;
             [Sensitive(false)] public class Model { public string Description { get; set; } = ""; }
             """));
-        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRN0016");
+        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCLASSIFICATION002");
     }
 
     [Fact]
@@ -932,8 +923,8 @@ public sealed class DiagnosticClassificationAnalyzerTests
                 }
             }
             """));
-        diagnostics.Count(item => item.Id == "DRN0017").Should().Be(1);
-        diagnostics.Count(item => item.Id == "DRN0015").Should().Be(1);
+        diagnostics.Count(item => item.Id == "DRNCLASSIFICATION003").Should().Be(1);
+        diagnostics.Count(item => item.Id == "DRNCLASSIFICATION001").Should().Be(1);
     }
 
     [Fact]
@@ -971,7 +962,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
                 }
             }
             """));
-        diagnostics.Should().HaveCount(3).And.OnlyContain(item => item.Id == "DRN0017");
+        diagnostics.Should().HaveCount(3).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION003");
     }
 
     [Fact]
@@ -999,7 +990,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
                 }
             }
             """));
-        diagnostics.Should().HaveCount(3).And.OnlyContain(item => item.Id == "DRN0017");
+        diagnostics.Should().HaveCount(3).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION003");
     }
 
     [Fact]
@@ -1012,7 +1003,7 @@ public sealed class DiagnosticClassificationAnalyzerTests
                 public InvalidAttribute() : base(false) { }
             }
             """));
-        diagnostics.Should().Contain(item => item.Id == "DRN0016");
+        diagnostics.Should().Contain(item => item.Id == "DRNCLASSIFICATION002");
     }
 
     [Fact]
@@ -1028,5 +1019,22 @@ public sealed class DiagnosticClassificationAnalyzerTests
             }
             """));
         diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task PreCanceled_Token_Should_Cancel_Classification_Analysis()
+    {
+        var compilation = Compilation("""
+            public class Model
+            {
+                public string Password { get; set; } = "";
+                public string Email { get; set; } = "";
+            }
+            """);
+        compilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var act = async () => await AnalyzerTestCompilation.Analyze(compilation, new DiagnosticClassificationAnalyzer(), null, cancellation.Token);
+        await act.Should().ThrowAsync<OperationCanceledException>();
     }
 }

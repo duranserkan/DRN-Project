@@ -16,7 +16,7 @@ namespace DRN.Framework.SharedKernel.CodeFixes;
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(ClassificationCodeFixProvider)), Shared]
 public sealed class ClassificationCodeFixProvider : CodeFixProvider
 {
-    public override ImmutableArray<string> FixableDiagnosticIds => ["DRN0015", "DRN0018"];
+    public override ImmutableArray<string> FixableDiagnosticIds => ["DRNCLASSIFICATION001", "DRNCLASSIFICATION004"];
     public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 
     public override async Task RegisterCodeFixesAsync(CodeFixContext context)
@@ -31,7 +31,7 @@ public sealed class ClassificationCodeFixProvider : CodeFixProvider
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(NameExemptionCodeFixProvider)), Shared]
 public sealed class NameExemptionCodeFixProvider : CodeFixProvider
 {
-    public override ImmutableArray<string> FixableDiagnosticIds => ["DRN0015"];
+    public override ImmutableArray<string> FixableDiagnosticIds => ["DRNCLASSIFICATION001"];
     public override FixAllProvider? GetFixAllProvider() => null;
 
     public override async Task RegisterCodeFixesAsync(CodeFixContext context)
@@ -45,7 +45,7 @@ public sealed class NameExemptionCodeFixProvider : CodeFixProvider
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(InvalidExemptionCodeFixProvider)), Shared]
 public sealed class InvalidExemptionCodeFixProvider : CodeFixProvider
 {
-    public override ImmutableArray<string> FixableDiagnosticIds => ["DRN0016"];
+    public override ImmutableArray<string> FixableDiagnosticIds => ["DRNCLASSIFICATION002"];
     public override FixAllProvider? GetFixAllProvider() => null;
 
     public override async Task RegisterCodeFixesAsync(CodeFixContext context)

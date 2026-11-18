@@ -6,7 +6,8 @@ using Microsoft.CodeAnalysis.CodeRefactorings;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
-using static DRN.Framework.SharedKernel.CodeFixes.EntityConfigurationRefactoringProvider;
+using static DRN.Framework.SharedKernel.CodeFixes.CodeFixDestinationGuard;
+using static DRN.Framework.SharedKernel.CodeFixes.CodeFixSymbolFacts;
 
 namespace DRN.Framework.SharedKernel.CodeFixes;
 
@@ -120,17 +121,9 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         INamedTypeSymbol entity, CancellationToken token)
     {
         var entityBase = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity");
-        if (entity.IsAbstract || IsOpen(entity) || entity.DeclaredAccessibility != Accessibility.Public ||
-            !Bases(entity).Any(type => Same(type, entityBase))) return false;
-        for (var containing = entity.ContainingType; containing is not null; containing = containing.ContainingType)
-            if (containing.DeclaredAccessibility != Accessibility.Public) return false;
-        foreach (var reference in entity.DeclaringSyntaxReferences)
-        {
-            var part = document.Project.GetDocument(reference.SyntaxTree);
-            if (part is null || part.GetLinkedDocumentIds().Length != 0 ||
-                await ClassificationEdit.FindEditableRoot(part, reference.Span.Start, token) is null) return false;
-        }
-        return true;
+        return !entity.IsAbstract && !IsOpen(entity) && IsPublicType(entity) &&
+               Inherits(entity, entityBase) &&
+               await ArePartsEditableAsync(document.Project, entity, rejectSpanErrors: false, token);
     }
 
     private static async Task<DtoPlan?> Plan(Document document, Selection selection, Project target, CancellationToken token)
@@ -157,8 +150,8 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
             source.FilePath is null || target.FilePath is null || document.FilePath is null ||
             !TryFullPath(source.FilePath, out var sourceProjectPath) || !TryFullPath(target.FilePath, out var targetProjectPath) ||
             !TryFullPath(document.FilePath, out var entityPath)) return null;
-        var sourceInputs = await ConventionGenerationPreflight.ReadInputs(source, required: false, token);
-        if (sourceInputs is null || HasRoleOverride(sourceInputs) || await HasRoleOverrides(target, token)) return null;
+        var sourceInputs = await ReadInputsWithoutRoleOverrideAsync(source, required: false, token);
+        if (sourceInputs is null || await HasRoleOverrides(target, token)) return null;
         var sourceRoot = Path.GetDirectoryName(sourceProjectPath)!;
         var targetRoot = Path.GetDirectoryName(targetProjectPath)!;
         if (!ConventionGenerationPreflight.IsUnderDirectory(entityPath, sourceRoot)) return null;
@@ -200,13 +193,12 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
             resolved.SourceCompilation.GetTypeByMetadataName(resolved.SourceNamespace + "." + mapperName) is not null ||
             ConflictingMapperMethod(resolved.SourceCompilation, selection.Entity, resolved.SourceNamespace, dtoName, token))
             return null;
-        if (SymbolCollision(resolved.TargetCompilation, resolved.DtoNamespace, dtoName, token) ||
-            SymbolCollision(resolved.SourceCompilation, resolved.SourceNamespace, mapperName, token)) return null;
+        if (ConventionGenerationPreflight.SymbolCollision(resolved.TargetCompilation, resolved.DtoNamespace, dtoName, token) ||
+            ConventionGenerationPreflight.SymbolCollision(resolved.SourceCompilation, resolved.SourceNamespace, mapperName, token)) return null;
         var dtoPath = Path.Combine(resolved.TargetRoot, resolved.Area.Replace('.', Path.DirectorySeparatorChar), dtoName + ".cs");
         var mapperPath = Path.Combine(Path.GetDirectoryName(resolved.EntityPath)!, mapperName + ".cs");
-        if (!SafeDestination(resolved.TargetRoot, dtoPath) || !SafeDestination(resolved.SourceRoot, mapperPath) ||
-            WorkspaceDestinationConflict(source.Solution, dtoPath, target.Id, token) ||
-            WorkspaceDestinationConflict(source.Solution, mapperPath, source.Id, token)) return null;
+        if (!SafeDocumentDestination(target, resolved.TargetRoot, dtoPath, token) ||
+            !SafeDocumentDestination(source, resolved.SourceRoot, mapperPath, token)) return null;
         return new(resolved.DtoNamespace, dtoName, dtoPath, Path.GetRelativePath(resolved.TargetRoot, dtoPath).Replace('\\', '/'),
             resolved.SourceNamespace, mapperName, mapperPath, Path.GetRelativePath(resolved.SourceRoot, mapperPath).Replace('\\', '/'));
     }
@@ -227,7 +219,7 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
             var attributes = ClassificationAttributes(property.GetAttributes(), sourceCompilation, targetCompilation);
             if (attributes is null || HasDisallowedInterfaceClassification(selection.Entity, property, sourceCompilation, targetCompilation))
                 return null;
-            fields.Add((Escape(property.Name), property.Type.ToDisplayString(format), attributes, RequiresInitialization(property)));
+            fields.Add((EscapeIdentifier(property.Name), property.Type.ToDisplayString(format), attributes, RequiresInitialization(property)));
         }
         return fields;
     }
@@ -388,24 +380,14 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
     private static bool RequiresInitialization(IPropertySymbol property) =>
         property.IsRequired || property.Type.IsReferenceType && property.NullableAnnotation != NullableAnnotation.Annotated;
 
-    private static bool SymbolCollision(Compilation compilation, string ns, string name, CancellationToken token) =>
-        ConventionGenerationPreflight.SymbolCollision(compilation, ns, name, token);
-
     private static bool PreservesOwnership(INamedTypeSymbol entity, Compilation compilation,
-        Microsoft.CodeAnalysis.CSharp.Syntax.CompilationUnitSyntax root, string owner, CancellationToken token)
+        CompilationUnitSyntax root, string owner, CancellationToken token)
     {
         var ownership = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomainAttribute");
         foreach (var attribute in entity.GetAttributes().Where(attribute => Same(attribute.AttributeClass, ownership)))
             if (attribute.ConstructorArguments is not [{ Value: string declared }] || declared != owner) return false;
         return OwnershipCompatible(root, MetadataName(entity), owner, token);
     }
-
-    private static IEnumerable<INamedTypeSymbol> Bases(INamedTypeSymbol type)
-    {
-        for (var current = type; current is not null; current = current.BaseType) yield return current;
-    }
-
-    private static string Escape(string name) => SyntaxFacts.GetKeywordKind(name) == SyntaxKind.None ? name : "@" + name;
 
     private static DtoPlan Render(Selection selection, List<(string Name, string Type, string Attributes, bool Required)> fields,
         string typeAttributes, DtoDestinations destinations)

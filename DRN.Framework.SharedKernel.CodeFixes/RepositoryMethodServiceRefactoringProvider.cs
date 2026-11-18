@@ -5,7 +5,8 @@ using Microsoft.CodeAnalysis.CodeRefactorings;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
-using static DRN.Framework.SharedKernel.CodeFixes.EntityConfigurationRefactoringProvider;
+using static DRN.Framework.SharedKernel.CodeFixes.CodeFixDestinationGuard;
+using static DRN.Framework.SharedKernel.CodeFixes.CodeFixSymbolFacts;
 
 namespace DRN.Framework.SharedKernel.CodeFixes;
 
@@ -23,7 +24,7 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
     {
         var snapshot = context.Document.Project.Solution;
         if (context.Span.IsEmpty || !snapshot.Workspace.CanApplyChange(ApplyChangesKind.AddDocument) ||
-            Identity(context.Document.Project).Role != "Domain") return;
+            ConventionGenerationPreflight.Identity(context.Document.Project).Role != "Domain") return;
         var selected = await Select(context.Document, context.Span, context.CancellationToken);
         if (selected is null) return;
         foreach (var target in snapshot.Projects)
@@ -66,12 +67,12 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
         if (!IsEligibleInterfaceMethod(method, model, declaration, token)) return null;
         var contract = model.Compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository`1");
         var bindings = method.ContainingType.AllInterfaces.Where(item => Same(item, contract)).ToArray();
-        if (bindings is not [{ TypeArguments: [INamedTypeSymbol entity] }] || IsOpen(entity) || !PublicType(entity) ||
-            !Bases(entity).Any(type => Same(type, model.Compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.AggregateRoot"))))
+        if (bindings is not [{ TypeArguments: [INamedTypeSymbol entity] }] || IsOpen(entity) || !IsPublicType(entity) ||
+            !Inherits(entity, model.Compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.AggregateRoot")))
             return null;
         if (!HasOnlySupportedTypeAttributes(method.ContainingType) || !HasRequiredAsyncCancellation(method, model.Compilation))
             return null;
-        return await AreInterfacePartsEditableAsync(document, method.ContainingType, token)
+        return await ArePartsEditableAsync(document.Project, method.ContainingType, rejectSpanErrors: true, token)
             ? new(method, entity, declaration)
             : null;
     }
@@ -99,7 +100,7 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
         if (method.ContainingType.TypeKind != TypeKind.Interface || method.IsStatic || method.IsGenericMethod ||
             method.DeclaredAccessibility != Accessibility.Public || method.ReturnsByRef || method.ReturnsByRefReadonly ||
             method.GetAttributes().Length != 0 || method.GetReturnTypeAttributes().Length != 0 ||
-            IsOpen(method.ContainingType) || !PublicType(method.ContainingType) ||
+            IsOpen(method.ContainingType) || !IsPublicType(method.ContainingType) ||
             model.GetDiagnostics(declaration.Span, token).Any(item => item.Severity == DiagnosticSeverity.Error))
             return false;
         return AreParametersSupported(method, model, declaration, token);
@@ -146,21 +147,6 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
         return !asyncReturn || method.Parameters.Any(parameter => Same(parameter.Type as INamedTypeSymbol, cancellation));
     }
 
-    private static async Task<bool> AreInterfacePartsEditableAsync(Document document, INamedTypeSymbol interfaceType,
-        CancellationToken token)
-    {
-        foreach (var reference in interfaceType.DeclaringSyntaxReferences)
-        {
-            var part = document.Project.GetDocument(reference.SyntaxTree);
-            if (part is null || part.GetLinkedDocumentIds().Length != 0 ||
-                await ClassificationEdit.FindEditableRoot(part, reference.Span.Start, token) is null) return false;
-            var partModel = await part.GetSemanticModelAsync(token);
-            if (partModel is null || partModel.GetDiagnostics(reference.Span, token).Any(item => item.Severity == DiagnosticSeverity.Error))
-                return false;
-        }
-        return true;
-    }
-
     private static async Task<ServicePlan?> Plan(Project domain, Selection selected, Project application, bool scoped, CancellationToken token)
     {
         var context = await ResolveServiceContextAsync(domain, application, selected, token);
@@ -179,7 +165,7 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
         var root = Path.GetDirectoryName(context.ProjectPath)!;
         var relative = "Services/" + context.Area.Replace('.', '/') + "/" + name + ".cs";
         var path = Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar));
-        if (!SafeDestination(root, path) || WorkspaceDestinationConflict(application.Solution, path, application.Id, token))
+        if (!SafeDocumentDestination(application, root, path, token))
             return null;
         return RenderForwardingService(selected, context.Repository, constructed, ns, name, relative, path, scoped);
     }
@@ -187,16 +173,16 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
     private static async Task<ServiceContext?> ResolveServiceContextAsync(Project domain, Project application,
         Selection selected, CancellationToken token)
     {
-        var domainIdentity = Identity(domain);
-        var applicationIdentity = Identity(application);
+        var domainIdentity = ConventionGenerationPreflight.Identity(domain);
+        var applicationIdentity = ConventionGenerationPreflight.Identity(application);
         if (domainIdentity.Role != "Domain" || applicationIdentity.Role != "Application" || application.Language != LanguageNames.CSharp ||
             !ValidNamespace(domainIdentity.Namespace) || !ValidNamespace(applicationIdentity.Namespace) ||
             !application.ProjectReferences.Any(reference => reference.ProjectId == domain.Id &&
                 (reference.Aliases.IsEmpty || reference.Aliases.Contains("global", StringComparer.Ordinal))) ||
             application.FilePath is null || !TryFullPath(application.FilePath, out var projectPath)) return null;
-        var domainInputs = await ConventionGenerationPreflight.ReadInputs(domain, required: false, token);
-        var applicationInputs = await ConventionGenerationPreflight.ReadInputs(application, required: false, token);
-        if (domainInputs is null || HasRoleOverride(domainInputs) || applicationInputs is null || HasRoleOverride(applicationInputs))
+        var domainInputs = await ReadInputsWithoutRoleOverrideAsync(domain, required: false, token);
+        var applicationInputs = await ReadInputsWithoutRoleOverrideAsync(application, required: false, token);
+        if (domainInputs is null || applicationInputs is null)
             return null;
         return await ResolveServiceSymbolsAsync(domain, application, selected, domainIdentity.Namespace,
             applicationIdentity.Namespace, projectPath, domainInputs, applicationInputs, token);
@@ -266,9 +252,9 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
     {
         var format = SymbolDisplayFormat.FullyQualifiedFormat.WithMiscellaneousOptions(
             SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier | SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers);
-        var parameters = string.Join(", ", selected.Method.Parameters.Select(parameter => parameter.Type.ToDisplayString(format) + " " + Escape(parameter.Name) +
+        var parameters = string.Join(", ", selected.Method.Parameters.Select(parameter => parameter.Type.ToDisplayString(format) + " " + EscapeIdentifier(parameter.Name) +
             (selected.Syntax.ParameterList.Parameters[parameter.Ordinal].Default is null ? "" : " = default")));
-        var arguments = string.Join(", ", selected.Method.Parameters.Select(parameter => Escape(parameter.Name)));
+        var arguments = string.Join(", ", selected.Method.Parameters.Select(parameter => EscapeIdentifier(parameter.Name)));
         var registration = scoped ? "[global::DRN.Framework.Utils.DependencyInjection.Attributes.Scoped<" + name + ">]\n" : "";
         var repositoryType = repository.ToDisplayString(format);
         var code = $$"""
@@ -284,8 +270,8 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
                     _repository = repository;
                 }
 
-                public {{(selected.Method.ReturnsVoid ? "void" : selected.Method.ReturnType.ToDisplayString(format))}} {{Escape(selected.Method.Name)}}({{parameters}})
-                    => this._repository.{{Escape(selected.Method.Name)}}({{arguments}});
+                public {{(selected.Method.ReturnsVoid ? "void" : selected.Method.ReturnType.ToDisplayString(format))}} {{EscapeIdentifier(selected.Method.Name)}}({{parameters}})
+                    => this._repository.{{EscapeIdentifier(selected.Method.Name)}}({{arguments}});
             }
 
             """;
@@ -338,19 +324,6 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
             attribute.ConstructorArguments is [{ Value: string declared }] && declared == owner);
     }
 
-    private static (string Role, string Namespace) Identity(Project project) =>
-        ConventionGenerationPreflight.Identity(project);
-
-    private static bool PublicType(INamedTypeSymbol type) => BasesContaining(type).All(current => current.DeclaredAccessibility == Accessibility.Public);
-    private static IEnumerable<INamedTypeSymbol> BasesContaining(INamedTypeSymbol type)
-    {
-        for (var current = type; current is not null; current = current.ContainingType) yield return current;
-    }
-    private static IEnumerable<INamedTypeSymbol> Bases(INamedTypeSymbol type)
-    {
-        for (var current = type; current is not null; current = current.BaseType) yield return current;
-    }
-    private static string Escape(string name) => SyntaxFacts.GetKeywordKind(name) == SyntaxKind.None ? name : "@" + name;
     private sealed record Selection(IMethodSymbol Method, INamedTypeSymbol Entity, MethodDeclarationSyntax Syntax);
     private sealed record ServicePlan(string Name, string RelativePath, string FullPath, string Source);
 }

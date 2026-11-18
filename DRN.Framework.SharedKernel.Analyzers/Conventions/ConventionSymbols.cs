@@ -6,10 +6,11 @@ namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 internal sealed class ConventionSymbols(Compilation compilation)
 {
     private readonly Dictionary<INamedTypeSymbol, Dictionary<INamedTypeSymbol, bool>> _classifications = new(SymbolEqualityComparer.Default);
-    private readonly Dictionary<INamedTypeSymbol, (bool Inherited, bool Multiple)> _attributeUsage = new(SymbolEqualityComparer.Default);
+    private readonly AttributeUsageFacts.Cache _attributeUsage = AttributeUsageFacts.Cache.For(compilation);
+    private EntityAnalyzerHelper.EntityTypeFacts? _entityTypes;
     private readonly Dictionary<INamedTypeSymbol, bool> _openTypes = new(SymbolEqualityComparer.Default);
     private readonly Dictionary<INamedTypeSymbol, Dictionary<INamedTypeSymbol, ImmutableArray<INamedTypeSymbol>>> _bindings = new(SymbolEqualityComparer.Default);
-    internal INamedTypeSymbol? Entity { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity");
+    internal INamedTypeSymbol? Entity { get; } = compilation.GetTypeByMetadataName(EntityAnalyzerHelper.SourceKnownEntityMetadataName);
     internal INamedTypeSymbol? Aggregate { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.AggregateRoot");
     internal INamedTypeSymbol? IdentityUser { get; } = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Identity.IdentityUser`1");
     internal INamedTypeSymbol? Context { get; } = compilation.GetTypeByMetadataName("DRN.Framework.EntityFramework.Context.IDrnContext");
@@ -29,6 +30,7 @@ internal sealed class ConventionSymbols(Compilation compilation)
     internal INamedTypeSymbol? Dto { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.Dto");
     internal INamedTypeSymbol? Controller { get; } = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.ControllerBase");
     internal INamedTypeSymbol? SourceKnownController { get; } = compilation.GetTypeByMetadataName("DRN.Framework.Hosting.Controllers.SourceKnownControllerBase`2");
+    internal INamedTypeSymbol? NonActionAttribute { get; } = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.NonActionAttribute");
     internal INamedTypeSymbol? PageModel { get; } = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.RazorPages.PageModel");
     internal INamedTypeSymbol? OwnershipAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomainAttribute");
     internal INamedTypeSymbol? PersistenceAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.EntityFramework.Attributes.SourceKnownPersistenceAttribute");
@@ -46,12 +48,25 @@ internal sealed class ConventionSymbols(Compilation compilation)
     internal INamedTypeSymbol? ContextAttribute { get; } = compilation.GetTypeByMetadataName("Microsoft.EntityFrameworkCore.Infrastructure.DbContextAttribute");
     internal INamedTypeSymbol? AssemblyMetadataAttribute { get; } = compilation.GetTypeByMetadataName("System.Reflection.AssemblyMetadataAttribute");
     internal INamedTypeSymbol? SuppressionAttribute { get; } = compilation.GetTypeByMetadataName("System.Diagnostics.CodeAnalysis.SuppressMessageAttribute");
-    internal INamedTypeSymbol? AttributeUsage { get; } = compilation.GetTypeByMetadataName("System.AttributeUsageAttribute");
     internal INamedTypeSymbol? ConfigAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.Utils.DependencyInjection.Attributes.ConfigAttribute");
     internal INamedTypeSymbol? ContextOptionsAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.EntityFramework.Attributes.NpgsqlDbContextOptionsAttribute");
+    internal INamedTypeSymbol? NonGenericContextOptions { get; } = compilation.GetTypeByMetadataName("Microsoft.EntityFrameworkCore.DbContextOptions");
+    internal INamedTypeSymbol? DesignTimeContextFactory { get; } = compilation.GetTypeByMetadataName("Microsoft.EntityFrameworkCore.Design.IDesignTimeDbContextFactory`1");
+    internal INamedTypeSymbol? EfServiceCollectionExtensions { get; } = compilation.GetTypeByMetadataName("Microsoft.Extensions.DependencyInjection.EntityFrameworkServiceCollectionExtensions");
+    internal INamedTypeSymbol? DrnEfServiceCollectionExtensions { get; } = compilation.GetTypeByMetadataName("DRN.Framework.EntityFramework.Extensions.ServiceCollectionExtensions");
+    internal INamedTypeSymbol? ServiceCollection { get; } = compilation.GetTypeByMetadataName("Microsoft.Extensions.DependencyInjection.IServiceCollection");
+    internal INamedTypeSymbol? DiServiceCollectionExtensions { get; } = compilation.GetTypeByMetadataName("Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions");
+    internal INamedTypeSymbol? DrnDiServiceCollectionExtensions { get; } = compilation.GetTypeByMetadataName("DRN.Framework.Utils.DependencyInjection.ServiceCollectionExtensions");
+    internal INamedTypeSymbol? FromKeyedServicesAttribute { get; } = compilation.GetTypeByMetadataName("Microsoft.Extensions.DependencyInjection.FromKeyedServicesAttribute");
 
-    internal bool IsEntity(INamedTypeSymbol type, CancellationToken cancellation) =>
-        IsKnown(type, Entity, cancellation) || IsKnown(type, IdentityUser, cancellation);
+    internal bool IsEntity(INamedTypeSymbol type, CancellationToken cancellation)
+    {
+        cancellation.ThrowIfCancellationRequested();
+        var sourceKnown = Entity is { TypeKind: TypeKind.Class } entity
+            ? (_entityTypes ??= EntityAnalyzerHelper.EntityTypeFacts.For(compilation, entity)).IsEntity(type, cancellation)
+            : IsKnown(type, Entity, cancellation);
+        return sourceKnown || IsKnown(type, IdentityUser, cancellation);
+    }
 
     internal bool IsContext(INamedTypeSymbol type, CancellationToken cancellation) =>
         IsKnown(type, Context, cancellation) || IsKnown(type, DbContext, cancellation);
@@ -159,22 +174,9 @@ internal sealed class ConventionSymbols(Compilation compilation)
         HashSet<ISymbol> singleAttributes, CancellationToken cancellation)
     {
         if (attribute.AttributeClass is not { } attributeType || !IsKnown(attributeType, target, cancellation)) return false;
-        var (inherited, multiple) = ReadAttributeUsage(attributeType, cancellation);
+        var (inherited, multiple) = _attributeUsage.Get(attributeType, cancellation);
         if (!direct && !inherited) return false;
         return multiple || singleAttributes.Add(attributeType);
-    }
-
-    private (bool Inherited, bool Multiple) ReadAttributeUsage(INamedTypeSymbol type, CancellationToken cancellation)
-    {
-        cancellation.ThrowIfCancellationRequested();
-        if (_attributeUsage.TryGetValue(type, out var cached)) return cached;
-        var usage = Bases(type, cancellation).SelectMany(owner => owner.GetAttributes())
-            .FirstOrDefault(item => Same(item.AttributeClass, AttributeUsage));
-        var result = (usage?.NamedArguments.FirstOrDefault(pair => pair.Key == "Inherited").Value.Value is not false,
-            usage?.NamedArguments.FirstOrDefault(pair => pair.Key == "AllowMultiple").Value.Value is true);
-        cancellation.ThrowIfCancellationRequested();
-        _attributeUsage.Add(type, result);
-        return result;
     }
 
     internal bool IsOpen(INamedTypeSymbol type, CancellationToken cancellation = default)

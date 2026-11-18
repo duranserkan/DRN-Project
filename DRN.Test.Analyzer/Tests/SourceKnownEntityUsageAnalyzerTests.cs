@@ -1,8 +1,9 @@
 using System.Globalization;
+using static DRN.Test.Analyzer.Tests.SourceKnownEntityTypeAnalyzerTests;
 
 namespace DRN.Test.Analyzer.Tests;
 
-public partial class SourceKnownEntityTypeAnalyzerTests
+public sealed class SourceKnownEntityUsageAnalyzerTests
 {
     [Fact]
     public async Task ConstantIdentityArguments_ReportInvalidValuesAtTheirExpressions()
@@ -19,6 +20,7 @@ public partial class SourceKnownEntityTypeAnalyzerTests
                     EntityTypeId second = new(7, 255);
                     var third = first with { AppId = 200 };
                     var fourth = new EntityTypeId { AppId = 201 };
+                    var lifted = new EntityTypeId(7, (byte)(byte?)200);
                     ops.Parse(format: (SourceKnownEntityIdFormat)99, id: Guid.Empty);
                     ops.Parse(Guid.Empty, (SourceKnownEntityIdFormat)(-1));
                 }
@@ -26,12 +28,12 @@ public partial class SourceKnownEntityTypeAnalyzerTests
             """;
 
         var diagnostics = await RunAnalyzerAsync(source);
-        diagnostics.Should().HaveCount(6);
-        diagnostics.Count(d => d.Id == "DRN0009").Should().Be(4);
-        diagnostics.Count(d => d.Id == "DRN0010").Should().Be(2);
+        diagnostics.Should().HaveCount(7);
+        diagnostics.Count(d => d.Id == "DRNENTITY009").Should().Be(5);
+        diagnostics.Count(d => d.Id == "DRNENTITY010").Should().Be(2);
         diagnostics.Should().OnlyContain(d => d.Severity == DiagnosticSeverity.Error);
         diagnostics.Select(d => source.Substring(d.Location.SourceSpan.Start, d.Location.SourceSpan.Length))
-            .Should().BeEquivalentTo("InvalidApp", "255", "200", "201", "(SourceKnownEntityIdFormat)99", "(SourceKnownEntityIdFormat)(-1)");
+            .Should().BeEquivalentTo("InvalidApp", "255", "200", "201", "(byte)(byte?)200", "(SourceKnownEntityIdFormat)99", "(SourceKnownEntityIdFormat)(-1)");
     }
 
     [Fact]
@@ -94,7 +96,40 @@ public partial class SourceKnownEntityTypeAnalyzerTests
 
         var diagnostics = await RunAnalyzerAsync(source);
         diagnostics.Should().HaveCount(2);
-        diagnostics.Should().OnlyContain(d => d.Id == "DRN0010");
+        diagnostics.Should().OnlyContain(d => d.Id == "DRNENTITY010");
+    }
+
+    [Fact]
+    public async Task NullableFormatParameters_CheckConstantsWhileMutableLocalsRemainExempt()
+    {
+        const string source = """
+            using DRN.Framework.SharedKernel.Domain;
+            public class Consumer
+            {
+                public SourceKnownEntityIdFormat? NullableFormat { get; set; }
+                public static void Accept(SourceKnownEntityIdFormat? format) { }
+                public void Run()
+                {
+                    Accept((SourceKnownEntityIdFormat)4);
+                    Accept((SourceKnownEntityIdFormat?)5);
+                    NullableFormat = (SourceKnownEntityIdFormat)6;
+                    Accept((SourceKnownEntityIdFormat?)1.5);
+                    Accept((SourceKnownEntityIdFormat?)(decimal)1);
+                    Accept((SourceKnownEntityIdFormat?)(char)1);
+                    Accept(unchecked((SourceKnownEntityIdFormat?)(long?)4294967296L));
+                    Accept((SourceKnownEntityIdFormat?)4.9);
+                    Accept(SourceKnownEntityIdFormat.Plain);
+                    Accept(null);
+                    var local = (SourceKnownEntityIdFormat)4;
+                    Accept(local);
+                }
+            }
+            """;
+
+        var diagnostics = await RunAnalyzerAsync(source);
+        diagnostics.Select(AnalyzerTestCompilation.LocationText).Should().BeEquivalentTo(
+            "(SourceKnownEntityIdFormat)4", "(SourceKnownEntityIdFormat?)5", "(SourceKnownEntityIdFormat)6", "(SourceKnownEntityIdFormat?)4.9");
+        diagnostics.Should().OnlyContain(d => d.Id == "DRNENTITY010" && d.Severity == DiagnosticSeverity.Error);
     }
 
     [Fact]
@@ -109,7 +144,7 @@ public partial class SourceKnownEntityTypeAnalyzerTests
             """;
 
         var diagnostics = await RunAnalyzerAsync(first, second);
-        diagnostics.Select(d => d.Id).Should().BeEquivalentTo("DRN0011", "DRN0012");
+        diagnostics.Select(d => d.Id).Should().BeEquivalentTo("DRNENTITY011", "DRNENTITY012");
     }
 
     [Fact]
@@ -141,7 +176,7 @@ public partial class SourceKnownEntityTypeAnalyzerTests
 
         var diagnostics = await RunAnalyzerAsync(source);
         diagnostics.Should().HaveCount(4);
-        diagnostics.Should().OnlyContain(d => d.Id == "DRN0011" && d.Severity == DiagnosticSeverity.Warning);
+        diagnostics.Should().OnlyContain(d => d.Id == "DRNENTITY011" && d.Severity == DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -165,7 +200,7 @@ public partial class SourceKnownEntityTypeAnalyzerTests
 
         var diagnostics = await RunAnalyzerAsync(source);
         diagnostics.Should().HaveCount(2);
-        diagnostics.Should().OnlyContain(d => d.Id == "DRN0012" && d.Severity == DiagnosticSeverity.Warning);
+        diagnostics.Should().OnlyContain(d => d.Id == "DRNENTITY012" && d.Severity == DiagnosticSeverity.Warning);
         diagnostics.Select(d => d.GetMessage()).Should().Contain(m => m.Contains("Container<T>.Nested"));
     }
 
@@ -195,7 +230,7 @@ public partial class SourceKnownEntityTypeAnalyzerTests
 
         var diagnostics = await RunAnalyzerAsync(source);
         diagnostics.Should().HaveCount(10);
-        diagnostics.Should().OnlyContain(d => d.Id == "DRN0013" && d.Severity == DiagnosticSeverity.Error);
+        diagnostics.Should().OnlyContain(d => d.Id == "DRNENTITY013" && d.Severity == DiagnosticSeverity.Error);
     }
 
     [Fact]
@@ -306,19 +341,19 @@ public partial class SourceKnownEntityTypeAnalyzerTests
 
         var diagnostics = await RunAnalyzerWithReferenceAsync(referenced, consuming);
         diagnostics.Should().HaveCount(12);
-        diagnostics.Should().OnlyContain(d => d.Id == "DRN0013");
+        diagnostics.Should().OnlyContain(d => d.Id == "DRNENTITY013");
     }
 
     [Fact]
     public void UsageDiagnostics_HavePublishedSeverityAndHelpLinks()
     {
         var diagnostics = new SourceKnownEntityTypeAnalyzer().SupportedDiagnostics
-            .Where(d => d.Id is "DRN0009" or "DRN0010" or "DRN0011" or "DRN0012" or "DRN0013" or "DRN0014").ToArray();
+            .Where(d => d.Id is "DRNENTITY009" or "DRNENTITY010" or "DRNENTITY011" or "DRNENTITY012" or "DRNENTITY013" or "DRNENTITY014").ToArray();
         diagnostics.Should().HaveCount(6);
         diagnostics.Should().OnlyContain(d => d.IsEnabledByDefault && d.HelpLinkUri == DiagnosticDescriptors.HelpLinkUri);
         diagnostics.Count(d => d.DefaultSeverity == DiagnosticSeverity.Error).Should().Be(4);
         diagnostics.Count(d => d.DefaultSeverity == DiagnosticSeverity.Warning).Should().Be(2);
-        DiagnosticDescriptors.AbstractEntityMetadataArgument.Title.ToString(CultureInfo.InvariantCulture).Should().Be("Concrete entity type required");
+        DiagnosticDescriptors.AbstractEntityMetadataArgument.Title.ToString(CultureInfo.InvariantCulture).Should().Be("Use a concrete entity type");
         new SourceKnownEntityTypeAnalyzer().SupportedDiagnostics.Select(d => d.Id).Should().OnlyHaveUniqueItems();
     }
 }

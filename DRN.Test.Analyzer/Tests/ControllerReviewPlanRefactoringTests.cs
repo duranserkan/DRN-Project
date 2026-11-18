@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.CodeFixes;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeRefactorings;
@@ -5,6 +6,7 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace DRN.Test.Analyzer.Tests;
 
+[SuppressMessage("ReSharper", "AccessToDisposedClosure")]
 public sealed class ControllerReviewPlanRefactoringTests
 {
     [Fact]
@@ -15,7 +17,7 @@ public sealed class ControllerReviewPlanRefactoringTests
                 "Sample.Hosted", "Sample.Hosted", LanguageNames.CSharp, filePath: "/source/Sample.Hosted/Sample.Hosted.csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
-            .AddMetadataReference(MetadataReference.CreateFromFile(typeof(DRN.Framework.Hosting.Controllers.SourceKnownControllerBase<,>).Assembly.Location));
+            .AddMetadataReference(AnalyzerTestCompilation.HostingReference);
         var source = """
             using DRN.Framework.SharedKernel.Domain;
             using DRN.Framework.SharedKernel.Domain.Repository;
@@ -131,7 +133,7 @@ public sealed class ControllerReviewPlanRefactoringTests
         var document = Create(workspace);
         var action = (await Actions(document)).Single();
         using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
+        await cancellation.CancelAsync();
         var apply = async () => await action.GetOperationsAsync(cancellation.Token);
         await apply.Should().ThrowAsync<OperationCanceledException>();
         workspace.CurrentSolution.GetProject(document.Project.Id)!.AdditionalDocuments.Should().BeEmpty();
@@ -151,7 +153,7 @@ public sealed class ControllerReviewPlanRefactoringTests
         var project = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
                 "Sample.Hosted", "Sample.Hosted", LanguageNames.CSharp, filePath: "/source/Sample.Hosted/Sample.Hosted.csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
-            .AddMetadataReference(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
+            .AddMetadataReference(AnalyzerTestCompilation.ObjectReference);
         var document = project.AddDocument("OrdersController.cs", Source, filePath: path);
         workspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
         return workspace.CurrentSolution.GetDocument(document.Id)!;

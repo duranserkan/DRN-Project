@@ -36,7 +36,7 @@ public class SourceKnownEntityIdUtilsTests
         ids.DefaultFormat.Should().Be(defaultFormat);
         operations.DefaultFormat.Should().Be(defaultFormat);
         var expected = new EntityTypeId(200, 5);
-        // Non-constant input exercises runtime validation alongside DRN0009's constant check.
+        // Non-constant input exercises runtime validation alongside DRNENTITY009's constant check.
         byte invalidAppId = 128;
         var numericId = long.MinValue | (5L << 24);
 

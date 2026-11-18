@@ -5,8 +5,8 @@ namespace DRN.Test.Analyzer.Tests;
 public sealed class ConfiguredCapturePathTests
 {
     [Theory]
-    [InlineData(3, "DRN0017")]
-    [InlineData(14, "DRN0025")]
+    [InlineData(3, "DRNCLASSIFICATION003")]
+    [InlineData(14, "DRNCLASSIFICATION011")]
     public async Task Configured_Paths_After_Shared_Subtrees_Should_Report_Matches_Or_Incomplete_Analysis(
         int levels, string expectedDiagnostic)
     {
@@ -75,9 +75,38 @@ public sealed class ConfiguredCapturePathTests
             """), new ProjectDiagnosticRulesTests.RuleFile("data-classification-rules.json",
             """{"sensitiveFieldPaths":["Payload.Detail"]}"""));
 
-        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRN0020");
+        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCLASSIFICATION006");
         (await diagnostics.Single().Location.SourceTree!.GetTextAsync()).ToString(diagnostics.Single().Location.SourceSpan)
             .Should().Be("log.AddDictionary(\"Payload\", new Dictionary<string, object> { [\"Detail\"] = (string)(ConvertedValue)" + literal + " })");
+    }
+
+    [Fact]
+    public async Task Converted_Redaction_Marker_Should_Be_Checked_At_The_Captured_Type()
+    {
+        var diagnostics = await Analyze(Compilation("""
+            namespace DRN.Framework.Utils.Logging
+            {
+                public interface IScopedLog { void Add(string key, object value); }
+            }
+            public class Payload
+            {
+                public string Detail { get; set; }
+                public static implicit operator Payload(string text) => new Payload();
+            }
+            public class Caller
+            {
+                public void Run(DRN.Framework.Utils.Logging.IScopedLog log)
+                {
+                    log.Add("Root", (Payload)"[redacted]");
+                    log.Add("Root", (object)"[redacted]");
+                }
+            }
+            """), new ProjectDiagnosticRulesTests.RuleFile("data-classification-rules.json",
+            """{"sensitiveFieldPaths":["Root.Detail"]}"""));
+
+        var diagnostic = diagnostics.Should().ContainSingle().Which;
+        diagnostic.Id.Should().Be("DRNCLASSIFICATION003");
+        diagnostic.GetMessage().Should().Contain("Root.Detail");
     }
 
     [Theory]
@@ -152,8 +181,8 @@ public sealed class ConfiguredCapturePathTests
             """{"sensitiveFieldPaths":["Payload.Detail"]}"""));
 
         diagnostics.Should().HaveCount(6);
-        diagnostics.Should().ContainSingle(item => item.Id == "DRN0024");
-        diagnostics.Where(item => item.Id == "DRN0020")
+        diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION010");
+        diagnostics.Where(item => item.Id == "DRNCLASSIFICATION006")
             .Select(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan))
             .Should().BeEquivalentTo(
                 capture + "\"Payload\", values)",
@@ -191,8 +220,8 @@ public sealed class ConfiguredCapturePathTests
             """{"sensitiveFieldPaths":["TokenCount.Detail","Payload.Detail"]}"""));
 
         diagnostics.Should().HaveCount(3);
-        diagnostics.Count(item => item.Id == "DRN0022").Should().Be(2);
-        diagnostics.Should().ContainSingle(item => item.Id == "DRN0024");
+        diagnostics.Count(item => item.Id == "DRNCLASSIFICATION008").Should().Be(2);
+        diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION010");
         diagnostics.Should().ContainSingle(item => item.GetMessage().Contains("'TokenCount.Detail'", StringComparison.Ordinal));
         diagnostics.Should().ContainSingle(item => item.GetMessage().Contains("'Payload.Detail'", StringComparison.Ordinal));
     }
@@ -237,7 +266,7 @@ public sealed class ConfiguredCapturePathTests
             """), new ProjectDiagnosticRulesTests.RuleFile("data-classification-rules.json",
             """{"sensitiveFieldPaths":["Payload","Report.Detail"]}"""));
 
-        diagnostics.Should().HaveCount(5).And.OnlyContain(item => item.Id == "DRN0017");
+        diagnostics.Should().HaveCount(5).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION003");
     }
 
     [Fact]
@@ -273,6 +302,6 @@ public sealed class ConfiguredCapturePathTests
             """), new ProjectDiagnosticRulesTests.RuleFile("data-classification-rules.json",
             """{"sensitiveFieldPaths":["Payload","Report.Detail"]}"""));
 
-        diagnostics.Should().HaveCount(5).And.OnlyContain(item => item.Id == "DRN0017");
+        diagnostics.Should().HaveCount(5).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION003");
     }
 }

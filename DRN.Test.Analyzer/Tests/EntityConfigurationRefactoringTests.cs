@@ -224,7 +224,7 @@ public sealed class EntityConfigurationRefactoringTests
         var action = (await Actions(entity)).Single();
         var before = workspace.CurrentSolution;
         using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
+        await cancellation.CancelAsync();
         var apply = async () => await action.GetOperationsAsync(cancellation.Token);
         await apply.Should().ThrowAsync<OperationCanceledException>();
         workspace.CurrentSolution.Should().BeSameAs(before);
@@ -380,7 +380,7 @@ public sealed class EntityConfigurationRefactoringTests
     [InlineData("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Reference(\"Inventory\", Stage = \"Custom\")]")]
     [InlineData("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Ownership(\"Sample.Domain.QA.User\", Subdomain = \"QA\", Kind = \"Helper\")]")]
     [InlineData("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Context(\"Sample.Infra.QA.QAContext\", Repositories = \"../outside\")]")]
-    [InlineData("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Exception(\"DRNCV016\", SymbolTarget = \"T:Sample.Domain.QA.User\")]")]
+    [InlineData("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Exception(\"DRNARCHITECTURE004\", SymbolTarget = \"T:Sample.Domain.QA.User\")]")]
     public async Task Invalid_Present_Input_Should_Not_Authorize_Default_Configuration_Paths(string input)
     {
         using var workspace = new AdhocWorkspace();
@@ -411,7 +411,7 @@ public sealed class EntityConfigurationRefactoringTests
         var entity = CreateDocuments(workspace);
         var changed = entity.Project.AddAdditionalDocument("DrnConventionInputs.g.cs", """
             [assembly: DRN.Conventions.Version("1")]
-            [assembly: DRN.Conventions.Exception("DRNCV016", SymbolTarget = "T:Sample.Domain.QA.User",
+            [assembly: DRN.Conventions.Exception("DRNARCHITECTURE004", SymbolTarget = "T:Sample.Domain.QA.User",
                 Reason = "Shared legacy assembly placement", Owner = "Storage team", Review = "2099-01-01")]
             """).Project.Solution;
         workspace.TryApplyChanges(changed).Should().BeTrue();
@@ -467,8 +467,8 @@ public sealed class EntityConfigurationRefactoringTests
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddProjectReference(new ProjectReference(domain.Id))
             .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
-            .AddMetadataReference(MetadataReference.CreateFromFile(typeof(DRN.Framework.EntityFramework.Context.DrnContext<>).Assembly.Location))
-            .AddMetadataReference(MetadataReference.CreateFromFile(typeof(DRN.Framework.Utils.Settings.IAppSettings).Assembly.Location));
+            .AddMetadataReference(AnalyzerTestCompilation.EntityFrameworkReference)
+            .AddMetadataReference(AnalyzerTestCompilation.UtilsReference);
         var context = infra.AddDocument("QAContext.cs", """
             namespace Sample.Infra.QA;
             public sealed class QAContextNpgsqlDbContextOptionsAttribute : DRN.Framework.EntityFramework.Attributes.NpgsqlDbContextOptionsAttribute;
@@ -523,8 +523,8 @@ public sealed class EntityConfigurationRefactoringTests
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddProjectReference(new ProjectReference(domain.Id, ["DomainAlias"]))
             .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
-            .AddMetadataReference(MetadataReference.CreateFromFile(typeof(DRN.Framework.EntityFramework.Context.DrnContext<>).Assembly.Location))
-            .AddMetadataReference(MetadataReference.CreateFromFile(typeof(DRN.Framework.Utils.Settings.IAppSettings).Assembly.Location));
+            .AddMetadataReference(AnalyzerTestCompilation.EntityFrameworkReference)
+            .AddMetadataReference(AnalyzerTestCompilation.UtilsReference);
         var aliasedContext = infra.AddDocument("QAContext.cs", """
             extern alias DomainAlias;
             namespace Sample.Infra.QA;
@@ -578,8 +578,8 @@ public sealed class EntityConfigurationRefactoringTests
                 "Sample.Infra", "Sample.Infra", LanguageNames.CSharp, filePath: "/source/Sample.Infra/Sample.Infra.csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
-            .AddMetadataReference(MetadataReference.CreateFromFile(typeof(DRN.Framework.EntityFramework.Context.DrnContext<>).Assembly.Location))
-            .AddMetadataReference(MetadataReference.CreateFromFile(typeof(DRN.Framework.Utils.Settings.IAppSettings).Assembly.Location));
+            .AddMetadataReference(AnalyzerTestCompilation.EntityFrameworkReference)
+            .AddMetadataReference(AnalyzerTestCompilation.UtilsReference);
         var entity = project.AddDocument("User.cs", EntitySource, filePath: "/source/Sample.Infra/QA/User.cs");
         var context = entity.Project.AddDocument("QAContext.cs", $$"""
             namespace Sample.Infra.QA;

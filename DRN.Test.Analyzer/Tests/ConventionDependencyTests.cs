@@ -26,7 +26,7 @@ public sealed class ConventionDependencyTests
             diagnostics.Should().BeEmpty();
             return;
         }
-        diagnostics.Should().OnlyContain(item => item.Id == "DRNCV021" && item.Severity == DiagnosticSeverity.Warning &&
+        diagnostics.Should().OnlyContain(item => item.Id == "DRNARCHITECTURE006" && item.Severity == DiagnosticSeverity.Warning &&
             item.Location.Kind == LocationKind.ExternalFile && item.Location.GetLineSpan().Path == ConventionInputs.FileName);
     }
 
@@ -52,7 +52,7 @@ public sealed class ConventionDependencyTests
         var facts = Facts(fixture);
         ConventionBoundaryAnalysis.Analyze(facts);
         var diagnostic = facts.Diagnostics.Should().ContainSingle().Which;
-        diagnostic.Id.Should().Be("DRNCV015");
+        diagnostic.Id.Should().Be("DRNARCHITECTURE003");
         diagnostic.Properties["Target"].Should().Be(ProjectPath("Web.Hosted"));
     }
 
@@ -139,7 +139,7 @@ public sealed class ConventionDependencyTests
         var facts = Facts(fixture);
         facts.Diagnostics.Add(ConventionProject.InputIssue("references", "incomplete", "valid inventory"));
         ConventionDependencyAnalysis.Analyze(facts);
-        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV001");
+        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCONVENTIONINPUT001");
     }
 
     [Fact]
@@ -147,7 +147,7 @@ public sealed class ConventionDependencyTests
     {
         var diagnostic = Analyze(Create("Storage.Infra", dependencies: [new("Business.Domain", Subdomain: "")]))
             .Should().ContainSingle().Which;
-        diagnostic.Id.Should().Be("DRNCV022");
+        diagnostic.Id.Should().Be("DRNOWNERSHIP003");
         diagnostic.Severity.Should().Be(DiagnosticSeverity.Warning);
         diagnostic.GetMessage().Should().Be("Infrastructure 'Storage.Infra' requires populated Domain subdomain '<any>'.");
         diagnostic.Location.Kind.Should().Be(LocationKind.ExternalFile);
@@ -165,7 +165,7 @@ public sealed class ConventionDependencyTests
             [new("Commerce.Domain", Subdomain: "Sales"), new("Finance.Domain", Subdomain: "Billing")])).Should().BeEmpty();
         var missing = Analyze(Create("Storage.Infra", source, dependencies: [new("Commerce.Domain", Subdomain: "Sales")]))
             .Should().ContainSingle().Which;
-        missing.Id.Should().Be("DRNCV022");
+        missing.Id.Should().Be("DRNOWNERSHIP003");
         missing.GetMessage().Should().Be("Infrastructure 'BillingContext' requires populated Domain subdomain 'Billing'.");
         missing.Severity.Should().Be(DiagnosticSeverity.Warning);
         missing.Location.Kind.Should().Be(LocationKind.SourceFile);
@@ -189,7 +189,7 @@ public sealed class ConventionDependencyTests
         var facts = Facts(fixture);
         ConventionBoundaryAnalysis.Analyze(facts);
         var permitted = allowed.Split(',', StringSplitOptions.RemoveEmptyEntries);
-        facts.Diagnostics.Where(item => item.Id == "DRNCV015").Select(item => item.Properties["Target"])
+        facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE003").Select(item => item.Properties["Target"])
             .Should().BeEquivalentTo(roles.Except(permitted).Select(role => ProjectPath("Different." + role)));
     }
 
@@ -202,7 +202,7 @@ public sealed class ConventionDependencyTests
         fixture = fixture with
         {
             Compilation = fixture.Compilation
-                .AddReferences(MetadataReference.CreateFromFile(typeof(DRN.Framework.Utils.DependencyInjection.Attributes.LifetimeAttribute).Assembly.Location))
+                .AddReferences(AnalyzerTestCompilation.UtilsReference)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText("""
                     using Microsoft.Extensions.DependencyInjection;
                     using DRN.Framework.Utils.DependencyInjection;
@@ -230,7 +230,7 @@ public sealed class ConventionDependencyTests
             return;
         }
         diagnostics.Should().HaveCount(2);
-        diagnostics.Should().OnlyContain(item => item.Id == "DRNCV021");
+        diagnostics.Should().OnlyContain(item => item.Id == "DRNARCHITECTURE006");
         if (!suppressed)
             diagnostics.Select(item => item.GetMessage()).Should().BeEquivalentTo(
                 "Project 'Public.Hosted' requires a direct project reference to its 'Application' layer.",
@@ -287,7 +287,7 @@ public sealed class ConventionDependencyTests
         var facts = Facts(new Fixture("Storage.Infra", compilation, [.. references]));
         var resolved = ConventionDependencyAnalysis.ReadDirectProjects(facts, references);
         resolved.Should().NotBeNull();
-        resolved!.Select(item => item.Project.AssemblyName).Should().Equal("Commerce.Domain", "Finance.Domain");
+        resolved.Select(item => item.Project.AssemblyName).Should().Equal("Commerce.Domain", "Finance.Domain");
     }
 
     [Fact]
@@ -317,7 +317,7 @@ public sealed class ConventionDependencyTests
             namespace Storage.Infra.Sales;
             public class SalesContext : Microsoft.EntityFrameworkCore.DbContext;
             """, "Sales/SalesContext.cs").WithAssemblyName("Storage.Infra")
-            .AddReferences(MetadataReference.CreateFromFile(typeof(DRN.Framework.EntityFramework.Context.IDrnContext).Assembly.Location))
+            .AddReferences(AnalyzerTestCompilation.EntityFrameworkReference)
             .AddReferences(
                 MetadataReference.CreateFromImage(domainImage.ToArray(), filePath: domainRefPath),
                 MetadataReference.CreateFromImage(hostedImage.ToArray(), filePath: hostedRefPath));
@@ -337,8 +337,8 @@ public sealed class ConventionDependencyTests
         var facts = Facts(new Fixture("Storage.Infra", compilation, [.. records]));
         ConventionDependencyAnalysis.Analyze(facts);
         ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNCV021" || item.Id == "DRNCV022");
-        var edge = facts.Diagnostics.Where(item => item.Id == "DRNCV015").Should().ContainSingle().Which;
+        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNARCHITECTURE006" || item.Id == "DRNOWNERSHIP003");
+        var edge = facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE003").Should().ContainSingle().Which;
         edge.Properties["Target"].Should().Be(ProjectPath("Web.Hosted"));
     }
 
@@ -350,17 +350,17 @@ public sealed class ConventionDependencyTests
             .Single(target => target.Attribute("Name")?.Value == "_CaptureDrnDirectProjectReferences");
         var beforeTargets = captureTarget.Attribute("BeforeTargets");
         beforeTargets.Should().NotBeNull();
-        beforeTargets!.Value.Split(';').Should().Contain("IncludeTransitiveProjectReferences");
+        beforeTargets.Value.Split(';').Should().Contain("IncludeTransitiveProjectReferences");
         var condition = captureTarget.Descendants("_DrnDirectProjectReference").Should().ContainSingle()
             .Which.Attribute("Condition");
         condition.Should().NotBeNull();
-        condition!.Value.Should().Contain("ReferenceOutputAssembly");
+        condition.Value.Should().Contain("ReferenceOutputAssembly");
 
         var prepareTarget = conventionsTargets.Descendants("Target")
             .Single(target => target.Attribute("Name")?.Value == "_PrepareDrnConventionInputs");
         var dependsOnTargets = prepareTarget.Attribute("DependsOnTargets");
         dependsOnTargets.Should().NotBeNull();
-        dependsOnTargets!.Value.Split(';')
+        dependsOnTargets.Value.Split(';')
             .Should().Contain(["_CaptureDrnDirectProjectReferences", "ResolveReferences", "FindReferenceAssembliesForReferences"]);
         prepareTarget.Descendants("_DrnConventionInput")
             .Single(item => item.Elements("Stage").Any(stage => stage.Value == "Project"))
@@ -392,6 +392,8 @@ public sealed class ConventionDependencyTests
         throw new FileNotFoundException($"Could not find {Path.Combine(pathSegments)} from the test output directory.");
     }
 
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<(string Name, string Subdomain), MetadataReference> DependencyReferences = new();
+
     private static ConventionFacts Facts(Fixture fixture)
     {
         var options = new Options(fixture.Name);
@@ -403,23 +405,25 @@ public sealed class ConventionDependencyTests
         params Dependency[] dependencies)
     {
         var compilation = Compilation(source, "Consumer.cs").WithAssemblyName(name)
-            .AddReferences(MetadataReference.CreateFromFile(typeof(DRN.Framework.EntityFramework.Context.IDrnContext).Assembly.Location));
+            .AddReferences(AnalyzerTestCompilation.EntityFrameworkReference);
         var records = ImmutableArray.CreateBuilder<ConventionInput>();
         var location = Location.Create(ConventionInputs.FileName, new(0, 1), new(new(0, 0), new(0, 1)));
         if (complete) records.Add(new("Reference", "Inventory", ImmutableDictionary<string, string>.Empty.Add("Stage", "Complete"), location));
         foreach (var dependency in dependencies)
         {
-            var ns = dependency.Name + (dependency.Subdomain.Length > 0 ? "." + dependency.Subdomain : "");
-            var producer = Compilation($$"""
-                [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "{{dependency.Name}}")]
-                [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "{{dependency.Name}}")]
-                namespace {{ns}};
-                public class DependencyMarker;
-                """).WithAssemblyName(dependency.Name);
-            using var stream = new MemoryStream();
-            producer.Emit(stream).Success.Should().BeTrue();
             var assemblyPath = "/dependency-tests/" + dependency.Name + ".dll";
-            compilation = compilation.AddReferences(MetadataReference.CreateFromImage(stream.ToArray(), filePath: assemblyPath));
+            var dependencyReference = DependencyReferences.GetOrAdd((dependency.Name, dependency.Subdomain), static key =>
+            {
+                var ns = key.Name + (key.Subdomain.Length > 0 ? "." + key.Subdomain : "");
+                var producer = Compilation($$"""
+                    [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "{{key.Name}}")]
+                    [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "{{key.Name}}")]
+                    namespace {{ns}};
+                    public class DependencyMarker;
+                    """).WithAssemblyName(key.Name);
+                return AnalyzerTestCompilation.EmitReference(producer, filePath: "/dependency-tests/" + key.Name + ".dll");
+            });
+            compilation = compilation.AddReferences(dependencyReference);
             if (dependency.Kind == "Project")
                 records.Add(new("Reference", ProjectPath(dependency.Name), ImmutableDictionary<string, string>.Empty
                     .Add("Stage", "Project").Add("Source", ProjectPath(dependency.Name)), location));
@@ -441,11 +445,12 @@ public sealed class ConventionDependencyTests
 
     private sealed class Options(string name) : AnalyzerConfigOptionsProvider
     {
-        public override AnalyzerConfigOptions GlobalOptions { get; } = new ConventionInputTests.Config(new()
-        {
-            ["build_property.MSBuildProjectName"] = name,
-            ["build_property.RootNamespace"] = name
-        });
+        public override AnalyzerConfigOptions GlobalOptions { get; } = new AnalyzerTestCompilation.ConfigOptions(
+            new Dictionary<string, string>
+            {
+                ["build_property.MSBuildProjectName"] = name,
+                ["build_property.RootNamespace"] = name
+            });
         public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => GlobalOptions;
         public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => GlobalOptions;
     }
