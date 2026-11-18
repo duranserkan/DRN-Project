@@ -1,5 +1,8 @@
 import { onTestFinished } from 'vitest';
-export function installBrowserGlobals(globals: Record<string, unknown>, cleanup = onTestFinished) {
+export function installBrowserGlobals(
+    globals: Record<string, unknown>,
+    cleanup: (restore: () => void) => void = onTestFinished,
+) {
     for (const [key, value] of Object.entries(globals)) {
         const original = Object.getOwnPropertyDescriptor(globalThis, key);
         cleanup(() => {

@@ -30,8 +30,18 @@ runs:
       shell: pwsh
       working-directory: ${{ inputs.working-directory }}
       run: |
+        $lineCoverage = @'
+        (/results//module//range[
+          normalize-space(@covered) != '' and
+          translate(@start_line, '0123456789', '') = '' and
+          number(@start_line) > 0 and number(@start_line) <= 2147483647 and
+          @source_id = ancestor::module[1]/source_files/source_file[
+            normalize-space(@id) != '' and normalize-space(@path) != ''
+          ]/@id
+        ])[1]
+        '@
         foreach ($report in 'coverage-unit.xml', 'coverage-analyzer.xml', 'coverage-integration.xml') {
-          if (!(Select-Xml -LiteralPath $report -XPath '(/results//range[@source_id and @start_line and @covered])[1]')) {
+          if (!(Select-Xml -LiteralPath $report -XPath $lineCoverage)) {
             throw "Missing backend line coverage in $report"
           }
         }

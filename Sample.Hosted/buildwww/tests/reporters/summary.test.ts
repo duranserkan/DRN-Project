@@ -61,16 +61,17 @@ test('Vitest reports aggregate counts and escapes failure details in the GitHub 
     const jobSummary = join(directory.path, 'summary.md');
     vi.stubEnv('GITHUB_STEP_SUMMARY', jobSummary);
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
-    const clock = vi.spyOn(performance, 'now').mockReturnValue(0);
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(1_000);
     const reporter = new VitestSummary();
     reporter.onTestRunStart();
-    clock.mockReturnValue(250);
+    clock.mockReturnValue(1_250);
     const tests = ['passed', 'failed', 'skipped', 'skipped'].map((state) => ({
         fullName: '<test>',
         result: () => ({ state, errors: [{ message: 'unexpected <value>' }] }),
         diagnostic: () => ({ duration: 10 }),
     }));
-    const modules = [{ errors: () => [], children: { allTests: () => tests } }];
+    const suites = [{ fullName: '<outer> > <inner>', errors: () => [{ message: 'suite setup failed' }] }];
+    const modules = [{ errors: () => [], children: { allSuites: () => suites, allTests: () => tests } }];
     assert.equal(
         finishVitestRun(reporter, modules as unknown as Parameters<VitestSummary['onTestRunEnd']>[0], [], 'failed'),
         1,
@@ -80,18 +81,20 @@ test('Vitest reports aggregate counts and escapes failure details in the GitHub 
     assert.ok(markdown.includes('| 4 | 1 | 1 | 2 | 0 | 0.25s |'));
     assert.match(markdown, /&lt;test&gt;/);
     assert.match(markdown, /unexpected &lt;value&gt;/);
+    assert.match(markdown, /&lt;outer&gt; &gt; &lt;inner&gt;[\s\S]*suite setup failed/);
     assert.match(markdown, /10ms/);
 });
 
 test('Vitest fails a passed run with an unhandled error or only skipped tests', () => {
     vi.stubEnv('GITHUB_STEP_SUMMARY', undefined);
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
-    for (const { state, errors } of [
-        { state: 'passed', errors: [{ message: 'unhandled rejection' }] },
-        { state: 'skipped', errors: [] },
+    for (const { state, errors, summary } of [
+        { state: 'passed', errors: [{ message: 'unhandled rejection' }], summary: /1\/1 passed/ },
+        { state: 'skipped', errors: [], summary: /0\/1 passed, 1 skipped/ },
     ]) {
+        log.mockClear();
         const testCase = { result: () => ({ state }), diagnostic: () => undefined };
-        const modules = [{ errors: () => [], children: { allTests: () => [testCase] } }];
+        const modules = [{ errors: () => [], children: { allSuites: () => [], allTests: () => [testCase] } }];
         const status = finishVitestRun(
             new VitestSummary(),
             modules as unknown as Parameters<VitestSummary['onTestRunEnd']>[0],
@@ -99,7 +102,9 @@ test('Vitest fails a passed run with an unhandled error or only skipped tests', 
             'passed',
         );
         assert.equal(status, 1);
-        assert.match(log.mock.calls.at(-1)?.[0], /❌ Frontend units/);
+        assert.equal(log.mock.calls.length, 1);
+        assert.match(log.mock.calls[0]?.[0], /❌ Frontend units/);
+        assert.match(log.mock.calls[0]?.[0], summary);
     }
 });
 

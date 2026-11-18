@@ -2,8 +2,9 @@ import { spawn } from 'node:child_process';
 import { copyFileSync, globSync, mkdtempDisposableSync, statSync } from 'node:fs';
 import { basename, dirname, join, matchesGlob, normalize, relative, sep } from 'node:path';
 import { tmpdir } from 'node:os';
-import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { startVitest, type CoverageV8Options } from 'vitest/node';
+import { defaultCoverageExcludes, unitTestPattern } from '../../vitest.config.ts';
 import { coverageReportPath } from '../../../.github/actions/frontend-validation/coverage.mts';
 import { printCoverageReport } from './reporters/summary.ts';
 
@@ -30,29 +31,30 @@ function runNode(args: string[]): Promise<number> {
     });
 }
 
-const args = [fileURLToPath(import.meta.resolve('vitest/package.json')).replace(/package\.json$/, 'vitest.mjs'), 'run'];
 const report = values.coverage ? coverageReportPath(values.report ?? 'coverage-frontend.info') : undefined;
 using output = report ? mkdtempDisposableSync(join(tmpdir(), 'sample-unit-coverage-')) : undefined;
-if (values.coverage) {
-    args.push('--coverage.enabled', '--coverage.reportsDirectory=' + output!.path);
-    for (let pattern of values.include ?? []) {
-        if (statSync(pattern, { throwIfNoEntry: false })?.isFile()) {
+const coverage: CoverageV8Options = { enabled: output !== undefined };
+if (output) {
+    coverage.reportsDirectory = output.path;
+    if (values.include) {
+        coverage.include = values.include.map((pattern) => {
+            if (!statSync(pattern, { throwIfNoEntry: false })?.isFile()) return pattern;
             // Vitest treats plain paths as directories. A single-choice glob matches the exact filename.
             const file = relative('.', pattern);
-            pattern = join(dirname(file), `@(${basename(file)})`)
+            return join(dirname(file), `@(${basename(file)})`)
                 .split(sep)
                 .join('/');
-        }
-        args.push(`--coverage.include=${pattern}`);
+        });
     }
-    for (const glob of values.exclude ?? []) args.push(`--coverage.exclude=${glob}`);
+    // Exact test selection narrows Vitest's automatic coverage exclusions.
+    coverage.exclude = [...(values.exclude ?? defaultCoverageExcludes), unitTestPattern];
 } else if (values.include || values.exclude || values.report) {
     throw new Error('Coverage options require --coverage.');
 }
 
-// Only discovered unit tests can become Node operands. CLI selectors never become Node options.
+// Resolve selectors against discovered unit tests before configuring Vitest.
 const defaultPatterns = values['default-pattern'];
-const unitFiles = globSync('buildwww/tests/**/*.test.{js,ts}').filter(
+const unitFiles = globSync(unitTestPattern).filter(
     (file) => !defaultPatterns || defaultPatterns.some((pattern) => matchesGlob(file, pattern)),
 );
 if (!unitFiles.length) {
@@ -67,10 +69,17 @@ for (const selector of testFiles) {
     for (const file of matches) selectedFiles.add(file);
 }
 const files = testFiles.length ? selectedFiles : unitFiles;
-const [unitStatus, browserStatus] = await Promise.all([
-    runNode([...args, ...files]),
-    values.browser ? runNode(['--run', 'test:browser']) : 0,
-]);
+// Vitest's positional filters also match substrings of other paths.
+const include = Array.from(files, (file) =>
+    file
+        .split(sep)
+        .join('/')
+        .replace(/[\\()[\]{}*?!+@|]/g, '\\$&'),
+);
+const browser = values.browser ? runNode(['--run', 'test:browser']) : 0;
+await startVitest([], { run: true, include, coverage });
+const unitStatus = process.exitCode ?? 0;
+const browserStatus = await browser;
 process.exitCode = unitStatus || browserStatus;
 if (unitStatus === 0 && report && output) {
     copyFileSync(join(output.path, 'lcov.info'), coverageReportPath(report));

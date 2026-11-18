@@ -18,6 +18,11 @@ export default class VitestSummary implements Reporter {
             for (const error of module.errors()) {
                 failures.push({ name: module.moduleId, message: error.stack ?? error.message });
             }
+            for (const suite of module.children.allSuites()) {
+                for (const error of suite.errors()) {
+                    failures.push({ name: suite.fullName, message: error.stack ?? error.message });
+                }
+            }
             for (const test of module.children.allTests()) {
                 const result = test.result();
                 if (result.state === 'pending') counts.didNotRun++;

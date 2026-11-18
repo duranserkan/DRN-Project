@@ -21,6 +21,7 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     env:
+      COVERAGE_REPORT: coverage-frontend.info
       SOURCE: ${{ github.event_name == 'pull_request' && 'src' || '.' }}
     steps:
       - name: Checkout CI code
@@ -40,13 +41,13 @@ jobs:
           repository-directory: ${{ env.SOURCE }}
           working-directory: ${{ env.SOURCE }}/Sample.Hosted
           build-assets: "false"
-          coverage-report: ${{ inputs.collect-coverage && 'coverage-frontend.info' || '' }}
+          coverage-report: ${{ inputs.collect-coverage && env.COVERAGE_REPORT || '' }}
       - name: Upload frontend coverage
         if: inputs.collect-coverage
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sample-frontend-coverage
-          path: ${{ env.SOURCE }}/Sample.Hosted/coverage-frontend.info
+          path: ${{ env.SOURCE }}/Sample.Hosted/${{ env.COVERAGE_REPORT }}
           if-no-files-found: error
           overwrite: true
       - name: Build Vite assets

@@ -14,6 +14,7 @@ class Element {}
 const document = Object.assign(new EventTarget(), { readyState: 'loading', body: new Element() });
 const bootstrapCalls: unknown[] = [];
 const removeCalls: unknown[] = [];
+const restoreGlobals: (() => void)[] = [];
 class ValidationService {
     bootstrap(options: unknown) {
         bootstrapCalls.push(options);
@@ -30,11 +31,15 @@ beforeAll(async () => {
             Element,
             window: { location: new URL('https://app.example/profile') },
         },
-        afterAll,
+        (restore) => restoreGlobals.push(restore),
     );
     vi.doMock('htmx.org', () => ({ default: htmx }));
     vi.doMock('aspnet-client-validation', () => ({ ValidationService }));
     await import('../../../lib/htmx/htmxBundle.ts');
+});
+
+afterAll(() => {
+    for (const restore of restoreGlobals) restore();
 });
 
 test('bundle configures HTMX, exposes onmount and aborts requests only on removed elements', async () => {

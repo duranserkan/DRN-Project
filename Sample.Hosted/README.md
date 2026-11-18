@@ -332,7 +332,7 @@ npm run test:all -- --coverage --include 'buildwww/lib/**/*.ts' --exclude '**/*.
 
 On master and verified release tags, the frontend bundle job audits dependencies, runs the unit tests and uploads their LCOV report. It builds the Sample web root and uploads it as a separate artifact. Playwright and the .NET integration suite both test the built web root. Releases publish those assets after Playwright and the Sonar quality gate pass.
 
-The Sonar job downloads the frontend LCOV report and collects .NET unit, analyzer and integration coverage. One project analysis imports all four reports and waits for the configured SonarCloud quality gate. A failed suite or missing report blocks submission. Pull request and develop workflows collect frontend unit coverage independently of Playwright.
+The Sonar job downloads the frontend LCOV report and collects .NET unit, analyzer and integration coverage. One project analysis imports all four reports and waits for the configured SonarCloud quality gate. A failed suite or a report without line data tied to a source file blocks submission. Pull request and develop workflows collect frontend unit coverage independently of Playwright.
 
 Vitest and Playwright print one terminal line with the suite, number passed out of the total, and duration. A unit run fails on an unhandled runner error or if every test is skipped. Failed, skipped, flaky, and unrun counts appear when nonzero. GitHub Actions shows the full counts in a table with expandable failure details. Successful unit coverage runs also show covered lines, total lines, and coverage percentage for all frontend sources and each file extension, including `.tsx`.
 
