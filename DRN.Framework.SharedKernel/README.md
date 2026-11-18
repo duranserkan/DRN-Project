@@ -147,80 +147,87 @@ Entity and aggregate base constructors accept an optional internal `long id = 0`
 
 ### Compile-Time Roslyn Analyzers
 
+The [diagnostic reference](CONVENTION-DIAGNOSTICS.md) groups all analyzer and generator rules by requirement and lists their severity settings.
+
 The analyzer and code-fix assemblies target `net10.0` for IDE compiler-host compatibility. Runtime and application projects remain on `net11.0`. Tooling requires a .NET 10 or newer host with compatible Roslyn 5.12 APIs. An IDE worker's runtime is independent of the application's target framework. After rebuilding changed tooling assemblies, reload the solution if the IDE still reports assembly-load failures.
 
-Register one project catalog as EmbeddedResource or AdditionalFiles. Build targets forward it to compiler analysis and publish metadata retained in reference assemblies. Analyzers inherit catalogs from referenced SharedKernel consumers without loading dependency code. Legacy diagnostic-rules.json is accepted. Identical files are deduplicated; distinct own catalogs are rejected. DRN0021 reports invalid catalogs. Rules are isolated per compilation. Backend runtime uses explicit classifications rather than catalog name matching. See [configuration and schema](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#project-classification-rules).
+#### Data classification
+
+Register one project catalog as EmbeddedResource or AdditionalFiles. Build targets forward it to compiler analysis and publish metadata retained in reference assemblies. Analyzers inherit catalogs from referenced SharedKernel consumers without loading dependency code. Legacy diagnostic-rules.json is accepted. Identical files are deduplicated; distinct own catalogs are rejected. DRNCLASSIFICATION007 reports invalid catalogs. Rules are isolated per compilation. Backend runtime uses explicit classifications rather than catalog name matching. See [configuration and schema](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#project-classification-rules).
 
 The shared catalog includes `cvv`, `cvc`, `pincode`, `username`, `firstname`, `lastname`, `dateofbirth`, `birthdate`, and `iban`. Matching public readable properties require classification or a reviewed false-positive annotation, including case and separator variants.
 
-DRN0019 exempts EF migration column definitions and constraint selectors recognized through EF API symbols and column-operation metadata. Data objects and logging inside migrations remain checked. See [schema boundaries](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#boundaries-and-migration).
+DRNCLASSIFICATION005 exempts EF migration column definitions and constraint selectors recognized through EF API symbols and column-operation metadata. Data objects and logging inside migrations remain checked. See [schema boundaries](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#boundaries-and-migration).
 
-`DRN0020` checks statically known dictionary keys, including nested initializers and direct local writes. Use AddDictionary/SanitizeDictionary classifications or an exact adjacent DiagnosticNameExemption comment. Configured analyzer paths and other children remain checked. Exploration is bounded. Dynamic and unexamined keys have no runtime name fallback. See [dictionary classifications](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#dictionary-classifications).
+`DRNCLASSIFICATION006` checks statically known dictionary keys, including nested initializers and direct local writes. Use AddDictionary/SanitizeDictionary classifications or an exact adjacent DiagnosticNameExemption comment. Configured analyzer paths and other children remain checked. Exploration is bounded. Dynamic and unexamined keys have no runtime name fallback. See [dictionary classifications](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#dictionary-classifications).
 
 Configured paths remain enforced at AddDictionary/SanitizeDictionary calls. Inline positive classification constructors with constant exact keys protect their whole entries. NonSensitive and unknown classification expressions cannot waive configured paths. Dictionary name checks, including ILogger scopes, accept known null, empty and exact `[redacted]` values.
 
-DRN0015 through DRN0020, DRN0022, DRN0025, and DRN0027 analyze generated sources without reporting diagnostics in generated code. Runtime classification remains active for DRN capture APIs.
+DRNCLASSIFICATION001 through DRNCLASSIFICATION006, DRNCLASSIFICATION008, DRNCLASSIFICATION011, and DRNCLASSIFICATION012 analyze generated sources without reporting diagnostics in generated code. Runtime classification remains active for DRN capture APIs.
 
-DRN0017 accepts the exact compile-time `[redacted]` value and checks AddIfNotNullOrEmpty except constant null/empty values. Exact adjacent comments acknowledge reviewed names. Configured analyzer paths, classified values, declarations, and children remain enforced. Backend runtime uses explicit classifications without scanning names again.
+DRNCLASSIFICATION003 accepts the exact compile-time `[redacted]` value and checks AddIfNotNullOrEmpty except constant null/empty values. Exact adjacent comments acknowledge reviewed names. Configured analyzer paths, classified values, declarations, and children remain enforced. Backend runtime uses explicit classifications without scanning names again.
 
 Browser diagnostics and compiler analysis consume the same baseline catalog, including `ipadd` and `client`. Reviewed operational IP addresses and client identifiers need property exemptions or exact capture comments. Backend runtime protection uses explicit classifications.
 
 Compiler checks cover statically known values and paths. See [application responsibilities for dynamic data](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md).
 
-DRN0022 checks sensitive ILogger placeholders, scope dictionary keys, and direct classified-property captures. Remove or redact sensitive values; standard ILogger does not apply DRN runtime redaction. Reviewed name-only false positives can use adjacent comments. DRN0023 reports malformed comments. DRN0024 warns only on unused DiagnosticNameExemption comments, never redundant attributes or reason/policy exemptions. DRN0025 fails captures that exceed the model-analysis work limit so configured paths cannot silently escape verification. Capture a smaller model or explicitly classify sensitive subtrees. See [logging boundaries](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#boundaries-and-migration).
+DRNCLASSIFICATION008 checks sensitive ILogger placeholders, scope dictionary keys, and direct classified-property captures. Remove or redact sensitive values; standard ILogger does not apply DRN runtime redaction. Reviewed name-only false positives can use adjacent comments. DRNCLASSIFICATION009 reports malformed comments. DRNCLASSIFICATION010 warns only on unused DiagnosticNameExemption comments, never redundant attributes or reason/policy exemptions. DRNCLASSIFICATION011 fails captures that exceed the model-analysis work limit so configured paths cannot silently escape verification. Capture a smaller model or explicitly classify sensitive subtrees. See [logging boundaries](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#boundaries-and-migration).
 
-Diagnostic classification also applies to all public readable instance non-indexer model properties in directly and transitively dependent projects, even without logging calls. `DRN0015` requires classification or explicit `Sensitive(false)` for matching names. `DRN0016` rejects invalid opt-outs and offers `Use Sensitive(true)` as an individual code fix. `DRN0017` reports matched scalar/untyped capture paths and external property names, and `DRN0018` identifies unsupported custom Microsoft classification families. `DRN0019` requires matching anonymous properties, including nested and inferred members, to move to an annotated named class or record. Named model properties own classification without built-in logging-prefix matches. `[IgnoreLog]`, reason strings and capture policies do not suppress declaration requirements. Personal/Sensitive-derived company attributes are supported. See [classification, code fixes, migration and runtime boundaries](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#compile-time-classification).
+Diagnostic classification also applies to all public readable instance non-indexer model properties in directly and transitively dependent projects, even without logging calls. `DRNCLASSIFICATION001` requires classification or explicit `Sensitive(false)` for matching names. `DRNCLASSIFICATION002` rejects invalid opt-outs and offers `Use Sensitive(true)` as an individual code fix. `DRNCLASSIFICATION003` reports matched scalar/untyped capture paths and external property names, and `DRNCLASSIFICATION004` identifies unsupported custom Microsoft classification families. `DRNCLASSIFICATION005` requires matching anonymous properties, including nested and inferred members, to move to an annotated named class or record. Named model properties own classification without built-in logging-prefix matches. `[IgnoreLog]`, reason strings and capture policies do not suppress declaration requirements. Personal/Sensitive-derived company attributes are supported. See [classification, code fixes, migration and runtime boundaries](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#compile-time-classification).
 
-`DRN.Framework.SharedKernel` includes built-in Roslyn analyzers (`DRN.Framework.SharedKernel.Analyzers`) delivering compile-time domain validation transitively to referencing projects and NuGet consumers:
+DRNCLASSIFICATION012 reports a direct property capture that exceeds the 256 interface-property scan limit before classification can be determined. Remove the capture, explicitly redact its value, or declare classification directly on the captured property or type.
+
+#### Controller authorization
+
+DRNAUTHORIZATION001 checks inherited and custom public actions, including actions hidden with `IgnoreApi`. `[NonAction]` methods are exempt. Inherited class and overridden-action policies count. Bare `[Authorize]`, roles-only declarations and blank policy names do not establish an explicit named policy. Anonymous access bypasses authorization even if a policy is present. Register policies with ASP.NET Core and implement resource checks in application code. See [Source-Known Controllers](../DRN.Framework.Hosting/README.md#source-known-controllers).
+
+#### Entity identity
+
+`DRN.Framework.SharedKernel` includes these identity checks for referencing projects and NuGet consumers.
 
 | Diagnostic ID | Severity | Title | Description |
 |---|---|---|---|
-| **DRN0001** | Error | Missing `[EntityType]` attribute | Concrete, effectively non-private `SourceKnownEntity` classes must declare `[EntityType<TApp>(byte)]` or a supported derived domain attribute. |
-| **DRN0002** | Error | Duplicate `EntityType` value | Every entity class in the domain compilation and referenced assemblies must have a unique `EntityType` byte value per `AppId`. |
-| **DRN0003** | Error | Invalid `[EntityType]` usage | `[EntityType]` attribute must not be placed on abstract classes, private classes, or non-`SourceKnownEntity` types. |
-| **DRN0004** | Warning | Duplicate entity class name | Warns when multiple entities across the domain model share identical unqualified class names within the same `AppId` to prevent EF Core and messaging collisions. |
-| **DRN0005** | Error | Multiple `AppId`s in single compilation | Allows at most one non-test partition unless a multi-application or test exemption applies. `TestApp` (127) is excluded from the count. |
-| **DRN0006** | Error | Unresolvable or non-constant `AppId` in `[EntityType]` | Enforces that `IAppId` implementations declare a constant value (`public const byte Value = ...;` or `public const byte AppId = ...;`) so partition identities can be read from metadata across assembly boundaries. |
-| **DRN0007** | Error | `AppId` outside the supported range | Enforces that statically resolved `IAppId` values used by `[EntityType]` declarations are between 0 and 127, matching Source-Known ID runtime constraints. |
-| **DRN0008** | Error | Unsupported entity attribute constructor | Derived attributes must reach `EntityTypeAttribute<TApp>` through one constructor per class, with one byte or byte-backed enum parameter forwarded unchanged to the base constructor. |
-| **DRN0009** | Error | Invalid constant application partition | Constant `AppId` values in `EntityTypeId` construction and property initializers/assignments must be within `0..127`. |
-| **DRN0010** | Error | Undefined constant entity ID format | Constant `SourceKnownEntityIdFormat` arguments and assignments must be defined enum values. |
-| **DRN0011** | Warning | Hidden entity identity member | Descendant members must not hide `Id`, `EntityId`, or `EntityIdSource`, with or without the `new` keyword. |
-| **DRN0012** | Warning | Concrete generic entity | Concrete, effectively non-private entities must not introduce type parameters or be nested inside generic containers. Use abstract generic bases with separately attributed concrete descendants. |
-| **DRN0013** | Error | Concrete entity type required | Rejects known abstract entities in entity/utility/repository metadata calls, method groups, direct `typeof` lookups, and Source-Known repository bindings, including derived types, declarations, and aliases. |
-| **DRN0014** | Error | Entity ID operations are not initialized | Rejects `GetEntityId`, `ToSecure`, or `ToPlain` calls on provably fresh entities in straight-line code, including simple local aliases and constructor `this` calls. |
-| **DRN0025** | Error | Incomplete model classification analysis | Rejects model captures that exceed the analysis work limit so configured paths cannot remain unchecked. Capture a smaller model or classify sensitive subtrees explicitly. |
-| **DRN0026** | Error | SourceKnown action requires an explicit authorization policy | Exposed actions on concrete SourceKnown controllers require a nonblank named policy on the controller or action and must not allow anonymous access. |
-| **DRN0027** | Error | Incomplete interface classification analysis | A direct property capture exceeds the 256 interface-property scan limit before classification can be determined. Remove the capture, explicitly redact its value, or declare classification directly on the captured property or type. |
-
-DRN0026 checks inherited and custom public actions, including actions hidden with `IgnoreApi`. `[NonAction]` methods are exempt. Inherited class and overridden-action policies count. Bare `[Authorize]`, roles-only declarations and blank policy names do not establish an explicit named policy. The analyzer checks declarations, not runtime policy registration or resource permissions. Register policies with ASP.NET Core and implement resource checks in application code. See [Source-Known Controllers](../DRN.Framework.Hosting/README.md#source-known-controllers).
+| **DRNENTITY001** | Error | Missing `[EntityType]` attribute | Concrete, effectively non-private `SourceKnownEntity` classes must declare `[EntityType<TApp>(byte)]` or a supported derived domain attribute. |
+| **DRNENTITY002** | Error | Duplicate `EntityType` value | Every entity class in the domain compilation and referenced assemblies must have a unique `EntityType` byte value per `AppId`. |
+| **DRNENTITY003** | Error | Invalid `[EntityType]` usage | `[EntityType]` attribute must not be placed on abstract classes, private classes, or non-`SourceKnownEntity` types. |
+| **DRNENTITY004** | Warning | Duplicate entity class name | Warns when multiple entities across the domain model share identical unqualified class names within the same `AppId` to prevent EF Core and messaging collisions. |
+| **DRNENTITY005** | Error | Multiple `AppId`s in single compilation | Allows at most one non-test partition unless a multi-application or test exemption applies. `TestApp` (127) is excluded from the count. |
+| **DRNENTITY006** | Error | Unresolvable or non-constant `AppId` in `[EntityType]` | Enforces that `IAppId` implementations declare a constant value (`public const byte Value = ...;` or `public const byte AppId = ...;`) so partition identities can be read from metadata across assembly boundaries. |
+| **DRNENTITY007** | Error | `AppId` outside the supported range | Enforces that statically resolved `IAppId` values used by `[EntityType]` declarations are between 0 and 127, matching Source-Known ID runtime constraints. |
+| **DRNENTITY008** | Error | Unsupported entity attribute constructor | Derived attributes must reach `EntityTypeAttribute<TApp>` through one constructor per class, with one byte or byte-backed enum parameter forwarded unchanged to the base constructor. |
+| **DRNENTITY009** | Error | Invalid constant application partition | Constant `AppId` values in `EntityTypeId` construction and property initializers/assignments must be within `0..127`. |
+| **DRNENTITY010** | Error | Undefined constant entity ID format | Constant `SourceKnownEntityIdFormat` arguments and assignments must be defined enum values. |
+| **DRNENTITY011** | Warning | Hidden entity identity member | Descendant members must not hide `Id`, `EntityId`, or `EntityIdSource`, with or without the `new` keyword. |
+| **DRNENTITY012** | Warning | Concrete generic entity | Concrete, effectively non-private entities must not introduce type parameters or be nested inside generic containers. Use abstract generic bases with separately attributed concrete descendants. |
+| **DRNENTITY013** | Error | Use a concrete entity type | Rejects known abstract entities in entity/utility/repository metadata calls, method groups, direct `typeof` lookups, and Source-Known repository bindings, including derived types, declarations, and aliases. |
+| **DRNENTITY014** | Error | Entity ID operations are not initialized | Rejects `GetEntityId`, `ToSecure`, or `ToPlain` calls on provably fresh entities in straight-line code, including simple local aliases and constructor `this` calls. |
 
 ```csharp
-var identity = new EntityTypeId(7, 200); // DRN0009
-operations.Parse(externalGuid, (SourceKnownEntityIdFormat)99); // DRN0010
-SourceKnownEntity.GetEntityTypeId<AggregateRoot>(); // DRN0013
-ISourceKnownRepository<AggregateRoot> repository; // DRN0013
+var identity = new EntityTypeId(7, 200); // DRNENTITY009
+operations.Parse(externalGuid, (SourceKnownEntityIdFormat)99); // DRNENTITY010
+SourceKnownEntity.GetEntityTypeId<AggregateRoot>(); // DRNENTITY013
+ISourceKnownRepository<AggregateRoot> repository; // DRNENTITY013
 
 // Resolve the concrete runtime type through the instance overload instead.
 SourceKnownEntity.GetEntityTypeId(aggregate);
 ```
 
-Usage checks apply to test projects too. `DRN0009` and `DRN0010` inspect constants without propagating mutable local values; use non-constant inputs for runtime rejection tests. Dynamic values still require runtime validation.
+Usage checks apply to test projects too. `DRNENTITY009` and `DRNENTITY010` inspect constants without propagating mutable local values; use non-constant inputs for runtime rejection tests. Dynamic values still require runtime validation.
 
-`DRN0013` allows runtime-instance metadata overloads, application-only `Validate<TApp>`, unresolved type parameters, and unbound generic definitions. It does not trace dynamic `Type` values or consumer wrappers. Use concrete bindings such as `ISourceKnownRepository<OrderEntity>`: forwarding `TEntity` through `SourceKnownRepository<AppDbContext, TEntity>` is valid, but later binding it to `AggregateRoot` is rejected. No public parameterless constructor is required.
+`DRNENTITY013` allows runtime-instance metadata overloads, application-only `Validate<TApp>`, unresolved type parameters, and unbound generic definitions. It does not trace dynamic `Type` values or consumer wrappers. Use concrete bindings such as `ISourceKnownRepository<OrderEntity>`: forwarding `TEntity` through `SourceKnownRepository<AppDbContext, TEntity>` is valid, but later binding it to `AggregateRoot` is rejected. No public parameterless constructor is required.
 
 Entity ID operations are attached during EF materialization or while saving an Added entity, before the database save succeeds. Constructing an entity with an existing numeric ID, calling `Add`, or obtaining an ID record through the utility does not itself attach operations. Initialization and `IsPendingInsert` do not prove persistence.
 
 ```csharp
 var order = new OrderEntity(); // Constructor must be available and provably passive.
 var alias = order;
-alias.GetEntityId<CustomerEntity>(customerGuid); // DRN0014
+alias.GetEntityId<CustomerEntity>(customerGuid); // DRNENTITY014
 
 // Use injected operations when working before entity initialization.
 var customerId = ids.Validate<CustomerEntity>(customerGuid);
 ```
 
-`DRN0014` recognizes source constructor chains with empty bodies or instance-field/auto-property assignments from constants/parameters, constant member initializers, and empty standard `List<T>` initializers. Compiled constructors and object initializers are unknown. Tracking stops at unknown calls, arbitrary getters/setters, control flow, awaits, captures, or ref aliases. Potentially null inputs and static metadata helpers are excluded. No diagnostic proves initialization; runtime guards remain required.
+`DRNENTITY014` recognizes source constructor chains with empty bodies or instance-field/auto-property assignments from constants/parameters, constant member initializers, and empty standard `List<T>` initializers. Compiled constructors and object initializers are unknown. Tracking stops at unknown calls, arbitrary getters/setters, control flow, awaits, captures, or ref aliases. Potentially null inputs and static metadata helpers are excluded. No diagnostic proves initialization; runtime guards remain required.
 
 Derived entity attributes use a pass-through constructor:
 
@@ -233,14 +240,16 @@ public sealed class DomainEntityTypeAttribute(DomainEntityTypes kind)
     : EntityTypeAttribute<DefaultApp>((byte)kind);
 ```
 
-Parameter names may differ. Primary and ordinary constructors are supported. Reordered, additional, fixed-value, overloaded, or transformed mappings produce `DRN0008`. `AppId` comes from the generic `TApp` binding. A derived property hiding `AppId` does not change it.
+Parameter names may differ. Primary and ordinary constructors are supported. Reordered, additional, fixed-value, overloaded, or transformed mappings produce `DRNENTITY008`. `AppId` comes from the generic `TApp` binding. A derived property hiding `AppId` does not change it.
+
+For a custom partition, publish a constant such as `public const byte Value = 5;` and return it from `public static byte AppId => Value;`. When source is available, the analyzer checks the getter that implements `IAppId.AppId`, including explicit interface implementations. A mutable or branching getter that cannot be verified against the constant produces `DRNENTITY006`. Consumers of compiled partitions use the published constant.
 
 The analyzer checks source attribute declarations even when no entity uses them yet. For compiled references, Roslyn exposes constructor signatures but not bodies. Signatures are checked; forwarding relies on producer-side validation. Run the analyzer when building domain attribute libraries. It cannot prove forwarding in a precompiled library built with validation disabled.
 
-An entity is effectively private if it or any containing type is private. Such entities are excluded from required-attribute and collision checks in both local and referenced analysis; annotating one locally reports `DRN0003`.
+An entity is effectively private if it or any containing type is private. Such entities are excluded from required-attribute and collision checks in both local and referenced analysis; annotating one locally reports `DRNENTITY003`.
 
-- **Cross-assembly checks**: Hosts and aggregators detect collisions across referenced domain modules at compilation end. Diamond dependencies such as `A -> B -> Common` and `A -> C -> Common` are deduplicated by Roslyn symbol equality.
-- **DRN0005 exemptions**: Set `<AllowMultipleAppIds>true</AllowMultipleAppIds>`, `<IsTestProject>true</IsTestProject>`, or `<UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>`. Test assembly names also qualify when they contain `.Test.`, start with `Test.`, or end with `.Tests` or `.Test`, case-insensitively.
+- **Cross-assembly checks** include entities declared in the current project and in referenced domain and `DRN.Framework.*` assemblies. Direct and transitive project references participate when built against a compatible SharedKernel assembly. The analyzer skips entities declared in referenced `System.*` and `Microsoft.*` assemblies and in external assemblies referenced directly or transitively by DRN Framework. An application entity still participates when its base type comes from a skipped assembly. A shared reference contributes its entities once.
+- **DRNENTITY005 exemptions**: Set `<AllowMultipleAppIds>true</AllowMultipleAppIds>`, `<IsTestProject>true</IsTestProject>`, or `<UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>`. Test assembly names also qualify when they contain `.Test.`, start with `Test.`, or end with `.Tests` or `.Test`, case-insensitively.
 
 See [SourceKnownEntityTypeAnalyzer.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel.Analyzers/SourceKnownEntityTypeAnalyzer.cs) for diagnostic checks and [the package project](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/DRN.Framework.SharedKernel.csproj) for analyzer packaging.
 

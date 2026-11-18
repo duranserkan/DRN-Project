@@ -2,7 +2,7 @@
 
 Use selected artifacts to add a subdomain or aggregate without changing identity, storage or authorization by accident. Configuration classes, custom repositories and application services are optional. Attribute-only entity mapping is normal.
 
-The IDE offers bounded configuration, repository-pair, selected-property DTO and selected-operation service refactorings. Actions preview selected files together and decline outdated previews. Plan-only actions help review aggregate/context and controller changes that need more input or unsupported project edits. Full source/project transactions require host support. These snippets provide a manual review fallback. The guarded DRNCV005 constructor fix is separate. Templates run no scripts, generators or database/package operations.
+The IDE offers bounded configuration, repository-pair, selected-property DTO and selected-operation service refactorings. Actions preview selected files together and decline outdated previews. Plan-only actions help review aggregate/context and controller changes that need more input or unsupported project edits. Full source/project transactions require host support. These snippets provide a manual review fallback. The guarded DRNPERSISTENCE001 constructor fix is separate. Templates run no scripts, generators or database/package operations.
 
 ## Record the requested change
 
@@ -13,7 +13,7 @@ Before producing files, record these explicit selections:
 | Application | Application root, loaded projects, project roles and namespace roots. |
 | Ownership | Subdomain and optional feature. Technical aliases need a reason. |
 | Aggregate | Existing exact type, or user-supplied identity allocation plus business constructor/invariants for a new type. Never choose the next local EntityType byte. |
-| Persistence | Exact target context and established inclusion. Multiple same-subdomain contexts are supported. Cross-owner reuse needs a separate narrow DRNCV019 exception. |
+| Persistence | Exact target context and established inclusion. Multiple same-subdomain contexts are supported. Cross-owner reuse needs a separate narrow DRNOWNERSHIP002 exception. |
 | Artifacts | Select context, configuration, repository contract/implementation, actual use-case service, DTO/request, controller and destination metadata individually. |
 | Service | Requested use case, repository binding, service contract, lifetime and implemented business operation. No empty service solely to connect layers. |
 | Transport | Exact routes, operations, request/response fields, mapping, creation/deletion behavior, named policies, authentication transport and resource-authorization rules. |
@@ -174,7 +174,7 @@ The operation's real mapping must populate Number and inherited identity/timesta
 
 ## Optional controller and exposure inventory
 
-Ordinary MVC controllers and Razor Pages are supported without SourceKnown controller inheritance. Their architecture and public persistence-exposure checks remain active. SourceKnown controller actions retain DRN0026 authorization enforcement.
+Ordinary MVC controllers and Razor Pages are supported without SourceKnown controller inheritance. Their architecture and public persistence-exposure checks remain active. SourceKnown controller actions retain DRNAUTHORIZATION001 authorization enforcement.
 
 On an existing SourceKnown controller identifier, **Create controller review plan only** adds one Markdown review plan. It inventories inherited SourceKnown and application methods, route/policy/NonAction declarations, source fingerprints and unresolved exposure/mapping/resource decisions. Exact MVC NonAction helpers are summarized. It changes no runnable controller, route, policy, reference or project item. The plan is not a runtime authorization proof or a substitute for explicit choices.
 

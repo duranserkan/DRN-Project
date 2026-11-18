@@ -101,11 +101,11 @@ In `Sample.Hosted/buildwww/tests/`, Node discovers `.test.js` and `.test.ts` rec
 
 ### Source Map
 
-Use these owners for public contracts. For implementation work, discover relevant source within the named module instead of copying implementation details into this profile.
+Follow these owners for public contracts. Find implementation details in the owning module.
 
 | Contract | Owner | Agent guidance |
 |---|---|---|
-| Identity, entities, aggregate rules, repositories, analyzer diagnostics | `DRN.Framework.SharedKernel/README.md`, `DRN.Framework.EntityFramework/README.md` | `drn-sharedkernel`, `drn-entityframework` |
+| Identity, aggregates, repositories, analyzer and generator diagnostics | `DRN.Framework.SharedKernel/README.md`, `DRN.Framework.SharedKernel/CONVENTION-DIAGNOSTICS.md`, `DRN.Framework.EntityFramework/README.md` | `drn-sharedkernel`, `drn-entityframework` |
 | Configuration, data paths, cancellation, ID/time utilities, events | `DRN.Framework.Utils/README.md` | `drn-utils`, `overview-drn-framework` |
 | Classification, capture limits, exemptions, migration | `DRN.Framework.Utils/Logging/Diagnostics/README.md`; catalog `DRN.Framework.Utils/Logging/Diagnostics/data-classification-rules.json` | `drn-utils`, `drn-sharedkernel`, `drn-testing` |
 | Hosting, SourceKnown policy enforcement, MFA, Razor and assets | `DRN.Framework.Hosting/README.md` | `drn-hosting`, relevant frontend skills |

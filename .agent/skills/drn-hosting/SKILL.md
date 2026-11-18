@@ -46,7 +46,7 @@ Swagger UI prefixes use nonempty ASCII letter, digit, hyphen or underscore segme
 
 ## Page & Endpoint Management
 
-README **Source-Known Controllers** owns all variants. DRN0026 requires named policies. SPA APIs select bearer-only schemes; cookie APIs need application antiforgery. Keep resource checks in application code. Disable actions with `[NonAction]` and omit accessors. `IgnoreApi` only hides documentation.
+README **Source-Known Controllers** owns all variants. DRNAUTHORIZATION001 requires named policies. SPA APIs select bearer-only schemes; cookie APIs need application antiforgery. Keep resource checks in application code. Disable actions with `[NonAction]` and omit accessors. `IgnoreApi` only hides documentation.
 
 Use typed `PageCollection`/`EndpointCollection` singletons. Return the latter from `ConfigureEndpointCollection` for startup binding, including generated roots. README owns base-type migration. Never cache request URLs or authorization results statically.
 
@@ -54,7 +54,7 @@ Use typed `PageCollection`/`EndpointCollection` singletons. Return the latter fr
 
 README owns typed-link restrictions and disposal-method exclusions.
 
-Hosting ships net10.0 generation via buildTransitive/shared targets. README **Automatic hosted accessors** owns program eligibility, DRNHG002 naming and Razor conventions. Reuse typed singletons. Keep `Get` and route constants handwritten. Runtime routing is authoritative. Parameter/constraint generation is TODO. Controller accessors require `ControllerBase`. Discovery skips controllers without it; explicit mappings report DRNHG001.
+Hosting ships net10.0 generation via buildTransitive/shared targets. README **Automatic hosted accessors** owns program eligibility, DRNHOSTING002 naming and Razor conventions. Reuse typed singletons. Keep `Get` and route constants handwritten. Runtime routing is authoritative. Parameter/constraint generation is TODO. Controller accessors require `ControllerBase`. Discovery skips controllers without it; explicit mappings report DRNHOSTING001.
 
 Prefer MVC page/action routing or `Url.Endpoint(endpoint, values)` for initialized APIs. Use `~/` for application-relative HTML/HTMX URLs and `Url.Content` in C#. Reserve `Request.ApplicationUrl` for configured destinations such as MFA pages. Preserve validated return URLs. See README **Application URLs**.
 
