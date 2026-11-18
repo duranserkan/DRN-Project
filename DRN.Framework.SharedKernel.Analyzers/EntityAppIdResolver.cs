@@ -58,42 +58,52 @@ internal sealed class EntityAppIdResolver(Compilation compilation, IAssemblySymb
         while (visited.Add(property.OriginalDefinition))
         {
             cancellation.ThrowIfCancellationRequested();
-            if (!property.IsStatic || !IntegralConstant.Supports(property.Type) || property.SetMethod is not null || property.DeclaringSyntaxReferences is not [var reference] ||
-                reference.GetSyntax(cancellation) is not PropertyDeclarationSyntax syntax) return null;
-            if (!owner.ContainsSyntaxTree(reference.SyntaxTree))
+            if (GetPropertySyntax(property, cancellation) is not { } syntax ||
+                GetterExpression(syntax, property) is not { } expression) return null;
+            if (!owner.ContainsSyntaxTree(syntax.SyntaxTree))
             {
-                if (FindOwningCompilation(owner, property.ContainingAssembly, reference.SyntaxTree, cancellation) is not { } producer)
+                if (FindOwningCompilation(owner, property.ContainingAssembly, syntax.SyntaxTree, cancellation) is not { } producer)
                     return null;
                 owner = producer;
             }
-            var expression = GetterExpression(syntax, property);
-            if (expression is null) return null;
-            var model = owner.GetSemanticModel(reference.SyntaxTree);
+            var model = owner.GetSemanticModel(syntax.SyntaxTree);
             if (model.GetConstantValue(expression, cancellation) is { HasValue: true, Value: { } constant })
-            {
-                object value = constant is char character ? (ushort)character : constant;
-                while (conversions is not null && conversions.TryPop(out var cast))
-                {
-                    cancellation.ThrowIfCancellationRequested();
-                    if (IntegralConstant.ConvertValue(value, cast.Type!.SpecialType, cast.IsChecked) is not { } converted)
-                        return null;
-                    value = converted;
-                }
-                return EntityAnalyzerHelper.TryExtractByte(value, out var partition) ? partition : null;
-            }
-            if (syntax.Initializer is not null) return null;
-            while (expression is CheckedExpressionSyntax or ParenthesizedExpressionSyntax)
-                expression = expression is CheckedExpressionSyntax scope ? scope.Expression : ((ParenthesizedExpressionSyntax)expression).Expression;
-            var operation = model.GetOperation(expression, cancellation);
-            while (operation is IConversionOperation { OperatorMethod: null } conversion && IntegralConstant.Supports(conversion.Type))
-            {
-                (conversions ??= new()).Push(conversion);
-                operation = conversion.Operand;
-            }
-            if (operation is not IPropertyReferenceOperation next) return null;
-            property = next.Property;
+                return ConvertPartition(constant, conversions, cancellation);
+            if (syntax.Initializer is not null ||
+                ReferencedProperty(model, expression, ref conversions, cancellation) is not { } next) return null;
+            property = next;
         }
         return null;
+    }
+
+    private static PropertyDeclarationSyntax? GetPropertySyntax(IPropertySymbol property, CancellationToken cancellation) =>
+        property.IsStatic && IntegralConstant.Supports(property.Type) && property.SetMethod is null &&
+        property.DeclaringSyntaxReferences is [var reference] ? reference.GetSyntax(cancellation) as PropertyDeclarationSyntax : null;
+
+    private static byte? ConvertPartition(object constant, Stack<IConversionOperation>? conversions, CancellationToken cancellation)
+    {
+        object value = constant is char character ? (ushort)character : constant;
+        while (conversions is not null && conversions.TryPop(out var cast))
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (IntegralConstant.ConvertValue(value, cast.Type!.SpecialType, cast.IsChecked) is not { } converted) return null;
+            value = converted;
+        }
+        return EntityAnalyzerHelper.TryExtractByte(value, out var partition) ? partition : null;
+    }
+
+    private static IPropertySymbol? ReferencedProperty(SemanticModel model, ExpressionSyntax expression,
+        ref Stack<IConversionOperation>? conversions, CancellationToken cancellation)
+    {
+        while (expression is CheckedExpressionSyntax or ParenthesizedExpressionSyntax)
+            expression = expression is CheckedExpressionSyntax scope ? scope.Expression : ((ParenthesizedExpressionSyntax)expression).Expression;
+        var operation = model.GetOperation(expression, cancellation);
+        while (operation is IConversionOperation { OperatorMethod: null } conversion && IntegralConstant.Supports(conversion.Type))
+        {
+            (conversions ??= new()).Push(conversion);
+            operation = conversion.Operand;
+        }
+        return (operation as IPropertyReferenceOperation)?.Property;
     }
 
     private static Compilation? FindOwningCompilation(Compilation root, IAssemblySymbol targetAssembly, SyntaxTree tree,

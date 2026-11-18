@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.CodeAnalysis;
 
 namespace DRN.Framework.SharedKernel.Analyzers;
@@ -61,6 +62,20 @@ internal static class ReferencedEntityDiscovery
 
         internal ProjectReferences(Compilation root, INamedTypeSymbol entity, CancellationToken cancellation)
         {
+            DiscoverProjects(root, entity, cancellation);
+
+            if (_compatibleProducers.Count == 0) return;
+            _consumerMetadata = [];
+            foreach (var reference in root.References)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                if (reference is PortableExecutableReference && root.GetAssemblyOrModuleSymbol(reference) is IAssemblySymbol assembly)
+                    _consumerMetadata.Add(assembly.Identity);
+            }
+        }
+
+        private void DiscoverProjects(Compilation root, INamedTypeSymbol entity, CancellationToken cancellation)
+        {
             var pending = new Queue<Compilation>();
             var seen = new HashSet<Compilation> { root };
             pending.Enqueue(root);
@@ -75,27 +90,27 @@ internal static class ReferencedEntityDiscovery
                     if (seen.Add(producer))
                     {
                         pending.Enqueue(producer);
-                        var producerEntity = producer.GetTypeByMetadataName(EntityAnalyzerHelper.SourceKnownEntityMetadataName);
-                        if (producerEntity is not null && !SymbolEqualityComparer.Default.Equals(producerEntity, entity) &&
-                            root.Options.AssemblyIdentityComparer.ReferenceMatchesDefinition(
-                                producerEntity.ContainingAssembly.Identity, entity.ContainingAssembly.Identity))
-                            _compatibleProducers.Add(producer.Assembly, (producer, producerEntity));
+                        RecordCompatibleProducer(root, producer, entity);
                     }
-                    if (compilation.GetAssemblyOrModuleSymbol(reference) is not IAssemblySymbol bound) continue;
-                    _sources[bound] = producer.Assembly;
-                    if (sharesEntity && !SymbolEqualityComparer.Default.Equals(bound, producer.Assembly) && !SharesEntity(producer, entity))
-                        _retargeted.TryAdd(producer.Assembly, bound);
+                    if (compilation.GetAssemblyOrModuleSymbol(reference) is IAssemblySymbol bound)
+                        RecordBinding(bound, producer, entity, sharesEntity);
                 }
             }
+        }
 
-            if (_compatibleProducers.Count == 0) return;
-            _consumerMetadata = [];
-            foreach (var reference in root.References)
-            {
-                cancellation.ThrowIfCancellationRequested();
-                if (reference is PortableExecutableReference && root.GetAssemblyOrModuleSymbol(reference) is IAssemblySymbol assembly)
-                    _consumerMetadata.Add(assembly.Identity);
-            }
+        private void RecordCompatibleProducer(Compilation root, Compilation producer, INamedTypeSymbol entity)
+        {
+            var producerEntity = producer.GetTypeByMetadataName(EntityAnalyzerHelper.SourceKnownEntityMetadataName);
+            if (producerEntity is not null && !SymbolEqualityComparer.Default.Equals(producerEntity, entity) &&
+                root.Options.AssemblyIdentityComparer.ReferenceMatchesDefinition(producerEntity.ContainingAssembly.Identity, entity.ContainingAssembly.Identity))
+                _compatibleProducers.Add(producer.Assembly, (producer, producerEntity));
+        }
+
+        private void RecordBinding(IAssemblySymbol bound, Compilation producer, INamedTypeSymbol entity, bool sharesEntity)
+        {
+            _sources[bound] = producer.Assembly;
+            if (sharesEntity && !SymbolEqualityComparer.Default.Equals(bound, producer.Assembly) && !SharesEntity(producer, entity))
+                _retargeted.TryAdd(producer.Assembly, bound);
         }
 
         private static bool SharesEntity(Compilation compilation, INamedTypeSymbol entity) =>
@@ -126,15 +141,16 @@ internal static class ReferencedEntityDiscovery
         {
             // Producer edges include project-only dependencies. Bound edges reach the consumer's compatible framework image.
             foreach (var module in source.Modules)
-            foreach (var dependency in module.ReferencedAssemblySymbols)
-                yield return Source(dependency);
+                foreach (var dependency in module.ReferencedAssemblySymbols)
+                    yield return Source(dependency);
             if (!_retargeted.TryGetValue(source, out var bound)) yield break;
             foreach (var module in bound.Modules)
-            foreach (var dependency in module.ReferencedAssemblySymbols)
-                yield return Source(dependency);
+                foreach (var dependency in module.ReferencedAssemblySymbols)
+                    yield return Source(dependency);
         }
     }
 
+    [SuppressMessage("SonarQube", "S3267", Justification = "Filtering on visited.Add would hide a traversal state change inside a LINQ predicate.")]
     private static HashSet<IAssemblySymbol> AssembliesReachingEntity(IAssemblySymbol consumer,
         IEnumerable<IAssemblySymbol> targets, ProjectReferences projects, CancellationToken cancellation)
     {
@@ -142,6 +158,26 @@ internal static class ReferencedEntityDiscovery
         var dependents = new Dictionary<IAssemblySymbol, List<IAssemblySymbol>>(SymbolEqualityComparer.Default);
         var visited = new HashSet<IAssemblySymbol>(projects.Dependencies(consumer), SymbolEqualityComparer.Default);
         var pending = new Stack<IAssemblySymbol>(visited);
+        IndexDependents(projects, dependents, visited, pending, cancellation);
+        visited.Clear();
+        foreach (var target in targets)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (visited.Add(target)) pending.Push(target);
+        }
+        while (pending.TryPop(out var assembly))
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (!dependents.TryGetValue(assembly, out var parents)) continue;
+            foreach (var parent in parents)
+                if (visited.Add(parent)) pending.Push(parent);
+        }
+        return visited;
+    }
+
+    private static void IndexDependents(ProjectReferences projects, Dictionary<IAssemblySymbol, List<IAssemblySymbol>> dependents,
+        HashSet<IAssemblySymbol> visited, Stack<IAssemblySymbol> pending, CancellationToken cancellation)
+    {
         while (pending.TryPop(out var assembly))
         {
             cancellation.ThrowIfCancellationRequested();
@@ -157,21 +193,6 @@ internal static class ReferencedEntityDiscovery
                 if (visited.Add(dependency)) pending.Push(dependency);
             }
         }
-
-        visited.Clear();
-        foreach (var target in targets)
-        {
-            cancellation.ThrowIfCancellationRequested();
-            if (visited.Add(target)) pending.Push(target);
-        }
-        while (pending.TryPop(out var assembly))
-        {
-            cancellation.ThrowIfCancellationRequested();
-            if (dependents.TryGetValue(assembly, out var parents))
-                foreach (var parent in parents)
-                    if (visited.Add(parent)) pending.Push(parent);
-        }
-        return visited;
     }
 
     private static void ExcludeFrameworkDependencies(HashSet<IAssemblySymbol> candidates, IAssemblySymbol consumer,

@@ -86,7 +86,7 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
             AnalyzeCapture(context, contract, rules, exemptions, call, api);
             AnalyzeDictionaryCapture(context, rules, exemptions, call, localWrites);
         }
-        LoggingCaptureAnalysis.Analyze(context, contract, rules, call, targetMethod, api, exemptions, localWrites);
+        LoggingCaptureAnalysis.Analyze(context, contract, rules, call, api, exemptions, localWrites);
     }
 
     internal enum CaptureApi { None, ScopedLog, Sanitizer, Extensions, Logger, LoggerExtensions }
@@ -121,16 +121,18 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
             if (SymbolEqualityComparer.Default.Equals(type, _logger)) return CaptureApi.Logger;
             if (SymbolEqualityComparer.Default.Equals(type, _loggerExtensions)) return CaptureApi.LoggerExtensions;
             // Preserve name-based coverage for ambiguous references and extern aliases.
-            return _otherTypes.GetOrAdd(type, static candidate => candidate.ToDisplayString() switch
-            {
-                "DRN.Framework.Utils.Logging.IScopedLog" or "DRN.Framework.Utils.Logging.ScopedLog" => CaptureApi.ScopedLog,
-                "DRN.Framework.Utils.Logging.Diagnostics.IDiagnosticSanitizer" or "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticSanitizer" => CaptureApi.Sanitizer,
-                "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticCaptureExtensions" => CaptureApi.Extensions,
-                "Microsoft.Extensions.Logging.ILogger" => CaptureApi.Logger,
-                "Microsoft.Extensions.Logging.LoggerExtensions" => CaptureApi.LoggerExtensions,
-                _ => CaptureApi.None
-            });
+            return _otherTypes.GetOrAdd(type, FindByDisplayName);
         }
+
+        private static CaptureApi FindByDisplayName(INamedTypeSymbol candidate) => candidate.ToDisplayString() switch
+        {
+            "DRN.Framework.Utils.Logging.IScopedLog" or "DRN.Framework.Utils.Logging.ScopedLog" => CaptureApi.ScopedLog,
+            "DRN.Framework.Utils.Logging.Diagnostics.IDiagnosticSanitizer" or "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticSanitizer" => CaptureApi.Sanitizer,
+            "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticCaptureExtensions" => CaptureApi.Extensions,
+            "Microsoft.Extensions.Logging.ILogger" => CaptureApi.Logger,
+            "Microsoft.Extensions.Logging.LoggerExtensions" => CaptureApi.LoggerExtensions,
+            _ => CaptureApi.None
+        };
 
         public bool IsSubstituteVerificationType(INamedTypeSymbol type) =>
             type.ContainingAssembly.Name == "NSubstitute" &&
@@ -138,6 +140,21 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
              SymbolEqualityComparer.Default.Equals(type, _receivedExtensions) ||
              type.Name is ("SubstituteExtensions" or "ReceivedExtensions") &&
              type.ToDisplayString() is ("NSubstitute.SubstituteExtensions" or "NSubstitute.ReceivedExtensions.ReceivedExtensions"));
+    }
+
+    private static DiagnosticRedactionRules ReadInheritedRules(Compilation compilation, bool hasLocalFile, CancellationToken cancellationToken)
+    {
+        var rulesAttribute = compilation.GetTypeByMetadataName(DiagnosticRedactionRules.MetadataName);
+        return DiagnosticRedactionRules.FromGraph<IAssemblySymbol>(compilation.Assembly,
+            assembly => assembly.Name,
+            assembly => assembly.Modules.SelectMany(module => module.ReferencedAssemblySymbols),
+            assembly => SymbolEqualityComparer.Default.Equals(assembly, compilation.Assembly) && hasLocalFile ? [] :
+                assembly.GetAttributes().Where(attribute =>
+                    attribute.AttributeClass?.Name == "DataClassificationRulesAttribute" &&
+                    (SymbolEqualityComparer.Default.Equals(attribute.AttributeClass, rulesAttribute) ||
+                     attribute.AttributeClass.ToDisplayString() == DiagnosticRedactionRules.MetadataName) &&
+                    attribute.ConstructorArguments.Length == 1)
+                .Select(attribute => attribute.ConstructorArguments[0].Value as string), SymbolEqualityComparer.Default, cancellationToken);
     }
 
     private static DiagnosticRedactionRules LoadRules(Compilation compilation, AnalyzerOptions options,
@@ -150,20 +167,8 @@ public sealed class DiagnosticClassificationAnalyzer : DiagnosticAnalyzer
         var errorLocation = Location.None;
         try
         {
-            var rulesAttribute = includeInheritedGraph
-                ? compilation.GetTypeByMetadataName(DiagnosticRedactionRules.MetadataName)
-                : null;
             var inherited = includeInheritedGraph
-                ? DiagnosticRedactionRules.FromGraph<IAssemblySymbol>(compilation.Assembly,
-                    assembly => assembly.Name,
-                    assembly => assembly.Modules.SelectMany(module => module.ReferencedAssemblySymbols),
-                    assembly => SymbolEqualityComparer.Default.Equals(assembly, compilation.Assembly) && files.Length > 0 ? [] :
-                        assembly.GetAttributes().Where(attribute =>
-                            attribute.AttributeClass?.Name == "DataClassificationRulesAttribute" &&
-                            (SymbolEqualityComparer.Default.Equals(attribute.AttributeClass, rulesAttribute) ||
-                             attribute.AttributeClass.ToDisplayString() == DiagnosticRedactionRules.MetadataName) &&
-                            attribute.ConstructorArguments.Length == 1)
-                        .Select(attribute => attribute.ConstructorArguments[0].Value as string), SymbolEqualityComparer.Default, cancellationToken)
+                ? ReadInheritedRules(compilation, files.Length > 0, cancellationToken)
                 : DiagnosticRedactionRules.Empty;
             if (files.Length == 0) return inherited;
             errorLocation = Location.Create(files[0].Path, new TextSpan(0, 0), new LinePositionSpan(new(0, 0), new(0, 0)));

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using DRN.Framework.CompilerTools;
 using Microsoft.CodeAnalysis;
@@ -93,6 +94,7 @@ internal static class EntityAnalyzerHelper
         return false;
     }
 
+    [SuppressMessage("SonarQube", "S3267", Justification = "The immutable attribute scan avoids a predicate capturing the attribute type and cancellation token per symbol.")]
     internal static AttributeData? FindAttribute(INamedTypeSymbol type, INamedTypeSymbol attribute, CancellationToken cancellation)
     {
         foreach (var candidate in type.GetAttributes())

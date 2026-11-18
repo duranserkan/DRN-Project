@@ -16,17 +16,18 @@ internal sealed class LoggingCaptureAnalysis(OperationAnalysisContext context, C
     private bool _interfaceLimitReported;
 
     internal static void Analyze(OperationAnalysisContext context, ClassificationContract contract,
-        DiagnosticRedactionRules rules, IInvocationOperation call, IMethodSymbol targetMethod,
+        DiagnosticRedactionRules rules, IInvocationOperation call,
         DiagnosticClassificationAnalyzer.CaptureApi api, DiagnosticNameExemption exemptions,
         DictionaryCaptureAnalysis.LocalWriteIndex localWrites)
     {
+        var methodName = call.TargetMethod.Name;
         switch (api)
         {
             case DiagnosticClassificationAnalyzer.CaptureApi.LoggerExtensions
-                when targetMethod.Name is "Log" or "LogTrace" or "LogDebug" or "LogInformation" or "LogWarning" or "LogError" or "LogCritical" or "BeginScope":
+                when methodName is "Log" or "LogTrace" or "LogDebug" or "LogInformation" or "LogWarning" or "LogError" or "LogCritical" or "BeginScope":
                 new LoggingCaptureAnalysis(context, contract, rules, call, exemptions).AnalyzeTemplate();
                 break;
-            case DiagnosticClassificationAnalyzer.CaptureApi.Logger when targetMethod.Name == "BeginScope":
+            case DiagnosticClassificationAnalyzer.CaptureApi.Logger when methodName == "BeginScope":
             {
                 var analysis = new LoggingCaptureAnalysis(context, contract, rules, call, exemptions);
                 var state = analysis.Argument("state");
@@ -38,7 +39,7 @@ internal sealed class LoggingCaptureAnalysis(OperationAnalysisContext context, C
                 break;
             }
             case DiagnosticClassificationAnalyzer.CaptureApi.ScopedLog or DiagnosticClassificationAnalyzer.CaptureApi.Extensions
-                when targetMethod.Name is "Add" or "AddToList" or "AddIfNotNullOrEmpty" or "AddWithPolicy":
+                when methodName is "Add" or "AddToList" or "AddIfNotNullOrEmpty" or "AddWithPolicy":
             {
                 var analysis = new LoggingCaptureAnalysis(context, contract, rules, call, exemptions);
                 var value = analysis.Argument("value");

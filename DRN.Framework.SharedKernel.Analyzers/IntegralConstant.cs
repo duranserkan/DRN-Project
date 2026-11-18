@@ -26,17 +26,7 @@ internal static class IntegralConstant
         var modulus = bits == 64 ? (decimal)ulong.MaxValue + 1 : 1UL << bits;
         var limit = signed ? modulus / 2 : modulus;
         var min = signed ? -limit : 0;
-        decimal number;
-        if (value is float or double)
-        {
-            var truncated = Math.Truncate(Convert.ToDouble(value));
-            if (!(truncated >= (double)min && truncated < (double)limit)) return null;
-            number = truncated < 0 ? (decimal)(long)truncated : (ulong)truncated;
-        }
-        else if (value is char character) number = character;
-        else if (value is sbyte or byte or short or ushort or int or uint or long or ulong or decimal)
-            number = decimal.Truncate(Convert.ToDecimal(value));
-        else return null;
+        if (Truncate(value, min, limit) is not { } number) return null;
 
         if (number < min || number >= limit)
         {
@@ -51,5 +41,17 @@ internal static class IntegralConstant
             SpecialType.System_UInt64 => (ulong)number,
             _ => (long)number
         };
+    }
+
+    private static decimal? Truncate(object value, decimal min, decimal limit)
+    {
+        if (value is char character) return character;
+        if (value is sbyte or byte or short or ushort or int or uint or long or ulong or decimal)
+            return decimal.Truncate(Convert.ToDecimal(value));
+        if (value is not (float or double)) return null;
+
+        var truncated = Math.Truncate(Convert.ToDouble(value));
+        if (!(truncated >= (double)min && truncated < (double)limit)) return null;
+        return truncated < 0 ? (decimal)(long)truncated : (ulong)truncated;
     }
 }

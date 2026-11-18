@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 
@@ -49,16 +50,7 @@ internal static class EntityCollisionAnalysis
         {
             context.CancellationToken.ThrowIfCancellationRequested();
             if (group.Count() < 2) continue;
-            EntityDeclaration? firstReference = null;
-            foreach (var reference in group.Where(entity => !entity.IsLocal)
-                         .OrderBy(entity => entity.Symbol.ContainingAssembly.Name, StringComparer.Ordinal)
-                         .ThenBy(entity => entity.Symbol.ToDisplayString(), StringComparer.Ordinal))
-            {
-                context.CancellationToken.ThrowIfCancellationRequested();
-                if (firstReference is null) firstReference = reference;
-                else context.ReportDiagnostic(diagnostic(reference, firstReference));
-            }
-
+            var firstReference = ReportReferencedCollisions(context, group, diagnostic);
             EntityDeclaration? firstLocal = null;
             foreach (var local in OrderByLocation(group.Where(entity => entity.IsLocal), location))
             {
@@ -69,6 +61,21 @@ internal static class EntityCollisionAnalysis
                 firstLocal ??= local;
             }
         }
+    }
+
+    private static EntityDeclaration? ReportReferencedCollisions(CompilationAnalysisContext context, IEnumerable<EntityDeclaration> group,
+        Func<EntityDeclaration, EntityDeclaration, Diagnostic> diagnostic)
+    {
+        EntityDeclaration? firstReference = null;
+        foreach (var reference in group.Where(entity => !entity.IsLocal)
+                     .OrderBy(entity => entity.Symbol.ContainingAssembly.Name, StringComparer.Ordinal)
+                     .ThenBy(entity => entity.Symbol.ToDisplayString(), StringComparer.Ordinal))
+        {
+            context.CancellationToken.ThrowIfCancellationRequested();
+            if (firstReference is null) firstReference = reference;
+            else context.ReportDiagnostic(diagnostic(reference, firstReference));
+        }
+        return firstReference;
     }
 
     private static Diagnostic DuplicateValue(EntityDeclaration entity, EntityDeclaration owner) =>
@@ -87,6 +94,7 @@ internal static class EntityCollisionAnalysis
         .ThenBy(entity => location(entity).SourceSpan.Length)
         .ThenBy(entity => entity.Symbol.ToDisplayString(), StringComparer.Ordinal);
 
+    [SuppressMessage("SonarQube", "S3267", Justification = "Iterating the list directly preserves per-entity cancellation without a projection iterator.")]
     private static void ReportMultiplePartitions(CompilationAnalysisContext context, List<EntityDeclaration> entities)
     {
         const byte testAppId = 127;

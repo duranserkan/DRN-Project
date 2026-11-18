@@ -77,19 +77,20 @@ internal static class ConventionBoundUseAnalysis
             return;
         }
 
+        var scope = new TypeScope(declaredType, role);
         var typeConsumer = UserConsumer(facts, declaredType, tracker.InputAnchors);
         if (typeConsumer is not null)
-            ScanTypeHeader(facts, tracker, model, typeDeclaration, typeConsumer, declaredType, role, generated);
+            ScanTypeHeader(facts, tracker, model, typeDeclaration, typeConsumer, scope, generated);
 
         switch (typeDeclaration)
         {
             case TypeDeclarationSyntax container:
                 foreach (var member in container.Members)
-                    ScanTypeMember(facts, tracker, tree, ref model, member, declaredType, role, generated);
+                    ScanTypeMember(facts, tracker, tree, ref model, member, scope, generated);
                 break;
             case EnumDeclarationSyntax enumDeclaration:
                 foreach (var member in enumDeclaration.Members)
-                    ScanDeclaredMember(facts, tracker, model, member, member, declaredType, role, generated);
+                    ScanDeclaredMember(facts, tracker, model, member, scope, generated);
                 break;
         }
     }
@@ -107,24 +108,26 @@ internal static class ConventionBoundUseAnalysis
         }
     }
 
+    private readonly record struct TypeScope(INamedTypeSymbol Type, string Role);
+
     private static void ScanTypeHeader(ConventionFacts facts, BoundUseTracker tracker, SemanticModel model,
-        BaseTypeDeclarationSyntax typeDeclaration, ISymbol consumer, INamedTypeSymbol declaredType, string role, bool generated)
+        BaseTypeDeclarationSyntax typeDeclaration, ISymbol consumer, TypeScope scope, bool generated)
     {
         foreach (var attributeList in typeDeclaration.AttributeLists)
-            ScanExpressions(facts, tracker, model, attributeList, consumer, declaredType, role, generated);
+            ScanExpressions(facts, tracker, model, attributeList, consumer, scope, generated);
         if (typeDeclaration.BaseList is not null)
-            ScanExpressions(facts, tracker, model, typeDeclaration.BaseList, consumer, declaredType, role, generated);
+            ScanExpressions(facts, tracker, model, typeDeclaration.BaseList, consumer, scope, generated);
         if (typeDeclaration is not TypeDeclarationSyntax container) return;
         if (container.TypeParameterList is not null)
-            ScanExpressions(facts, tracker, model, container.TypeParameterList, consumer, declaredType, role, generated);
+            ScanExpressions(facts, tracker, model, container.TypeParameterList, consumer, scope, generated);
         if (container.ParameterList is not null)
-            ScanExpressions(facts, tracker, model, container.ParameterList, consumer, declaredType, role, generated);
+            ScanExpressions(facts, tracker, model, container.ParameterList, consumer, scope, generated);
         foreach (var constraint in container.ConstraintClauses)
-            ScanExpressions(facts, tracker, model, constraint, consumer, declaredType, role, generated);
+            ScanExpressions(facts, tracker, model, constraint, consumer, scope, generated);
     }
 
     private static void ScanTypeMember(ConventionFacts facts, BoundUseTracker tracker, SyntaxTree tree,
-        ref SemanticModel? model, MemberDeclarationSyntax member, INamedTypeSymbol declaredType, string role, bool generated)
+        ref SemanticModel? model, MemberDeclarationSyntax member, TypeScope scope, bool generated)
     {
         facts.Cancellation.ThrowIfCancellationRequested();
         switch (member)
@@ -136,10 +139,10 @@ internal static class ConventionBoundUseAnalysis
                 ScanDelegateDeclaration(facts, tracker, tree, ref model, nestedDelegate, generated);
                 break;
             case BaseFieldDeclarationSyntax field:
-                ScanFieldDeclaration(facts, tracker, model!, field, declaredType, role, generated);
+                ScanFieldDeclaration(facts, tracker, model!, field, scope, generated);
                 break;
             case BaseMethodDeclarationSyntax or BasePropertyDeclarationSyntax:
-                ScanDeclaredMember(facts, tracker, model!, member, member, declaredType, role, generated);
+                ScanDeclaredMember(facts, tracker, model!, member, scope, generated);
                 break;
             default:
                 ScanFallbackNode(facts, tracker, model!, member, generated);
@@ -156,11 +159,11 @@ internal static class ConventionBoundUseAnalysis
         if (!IsBoundUseType(facts, declaredType, role)) return;
         var consumer = UserConsumer(facts, declaredType, tracker.InputAnchors);
         if (consumer is null) return;
-        ScanExpressions(facts, tracker, model, delegateDeclaration, consumer, declaredType, role, generated);
+        ScanExpressions(facts, tracker, model, delegateDeclaration, consumer, new TypeScope(declaredType, role), generated);
     }
 
     private static void ScanFieldDeclaration(ConventionFacts facts, BoundUseTracker tracker, SemanticModel model,
-        BaseFieldDeclarationSyntax field, INamedTypeSymbol declaredType, string role, bool generated)
+        BaseFieldDeclarationSyntax field, TypeScope scope, bool generated)
     {
         if (field.Declaration.Variables.Count == 0)
         {
@@ -173,8 +176,8 @@ internal static class ConventionBoundUseAnalysis
         if (headerConsumer is not null)
         {
             foreach (var attributeList in field.AttributeLists)
-                ScanExpressions(facts, tracker, model, attributeList, headerConsumer, declaredType, role, generated);
-            ScanExpressions(facts, tracker, model, field.Declaration.Type, headerConsumer, declaredType, role, generated);
+                ScanExpressions(facts, tracker, model, attributeList, headerConsumer, scope, generated);
+            ScanExpressions(facts, tracker, model, field.Declaration.Type, headerConsumer, scope, generated);
         }
 
         foreach (var variable in field.Declaration.Variables)
@@ -183,18 +186,18 @@ internal static class ConventionBoundUseAnalysis
                 ? firstSymbol : model.GetDeclaredSymbol(variable, facts.Cancellation);
             var consumer = UserConsumer(facts, symbol, tracker.InputAnchors);
             if (consumer is not null)
-                ScanExpressions(facts, tracker, model, variable, consumer, declaredType, role, generated);
+                ScanExpressions(facts, tracker, model, variable, consumer, scope, generated);
         }
     }
 
     private static void ScanDeclaredMember(ConventionFacts facts, BoundUseTracker tracker, SemanticModel model,
-        SyntaxNode declaration, SyntaxNode expressionRoot, INamedTypeSymbol declaredType, string role, bool generated)
+        SyntaxNode declaration, TypeScope scope, bool generated)
     {
         var raw = model.GetDeclaredSymbol(declaration, facts.Cancellation);
         var symbol = UnwrapMemberSymbol(raw);
         var consumer = UserConsumer(facts, symbol, tracker.InputAnchors);
         if (consumer is not null)
-            ScanExpressions(facts, tracker, model, expressionRoot, consumer, declaredType, role, generated);
+            ScanExpressions(facts, tracker, model, declaration, consumer, scope, generated);
     }
 
     private static void ScanFallbackNode(ConventionFacts facts, BoundUseTracker tracker, SemanticModel model,
@@ -210,21 +213,21 @@ internal static class ConventionBoundUseAnalysis
             if (consumer is null || type is null) continue;
             var role = facts.Role(type).Role;
             if (!IsBoundUseType(facts, type, role)) continue;
-            ScanExpressionNode(facts, tracker, model, node, consumer, type, role, generated);
+            ScanExpressionNode(facts, tracker, model, node, consumer, new TypeScope(type, role), generated);
         }
     }
 
     private static void ScanExpressions(ConventionFacts facts, BoundUseTracker tracker, SemanticModel model,
-        SyntaxNode root, ISymbol consumer, INamedTypeSymbol type, string role, bool generated)
+        SyntaxNode root, ISymbol consumer, TypeScope scope, bool generated)
     {
         if (root is ExpressionSyntax rootExpression && !IsNamespaceName(rootExpression))
-            ScanExpressionNode(facts, tracker, model, rootExpression, consumer, type, role, generated);
+            ScanExpressionNode(facts, tracker, model, rootExpression, consumer, scope, generated);
         foreach (var node in root.DescendantNodes(
                      static parent => parent is not UsingDirectiveSyntax && !IsNamespaceName(parent)).OfType<ExpressionSyntax>())
         {
             facts.Cancellation.ThrowIfCancellationRequested();
             if (!IsNamespaceName(node))
-                ScanExpressionNode(facts, tracker, model, node, consumer, type, role, generated);
+                ScanExpressionNode(facts, tracker, model, node, consumer, scope, generated);
         }
     }
 
@@ -235,15 +238,15 @@ internal static class ConventionBoundUseAnalysis
     private static bool IsNamespaceName(SyntaxNode node) => node.Parent is BaseNamespaceDeclarationSyntax ns && ns.Name == node;
 
     private static void ScanExpressionNode(ConventionFacts facts, BoundUseTracker tracker, SemanticModel model,
-        ExpressionSyntax node, ISymbol consumer, INamedTypeSymbol type, string role, bool generated)
+        ExpressionSyntax node, ISymbol consumer, TypeScope scope, bool generated)
     {
         tracker.Dependencies.Clear();
         CollectNodeDependencies(facts, model, node, tracker.Dependencies);
         foreach (var entity in NamedDependencies(tracker.Dependencies, tracker.PendingDependencies,
                      tracker.VisitedDependencies, facts.Cancellation))
         {
-            if (!generated && ForbiddenUse(facts, role, entity, tracker.TransportTypes) is { } family)
-                tracker.RecordForbidden(type, family, node.GetLocation());
+            if (!generated && ForbiddenUse(facts, scope.Role, entity, tracker.TransportTypes) is { } family)
+                tracker.RecordForbidden(scope.Type, family, node.GetLocation());
             tracker.RecordUse(facts, consumer, entity, node.GetLocation(), !generated);
         }
     }
