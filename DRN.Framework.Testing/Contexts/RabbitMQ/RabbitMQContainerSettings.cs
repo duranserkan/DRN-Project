@@ -5,8 +5,8 @@ namespace DRN.Framework.Testing.Contexts.RabbitMQ;
 public class RabbitMQContainerSettings
 {
     private const string InitialDefaultImage = "rabbitmq";
-    private const string InitialDefaultVersion = "4.3.6-management-alpine";
-    private const string InitialDefaultDigest = "sha256:3ef7f7e89fed709a78f79b8b5f4e30e1312a1d4089da752e23595566d9d61a95";
+    private const string InitialDefaultVersion = "4.4.1-management-alpine";
+    private const string InitialDefaultDigest = "sha256:2b47b1aa05ec7e373950ad2e9200e9f95a9da7039c8d22c19dbf5a59101362c4";
 
     public static string DefaultImage { get; set; } = InitialDefaultImage;
     public static string DefaultVersion { get; set; } = InitialDefaultVersion;

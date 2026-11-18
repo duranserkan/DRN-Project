@@ -2,7 +2,7 @@ name: drn-rabbit
 services:
   # https://hub.docker.com/_/rabbitmq
   rabbit:
-    image: rabbitmq:4.3.6-management-alpine@sha256:3ef7f7e89fed709a78f79b8b5f4e30e1312a1d4089da752e23595566d9d61a95
+    image: rabbitmq:4.4.1-management-alpine@sha256:2b47b1aa05ec7e373950ad2e9200e9f95a9da7039c8d22c19dbf5a59101362c4
     container_name: drn-rabbit
     hostname: ${RABBITMQ_HOSTNAME:?set a stable hostname for a new broker or preserve the existing hostname; see README.md}
     restart: unless-stopped

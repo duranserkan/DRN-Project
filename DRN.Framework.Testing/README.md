@@ -576,8 +576,8 @@ PostgreSQL defaults used by `ContainerContext.Postgres` and `LaunchExternalDepen
 | Property | Default |
 |----------|---------|
 | `DefaultImage` | `"postgres"` |
-| `DefaultVersion` | `"18.6-alpine3.24"` |
-| `DefaultDigest` | `"sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2"` |
+| `DefaultVersion` | `"18.7-alpine3.24"` |
+| `DefaultDigest` | `"sha256:b6972e1115a4ff8eba5d7f7d19184926d1e16d7d1136ae1e1a7ebf286da0f015"` |
 | `DefaultPassword` | `"drn"` |
 | `Database` | `"drn"` |
 | `Username` | `"drn"` |
@@ -589,8 +589,8 @@ RabbitMQ defaults used when a test explicitly calls `RabbitMQContext.StartAsync(
 | Property | Default |
 |----------|---------|
 | `DefaultImage` | `"rabbitmq"` |
-| `DefaultVersion` | `"4.3.6-management-alpine"` |
-| `DefaultDigest` | `"sha256:3ef7f7e89fed709a78f79b8b5f4e30e1312a1d4089da752e23595566d9d61a95"` |
+| `DefaultVersion` | `"4.4.1-management-alpine"` |
+| `DefaultDigest` | `"sha256:2b47b1aa05ec7e373950ad2e9200e9f95a9da7039c8d22c19dbf5a59101362c4"` |
 | `Username` | unset |
 | `Password` | unset |
 

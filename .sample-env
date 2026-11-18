@@ -59,5 +59,5 @@ GRAYLOG_PASSWORD_SECRET=LocalOnlyGraylogSecret7mQ2pR9tV4wX6yZ8kN3sH5jL1bF0dG2uC9
 # Public local login: admin / drn. Replace this hash for any shared deployment.
 GRAYLOG_ROOT_PASSWORD_SHA2=0b0f409cd36ec892ddd8db5dcd95453d0c1c7f7667894d3e4adcd138549a222c
 
-GRAYLOG_IMAGE=graylog/graylog:7.1.6@sha256:b9a4fd841e4c49c148043265f579554a3bdadf8137ff381b686c194ccb9a3365
-DATANODE_IMAGE=graylog/graylog-datanode:7.1.6@sha256:4867cd8ad09ee7a129c0898fe326b0b638928d984789072eb3640fef42fccf5d
+GRAYLOG_IMAGE=graylog/graylog:7.2.2@sha256:ab6bff1cb38d3aeee5273d71af76a453fcd2884035d417c0b2012551818f21dc
+DATANODE_IMAGE=graylog/graylog-datanode:7.2.2@sha256:8aef39788a1ce22cb2c221ceaaedc65721ae41cab38464d7c17815f55943b7a6

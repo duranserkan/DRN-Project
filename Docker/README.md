@@ -76,6 +76,10 @@ The root stack serves Sample over HTTP at http://localhost:5998. It does not pub
 
 ## Existing data and migration
 
+Fresh Graylog stacks use Graylog and Data Node 7.2.2 with MongoDB 8.3.17. Before starting the updated stack with a MongoDB 7.0 volume, back up the deployment. Update both Graylog image overrides in the existing `.env` from the matching sample and upgrade Graylog and Data Node while MongoDB is still on 7.0. Graylog 7.2 supports both database versions. See the [Graylog compatibility matrix](https://go2docs.graylog.org/current/downloading_and_installing_graylog/compatibility_matrix.htm).
+
+Use an intermediate MongoDB 8.0 image for the existing volume. Follow the [standalone upgrade from 7.0 to 8.0](https://www.mongodb.com/docs/v8.3/release-notes/8.0-upgrade-standalone/), confirm feature compatibility version 8.0, then apply the stack's 8.3.17 pin using the [8.0 to 8.3 upgrade procedure](https://www.mongodb.com/docs/manual/release-notes/8.3-upgrade-from-8.0/).
+
 For new local databases, the templates provide PostgreSQL and RabbitMQ password `drn`, a fixed Graylog secret, the hash of Graylog password `drn`, and RabbitMQ hostname `drn-rabbit`. Compose rejects missing required values if the template has not been copied or a required value is cleared.
 
 For existing databases, edit the existing `.env` rather than replacing it with the template. Configuration changes do not automatically migrate stored credentials:

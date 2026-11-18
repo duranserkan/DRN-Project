@@ -6,8 +6,8 @@ namespace DRN.Framework.Testing.Contexts.Postgres;
 public class PostgresContainerSettings
 {
     private const string InitialDefaultImage = "postgres";
-    private const string InitialDefaultVersion = "18.6-alpine3.24";
-    private const string InitialDefaultDigest = "sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2";
+    private const string InitialDefaultVersion = "18.7-alpine3.24";
+    private const string InitialDefaultDigest = "sha256:b6972e1115a4ff8eba5d7f7d19184926d1e16d7d1136ae1e1a7ebf286da0f015";
 
     public static string DefaultImage { get; set; } = InitialDefaultImage;
     public static string DefaultVersion { get; set; } = InitialDefaultVersion;

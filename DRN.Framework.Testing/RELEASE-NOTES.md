@@ -4,7 +4,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 Targets .NET 11.
 
-* **Container Defaults**: Updated the default RabbitMQ image to digest-pinned `4.3.6-management-alpine`.
+* **Container Defaults**: Updated the digest-pinned default images to PostgreSQL `18.7-alpine3.24` and RabbitMQ `4.4.1-management-alpine`.
 
 ### Breaking Changes
 

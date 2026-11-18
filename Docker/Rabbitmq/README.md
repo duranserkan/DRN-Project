@@ -1,9 +1,9 @@
 # RabbitMQ containers
 
-The standalone, Infra, and root Compose stacks use the official `rabbitmq:4.3.6-management-alpine` image directly, without a custom build.
+The standalone, Infra, and root Compose stacks use the official `rabbitmq:4.4.1-management-alpine` image directly, without a custom build.
 The Compose image and Testing package default use the multi-platform digest
-`sha256:3ef7f7e89fed709a78f79b8b5f4e30e1312a1d4089da752e23595566d9d61a95`.
-This digest was verified against [Docker Hub tag metadata](https://hub.docker.com/v2/repositories/library/rabbitmq/tags/4.3.6-management-alpine) on 2026-10-14, including Linux AMD64 and ARM64 entries.
+`sha256:2b47b1aa05ec7e373950ad2e9200e9f95a9da7039c8d22c19dbf5a59101362c4`.
+This digest was verified against [Docker Hub tag metadata](https://hub.docker.com/v2/repositories/library/rabbitmq/tags/4.4.1-management-alpine) on 2026-11-18, including Linux AMD64 and ARM64 entries.
 
 ## Credentials and access
 
@@ -33,6 +33,8 @@ Repeated imports preserve matching topology and do not purge messages. Changing 
 These hooks are Compose-managed. Running the image directly or restarting it through Docker's automatic restart policy does not invoke them. Imported durable topology remains in the existing data volume. Broker health checks indicate broker availability, not successful definitions import. After an import failure, correct the definitions and recreate the service through Compose before relying on the example topology.
 
 ## Existing data volumes
+
+Before upgrading a 4.3 broker to 4.4, enable all stable feature flags on the running 4.3 broker and take a restorable backup. Once 4.4 writes classic queue files in the new format, rolling back to 4.3 requires restoring the pre-upgrade backup. See the [upgrade guide](https://www.rabbitmq.com/docs/upgrade) and [4.4 storage format notes](https://github.com/rabbitmq/rabbitmq-server/blob/v4.4.1/release-notes/4.4.0.md).
 
 Bootstrap environment variables only create credentials for a new database. Recreating the container does not rotate or delete users in an existing RabbitMQ data volume.
 

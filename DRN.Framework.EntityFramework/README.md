@@ -886,7 +886,7 @@ services:
         condition: service_healthy
       
   postgres:
-    image: postgres:18.6-alpine3.24@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
+    image: postgres:18.7-alpine3.24@sha256:b6972e1115a4ff8eba5d7f7d19184926d1e16d7d1136ae1e1a7ebf286da0f015
     environment:
       POSTGRES_USER: drn
       POSTGRES_PASSWORD: dev-password
@@ -988,8 +988,8 @@ When using `LaunchExternalDependencies` or `ContainerContext`, these PostgreSQL 
 |----------|---------|-------|
 | `DefaultPassword` | `"drn"` | Container password |
 | `DefaultImage` | `"postgres"` | Docker image |
-| `DefaultVersion` | `"18.6-alpine3.24"` | Image tag |
-| `DefaultDigest` | `"sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2"` | Immutable image index digest |
+| `DefaultVersion` | `"18.7-alpine3.24"` | Image tag |
+| `DefaultDigest` | `"sha256:b6972e1115a4ff8eba5d7f7d19184926d1e16d7d1136ae1e1a7ebf286da0f015"` | Immutable image index digest |
 | `Database` | `"drn"` | Container database |
 | `Username` | `"drn"` | Container user |
 
