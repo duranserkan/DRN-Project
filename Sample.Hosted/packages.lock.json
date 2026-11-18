@@ -560,8 +560,8 @@
       },
       "Testcontainers": {
         "type": "Transitive",
-        "resolved": "4.16.0",
-        "contentHash": "JmMUZk6ZXQovbGQjaMB+YxOR0PbJTdYjOYjRcrm5LrA2dhLVMuCbhVGGunzCGIQfFMUB5Lno2LPOHMMuaGmuIg==",
+        "resolved": "4.17.0",
+        "contentHash": "yXAdoZ3dcrg84Iy05X10qRfz8EO35tpSmI1kK91Qe32MNz0DyPuSbiCi33i5AvSbYMET9HxBw32UuHJHSSK49A==",
         "dependencies": {
           "Docker.DotNet.Enhanced": "4.3.3",
           "Docker.DotNet.Enhanced.X509": "4.3.3",
@@ -571,18 +571,18 @@
       },
       "Testcontainers.PostgreSql": {
         "type": "Transitive",
-        "resolved": "4.16.0",
-        "contentHash": "QqvFS8Oj+i6deH3QJOMd7jgFF9P3h7RZ37wOaoR97ZahMcSYMYCb+COR4nUVznT1d7EavEcZdUs1QV0ow69JiA==",
+        "resolved": "4.17.0",
+        "contentHash": "fRb6dVf6QCOkNYmPp0x1MHJFkjBtomV4dpU1YinO87Yw8t5qSzKbSmJ9EsP0CUUZTi5zNjYSkhQ5wBxkvDHrgA==",
         "dependencies": {
-          "Testcontainers": "4.16.0"
+          "Testcontainers": "4.17.0"
         }
       },
       "Testcontainers.RabbitMq": {
         "type": "Transitive",
-        "resolved": "4.16.0",
-        "contentHash": "aKMDJmB1xXDcspTyohGhe/nSBV/TY0VYN/gsLJyGoGUQGirUDff+wHvEJt+C0w1WIWAwwkLd7GGIQjy3RnowRw==",
+        "resolved": "4.17.0",
+        "contentHash": "Zwv0VLdwDTVfu0BiWOnFtTsRi//8NyJXKgBa5SHXJ+j+FF1Qo6eEcS8bEns/5Enj2CGx4bICEiQlOjVEvUGOHg==",
         "dependencies": {
-          "Testcontainers": "4.16.0"
+          "Testcontainers": "4.17.0"
         }
       },
       "xunit.v3.common": {
@@ -640,8 +640,8 @@
           "Microsoft.AspNetCore.Mvc.Testing": "[11.0.0, )",
           "Microsoft.Testing.Extensions.GitHubActionsReport": "[2.5.3, )",
           "NSubstitute.Analyzers.CSharp": "[1.0.17, )",
-          "Testcontainers.PostgreSql": "[4.16.0, )",
-          "Testcontainers.RabbitMq": "[4.16.0, )",
+          "Testcontainers.PostgreSql": "[4.17.0, )",
+          "Testcontainers.RabbitMq": "[4.17.0, )",
           "xunit.v3.extensibility.core": "[4.0.3, )"
         }
       },
