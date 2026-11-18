@@ -1,13 +1,13 @@
+import { onTestFinished, test } from 'vitest';
 import assert from 'node:assert/strict';
-import test from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { loadTsx } from './loadTsx.ts';
 
-test('React islands skip mounting without a host, render props, and reset errors when the key changes', async (t) => {
-    loadTsx(t);
+test('React islands skip mounting without a host, render props, and reset errors when the key changes', async () => {
     Object.defineProperty(globalThis, 'window', { configurable: true, value: { DRN: { React: {} } } });
-    t.after(() => Reflect.deleteProperty(globalThis, 'window'));
+    onTestFinished(() => {
+        Reflect.deleteProperty(globalThis, 'window');
+    });
     await import('../../../lib/react/reactBundle.tsx');
     assert.equal(window.DRN.React.mount('HelloReact', null, { title: 'Sample' }), null);
 

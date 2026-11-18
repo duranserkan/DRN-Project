@@ -1,6 +1,8 @@
 import { spawn } from 'node:child_process';
-import { globSync } from 'node:fs';
-import { matchesGlob, normalize } from 'node:path';
+import { copyFileSync, globSync, mkdtempDisposableSync, statSync } from 'node:fs';
+import { basename, dirname, join, matchesGlob, normalize, relative, sep } from 'node:path';
+import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { coverageReportPath } from '../../../.github/actions/frontend-validation/coverage.mts';
 import { printCoverageReport } from './reporters/summary.ts';
@@ -28,20 +30,22 @@ function runNode(args: string[]): Promise<number> {
     });
 }
 
-const args = [
-    '--test',
-    '--test-reporter=spec',
-    '--test-reporter-destination=stdout',
-    '--test-reporter=./buildwww/tests/reporters/node.ts',
-    '--test-reporter-destination=stdout',
-];
+const args = [fileURLToPath(import.meta.resolve('vitest/package.json')).replace(/package\.json$/, 'vitest.mjs'), 'run'];
 const report = values.coverage ? coverageReportPath(values.report ?? 'coverage-frontend.info') : undefined;
+using output = report ? mkdtempDisposableSync(join(tmpdir(), 'sample-unit-coverage-')) : undefined;
 if (values.coverage) {
-    args.push('--enable-source-maps', '--experimental-test-coverage', '--test-coverage-include-all');
-    for (const glob of values.include ?? ['buildwww/{app,lib}/**/*.{ts,tsx,js}'])
-        args.push(`--test-coverage-include=${glob}`);
-    for (const glob of values.exclude ?? ['**/*.d.ts']) args.push(`--test-coverage-exclude=${glob}`);
-    args.push('--test-reporter=lcov', `--test-reporter-destination=${report}`);
+    args.push('--coverage.enabled', '--coverage.reportsDirectory=' + output!.path);
+    for (let pattern of values.include ?? []) {
+        if (statSync(pattern, { throwIfNoEntry: false })?.isFile()) {
+            // Vitest treats plain paths as directories. A single-choice glob matches the exact filename.
+            const file = relative('.', pattern);
+            pattern = join(dirname(file), `@(${basename(file)})`)
+                .split(sep)
+                .join('/');
+        }
+        args.push(`--coverage.include=${pattern}`);
+    }
+    for (const glob of values.exclude ?? []) args.push(`--coverage.exclude=${glob}`);
 } else if (values.include || values.exclude || values.report) {
     throw new Error('Coverage options require --coverage.');
 }
@@ -64,11 +68,12 @@ for (const selector of testFiles) {
 }
 const files = testFiles.length ? selectedFiles : unitFiles;
 const [unitStatus, browserStatus] = await Promise.all([
-    runNode([...args, '--', ...files]),
+    runNode([...args, ...files]),
     values.browser ? runNode(['--run', 'test:browser']) : 0,
 ]);
 process.exitCode = unitStatus || browserStatus;
-if (unitStatus === 0 && values.coverage) {
+if (unitStatus === 0 && report && output) {
+    copyFileSync(join(output.path, 'lcov.info'), coverageReportPath(report));
     const requiredSources = values.include || values.exclude ? [] : globSync('buildwww/{app,lib}/**/*.tsx');
     if (!printCoverageReport(report, requiredSources)) process.exitCode = 1;
 }

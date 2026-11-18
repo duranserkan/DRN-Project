@@ -1,6 +1,6 @@
 {
   "buildwww/lib/bootstrap/bootstrap.scss": {
-    "file": "bootstrap.DXl9JswsL3ZjS2l5.css",
+    "file": "bootstrap.BBUVfM2uOcH2bXlF.css",
     "name": "bootstrap",
     "names": [
       "bootstrap.css"
@@ -10,15 +10,15 @@
     "assets": [
       "bootstrap-icons.DJdhg9lHFABfkZuu.woff2"
     ],
-    "hash": "1q5ew3frgne+sheGXXBLp+frL4AJ3ZZUzBw7q/tyKuE=",
+    "hash": "3vqyxi5AI5DmSuut3H258SvBKraHCVdwROEpaxnv8Oo=",
     "brotliOnly": true
   },
   "buildwww/lib/bootstrap/bootstrapBundle.ts": {
-    "file": "bootstrapBundle.vowjQB1R_DoYxZBi.js",
+    "file": "bootstrapBundle.Ry13jASSzq8Wx35n.js",
     "name": "bootstrapBundle",
     "src": "buildwww/lib/bootstrap/bootstrapBundle.ts",
     "isEntry": true,
-    "hash": "uRJR3DuNCkqixr2HcOx51UhrWcyy1LBpn92MyySj6A0=",
+    "hash": "8MB+w4ydUfF87NCbr1ehIvECBnBnsENHYovR97F+q5o=",
     "brotliOnly": true
   },
   "node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff2": {

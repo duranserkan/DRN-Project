@@ -1,8 +1,8 @@
+import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
-import test from 'node:test';
 import { installBrowserGlobals } from '../browserGlobals.ts';
 
-test('footer restores consent, writes each choice, and releases click handlers on disposal', async (t) => {
+test('footer restores consent, writes each choice, and releases click handlers on disposal', async () => {
     class Input extends EventTarget {
         checked = false;
     }
@@ -35,9 +35,9 @@ test('footer restores consent, writes each choice, and releases click handlers o
     }
     const footer = new Footer();
     const options: { disposable?: { dispose(): void } } = {};
-    const writes = t.mock.fn();
-    const get = t.mock.fn(() => ({ AnalyticsConsent: true, MarketingConsent: false }));
-    installBrowserGlobals(t, {
+    const writes = vi.fn();
+    const get = vi.fn(() => ({ AnalyticsConsent: true, MarketingConsent: false }));
+    installBrowserGlobals({
         HTMLElement: Footer,
         HTMLInputElement: Input,
         DRN: {
@@ -52,7 +52,7 @@ test('footer restores consent, writes each choice, and releases click handlers o
         },
     });
     await import('../../../app/ts/behaviors/layout/drn-footer.ts');
-    assert.deepEqual(get.mock.calls[0]?.arguments, ['site-preferences', { encoding: 'base64' }]);
+    assert.deepEqual(get.mock.calls[0], ['site-preferences', { encoding: 'base64' }]);
     assert.deepEqual([analytics.checked, marketing.checked], [true, false]);
     assert.deepEqual(navbarClasses, new Set(['d-none']));
     assert.deepEqual(bannerClasses, new Set(['d-flex']));
@@ -71,12 +71,9 @@ test('footer restores consent, writes each choice, and releases click handlers o
         { AnalyticsConsent, MarketingConsent },
         { days: 365, encoding: 'base64' },
     ]);
-    assert.deepEqual(
-        writes.mock.calls.map((call) => call.arguments),
-        expected,
-    );
+    assert.deepEqual(writes.mock.calls, expected);
     assert.ok(options.disposable);
     options.disposable.dispose();
     for (const button of Object.values(controls)) button.dispatchEvent(new Event('click'));
-    assert.equal(writes.mock.callCount(), 3);
+    assert.equal(writes.mock.calls.length, 3);
 });

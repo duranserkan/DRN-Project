@@ -1,14 +1,11 @@
+import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
-import { registerHooks } from 'node:module';
-import test from 'node:test';
 import { installBrowserGlobals } from '../browserGlobals.ts';
-import { loadTsx } from './loadTsx.ts';
 import { islandDocument } from './islandDocument.ts';
 
-test('a stale island handle cannot update or dispose the replacement shadow root', async (t) => {
-    loadTsx(t);
-    const lightRoot = { render: t.mock.fn(), unmount: t.mock.fn() };
-    const shadowRoot = { render: t.mock.fn(), unmount: t.mock.fn() };
+test('a stale island handle cannot update or dispose the replacement shadow root', async () => {
+    const lightRoot = { render: vi.fn(), unmount: vi.fn() };
+    const shadowRoot = { render: vi.fn(), unmount: vi.fn() };
     const shadowContainer = {};
     const classes = new Set<string>();
     const host = {
@@ -20,48 +17,36 @@ test('a stale island handle cannot update or dispose the replacement shadow root
         assert.equal(container, shadowContainer);
         return shadowRoot;
     };
-    installBrowserGlobals(t, {
+    installBrowserGlobals({
         window: { DRN: { React: {} } },
         document: islandDocument(),
-        createTestRoot: createRoot,
     });
-    const client = registerHooks({
-        resolve(specifier, context, nextResolve) {
-            if (specifier === 'react-dom/client') {
-                return {
-                    shortCircuit: true,
-                    url: 'data:text/javascript,export const createRoot = globalThis.createTestRoot',
-                };
-            }
-            return nextResolve(specifier, context);
-        },
-    });
-    t.after(() => client.deregister());
+    vi.doMock('react-dom/client', () => ({ createRoot }));
     await import('../../../lib/react/reactBundle.tsx');
-    t.mock.method(console, 'error', () => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     // @ts-expect-error A component name from untyped page markup can be unknown.
     assert.equal(window.DRN.React.mount('Missing', host, {}), null);
-    assert.equal(lightRoot.render.mock.callCount(), 0);
+    assert.equal(lightRoot.render.mock.calls.length, 0);
     const previous = window.DRN.React.mount('HelloReact', host, { title: 'First' }, { useShadow: false });
     assert.ok(classes.has('drn-react-root'));
     const reused = window.DRN.React.mount('HelloReact', host, { title: 'Updated' }, { useShadow: false });
     assert.deepEqual(previous?.getProps(), { title: 'Updated' });
     assert.deepEqual(reused?.getProps(), previous?.getProps());
-    assert.equal(lightRoot.unmount.mock.callCount(), 0);
+    assert.equal(lightRoot.unmount.mock.calls.length, 0);
     const replacement = window.DRN.React.mount('HelloReact', host, { title: 'Second' }, { useShadow: true });
     assert.ok(previous && replacement);
-    assert.equal(lightRoot.unmount.mock.callCount(), 1);
+    assert.equal(lightRoot.unmount.mock.calls.length, 1);
     previous.update({ title: 'Stale' });
     previous.dispose();
     assert.equal(previous.getProps(), null);
     assert.deepEqual(replacement.getProps(), { title: 'Second' });
-    assert.equal(lightRoot.render.mock.callCount(), 2);
-    assert.equal(lightRoot.unmount.mock.callCount(), 1);
-    assert.equal(shadowRoot.render.mock.callCount(), 1);
-    assert.equal(shadowRoot.unmount.mock.callCount(), 0);
+    assert.equal(lightRoot.render.mock.calls.length, 2);
+    assert.equal(lightRoot.unmount.mock.calls.length, 1);
+    assert.equal(shadowRoot.render.mock.calls.length, 1);
+    assert.equal(shadowRoot.unmount.mock.calls.length, 0);
     replacement.update({ title: 'Current' });
     assert.deepEqual(replacement.getProps(), { title: 'Current' });
-    assert.equal(shadowRoot.render.mock.callCount(), 2);
+    assert.equal(shadowRoot.render.mock.calls.length, 2);
     replacement.dispose();
-    assert.equal(shadowRoot.unmount.mock.callCount(), 1);
+    assert.equal(shadowRoot.unmount.mock.calls.length, 1);
 });

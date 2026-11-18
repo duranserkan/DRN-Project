@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { createNotificationStore } from '../app/ts/drn/drnNotifications.ts';
 import { filterNotifications, groupNotifications } from '../app/ts/drn/drnNotificationPanel.ts';

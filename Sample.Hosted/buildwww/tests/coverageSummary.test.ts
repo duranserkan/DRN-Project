@@ -1,10 +1,14 @@
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdtempDisposableSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
-import test from 'node:test';
-import { coverageReportPath, coverageSummary } from '../../../.github/actions/frontend-validation/coverage.mts';
+import {
+    coverageReportPath,
+    coverageSummary,
+    readCoverageSummary,
+} from '../../../.github/actions/frontend-validation/coverage.mts';
 
 test('unit test selectors cannot add a Node option', () => {
     const result = spawnSync(process.execPath, ['buildwww/tests/run-tests.ts', '--', '--version'], {
@@ -23,6 +27,29 @@ test('a matching unit test cannot mask an unmatched selector', () => {
     );
     assert.equal(result.status, 1);
     assert.match(result.stderr, /No matching frontend unit tests found for missing\.test\.ts/);
+});
+
+test('coverage includes a literal TSX file alongside a second glob', () => {
+    using directory = mkdtempDisposableSync(join(process.cwd(), '.coverage-test-'));
+    const report = join(directory.path, 'report.info');
+    const component = 'buildwww/lib/react/components/HelloReact.tsx';
+    const result = spawnSync(
+        process.execPath,
+        [
+            'buildwww/tests/run-tests.ts',
+            'buildwww/tests/unit/react/reactIslands.test.ts',
+            '--coverage',
+            '--include',
+            component,
+            '--include',
+            'buildwww/lib/react/Island*.tsx',
+            '--report',
+            report,
+        ],
+        { encoding: 'utf8', env: { ...process.env, GITHUB_STEP_SUMMARY: '' } },
+    );
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    readCoverageSummary(report, [component, 'buildwww/lib/react/IslandErrorBoundary.tsx']);
 });
 
 test('coverage paths stay inside the package for both reads and writes', () => {

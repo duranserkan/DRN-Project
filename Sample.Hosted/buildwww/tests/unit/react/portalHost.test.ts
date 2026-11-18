@@ -1,12 +1,12 @@
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import test from 'node:test';
 import { getGlobalPortalContainer } from '../../../lib/react/portalHost.ts';
 import { installBrowserGlobals } from '../browserGlobals.ts';
 import { islandDocument, IslandNode } from './islandDocument.ts';
 
-test('global portals reuse a connected container and recover after a body swap', (t) => {
+test('global portals reuse a connected container and recover after a body swap', () => {
     const document = islandDocument();
-    installBrowserGlobals(t, { document });
+    installBrowserGlobals({ document });
     const first = getGlobalPortalContainer(null, '.menu {}', 'page-token');
     assert.equal(getGlobalPortalContainer(null, '.menu {}', 'page-token'), first);
     const shadow = document.getElementById('drn-global-portals')?.shadowRoot;

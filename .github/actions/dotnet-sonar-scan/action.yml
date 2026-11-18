@@ -75,7 +75,6 @@ runs:
         sonar-branch-target: ${{ inputs.sonar-branch-target }}
 
     - name: Build
-      id: build
       uses: $/.github/actions/dotnet-build
       with:
         working-directory: ${{ inputs.working-directory }}
@@ -88,7 +87,6 @@ runs:
         working-directory: ${{ inputs.working-directory }}
 
     - name: Sonar Scan End
-      if: ${{ !cancelled() && steps.build.outcome == 'success' }}
       uses: $/.github/actions/sonar-end
       with:
         working-directory: ${{ inputs.working-directory }}

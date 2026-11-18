@@ -1,6 +1,5 @@
+import { afterAll, beforeAll, test, vi } from 'vitest';
 import assert from 'node:assert/strict';
-import { registerHooks } from 'node:module';
-import { before, test } from 'node:test';
 import { installBrowserGlobals } from '../browserGlobals.ts';
 
 type Transform = (text: string, xhr: Pick<XMLHttpRequest, 'getResponseHeader' | 'responseURL'>) => string;
@@ -24,28 +23,18 @@ class ValidationService {
     }
 }
 
-before(async (t) => {
-    assert.ok('mock' in t);
-    installBrowserGlobals(t, {
-        document,
-        Element,
-        window: { location: new URL('https://app.example/profile') },
-        testHtmx: htmx,
-        testValidationService: ValidationService,
-    });
-    const hook = registerHooks({
-        resolve(specifier, context, nextResolve) {
-            if (specifier === 'htmx.org')
-                return { shortCircuit: true, url: 'data:text/javascript,export default globalThis.testHtmx' };
-            if (specifier === 'aspnet-client-validation')
-                return {
-                    shortCircuit: true,
-                    url: 'data:text/javascript,export const ValidationService = globalThis.testValidationService',
-                };
-            return nextResolve(specifier, context);
+beforeAll(async () => {
+    installBrowserGlobals(
+        {
+            document,
+            Element,
+            window: { location: new URL('https://app.example/profile') },
         },
-    });
-    await import('../../../lib/htmx/htmxBundle.ts').finally(() => hook.deregister());
+        afterAll,
+    );
+    vi.doMock('htmx.org', () => ({ default: htmx }));
+    vi.doMock('aspnet-client-validation', () => ({ ValidationService }));
+    await import('../../../lib/htmx/htmxBundle.ts');
 });
 
 test('bundle configures HTMX, exposes onmount and aborts requests only on removed elements', async () => {
@@ -65,7 +54,7 @@ test('bundle configures HTMX, exposes onmount and aborts requests only on remove
     assert.deepEqual(events, [[removed, 'htmx:abort']]);
 });
 
-test('safe-nonce requires the header and all effective CSP nonce lists to agree', (t) => {
+test('safe-nonce requires the header and all effective CSP nonce lists to agree', () => {
     const transform = extensions.get('safe-nonce')?.transformResponse;
     assert.ok(transform);
     const candidates = ['header', 'policy', '', null];
@@ -91,7 +80,7 @@ test('safe-nonce requires the header and all effective CSP nonce lists to agree'
             };
         }
     }
-    installBrowserGlobals(t, { DOMParser: Parser });
+    installBrowserGlobals({ DOMParser: Parser });
     const policy = "default-src 'self'; script-src 'nonce-policy'";
     for (const [responseURL, header, csp, allowed] of [
         ['/same-origin', 'header', null, ['header']],
@@ -126,26 +115,26 @@ test('safe-nonce requires the header and all effective CSP nonce lists to agree'
     }
 });
 
-test('safe-nonce returns an empty response when filtering throws', (t) => {
+test('safe-nonce returns an empty response when filtering throws', () => {
     const transform = extensions.get('safe-nonce')!.transformResponse;
     class Parser {
         parseFromString() {
             throw new Error('parser unavailable');
         }
     }
-    installBrowserGlobals(t, { DOMParser: Parser });
+    installBrowserGlobals({ DOMParser: Parser });
     assert.equal(transform('<script></script>', { responseURL: '/swap', getResponseHeader: () => null }), '');
 });
 
-test('validation waits for the body and releases removed form indexes without dropping surviving fields', (t) => {
+test('validation waits for the body and releases removed form indexes without dropping surviving fields', () => {
     assert.deepEqual(bootstrapCalls, []);
     document.dispatchEvent(new Event('DOMContentLoaded'));
     assert.deepEqual(bootstrapCalls, [{ root: document.body, watch: true }]);
     const detached = new Element();
     const kept = new Element();
-    const removedField = t.mock.fn();
-    const removedForm = t.mock.fn();
-    const retainedHandler = t.mock.fn();
+    const removedField = vi.fn();
+    const removedForm = vi.fn();
+    const retainedHandler = vi.fn();
     const indexes = {
         elementUIDs: [
             { node: detached, uid: 'old' },
@@ -171,7 +160,7 @@ test('validation waits for the body and releases removed form indexes without dr
     assert.deepEqual(indexes.validators, { kept: {} });
     assert.deepEqual(indexes.summary, {});
     assert.deepEqual(indexes.messageFor, { mixed: {} });
-    assert.equal(removedField.mock.callCount(), 1);
-    assert.equal(removedForm.mock.callCount(), 1);
-    assert.equal(retainedHandler.mock.callCount(), 0);
+    assert.equal(removedField.mock.calls.length, 1);
+    assert.equal(removedForm.mock.calls.length, 1);
+    assert.equal(retainedHandler.mock.calls.length, 0);
 });

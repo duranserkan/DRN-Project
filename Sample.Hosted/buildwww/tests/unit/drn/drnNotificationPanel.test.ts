@@ -1,5 +1,5 @@
+import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
-import test, { type TestContext } from 'node:test';
 import panel from '../../../app/ts/drn/drnNotificationPanel.ts';
 import { installBrowserGlobals } from '../browserGlobals.ts';
 
@@ -46,7 +46,7 @@ class PanelControl extends EventTarget {
     }
 }
 
-function fixture(t: TestContext) {
+function fixture() {
     const list = new PanelControl();
     const search = new PanelControl();
     const result = new PanelControl();
@@ -103,7 +103,7 @@ function fixture(t: TestContext) {
     let entries = [...original];
     const store = {
         list: () => entries,
-        subscribe: t.mock.fn(),
+        subscribe: vi.fn(),
         dismiss(ids: string[]) {
             entries = entries.filter((entry) => !ids.includes(entry.id));
         },
@@ -116,7 +116,7 @@ function fixture(t: TestContext) {
             entries.push(...restored);
         },
     };
-    installBrowserGlobals(t, { Element: PanelControl, document, window: { DRN: { Notifications: store } } });
+    installBrowserGlobals({ Element: PanelControl, document, window: { DRN: { Notifications: store } } });
     function click(control: PanelControl) {
         const event = new Event('click');
         Object.defineProperty(event, 'target', { value: control });
@@ -125,8 +125,8 @@ function fixture(t: TestContext) {
     return { list, result, undo, clearAll, clearFiltered, live, filter, store, click, open, badge };
 }
 
-test('group details are built on expansion and retain occurrence-specific diagnostic references', (t) => {
-    const view = fixture(t);
+test('group details are built on expansion and retain occurrence-specific diagnostic references', () => {
+    const view = fixture();
     panel.refresh(true);
     assert.equal(view.result.textContent, '3 notifications in 2 groups. Newest first.');
     const group = view.list.children[0];
@@ -144,11 +144,11 @@ test('group details are built on expansion and retain occurrence-specific diagno
     assert.deepEqual(references(), ['server-1', 'client-1', 'server-2', 'client-1']);
 });
 
-test('filtered dismissal preserves other severities and undo restores only the subsequent clear', (t) => {
-    const view = fixture(t);
+test('filtered dismissal preserves other severities and undo restores only the subsequent clear', () => {
+    const view = fixture();
     panel.install();
     panel.install();
-    assert.equal(view.store.subscribe.mock.callCount(), 1);
+    assert.equal(view.store.subscribe.mock.calls.length, 1);
     assert.equal(view.open.attributes.get('aria-label'), 'Notifications, 3 unseen');
     view.click(view.filter);
     assert.equal(view.filter.attributes.get('aria-pressed'), 'true');

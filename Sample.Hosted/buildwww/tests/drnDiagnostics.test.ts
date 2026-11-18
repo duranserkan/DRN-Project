@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import cases from '../../../DRN.Test.Unit/Tests/Framework/Utils/Logging/diagnostic-golden-cases.json' with { type: 'json' };
 import { createDiagnosticSanitizer, REDACTED, LIMITED } from '../app/ts/drn/drnDiagnostics.ts';

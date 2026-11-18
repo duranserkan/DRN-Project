@@ -1,10 +1,9 @@
-import test, { type TestContext } from 'node:test';
+import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
-import type errorHandler from '../app/ts/drn/drnErrorHandler.ts';
 import { installBrowserGlobals } from './unit/browserGlobals.ts';
 import { createNotificationStore } from '../app/ts/drn/drnNotifications.ts';
 
-async function fixture(t: TestContext) {
+async function fixture() {
     const reports: { url: string; body: Blob }[] = [];
     type Published = Required<
         Pick<Parameters<IDRN['Notifications']['publish']>[0], 'clientErrorId' | 'message' | 'clientErrorDetails'>
@@ -23,7 +22,7 @@ async function fixture(t: TestContext) {
         duringPublish: null as (() => void) | null,
     };
     let timestamp = Date.now();
-    t.mock.method(Date, 'now', () => timestamp);
+    vi.spyOn(Date, 'now').mockImplementation(() => timestamp);
     const window = {
         location: { href: 'https://sample.test/action' },
         addEventListener: (name: keyof typeof listeners, listener: Listener) => {
@@ -47,7 +46,7 @@ async function fixture(t: TestContext) {
             },
         },
     };
-    installBrowserGlobals(t, {
+    installBrowserGlobals({
         window,
         document: {
             querySelector: (selector: string) =>
@@ -69,9 +68,8 @@ async function fixture(t: TestContext) {
         },
     });
     // The module owns the report window and deduplication cache for one page lifetime.
-    const url = new URL('../app/ts/drn/drnErrorHandler.ts', import.meta.url);
-    url.searchParams.set('test', t.name);
-    const { default: handler }: { default: typeof errorHandler } = await import(url.href);
+    vi.resetModules();
+    const { default: handler } = await import('../app/ts/drn/drnErrorHandler.ts');
     handler.install();
     const nextWindow = () => {
         timestamp += 60001;
@@ -79,8 +77,8 @@ async function fixture(t: TestContext) {
     return { handler, state, reports, notifications, toasts, listeners, window, nextWindow };
 }
 
-test('action and global errors share safe notification references and suppress duplicates', async (t) => {
-    const { handler, reports, notifications, toasts, listeners } = await fixture(t);
+test('action and global errors share safe notification references and suppress duplicates', async () => {
+    const { handler, reports, notifications, toasts, listeners } = await fixture();
     listeners.error({ message: 'Background failure', filename: 'background.js' });
     listeners.unhandledrejection({ reason: new Error('Background rejection') });
     assert.equal(reports.length, 2);
@@ -116,8 +114,8 @@ test('action and global errors share safe notification references and suppress d
     assert.equal(toasts[0]!.record, false);
 });
 
-test('failed transport preserves feedback and inactive accounts suppress reporting', async (t) => {
-    const { handler, state, reports, notifications, listeners } = await fixture(t);
+test('failed transport preserves feedback and inactive accounts suppress reporting', async () => {
+    const { handler, state, reports, notifications, listeners } = await fixture();
     state.transportFails = true;
     const offline = handler.reportActionError(new Error('Offline'), { operation: 'Save' });
     assert.ok(offline);
@@ -133,8 +131,8 @@ test('failed transport preserves feedback and inactive accounts suppress reporti
     assert.equal(notifications.length, 1);
 });
 
-test('actions and global errors share the rate limit and recover in the next window', async (t) => {
-    const { handler, reports, notifications, listeners, toasts, state, nextWindow } = await fixture(t);
+test('actions and global errors share the rate limit and recover in the next window', async () => {
+    const { handler, reports, notifications, listeners, toasts, state, nextWindow } = await fixture();
     for (let i = 0; i < 4; i++) listeners.error({ message: 'Failure ' + i });
     assert.ok(handler.reportActionError(new Error('Fifth failure'), { operation: 'Save' }));
     assert.equal(new Set(notifications.map((entry) => entry.clientErrorId)).size, 5);
@@ -150,8 +148,8 @@ test('actions and global errors share the rate limit and recover in the next win
     assert.equal(toasts.length, 6);
 });
 
-test('broken renderers and reentrant global errors do not interrupt subsequent reports', async (t) => {
-    const { state, reports, notifications, listeners, window } = await fixture(t);
+test('broken renderers and reentrant global errors do not interrupt subsequent reports', async () => {
+    const { state, reports, notifications, listeners, window } = await fixture();
     state.publishFails = true;
     assert.doesNotThrow(() => listeners.error({ message: 'Broken notification UI' }));
     assert.equal(reports.length, 1);
@@ -181,8 +179,8 @@ test('broken renderers and reentrant global errors do not interrupt subsequent r
     assert.equal(notifications.length, 2);
 });
 
-test('startup feedback follows the store owner on account binding', async (t) => {
-    const { window, reports, listeners, nextWindow } = await fixture(t);
+test('startup feedback follows the store owner on account binding', async () => {
+    const { window, reports, listeners, nextWindow } = await fixture();
     for (const owner of ['account-a', 'anonymous', '']) {
         nextWindow();
         const store = createNotificationStore({ locks: null, storage: () => null });
@@ -198,8 +196,8 @@ test('startup feedback follows the store owner on account binding', async (t) =>
     }
 });
 
-test('anonymous and missing owners suppress reports', async (t) => {
-    const { state, handler, listeners, reports, nextWindow } = await fixture(t);
+test('anonymous and missing owners suppress reports', async () => {
+    const { state, handler, listeners, reports, nextWindow } = await fixture();
     for (const owner of ['anonymous', '']) {
         state.reportOwner = owner;
         nextWindow();
@@ -210,8 +208,8 @@ test('anonymous and missing owners suppress reports', async (t) => {
     }
 });
 
-test('actions tolerate missing or failing feedback services', async (t) => {
-    const { state, handler, window, listeners } = await fixture(t);
+test('actions tolerate missing or failing feedback services', async () => {
+    const { state, handler, window, listeners } = await fixture();
     state.publishFails = true;
     assert.equal(handler.reportActionError(new Error('Original failure'), { operation: 'Save' }), null);
     state.publishFails = false;
@@ -225,8 +223,8 @@ test('actions tolerate missing or failing feedback services', async (t) => {
     assert.equal(handler.reportActionError(new Error('Original failure'), { operation: 'Save' }), null);
 });
 
-test('UTF-8 and JSON escaping stay within the byte budget on both transports', async (t) => {
-    const { state, handler, window, reports, notifications, listeners, nextWindow } = await fixture(t);
+test('UTF-8 and JSON escaping stay within the byte budget on both transports', async () => {
+    const { state, handler, window, reports, notifications, listeners, nextWindow } = await fixture();
     for (const accepted of [true, false]) {
         state.beaconAccepted = accepted;
         for (const character of ['a', '界', '😀', '\u0001']) {
@@ -258,8 +256,8 @@ test('UTF-8 and JSON escaping stay within the byte budget on both transports', a
     }
 });
 
-test('action and global diagnostics redact URL secrets and report truncation', async (t) => {
-    const { handler, window, reports, notifications, listeners } = await fixture(t);
+test('action and global diagnostics redact URL secrets and report truncation', async () => {
+    const { handler, window, reports, notifications, listeners } = await fixture();
     window.location.href = 'https://sample.test/action?token=url-probe#access_token=fragment-probe';
     Object.assign(globalThis.navigator, { userAgent: 'test' });
     const sensitive = new Error(
@@ -292,8 +290,8 @@ test('action and global diagnostics redact URL secrets and report truncation', a
     assert.equal((await reports.at(-1)!.body.text()).includes('url-probe'), false);
 });
 
-test('persisted diagnostic history reloads with URL secrets removed', async (t) => {
-    const { handler, window, listeners } = await fixture(t);
+test('persisted diagnostic history reloads with URL secrets removed', async () => {
+    const { handler, window, listeners } = await fixture();
     window.location.href = 'https://sample.test/action?token=url-probe#access_token=fragment-probe';
     const cache = new Map<string, string>();
     const storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> = {
@@ -321,8 +319,8 @@ test('persisted diagnostic history reloads with URL secrets removed', async (t) 
     );
 });
 
-test('oversized action errors keep the local message prefix and limit the server report', async (t) => {
-    const { handler, reports } = await fixture(t);
+test('oversized action errors keep the local message prefix and limit the server report', async () => {
+    const { handler, reports } = await fixture();
     const prefix = '0123456789'.repeat(50);
     const message = prefix.padEnd(65_537, 'x');
     const record = handler.reportActionError(new Error(message), { operation: 'Save' });
@@ -337,8 +335,8 @@ test('oversized action errors keep the local message prefix and limit the server
     assert.equal(payload.diagnosticLimited, true);
 });
 
-test('local action fallback and stack-heading checks use only the displayed prefix', async (t) => {
-    const { handler, reports } = await fixture(t);
+test('local action fallback and stack-heading checks use only the displayed prefix', async () => {
+    const { handler, reports } = await fixture();
     const visible = 'x'.repeat(500);
     const blank = ' '.repeat(500);
     const frame = '    at save (app.js:5:23)';
@@ -359,8 +357,8 @@ test('local action fallback and stack-heading checks use only the displayed pref
     assert.equal(oversizedReport.diagnosticLimited, true);
 });
 
-test('action messages normalize unusual thrown values', async (t) => {
-    const { handler, reports, nextWindow } = await fixture(t);
+test('action messages normalize unusual thrown values', async () => {
+    const { handler, reports, nextWindow } = await fixture();
     for (const [error, expected] of [
         [0, '0'],
         [false, 'false'],
@@ -389,8 +387,8 @@ test('action messages normalize unusual thrown values', async (t) => {
     }
 });
 
-test('action and global handlers capture and format stack frames once', async (t) => {
-    const { handler, listeners, reports, notifications, nextWindow } = await fixture(t);
+test('action and global handlers capture and format stack frames once', async () => {
+    const { handler, listeners, reports, notifications, nextWindow } = await fixture();
     for (const mode of ['action', 'error', 'unhandledrejection']) {
         for (const [stack, hasFrames, displayedStack = stack] of [
             ['', false],

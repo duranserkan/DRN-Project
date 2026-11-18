@@ -1,4 +1,4 @@
-import test, { type TestContext } from 'node:test';
+import { onTestFinished, test, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import { importStatusMessages, installNotificationEvents } from '../app/ts/drn/drnNotificationEvents.ts';
 import { createNotificationStore } from '../app/ts/drn/drnNotifications.ts';
@@ -26,10 +26,10 @@ function response(status = 200, contentType = 'text/html', headers: Record<strin
 }
 
 // Test our event policy with real EventTargets and store. Browser tests own DOM and HTMX integration.
-function fixture(
-    t: TestContext,
-    { start = true, statuses = [] }: { start?: boolean; statuses?: ReturnType<typeof statusElement>[] } = {},
-) {
+function fixture({
+    start = true,
+    statuses = [],
+}: { start?: boolean; statuses?: ReturnType<typeof statusElement>[] } = {}) {
     const marker = { dataset: { notificationApp: '/app/', notificationOwner: 'account-a' } };
     const document = Object.assign(new EventTarget(), {
         readyState: 'loading',
@@ -67,9 +67,9 @@ function fixture(
     });
     const DRN = {
         Notifications: store,
-        ErrorHandler: { reportActionError: t.mock.fn() },
-        Problem: { ...problem, show: t.mock.fn(), clear: t.mock.fn(), clearAll: t.mock.fn() },
-        Toast: { show: t.mock.fn(), cleanup: t.mock.fn() },
+        ErrorHandler: { reportActionError: vi.fn() },
+        Problem: { ...problem, show: vi.fn(), clear: vi.fn(), clearAll: vi.fn() },
+        Toast: { show: vi.fn(), cleanup: vi.fn() },
     };
     for (const [name, value] of Object.entries({
         document,
@@ -80,7 +80,7 @@ function fixture(
     })) {
         const original = Object.getOwnPropertyDescriptor(globalThis, name);
         Object.defineProperty(globalThis, name, { configurable: true, writable: true, value });
-        t.after(() => {
+        onTestFinished(() => {
             if (original) Object.defineProperty(globalThis, name, original);
             else Reflect.deleteProperty(globalThis, name);
         });
@@ -95,36 +95,36 @@ function fixture(
     return { emit, window, marker, statuses, store, timers, channels, ...DRN };
 }
 
-test('storage refresh follows the configured application and malformed request URLs stay out of feedback', (t) => {
-    const { emit, window, store, Problem } = fixture(t);
-    const sync = t.mock.method(store, 'sync');
+test('storage refresh follows the configured application and malformed request URLs stay out of feedback', () => {
+    const { emit, window, store, Problem } = fixture();
+    const sync = vi.spyOn(store, 'sync');
     for (const [key, expectedCalls] of [
         ['drn.notifications.v1:/other/', 0],
         ['drn.notifications.v1:/app/', 1],
         [null, 2],
     ] as const) {
         window.dispatchEvent(Object.assign(new Event('storage'), { key }));
-        assert.equal(sync.mock.callCount(), expectedCalls);
+        assert.equal(sync.mock.calls.length, expectedCalls);
     }
     const detail = response(422, 'application/problem+json');
     Object.assign(detail.requestConfig, { path: 'https://[?private=value' });
     emit('htmx:beforeSwap', detail);
-    assert.equal(Problem.show.mock.calls[0]?.arguments[1].operation, 'Request');
+    assert.equal(Problem.show.mock.calls[0]?.[1].operation, 'Request');
 });
 
-test('initial account binding preserves requests started before DOMContentLoaded', (t) => {
-    const { emit, Problem } = fixture(t, { start: false });
+test('initial account binding preserves requests started before DOMContentLoaded', () => {
+    const { emit, Problem } = fixture({ start: false });
     const detail = response();
     emit('htmx:beforeRequest', detail);
     emit('DOMContentLoaded');
 
     assert.equal(emit('htmx:beforeOnLoad', detail).defaultPrevented, false);
     emit('htmx:afterRequest', detail);
-    assert.equal(Problem.clear.mock.callCount(), 1);
+    assert.equal(Problem.clear.mock.calls.length, 1);
 });
 
-test('an account change rejects old responses before headers and still accepts new responses', (t) => {
-    const { emit, marker, Problem, Toast } = fixture(t);
+test('an account change rejects old responses before headers and still accepts new responses', () => {
+    const { emit, marker, Problem, Toast } = fixture();
     const previous = response();
     emit('htmx:beforeRequest', previous);
     marker.dataset.notificationOwner = 'account-b';
@@ -136,20 +136,20 @@ test('an account change rejects old responses before headers and still accepts n
     emit('htmx:responseError', previous);
     emit('htmx:afterRequest', previous);
     assert.equal(previous.shouldSwap, false);
-    assert.equal(Problem.show.mock.callCount(), 0);
-    assert.equal(Problem.clear.mock.callCount(), 0);
-    assert.equal(Toast.show.mock.callCount(), 0);
+    assert.equal(Problem.show.mock.calls.length, 0);
+    assert.equal(Problem.clear.mock.calls.length, 0);
+    assert.equal(Toast.show.mock.calls.length, 0);
 
     const current = response();
     emit('htmx:beforeRequest', current);
     assert.equal(emit('htmx:beforeOnLoad', current).defaultPrevented, false);
     emit('htmx:afterRequest', current);
-    assert.equal(Problem.clear.mock.callCount(), 1);
+    assert.equal(Problem.clear.mock.calls.length, 1);
 });
 
 for (const invalidation of ['cross-tab account change', 'store suspension']) {
-    test(`${invalidation} blocks tracked/untracked responses, requests and status imports across refreshes`, (t) => {
-        const { emit, window, channels, store, statuses, Problem, Toast } = fixture(t);
+    test(`${invalidation} blocks tracked/untracked responses, requests and status imports across refreshes`, () => {
+        const { emit, window, channels, store, statuses, Problem, Toast } = fixture();
         store.publish({ message: 'Account A feedback' });
         const pending = response(500, 'application/problem+json');
         emit('htmx:beforeRequest', pending);
@@ -173,15 +173,15 @@ for (const invalidation of ['cross-tab account change', 'store suspension']) {
             emit('htmx:responseError', detail);
         }
         emit('htmx:afterRequest', response());
-        assert.equal(Problem.show.mock.callCount(), 0);
-        assert.equal(Problem.clear.mock.callCount(), 0);
-        assert.equal(Toast.show.mock.callCount(), 0);
-        assert.equal(Problem.clearAll.mock.callCount(), 2);
+        assert.equal(Problem.show.mock.calls.length, 0);
+        assert.equal(Problem.clear.mock.calls.length, 0);
+        assert.equal(Toast.show.mock.calls.length, 0);
+        assert.equal(Problem.clearAll.mock.calls.length, 2);
     });
 }
 
-test('restoring a page recreates one timer and channel without replaying inline status', (t) => {
-    const { emit, window, channels, timers, store } = fixture(t, {
+test('restoring a page recreates one timer and channel without replaying inline status', () => {
+    const { emit, window, channels, timers, store } = fixture({
         statuses: [statusElement('a'.repeat(32), 'Profile updated')],
     });
     window.dispatchEvent(new Event('pagehide'));
@@ -195,8 +195,8 @@ test('restoring a page recreates one timer and channel without replaying inline 
     assert.equal(store.list().length, 1);
 });
 
-test('Problem Details suppresses toast headers and presents one failure across HTMX callbacks', (t) => {
-    const { emit, Problem, Toast, ErrorHandler } = fixture(t);
+test('Problem Details suppresses toast headers and presents one failure across HTMX callbacks', () => {
+    const { emit, Problem, Toast, ErrorHandler } = fixture();
     const detail = response(409, ' Application/Problem+Json; charset=utf-8 ');
     detail.xhr.responseText = JSON.stringify({ title: 'Category is in use' });
     emit('htmx:beforeOnLoad', detail);
@@ -207,11 +207,11 @@ test('Problem Details suppresses toast headers and presents one failure across H
 
     assert.equal(detail.shouldSwap, false);
     assert.equal(detail.isError, true);
-    assert.equal(Problem.show.mock.callCount(), 1);
-    assert.equal(Problem.show.mock.calls[0]!.arguments[0]!.title, 'Category is in use');
-    assert.equal(ErrorHandler.reportActionError.mock.callCount(), 0);
-    assert.equal(Problem.clear.mock.callCount(), 0);
-    assert.equal(Toast.show.mock.callCount(), 0);
+    assert.equal(Problem.show.mock.calls.length, 1);
+    assert.equal(Problem.show.mock.calls[0]![0]!.title, 'Category is in use');
+    assert.equal(ErrorHandler.reportActionError.mock.calls.length, 0);
+    assert.equal(Problem.clear.mock.calls.length, 0);
+    assert.equal(Toast.show.mock.calls.length, 0);
 });
 
 for (const [status, contentType, marker, allowed] of [
@@ -221,8 +221,8 @@ for (const [status, contentType, marker, allowed] of [
     [422, 'text/plain', 'true', false],
     [500, 'text/html', 'true', false],
 ] as const) {
-    test(`validation swap policy: ${status}, ${contentType}, marker ${marker}`, (t) => {
-        const { emit } = fixture(t);
+    test(`validation swap policy: ${status}, ${contentType}, marker ${marker}`, () => {
+        const { emit } = fixture();
         const detail = response(status, contentType, { 'X-DRN-Validation': marker });
         emit('htmx:beforeSwap', detail);
         assert.equal(detail.shouldSwap, allowed);
@@ -234,33 +234,33 @@ for (const [event, title] of [
     ['htmx:sendError', 'Connection lost'],
     ['htmx:timeout', 'The request timed out'],
 ] as const) {
-    test(`${event} gives recovery guidance once`, (t) => {
-        const { emit, Problem, ErrorHandler } = fixture(t);
+    test(`${event} gives recovery guidance once`, () => {
+        const { emit, Problem, ErrorHandler } = fixture();
         const detail = response(0, '');
         emit(event, detail);
         emit('htmx:responseError', detail);
-        assert.equal(Problem.show.mock.callCount(), 0);
-        assert.equal(ErrorHandler.reportActionError.mock.callCount(), 1);
-        assert.equal(ErrorHandler.reportActionError.mock.calls[0]!.arguments[0]!.message, title);
+        assert.equal(Problem.show.mock.calls.length, 0);
+        assert.equal(ErrorHandler.reportActionError.mock.calls.length, 1);
+        assert.equal(ErrorHandler.reportActionError.mock.calls[0]![0]!.message, title);
     });
 }
 
-test('intentional request aborts do not show failures', (t) => {
-    const { emit, Problem } = fixture(t);
+test('intentional request aborts do not show failures', () => {
+    const { emit, Problem } = fixture();
     emit('htmx:sendAbort', response(0, ''));
-    assert.equal(Problem.show.mock.callCount(), 0);
+    assert.equal(Problem.show.mock.calls.length, 0);
 });
 
-test('background request failures stay silent and explicit action opt-in gets a client reference', (t) => {
-    const { emit, Problem, ErrorHandler, Toast } = fixture(t);
+test('background request failures stay silent and explicit action opt-in gets a client reference', () => {
+    const { emit, Problem, ErrorHandler, Toast } = fixture();
     for (const event of ['htmx:responseError', 'htmx:sendError', 'htmx:timeout']) {
         emit(event, { ...response(500), requestConfig: {} });
     }
     emit('htmx:beforeOnLoad', { ...response(500), requestConfig: {} });
     emit('showToast', { type: 'error', message: 'Background failure' });
-    assert.equal(Problem.show.mock.callCount(), 0);
-    assert.equal(ErrorHandler.reportActionError.mock.callCount(), 0);
-    assert.equal(Toast.show.mock.callCount(), 0);
+    assert.equal(Problem.show.mock.calls.length, 0);
+    assert.equal(ErrorHandler.reportActionError.mock.calls.length, 0);
+    assert.equal(Toast.show.mock.calls.length, 0);
 
     emit('htmx:sendError', {
         ...response(0),
@@ -273,11 +273,11 @@ test('background request failures stay silent and explicit action opt-in gets a 
             },
         },
     });
-    assert.equal(ErrorHandler.reportActionError.mock.callCount(), 1);
+    assert.equal(ErrorHandler.reportActionError.mock.calls.length, 1);
 });
 
-test('explicit background marking suppresses even a trusted action event', (t) => {
-    const { emit, Problem, ErrorHandler } = fixture(t);
+test('explicit background marking suppresses even a trusted action event', () => {
+    const { emit, Problem, ErrorHandler } = fixture();
     const requestConfig = {
         triggeringEvent: { isTrusted: true },
         elt: {
@@ -289,13 +289,13 @@ test('explicit background marking suppresses even a trusted action event', (t) =
     };
     emit('htmx:responseError', { ...response(500), requestConfig });
     emit('htmx:timeout', { ...response(0), requestConfig });
-    assert.equal(Problem.show.mock.callCount(), 0);
-    assert.equal(ErrorHandler.reportActionError.mock.callCount(), 0);
+    assert.equal(Problem.show.mock.calls.length, 0);
+    assert.equal(ErrorHandler.reportActionError.mock.calls.length, 0);
 });
 
 for (const contentType of ['application/json', 'text/html; charset=utf-8', 'text/plain']) {
-    test(`a non-problem ${contentType} error toast owns feedback once and preserves request privacy`, (t) => {
-        const { emit, Problem, Toast, ErrorHandler } = fixture(t);
+    test(`a non-problem ${contentType} error toast owns feedback once and preserves request privacy`, () => {
+        const { emit, Problem, Toast, ErrorHandler } = fixture();
         const element = {
             closest: (selector: string) =>
                 selector === '[data-notification-persist]'
@@ -314,42 +314,42 @@ for (const contentType of ['application/json', 'text/html; charset=utf-8', 'text
         emit('htmx:responseError', detail);
         emit('showToast', { type: 'error', message: 'Duplicate message' });
 
-        assert.equal(Toast.show.mock.callCount(), 1);
-        assert.equal(ErrorHandler.reportActionError.mock.callCount(), 0);
-        assert.deepEqual(Toast.show.mock.calls[0]!.arguments[0], {
+        assert.equal(Toast.show.mock.calls.length, 1);
+        assert.equal(ErrorHandler.reportActionError.mock.calls.length, 0);
+        assert.deepEqual(Toast.show.mock.calls[0]![0], {
             type: 'error',
             message: 'Category is in use',
             duration: 9000,
             persist: false,
             operation: 'Remove category',
         });
-        assert.equal(Problem.show.mock.callCount(), 0);
+        assert.equal(Problem.show.mock.calls.length, 0);
     });
 }
 
 for (const message of ['', '   ', null, 42]) {
-    test(`an unusable toast message (${JSON.stringify(message)}) keeps the generic failure`, (t) => {
-        const { emit, Problem, Toast } = fixture(t);
+    test(`an unusable toast message (${JSON.stringify(message)}) keeps the generic failure`, () => {
+        const { emit, Problem, Toast } = fixture();
         const detail = response(409, 'text/plain');
         emit('htmx:beforeOnLoad', detail);
         emit('showToast', { type: 'error', message });
         emit('htmx:responseError', detail);
-        assert.equal(Toast.show.mock.callCount(), 0);
-        assert.equal(Problem.show.mock.callCount(), 1);
+        assert.equal(Toast.show.mock.calls.length, 0);
+        assert.equal(Problem.show.mock.calls.length, 1);
     });
 }
 
-test('toast events outside their response processing are ignored', async (t) => {
-    const { emit, Toast } = fixture(t);
+test('toast events outside their response processing are ignored', async () => {
+    const { emit, Toast } = fixture();
     emit('showToast', { message: 'Uncorrelated feedback' });
     emit('htmx:beforeOnLoad', response());
     await Promise.resolve();
     emit('showToast', { message: 'Delayed feedback' });
-    assert.equal(Toast.show.mock.callCount(), 0);
+    assert.equal(Toast.show.mock.calls.length, 0);
 });
 
-test('request context retains the operation path without sensitive query parameters', (t) => {
-    const { emit, Problem } = fixture(t);
+test('request context retains the operation path without sensitive query parameters', () => {
+    const { emit, Problem } = fixture();
     emit('htmx:responseError', {
         ...response(500),
         requestConfig: {
@@ -358,7 +358,7 @@ test('request context retains the operation path without sensitive query paramet
             triggeringEvent: { isTrusted: true },
         },
     });
-    assert.equal(Problem.show.mock.calls[0]!.arguments[1]!.operation, 'POST /app/profile');
+    assert.equal(Problem.show.mock.calls[0]![1]!.operation, 'POST /app/profile');
 });
 
 test('status import survives stored history and does not resurrect dismissed messages or merge later actions', () => {

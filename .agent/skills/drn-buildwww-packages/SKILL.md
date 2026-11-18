@@ -1,7 +1,7 @@
 ---
 name: drn-buildwww-packages
 description: "Select and update DRN frontend dependencies. Use for npm versions, lockfiles, package imports, and tooling."
-last-updated: 2026-11-13
+last-updated: 2026-11-18
 difficulty: basic
 ---
 
@@ -57,6 +57,7 @@ Inspect manifests safely. Every npm command below, including dry runs and regist
 CI restores dependencies with install scripts disabled before audit/build.
 
 ### Build & Dev Tooling
+- **vitest** and **@vitest/coverage-v8**: Run frontend unit tests and produce V8 line coverage in LCOV format.
 - **@axe-core/playwright**: Accessibility scans of rendered fixture states and the hosted Sample home page.
 - **vite**: Frontend builds and development server.
 - **sass-embedded**: Sass compiler for SCSS.

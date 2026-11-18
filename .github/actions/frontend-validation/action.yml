@@ -17,7 +17,7 @@ inputs:
     required: false
     default: "false"
   coverage-report:
-    description: "Optional .info or .lcov report path inside the frontend package."
+    description: "Run unit tests with coverage and write an .info or .lcov report inside the frontend package, including when build-assets is false."
     required: false
 runs:
   using: "composite"
@@ -61,7 +61,7 @@ runs:
       # Keep dependency restore deterministic and prevent dependency lifecycle
       # hooks from executing in CI. The explicit build step below runs the
       # project-owned scripts after audit.
-      run: npm ci --ignore-scripts --engine-strict --registry=https://registry.npmjs.org/
+      run: npm ci --no-audit --ignore-scripts --engine-strict --registry=https://registry.npmjs.org/
     - name: Verify npm registry signatures and available provenance
       shell: bash
       working-directory: ${{ inputs.working-directory }}
@@ -76,7 +76,7 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       run: npm run build
     - name: Run frontend unit tests
-      if: ${{ inputs.build-assets != 'false' }}
+      if: ${{ inputs.build-assets != 'false' || inputs.coverage-report != '' }}
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
@@ -87,7 +87,7 @@ runs:
           npm test
         else
           npm test -- --coverage --report "$REPORT"
-          # Node emits package-relative source paths. Sonar scans the repository root.
+          # Vitest emits package-relative paths. The artifact uses repository-relative paths.
           if ! report_path="$(realpath -e -- "$REPORT")" || [[ "$report_path" != "$(pwd -P)/"* || ! -f "$report_path" || -L "$REPORT" ]]; then
             echo "::error::Expected a regular coverage report inside the package directory. The report must not be a symlink."
             exit 1
@@ -98,7 +98,7 @@ runs:
           mv -T -- "$temporary" "$report_path"
         fi
     - name: Summarize frontend line coverage
-      if: ${{ inputs.build-assets != 'false' && inputs.coverage-report != '' }}
+      if: inputs.coverage-report != ''
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:

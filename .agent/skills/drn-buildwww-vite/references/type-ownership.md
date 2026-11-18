@@ -13,7 +13,7 @@ Use JavaScript only when a tool or runtime requires it, or when a fixture specif
 | Type from a sibling module | Use an extensionless relative path. | `import type { DrnNotification } from './drnNotifications.types'` |
 | Type from another directory under `buildwww/app/ts/` | Use the extensionless `@ts/` alias. | `typeof import('@ts/drn/drnCookieManager')` |
 | Shared contract in `buildwww/types/` from outside that directory | Use extensionless `@/types/`. | `import type { IDrnDiagnostics } from '@/types/drnDiagnostics.types'` |
-| Local runtime dependency | Use a relative path with the actual file extension so direct Node tests can resolve it. | `import drnUtils from './drnUtils.ts'` |
+| Local runtime dependency | Use a relative path with the actual file extension so Vite and Node entry points can both resolve it. | `import drnUtils from './drnUtils.ts'` |
 
 Apply the type path rules to `import type`, type-only re-exports, and type queries. Apply the runtime rule to value re-exports, side-effect imports, and dynamic imports.
 

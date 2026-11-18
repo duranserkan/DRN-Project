@@ -1,19 +1,28 @@
+import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdtempDisposableSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import type { TestEvent } from 'node:test/reporters';
 import type { FullConfig, Suite } from '@playwright/test/reporter';
 import PlaywrightSummary from './playwright.ts';
-import nodeSummary from './node.ts';
+import VitestSummary from './vitest.ts';
 import { testSummary } from './summary.ts';
 
-test('a clean run fits on one terminal line', (t) => {
-    t.mock.property(process, 'env', { ...process.env });
-    delete process.env.GITHUB_STEP_SUMMARY;
+function finishVitestRun(reporter: VitestSummary, ...args: Parameters<VitestSummary['onTestRunEnd']>) {
+    const previous = process.exitCode;
+    try {
+        process.exitCode = 0;
+        reporter.onTestRunEnd(...args);
+        return process.exitCode;
+    } finally {
+        process.exitCode = previous;
+    }
+}
+
+test('a clean run fits on one terminal line', () => {
+    vi.stubEnv('GITHUB_STEP_SUMMARY', undefined);
     const summary = testSummary(
         'Frontend browser tests (Playwright)',
         true,
@@ -47,39 +56,62 @@ test('Playwright --list discovers tests without reading coverage or publishing a
     assert.equal(readFileSync(jobSummary, 'utf8'), '');
 });
 
-test('Node reports aggregate counts and escapes failure details in the GitHub summary', async (t) => {
-    using directory = mkdtempDisposableSync(join(tmpdir(), 'node-summary-'));
+test('Vitest reports aggregate counts and escapes failure details in the GitHub summary', () => {
+    using directory = mkdtempDisposableSync(join(tmpdir(), 'vitest-summary-'));
     const jobSummary = join(directory.path, 'summary.md');
-    t.mock.property(process, 'env', { ...process.env, GITHUB_STEP_SUMMARY: jobSummary });
-    async function* events() {
-        yield {
-            type: 'test:fail',
-            data: { name: '<test>', details: { duration_ms: 10, error: new Error('unexpected <value>') } },
-        };
-        yield {
-            type: 'test:summary',
-            data: { duration_ms: 250, counts: { tests: 4, passed: 1, skipped: 1, todo: 1 }, success: false },
-        };
-    }
-    const output: string[] = [];
-    for await (const summary of nodeSummary(events() as AsyncIterable<TestEvent>)) output.push(summary);
-    assert.equal(output.length, 1);
-    assert.equal(output[0]?.trim(), '❌ Frontend units (Node.js) | 1/4 passed, 1 failed, 2 skipped in 0.25s');
+    vi.stubEnv('GITHUB_STEP_SUMMARY', jobSummary);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(0);
+    const reporter = new VitestSummary();
+    reporter.onTestRunStart();
+    clock.mockReturnValue(250);
+    const tests = ['passed', 'failed', 'skipped', 'skipped'].map((state) => ({
+        fullName: '<test>',
+        result: () => ({ state, errors: [{ message: 'unexpected <value>' }] }),
+        diagnostic: () => ({ duration: 10 }),
+    }));
+    const modules = [{ errors: () => [], children: { allTests: () => tests } }];
+    assert.equal(
+        finishVitestRun(reporter, modules as unknown as Parameters<VitestSummary['onTestRunEnd']>[0], [], 'failed'),
+        1,
+    );
+    assert.match(log.mock.calls[0]?.[0], /1\/4 passed, 1 failed, 2 skipped/);
     const markdown = readFileSync(jobSummary, 'utf8');
     assert.ok(markdown.includes('| 4 | 1 | 1 | 2 | 0 | 0.25s |'));
     assert.match(markdown, /&lt;test&gt;/);
     assert.match(markdown, /unexpected &lt;value&gt;/);
+    assert.match(markdown, /10ms/);
 });
 
-test('Playwright prints the run locally and includes only the requested coverage in the job summary', async (t) => {
+test('Vitest fails a passed run with an unhandled error or only skipped tests', () => {
+    vi.stubEnv('GITHUB_STEP_SUMMARY', undefined);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    for (const { state, errors } of [
+        { state: 'passed', errors: [{ message: 'unhandled rejection' }] },
+        { state: 'skipped', errors: [] },
+    ]) {
+        const testCase = { result: () => ({ state }), diagnostic: () => undefined };
+        const modules = [{ errors: () => [], children: { allTests: () => [testCase] } }];
+        const status = finishVitestRun(
+            new VitestSummary(),
+            modules as unknown as Parameters<VitestSummary['onTestRunEnd']>[0],
+            errors,
+            'passed',
+        );
+        assert.equal(status, 1);
+        assert.match(log.mock.calls.at(-1)?.[0], /❌ Frontend units/);
+    }
+});
+
+test('Playwright prints the run locally and includes only the requested coverage in the job summary', async () => {
     using directory = mkdtempDisposableSync(join(process.cwd(), '.frontend-reporter-'));
     const jobSummary = join(directory.path, 'summary.md');
     const report = join(directory.path, 'coverage.info');
     writeFileSync(report, 'SF:app.ts\nDA:1,1\nend_of_record\n');
-    t.mock.property(process, 'env', { ...process.env, GITHUB_STEP_SUMMARY: jobSummary });
-    delete process.env.PLAYWRIGHT_LCOV_REPORT;
-    delete process.env.FRONTEND_ACTION_SUMMARIZES_COVERAGE;
-    const log = t.mock.method(console, 'log', () => {});
+    vi.stubEnv('GITHUB_STEP_SUMMARY', jobSummary);
+    vi.stubEnv('PLAYWRIGHT_LCOV_REPORT', undefined);
+    vi.stubEnv('FRONTEND_ACTION_SUMMARIZES_COVERAGE', undefined);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
     const reporter = new PlaywrightSummary();
     const tests = [
         { outcome: () => 'expected' },
@@ -90,21 +122,21 @@ test('Playwright prints the run locally and includes only the requested coverage
     const result = { status: 'passed', startTime: new Date(), duration: 1500 } as const;
     await reporter.onEnd(result);
     const firstSummary = readFileSync(jobSummary, 'utf8');
-    assert.match(log.mock.calls[0]?.arguments[0], /1\/3 passed, 1 skipped, 1 did not run in 1\.50s/);
+    assert.match(log.mock.calls[0]?.[0], /1\/3 passed, 1 skipped, 1 did not run in 1\.50s/);
     assert.match(firstSummary, /Did not run/);
     assert.ok(firstSummary.includes('| 3 | 1 | 0 | 1 | 0 | 1 | 1.50s |'));
     assert.doesNotMatch(firstSummary, /Frontend unit coverage/);
 
     process.env.PLAYWRIGHT_LCOV_REPORT = report;
     await reporter.onEnd(result);
-    const coverage = log.mock.calls.at(-1)?.arguments[0];
+    const coverage = log.mock.calls.at(-1)?.[0];
     assert.match(coverage, /All frontend sources \| 1 \| 1 \| 100\.0%/);
     assert.ok(readFileSync(jobSummary, 'utf8').endsWith(coverage));
 
     reporter.onBegin({} as FullConfig, { allTests: () => [tests[1]] } as unknown as Suite);
     assert.deepEqual(await reporter.onEnd(result), { status: 'failed' });
-    assert.match(log.mock.calls.at(-2)?.arguments[0], /❌ .*0\/1 passed, 1 skipped/);
-    assert.equal(log.mock.calls.at(-1)?.arguments[0], coverage);
+    assert.match(log.mock.calls.at(-2)?.[0], /❌ .*0\/1 passed, 1 skipped/);
+    assert.equal(log.mock.calls.at(-1)?.[0], coverage);
 
     reporter.onBegin({} as FullConfig, { allTests: () => tests } as unknown as Suite);
     writeFileSync(report, '');
