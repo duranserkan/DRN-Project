@@ -8,24 +8,24 @@ Roles come from recognized project-name tokens. References need no matching pref
 
 | Area | Analyzer checks |
 |---|---|
-| Required references | DRNCV021 requires Hosted → Application and Infra, Infra → Domain, and Domain → Contract. At least one direct project per required role suffices. Shared and multiple dependencies are allowed. |
-| Dependency direction | DRNCV015 reports forbidden direct role references and restricted framework dependencies, including additional edges. |
-| Domain subdomains | DRNCV022 checks populated namespaces across directly referenced Domains and matches recognized concrete, closed Infra contexts/repositories by subdomain name. |
-| Ownership and placement | DRNCV001 validates generated convention inputs. DRNCV002, DRNCV003, DRNCV016, DRNCV019, DRNCV024, DRNCV025, and DRNCV028 check semantic naming, dedicated directories, domain/infrastructure placement, and cross-subdomain entity uses. |
-| Public contracts and transport | DRNCV014 reports recognized entity/persistence exposure through bounded type traversal. It does not validate serialization. |
+| Required references | DRNARCHITECTURE006 requires Hosted → Application and Infra, Infra → Domain, and Domain → Contract. At least one direct project per required role suffices. Shared and multiple dependencies are allowed. |
+| Dependency direction | DRNARCHITECTURE003 reports forbidden direct references. DRNARCHITECTURE005 reports bound uses of forbidden APIs, such as a Domain class using DbContext. |
+| Domain subdomains | DRNOWNERSHIP003 checks populated namespaces across directly referenced Domains and matches recognized concrete, closed Infra contexts/repositories by subdomain name. |
+| Ownership and placement | DRNCONVENTIONINPUT001 validates generated convention inputs. DRNOWNERSHIP001, DRNSTRUCTURE001, DRNARCHITECTURE004, DRNOWNERSHIP002, DRNSTRUCTURE004, DRNSTRUCTURE005, and DRNSTRUCTURE006 check semantic naming, dedicated directories, domain/infrastructure placement, and cross-subdomain entity uses. |
+| Public contracts and transport | DRNARCHITECTURE001 names a member whose public model exceeded the inspection limit. DRNARCHITECTURE002 reports a recognized entity or persistence type exposed by the contract. |
 
-See [architecture conventions](../DRN.Framework.SharedKernel/CONVENTIONS.md) for allowed directions, exception targets, and DRNCV018 review-expiry rules.
+See [architecture conventions](../DRN.Framework.SharedKernel/CONVENTIONS.md) for allowed directions, exception targets, and DRNCONVENTIONEXCEPTION001 review-expiry rules.
 
 ## Code level
 
 | Area | Analyzer checks |
 |---|---|
 | Entity identity | Source-Known analyzers check metadata, duplicate entity type values per application partition, constants and concrete entity bindings. |
-| Persistence | DRNCV004 through DRNCV011, DRNCV017, DRNCV020, DRNCV023, DRNCV026, DRNCV027, DRNCV029, and DRNCV030 check recognized contexts, construction, custom options naming and direct declaration, omitted base setup, declared membership/discovery, aggregate DbSets, Domain/Infra repository pairs, and migration identity. |
-| Services and DI modules | DRNCV012, DRNCV013, DRNCV031, and DRNCV032 check paired interface lifetime bindings, project `*Module` assembly scans, observed registration paths, and aggregate/repository bindings. |
-| Identity operations | DRN0014 reports provably uninitialized uses within its supported analysis. |
-| Exceptions | DRNCV018 rejects invalid, wildcarded, blank-reason, or due-review convention exceptions. |
-| SourceKnown HTTP actions | DRN0026 reports missing named policies and anonymous exposure on recognized actions. It does not verify policy registration or resource access. |
+| Persistence | DRNPERSISTENCE001 through DRNPERSISTENCE009 check context contracts, construction, provider setup, options, model configuration, DbSets and migrations. DRNSTRUCTURE rules cover naming and destinations. DRNREPOSITORY rules cover aggregate repository contracts, implementations and context bindings. |
+| Services and DI modules | DRNDEPENDENCYINJECTION001, DRNREPOSITORY002, DRNDEPENDENCYINJECTION002, and DRNDEPENDENCYINJECTION003 check paired interface lifetime bindings, project `*Module` assembly scans, observed registration paths, and aggregate/repository bindings. |
+| Identity operations | DRNENTITY014 reports provably uninitialized uses within its supported analysis. |
+| Exceptions | DRNCONVENTIONEXCEPTION001 rejects invalid, wildcarded, blank-reason, or due-review convention exceptions. |
+| SourceKnown HTTP actions | DRNAUTHORIZATION001 reports missing named policies and anonymous exposure on recognized actions. It does not verify policy registration or resource access. |
 
 Details: [identity rules](../DRN.Framework.SharedKernel/README.md) and [convention diagnostics](../DRN.Framework.SharedKernel/CONVENTION-DIAGNOSTICS.md).
 
@@ -33,7 +33,7 @@ Details: [identity rules](../DRN.Framework.SharedKernel/README.md) and [conventi
 
 Unsuppressed analyzer errors fail the build. Convention rules default to warnings; `.editorconfig` severity or warnings-as-errors can make them build gates.
 
-The guarded DRNCV005 fix adds a forwarding context options constructor when eligible. Classification fixes offer explicit annotation choices for DRN0015/DRN0018 and repair invalid exemptions for DRN0016.
+The guarded DRNPERSISTENCE001 fix adds a forwarding context options constructor when eligible. Classification fixes offer explicit annotation choices for DRNCLASSIFICATION001/DRNCLASSIFICATION004 and repair invalid exemptions for DRNCLASSIFICATION002.
 
 Optional IDE refactorings generate empty entity-configuration starting points, repository pairs, selected scalar-property DTOs with mapping, and services forwarding a selected repository method. They require supported selections, existing references where needed, and conflict checks. Aggregate and controller actions create Markdown review plans only.
 

@@ -79,7 +79,7 @@ public sealed class DiagnosticClassificationTests
         [IgnoreLog] public int ReadCount { get; protected set; }
         public virtual string Value { get { ReadCount++; return "interface-private-probe"; } }
         public string Hidden => throw new InvalidOperationException("Interface-ignored getter must not execute.");
-        [SuppressMessage("DRN.Classification", "DRN0015", Justification = "Keep the implementation unannotated to test the interface-only exemption.")]
+        [SuppressMessage("DRN.Classification", "DRNCLASSIFICATION001", Justification = "Keep the implementation unannotated to test the interface-only exemption.")]
         public string Keyboard => "layout";
         [SuppressMessage("Performance", "CA1822", Justification = "Instance property exercises reflection capture.")]
         public string Ordinary => "visible";
@@ -158,7 +158,7 @@ public sealed class DiagnosticClassificationTests
     }
 
     [Fact]
-    [SuppressMessage("DRN.Classification", "DRN0020", Justification = "Unclassified StatusCode and Password entries verify runtime policies do not infer classifications from names.")]
+    [SuppressMessage("DRN.Classification", "DRNCLASSIFICATION006", Justification = "Unclassified StatusCode and Password entries verify runtime policies do not infer classifications from names.")]
     public void Runtime_Policies_Should_Not_Trigger_Name_Matching_For_Unclassified_Values()
     {
         var sanitizer = Policy();
@@ -180,7 +180,7 @@ public sealed class DiagnosticClassificationTests
     }
 
     [Fact]
-    [SuppressMessage("DRN.Classification", "DRN0017", Justification = "Unclassified Response_StatusCode replacement verifies native copies preserve the replacement value.")]
+    [SuppressMessage("DRN.Classification", "DRNCLASSIFICATION003", Justification = "Unclassified Response_StatusCode replacement verifies native copies preserve the replacement value.")]
     public void Native_Copies_Should_Preserve_Values_Without_Destination_Name_Matching()
     {
         using var settings = SettingsProvider.Development();
@@ -445,7 +445,7 @@ public sealed class DiagnosticClassificationTests
     private sealed class InheritedExemptionModel : ExemptBaseModel;
     private sealed class UnclassifiedOverrideModel : ExemptBaseModel
     {
-        [SuppressMessage("DRN.Classification", "DRN0015", Justification = "Keep the override unannotated to test inherited exemption handling and getter failure.")]
+        [SuppressMessage("DRN.Classification", "DRNCLASSIFICATION001", Justification = "Keep the override unannotated to test inherited exemption handling and getter failure.")]
         public override string Keyboard => throw new InvalidOperationException("Must not execute");
     }
 
@@ -509,15 +509,15 @@ public sealed class DiagnosticClassificationTests
     {
         public string[] Values { get; } = ["public"];
         public Dictionary<string, object> Metadata { get; } = new() { ["Count"] = 3, ["Password"] = "private" };
-        [SuppressMessage("DRN.Classification", "DRN0019", Justification = "Unclassified anonymous JSON fixture verifies capture projects JsonElement properties instead of its payload.")]
+        [SuppressMessage("DRN.Classification", "DRNCLASSIFICATION005", Justification = "Unclassified anonymous JSON fixture verifies capture projects JsonElement properties instead of its payload.")]
         public JsonElement Json { get; } = JsonSerializer.SerializeToElement(new { Count = 3, Password = "private" },
             FixtureJsonOptions);
     }
 
     [Fact]
     [SuppressMessage("Performance", "CA1859", Justification = "Exercise interface extension dispatch to the native implementations.")]
-    [SuppressMessage("DRN.Classification", "DRN0017", Justification = "Unclassified SecretReport capture is the control for the complex-value reason overload rejection.")]
-    [SuppressMessage("DRN.Classification", "DRN0019", Justification = "Anonymous Password fixture verifies runtime fallback before reason overload rejection.")]
+    [SuppressMessage("DRN.Classification", "DRNCLASSIFICATION003", Justification = "Unclassified SecretReport capture is the control for the complex-value reason overload rejection.")]
+    [SuppressMessage("DRN.Classification", "DRNCLASSIFICATION005", Justification = "Anonymous Password fixture verifies runtime fallback before reason overload rejection.")]
     public void Reason_Overloads_Should_Exempt_Only_The_Current_Node_And_Preserve_Other_Protection()
     {
         using var settings = SettingsProvider.Development();
@@ -605,7 +605,7 @@ public sealed class DiagnosticClassificationTests
     }
 
     [Fact]
-    [SuppressMessage("DRN.Classification", "DRN0017", Justification = "Unclassified SecretTarget verifies URI credential removal independently of name matching.")]
+    [SuppressMessage("DRN.Classification", "DRNCLASSIFICATION003", Justification = "Unclassified SecretTarget verifies URI credential removal independently of name matching.")]
     public void Uri_Scalars_Should_Remove_Credentials_Without_Matching_Names_In_Copies()
     {
         var uri = new Uri("https://user:private@example.test/resetpassword/private?token=private&opaque=visible");
@@ -644,14 +644,14 @@ public sealed class DiagnosticClassificationTests
 
     private class CompanyAttribute : SensitiveAttribute;
     private sealed class ContactAttribute : PersonalAttribute;
-    [SuppressMessage("DRN.Classification", "DRN0016", Justification = "Invalid derived attribute constructor deliberately passes false to verify runtime rejection.")]
+    [SuppressMessage("DRN.Classification", "DRNCLASSIFICATION002", Justification = "Invalid derived attribute constructor deliberately passes false to verify runtime rejection.")]
     private sealed class InvalidAttribute() : SensitiveAttribute(false);
     private sealed class InvalidModel
     {
         [SuppressMessage("Performance", "CA1822", Justification = "Instance getter exercises invalid property classification.")]
         [Invalid] public string Value => throw new InvalidOperationException("Must not execute");
     }
-    [SuppressMessage("DRN.Classification", "DRN0016", Justification = "Invalid type-level exemption verifies runtime capture fails closed.")]
+    [SuppressMessage("DRN.Classification", "DRNCLASSIFICATION002", Justification = "Invalid type-level exemption verifies runtime capture fails closed.")]
     [Sensitive(false)] private sealed class InvalidType
     {
         [SuppressMessage("Performance", "CA1822", Justification = "Instance getter exercises invalid type classification.")]
@@ -665,7 +665,7 @@ public sealed class DiagnosticClassificationTests
     private sealed class DerivedModel : BaseModel
     {
         [Sensitive(false)] public override string Password => throw new InvalidOperationException("Must not execute");
-        [SuppressMessage("DRN.Classification", "DRN0015", Justification = "Keep the override unannotated to verify runtime inheritance of the base exemption.")]
+        [SuppressMessage("DRN.Classification", "DRNCLASSIFICATION001", Justification = "Keep the override unannotated to verify runtime inheritance of the base exemption.")]
         public override string Keyboard => "override must remain protected";
     }
     private sealed class Model
@@ -677,11 +677,13 @@ public sealed class DiagnosticClassificationTests
         [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies personal classification prevents reads.")]
         [Contact] public string Email => throw new InvalidOperationException("Must not execute");
         [SuppressMessage("Performance", "CA1822", Justification = "Instance getter verifies IgnoreLog prevents reads.")]
-        [SuppressMessage("DRN.Classification", "DRN0015", Justification = "Unclassified ignored token verifies IgnoreLog prevents getter execution independently of classification.")]
+        [SuppressMessage("DRN.Classification", "DRNCLASSIFICATION001", Justification = "Unclassified ignored token verifies IgnoreLog prevents getter execution independently of classification.")]
         [IgnoreLog] public string IgnoredToken => throw new InvalidOperationException("Must not execute");
         [SuppressMessage("Performance", "CA1822", Justification = "Instance property exercises nested model capture.")]
         public Detail Details => new();
-        public string PublicField = "omitted";
+#pragma warning disable CS0414 // Field is assigned but its value is never used
+        private string PublicField = "omitted";
+#pragma warning restore CS0414 // Field is assigned but its value is never used
     }
     private sealed class Detail
     {

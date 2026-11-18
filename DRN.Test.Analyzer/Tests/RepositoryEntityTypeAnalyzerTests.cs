@@ -1,6 +1,8 @@
+using static DRN.Test.Analyzer.Tests.EntityAnalyzerTestFixture;
+
 namespace DRN.Test.Analyzer.Tests;
 
-public partial class SourceKnownEntityTypeAnalyzerTests
+public sealed class RepositoryEntityTypeAnalyzerTests
 {
     private const string RepositoryTypeStubs = """
         using DRN.Framework.SharedKernel.Domain;
@@ -37,7 +39,7 @@ public partial class SourceKnownEntityTypeAnalyzerTests
 
         var diagnostics = await RunAnalyzerAsync(RepositoryTypeStubs, source);
         diagnostics.Should().HaveCount(7);
-        diagnostics.Should().OnlyContain(d => d.Id == "DRN0013" && d.Severity == DiagnosticSeverity.Error);
+        diagnostics.Should().OnlyContain(d => d.Id == "DRNENTITY013" && d.Severity == DiagnosticSeverity.Error);
         diagnostics.Should().OnlyContain(d => d.Descriptor == DiagnosticDescriptors.AbstractEntityMetadataArgument);
         diagnostics.Select(d => d.GetMessage()).Should().Contain(
             "Abstract entity 'DRN.Framework.SharedKernel.Domain.AggregateRoot' cannot be used with 'DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<DRN.Framework.SharedKernel.Domain.AggregateRoot>'; a concrete entity type is required");
@@ -68,7 +70,7 @@ public partial class SourceKnownEntityTypeAnalyzerTests
 
         var diagnostics = await RunAnalyzerWithReferenceAsync(RepositoryTypeStubs + referenced, consuming);
         diagnostics.Should().HaveCount(2);
-        diagnostics.Should().OnlyContain(d => d.Id == "DRN0013");
+        diagnostics.Should().OnlyContain(d => d.Id == "DRNENTITY013");
     }
 
     [Fact]
@@ -81,7 +83,7 @@ public partial class SourceKnownEntityTypeAnalyzerTests
 
         var diagnostics = await RunAnalyzerAsync(RepositoryTypeStubs, source);
         diagnostics.Should().HaveCount(2);
-        diagnostics.Should().OnlyContain(d => d.Id == "DRN0013");
+        diagnostics.Should().OnlyContain(d => d.Id == "DRNENTITY013");
     }
 
     [Fact]
@@ -103,7 +105,7 @@ public partial class SourceKnownEntityTypeAnalyzerTests
 
         var diagnostics = await RunAnalyzerAsync(RepositoryTypeStubs, source);
 
-        diagnostics.Should().HaveCount(3).And.OnlyContain(diagnostic => diagnostic.Id == "DRN0013");
+        diagnostics.Should().HaveCount(3).And.OnlyContain(diagnostic => diagnostic.Id == "DRNENTITY013");
         diagnostics.Select(diagnostic => diagnostic.Location.SourceSpan).Distinct().Should().HaveCount(3);
         diagnostics.Count(diagnostic => source.Substring(diagnostic.Location.SourceSpan.Start, diagnostic.Location.SourceSpan.Length) == "Invalid")
             .Should().Be(2);
@@ -153,7 +155,7 @@ public partial class SourceKnownEntityTypeAnalyzerTests
 
         var diagnostics = await RunAnalyzerAsync(source);
         diagnostics.Should().HaveCount(2);
-        diagnostics.Should().OnlyContain(d => d.Id == "DRN0013");
+        diagnostics.Should().OnlyContain(d => d.Id == "DRNENTITY013");
     }
 
     [Fact]
@@ -193,6 +195,46 @@ public partial class SourceKnownEntityTypeAnalyzerTests
 
         var diagnostics = await RunAnalyzerAsync(source);
         diagnostics.Should().HaveCount(4);
-        diagnostics.Should().OnlyContain(d => d.Id == "DRN0013");
+        diagnostics.Should().OnlyContain(d => d.Id == "DRNENTITY013");
+    }
+
+    [Fact]
+    public async Task RepositoryBindings_IdentifierUsagesThroughAliasPatternNameofAndStaticAccess_ReportDRNENTITY013()
+    {
+        const string referenced = """
+            namespace RepoDefs
+            {
+                using DRN.Framework.SharedKernel.Domain;
+                using DRN.Framework.SharedKernel.Domain.Repository;
+
+                public class ConcreteInvalidRepo : ISourceKnownRepository<AggregateRoot>
+                {
+                    public static int StaticMember => 1;
+                }
+            }
+            """;
+        const string consuming = """
+            using ConcreteAlias = RepoDefs.ConcreteInvalidRepo;
+
+            public class Consumer
+            {
+                public bool Run(object value)
+                {
+                    var aliasName = nameof(ConcreteAlias);
+                    var repoName = nameof(RepoDefs.ConcreteInvalidRepo);
+                    var directStatic = RepoDefs.ConcreteInvalidRepo.StaticMember;
+                    var isMatch = value is RepoDefs.ConcreteInvalidRepo;
+                    var asMatch = value as ConcreteAlias;
+                    return isMatch || asMatch is not null || aliasName.Length + repoName.Length + directStatic > 0;
+                }
+            }
+            """;
+
+        var diagnostics = await RunAnalyzerWithReferenceAsync(RepositoryTypeStubs + referenced, consuming);
+        diagnostics.Should().HaveCount(6);
+        diagnostics.Should().OnlyContain(d => d.Id == "DRNENTITY013" && d.Severity == DiagnosticSeverity.Error);
+        var spans = diagnostics.Select(AnalyzerTestCompilation.LocationText).ToArray();
+        spans.Count(text => text == "ConcreteInvalidRepo").Should().Be(4);
+        spans.Count(text => text == "ConcreteAlias").Should().Be(2);
     }
 }

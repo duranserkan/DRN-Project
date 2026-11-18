@@ -485,7 +485,7 @@ public readonly struct SecondValidationApp : IAppId
 [EntityType<FirstValidationApp>(250)]
 public sealed class FirstPartitionEntity : SourceKnownEntity;
 
-[SuppressMessage("DRN.Domain", "DRN0002", Justification = "Intentional duplicate entity type exercises runtime validation.")]
+[SuppressMessage("DRN.Domain", "DRNENTITY002", Justification = "Intentional duplicate entity type exercises runtime validation.")]
 [EntityType<FirstValidationApp>(250)]
 public sealed class FirstPartitionDuplicateEntity : SourceKnownEntity;
 

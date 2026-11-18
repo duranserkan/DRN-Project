@@ -34,9 +34,10 @@ public sealed class SourceKnownConventionAnalyzer : DiagnosticAnalyzer
                 "complete build-supplied reference inventory"));
         var exceptions = new ConventionExceptions(facts);
         ConventionOwnershipAnalysis.Analyze(facts);
-        ConventionContextAnalysis.Analyze(facts);
-        ConventionPersistenceAnalysis.Analyze(facts);
-        ConventionRegistrationAnalysis.AnalyzeAll(facts, requireModule: true);
+        var registrations = ConventionRegistrationAnalysis.ReadInputs(facts, requireModule: true);
+        var calls = new ConventionCallSites(facts, registrations.NeedsComposition);
+        ConventionPersistenceAnalysis.AnalyzeWithContexts(facts, calls);
+        ConventionRegistrationAnalysis.AnalyzeAll(facts, registrations, calls);
         ConventionBoundaryAnalysis.Analyze(facts);
         ConventionNamingAnalysis.Analyze(facts);
         ConventionAggregateRepositoryAnalysis.Analyze(facts);

@@ -541,7 +541,7 @@ When Development has no default Nexus key, a deterministic key derived from the 
 
 ## Logging (`IScopedLog`)
 
-Dictionary diagnostics use `AddDictionary` or `SanitizeDictionary` with exact `DiagnosticKeyClassification` entries. Sensitive and Personal redact whole values. NonSensitive requires a reason and a supported scalar. Matching statically known dictionary captures produce DRN0020 guidance. See the [dictionary classification contract](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#dictionary-classifications).
+Dictionary diagnostics use `AddDictionary` or `SanitizeDictionary` with exact `DiagnosticKeyClassification` entries. Sensitive and Personal redact whole values. NonSensitive requires a reason and a supported scalar. Matching statically known dictionary captures produce DRNCLASSIFICATION006 guidance. See the [dictionary classification contract](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#dictionary-classifications).
 
 `IScopedLog` aggregates structured operational data, metrics, checkpoints, and exceptions for a logical scope. Hosting emits one grouped record when it fits and bounded linked records for larger sanitized diagnostics. See [diagnostic redaction and grouping](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md) for classification, limits, and reconstruction.
 

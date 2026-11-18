@@ -13,7 +13,7 @@ Use the installed `DRN.Framework.Utils` README and XML documentation for API sig
 
 Scan the application's service assembly with `services.AddServicesWithAttributes(typeof(OrderService).Assembly)`. Annotate the implementation with `[Scoped<IOrderService>]`. Import `DRN.Framework.Utils.DependencyInjection` for the extension and `DRN.Framework.Utils.DependencyInjection.Attributes` for the attribute.
 
-DRNCV012 checks eligible services and repositories on supported attribute-scan paths. Consult SharedKernel's installed `CONVENTIONS.md` for service eligibility, key matching and exceptions. Custom composition still requires runtime verification.
+DRNDEPENDENCYINJECTION001 checks eligible services and repositories on supported attribute-scan paths. Consult SharedKernel's installed `CONVENTIONS.md` for service eligibility, key matching and exceptions. Custom composition still requires runtime verification.
 
 - Register each module through its extension method and scan its assembly with `AddServicesWithAttributes()`. Use the scoped, singleton, transient, keyed, or hosted-service attributes. Their default `TryAdd` preserves existing registrations. Opt out when registering multiple implementations. Keep registration idempotent per service collection and validation scoped to the provider being validated.
 - `AddDrnUtils()` supplies HybridCache and the system TimeProvider. Register a distributed cache first if required. Use `[Config]` for a section and `[ConfigRoot]` for the root. Validate nested options explicitly.

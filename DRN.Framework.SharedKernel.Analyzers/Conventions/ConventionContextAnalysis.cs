@@ -9,9 +9,10 @@ internal static class ConventionContextAnalysis
 {
     private const string ContextSuffix = "Context";
 
-    internal static void Analyze(ConventionFacts facts)
+    internal static void Analyze(ConventionFacts facts) => Analyze(facts, new ConventionCallSites(facts), null);
+
+    internal static void Analyze(ConventionFacts facts, ConventionCallSites calls, IReadOnlySet<INamedTypeSymbol>? registeredContexts)
     {
-        Dictionary<INamedTypeSymbol, Registration>? registrations = null;
         ContextArtifacts? artifacts = null;
         foreach (var type in facts.Types)
         {
@@ -20,12 +21,12 @@ internal static class ConventionContextAnalysis
                 !facts.Symbols.IsContext(type, facts.Cancellation)) continue;
             var location = facts.Location(type);
             if (location == Location.None) continue;
-            AnalyzeInfraContext(facts, type, location, ref registrations, ref artifacts);
+            AnalyzeInfraContext(facts, type, location, calls, ref registeredContexts, ref artifacts);
         }
     }
 
-    private static void AnalyzeInfraContext(ConventionFacts facts, INamedTypeSymbol type, Location location,
-        ref Dictionary<INamedTypeSymbol, Registration>? registrations, ref ContextArtifacts? artifacts)
+    private static void AnalyzeInfraContext(ConventionFacts facts, INamedTypeSymbol type, Location location, ConventionCallSites calls,
+        ref IReadOnlySet<INamedTypeSymbol>? registeredContexts, ref ContextArtifacts? artifacts)
     {
         if (ConventionSymbols.Is(type, facts.Symbols.DbContext, facts.Cancellation) &&
             !ConventionSymbols.Is(type, facts.Symbols.Context, facts.Cancellation))
@@ -41,8 +42,8 @@ internal static class ConventionContextAnalysis
         {
             AnalyzeAlias(facts, type, input, location);
             AnalyzeDestinations(facts, type, input, location, artifacts ??= ReadContextArtifacts(facts));
-            (registrations ??= ReadRegistrations(facts)).TryGetValue(type, out var registration);
-            AnalyzeConstruction(facts, type, input, registration, location);
+            registeredContexts ??= calls.ReadEfRegistrations();
+            AnalyzeConstruction(facts, type, input, registeredContexts.Contains(type), location);
             // Options may be supplied by another composition path. An empty local delegate is not proof of absence.
             if (!string.IsNullOrWhiteSpace(input?.Get(ConventionInputSyntax.ProviderField)) &&
                 string.IsNullOrWhiteSpace(input.Get(ConventionInputSyntax.ReasonField)))
@@ -68,12 +69,12 @@ internal static class ConventionContextAnalysis
     }
 
     private static void AnalyzeConstruction(ConventionFacts facts, INamedTypeSymbol type, ConventionInput? input,
-        Registration registration, Location location)
+        bool registered, Location location)
     {
         if (ValidateCustomFactoryReason(facts, type, input)) return;
         var drnBase = ConventionSymbols.Is(type, facts.Symbols.DrnContext, facts.Cancellation) ||
                       ConventionSymbols.Is(type, facts.Symbols.DrnIdentityContext, facts.Cancellation);
-        if ((!drnBase && !registration.Selected) || facts.Symbols.ContextOptions is null) return;
+        if ((!drnBase && !registered) || facts.Symbols.ContextOptions is null) return;
         var options = facts.Symbols.ContextOptions.Construct(type);
         var constructors = type.InstanceConstructors.Where(constructor => constructor.DeclaredAccessibility == Accessibility.Public &&
             constructor.Parameters.Length == 1 && constructor.Parameters[0].RefKind == RefKind.None &&
@@ -81,7 +82,7 @@ internal static class ConventionContextAnalysis
         if (constructors.Length != 0)
         {
             if (constructors.Length == 1 && DiscardsProviderOptions(facts, type, constructors[0], options) &&
-                (registration.Selected || HasInheritedDrnFactory(facts, type)))
+                (registered || HasInheritedDrnFactory(facts, type)))
             {
                 // The selected constructor replaces even convention-configured options with a fresh providerless instance.
                 facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.Provider, location, type.Name));
@@ -106,7 +107,7 @@ internal static class ConventionContextAnalysis
 
     private static bool HasInjectableOptionsConstructor(ConventionFacts facts, INamedTypeSymbol type, INamedTypeSymbol options)
     {
-        var nonGenericOptions = facts.Compilation.GetTypeByMetadataName("Microsoft.EntityFrameworkCore.DbContextOptions");
+        var nonGenericOptions = facts.Symbols.NonGenericContextOptions;
         return type.InstanceConstructors.Any(constructor =>
             constructor.DeclaredAccessibility == Accessibility.Public &&
             constructor.Parameters.All(parameter => parameter.RefKind == RefKind.None) &&
@@ -115,12 +116,12 @@ internal static class ConventionContextAnalysis
     }
 
     private static bool HasGenericConstraintDiagnostics(ConventionFacts facts, INamedTypeSymbol type) =>
-        type.DeclaringSyntaxReferences.Any(reference => facts.Compilation.GetSemanticModel(reference.SyntaxTree)
+        type.DeclaringSyntaxReferences.Any(reference => facts.SemanticModel(reference.SyntaxTree)
             .GetDiagnostics(reference.Span, facts.Cancellation).Any(diagnostic => diagnostic.Id is "CS0310" or "CS0311"));
 
     private static bool HasInheritedDrnFactory(ConventionFacts facts, INamedTypeSymbol type)
     {
-        var factory = facts.Compilation.GetTypeByMetadataName("Microsoft.EntityFrameworkCore.Design.IDesignTimeDbContextFactory`1");
+        var factory = facts.Symbols.DesignTimeContextFactory;
         if (factory is null) return false;
         foreach (var binding in facts.Symbols.Bindings(type, factory, facts.Cancellation))
         {
@@ -146,7 +147,7 @@ internal static class ConventionContextAnalysis
                 Initializer: { RawKind: (int)Microsoft.CodeAnalysis.CSharp.SyntaxKind.BaseConstructorInitializer,
                     ArgumentList.Arguments: [var argument] } initializer
             } declaration) return false;
-        var model = facts.Compilation.GetSemanticModel(reference.SyntaxTree);
+        var model = facts.SemanticModel(reference.SyntaxTree);
         if (model.GetDiagnostics(declaration.Span, facts.Cancellation).Any(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error) ||
             model.GetSymbolInfo(initializer, facts.Cancellation).Symbol is not IMethodSymbol called ||
             !SymbolEqualityComparer.Default.Equals(called.ContainingType, type.BaseType)) return false;
@@ -168,19 +169,19 @@ internal static class ConventionContextAnalysis
         if (role.PathPrefix.Length > 0) area = role.PathPrefix + "/" + area;
         if (HasAggregateDbSet(facts, type) || artifacts.Repositories.ContainsKey(type) ||
             !string.IsNullOrWhiteSpace(input?.Get(ConventionInputSyntax.RepositoriesField)))
-            CheckDestination(facts, type, input, location, artifacts, ns, area, ConventionInputSyntax.RepositoriesField);
+            CheckDestination(facts, type, input, location, artifacts, (ns, area), ConventionInputSyntax.RepositoriesField);
         if (artifacts.Migrations.ContainsKey(type) ||
             !string.IsNullOrWhiteSpace(input?.Get(ConventionInputSyntax.MigrationsField)) ||
             !string.IsNullOrWhiteSpace(input?.Get(ConventionInputSyntax.MigrationsAssemblyField)))
-            CheckDestination(facts, type, input, location, artifacts, ns, area, ConventionInputSyntax.MigrationsField);
+            CheckDestination(facts, type, input, location, artifacts, (ns, area), ConventionInputSyntax.MigrationsField);
     }
 
     private static void CheckDestination(ConventionFacts facts, INamedTypeSymbol type, ConventionInput? input,
-        Location location, ContextArtifacts artifacts, string ns, string area, string kind)
+        Location location, ContextArtifacts artifacts, (string Namespace, string Directory) home, string kind)
     {
-        var expected = area + "/" + kind;
+        var expected = home.Directory + "/" + kind;
         var actual = input?.Get(kind) ?? "";
-        if (actual.Length == 0 && HasConventionalDestination(facts, type, input, artifacts, ns, area, kind, expected)) return;
+        if (actual.Length == 0 && HasConventionalDestination(facts, type, input, artifacts, home, kind, expected)) return;
         var valid = ConventionProject.IsLogicalPath(actual);
         var conventional = ConventionProject.NormalizeSeparators(actual) == expected;
         var reasonedOverride = !string.IsNullOrWhiteSpace(input?.Get(ConventionInputSyntax.ReasonField));
@@ -194,15 +195,15 @@ internal static class ConventionContextAnalysis
     }
 
     private static bool HasConventionalDestination(ConventionFacts facts, INamedTypeSymbol type, ConventionInput? input,
-        ContextArtifacts artifacts, string ns, string area, string kind, string expected)
+        ContextArtifacts artifacts, (string Namespace, string Directory) home, string kind, string expected)
     {
         if (kind == ConventionInputSyntax.MigrationsField &&
             input?.Get(ConventionInputSyntax.MigrationsAssemblyField) is { Length: > 0 } assembly &&
             assembly != type.ContainingAssembly.Name) return false;
-        if (!HasLogicalHome(facts, type, area, ignoreGenerated: true)) return false;
+        if (!HasLogicalHome(facts, type, home.Directory, ignoreGenerated: true)) return false;
         var index = kind == ConventionInputSyntax.RepositoriesField ? artifacts.Repositories : artifacts.Migrations;
         if (!index.TryGetValue(type, out var associated)) return true;
-        var expectedNamespace = ns + "." + kind;
+        var expectedNamespace = home.Namespace + "." + kind;
         foreach (var artifact in associated)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
@@ -297,47 +298,6 @@ internal static class ConventionContextAnalysis
         return false;
     }
 
-    private readonly record struct Registration(bool Selected);
-
-    private static Dictionary<INamedTypeSymbol, Registration> ReadRegistrations(ConventionFacts facts)
-    {
-        var result = new Dictionary<INamedTypeSymbol, Registration>(SymbolEqualityComparer.Default);
-        var efExtensions = facts.Compilation.GetTypeByMetadataName("Microsoft.Extensions.DependencyInjection.EntityFrameworkServiceCollectionExtensions");
-        var drnExtensions = facts.Compilation.GetTypeByMetadataName("DRN.Framework.EntityFramework.Extensions.ServiceCollectionExtensions");
-        foreach (var tree in facts.Compilation.SyntaxTrees)
-        {
-            facts.Cancellation.ThrowIfCancellationRequested();
-            SemanticModel? model = null;
-            foreach (var invocation in tree.GetRoot(facts.Cancellation).DescendantNodes().OfType<InvocationExpressionSyntax>())
-            {
-                facts.Cancellation.ThrowIfCancellationRequested();
-                if (GetInvocationName(invocation) is not ("AddDbContext" or "AddDbContextWithConventions")) continue;
-                model ??= facts.Compilation.GetSemanticModel(tree);
-                if (TryGetRegisteredContext(facts, model, invocation, efExtensions, drnExtensions) is { } context)
-                    result[context] = new(true);
-            }
-        }
-        return result;
-    }
-
-    private static string? GetInvocationName(InvocationExpressionSyntax invocation) => invocation.Expression switch
-    {
-        SimpleNameSyntax simple => simple.Identifier.ValueText,
-        MemberAccessExpressionSyntax access => access.Name.Identifier.ValueText,
-        MemberBindingExpressionSyntax binding => binding.Name.Identifier.ValueText,
-        _ => null
-    };
-
-    private static INamedTypeSymbol? TryGetRegisteredContext(ConventionFacts facts, SemanticModel model,
-        InvocationExpressionSyntax invocation, INamedTypeSymbol? efExtensions, INamedTypeSymbol? drnExtensions)
-    {
-        if (model.GetSymbolInfo(invocation, facts.Cancellation).Symbol is not IMethodSymbol method ||
-            method.TypeArguments is not [INamedTypeSymbol context]) return null;
-        var drn = method.Name == "AddDbContextWithConventions" && ConventionSymbols.Same(method.ContainingType, drnExtensions);
-        var ef = method.Name == "AddDbContext" && ConventionSymbols.Same(method.ContainingType, efExtensions);
-        return drn || ef ? context : null;
-    }
-
     private static void AnalyzeModelOverrides(ConventionFacts facts, INamedTypeSymbol type)
     {
         foreach (var method in type.GetMembers("OnModelCreating").OfType<IMethodSymbol>())
@@ -364,7 +324,7 @@ internal static class ConventionContextAnalysis
         foreach (var reference in method.DeclaringSyntaxReferences)
         {
             if (reference.GetSyntax(facts.Cancellation) is not MethodDeclarationSyntax { Body: { } body }) continue;
-            var model = facts.Compilation.GetSemanticModel(reference.SyntaxTree);
+            var model = facts.SemanticModel(reference.SyntaxTree);
             if (model.GetDiagnostics(body.Span, facts.Cancellation).Any(item => item.Severity == DiagnosticSeverity.Error)) continue;
             var missing = MissingBasePath(facts, model, body, method, method.OverriddenMethod!,
                 new HashSet<IMethodSymbol>(SymbolEqualityComparer.Default));
@@ -413,7 +373,7 @@ internal static class ConventionContextAnalysis
         if (!IsInspectableLocalHelper(called, method) || !ForwardsModel(model, invocation, method, facts) ||
             called.DeclaringSyntaxReferences[0].GetSyntax(facts.Cancellation) is not MethodDeclarationSyntax { Body: { } helper })
             return PathOutcome.Unknown;
-        var helperResult = MissingBasePath(facts, facts.Compilation.GetSemanticModel(helper.SyntaxTree),
+        var helperResult = MissingBasePath(facts, facts.SemanticModel(helper.SyntaxTree),
             helper, called, requiredBase, visiting);
         return helperResult switch
         {

@@ -9,10 +9,8 @@ internal static class ConventionAggregateRepositoryAnalysis
     internal static void Analyze(ConventionFacts facts)
     {
         var contracts = new ContractIndex(facts);
-        var implementations = IndexRepositoryImplementations(facts);
         AnalyzeDomainAggregateContracts(facts, contracts);
-        var configurations = IndexConfigurations(facts);
-        AnalyzeContextRepositories(facts, implementations, configurations, contracts);
+        AnalyzeContextRepositories(facts, contracts);
     }
 
     private static Dictionary<INamedTypeSymbol, List<INamedTypeSymbol>> IndexRepositoryImplementations(ConventionFacts facts)
@@ -94,10 +92,10 @@ internal static class ConventionAggregateRepositoryAnalysis
         }
     }
 
-    private static void AnalyzeContextRepositories(ConventionFacts facts,
-        Dictionary<INamedTypeSymbol, List<INamedTypeSymbol>> implementations,
-        ConfigurationIndex configurations, ContractIndex contracts)
+    private static void AnalyzeContextRepositories(ConventionFacts facts, ContractIndex contracts)
     {
+        Dictionary<INamedTypeSymbol, List<INamedTypeSymbol>>? implementations = null;
+        ConfigurationIndex? configurations = null;
         var reported = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
         var repositoryMatches = new Dictionary<INamedTypeSymbol, bool>(SymbolEqualityComparer.Default);
         var selectedConfigurations = new List<int>();
@@ -111,9 +109,27 @@ internal static class ConventionAggregateRepositoryAnalysis
             var location = facts.Location(context);
             if (location == Location.None || facts.HasInvalidContext(context)) continue;
             var model = ConventionPersistenceAnalysis.GetModel(facts, context);
-            CollectContextEntities(facts, context, model, configurations, assigned, selectedConfigurations);
-            ReportMissingContextRepositories(facts, context, location, model, assigned,
-                implementations, repositoryMatches, reported, contracts);
+            CollectContextEntities(facts, context, model, configurations ??= IndexConfigurations(facts), assigned, selectedConfigurations);
+            if (assigned.Count == 0) continue;
+            ReportMissingContextRepositories(facts, (context, location, model), assigned,
+                implementations ??= IndexRepositoryImplementations(facts), repositoryMatches, reported, contracts);
+        }
+    }
+
+    private static void ReportMissingContextRepositories(ConventionFacts facts,
+        (INamedTypeSymbol Context, Location Location, ConventionPersistenceAnalysis.ContextModel Model) selection,
+        HashSet<INamedTypeSymbol> assigned, Dictionary<INamedTypeSymbol, List<INamedTypeSymbol>> implementations,
+        Dictionary<INamedTypeSymbol, bool> repositoryMatches, HashSet<INamedTypeSymbol> reported, ContractIndex contracts)
+    {
+        var (context, location, model) = selection;
+        foreach (var entity in assigned)
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            if (!IsEligibleContextEntity(facts, context, entity, model) ||
+                HasRepository(facts, entity, implementations, repositoryMatches, contracts) ||
+                !reported.Add(entity)) continue;
+            facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.AggregateRepository, location,
+                Properties(context, entity, context), entity.Name, facts.Owner(entity)!.Subdomain));
         }
     }
 
@@ -155,22 +171,6 @@ internal static class ConventionAggregateRepositoryAnalysis
             if (index == previousIndex) continue;
             previousIndex = index;
             foreach (var entity in configurationEntities[index]) assigned.Add(entity);
-        }
-    }
-
-    private static void ReportMissingContextRepositories(ConventionFacts facts, INamedTypeSymbol context, Location location,
-        ConventionPersistenceAnalysis.ContextModel model, HashSet<INamedTypeSymbol> assigned,
-        Dictionary<INamedTypeSymbol, List<INamedTypeSymbol>> implementations,
-        Dictionary<INamedTypeSymbol, bool> repositoryMatches, HashSet<INamedTypeSymbol> reported, ContractIndex contracts)
-    {
-        foreach (var entity in assigned)
-        {
-            facts.Cancellation.ThrowIfCancellationRequested();
-            if (!IsEligibleContextEntity(facts, context, entity, model) ||
-                HasRepository(facts, entity, implementations, repositoryMatches, contracts) ||
-                !reported.Add(entity)) continue;
-            facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.AggregateRepository, location,
-                Properties(context, entity, context), entity.Name, facts.Owner(entity)!.Subdomain));
         }
     }
 
@@ -246,6 +246,32 @@ internal static class ConventionAggregateRepositoryAnalysis
             }
         }
 
+        private bool SharesLogicalDirectory(INamedTypeSymbol aggregate, INamedTypeSymbol contract)
+        {
+            // Referenced assemblies expose namespaces, not their producer's Compile/Link paths.
+            if (!facts.IsLocal(aggregate)) return true;
+            string? directory = null;
+            return TryResolveLogicalDirectory(aggregate, ref directory) &&
+                   TryResolveLogicalDirectory(contract, ref directory);
+        }
+
+        [SuppressMessage("SonarQube", "S3267", Justification = "Iterating DeclaringSyntaxReferences directly avoids boxing ImmutableArray and preserves per-reference cancellation.")]
+        private bool TryResolveLogicalDirectory(INamedTypeSymbol type, ref string? directory)
+        {
+            foreach (var reference in type.DeclaringSyntaxReferences)
+            {
+                facts.Cancellation.ThrowIfCancellationRequested();
+                var tree = reference.SyntaxTree;
+                if (facts.IsGenerated(tree) || facts.HasInvalidPath(tree)) continue;
+                var placement = facts.LogicalDirectory(tree);
+                if (placement is null) continue; // Ownership analysis reports missing logical paths.
+                var current = placement.Value.Directory;
+                if (directory is not null && !string.Equals(directory, current, StringComparison.Ordinal)) return false;
+                directory = current;
+            }
+            return true;
+        }
+
         private void IndexContractInterface(INamedTypeSymbol contract)
         {
             if (facts.Symbols.IsOpen(contract, facts.Cancellation) ||
@@ -257,7 +283,7 @@ internal static class ConventionAggregateRepositoryAnalysis
                     !SymbolEqualityComparer.Default.Equals(aggregate.ContainingAssembly, contract.ContainingAssembly) ||
                     facts.Owner(aggregate)?.Subdomain != contractOwner.Subdomain ||
                     !SymbolEqualityComparer.Default.Equals(aggregate.ContainingNamespace, contract.ContainingNamespace) ||
-                    !SharesLogicalDirectory(facts, aggregate, contract)) continue;
+                    !SharesLogicalDirectory(aggregate, contract)) continue;
                 if (!_contracts.TryGetValue(aggregate, out var list))
                 {
                     list = [];
@@ -266,32 +292,6 @@ internal static class ConventionAggregateRepositoryAnalysis
                 list.Add(contract);
             }
         }
-    }
-
-    private static bool SharesLogicalDirectory(ConventionFacts facts, INamedTypeSymbol aggregate, INamedTypeSymbol contract)
-    {
-        // Referenced assemblies expose namespaces, not their producer's Compile/Link paths.
-        if (!facts.IsLocal(aggregate)) return true;
-        string? directory = null;
-        return TryResolveLogicalDirectory(facts, aggregate, ref directory) &&
-               TryResolveLogicalDirectory(facts, contract, ref directory);
-    }
-
-    [SuppressMessage("SonarQube", "S3267", Justification = "Iterating DeclaringSyntaxReferences directly avoids boxing ImmutableArray and preserves per-reference cancellation.")]
-    private static bool TryResolveLogicalDirectory(ConventionFacts facts, INamedTypeSymbol type, ref string? directory)
-    {
-        foreach (var reference in type.DeclaringSyntaxReferences)
-        {
-            facts.Cancellation.ThrowIfCancellationRequested();
-            var tree = reference.SyntaxTree;
-            if (facts.IsGenerated(tree) || facts.HasInvalidPath(tree)) continue;
-            var placement = facts.LogicalDirectory(tree);
-            if (placement is null) continue; // Ownership analysis reports missing logical paths.
-            var current = placement.Value.Directory;
-            if (directory is not null && !string.Equals(directory, current, StringComparison.Ordinal)) return false;
-            directory = current;
-        }
-        return true;
     }
 
     private static ImmutableDictionary<string, string?> Properties(ISymbol target, INamedTypeSymbol entity,

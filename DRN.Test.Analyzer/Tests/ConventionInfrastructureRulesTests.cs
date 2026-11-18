@@ -1,14 +1,12 @@
 using DRN.Framework.SharedKernel.Analyzers.Conventions;
-using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.ClassificationTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
 
 public sealed class ConventionInfrastructureRulesTests
 {
-    private static readonly MetadataReference Framework = MetadataReference.CreateFromFile(
-        typeof(DRN.Framework.EntityFramework.Context.DrnContext<>).Assembly.Location);
-    private static readonly MetadataReference Utils = MetadataReference.CreateFromFile(
-        typeof(DRN.Framework.Utils.Entity.IEntityUtils).Assembly.Location);
+    private static MetadataReference Framework => AnalyzerTestCompilation.EntityFrameworkReference;
+    private static MetadataReference Utils => AnalyzerTestCompilation.UtilsReference;
 
     [Theory]
     [DataInlineUnit("Repositories", "QA/Repositories/Types.cs", false)]
@@ -48,8 +46,8 @@ public sealed class ConventionInfrastructureRulesTests
             """, path);
         ConventionNamingAnalysis.Analyze(facts);
         ConventionInfrastructureAnalysis.Analyze(facts);
-        facts.Diagnostics.Count(item => item.Id == "DRNCV024").Should().Be(invalidName ? 1 : 0);
-        facts.Diagnostics.Count(item => item.Id == "DRNCV028").Should().Be(invalidFolder ? 1 : 0);
+        facts.Diagnostics.Count(item => item.Id == "DRNSTRUCTURE004").Should().Be(invalidName ? 1 : 0);
+        facts.Diagnostics.Count(item => item.Id == "DRNSTRUCTURE006").Should().Be(invalidFolder ? 1 : 0);
         facts.Diagnostics.Should().HaveCount((invalidName ? 1 : 0) + (invalidFolder ? 1 : 0));
     }
 
@@ -69,7 +67,7 @@ public sealed class ConventionInfrastructureRulesTests
             """, "QA/Types.cs");
         ConventionInfrastructureAnalysis.Analyze(facts);
         if (!invalid) facts.Diagnostics.Should().BeEmpty();
-        else facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV029");
+        else facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNSTRUCTURE007");
     }
 
     [Theory]
@@ -100,7 +98,7 @@ public sealed class ConventionInfrastructureRulesTests
 
     private static void AssertFolder(ConventionFacts facts, bool invalid)
     {
-        if (invalid) facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV028");
+        if (invalid) facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNSTRUCTURE006");
         else facts.Diagnostics.Should().BeEmpty();
     }
 
@@ -149,7 +147,7 @@ public sealed class ConventionInfrastructureRulesTests
         else
         {
             var diagnostic = facts.Diagnostics.Should().ContainSingle().Which;
-            diagnostic.Id.Should().Be("DRNCV030");
+            diagnostic.Id.Should().Be("DRNPERSISTENCE009");
             diagnostic.Severity.Should().Be(DiagnosticSeverity.Warning);
             diagnostic.Properties["Target"].Should().Be("T:Sample.Infra.QA.QAContext");
             diagnostic.GetMessage().Should().Contain("QAContextNpgsqlDbContextOptionsAttribute");
@@ -172,8 +170,8 @@ public sealed class ConventionInfrastructureRulesTests
             public class QAContext : ContextBase<QAContext>;
             """, "QA/Types.cs");
         ConventionInfrastructureAnalysis.Analyze(facts);
-        facts.Diagnostics.Count(item => item.Id == "DRNCV030").Should().Be(missing ? 1 : 0);
-        facts.Diagnostics.Should().OnlyContain(item => item.Id == "DRNCV030");
+        facts.Diagnostics.Count(item => item.Id == "DRNPERSISTENCE009").Should().Be(missing ? 1 : 0);
+        facts.Diagnostics.Should().OnlyContain(item => item.Id == "DRNPERSISTENCE009");
     }
 
     [Fact]
@@ -217,7 +215,7 @@ public sealed class ConventionInfrastructureRulesTests
             public class QAContext() : DRN.Framework.EntityFramework.Context.Identity.DrnContextIdentity<QAContext, Microsoft.AspNetCore.Identity.IdentityUser>(null);
             """, "QA/Context.cs");
         ConventionInfrastructureAnalysis.Analyze(facts);
-        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV030");
+        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNPERSISTENCE009");
     }
 
     [Theory]
@@ -226,7 +224,7 @@ public sealed class ConventionInfrastructureRulesTests
     public async Task Inherited_Misnamed_Options_Should_Report_On_Derived_Context_And_Allow_Narrow_Suppression(bool suppressed)
     {
         var suppression = suppressed
-            ? "[System.Diagnostics.CodeAnalysis.SuppressMessage(\"DRN.Conventions.Context\", \"DRNCV029\", Justification = \"Reviewed inherited options name.\")]\n"
+            ? "[System.Diagnostics.CodeAnalysis.SuppressMessage(\"DRN.Conventions.Context\", \"DRNSTRUCTURE007\", Justification = \"Reviewed inherited options name.\")]\n"
             : "";
         var facts = Facts($$"""
             namespace Sample.Infra.QA;
@@ -245,19 +243,18 @@ public sealed class ConventionInfrastructureRulesTests
             }
             """, "QA/QAContext.cs");
         ConventionInfrastructureAnalysis.Analyze(facts);
-        var inheritedDiagnostic = facts.Diagnostics.Where(item => item.Id == "DRNCV029").Should().ContainSingle().Which;
-        inheritedDiagnostic.Location.SourceTree!.GetText().ToString(inheritedDiagnostic.Location.SourceSpan).Should().Be("QAContext");
+        var inheritedDiagnostic = facts.Diagnostics.Where(item => item.Id == "DRNSTRUCTURE007").Should().ContainSingle().Which;
+        (await inheritedDiagnostic.Location.SourceTree!.GetTextAsync()).ToString(inheritedDiagnostic.Location.SourceSpan).Should().Be("QAContext");
 
         var analyzerCompilation = ConventionTestDependencies.WithModule((CSharpCompilation)facts.Compilation);
         var inputs = new AnalyzerOptions([new ProjectDiagnosticRulesTests.RuleFile(ConventionInputs.FileName, """
             [assembly: DRN.Conventions.Version("1")]
             [assembly: DRN.Conventions.Path("Models.cs", LogicalPath = "QA/QAContext.cs")]
             [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
-            """)], new Options());
-        var diagnostics = await analyzerCompilation.WithAnalyzers([new SourceKnownConventionAnalyzer()], inputs)
-            .GetAnalyzerDiagnosticsAsync();
-        diagnostics.Should().NotContain(item => item.Id == "AD0001" || item.Id == "DRNCV018" || item.Id == "DRNCV030");
-        diagnostics.Where(item => item.Id == "DRNCV029").Should().HaveCount(suppressed ? 0 : 1);
+            """)], AnalyzerTestCompilation.EmptyOptionsProvider);
+        var diagnostics = await AnalyzerTestCompilation.Analyze(analyzerCompilation, new SourceKnownConventionAnalyzer(), inputs);
+        diagnostics.Should().NotContain(item => item.Id == "AD0001" || item.Id == "DRNCONVENTIONEXCEPTION001" || item.Id == "DRNPERSISTENCE009");
+        diagnostics.Where(item => item.Id == "DRNSTRUCTURE007").Should().HaveCount(suppressed ? 0 : 1);
     }
 
     private static ConventionFacts Facts(string source, string path) =>
@@ -266,18 +263,11 @@ public sealed class ConventionInfrastructureRulesTests
     private static ConventionFacts Facts(CSharpCompilation compilation, ImmutableArray<ConventionInput> paths)
     {
         compilation = compilation.WithAssemblyName("Sample.Infra").AddReferences(Framework, Utils);
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         return new(compilation, new(true, "Sample.Infra", "Infra", "Sample.Infra", compilation.AssemblyName!, []),
-            new(paths, []), new Options(), CancellationToken.None);
+            new(paths, []), AnalyzerTestCompilation.EmptyOptionsProvider, CancellationToken.None);
     }
 
     private static ConventionInput PathInput(string source, string logical) => new("Path", source,
         ImmutableDictionary<string, string>.Empty.Add("LogicalPath", logical), Location.None);
-
-    private sealed class Options : AnalyzerConfigOptionsProvider
-    {
-        public override AnalyzerConfigOptions GlobalOptions { get; } = new ConventionInputTests.Config(new());
-        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => GlobalOptions;
-        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => GlobalOptions;
-    }
 }

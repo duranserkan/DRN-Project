@@ -8,7 +8,7 @@ namespace Sample.Infra.DrnDataProtection;
 //https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/configuration/overview
 //https://www.nuget.org/packages/Microsoft.AspNetCore.DataProtection.EntityFrameworkCore/
 [DrnDataProtectionContextOptions]
-[SuppressMessage("DRN.Conventions.Architecture", "DRNCV022",
+[SuppressMessage("DRN.Conventions.Architecture", "DRNOWNERSHIP003",
     Justification = "DrnDataProtectionContext persists ASP.NET Core Data Protection key rings only and has no Domain subdomain entities.")]
 public class DrnDataProtectionContext : DrnContext<DrnDataProtectionContext>, IDataProtectionKeyContext
 {
@@ -27,7 +27,7 @@ public class DrnDataProtectionContext : DrnContext<DrnDataProtectionContext>, ID
     }
 
     [Sensitive, IgnoreLog]
-    [SuppressMessage("DRN.Conventions.Persistence", "DRNCV023",
+    [SuppressMessage("DRN.Conventions.Persistence", "DRNPERSISTENCE008",
         Justification = "IDataProtectionKeyContext requires ASP.NET's DataProtectionKey storage type; this key ring is infrastructure storage, not a domain aggregate.")]
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; }
 }

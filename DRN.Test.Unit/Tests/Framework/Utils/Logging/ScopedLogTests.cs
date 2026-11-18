@@ -720,7 +720,7 @@ public class ScopedLogTests
         [SuppressMessage("Performance", "CA1822", Justification = "Exercises per-call exclusion of a cached instance property.")]
         public string Visible => "visible";
         [SuppressMessage("Performance", "CA1822", Justification = "Verifies that IgnoreLog skips the instance getter on every capture.")]
-        [SuppressMessage("DRN.Classification", "DRN0015", Justification = "Unclassified ignored property verifies runtime getter suppression independently of classification.")]
+        [SuppressMessage("DRN.Classification", "DRNCLASSIFICATION001", Justification = "Unclassified ignored property verifies runtime getter suppression independently of classification.")]
         [IgnoreLog] public string Secret => throw new InvalidOperationException("Ignored getters must not execute.");
     }
 

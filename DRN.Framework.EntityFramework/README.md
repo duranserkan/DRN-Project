@@ -16,7 +16,7 @@
 
 SharedKernel classification analyzers apply transitively to public readable model properties. Classify application model properties with the SharedKernel diagnostic attributes where required.
 
-[SourceKnown conventions](../DRN.Framework.SharedKernel/CONVENTIONS.md) require concrete application-owned EF contexts to implement `IDrnContext`, directly or through inheritance. See [DRNCV020](../DRN.Framework.SharedKernel/CONVENTION-DIAGNOSTICS.md#drncv020-implement-the-application-persistence-context-contract) for specialized-context exceptions and validation limits. `SourceKnownPersistenceAttribute` describes context membership for analysis without changing the EF model. Attribute-only mapping and multiple contexts per entity remain supported. See [editable assistance](../DRN.Framework.SharedKernel/SCAFFOLDING.md) for optional scaffolding.
+[SourceKnown conventions](../DRN.Framework.SharedKernel/CONVENTIONS.md) require concrete application-owned EF contexts to implement `IDrnContext`, directly or through inheritance. See [DRNPERSISTENCE007](../DRN.Framework.SharedKernel/CONVENTION-DIAGNOSTICS.md#drnpersistence007-implement-the-application-persistence-context-contract) for specialized-context exceptions and validation limits. `SourceKnownPersistenceAttribute` describes context membership for analysis without changing the EF model. Attribute-only mapping and multiple contexts per entity remain supported. See [editable assistance](../DRN.Framework.SharedKernel/SCAFFOLDING.md) for optional scaffolding.
 
 ## Features
 
@@ -49,7 +49,7 @@ Production auto-migration and domain-event publishing are not implemented by thi
 
 ## QuickStart: Beginner
 
-Define a DbContext and entity with automatic ID generation. DRNCV030 requires a directly applied custom attribute derived from `NpgsqlDbContextOptionsAttribute`, even when inherited defaults need no overrides. Name the attribute after the exact context name, ending in `Options` before the optional `Attribute` suffix:
+Define a DbContext and entity with automatic ID generation. DRNPERSISTENCE009 requires a directly applied custom attribute derived from `NpgsqlDbContextOptionsAttribute`, even when inherited defaults need no overrides. Name the attribute after the exact context name, ending in `Options` before the optional `Attribute` suffix:
 
 ```csharp
 using DRN.Framework.EntityFramework.Context;
@@ -182,17 +182,17 @@ The internal `long` is the database key used for indexes and joins. External IDs
 
 ## DrnContext
 
-Put repository implementations in `Repositories`, EF configurations in `Configurations` with names ending in `Config`, and DRN migrations/snapshots in `Migrations`. These are the immediate logical folders and final namespace segments. Domain repository interfaces stay beside their aggregates. Applied custom options names start with the context name and end in `Options`, before an optional `Attribute`, such as `QAContextNpgsqlDbContextOptionsAttribute`. Shared framework defaults are exempt. See DRNCV024, DRNCV028 and DRNCV029 in the [diagnostic reference](../DRN.Framework.SharedKernel/CONVENTION-DIAGNOSTICS.md).
+Put repository implementations in `Repositories`, EF configurations in `Configurations` with names ending in `Config`, and DRN migrations/snapshots in `Migrations`. These are the immediate logical folders and final namespace segments. Domain repository interfaces stay beside their aggregates. Applied custom options names start with the context name and end in `Options`, before an optional `Attribute`, such as `QAContextNpgsqlDbContextOptionsAttribute`. Shared framework defaults are exempt. See DRNSTRUCTURE004, DRNSTRUCTURE006 and DRNSTRUCTURE007 in the [diagnostic reference](../DRN.Framework.SharedKernel/CONVENTION-DIAGNOSTICS.md).
 
-Each aggregate assigned to an Infra context needs a concrete `SourceKnownRepository<TContext,TEntity>` implementing its Domain subdomain repository interface. DRNCV027 checks supported DbSet, explicit membership and configuration evidence. Unassigned aggregates from referenced Domain projects do not require implementations here. See [aggregate conventions](../DRN.Framework.SharedKernel/CONVENTIONS.md).
+Each aggregate assigned to an Infra context needs a concrete `SourceKnownRepository<TContext,TEntity>` implementing its Domain subdomain repository interface. DRNREPOSITORY004 checks supported DbSet, explicit membership and configuration evidence. Unassigned aggregates from referenced Domain projects do not require implementations here. See [aggregate conventions](../DRN.Framework.SharedKernel/CONVENTIONS.md).
 
-Instance `DbSet<TEntity>` properties on `DrnContext<TContext>` descendants must expose entities derived from `AggregateRoot`. DRNCV023 checks inherited properties and closed generic substitutions. Child entities may remain mapped through their aggregate without a DbSet property. The separate Identity context hierarchy is outside this rule. See the [diagnostic reference](../DRN.Framework.SharedKernel/CONVENTION-DIAGNOSTICS.md#drncv023-expose-aggregate-roots-through-dbset-properties).
+Instance `DbSet<TEntity>` properties on `DrnContext<TContext>` descendants must expose entities derived from `AggregateRoot`. DRNPERSISTENCE008 checks inherited properties and closed generic substitutions. Child entities may remain mapped through their aggregate without a DbSet property. The separate Identity context hierarchy is outside this rule. See the [diagnostic reference](../DRN.Framework.SharedKernel/CONVENTION-DIAGNOSTICS.md#drnpersistence008-expose-aggregate-roots-through-dbset-properties).
 
 Derive from `DrnContext<TContext>` and provide both constructors shown in the beginner example. The options constructor is used by dependency injection; the public parameterless constructor supports `IDesignTimeDbContextFactory<TContext>`.
 
 ### Standard Attributes (Inherited)
 
-Every `DrnContext` inherits registration, provider, and performance defaults. Concrete, closed DRN contexts must directly apply a custom `NpgsqlDbContextOptionsAttribute` descendant to satisfy DRNCV030. Inherited attributes and framework defaults do not satisfy this declaration requirement. The custom attribute can retain all defaults without overrides. Customize database and performance settings with attributes derived from `NpgsqlDbContextOptionsAttribute` or `NpgsqlPerformanceSettingsAttribute`. Service registration is inherited and should not be reapplied.
+Every `DrnContext` inherits registration, provider, and performance defaults. Concrete, closed DRN contexts must directly apply a custom `NpgsqlDbContextOptionsAttribute` descendant to satisfy DRNPERSISTENCE009. Inherited attributes and framework defaults do not satisfy this declaration requirement. The custom attribute can retain all defaults without overrides. Customize database and performance settings with attributes derived from `NpgsqlDbContextOptionsAttribute` or `NpgsqlPerformanceSettingsAttribute`. Service registration is inherited and should not be reapplied.
 
 ```csharp
 // The base class defines these defaults:

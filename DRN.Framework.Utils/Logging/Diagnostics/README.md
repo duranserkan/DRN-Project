@@ -30,28 +30,28 @@ SharedKernel distributes these diagnostics transitively. Public readable instanc
 
 | Diagnostic | Meaning |
 |---|---|
-| DRN0015 | A matching property requires classification or direct Sensitive(false). |
-| DRN0016 | Invalid Sensitive(false) target or a derived attribute forwarding false. |
-| DRN0017 | A matching scalar/untyped capture path or external property requires a decision. |
-| DRN0018 | An unrelated Microsoft classification cannot be verified statically. |
-| DRN0019 | A matching anonymous property requires an annotated named class or record. |
-| DRN0020 | A statically known matching dictionary key requires classification or a reviewed comment. |
-| DRN0021 | Invalid, unreadable, oversized, or ambiguous classification catalog. |
-| DRN0022 | Sensitive ILogger names or directly captured classified properties require a decision. |
-| DRN0023 | Malformed DiagnosticNameExemption comment. |
-| DRN0024 | Warning: a valid DiagnosticNameExemption comment suppresses no name diagnostic. |
-| DRN0025 | Model capture exceeded the analysis work limit, so configured paths may remain unchecked. Capture a smaller model or classify sensitive subtrees explicitly. |
-| DRN0027 | A direct property capture exceeded the 256 interface-property scan limit before classification could be determined. Remove the capture, explicitly redact its value, or declare classification directly on the captured property or type. |
+| DRNCLASSIFICATION001 | A matching property requires classification or direct Sensitive(false). |
+| DRNCLASSIFICATION002 | Invalid Sensitive(false) target or a derived attribute forwarding false. |
+| DRNCLASSIFICATION003 | A matching scalar/untyped capture path or external property requires a decision. |
+| DRNCLASSIFICATION004 | An unrelated Microsoft classification cannot be verified statically. |
+| DRNCLASSIFICATION005 | A matching anonymous property requires an annotated named class or record. |
+| DRNCLASSIFICATION006 | A statically known matching dictionary key requires classification or a reviewed comment. |
+| DRNCLASSIFICATION007 | Invalid, unreadable, oversized, or ambiguous classification catalog. Previously DRN0021. |
+| DRNCLASSIFICATION008 | Sensitive ILogger names or directly captured classified properties require a decision. |
+| DRNCLASSIFICATION009 | Malformed DiagnosticNameExemption comment. |
+| DRNCLASSIFICATION010 | Warning: a valid DiagnosticNameExemption comment suppresses no name diagnostic. |
+| DRNCLASSIFICATION011 | Model capture exceeded the analysis work limit, so configured paths may remain unchecked. Capture a smaller model or classify sensitive subtrees explicitly. |
+| DRNCLASSIFICATION012 | A direct property capture exceeded the 256 interface-property scan limit before classification could be determined. Remove the capture, explicitly redact its value, or declare classification directly on the captured property or type. |
 
 Company attributes may derive from Sensitive or Personal, including in referenced assemblies. Derived Sensitive attributes must remain positive. Runtime non-None Microsoft classifications still redact, but unrelated classification families do not satisfy compiler verification. A custom attribute returning None is not a supported exemption.
 
-Code fixes offer Personal and Sensitive with selected Fix All. Sensitive(false) and DRN0016's Use Sensitive(true) require individual selection. Generated/external declarations receive no direct-edit fix. Editor hosts must support the packaged .NET 11/Roslyn 5.9 analyzer and code-fix assemblies.
+Code fixes offer Personal and Sensitive with selected Fix All. Sensitive(false) and DRNCLASSIFICATION002's Use Sensitive(true) require individual selection. Generated/external declarations receive no direct-edit fix. The analyzer and code-fix assemblies require a .NET 10 or newer compiler host with compatible Roslyn 5.12 APIs. Runtime applications target .NET 11.
 
 ### Property false positives
 
 `[Sensitive(false)]` records a reviewed property-name exemption with optional Justification. It is invalid on types and fields. Positive classifications still win. An inherited unchanged property retains its exemption; overrides and hidden properties need their own decision. Interface exemptions do not waive concrete declaration checks. `[IgnoreLog, Sensitive(false)]` remains ignored during capture.
 
-No unused-exemption warning is issued for attributes, including `[Sensitive(false)] int Count`, or reason/policy APIs. DRN0024 applies only to comments.
+No unused-exemption warning is issued for attributes, including `[Sensitive(false)] int Count`, or reason/policy APIs. DRNCLASSIFICATION010 applies only to comments.
 
 ### Typed models and untyped entries
 
@@ -86,9 +86,9 @@ Metric APIs use code-owned identifiers without native runtime name matching. Cus
 
 ### Boundaries and migration
 
-DRN0022 covers Microsoft LoggerExtensions templates, template BeginScope, scope dictionary initializers/direct local writes, and directly extracted classified property values in ILogger and DRN captures. Escaped braces are literals; format/alignment suffixes are excluded. Known null, empty, and exact `[redacted]` values are allowed. DRN0017 also checks AddIfNotNullOrEmpty, excluding known null and empty values. Standard ILogger does not apply DRN runtime redaction.
+DRNCLASSIFICATION008 covers Microsoft LoggerExtensions templates, template BeginScope, scope dictionary initializers/direct local writes, and directly extracted classified property values in ILogger and DRN captures. Escaped braces are literals; format/alignment suffixes are excluded. Known null, empty, and exact `[redacted]` values are allowed. DRNCLASSIFICATION003 also checks AddIfNotNullOrEmpty, excluding known null and empty values. Standard ILogger does not apply DRN runtime redaction.
 
-Direct property checks include inherited implementations of classified interfaces on the receiver's statically known type. Unrelated explicit interface implementations do not classify a same-named public property. If the 256 interface-property scan limit prevents a complete decision, DRN0027 reports an error at the logging call. This applies to scoped logging, ILogger templates, and scope dictionary values. Finding a positive classification within the limit still reports DRN0022. Name exemptions cannot waive incomplete classification analysis.
+Direct property checks include inherited implementations of classified interfaces on the receiver's statically known type. Unrelated explicit interface implementations do not classify a same-named public property. If the 256 interface-property scan limit prevents a complete decision, DRNCLASSIFICATION012 reports an error at the logging call. This applies to scoped logging, ILogger templates, and scope dictionary values. Finding a positive classification within the limit still reports DRNCLASSIFICATION008. Name exemptions cannot waive incomplete classification analysis.
 
 ```csharp
 // DiagnosticNameExemption: TokenCount | Reviewed numeric metric.
@@ -100,13 +100,13 @@ log.Add("TokenCount", count);
 
 Use one exact, case-sensitive name per comment immediately above the statement, without a blank line. Names must be 1-512 characters, justifications nonempty, and comments at most 2048 characters. Wildcards are unsupported. Expression statements, local declarations (including using var), using statements, and return statements are supported. Comments do not extend into lambdas or later statements.
 
-DRN0017 comments match the reported capture path, including external-property parents and generated `_Seconds` suffixes. DRN0020 comments match exact dictionary keys at the capture statement, not at earlier declarations/writes. Exempting a parent never exempts other child keys. Comments cannot waive classified values, configured analyzer sensitiveFieldPaths, or declaration requirements. Unclassified exempted values remain visible at runtime.
+DRNCLASSIFICATION003 comments match the reported capture path, including external-property parents and generated `_Seconds` suffixes. DRNCLASSIFICATION006 comments match exact dictionary keys at the capture statement, not at earlier declarations/writes. Exempting a parent never exempts other child keys. Comments cannot waive classified values, configured analyzer sensitiveFieldPaths, or declaration requirements. Unclassified exempted values remain visible at runtime.
 
-DRN0023 reports malformed comments. DRN0024 warns on valid comments that suppress nothing, including mismatched, detached, redundant, and duplicate comments. Tracking is isolated per compilation. Attributes and reason/policy APIs do not receive this unused-exemption warning.
+DRNCLASSIFICATION009 reports malformed comments. DRNCLASSIFICATION010 warns on valid comments that suppress nothing, including mismatched, detached, redundant, and duplicate comments. Tracking is isolated per compilation. Attributes and reason/policy APIs do not receive this unused-exemption warning.
 
 Direct NSubstitute verification chains are excluded from capture checks. Ordinary substitute calls and model declarations remain checked. Analyzer exploration is bounded and does not follow arbitrary wrappers, aliases, method returns, dynamic keys, LoggerMessage generators/delegates, or custom generic ILogger state. Template analysis bounds are 65,536 characters, 256 visible placeholders/arguments, and 256 interface properties. Dynamic and unexamined values require application-owned classification.
 
-DRN0019 exempts EF column-definition callbacks and supported column selectors by resolved symbols. Migration directories are not excluded. Ordinary anonymous objects inside migrations remain checked.
+DRNCLASSIFICATION005 exempts EF column-definition callbacks and supported column selectors by resolved symbols. Migration directories are not excluded. Ordinary anonymous objects inside migrations remain checked.
 
 Suppression of a compiler diagnostic does not classify a value at runtime. Review matching models and captures when upgrading. Do not mass-apply Sensitive or disable all test analysis. Classify generated properties through generator inputs or supported partial declarations where needed.
 
@@ -133,7 +133,7 @@ Legacy `DiagnosticLogging` settings `SensitiveFields`, `SensitiveFieldPaths`, an
 
 If retaining runtime catalog loading, deploy loose files through None Update with build/publish copying, or None Include with Link for external files. Embedded catalogs require no loose deployment. RuleFile and RuleAssemblyName merge additively. Analyzer registration alone does not require runtime loading.
 
-The four case-sensitive groups above must be string arrays. Unknown/duplicate groups, nulls, empty normalized names, names over 512 characters, more than 256 rules per file, and files over 65,536 characters are rejected. Inheritance is bounded to 1,024 assemblies, 64 catalogs, and 4,096 rules. Use UTF-8. Catalogs contain names, never secret values. Invalid compiler catalogs report DRN0021 while baseline analysis remains active.
+The four case-sensitive groups above must be string arrays. Unknown/duplicate groups, nulls, empty normalized names, names over 512 characters, more than 256 rules per file, and files over 65,536 characters are rejected. Inheritance is bounded to 1,024 assemblies, 64 catalogs, and 4,096 rules. Use UTF-8. Catalogs contain names, never secret values. Invalid compiler catalogs report DRNCLASSIFICATION007 (previously DRN0021) while baseline analysis remains active.
 
 The browser imports the shared catalog at bundle time and supports configured name matching. Server settings do not automatically reach the browser. Configure browser rules separately for project-specific names. Browser input carries no server classification authority.
 

@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using DRN.Framework.CompilerTools;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 
@@ -7,7 +8,7 @@ namespace DRN.Framework.Hosting.Generators;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class DrnProgramNameAnalyzer : DiagnosticAnalyzer
 {
-    private static readonly DiagnosticDescriptor ProgramSuffixRequired = new("DRNHG002", "DRN program name must end with Program",
+    private static readonly DiagnosticDescriptor ProgramSuffixRequired = new("DRNHOSTING002", "DRN program name must end with Program",
         "Class '{0}' inherits DrnProgramBase<TProgram> and must have a name ending with 'Program'", "Hosting", DiagnosticSeverity.Error, true);
     private static readonly ImmutableArray<DiagnosticDescriptor> Diagnostics = [ProgramSuffixRequired];
 
@@ -32,11 +33,7 @@ public sealed class DrnProgramNameAnalyzer : DiagnosticAnalyzer
             DrnProgramConvention.FindBase(type, programBase) is null)
             return;
 
-        foreach (var location in type.Locations)
-        {
-            if (!location.IsInSource) continue;
+        if (GeneratedSource.FirstUserLocation(type, context) is { } location)
             context.ReportDiagnostic(Diagnostic.Create(ProgramSuffixRequired, location, type.Name));
-            return;
-        }
     }
 }

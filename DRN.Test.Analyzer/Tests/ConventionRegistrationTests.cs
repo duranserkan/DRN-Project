@@ -1,15 +1,23 @@
 using DRN.Framework.SharedKernel.Analyzers.Conventions;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
-using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.ClassificationTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
 
 public sealed class ConventionRegistrationTests
 {
-    private static readonly MetadataReference UtilsReference = MetadataReference.CreateFromFile(typeof(LifetimeAttribute).Assembly.Location);
-    private static readonly MetadataReference FrameworkReference = MetadataReference.CreateFromFile(
-        typeof(DRN.Framework.EntityFramework.Context.IDrnContext).Assembly.Location);
-    private static readonly string[] MissingLifetimeDiagnostics = ["DRNCV031"];
+    private static readonly Lazy<MetadataReference> CommonSharedKernelReference = new(() =>
+    {
+        var sharedKernel = Compilation("""
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Common.SharedKernel")]
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Common.SharedKernel")]
+            namespace Common.SharedKernel;
+            public interface IWorker { int Read(); }
+            """).WithAssemblyName("Common.SharedKernel");
+        return AnalyzerTestCompilation.EmitReference(sharedKernel);
+    });
+    private static MetadataReference UtilsReference => AnalyzerTestCompilation.UtilsReference;
+    private static MetadataReference FrameworkReference => AnalyzerTestCompilation.EntityFrameworkReference;
+    private static readonly string[] MissingLifetimeDiagnostics = ["DRNDEPENDENCYINJECTION002"];
 
     [Theory]
     [DataInlineUnit("typeof(ProjectModule).Assembly", true)]
@@ -31,7 +39,7 @@ public sealed class ConventionRegistrationTests
                 }
             }
             """, includeDemand: false);
-        facts.Diagnostics.Count(item => item.Id == "DRNCV012").Should().Be(missing ? 1 : 0);
+        facts.Diagnostics.Count(item => item.Id == "DRNDEPENDENCYINJECTION001").Should().Be(missing ? 1 : 0);
     }
 
     [Theory]
@@ -67,7 +75,7 @@ public sealed class ConventionRegistrationTests
             """, includeDemand: false, role: role);
         facts.Diagnostics.Clear();
         ConventionRegistrationAnalysis.AnalyzeAll(facts, requireModule: true);
-        facts.Diagnostics.Count(item => item.Id == "DRNCV032").Should().Be(missing ? 1 : 0);
+        facts.Diagnostics.Count(item => item.Id == "DRNDEPENDENCYINJECTION003").Should().Be(missing ? 1 : 0);
     }
 
     [Theory]
@@ -93,15 +101,15 @@ public sealed class ConventionRegistrationTests
             """, includeDemand: false);
         facts.Diagnostics.Clear();
         ConventionRegistrationAnalysis.AnalyzeAll(facts, requireModule: true);
-        facts.Diagnostics.Count(item => item.Id == "DRNCV032").Should().Be(missing ? 1 : 0);
+        facts.Diagnostics.Count(item => item.Id == "DRNDEPENDENCYINJECTION003").Should().Be(missing ? 1 : 0);
     }
 
     [Theory]
-    [DataInlineUnit("", "IWorker", "DRNCV031")]
-    [DataInlineUnit("[Scoped<object>]", "IWorker", "DRNCV031")]
-    [DataInlineUnit("[ScopedWithKey<IWorker>(\"read\")]", "IWorker", "DRNCV012")]
-    [DataInlineUnit("[Scoped<IWorker>]", "IOther", "DRNCV012")]
-    [DataInlineUnit("[HostedService]", "IWorker", "DRNCV031")]
+    [DataInlineUnit("", "IWorker", "DRNDEPENDENCYINJECTION002")]
+    [DataInlineUnit("[Scoped<object>]", "IWorker", "DRNDEPENDENCYINJECTION002")]
+    [DataInlineUnit("[ScopedWithKey<IWorker>(\"read\")]", "IWorker", "DRNDEPENDENCYINJECTION001")]
+    [DataInlineUnit("[Scoped<IWorker>]", "IOther", "DRNDEPENDENCYINJECTION001")]
+    [DataInlineUnit("[HostedService]", "IWorker", "DRNDEPENDENCYINJECTION002")]
     [DataInlineUnit("[Scoped<IWorker>]", "IWorker", "")]
     public void Combined_Analysis_Should_Separate_Binding_Failures_From_Demand_Mismatches(
         string attribute, string dependency, string expected)
@@ -150,11 +158,11 @@ public sealed class ConventionRegistrationTests
         ConventionRegistrationAnalysis.AnalyzeLifetimeAttributes(facts);
         facts.Lifetimes.Count.Should().Be(count);
         ConventionRegistrationAnalysis.GetLifetime(facts, worker).Should().Be(cached);
-        facts.Diagnostics.Count(item => item.Id == "DRNCV031").Should().Be(missing ? 1 : 0);
+        facts.Diagnostics.Count(item => item.Id == "DRNDEPENDENCYINJECTION002").Should().Be(missing ? 1 : 0);
         if (!missing) facts.Diagnostics.Should().BeEmpty();
 
         using var cancellation = new CancellationTokenSource();
-        var cancelable = new ConventionFacts(facts.Compilation, facts.Project, new([], []), new Options(), cancellation.Token);
+        var cancelable = new ConventionFacts(facts.Compilation, facts.Project, new([], []), facts.Options, cancellation.Token);
         ConventionRegistrationAnalysis.GetLifetime(cancelable, worker).Should().Be(cached);
         cancellation.Cancel();
         var read = () => ConventionRegistrationAnalysis.GetLifetime(cancelable, worker);
@@ -180,7 +188,7 @@ public sealed class ConventionRegistrationTests
         facts.Diagnostics.Clear();
         ConventionRegistrationAnalysis.AnalyzeLifetimeAttributes(facts);
         ConventionRegistrationAnalysis.Analyze(facts);
-        var expected = facts.Diagnostics.Where(diagnostic => diagnostic.Id != "DRNCV012").Select(diagnostic =>
+        var expected = facts.Diagnostics.Where(diagnostic => diagnostic.Id != "DRNDEPENDENCYINJECTION001").Select(diagnostic =>
             (diagnostic.Id, diagnostic.GetMessage(), diagnostic.Location.SourceSpan, diagnostic.Severity,
                 diagnostic.Properties["Target"])).ToArray();
         facts.Diagnostics.Clear();
@@ -193,7 +201,7 @@ public sealed class ConventionRegistrationTests
 
         using var cancellation = new CancellationTokenSource();
         var canceledFacts = new ConventionFacts(facts.Compilation, facts.Project, new([], []),
-            new Options(), cancellation.Token);
+            facts.Options, cancellation.Token);
         cancellation.Cancel();
         var analyze = () => ConventionRegistrationAnalysis.AnalyzeAll(canceledFacts, requireModule: true);
         analyze.Should().Throw<OperationCanceledException>();
@@ -227,9 +235,9 @@ public sealed class ConventionRegistrationTests
             public class Worker : IWorker, IOther;
             """, includeDemand: false, role: role);
         ConventionRegistrationAnalysis.AnalyzeLifetimeAttributes(facts);
-        facts.Diagnostics.Count(item => item.Id == "DRNCV031").Should().Be(missing ? 1 : 0);
+        facts.Diagnostics.Count(item => item.Id == "DRNDEPENDENCYINJECTION002").Should().Be(missing ? 1 : 0);
         if (missing)
-            facts.Diagnostics.Single(item => item.Id == "DRNCV031").GetMessage().Should().Be(
+            facts.Diagnostics.Single(item => item.Id == "DRNDEPENDENCYINJECTION002").GetMessage().Should().Be(
                 "'Worker' must register 'IWorker' through a matching LifetimeAttribute. Choose [Scoped<IWorker>], [Transient<IWorker>], or [Singleton<IWorker>] for its intended lifetime.");
     }
 
@@ -252,7 +260,7 @@ public sealed class ConventionRegistrationTests
             public class ProfilePage : Microsoft.AspNetCore.Mvc.RazorPages.PageModel, IProfilePage;
             """, includeDemand: false);
         ConventionRegistrationAnalysis.AnalyzeLifetimeAttributes(facts);
-        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNCV031");
+        facts.Diagnostics.Should().NotContain(item => item.Id == "DRNDEPENDENCYINJECTION002");
     }
 
     [Theory]
@@ -277,7 +285,7 @@ public sealed class ConventionRegistrationTests
             }
             """, includeDemand: false);
         ConventionRegistrationAnalysis.AnalyzeLifetimeAttributes(facts);
-        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV031");
+        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNDEPENDENCYINJECTION002");
     }
 
     [Theory]
@@ -298,7 +306,7 @@ public sealed class ConventionRegistrationTests
             public class Worker : WorkerBase, IWorker<int>;
             """, includeDemand: false);
         ConventionRegistrationAnalysis.AnalyzeLifetimeAttributes(facts);
-        facts.Diagnostics.Count(item => item.Id == "DRNCV031").Should().Be(missing ? 1 : 0);
+        facts.Diagnostics.Count(item => item.Id == "DRNDEPENDENCYINJECTION002").Should().Be(missing ? 1 : 0);
     }
 
     private const string Prefix = """
@@ -335,7 +343,7 @@ public sealed class ConventionRegistrationTests
                 public ISourceKnownRepository<Category> Repository => null!;
             }
             """ + Scan);
-        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV012").Should().Be(missing ? 1 : 0);
+        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNDEPENDENCYINJECTION001").Should().Be(missing ? 1 : 0);
         if (missing)
         {
             var diagnostic = facts.Diagnostics.Single();
@@ -401,7 +409,7 @@ public sealed class ConventionRegistrationTests
                 }
             }
             """);
-        facts.Diagnostics.Count(item => item.Id == "DRNCV012").Should().Be(missing ? 1 : 0);
+        facts.Diagnostics.Count(item => item.Id == "DRNDEPENDENCYINJECTION001").Should().Be(missing ? 1 : 0);
     }
 
     [Theory]
@@ -416,7 +424,7 @@ public sealed class ConventionRegistrationTests
                 public ISourceKnownRepository<Category> Repository => null!;
             }
             """ + Scan, key: key);
-        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV012").Should().Be(missing ? 1 : 0);
+        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNDEPENDENCYINJECTION001").Should().Be(missing ? 1 : 0);
     }
 
     [Fact]
@@ -485,7 +493,7 @@ public sealed class ConventionRegistrationTests
             {
                 public ISourceKnownRepository<Category> Repository => null!;
             }
-            """ + Scan).Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV012");
+            """ + Scan).Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNDEPENDENCYINJECTION001");
     }
 
     [Theory]
@@ -501,7 +509,7 @@ public sealed class ConventionRegistrationTests
             }
             """ + Scan;
         var facts = Analyze(source);
-        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV012").Should().Be(missing ? 1 : 0);
+        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNDEPENDENCYINJECTION001").Should().Be(missing ? 1 : 0);
     }
 
     [Theory]
@@ -518,7 +526,7 @@ public sealed class ConventionRegistrationTests
             [{{registration}}]
             public class ContextModule;
             """ + Scan);
-        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV012").Should().Be(missing ? 1 : 0);
+        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNDEPENDENCYINJECTION001").Should().Be(missing ? 1 : 0);
     }
 
     [Theory]
@@ -532,7 +540,7 @@ public sealed class ConventionRegistrationTests
             public class CategoryService : ICategoryService { public int Read() => 1; }
             """ + Scan;
         var diagnostics = Analyze(source, includeDemand: false).Diagnostics;
-        diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV012").Should().Be(missing ? 1 : 0);
+        diagnostics.Count(diagnostic => diagnostic.Id == "DRNDEPENDENCYINJECTION001").Should().Be(missing ? 1 : 0);
         if (missing) diagnostics.Single().Location.Kind.Should().Be(LocationKind.SourceFile);
     }
 
@@ -550,7 +558,7 @@ public sealed class ConventionRegistrationTests
             """ + Scan;
         var diagnostics = Analyze(source.Replace("Sample.Application", "Sample." + role, StringComparison.Ordinal),
             includeDemand: false, role: role).Diagnostics;
-        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV012");
+        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNDEPENDENCYINJECTION001");
     }
 
     [Fact]
@@ -604,7 +612,7 @@ public sealed class ConventionRegistrationTests
             }
             """ + Scan;
         Analyze(source.Replace("KEY", key, StringComparison.Ordinal), includeDemand: false).Diagnostics
-            .Count(diagnostic => diagnostic.Id == "DRNCV012").Should().Be(missing ? 1 : 0);
+            .Count(diagnostic => diagnostic.Id == "DRNDEPENDENCYINJECTION001").Should().Be(missing ? 1 : 0);
     }
 
     [Theory]
@@ -630,7 +638,7 @@ public sealed class ConventionRegistrationTests
                 }
             }
             """;
-        Analyze(source, includeDemand: false).Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV012").Should().Be(missing ? 1 : 0);
+        Analyze(source, includeDemand: false).Diagnostics.Count(diagnostic => diagnostic.Id == "DRNDEPENDENCYINJECTION001").Should().Be(missing ? 1 : 0);
     }
 
     [Fact]
@@ -673,7 +681,7 @@ public sealed class ConventionRegistrationTests
                     services.AddScoped<IReader, Alternate>();
                 }
             }
-            """, includeDemand: false).Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV012");
+            """, includeDemand: false).Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNDEPENDENCYINJECTION001");
     }
 
     [Fact]
@@ -701,7 +709,7 @@ public sealed class ConventionRegistrationTests
             "public interface ICategoryService { int Read(); }", StringComparison.Ordinal) + """
             public class CategoryService : ICategoryService { public int Read() => 1; }
             """ + Scan, includeDemand: false);
-        facts.Records.Add(new("Exception", "DRNCV012", new Dictionary<string, string>
+        facts.Records.Add(new("Exception", "DRNDEPENDENCYINJECTION001", new Dictionary<string, string>
         {
             ["Target"] = "T:Sample.Application.QA.CategoryService",
             ["Reason"] = "This implementation is constructed explicitly by the reviewed import job.",
@@ -713,18 +721,18 @@ public sealed class ConventionRegistrationTests
     }
 
     [Theory]
-    [DataInlineUnit("DRNCV012", false)]
-    [DataInlineUnit("DRNCV012", true)]
-    [DataInlineUnit("DRNCV031", false)]
-    [DataInlineUnit("DRNCV031", true)]
+    [DataInlineUnit("DRNDEPENDENCYINJECTION001", false)]
+    [DataInlineUnit("DRNDEPENDENCYINJECTION001", true)]
+    [DataInlineUnit("DRNDEPENDENCYINJECTION002", false)]
+    [DataInlineUnit("DRNDEPENDENCYINJECTION002", true)]
     public async Task Production_Analyzer_Should_Check_Demand_Free_Services_And_Honor_Narrow_Suppression(string rule, bool suppressed)
     {
         var suppression = suppressed ? $$"""
             [System.Diagnostics.CodeAnalysis.SuppressMessage("DRN.Conventions.Registration", "{{rule}}",
                 Justification = "The reviewed import job constructs this implementation explicitly.")]
             """ : "";
-        // A matching attribute satisfies DRNCV031, but runtime scanning excludes internal classes.
-        var declaration = rule == "DRNCV012" ? "[Scoped<IReaderService>] internal" : "public";
+        // A matching attribute satisfies DRNDEPENDENCYINJECTION002, but runtime scanning excludes internal classes.
+        var declaration = rule == "DRNDEPENDENCYINJECTION001" ? "[Scoped<IReaderService>] internal" : "public";
         var compilation = Compilation("""
             using DRN.Framework.Utils.DependencyInjection;
             using DRN.Framework.Utils.DependencyInjection.Attributes;
@@ -743,14 +751,13 @@ public sealed class ConventionRegistrationTests
             }
             """).WithAssemblyName("Sample.Application")
             .AddReferences(UtilsReference);
-        compilation.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
         var input = new ProjectDiagnosticRulesTests.RuleFile(ConventionInputs.FileName, """
             [assembly: DRN.Conventions.Version("1")]
             [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
             """);
-        var diagnostics = await compilation.WithAnalyzers([new SourceKnownConventionAnalyzer()],
-            new AnalyzerOptions([input], new Options())).GetAnalyzerDiagnosticsAsync();
-        diagnostics.Should().NotContain(diagnostic => diagnostic.Id == "AD0001" || diagnostic.Id == "DRNCV018");
+        var diagnostics = await AnalyzerTestCompilation.Analyze(compilation, new SourceKnownConventionAnalyzer(),
+            AnalyzerTestCompilation.ConventionOptions("Sample.Application", files: input));
+        diagnostics.Should().NotContain(diagnostic => diagnostic.Id == "AD0001" || diagnostic.Id == "DRNCONVENTIONEXCEPTION001");
         diagnostics.Should().HaveCount(suppressed ? 0 : 1);
         diagnostics.Should().OnlyContain(diagnostic => diagnostic.Id == rule);
     }
@@ -764,7 +771,7 @@ public sealed class ConventionRegistrationTests
             "public interface ICategoryService { int Read(); }", StringComparison.Ordinal) + $$"""
             [Scoped<ICategoryService>]
             {{accessibility}} class CategoryService : ICategoryService { public int Read() => 1; }
-            """ + Scan, includeDemand: false).Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV012").Should().Be(missing ? 1 : 0);
+            """ + Scan, includeDemand: false).Diagnostics.Count(diagnostic => diagnostic.Id == "DRNDEPENDENCYINJECTION001").Should().Be(missing ? 1 : 0);
     }
 
     [Theory]
@@ -854,7 +861,7 @@ public sealed class ConventionRegistrationTests
                 public int Read() => first.Read() + second.Read() + third.Read();
             }
             """ + Scan, includeDemand: false).Diagnostics;
-        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV012");
+        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNDEPENDENCYINJECTION001");
     }
 
     [Fact]
@@ -894,14 +901,19 @@ public sealed class ConventionRegistrationTests
             public interface IConsumer { int Read(); }
             [Scoped<IConsumer>]
             public class Consumer({{selector}} IReader reader) : IConsumer { public int Read() => reader.Read(); }
-            """ + Scan, includeDemand: false).Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV012").Should().Be(missing ? 1 : 0);
+            """ + Scan, includeDemand: false).Diagnostics.Count(diagnostic => diagnostic.Id == "DRNDEPENDENCYINJECTION001").Should().Be(missing ? 1 : 0);
     }
 
     [Theory]
-    [InlineData("", true)]
-    [InlineData("[FromKeyedServices(\"\")]", false)]
-    public void Empty_String_Manual_Key_Should_Not_Satisfy_An_Unkeyed_Demand(string selector, bool missing)
+    [DataInlineUnit("", true, false)]
+    [DataInlineUnit("[FromKeyedServices(\"\")]", false, false)]
+    [DataInlineUnit("", true, true)]
+    [DataInlineUnit("[FromKeyedServices(\"\")]", false, true)]
+    public void Empty_String_Manual_Key_Should_Not_Satisfy_An_Unkeyed_Demand(string selector, bool missing, bool named)
     {
+        var registration = named
+            ? """ServiceCollectionServiceExtensions.AddKeyedScoped<IReader, Reader>(serviceKey: "", services: services)"""
+            : """services.AddKeyedScoped<IReader, Reader>("")""";
         Analyze($$"""
             using DRN.Framework.Utils.DependencyInjection;
             using DRN.Framework.Utils.DependencyInjection.Attributes;
@@ -917,10 +929,10 @@ public sealed class ConventionRegistrationTests
                 public static void Register(IServiceCollection services)
                 {
                     services.AddServicesWithAttributes(typeof(Module).Assembly);
-                    services.AddKeyedScoped<IReader, Reader>("");
+                    {{registration}};
                 }
             }
-            """, includeDemand: false).Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV012").Should().Be(missing ? 1 : 0);
+            """, includeDemand: false).Diagnostics.Count(diagnostic => diagnostic.Id == "DRNDEPENDENCYINJECTION001").Should().Be(missing ? 1 : 0);
     }
 
     [Fact]
@@ -938,7 +950,7 @@ public sealed class ConventionRegistrationTests
                 }
             }
             """;
-        Analyze(source, includeDemand: false).Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV012");
+        Analyze(source, includeDemand: false).Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNDEPENDENCYINJECTION001");
     }
 
     [Theory]
@@ -964,7 +976,7 @@ public sealed class ConventionRegistrationTests
             [Scoped<IConsumer>]
             public class Consumer({{key}} IHostedService worker) : IConsumer { public int Read() => 1; }
             """ + Scan;
-        Analyze(source, includeDemand: false).Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV012").Should().Be(missing ? 1 : 0);
+        Analyze(source, includeDemand: false).Diagnostics.Count(diagnostic => diagnostic.Id == "DRNDEPENDENCYINJECTION001").Should().Be(missing ? 1 : 0);
     }
 
     [Theory]
@@ -972,9 +984,9 @@ public sealed class ConventionRegistrationTests
     [DataInlineUnit("BackgroundService", "[global::DRN.Framework.Utils.DependencyInjection.Attributes.HostedServiceAttribute]", "", "")]
     [DataInlineUnit("IHostedService", "[CustomHosted]", "", "")]
     [DataInlineUnit("InheritedWorker", "", "", "")]
-    [DataInlineUnit("IHostedService", "", "", "DRNCV031")]
-    [DataInlineUnit("IHostedService", "[Singleton<HostedService>]", "", "DRNCV031")]
-    [DataInlineUnit("IHostedService", "[global::DRN.Framework.Utils.DependencyInjection.Attributes.HostedServiceAttribute]", "[FromKeyedServices(\"worker\")]", "DRNCV012")]
+    [DataInlineUnit("IHostedService", "", "", "DRNDEPENDENCYINJECTION002")]
+    [DataInlineUnit("IHostedService", "[Singleton<HostedService>]", "", "DRNDEPENDENCYINJECTION002")]
+    [DataInlineUnit("IHostedService", "[global::DRN.Framework.Utils.DependencyInjection.Attributes.HostedServiceAttribute]", "[FromKeyedServices(\"worker\")]", "DRNDEPENDENCYINJECTION001")]
     public void Paired_Hosted_Service_Should_Use_The_Actual_Lifetime_Binding(
         string baseType, string attribute, string selector, string expectedRule)
     {
@@ -1024,7 +1036,7 @@ public sealed class ConventionRegistrationTests
     }
 
     [Fact]
-    public void Ambiguous_Lifetime_Attributes_Should_Report_DRNCV012_On_Unpaired_Demands()
+    public void Ambiguous_Lifetime_Attributes_Should_Report_DRNDEPENDENCYINJECTION001_On_Unpaired_Demands()
     {
         var diagnostics = Analyze("""
             using DRN.Framework.Utils.DependencyInjection;
@@ -1040,27 +1052,17 @@ public sealed class ConventionRegistrationTests
             [Scoped<IConsumer>]
             public sealed class Consumer(IExtra extra) : IConsumer { public int Read() => extra.Read(); }
             """ + Scan, includeDemand: false, includeLifetime: true).Diagnostics;
-        diagnostics.Should().Contain(item => item.Id == "DRNCV031" && item.GetMessage().Contains("IWorker", StringComparison.Ordinal));
-        diagnostics.Should().Contain(item => item.Id == "DRNCV012" && item.GetMessage().Contains("IExtra", StringComparison.Ordinal));
+        diagnostics.Should().Contain(item => item.Id == "DRNDEPENDENCYINJECTION002" && item.GetMessage().Contains("IWorker", StringComparison.Ordinal));
+        diagnostics.Should().Contain(item => item.Id == "DRNDEPENDENCYINJECTION001" && item.GetMessage().Contains("IExtra", StringComparison.Ordinal));
     }
 
     [Theory]
-    [DataInlineUnit("public", "", "DRNCV031")]
-    [DataInlineUnit("internal", "[Scoped<Common.SharedKernel.IWorker>]", "DRNCV012")]
+    [DataInlineUnit("public", "", "DRNDEPENDENCYINJECTION002")]
+    [DataInlineUnit("internal", "[Scoped<Common.SharedKernel.IWorker>]", "DRNDEPENDENCYINJECTION001")]
     [DataInlineUnit("public", "[Scoped<Common.SharedKernel.IWorker>]", "")]
     public void SharedKernel_Paired_Interfaces_Should_Enforce_Lifetime_And_Registration_Conventions(
         string accessibility, string attribute, string expectedRule)
     {
-        var sharedKernel = Compilation("""
-            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Common.SharedKernel")]
-            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Common.SharedKernel")]
-            namespace Common.SharedKernel;
-            public interface IWorker { int Read(); }
-            """).WithAssemblyName("Common.SharedKernel");
-        using var image = new MemoryStream();
-        sharedKernel.Emit(image).Success.Should().BeTrue();
-        var sharedReference = MetadataReference.CreateFromImage(image.ToArray());
-
         var diagnostics = Analyze($$"""
             using DRN.Framework.Utils.DependencyInjection;
             using DRN.Framework.Utils.DependencyInjection.Attributes;
@@ -1068,7 +1070,7 @@ public sealed class ConventionRegistrationTests
             namespace Sample.Application.QA;
             {{attribute}}
             {{accessibility}} sealed class Worker : Common.SharedKernel.IWorker { public int Read() => 1; }
-            """ + Scan, includeDemand: false, includeLifetime: true, extraReferences: [sharedReference]).Diagnostics;
+            """ + Scan, includeDemand: false, includeLifetime: true, extraReferences: [CommonSharedKernelReference.Value]).Diagnostics;
         if (expectedRule.Length == 0) diagnostics.Should().BeEmpty();
         else diagnostics.Should().ContainSingle().Which.Id.Should().Be(expectedRule);
     }
@@ -1079,8 +1081,8 @@ public sealed class ConventionRegistrationTests
         var compilation = Compilation(source).WithAssemblyName("Sample." + role)
             .AddReferences(UtilsReference, FrameworkReference);
         if (extraReferences is { Length: > 0 }) compilation = compilation.AddReferences(extraReferences);
-        compilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
-        var options = new Options(role);
+        compilation.AssertNoCompilerErrors();
+        var options = AnalyzerTestCompilation.ConventionOptionsProvider("Sample." + role);
         var registration = new ConventionInput("Registration", "Sample.Application.QA.CategoryService",
             new Dictionary<string, string>
             {
@@ -1092,16 +1094,5 @@ public sealed class ConventionRegistrationTests
         if (includeLifetime) ConventionRegistrationAnalysis.AnalyzeAll(facts);
         else ConventionRegistrationAnalysis.Analyze(facts);
         return facts;
-    }
-
-    private sealed class Options(string role = "Application") : AnalyzerConfigOptionsProvider
-    {
-        public override AnalyzerConfigOptions GlobalOptions { get; } = new ConventionInputTests.Config(new()
-        {
-            ["build_property.MSBuildProjectName"] = "Sample." + role,
-            ["build_property.RootNamespace"] = "Sample." + role
-        });
-        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => new ConventionInputTests.Config(new());
-        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => new ConventionInputTests.Config(new());
     }
 }

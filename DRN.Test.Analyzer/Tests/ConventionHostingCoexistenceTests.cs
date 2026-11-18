@@ -48,17 +48,17 @@ public sealed class ConventionHostingCoexistenceTests
         if (!enabled) compilation = ConventionTestDependencies.SuppressConventions(compilation);
         var diagnostics = await compilation.WithAnalyzers(
             [new SourceKnownControllerAuthorizationAnalyzer(), new SourceKnownConventionAnalyzer()], Inputs(true)).GetAnalyzerDiagnosticsAsync();
-        diagnostics.Should().NotContain(item => item.Id == "AD0001" || item.Id == "DRNCV032");
-        var security = diagnostics.Where(item => item.Id == "DRN0026").ToArray();
+        diagnostics.Should().NotContain(item => item.Id == "AD0001" || item.Id == "DRNDEPENDENCYINJECTION003");
+        var security = diagnostics.Where(item => item.Id == "DRNAUTHORIZATION001").ToArray();
         security.Should().HaveCount(2);
         security.Select(item => item.GetMessage()).Should().BeEquivalentTo(
             "Source-Known controller 'OrdersController' action 'Unnamed' requires an explicit named authorization policy: no explicit nonblank named policy is declared",
             "Source-Known controller 'OrdersController' action 'Anonymous' requires an explicit named authorization policy: anonymous access bypasses authorization");
         security.Should().OnlyContain(item => item.Severity == DiagnosticSeverity.Error);
-        security.Select(LocationText).Should().OnlyContain(text => text == "OrdersController");
-        diagnostics.Should().NotContain(item => item.Id == "DRNCV016" && item.GetMessage().Contains("controller", StringComparison.OrdinalIgnoreCase));
-        if (enabled) diagnostics.Should().Contain(item => item.Id == "DRNCV016" && item.GetMessage().Contains("OrderDto"));
-        else diagnostics.Should().NotContain(item => item.Id.StartsWith("DRNCV", StringComparison.Ordinal));
+        security.Select(AnalyzerTestCompilation.LocationText).Should().OnlyContain(text => text == "OrdersController");
+        diagnostics.Should().NotContain(item => item.Id == "DRNARCHITECTURE004" && item.GetMessage().Contains("controller", StringComparison.OrdinalIgnoreCase));
+        if (enabled) diagnostics.Should().Contain(item => item.Id == "DRNARCHITECTURE004" && item.GetMessage().Contains("OrderDto"));
+        else diagnostics.Should().OnlyContain(item => item.Id == "DRNAUTHORIZATION001");
     }
 
     [Theory]
@@ -70,11 +70,11 @@ public sealed class ConventionHostingCoexistenceTests
         if (!enabled) compilation = ConventionTestDependencies.SuppressConventions(compilation);
         var diagnostics = await compilation.WithAnalyzers([new DrnProgramNameAnalyzer(), new SourceKnownConventionAnalyzer()],
             Inputs(true)).GetAnalyzerDiagnosticsAsync();
-        diagnostics.Should().NotContain(item => item.Id == "AD0001" || item.Id == "DRNCV032");
-        var diagnostic = diagnostics.Where(item => item.Id == "DRNHG002").Should().ContainSingle().Which;
+        diagnostics.Should().NotContain(item => item.Id == "AD0001" || item.Id == "DRNDEPENDENCYINJECTION003");
+        var diagnostic = diagnostics.Where(item => item.Id == "DRNHOSTING002").Should().ContainSingle().Which;
         diagnostic.Severity.Should().Be(DiagnosticSeverity.Error);
         diagnostic.GetMessage().Should().Be("Class 'SampleHost' inherits DrnProgramBase<TProgram> and must have a name ending with 'Program'");
-        LocationText(diagnostic).Should().Be("SampleHost");
+        AnalyzerTestCompilation.LocationText(diagnostic).Should().Be("SampleHost");
     }
 
     [Fact]
@@ -93,22 +93,22 @@ public sealed class ConventionHostingCoexistenceTests
             additionalTexts: [page], optionsProvider: new Options(false));
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var initial, out var generatorDiagnostics);
         generatorDiagnostics.Should().BeEmpty();
-        initial.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        initial.AssertNoCompilerErrors();
         var baseline = Outputs(driver);
         baseline.Should().Contain(text => text.Contains("ApiEndpoint Read", StringComparison.Ordinal));
         baseline.Should().Contain(text => text.Contains("Index", StringComparison.Ordinal) && text.Contains("Page", StringComparison.Ordinal));
         baseline.Should().NotContain(text => text.Contains("ApiEndpoint InternalHelper", StringComparison.Ordinal));
 
         var firstTree = compilation.SyntaxTrees.Single(tree => tree.FilePath == "Fixture0.cs");
-        var edited = compilation.ReplaceSyntaxTree(firstTree, CSharpSyntaxTree.ParseText(firstTree.GetText() + "\n// unrelated edit", path: firstTree.FilePath));
+        var edited = compilation.ReplaceSyntaxTree(firstTree, CSharpSyntaxTree.ParseText(await firstTree.GetTextAsync() + "\n// unrelated edit", path: firstTree.FilePath));
         driver = driver.WithUpdatedAnalyzerConfigOptions(new Options(true));
         driver = driver.RunGeneratorsAndUpdateCompilation(edited, out var enabled, out generatorDiagnostics);
         generatorDiagnostics.Should().BeEmpty();
         Outputs(driver).Should().Equal(baseline);
-        enabled.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        enabled.AssertNoCompilerErrors();
         var diagnostics = await enabled.WithAnalyzers([new SourceKnownConventionAnalyzer(), new DrnProgramNameAnalyzer()], Inputs(true))
             .GetAnalyzerDiagnosticsAsync();
-        diagnostics.Should().NotContain(item => item.Id == "AD0001" || item.Id == "DRNHG002" || item.Id == "DRNCV032");
+        diagnostics.Should().NotContain(item => item.Id == "AD0001" || item.Id == "DRNHOSTING002" || item.Id == "DRNDEPENDENCYINJECTION003");
 
         driver = driver.WithUpdatedAnalyzerConfigOptions(new Options(true, "Application"));
         driver = driver.RunGeneratorsAndUpdateCompilation(edited, out var movedRole, out generatorDiagnostics);
@@ -116,15 +116,15 @@ public sealed class ConventionHostingCoexistenceTests
         Outputs(driver).Should().Equal(baseline);
         var movedDiagnostics = await movedRole.WithAnalyzers([new SourceKnownConventionAnalyzer()], Inputs(true, "Application"))
             .GetAnalyzerDiagnosticsAsync();
-        movedDiagnostics.Should().NotContain(item => item.Id == "DRNCV032");
-        movedDiagnostics.Should().Contain(item => item.Id == "DRNCV016" && item.GetMessage() ==
+        movedDiagnostics.Should().NotContain(item => item.Id == "DRNDEPENDENCYINJECTION003");
+        movedDiagnostics.Should().Contain(item => item.Id == "DRNARCHITECTURE004" && item.GetMessage() ==
             "Implementation 'ItemsController' (transport) belongs to role 'Hosted'.");
 
         var removed = edited.RemoveSyntaxTrees(edited.SyntaxTrees.Single(tree => tree.FilePath == "Fixture1.cs"));
         driver = driver.RunGeneratorsAndUpdateCompilation(removed, out var final, out generatorDiagnostics);
         generatorDiagnostics.Should().BeEmpty();
         Outputs(driver).Should().NotContain(text => text.Contains("ApiEndpoint Read", StringComparison.Ordinal));
-        final.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        final.AssertNoCompilerErrors();
     }
 
     [Fact]
@@ -134,30 +134,26 @@ public sealed class ConventionHostingCoexistenceTests
         GeneratorDriver driver = CSharpGeneratorDriver.Create([new HostedAccessorGenerator().AsSourceGenerator()], optionsProvider: new Options(true));
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        Action canceled = () => driver.RunGenerators(compilation, cancellation.Token);
+        var driver1 = driver;
+        var token = cancellation.Token;
+        Action canceled = () => driver1.RunGenerators(compilation, token);
         canceled.Should().Throw<OperationCanceledException>();
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var output, out var diagnostics);
         diagnostics.Should().BeEmpty();
-        output.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        output.AssertNoCompilerErrors();
         driver.GetRunResult().GeneratedTrees.Should().HaveCount(2);
     }
 
     private static string[] Outputs(GeneratorDriver driver) => driver.GetRunResult().Results.SelectMany(result => result.GeneratedSources)
         .OrderBy(source => source.HintName, StringComparer.Ordinal).Select(source => source.HintName + "\n" + source.SourceText).ToArray();
 
-    private static readonly ImmutableArray<MetadataReference> References = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator)
-            .Append(typeof(DRN.Framework.Hosting.Endpoints.AccessorControllerAttribute).Assembly.Location)
-            .Append(typeof(DRN.Framework.Utils.Settings.IAppSettings).Assembly.Location)
-            .Append(typeof(DRN.Framework.SharedKernel.Domain.Dto).Assembly.Location)
-            .Distinct(StringComparer.Ordinal).Select(path => (MetadataReference)MetadataReference.CreateFromFile(path)).ToImmutableArray();
-
     private static CSharpCompilation Compile(params string[] sources)
     {
         var compilation = CSharpCompilation.Create("Sample.Hosted", sources.Select((source, index) =>
-            CSharpSyntaxTree.ParseText(source, path: "Fixture" + index + ".cs")), References,
+            CSharpSyntaxTree.ParseText(source, path: "Fixture" + index + ".cs")), AnalyzerTestCompilation.HostingReferences,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
         compilation = ConventionTestDependencies.WithModule(compilation);
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         return compilation;
     }
 
@@ -166,18 +162,16 @@ public sealed class ConventionHostingCoexistenceTests
         [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
         """)], new Options(enabled, role));
 
-    private static string LocationText(Diagnostic diagnostic) => diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan);
-
     private sealed class Options(bool enabled, string role = "Hosted") : AnalyzerConfigOptionsProvider
     {
-        public override AnalyzerConfigOptions GlobalOptions { get; } = new ConventionInputTests.Config(new()
+        public override AnalyzerConfigOptions GlobalOptions { get; } = new AnalyzerTestCompilation.ConfigOptions(new Dictionary<string, string>
         {
             ["build_property.MSBuildProjectName"] = enabled ? "Sample." + role : "Sample.Tests." + role,
             ["build_property.RootNamespace"] = "Sample.Hosted",
             ["build_property.UsingMicrosoftNETSdkWeb"] = "true"
         });
         public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => GlobalOptions;
-        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => new ConventionInputTests.Config(new()
+        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => new AnalyzerTestCompilation.ConfigOptions(new Dictionary<string, string>
         {
             ["build_metadata.AdditionalFiles.TargetPath"] = textFile.Path
         });

@@ -59,11 +59,13 @@ internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context
             if (!TryVisit()) return;
             // Only inline immutable constructor facts prove protection. Unknown expressions remain checked.
             if (entry is not IObjectCreationOperation { Initializer: null } creation ||
-                creation.Type?.ToDisplayString() != "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticKeyClassification") continue;
+                creation.Type?.Name != "DiagnosticKeyClassification" ||
+                creation.Type.ToDisplayString() != "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticKeyClassification") continue;
             var key = creation.Arguments.FirstOrDefault(argument => argument.Parameter?.Ordinal == 0)?.Value;
             var kind = creation.Arguments.FirstOrDefault(argument => argument.Parameter?.Ordinal == 1)?.Value;
             if (key?.ConstantValue is { HasValue: true, Value: string name } &&
-                kind?.Type?.ToDisplayString() == "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticDataKind" &&
+                kind?.Type?.Name == "DiagnosticDataKind" &&
+                kind.Type.ToDisplayString() == "DRN.Framework.Utils.Logging.Diagnostics.DiagnosticDataKind" &&
                 kind.ConstantValue is { HasValue: true, Value: 1 or 2 })
                 _classifiedKeys.Add(name);
         }
@@ -119,9 +121,10 @@ internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context
         }
 
         private static bool IsDictionaryContract(INamedTypeSymbol type) =>
-            type.ToDisplayString() == "System.Collections.IDictionary" ||
-            type.OriginalDefinition.ToDisplayString() is "System.Collections.Generic.IDictionary<TKey, TValue>" or
-                "System.Collections.Generic.IReadOnlyDictionary<TKey, TValue>";
+            type.Name is "IDictionary" or "IReadOnlyDictionary" &&
+            (type.ToDisplayString() == "System.Collections.IDictionary" ||
+             type.OriginalDefinition.ToDisplayString() is "System.Collections.Generic.IDictionary<TKey, TValue>" or
+                 "System.Collections.Generic.IReadOnlyDictionary<TKey, TValue>");
     }
 
     private static bool IsScalar(ITypeSymbol? type)
@@ -180,7 +183,11 @@ internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context
             while (root?.Parent != null) root = root.Parent;
             if (root == null) return new(SymbolEqualityComparer.Default);
             var roots = LazyInitializer.EnsureInitialized(ref _roots);
-            return roots.GetOrAdd(root, Index, cancellation);
+            if (roots.TryGetValue(root, out var writes)) return writes;
+
+            writes = Index(root, cancellation);
+            cancellation.ThrowIfCancellationRequested();
+            return roots.GetOrAdd(root, writes);
         }
 
         private Dictionary<ILocalSymbol, List<IOperation>> Index(IOperation root, CancellationToken cancellation)
@@ -225,8 +232,10 @@ internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context
     {
         if (entry is IInvocationOperation add)
         {
-            foreach (var argument in add.Arguments.Skip(1))
-                InspectEntryValue(add.Arguments.FirstOrDefault()?.Value, argument.Value, allowKeys, depth, capturePath);
+            var key = add.Arguments.FirstOrDefault(argument => argument.Parameter?.Ordinal == 0)?.Value;
+            foreach (var argument in add.Arguments)
+                if (argument.Parameter?.Ordinal > 0)
+                    InspectEntryValue(key, argument.Value, allowKeys, depth, capturePath);
         }
         else if (entry is ISimpleAssignmentOperation { Target: IPropertyReferenceOperation index } assignment)
             InspectEntryValue(index.Arguments.FirstOrDefault()?.Value, assignment.Value, allowKeys, depth, capturePath);

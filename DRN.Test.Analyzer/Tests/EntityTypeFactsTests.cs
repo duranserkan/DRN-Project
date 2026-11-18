@@ -1,5 +1,8 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace DRN.Test.Analyzer.Tests;
 
+[SuppressMessage("ReSharper", "AccessToDisposedClosure")]
 public sealed class EntityTypeFactsTests
 {
     [Fact]
@@ -42,14 +45,17 @@ public sealed class EntityTypeFactsTests
             public class Entity : Intermediate { }
             """;
         var original = CreateCompilation(source);
-        var originalFacts = new EntityAnalyzerHelper.EntityTypeFacts(original.GetTypeByMetadataName("EntityBase")!);
+        var originalBase = original.GetTypeByMetadataName("EntityBase")!;
+        var originalFacts = EntityAnalyzerHelper.EntityTypeFacts.For(original, originalBase);
+        EntityAnalyzerHelper.EntityTypeFacts.For(original, originalBase).Should().BeSameAs(originalFacts);
         var originalEntity = original.GetTypeByMetadataName("Entity")!;
         originalFacts.IsDerived(originalEntity, CancellationToken.None).Should().BeTrue();
 
         var changed = original.ReplaceSyntaxTree(original.SyntaxTrees.Single(),
             CSharpSyntaxTree.ParseText(source.Replace("Entity : Intermediate", "Entity : Other", StringComparison.Ordinal)));
-        changed.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
-        var changedFacts = new EntityAnalyzerHelper.EntityTypeFacts(changed.GetTypeByMetadataName("EntityBase")!);
+        changed.AssertNoCompilerErrors();
+        var changedFacts = EntityAnalyzerHelper.EntityTypeFacts.For(changed, changed.GetTypeByMetadataName("EntityBase")!);
+        changedFacts.Should().NotBeSameAs(originalFacts);
         var changedEntity = changed.GetTypeByMetadataName("Entity")!;
         changedFacts.IsDerived(changedEntity, CancellationToken.None).Should().BeFalse();
         changedFacts.IsEntity(changedEntity, CancellationToken.None).Should().BeFalse();
@@ -59,9 +65,9 @@ public sealed class EntityTypeFactsTests
     private static CSharpCompilation CreateCompilation(string source)
     {
         var compilation = CSharpCompilation.Create("EntityFacts", [CSharpSyntaxTree.ParseText(source)],
-            [MetadataReference.CreateFromFile(typeof(object).Assembly.Location)],
+            [AnalyzerTestCompilation.ObjectReference],
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-        compilation.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         return compilation;
     }
 }

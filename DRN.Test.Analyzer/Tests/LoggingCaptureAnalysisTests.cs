@@ -1,4 +1,4 @@
-using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.ClassificationTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
 
@@ -30,7 +30,7 @@ public sealed class LoggingCaptureAnalysisTests
             }
             """));
 
-        diagnostics.Should().HaveCount(2).And.OnlyContain(item => item.Id == "DRN0022");
+        diagnostics.Should().HaveCount(2).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION008");
         diagnostics.Select(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan))
             .Should().BeEquivalentTo(
                 "log.BeginScope(new Dictionary<string, object> { [\"Password\"] = (string)(ConvertedValue)" + literal + " })",
@@ -72,7 +72,7 @@ public sealed class LoggingCaptureAnalysisTests
             """), new ProjectDiagnosticRulesTests.RuleFile("data-classification-rules.json",
             """{"sensitiveFieldPaths":["Payload"]}"""));
 
-        diagnostics.Should().HaveCount(5).And.OnlyContain(item => item.Id == "DRN0022");
+        diagnostics.Should().HaveCount(5).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION008");
         diagnostics.Select(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan))
             .Should().BeEquivalentTo(
                 "log.BeginScope(new Dictionary<string, object> { [\"Password\"] = value })",
@@ -110,7 +110,7 @@ public sealed class LoggingCaptureAnalysisTests
                 }
             }
             """));
-        diagnostics.Should().HaveCount(3).And.OnlyContain(item => item.Id == "DRN0022");
+        diagnostics.Should().HaveCount(3).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION008");
         diagnostics.Select(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan))
             .Should().BeEquivalentTo(
                 $"log.{method}(\"Value {{Password}}\", value)",
@@ -136,7 +136,7 @@ public sealed class LoggingCaptureAnalysisTests
             }
             """), new ProjectDiagnosticRulesTests.RuleFile("data-classification-rules.json",
             """{"sensitiveFieldPaths":["Payload"]}"""));
-        diagnostics.Should().HaveCount(4).And.OnlyContain(item => item.Id == "DRN0022");
+        diagnostics.Should().HaveCount(4).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION008");
     }
 
     [Fact]
@@ -158,7 +158,7 @@ public sealed class LoggingCaptureAnalysisTests
                 }
             }
             """));
-        diagnostics.Should().HaveCount(2).And.OnlyContain(item => item.Id == "DRN0022");
+        diagnostics.Should().HaveCount(2).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION008");
         diagnostics.Select(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan))
             .Should().BeEquivalentTo("log.BeginScope(new Dictionary<string, object> { [\"Password\"] = value })",
                 "log.BeginScope(scope)");
@@ -202,7 +202,7 @@ public sealed class LoggingCaptureAnalysisTests
                 }
             }
             """));
-        diagnostics.Should().HaveCount(5).And.OnlyContain(item => item.Id == "DRN0022");
+        diagnostics.Should().HaveCount(5).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION008");
     }
 
     [Fact]
@@ -235,7 +235,7 @@ public sealed class LoggingCaptureAnalysisTests
             }
             """));
 
-        diagnostics.Should().HaveCount(3).And.OnlyContain(item => item.Id == "DRN0022");
+        diagnostics.Should().HaveCount(3).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION008");
         diagnostics.Select(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan))
             .Should().BeEquivalentTo("scoped.Add(\"Detail\", input.Value)",
                 "log.LogInformation(\"{Detail}\", input.Value)",
@@ -245,11 +245,11 @@ public sealed class LoggingCaptureAnalysisTests
     [Theory]
     [InlineData(255, false, false, null)]
     [InlineData(256, false, false, null)]
-    [InlineData(257, false, false, "DRN0027")]
-    [InlineData(255, true, false, "DRN0022")]
-    [InlineData(256, true, false, "DRN0022")]
-    [InlineData(257, true, false, "DRN0027")]
-    [InlineData(257, true, true, "DRN0022")]
+    [InlineData(257, false, false, "DRNCLASSIFICATION012")]
+    [InlineData(255, true, false, "DRNCLASSIFICATION008")]
+    [InlineData(256, true, false, "DRNCLASSIFICATION008")]
+    [InlineData(257, true, false, "DRNCLASSIFICATION012")]
+    [InlineData(257, true, true, "DRNCLASSIFICATION008")]
     public async Task Interface_Scan_Should_Distinguish_Completed_And_Incomplete_Captures(
         int propertyCount, bool classified, bool valueFirst, string? expectedId)
     {
@@ -294,7 +294,7 @@ public sealed class LoggingCaptureAnalysisTests
         else
         {
             // Positive captures report each value. Incomplete scans report once per call.
-            diagnostics.Should().HaveCount(expectedId == "DRN0022" ? 5 : 4)
+            diagnostics.Should().HaveCount(expectedId == "DRNCLASSIFICATION008" ? 5 : 4)
                 .And.OnlyContain(item => item.Id == expectedId);
             diagnostics.Select(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan))
                 .Distinct().Should().BeEquivalentTo(
@@ -332,9 +332,73 @@ public sealed class LoggingCaptureAnalysisTests
             }
             """));
         var diagnostic = diagnostics.Should().ContainSingle().Which;
-        diagnostic.Id.Should().Be("DRN0022");
+        diagnostic.Id.Should().Be("DRNCLASSIFICATION008");
         (await diagnostic.Location.SourceTree!.GetTextAsync()).ToString(diagnostic.Location.SourceSpan)
             .Should().Be("log.LogInformation(\"{Password}\", value)");
+    }
+
+    [Fact]
+    public async Task Same_Name_Logging_Shims_Should_Not_Be_Treated_As_Framework_Logging()
+    {
+        var diagnostics = await Analyze(Compilation("""
+            using Microsoft.Extensions.Logging;
+            using System.Collections.Generic;
+
+            namespace Microsoft.Extensions.Logging
+            {
+                public interface ILogger { void BeginScope<T>(T state); }
+                public static class LoggerExtensions
+                {
+                    public static void LogInformation(this ILogger logger, string message, params object[] args) { }
+                }
+            }
+
+            public class Caller
+            {
+                public void Run(ILogger log, string value)
+                {
+                    log.LogInformation("{Password}", value);
+                    log.BeginScope(new Dictionary<string, object> { ["Password"] = value });
+                }
+            }
+            """));
+
+        diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Same_Name_Verification_Shims_Should_Not_Exempt_Framework_Logging()
+    {
+        var diagnostics = await Analyze(Compilation("""
+            using Microsoft.Extensions.Logging;
+
+            namespace NSubstitute
+            {
+                public static class SubstituteExtensions
+                {
+                    public static ILogger Received(this ILogger logger) => logger;
+                }
+            }
+
+            namespace NSubstitute.ReceivedExtensions
+            {
+                public static class ReceivedExtensions
+                {
+                    public static ILogger Received(this ILogger logger) => logger;
+                }
+            }
+
+            public class Caller
+            {
+                public void Run(ILogger log, string value)
+                {
+                    NSubstitute.SubstituteExtensions.Received(log).LogInformation("{Password}", value);
+                    NSubstitute.ReceivedExtensions.ReceivedExtensions.Received(log).LogInformation("{Password}", value);
+                }
+            }
+            """));
+
+        diagnostics.Should().HaveCount(2).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION008");
     }
 
     [Fact]
@@ -352,7 +416,7 @@ public sealed class LoggingCaptureAnalysisTests
             }
             """;
         var ordinary = await Analyze(Compilation(source));
-        ordinary.Should().ContainSingle().Which.Id.Should().Be("DRN0022");
+        ordinary.Should().ContainSingle().Which.Id.Should().Be("DRNCLASSIFICATION008");
         var generated = await Analyze(Compilation(source, "Caller.g.cs"));
         generated.Should().BeEmpty();
     }

@@ -14,6 +14,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../DRN.Framework.SharedKernel.Analyzers/Shared/SymbolFactCache.cs" Link="Shared/SymbolFactCache.cs" />
+    <Compile Include="../DRN.Framework.SharedKernel.Analyzers/Shared/GeneratedSource.cs" Link="Shared/GeneratedSource.cs" />
     <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
     <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.12.0" PrivateAssets="all" />

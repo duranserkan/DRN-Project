@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.CodeFixes;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeRefactorings;
@@ -5,6 +6,7 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace DRN.Test.Analyzer.Tests;
 
+[SuppressMessage("ReSharper", "AccessToDisposedClosure")]
 public sealed class EntityDtoRefactoringTests
 {
     private const string Source = """
@@ -29,9 +31,7 @@ public sealed class EntityDtoRefactoringTests
         var document = Create(workspace);
         var action = (await Actions(document)).Should().ContainSingle().Which;
         action.Title.Should().Contain("Sample.Contract").And.Contain("QA/UserDto.cs").And.Contain("Name required").And.Contain("Count");
-        var operations = await action.GetOperationsAsync(CancellationToken.None);
-        operations.OfType<ApplyChangesOperation>().Should().ContainSingle();
-        var changed = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var changed = await action.GetChangedSolutionAsync();
         var added = changed.GetChanges(workspace.CurrentSolution).GetProjectChanges().SelectMany(change => change.GetAddedDocuments()).ToArray();
         added.Should().HaveCount(2);
         var dto = changed.Projects.Single(project => project.Name == "Sample.Contract").Documents.Single();
@@ -45,8 +45,8 @@ public sealed class EntityDtoRefactoringTests
         mapperText.Should().Contain("ToUserDto(this global::Sample.Domain.QA.User entity)")
             .And.Contain("Name = entity.Name").And.Contain("Count = entity.Count").And.NotContain("Secret");
         (await changed.GetDocument(document.Id)!.GetTextAsync()).ToString().Should().Be(Source);
-        (await dto.Project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
-        (await mapper.Project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        (await dto.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
+        (await mapper.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
         workspace.TryApplyChanges(changed).Should().BeTrue();
         (await Actions(workspace.CurrentSolution.GetDocument(document.Id)!)).Should().BeEmpty();
     }
@@ -75,8 +75,7 @@ public sealed class EntityDtoRefactoringTests
         using var workspace = new AdhocWorkspace();
         var source = Source.Replace("public int Count", "public int UserDto", StringComparison.Ordinal);
         var document = Create(workspace, source);
-        (await document.Project.GetCompilationAsync())!.GetDiagnostics()
-            .Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        (await document.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
         (await Actions(document)).Should().BeEmpty();
         workspace.CurrentSolution.Should().BeSameAs(document.Project.Solution);
     }
@@ -109,8 +108,7 @@ public sealed class EntityDtoRefactoringTests
         var source = Source.Replace("public class User", "[DRN.Framework.SharedKernel.Attributes.Sensitive]\npublic class User", StringComparison.Ordinal);
         var document = Create(workspace, source);
         var action = (await Actions(document)).Single();
-        var operations = await action.GetOperationsAsync(CancellationToken.None);
-        var dto = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution.Projects
+        var dto = (await action.GetChangedSolutionAsync()).Projects
             .Single(project => project.Name == "Sample.Contract").Documents.Single();
         (await dto.GetTextAsync()).ToString().Should().Contain("[global::DRN.Framework.SharedKernel.Attributes.SensitiveAttribute]\npublic sealed class UserDto");
     }
@@ -132,13 +130,12 @@ public sealed class EntityDtoRefactoringTests
         using var workspace = new AdhocWorkspace();
         var document = Create(workspace, contractName: contractName);
         var action = (await Actions(document)).Should().ContainSingle().Which;
-        var changed = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var changed = await action.GetChangedSolutionAsync();
         var contract = changed.Projects.Single(project => project.Name == contractName);
         (await contract.Documents.Single().GetTextAsync()).ToString().Should().Contain("namespace " + contractName + ".QA;");
         changed.GetChanges(workspace.CurrentSolution).GetProjectChanges().Should()
             .OnlyContain(change => !change.GetAddedProjectReferences().Any());
-        (await changed.GetProject(document.Project.Id)!.GetCompilationAsync())!.GetDiagnostics()
-            .Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        (await changed.GetProject(document.Project.Id)!.GetCompilationAsync())!.AssertNoCompilerErrors();
     }
 
     [Fact]
@@ -149,7 +146,7 @@ public sealed class EntityDtoRefactoringTests
         var other = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
                 "Other.Contract", "Other.Contract", LanguageNames.CSharp, filePath: "/source/Other.Contract/Other.Contract.csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
-            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References);
+            .AddMetadataReferences(ClassificationTestFixture.References);
         var solution = other.Solution.AddProjectReference(document.Project.Id, new ProjectReference(other.Id));
         workspace.TryApplyChanges(solution).Should().BeTrue();
         document = workspace.CurrentSolution.GetDocument(document.Id)!;
@@ -159,7 +156,7 @@ public sealed class EntityDtoRefactoringTests
         foreach (var targetName in new[] { "Shared.Contract", "Other.Contract" })
         {
             var action = actions.Single(candidate => candidate.Title.Contains(targetName, StringComparison.Ordinal));
-            var changed = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+            var changed = await action.GetChangedSolutionAsync();
             changed.Projects.Single(project => project.Name == targetName).Documents.Should().ContainSingle();
             changed.Projects.Where(project => project.Name.EndsWith(".Contract", StringComparison.Ordinal) && project.Name != targetName)
                 .Should().OnlyContain(project => !project.Documents.Any());
@@ -189,8 +186,7 @@ public sealed class EntityDtoRefactoringTests
         var action = (await Actions(document)).Single();
         workspace.TryApplyChanges(document.WithText(SourceText.From(Source + "\n// user edit")).Project.Solution).Should().BeTrue();
         var current = workspace.CurrentSolution;
-        var operations = await action.GetOperationsAsync(CancellationToken.None);
-        var changed = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var changed = await action.GetChangedSolutionAsync();
         changed.GetChanges(current).GetProjectChanges().Should().BeEmpty();
         changed.Projects.SelectMany(project => project.Documents).Should().NotContain(item => item.Name == "UserDto.cs" || item.Name == "UserDtoMapping.cs");
     }
@@ -203,7 +199,7 @@ public sealed class EntityDtoRefactoringTests
         var action = (await Actions(document)).Single();
         var current = workspace.CurrentSolution;
         using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
+        await cancellation.CancelAsync();
         var apply = async () => await action.GetOperationsAsync(cancellation.Token);
         await apply.Should().ThrowAsync<OperationCanceledException>();
         workspace.CurrentSolution.Should().BeSameAs(current);
@@ -246,8 +242,7 @@ public sealed class EntityDtoRefactoringTests
         workspace.TryApplyChanges(collision.Project.Solution).Should().BeTrue();
         var current = workspace.CurrentSolution;
         foreach (var candidate in current.Projects)
-            (await candidate.GetCompilationAsync())!.GetDiagnostics()
-                .Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+            (await candidate.GetCompilationAsync())!.AssertNoCompilerErrors();
         (await Actions(current.GetDocument(document.Id)!)).Should().BeEmpty();
         workspace.CurrentSolution.Should().BeSameAs(current);
     }
@@ -331,7 +326,7 @@ public sealed class EntityDtoRefactoringTests
             " { public enum State { Ready } }", filePath: "/source/Sample.Contract/Types/State.cs");
         workspace.TryApplyChanges(enumeration.Project.Solution).Should().BeTrue();
         document = workspace.CurrentSolution.GetDocument(document.Id)!;
-        (await document.Project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        (await document.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
         var actions = await Actions(document);
         if (!offered)
         {
@@ -339,9 +334,9 @@ public sealed class EntityDtoRefactoringTests
             return;
         }
         var action = actions.Should().ContainSingle().Which;
-        var changed = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var changed = await action.GetChangedSolutionAsync();
         foreach (var project in changed.Projects)
-            (await project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+            (await project.GetCompilationAsync())!.AssertNoCompilerErrors();
         var dto = changed.GetProject(contract.Id)!.Documents.Single(item => item.Name == "UserDto.cs");
         (await dto.GetTextAsync()).ToString().Should().Contain("global::Sample.Contract.Types.Container.State Count");
     }
@@ -356,15 +351,15 @@ public sealed class EntityDtoRefactoringTests
             entityPath: "/source/Sample.Domain/QA/User/UserEntity.cs");
         var action = (await Actions(document)).Should().ContainSingle().Which;
         action.Title.Should().Contain("QA/User/UserDto.cs");
-        var changed = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var changed = await action.GetChangedSolutionAsync();
         var contract = changed.Projects.Single(project => project.Name == "Sample.Contract");
         var domain = changed.Projects.Single(project => project.Name == "Sample.Domain");
         (await contract.Documents.Single(item => item.Name == "UserDto.cs").GetTextAsync()).ToString()
             .Should().Contain("public sealed class UserDto");
         (await domain.Documents.Single(item => item.Name == "UserDtoMapping.cs").GetTextAsync()).ToString()
             .Should().Contain("ToUserDto(this global::Sample.Domain.QA.User.UserEntity entity)");
-        (await contract.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
-        (await domain.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        (await contract.GetCompilationAsync())!.AssertNoCompilerErrors();
+        (await domain.GetCompilationAsync())!.AssertNoCompilerErrors();
     }
 
     [Fact]
@@ -391,7 +386,10 @@ public sealed class EntityDtoRefactoringTests
         using var interfaceWorkspace = new AdhocWorkspace();
         var interfaceSource = """
             namespace Sample.Domain.QA;
-            [DRN.Framework.SharedKernel.Attributes.Personal]
+            [System.AttributeUsage(System.AttributeTargets.Interface | System.AttributeTargets.Property)]
+            public sealed class InterfacePersonalAttribute() : Microsoft.Extensions.Compliance.Classification.DataClassificationAttribute(
+                new Microsoft.Extensions.Compliance.Classification.DataClassification("Test", "Personal"));
+            [InterfacePersonal]
             public interface IUserProfile { string Name { get; } }
             public class User : DRN.Framework.SharedKernel.Domain.SourceKnownEntity, IUserProfile
             {
@@ -400,7 +398,9 @@ public sealed class EntityDtoRefactoringTests
                 // select-end
             }
             """;
-        (await Actions(Create(interfaceWorkspace, interfaceSource))).Should().BeEmpty();
+        var interfaceDocument = Create(interfaceWorkspace, interfaceSource);
+        (await interfaceDocument.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
+        (await Actions(interfaceDocument)).Should().BeEmpty();
 
         using var unresolvedWorkspace = new AdhocWorkspace();
         var unresolvedSource = Source.Replace("public class User", "[MissingClassification]\npublic class User", StringComparison.Ordinal);
@@ -417,10 +417,10 @@ public sealed class EntityDtoRefactoringTests
             "[DRN.Framework.SharedKernel.Attributes.Sensitive(Justification = \"Retain    [literal] spacing\")]\npublic class User",
             StringComparison.Ordinal);
         var action = (await Actions(Create(literalWorkspace, literalSource))).Should().ContainSingle().Which;
-        var changed = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var changed = await action.GetChangedSolutionAsync();
         var dto = changed.Projects.Single(project => project.Name == "Sample.Contract").Documents.Single();
         (await dto.GetTextAsync()).ToString().Should().Contain("Justification = \"Retain    [literal] spacing\"");
-        (await dto.Project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        (await dto.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
     }
 
     [Theory]
@@ -445,8 +445,7 @@ public sealed class EntityDtoRefactoringTests
             actions.Should().BeEmpty();
             return;
         }
-        var changed = (await actions.Should().ContainSingle().Which.GetOperationsAsync(CancellationToken.None))
-            .OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var changed = await actions.Should().ContainSingle().Which.GetChangedSolutionAsync();
         var dto = changed.Projects.Single(project => project.Name == "Sample.Contract").Documents.Single();
         (await dto.GetTextAsync()).ToString().Should().Contain("public global::System.Int64 Score { get; init; }");
     }
@@ -485,9 +484,8 @@ public sealed class EntityDtoRefactoringTests
         workspace.TryApplyChanges(sibling.Project.Solution).Should().BeTrue();
         var current = workspace.CurrentSolution.GetDocument(document.Id)!;
         var action = (await Actions(current)).Should().ContainSingle().Which;
-        var changed = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
-        (await changed.GetProject(document.Project.Id)!.GetCompilationAsync())!.GetDiagnostics()
-            .Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        var changed = await action.GetChangedSolutionAsync();
+        (await changed.GetProject(document.Project.Id)!.GetCompilationAsync())!.AssertNoCompilerErrors();
     }
 
     private static Document Create(AdhocWorkspace workspace, string source = Source, bool reference = true,
@@ -496,12 +494,12 @@ public sealed class EntityDtoRefactoringTests
         var contract = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
                 contractName, contractName, LanguageNames.CSharp, filePath: "/source/" + contractName + "/" + contractName + ".csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
-            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References);
+            .AddMetadataReferences(ClassificationTestFixture.References);
         workspace.TryApplyChanges(contract.Solution).Should().BeTrue();
         var domain = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
                 "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: "/source/Sample.Domain/Sample.Domain.csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
-            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References);
+            .AddMetadataReferences(ClassificationTestFixture.References);
         if (reference) domain = domain.AddProjectReference(new ProjectReference(contract.Id));
         var document = domain.AddDocument(Path.GetFileName(entityPath), source, filePath: entityPath);
         workspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();

@@ -1,24 +1,20 @@
-using Microsoft.CodeAnalysis.Text;
-using Microsoft.CodeAnalysis.Emit;
 using DRN.Test.Shared;
-using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.ClassificationTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
 
 public sealed class ProjectDiagnosticRulesTests
 {
-    internal static string Fixture()
+    private static readonly Lazy<string> FixtureJson = new(() =>
     {
         using var stream = typeof(ProjectDiagnosticRulesTests).Assembly.GetManifestResourceStream("ProjectDiagnosticRules.json")!;
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd();
-    }
+    });
 
-    internal sealed class RuleFile(string path, string? text) : AdditionalText
-    {
-        public override string Path => path;
-        public override SourceText? GetText(CancellationToken cancellationToken = default) => text == null ? null : SourceText.From(text);
-    }
+    internal static string Fixture() => FixtureJson.Value;
+
+    internal sealed class RuleFile(string path, string? text) : AnalyzerTestCompilation.InMemoryAdditionalText(path, text);
 
     [Fact]
     public async Task Reference_Assembly_Catalogs_Should_Include_Only_Transitive_SharedKernel_Consumers()
@@ -29,7 +25,7 @@ public sealed class ProjectDiagnosticRulesTests
         var middle = Reference("RuleMiddle", "public class Middle : Contract;",
             "{\"secretFields\":[\"middleProof\"]}", true, dependency);
         var unrelated = Reference("RuleUnrelated", "public class Unrelated;", "{\"personalFields\":[\"unrelatedMember\"]}", false);
-        var compilation = DiagnosticClassificationAnalyzerTests.Compilation("""
+        var compilation = ClassificationTestFixture.Compilation("""
             public class Model
             {
                 public string InheritedMember { get; set; } = "";
@@ -38,10 +34,10 @@ public sealed class ProjectDiagnosticRulesTests
             }
             """).AddReferences(dependency, middle, unrelated);
         var diagnostics = await Analyze(compilation);
-        diagnostics.Should().HaveCount(2).And.OnlyContain(item => item.Id == "DRN0015");
+        diagnostics.Should().HaveCount(2).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION001");
         diagnostics.Should().Contain(item => item.GetMessage().Contains("InheritedMember"));
         diagnostics.Should().Contain(item => item.GetMessage().Contains("MiddleProof"));
-        (await Analyze(DiagnosticClassificationAnalyzerTests.Compilation("public class Model { public string InheritedMember => \"\"; }")))
+        (await Analyze(ClassificationTestFixture.Compilation("public class Model { public string InheritedMember => \"\"; }")))
             .Should().BeEmpty();
     }
 
@@ -50,8 +46,8 @@ public sealed class ProjectDiagnosticRulesTests
     {
         var dependency = Reference("InvalidRuleDependency",
             "public class Contract { public DRN.Framework.SharedKernel.Attributes.SensitiveAttribute Marker => new(); }", "{");
-        var diagnostics = await Analyze(DiagnosticClassificationAnalyzerTests.Compilation("public class Model;").AddReferences(dependency));
-        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRN0021");
+        var diagnostics = await Analyze(ClassificationTestFixture.Compilation("public class Model;").AddReferences(dependency));
+        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCLASSIFICATION007");
     }
 
     [Fact]
@@ -60,8 +56,8 @@ public sealed class ProjectDiagnosticRulesTests
         var source = "[assembly: DRN.Framework.SharedKernel.Attributes.DataClassificationRules(" +
                      SymbolDisplay.FormatLiteral(Fixture(), true) + ")]\n" +
                      "public class Model { public string MembershipNumber => \"\"; }";
-        var diagnostics = await Analyze(DiagnosticClassificationAnalyzerTests.Compilation(source));
-        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRN0015");
+        var diagnostics = await Analyze(ClassificationTestFixture.Compilation(source));
+        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCLASSIFICATION001");
     }
 
     private static PortableExecutableReference Reference(string name, string source, string json, bool drnCatalog = true,
@@ -71,10 +67,7 @@ public sealed class ProjectDiagnosticRulesTests
                            "[assembly: System.Reflection.AssemblyMetadata(\"DRN.DataClassificationRules\", ") +
                        SymbolDisplay.FormatLiteral(json, true) + ")]\n";
         var compilation = Compilation(metadata + source).WithAssemblyName(name).AddReferences(dependencies);
-        using var stream = new MemoryStream();
-        var result = compilation.Emit(stream, options: new EmitOptions(metadataOnly: true, includePrivateMembers: false));
-        result.Success.Should().BeTrue(string.Join(Environment.NewLine, result.Diagnostics));
-        return MetadataReference.CreateFromImage(stream.ToArray());
+        return AnalyzerTestCompilation.EmitReference(compilation, options: AnalyzerTestCompilation.ReferenceAssemblyOptions);
     }
 
     [Fact]
@@ -92,7 +85,7 @@ public sealed class ProjectDiagnosticRulesTests
             Analyze(compilation),
             Analyze(compilation, new RuleFile("unrelated.json", Fixture())),
             Analyze(compilation, new RuleFile("data-classification-rules.json", "{}")));
-        results[0].Should().HaveCount(2).And.OnlyContain(item => item.Id == "DRN0015");
+        results[0].Should().HaveCount(2).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION001");
         foreach (var diagnostics in results.Skip(1))
             diagnostics.Should().ContainSingle().Which.GetMessage().Should().Contain("Password");
         (await Analyze(compilation, new RuleFile("diagnostic-rules.json", Fixture()))).Should().HaveCount(2);
@@ -101,7 +94,7 @@ public sealed class ProjectDiagnosticRulesTests
     [Fact]
     public async Task Custom_Rules_Should_Cover_Anonymous_Scalar_And_Dictionary_Captures()
     {
-        var compilation = DiagnosticClassificationAnalyzerTests.Compilation("""
+        var compilation = ClassificationTestFixture.Compilation("""
             using System.Collections.Generic;
             namespace DRN.Framework.Utils.Logging
             {
@@ -126,9 +119,9 @@ public sealed class ProjectDiagnosticRulesTests
             }
             """);
         var diagnostics = await Analyze(compilation, new RuleFile("data-classification-rules.json", Fixture()));
-        diagnostics.Count(item => item.Id == "DRN0019").Should().Be(1);
-        diagnostics.Count(item => item.Id == "DRN0017").Should().Be(2);
-        diagnostics.Count(item => item.Id == "DRN0020").Should().Be(4);
+        diagnostics.Count(item => item.Id == "DRNCLASSIFICATION005").Should().Be(1);
+        diagnostics.Count(item => item.Id == "DRNCLASSIFICATION003").Should().Be(2);
+        diagnostics.Count(item => item.Id == "DRNCLASSIFICATION006").Should().Be(4);
         diagnostics.Should().HaveCount(7);
     }
 
@@ -143,7 +136,7 @@ public sealed class ProjectDiagnosticRulesTests
                 declarations.Append($"[\"Branch{branch}\"] = level{level - 1}, ");
             declarations.AppendLine("};");
         }
-        var compilation = DiagnosticClassificationAnalyzerTests.Compilation($$"""
+        var compilation = ClassificationTestFixture.Compilation($$"""
             using System.Collections.Generic;
             namespace DRN.Framework.Utils.Logging
             {
@@ -159,12 +152,12 @@ public sealed class ProjectDiagnosticRulesTests
                 }
             }
             """);
-        compilation.GetDiagnostics().Where(item => item.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+        compilation.AssertNoCompilerErrors();
         using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var diagnostics = await compilation.WithAnalyzers([new DiagnosticClassificationAnalyzer()],
                 new AnalyzerOptions([new RuleFile("data-classification-rules.json", Fixture())]))
             .GetAnalyzerDiagnosticsAsync(cancellation.Token).WaitAsync(cancellation.Token);
-        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRN0020");
+        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCLASSIFICATION006");
         diagnostics.Single().GetMessage().Should().Contain("Payload.PrivateValue");
     }
 
@@ -194,14 +187,14 @@ public sealed class ProjectDiagnosticRulesTests
                 }
             }
             """);
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var diagnostics = await compilation.WithAnalyzers([new DiagnosticClassificationAnalyzer()],
                 new AnalyzerOptions([new RuleFile("data-classification-rules.json", """{"sensitiveFieldPaths":["Payload.Value"]}""")]))
             .GetAnalyzerDiagnosticsAsync(cancellation.Token).WaitAsync(cancellation.Token);
         diagnostics.Should().HaveCount(2);
-        diagnostics.Should().ContainSingle(item => item.Id == "DRN0025");
-        diagnostics.Should().ContainSingle(item => item.Id == "DRN0017")
+        diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION011");
+        diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION003")
             .Which.GetMessage().Should().Contain("Payload.Value");
     }
 
@@ -225,7 +218,7 @@ public sealed class ProjectDiagnosticRulesTests
             }
             """), new RuleFile("data-classification-rules.json",
             """{"sensitiveFieldPaths":["Root.Left.Value","Root.Right.Value"]}"""));
-        diagnostics.Should().HaveCount(2).And.OnlyContain(diagnostic => diagnostic.Id == "DRN0017");
+        diagnostics.Should().HaveCount(2).And.OnlyContain(diagnostic => diagnostic.Id == "DRNCLASSIFICATION003");
         diagnostics.Select(diagnostic => diagnostic.GetMessage()).Should().Contain(message => message.Contains("Root.Left.Value"))
             .And.Contain(message => message.Contains("Root.Right.Value"));
     }
@@ -255,14 +248,14 @@ public sealed class ProjectDiagnosticRulesTests
             }
             """), new RuleFile("data-classification-rules.json",
             """{"sensitiveFieldPaths":["Root.Branch11.Value","Root.Branch11.LaterValue"]}"""));
-        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRN0020");
+        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCLASSIFICATION006");
         diagnostics.Single().GetMessage().Should().Contain("Root.Branch11.Value");
     }
 
     [Fact]
     public async Task Project_Field_Paths_Should_Check_Typed_Capture_Prefixes()
     {
-        var compilation = DiagnosticClassificationAnalyzerTests.Compilation("""
+        var compilation = ClassificationTestFixture.Compilation("""
             using DRN.Framework.SharedKernel.Attributes;
             namespace DRN.Framework.Utils.Logging
             {
@@ -282,23 +275,23 @@ public sealed class ProjectDiagnosticRulesTests
             }
             """);
         var diagnostics = await Analyze(compilation, new RuleFile("data-classification-rules.json", Fixture()));
-        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRN0017");
+        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCLASSIFICATION003");
         diagnostics.Single().GetMessage().Should().Contain("Payload.PrivateValue");
     }
 
     [Fact]
     public async Task Invalid_Rule_Files_Should_Report_Configuration_Errors_And_Keep_Builtins()
     {
-        var compilation = DiagnosticClassificationAnalyzerTests.Compilation("public class Model { public string Password { get; set; } = \"\"; }");
+        var compilation = ClassificationTestFixture.Compilation("public class Model { public string Password { get; set; } = \"\"; }");
         foreach (var json in InvalidDiagnosticRuleCases.Create().Cast<string?>().Prepend(null))
         {
             var diagnostics = await Analyze(compilation, new RuleFile("data-classification-rules.json", json));
             diagnostics.Should().HaveCount(2);
-            diagnostics.Should().ContainSingle(item => item.Id == "DRN0015");
-            diagnostics.Should().ContainSingle(item => item.Id == "DRN0021");
+            diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION001");
+            diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION007");
         }
         var duplicate = await Analyze(compilation, new RuleFile("data-classification-rules.json", "{}"),
             new RuleFile("diagnostic-rules.json", "{}"));
-        duplicate.Should().ContainSingle(item => item.Id == "DRN0021");
+        duplicate.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION007");
     }
 }

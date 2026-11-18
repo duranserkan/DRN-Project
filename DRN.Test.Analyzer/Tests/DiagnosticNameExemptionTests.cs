@@ -1,4 +1,4 @@
-using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.ClassificationTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
 
@@ -24,8 +24,8 @@ public sealed class DiagnosticNameExemptionTests
                 }
             }
             """));
-        diagnostics.Count(item => item.Id == "DRN0020").Should().Be(2);
-        diagnostics.Count(item => item.Id == "DRN0024").Should().Be(1);
+        diagnostics.Count(item => item.Id == "DRNCLASSIFICATION006").Should().Be(2);
+        diagnostics.Count(item => item.Id == "DRNCLASSIFICATION010").Should().Be(1);
         diagnostics.Should().HaveCount(3);
     }
 
@@ -63,8 +63,8 @@ public sealed class DiagnosticNameExemptionTests
             """));
 
         diagnostics.Should().HaveCount(7);
-        diagnostics.Count(item => item.Id == "DRN0024").Should().Be(3);
-        diagnostics.Where(item => item.Id == "DRN0020").Select(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan))
+        diagnostics.Count(item => item.Id == "DRNCLASSIFICATION010").Should().Be(3);
+        diagnostics.Where(item => item.Id == "DRNCLASSIFICATION006").Select(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan))
             .Should().BeEquivalentTo($"capture.{method}(\"Next\", data)", $"capture.{method}(\"Case\", data)",
                 $"capture.{method}(\"Detached\", data)", $"capture.{method}(\"Callback\", data)");
     }
@@ -105,7 +105,7 @@ public sealed class DiagnosticNameExemptionTests
             """{"sensitiveFieldPaths":["Data.TokenCount.Detail","Protected"]}"""));
 
         diagnostics.Should().HaveCount(6);
-        diagnostics.Count(item => item.Id == "DRN0024").Should().Be(3);
+        diagnostics.Count(item => item.Id == "DRNCLASSIFICATION010").Should().Be(3);
         diagnostics.Should().ContainSingle(item => item.GetMessage().Contains("'Password'", StringComparison.Ordinal));
         diagnostics.Should().ContainSingle(item => item.GetMessage().Contains("'Data.TokenCount.Detail'", StringComparison.Ordinal));
         diagnostics.Should().ContainSingle(item => item.GetMessage().Contains("'Protected'", StringComparison.Ordinal));
@@ -131,8 +131,8 @@ public sealed class DiagnosticNameExemptionTests
             """));
 
         diagnostics.Should().HaveCount(2);
-        diagnostics.Should().ContainSingle(item => item.Id == "DRN0020");
-        diagnostics.Should().ContainSingle(item => item.Id == "DRN0023");
+        diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION006");
+        diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION009");
     }
 
     [Theory]
@@ -165,8 +165,8 @@ public sealed class DiagnosticNameExemptionTests
             """));
 
         diagnostics.Should().HaveCount(7);
-        diagnostics.Count(item => item.Id == "DRN0017").Should().Be(4);
-        diagnostics.Count(item => item.Id == "DRN0024").Should().Be(3);
+        diagnostics.Count(item => item.Id == "DRNCLASSIFICATION003").Should().Be(4);
+        diagnostics.Count(item => item.Id == "DRNCLASSIFICATION010").Should().Be(3);
     }
 
     [Fact]
@@ -193,9 +193,9 @@ public sealed class DiagnosticNameExemptionTests
             """{"sensitiveFieldPaths":["Payload"]}"""));
 
         diagnostics.Should().HaveCount(4);
-        diagnostics.Should().ContainSingle(item => item.Id == "DRN0024");
-        diagnostics.Count(item => item.Id == "DRN0017").Should().Be(2);
-        diagnostics.Should().ContainSingle(item => item.Id == "DRN0023");
+        diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION010");
+        diagnostics.Count(item => item.Id == "DRNCLASSIFICATION003").Should().Be(2);
+        diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION009");
     }
 
     [Fact]
@@ -228,10 +228,10 @@ public sealed class DiagnosticNameExemptionTests
             """{"sensitiveFieldPaths":["Payload"]}"""));
 
         diagnostics.Should().HaveCount(5);
-        diagnostics.Count(item => item.Id == "DRN0024").Should().Be(2);
-        diagnostics.Should().ContainSingle(item => item.Id == "DRN0015");
-        diagnostics.Should().ContainSingle(item => item.Id == "DRN0017");
-        diagnostics.Should().ContainSingle(item => item.Id == "DRN0022");
+        diagnostics.Count(item => item.Id == "DRNCLASSIFICATION010").Should().Be(2);
+        diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION001");
+        diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION003");
+        diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION008");
     }
 
     [Fact]
@@ -241,8 +241,6 @@ public sealed class DiagnosticNameExemptionTests
             public class Envelope { public Details Password { get; set; } }
             public class Details { public string Secret { get; set; } }
             """).WithAssemblyName("ExternalModels");
-        using var stream = new MemoryStream();
-        producer.Emit(stream).Success.Should().BeTrue();
         var consumer = Compilation("""
             namespace DRN.Framework.Utils.Logging
             {
@@ -261,12 +259,12 @@ public sealed class DiagnosticNameExemptionTests
                     log.Add("Protected", value);
                 }
             }
-            """).AddReferences(MetadataReference.CreateFromImage(stream.ToArray()));
+            """).AddReferences(AnalyzerTestCompilation.EmitReference(producer));
         var diagnostics = await Analyze(consumer, new ProjectDiagnosticRulesTests.RuleFile("data-classification-rules.json",
             """{"sensitiveFieldPaths":["Protected.Password"]}"""));
 
         diagnostics.Should().HaveCount(3);
-        diagnostics.Should().ContainSingle(item => item.Id == "DRN0024");
+        diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION010");
         diagnostics.Should().ContainSingle(item => item.GetMessage().Contains("Model.Password.Secret", StringComparison.Ordinal));
         diagnostics.Should().ContainSingle(item => item.GetMessage().Contains("Protected.Password", StringComparison.Ordinal));
     }
@@ -294,13 +292,13 @@ public sealed class DiagnosticNameExemptionTests
             }
             """));
         diagnostics.Should().HaveCount(6);
-        diagnostics.Count(item => item.Id == "DRN0024").Should().Be(2);
-        diagnostics.Where(item => item.Id == "DRN0022").Select(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan))
+        diagnostics.Count(item => item.Id == "DRNCLASSIFICATION010").Should().Be(2);
+        diagnostics.Where(item => item.Id == "DRNCLASSIFICATION008").Select(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan))
             .Should().BeEquivalentTo("log.LogInformation(\"Again {TokenCount}\", count)",
                 "log.LogInformation(\"Case {TokenCount}\", count)",
                 "log.LogInformation(\"{TokenCount} {Password}\", count, value)",
                 "log.LogInformation(\"Detached {TokenCount}\", count)");
-        diagnostics.Where(item => item.Id == "DRN0022").Should().OnlyContain(item => item.GetMessage().Contains("immediately above this statement", StringComparison.Ordinal));
+        diagnostics.Where(item => item.Id == "DRNCLASSIFICATION008").Should().OnlyContain(item => item.GetMessage().Contains("immediately above this statement", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -323,8 +321,8 @@ public sealed class DiagnosticNameExemptionTests
             }
             """));
         diagnostics.Should().HaveCount(2);
-        diagnostics.Should().ContainSingle(item => item.Id == "DRN0022");
-        var invalid = diagnostics.Should().ContainSingle(item => item.Id == "DRN0023").Which;
+        diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION008");
+        var invalid = diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION009").Which;
         invalid.GetMessage().Should().Contain("ExactName | Nonempty justification");
         (await invalid.Location.SourceTree!.GetTextAsync()).ToString(invalid.Location.SourceSpan).Should().Be(comment);
     }
@@ -354,8 +352,8 @@ public sealed class DiagnosticNameExemptionTests
             """), new ProjectDiagnosticRulesTests.RuleFile("data-classification-rules.json",
             """{"sensitiveFieldPaths":["Payload"]}"""));
         diagnostics.Should().HaveCount(7);
-        diagnostics.Count(item => item.Id == "DRN0024").Should().Be(3);
-        diagnostics.Count(item => item.Id == "DRN0022").Should().Be(4);
+        diagnostics.Count(item => item.Id == "DRNCLASSIFICATION010").Should().Be(3);
+        diagnostics.Count(item => item.Id == "DRNCLASSIFICATION008").Should().Be(4);
         diagnostics.Count(item => item.GetMessage().Contains("cannot waive this classification", StringComparison.Ordinal)).Should().Be(2);
         diagnostics.Count(item => item.GetMessage().Contains("cannot override configured paths", StringComparison.Ordinal)).Should().Be(2);
     }
@@ -378,8 +376,8 @@ public sealed class DiagnosticNameExemptionTests
             }
             """));
         diagnostics.Should().HaveCount(2);
-        diagnostics.Should().ContainSingle(item => item.Id == "DRN0022");
-        diagnostics.Should().ContainSingle(item => item.Id == "DRN0024");
+        diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION008");
+        diagnostics.Should().ContainSingle(item => item.Id == "DRNCLASSIFICATION010");
     }
 
     [Fact]
@@ -415,7 +413,7 @@ public sealed class DiagnosticNameExemptionTests
             """);
         var diagnostics = await Analyze(compilation);
         diagnostics.Should().HaveCount(2).And.OnlyContain(item =>
-            item.Id == "DRN0024" && item.Severity == DiagnosticSeverity.Warning);
+            item.Id == "DRNCLASSIFICATION010" && item.Severity == DiagnosticSeverity.Warning);
         diagnostics.Select(item => item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan))
             .Should().BeEquivalentTo("// DiagnosticNameExemption: Count | Harmless name.",
                 "// DiagnosticNameExemption: TokenCount | Duplicate comment.");
@@ -442,7 +440,7 @@ public sealed class DiagnosticNameExemptionTests
         var rules = new ProjectDiagnosticRulesTests.RuleFile("data-classification-rules.json",
             """{"secretFields":["metric"]}""");
         (await Analyze(compilation, rules)).Should().BeEmpty();
-        (await Analyze(compilation)).Should().ContainSingle().Which.Id.Should().Be("DRN0024");
+        (await Analyze(compilation)).Should().ContainSingle().Which.Id.Should().Be("DRNCLASSIFICATION010");
         (await Analyze(compilation, rules)).Should().BeEmpty();
     }
 
@@ -473,7 +471,7 @@ public sealed class DiagnosticNameExemptionTests
         foreach (var (configured, diagnostics) in results)
         {
             if (configured) diagnostics.Should().BeEmpty();
-            else diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRN0024");
+            else diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCLASSIFICATION010");
         }
     }
 

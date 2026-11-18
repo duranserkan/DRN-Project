@@ -1,10 +1,8 @@
 extern alias SharedKernelAnalyzers;
-
 using DRN.Framework.SharedKernel.Analyzers.Conventions;
-using Microsoft.CodeAnalysis.Emit;
 using ConventionInputLimits = SharedKernelAnalyzers::DRN.Framework.SharedKernel.Analyzers.Conventions.ConventionInputLimits;
 using ConventionInputSyntax = SharedKernelAnalyzers::DRN.Framework.SharedKernel.Analyzers.Conventions.ConventionInputSyntax;
-using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.ClassificationTestFixture;
 using static DRN.Test.Analyzer.Tests.ProjectDiagnosticRulesTests;
 
 namespace DRN.Test.Analyzer.Tests;
@@ -29,7 +27,7 @@ public sealed class ConventionInputTests
     public void Project_Identity_Should_Preserve_Project_Names_And_Infer_Only_The_Role(string name, string role)
     {
         var project = ConventionProject.Read(Compilation("public class Marker;").WithAssemblyName("Published.Library"),
-            new Config(new()
+            new AnalyzerTestCompilation.ConfigOptions(new Dictionary<string, string>
             {
                 ["build_property.MSBuildProjectName"] = name,
                 ["build_property.RootNamespace"] = "Custom.Logical.Home"
@@ -51,11 +49,11 @@ public sealed class ConventionInputTests
             ["build_property.MSBuildProjectName"] = "DomainHelpers",
             ["build_property.RootNamespace"] = "Custom.Logical.Home"
         };
-        var unknown = ConventionProject.Read(Compilation("public class Marker;"), new Config(options));
+        var unknown = ConventionProject.Read(Compilation("public class Marker;"), new AnalyzerTestCompilation.ConfigOptions(options));
         unknown.Enabled.Should().BeFalse();
         unknown.Diagnostics.Should().BeEmpty();
         options["build_property.MSBuildProjectName"] = "Mapped.App.Infra.Postgres";
-        var mapped = ConventionProject.Read(Compilation("public class Marker;"), new Config(options));
+        var mapped = ConventionProject.Read(Compilation("public class Marker;"), new AnalyzerTestCompilation.ConfigOptions(options));
         mapped.Enabled.Should().BeTrue();
         mapped.Diagnostics.Should().BeEmpty();
         mapped.Name.Should().Be("Mapped.App.Infra.Postgres");
@@ -84,20 +82,20 @@ public sealed class ConventionInputTests
     public void Activation_Should_Use_Unambiguous_Role_Tokens_And_Exclude_Support_Projects(string name,
         bool expected, int errors)
     {
-        var project = ConventionProject.Read(Compilation("public class Marker;"), new Config(new()
+        var project = ConventionProject.Read(Compilation("public class Marker;"), new AnalyzerTestCompilation.ConfigOptions(new Dictionary<string, string>
         {
             ["build_property.MSBuildProjectName"] = name,
             ["build_property.RootNamespace"] = "Sample"
         }));
         project.Enabled.Should().Be(expected);
-        project.Diagnostics.Should().HaveCount(errors).And.OnlyContain(diagnostic => diagnostic.Id == "DRNCV001");
+        project.Diagnostics.Should().HaveCount(errors).And.OnlyContain(diagnostic => diagnostic.Id == "DRNCONVENTIONINPUT001");
     }
 
     [Fact]
     public void Assembly_Name_Should_Supply_Identity_When_The_Standard_Project_Name_Is_Unavailable()
     {
         var project = ConventionProject.Read(Compilation("public class Marker;").WithAssemblyName("Sample.Infra.Postgres"),
-            new Config(new() { ["build_property.RootNamespace"] = "Sample.Infra" }));
+            new AnalyzerTestCompilation.ConfigOptions(new Dictionary<string, string> { ["build_property.RootNamespace"] = "Sample.Infra" }));
         project.Enabled.Should().BeTrue();
         project.Name.Should().Be("Sample.Infra.Postgres");
         project.Role.Should().Be("Infra");
@@ -108,7 +106,7 @@ public sealed class ConventionInputTests
     public void Missing_RootNamespace_Should_Not_Be_Replaced_With_Assembly_Identity()
     {
         var project = ConventionProject.Read(Compilation("public class Marker;").WithAssemblyName("Sample.Domain"),
-            new Config(new()
+            new AnalyzerTestCompilation.ConfigOptions(new Dictionary<string, string>
             {
                 ["build_property.MSBuildProjectName"] = "Sample.Domain"
             }));
@@ -131,7 +129,7 @@ public sealed class ConventionInputTests
     {
         var input = Read("""
             [assembly: DRN.Conventions.Version("1")]
-            [assembly: DRN.Conventions.Exception("DRNCV019", SymbolTarget = "M:Shop.Application.Sales.Reader.Read", Reason = "Reviewed coupling")]
+            [assembly: DRN.Conventions.Exception("DRNOWNERSHIP002", SymbolTarget = "M:Shop.Application.Sales.Reader.Read", Reason = "Reviewed coupling")]
             """);
         input.Diagnostics.Should().BeEmpty();
         input.Records[1].Get("Target").Should().Be("M:Shop.Application.Sales.Reader.Read");
@@ -143,9 +141,9 @@ public sealed class ConventionInputTests
     {
         var input = Read("""
             [assembly: DRN.Conventions.Version("1")]
-            [assembly: DRN.Conventions.Exception("DRNCV019", SymbolTarget = "T:Shop.Reader", Target = "T:Shop.Other")]
+            [assembly: DRN.Conventions.Exception("DRNOWNERSHIP002", SymbolTarget = "T:Shop.Reader", Target = "T:Shop.Other")]
             """);
-        input.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV001");
+        input.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCONVENTIONINPUT001");
         input.Records.Should().NotContain(record => record.Kind == "Exception");
     }
 
@@ -171,7 +169,7 @@ public sealed class ConventionInputTests
     [InlineData("[assembly: Other.Context(\"1\")]")]
     [InlineData("class Executable { }")]
     public void Malformed_Or_Nonliteral_Input_Should_Report_Incomplete_Evidence(string source) =>
-        Read(source).Diagnostics.Should().NotBeEmpty().And.OnlyContain(diagnostic => diagnostic.Id == "DRNCV001");
+        Read(source).Diagnostics.Should().NotBeEmpty().And.OnlyContain(diagnostic => diagnostic.Id == "DRNCONVENTIONINPUT001");
 
     [Fact]
     public void Wrapped_String_Literals_Should_Preserve_Build_Fragment_Data()
@@ -194,7 +192,8 @@ public sealed class ConventionInputTests
         Read(new string(' ', 1_048_577)).Diagnostics.Should().ContainSingle();
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        var read = () => ConventionInputs.Read(new AnalyzerOptions([file]), cancellation.Token);
+        var token = cancellation.Token;
+        var read = () => ConventionInputs.Read(new AnalyzerOptions([file]), token);
         read.Should().Throw<OperationCanceledException>();
     }
 
@@ -207,11 +206,8 @@ public sealed class ConventionInputTests
             [SourceKnownSubdomain("Identity", Reason = "Authentication account ownership")]
             public class Account;
             """);
-        compilation.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
-        using var stream = new MemoryStream();
-        var result = compilation.Emit(stream, options: new EmitOptions(metadataOnly: true, includePrivateMembers: false));
-        result.Success.Should().BeTrue(string.Join(Environment.NewLine, result.Diagnostics));
-        var reference = MetadataReference.CreateFromImage(stream.ToArray());
+        compilation.AssertNoCompilerErrors();
+        var reference = AnalyzerTestCompilation.EmitReference(compilation, options: AnalyzerTestCompilation.ReferenceAssemblyOptions);
         var consumer = Compilation("public class Consumer;").WithAssemblyName("Consumer").AddReferences(reference);
         var account = consumer.GetTypeByMetadataName("Sample.Domain.Identity.Account")!;
         var attribute = account.GetAttributes().Single(item => item.AttributeClass?.Name == "SourceKnownSubdomainAttribute");
@@ -271,18 +267,29 @@ public sealed class ConventionInputTests
     [InlineData("[assembly: DRN.Conventions.Registration(\"Sample.Service\", Service = \"\")]", false)]
     [InlineData("[assembly: DRN.Conventions.Configuration(\"Sample.Mapping\", Context = \"\")]", false)]
     public void Generation_Should_Reject_Invalid_Structural_Field_Values(string record, bool supported)
+        => SupportsGeneration(record).Should().Be(supported);
+
+    [Fact]
+    public void Exception_Records_Should_Accept_Each_Convention_Prefix_And_Require_Three_Digits()
+    {
+        static string ExceptionRecord(string rule) => $$"""
+            [assembly: DRN.Conventions.Exception("{{rule}}", SymbolTarget = "T:Sample.User",
+                Reason = "Reviewed legacy boundary", Owner = "Domain team", Review = "9999-12-31")]
+            """;
+        foreach (var descriptor in ConventionDiagnosticDescriptors.All)
+            SupportsGeneration(ExceptionRecord(descriptor.Id)).Should().BeTrue(descriptor.Id);
+        foreach (var invalid in new[] { "DRNENTITY013", "DRNUNKNOWN001", "DRNARCHITECTURE01", "DRNARCHITECTURE0001", "DRNPERSISTENCE00A" })
+            SupportsGeneration(ExceptionRecord(invalid)).Should().BeFalse(invalid);
+    }
+
+    private static bool SupportsGeneration(string record)
     {
         var text = Microsoft.CodeAnalysis.Text.SourceText.From("[assembly: DRN.Conventions.Version(\"1\")]" + record);
         var root = ConventionInputSyntax.Parse(text, "DrnConventionInputs.g.cs", CancellationToken.None, out _);
         root.Should().NotBeNull();
-        ConventionInputSyntax.SupportsGeneration(root!, CancellationToken.None).Should().Be(supported);
+        return ConventionInputSyntax.SupportsGeneration(root, CancellationToken.None);
     }
 
     private static ConventionInputs Read(string source) => ConventionInputs.Read(
         new AnalyzerOptions([new RuleFile(ConventionInputs.FileName, source)]), CancellationToken.None);
-
-    internal sealed class Config(Dictionary<string, string> values) : AnalyzerConfigOptions
-    {
-        public override bool TryGetValue(string key, out string value) => values.TryGetValue(key, out value!);
-    }
 }

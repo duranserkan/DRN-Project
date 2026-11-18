@@ -7,7 +7,7 @@ internal static class ConventionDependencyAnalysis
 {
     internal static void Analyze(ConventionFacts facts)
     {
-        if (facts.Diagnostics.Any(diagnostic => diagnostic.Id == "DRNCV001")) return;
+        if (facts.Diagnostics.Any(diagnostic => diagnostic.Descriptor == ConventionDiagnosticDescriptors.InvalidInput)) return;
         var references = facts.Records.Where(record => record.Kind == ConventionInputSyntax.ReferenceKind).ToArray();
         var inventories = references.Where(record =>
             record.Identity == ConventionInputSyntax.InventoryIdentity &&
@@ -15,7 +15,7 @@ internal static class ConventionDependencyAnalysis
         if (inventories is not [var inventory]) return;
         var direct = ReadDirectProjects(facts, references);
         // An unresolved declared edge is incomplete evidence, not proof that a layer is absent.
-        if (direct is null || facts.Diagnostics.Any(diagnostic => diagnostic.Id == "DRNCV001")) return;
+        if (direct is null || facts.Diagnostics.Any(diagnostic => diagnostic.Descriptor == ConventionDiagnosticDescriptors.InvalidInput)) return;
         var roles = facts.Records.Where(record => record.Kind == ConventionInputSyntax.RoleKind).Select(record => record.Identity)
             .Append(facts.Project.Role).Distinct(StringComparer.Ordinal);
         foreach (var role in roles)

@@ -1,15 +1,13 @@
-using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.SharedKernel.Analyzers.Conventions;
-using DRN.Framework.Utils.Entity;
-using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.ClassificationTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
 
 public sealed class ConventionPersistenceTests
 {
-    private static readonly MetadataReference FrameworkReference = MetadataReference.CreateFromFile(typeof(DrnContext<>).Assembly.Location);
-    private static readonly MetadataReference UtilsReference = MetadataReference.CreateFromFile(typeof(IEntityUtils).Assembly.Location);
-    private static readonly string[] MissingConfigurationDiagnostics = ["DRNCV009"];
+    private static MetadataReference FrameworkReference => AnalyzerTestCompilation.EntityFrameworkReference;
+    private static MetadataReference UtilsReference => AnalyzerTestCompilation.UtilsReference;
+    private static readonly string[] MissingConfigurationDiagnostics = ["DRNPERSISTENCE005"];
 
     private const string Imports = """
         using Microsoft.EntityFrameworkCore;
@@ -39,7 +37,7 @@ public sealed class ConventionPersistenceTests
                 public DbSet<Plain> Rows => Set<Plain>();
             }
             """);
-        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNCV023").ToArray();
+        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNPERSISTENCE008").ToArray();
         diagnostics.Should().HaveCount(2);
         diagnostics.Select(item => item.Properties["Entity"]).Should().BeEquivalentTo(
             "Sample.Infra.QA.Child", "Sample.Infra.QA.Plain");
@@ -62,7 +60,7 @@ public sealed class ConventionPersistenceTests
             public class DerivedContext : QAContext;
             public class ReadContext : ContextBase<ReadContext, Category>;
             """);
-        var diagnostic = facts.Diagnostics.Where(item => item.Id == "DRNCV023").Should().ContainSingle().Which;
+        var diagnostic = facts.Diagnostics.Where(item => item.Id == "DRNPERSISTENCE008").Should().ContainSingle().Which;
         diagnostic.Properties["Entity"].Should().Be("Sample.Infra.QA.Child");
         diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan).Should().Be("Entities");
     }
@@ -79,7 +77,7 @@ public sealed class ConventionPersistenceTests
                 public static DbSet<Child> Shared => null!;
                 public FakeSet<Child> Lookalike => new();
             }
-            """).Diagnostics.Should().NotContain(item => item.Id == "DRNCV023");
+            """).Diagnostics.Should().NotContain(item => item.Id == "DRNPERSISTENCE008");
     }
 
     [Fact]
@@ -91,7 +89,7 @@ public sealed class ConventionPersistenceTests
             public class QAContext() : DrnContext<QAContext>(null);
             """);
         var diagnostic = facts.Diagnostics.Should().ContainSingle().Which;
-        diagnostic.Id.Should().Be("DRNCV008");
+        diagnostic.Id.Should().Be("DRNPERSISTENCE004");
         diagnostic.GetMessage().Should().Contain("Category").And.Contain("QAContext");
         diagnostic.Properties["Context"].Should().Be("Sample.Infra.QA.QAContext");
         diagnostic.Properties["Entity"].Should().Be("Sample.Infra.QA.Category");
@@ -119,7 +117,7 @@ public sealed class ConventionPersistenceTests
                 : SourceKnownRepository<QAContext, Category>(context, utils);
             """);
         var diagnostic = facts.Diagnostics.Should().ContainSingle().Which;
-        diagnostic.Id.Should().Be("DRNCV011");
+        diagnostic.Id.Should().Be("DRNREPOSITORY001");
         diagnostic.GetMessage().Should().Contain("explicitly excludes");
         diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan).Should().Be("CategoryRepository");
     }
@@ -135,7 +133,7 @@ public sealed class ConventionPersistenceTests
             public class CategoryRepository(QAContext context, IEntityUtils utils) : GenericRepository<Category>(context, utils);
             """);
         var diagnostic = facts.Diagnostics.Should().ContainSingle().Which;
-        diagnostic.Id.Should().Be("DRNCV011");
+        diagnostic.Id.Should().Be("DRNREPOSITORY001");
         diagnostic.Properties["Target"].Should().Be("T:Sample.Infra.QA.CategoryRepository");
         diagnostic.Properties["Entity"].Should().Be("Sample.Infra.QA.Category");
     }
@@ -157,7 +155,7 @@ public sealed class ConventionPersistenceTests
                 public DbSet<Parent> Parents { get; set; } = null!;
                 public DbSet<ReadRow> Rows { get; set; } = null!;
             }
-            """).Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV023");
+            """).Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNPERSISTENCE008");
     }
 
     [Fact]
@@ -204,11 +202,12 @@ public sealed class ConventionPersistenceTests
     }
 
     [Theory]
-    [InlineData("modelBuilder.Ignore<Category>();", true)]
-    [InlineData("if (System.DateTime.UtcNow.Ticks > 0) modelBuilder.Ignore<Category>();", false)]
-    [InlineData("Helper(modelBuilder);", false)]
-    [InlineData("modelBuilder.Ignore<Category>(); modelBuilder.Entity<Category>();", false)]
-    [InlineData("modelBuilder.Ignore<Category>(); Helper(modelBuilder);", false)]
+    [DataInlineUnit("modelBuilder.Ignore<Category>();", true)]
+    [DataInlineUnit("if (System.DateTime.UtcNow.Ticks > 0) modelBuilder.Ignore<Category>();", false)]
+    [DataInlineUnit("Helper(modelBuilder);", false)]
+    [DataInlineUnit("modelBuilder.Ignore<Category>(); modelBuilder.Entity<Category>();", false)]
+    [DataInlineUnit("modelBuilder.Ignore<Category>(); Helper(modelBuilder);", false)]
+    [DataInlineUnit("modelBuilder.Ignore<Category>(); modelBuilder.Entity<object>(_ => modelBuilder.Entity<Category>());", false)]
     public void Ignore_Should_Require_A_Proven_Unconditional_Ef_Call(string body, bool conflict)
     {
         var facts = Analyze(Imports + $$"""
@@ -220,7 +219,7 @@ public sealed class ConventionPersistenceTests
             public class CategoryRepository(QAContext context, IEntityUtils utils)
                 : SourceKnownRepository<QAContext, Category>(context, utils);
             """);
-        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV011").Should().Be(conflict ? 1 : 0);
+        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNREPOSITORY001").Should().Be(conflict ? 1 : 0);
     }
 
     [Fact]
@@ -261,7 +260,7 @@ public sealed class ConventionPersistenceTests
             """;
         var configuration = configNamespace + ".CategoryConfiguration";
         var facts = Analyze(source, Input("Configuration", configuration, ("Context", "Sample.Infra.QA.QAContext")));
-        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV009").Should().Be(invalid ? 1 : 0);
+        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNPERSISTENCE005").Should().Be(invalid ? 1 : 0);
         if (invalid)
         {
             var diagnostic = facts.Diagnostics.Single();
@@ -349,10 +348,31 @@ public sealed class ConventionPersistenceTests
         else
         {
             var diagnostic = facts.Diagnostics.Should().ContainSingle().Which;
-            diagnostic.Id.Should().Be("DRNCV009");
+            diagnostic.Id.Should().Be("DRNPERSISTENCE005");
             diagnostic.Properties["Entity"].Should().Be("Sample.Infra.QA." + missingEntity);
             diagnostic.Properties["Context"].Should().Be("Sample.Infra.QA.Read.ReadContext");
         }
+    }
+
+    [Fact]
+    public void Forwarded_Configure_Should_Apply_Only_The_Selected_Entity_Binding()
+    {
+        var facts = Analyze(Imports + """
+            public class QAContext() : DrnContext<QAContext>(null);
+            public class Other : AggregateRoot;
+            public class ParentConfig : IEntityTypeConfiguration<Category>
+            {
+                void IEntityTypeConfiguration<Category>.Configure(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<Category> builder)
+                    => new SharedConfig(1).Configure(builder);
+            }
+            public class SharedConfig(int dependency) : IEntityTypeConfiguration<Category>, IEntityTypeConfiguration<Other>
+            {
+                public void Configure(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<Category> builder) { }
+                public void Configure(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<Other> builder) { }
+            }
+            """);
+        facts.Diagnostics.Where(item => item.Id == "DRNPERSISTENCE005").Should().ContainSingle()
+            .Which.Properties["Entity"].Should().Be("Sample.Infra.QA.Other");
     }
 
     [Theory]
@@ -395,7 +415,7 @@ public sealed class ConventionPersistenceTests
                 public void Configure(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<Category> builder) { }
             }
             """, Input("Configuration", "Sample.Infra.QA.CategoryConfiguration", ("Context", "Sample.Infra.QA.QAContext")));
-        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV009").Should().Be(invalid ? 1 : 0);
+        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNPERSISTENCE005").Should().Be(invalid ? 1 : 0);
     }
 
     [Theory]
@@ -411,7 +431,7 @@ public sealed class ConventionPersistenceTests
                 public void Configure(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<Category> builder) { }
             }
             """);
-        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV009").Should().Be(invalid ? 1 : 0);
+        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNPERSISTENCE005").Should().Be(invalid ? 1 : 0);
         if (invalid) facts.Diagnostics.Single().Properties["Context"].Should().Be("Sample.Infra.QA.QAContext");
     }
 
@@ -478,7 +498,7 @@ public sealed class ConventionPersistenceTests
         if (missing)
         {
             var diagnostic = facts.Diagnostics.Should().ContainSingle().Which;
-            diagnostic.Id.Should().Be("DRNCV009");
+            diagnostic.Id.Should().Be("DRNPERSISTENCE005");
             diagnostic.Properties["Entity"].Should().Be("Sample.Infra.QA.Category");
             diagnostic.Properties["Context"].Should().Be("Sample.Infra.QA.ReadContext");
         }
@@ -523,7 +543,7 @@ public sealed class ConventionPersistenceTests
                 }
             }
             """);
-        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV009");
+        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNPERSISTENCE005");
         facts.Diagnostics.Single().Properties["Context"].Should().Be("Sample.Infra.QA.Write.WriteContext");
     }
 
@@ -579,7 +599,7 @@ public sealed class ConventionPersistenceTests
         if (invalidReadConfiguration)
         {
             var diagnostic = facts.Diagnostics.Single();
-            diagnostic.Id.Should().Be("DRNCV009");
+            diagnostic.Id.Should().Be("DRNPERSISTENCE005");
             diagnostic.Properties["Context"].Should().Be("Sample.Infra.QA.Read.ReadContext");
         }
     }
@@ -601,7 +621,7 @@ public sealed class ConventionPersistenceTests
                 public void Configure(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<Category> builder) { }
             }
             """);
-        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV009");
+        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNPERSISTENCE005");
     }
 
     [Theory]
@@ -621,7 +641,7 @@ public sealed class ConventionPersistenceTests
                 public void Configure(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<Category> builder) { }
             }
             """);
-        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV009");
+        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNPERSISTENCE005");
     }
 
     [Fact]
@@ -663,7 +683,7 @@ public sealed class ConventionPersistenceTests
                 public void Configure(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<Category> builder) { }
             }
             """);
-        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV009");
+        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNPERSISTENCE005");
     }
 
     [Fact]
@@ -716,7 +736,7 @@ public sealed class ConventionPersistenceTests
             }
             """);
         facts.Diagnostics.Should().HaveCount(warning ? 1 : 0);
-        if (warning) facts.Diagnostics.Single().Id.Should().Be("DRNCV009");
+        if (warning) facts.Diagnostics.Single().Id.Should().Be("DRNPERSISTENCE005");
     }
 
     [Fact]
@@ -749,7 +769,7 @@ public sealed class ConventionPersistenceTests
             }
             """, Input("Configuration", "Sample.Infra.QA.Read.Configurations.HelperConfiguration",
             ("Context", "Sample.Infra.QA.Write.WriteContext")));
-        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCV009");
+        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNPERSISTENCE005");
         facts.Diagnostics.Single().Properties["Context"].Should().Be("Sample.Infra.QA.Write.WriteContext");
     }
 
@@ -782,7 +802,7 @@ public sealed class ConventionPersistenceTests
                 }
             }
             """, Input("Context", "Sample.Infra.QA.QAContext", ("Migrations", destination)));
-        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV017").Should().Be(conflict ? 1 : 0);
+        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNPERSISTENCE006").Should().Be(conflict ? 1 : 0);
         if (conflict) facts.Diagnostics.Single().Properties["Target"].Should().Be("T:Sample.Infra.QA.Migrations.Initial");
     }
 
@@ -810,7 +830,7 @@ public sealed class ConventionPersistenceTests
             }
             """;
         var facts = Analyze(source, Input("Context", "Sample.Infra.QA.QAContext", ("Migrations", destination)));
-        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV017").Should().Be(conflict ? 1 : 0);
+        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNPERSISTENCE006").Should().Be(conflict ? 1 : 0);
         if (conflict)
         {
             facts.Diagnostics.Single().Location.Kind.Should().Be(LocationKind.ExternalFile);
@@ -844,7 +864,7 @@ public sealed class ConventionPersistenceTests
             Input("Role", "Infra", ("NamespacePrefix", "Shop.Persistence"), ("LogicalPathPrefix", "Infra")),
             Input("Context", "Shop.Persistence.Sales.SalesContext", ("Migrations", "Infra/Sales/Migrations")),
             Input("Path", "Models.cs", ("LogicalPath", logicalPath)));
-        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV017").Should().Be(conflict ? 1 : 0);
+        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNPERSISTENCE006").Should().Be(conflict ? 1 : 0);
         if (conflict)
             facts.Diagnostics.Single().GetMessage().Should().Contain("Infra/Sales/Migrations");
     }
@@ -880,16 +900,10 @@ public sealed class ConventionPersistenceTests
                 public QAContext(Microsoft.EntityFrameworkCore.DbContextOptions<QAContext> options) : base(options) { }
             }
             """).WithAssemblyName("Sample.Persistence").AddReferences(framework, utils);
-        producer.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
-        MetadataReference reference;
-        if (emitted)
-        {
-            using var image = new MemoryStream();
-            var result = producer.Emit(image, options: new Microsoft.CodeAnalysis.Emit.EmitOptions(metadataOnly: true, includePrivateMembers: false));
-            result.Success.Should().BeTrue();
-            reference = MetadataReference.CreateFromImage(image.ToArray());
-        }
-        else reference = producer.ToMetadataReference();
+        producer.AssertNoCompilerErrors();
+        MetadataReference reference = emitted
+            ? AnalyzerTestCompilation.EmitReference(producer, options: AnalyzerTestCompilation.ReferenceAssemblyOptions)
+            : producer.ToMetadataReference();
         var consumer = Compilation("""
             // <auto-generated />
             namespace Sample.Migrations.QA.Migrations;
@@ -912,7 +926,7 @@ public sealed class ConventionPersistenceTests
                     }
                 }
                 """, path: "MigrationsModule.cs"));
-        consumer.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        consumer.AssertNoCompilerErrors();
         var expectedAssembly = wrongAssembly ? "Sample.OtherMigrations" : "Sample.Migrations";
         var fixture = ConventionTestDependencies.WithRequiredLayers(consumer, "Infra");
         var input = new ProjectDiagnosticRulesTests.RuleFile(ConventionInputs.FileName, $$"""
@@ -921,12 +935,12 @@ public sealed class ConventionPersistenceTests
             [assembly: DRN.Conventions.Path("QASnapshot.cs", LogicalPath = "QA/Migrations/QASnapshot.cs")]
             [assembly: DRN.Conventions.Context("Sample.Infra.QA.QAContext", Migrations = "QA/Migrations", MigrationsAssembly = "{{expectedAssembly}}")]
             """ + "\n" + ConventionTestDependencies.Serialize(fixture.Records));
-        var diagnostics = await fixture.Compilation.WithAnalyzers([new SourceKnownConventionAnalyzer()],
-            new AnalyzerOptions([input], new Options("Infra", "Sample.Migrations"))).GetAnalyzerDiagnosticsAsync();
+        var diagnostics = await AnalyzerTestCompilation.Analyze(fixture.Compilation, new SourceKnownConventionAnalyzer(),
+            AnalyzerTestCompilation.ConventionOptions("Sample.Infra", rootNamespace: "Sample.Migrations", files: input));
         diagnostics.Should().HaveCount(wrongAssembly ? 1 : 0);
         if (!wrongAssembly) return;
         var diagnostic = diagnostics.Single();
-        diagnostic.Id.Should().Be("DRNCV017");
+        diagnostic.Id.Should().Be("DRNPERSISTENCE006");
         diagnostic.Severity.Should().Be(DiagnosticSeverity.Warning);
         diagnostic.GetMessage().Should().Be("Migration artifact 'QASnapshot' identifies context 'QAContext' inconsistently with declared destination 'Sample.OtherMigrations:QA/Migrations'.");
         diagnostic.Location.Kind.Should().Be(LocationKind.ExternalFile);
@@ -952,7 +966,7 @@ public sealed class ConventionPersistenceTests
                 public ISourceKnownRepository<Category> Repository => (ISourceKnownRepository<Category>)repository;
             }
             """, "Application");
-        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNCV013").Should().Be(conflict ? 1 : 0);
+        facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNREPOSITORY002").Should().Be(conflict ? 1 : 0);
         if (conflict)
             facts.Diagnostics.Single().Location.SourceTree!.GetText().ToString(facts.Diagnostics.Single().Location.SourceSpan)
                 .Should().Be("Repository");
@@ -986,22 +1000,11 @@ public sealed class ConventionPersistenceTests
     {
         var compilation = Compilation(source).WithAssemblyName("Sample." + role)
             .AddReferences(FrameworkReference, UtilsReference);
-        compilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
-        var options = new Options(role);
+        compilation.AssertNoCompilerErrors();
+        var options = AnalyzerTestCompilation.ConventionOptionsProvider("Sample." + role);
         var project = ConventionProject.Read(compilation, options.GlobalOptions);
         var facts = new ConventionFacts(compilation, project, new([.. records], []), options, CancellationToken.None);
         ConventionPersistenceAnalysis.Analyze(facts);
         return facts;
-    }
-
-    private sealed class Options(string role, string? rootNamespace = null) : AnalyzerConfigOptionsProvider
-    {
-        public override AnalyzerConfigOptions GlobalOptions { get; } = new ConventionInputTests.Config(new()
-        {
-            ["build_property.MSBuildProjectName"] = "Sample." + role,
-            ["build_property.RootNamespace"] = rootNamespace ?? "Sample." + role
-        });
-        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => new ConventionInputTests.Config(new());
-        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => new ConventionInputTests.Config(new());
     }
 }

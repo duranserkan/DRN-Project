@@ -15,13 +15,12 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
 {
     private const string AttributeNamespace = "DRN.Framework.Hosting.Endpoints.";
     private const string EndpointActionAttributeName = "EndpointActionAttribute";
-    private static readonly DiagnosticDescriptor Invalid = new("DRNHG001", "Invalid hosted accessor declaration",
+    private static readonly DiagnosticDescriptor Invalid = new("DRNHOSTING001", "Invalid hosted accessor declaration",
         "{0}", "Hosting", DiagnosticSeverity.Error, true);
     private static readonly SymbolDisplayFormat BindingTypeFormat = SymbolDisplayFormat.FullyQualifiedFormat.WithMiscellaneousOptions(
         SymbolDisplayFormat.FullyQualifiedFormat.MiscellaneousOptions & ~SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
     private static readonly Regex RazorComments = new(@"@\*[\s\S]*?\*@", RegexOptions.NonBacktracking);
     private static readonly Regex PageDirective = new(@"^[\t ]*@page(?:[\t ]|\r?$)", RegexOptions.Multiline | RegexOptions.NonBacktracking);
-    private static readonly PageInput DisabledPage = new(null, false);
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -42,8 +41,10 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
             .Combine(context.AnalyzerConfigOptionsProvider)
             .Combine(pagesEnabled)
             .Select(static (input, cancellation) => input.Right
-                ? ReadPage(input.Left.Left, input.Left.Right, cancellation) : DisabledPage)
-            .WithTrackingName("HostedAccessorPageIdentity").Collect();
+                ? ReadPage(input.Left.Left, input.Left.Right, cancellation) : null)
+            .WithTrackingName("HostedAccessorPageIdentity")
+            .Where(static page => page is not null)
+            .Select(static (page, _) => page!).Collect();
         var inputs = context.CompilationProvider.Combine(programs).Combine(pages).Combine(hostedProject)
             .WithTrackingName("HostedAccessorInputs");
         var generation = inputs.Select(static (input, cancellation) => input.Right
@@ -61,19 +62,21 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
             static (output, diagnostic) => output.ReportDiagnostic(diagnostic));
     }
 
-    private static PageInput ReadPage(AdditionalText file, AnalyzerConfigOptionsProvider configuration, CancellationToken cancellation)
+    private static PageInput? ReadPage(AdditionalText file, AnalyzerConfigOptionsProvider configuration, CancellationToken cancellation)
     {
+        cancellation.ThrowIfCancellationRequested();
+        var content = RazorComments.Replace(file.GetText(cancellation)?.ToString() ?? "", "");
+        cancellation.ThrowIfCancellationRequested();
+        var isPage = PageDirective.IsMatch(content);
+        cancellation.ThrowIfCancellationRequested();
+        if (!isPage) return null;
         var options = configuration.GetOptions(file);
         options.TryGetValue("build_metadata.AdditionalFiles.TargetPath", out var target);
         configuration.GlobalOptions.TryGetValue("build_property.MSBuildProjectDirectory", out var directory);
         target = DecodeTargetPath(target);
         if (target == null && directory != null) target = Path.GetRelativePath(directory, file.Path);
         cancellation.ThrowIfCancellationRequested();
-        var content = RazorComments.Replace(file.GetText(cancellation)?.ToString() ?? "", "");
-        cancellation.ThrowIfCancellationRequested();
-        var isPage = PageDirective.IsMatch(content);
-        cancellation.ThrowIfCancellationRequested();
-        return new PageInput(target?.Replace('\\', '/'), isPage);
+        return new PageInput(target?.Replace('\\', '/'));
     }
 
     private static string? DecodeTargetPath(string? target)
@@ -111,7 +114,8 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
             }
             catch (AccessorException exception)
             {
-                diagnostics.Add(Diagnostic.Create(Invalid, program.Locations[0], exception.Message));
+                var location = program.Locations.FirstOrDefault(static item => item.IsInSource) ?? Location.None;
+                diagnostics.Add(Diagnostic.Create(Invalid, location, exception.Message));
             }
         }
         return new(generatedSources.Values.OrderBy(static model => model.HintName, StringComparer.Ordinal).ToImmutableArray(),
@@ -132,10 +136,10 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
             ? program : null;
     }
 
-    private sealed record PageInput(string? Path, bool IsPage);
+    private sealed record PageInput(string? Path);
     private sealed record GenerationResult(ImmutableArray<AccessorModel> Sources, ImmutableArray<Diagnostic> Diagnostics);
     private sealed record GeneratedSource(string HintName, string Content);
-    [SuppressMessage("SonarQube", "S3871", Justification = "This private generation failure is caught by PreparePrograms and reported as DRNHG001. It never forms part of the generator's public exception contract.")]
+    [SuppressMessage("SonarQube", "S3871", Justification = "This private generation failure is caught by PreparePrograms and reported as DRNHOSTING001. It never forms part of the generator's public exception contract.")]
     private sealed class AccessorException(string message) : Exception(message);
     private static string? Text(AttributeData? attribute, string name) =>
         attribute?.NamedArguments.FirstOrDefault(pair => pair.Key == name).Value.Value as string;
@@ -328,7 +332,6 @@ public sealed partial class HostedAccessorGenerator : IIncrementalGenerator
             foreach (var page in pages)
             {
                 cancellation.ThrowIfCancellationRequested();
-                if (!page.IsPage) continue;
                 AddPage(root, page);
             }
         }

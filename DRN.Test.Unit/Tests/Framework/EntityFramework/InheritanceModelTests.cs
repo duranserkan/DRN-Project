@@ -144,7 +144,7 @@ public class InheritanceModelTests
         }
     }
 
-    [SuppressMessage("DRN.Domain", "DRN0001", Justification = "Missing metadata intentionally exercises runtime validation.")]
+    [SuppressMessage("DRN.Domain", "DRNENTITY001", Justification = "Missing metadata intentionally exercises runtime validation.")]
     public sealed class MissingMetadataEntity : InheritanceRoot;
 
     private abstract class InheritanceContext(DbContextOptions options) : DbContext(options)

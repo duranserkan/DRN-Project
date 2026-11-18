@@ -47,6 +47,12 @@ internal static class ConventionInputSyntax
     internal const string CompleteStage = "Complete";
     internal const string InventoryIdentity = "Inventory";
 
+    private static readonly string[] ConventionRulePrefixes =
+    [
+        "DRNARCHITECTURE", "DRNOWNERSHIP", "DRNSTRUCTURE", "DRNPERSISTENCE",
+        "DRNREPOSITORY", "DRNDEPENDENCYINJECTION", "DRNCONVENTIONINPUT", "DRNCONVENTIONEXCEPTION"
+    ];
+
     internal static CompilationUnitSyntax? Parse(SourceText text, string path, CancellationToken token, out string problem)
     {
         problem = "malformed";
@@ -119,9 +125,9 @@ internal static class ConventionInputSyntax
         if (parsedIdentity is null || first.NameEquals is not null || first.NameColon is not null)
             return false;
         identity = parsedIdentity;
-        foreach (var argument in arguments.Arguments.Skip(1))
+        for (var index = 1; index < arguments.Arguments.Count; index++)
         {
-            if (!TryAddAttributeField(kind, argument, fields, token))
+            if (!TryAddAttributeField(kind, arguments.Arguments[index], fields, token))
                 return false;
         }
         return true;
@@ -243,9 +249,18 @@ internal static class ConventionInputSyntax
         namespacePrefix.Split('.').All(SyntaxFacts.IsValidIdentifier) &&
         IsLogicalPath(Field(fields, LogicalPathPrefixField));
 
+    internal static string? ConventionRulePrefix(string id)
+    {
+        if (!id.StartsWith("DRN", StringComparison.Ordinal)) return null;
+        foreach (var prefix in ConventionRulePrefixes)
+            if (id.StartsWith(prefix, StringComparison.Ordinal)) return prefix;
+        return null;
+    }
+
     private static bool SupportsExceptionRecord(string identity, Dictionary<string, string> fields)
     {
-        if (!identity.StartsWith("DRNCV", StringComparison.Ordinal) || identity.Length != 8 || !identity[5..].All(char.IsAsciiDigit))
+        var prefix = ConventionRulePrefix(identity);
+        if (prefix is null || identity.Length != prefix.Length + 3 || !identity[^3..].All(char.IsAsciiDigit))
             return false;
         var symbolTarget = Field(fields, SymbolTargetField);
         var target = symbolTarget.Length > 0 ? symbolTarget : Field(fields, TargetField);

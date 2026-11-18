@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using DRN.Framework.CompilerTools;
@@ -8,6 +9,8 @@ namespace DRN.Framework.SharedKernel.Analyzers;
 internal sealed class ClassificationContract
 {
     private readonly INamedTypeSymbol _personal;
+    private readonly INamedTypeSymbol? _dataClassification;
+    private readonly AttributeUsageFacts.Cache _attributeUsage;
     private readonly SymbolFactCache<ISymbol, bool> _positive = new();
     private readonly SymbolFactCache<INamedTypeSymbol, ImmutableArray<IPropertySymbol>> _properties = new();
     private readonly SymbolFactCache<IPropertySymbol, bool> _exemptions = new();
@@ -19,10 +22,12 @@ internal sealed class ClassificationContract
     private readonly Func<INamedTypeSymbol, CancellationToken, AttributeFacts> _calculateAttribute;
     private readonly Func<INamedTypeSymbol, ReceiverFacts> _createReceiver;
 
-    internal ClassificationContract(INamedTypeSymbol sensitive, INamedTypeSymbol personal)
+    internal ClassificationContract(INamedTypeSymbol sensitive, INamedTypeSymbol personal, Compilation compilation)
     {
         Sensitive = sensitive;
         _personal = personal;
+        _dataClassification = compilation.GetTypeByMetadataName("Microsoft.Extensions.Compliance.Classification.DataClassificationAttribute");
+        _attributeUsage = AttributeUsageFacts.Cache.For(compilation);
         _calculatePositive = CalculatePositive;
         _calculateExempt = CalculateExempt;
         _calculateAttribute = CalculateAttribute;
@@ -70,6 +75,7 @@ internal sealed class ClassificationContract
         return _positive.GetOrAdd(symbol, _calculatePositive, cancellation);
     }
 
+    [SuppressMessage("SonarQube", "S3267", Justification = "Scanning the immutable attribute array directly avoids a captured predicate for each symbol in the inheritance chain.")]
     private bool CalculatePositive(ISymbol symbol, CancellationToken cancellation)
     {
         for (ISymbol? current = symbol; current != null; current = NextClassifiedSymbol(current))
@@ -118,38 +124,45 @@ internal sealed class ClassificationContract
         return properties.ToImmutable();
     }
 
-    internal static bool HasUnknown(IPropertySymbol property) => property.GetAttributes().Concat(property.Type.GetAttributes())
-        .Any(attribute => Ancestors(attribute.AttributeClass).Any(type =>
-            type.ToDisplayString() == "Microsoft.Extensions.Compliance.Classification.DataClassificationAttribute"));
+    internal bool HasUnknown(IPropertySymbol property, CancellationToken cancellation = default)
+    {
+        foreach (var attribute in property.GetAttributes())
+            if (IsUnknownAttribute(attribute, cancellation)) return true;
+        foreach (var attribute in property.Type.GetAttributes())
+            if (IsUnknownAttribute(attribute, cancellation)) return true;
+        return false;
+    }
+
+    private bool IsUnknownAttribute(AttributeData attribute, CancellationToken cancellation) =>
+        attribute.AttributeClass is { } attributeType &&
+        _attributes.GetOrAdd(attributeType, _calculateAttribute, cancellation).IsDataClassification;
 
     private static bool IsFalse(AttributeData attribute) => attribute.ConstructorArguments is [{ Value: false }];
 
-    private readonly record struct AttributeFacts(bool IsPersonal, bool IsSensitive, bool IsInherited);
+    private readonly record struct AttributeFacts(bool IsPersonal, bool IsSensitive, bool IsDataClassification, bool IsInherited);
 
-    private AttributeFacts CalculateAttribute(INamedTypeSymbol type, CancellationToken cancellation) =>
-        new(Derives(type, _personal, cancellation), Derives(type, Sensitive, cancellation), Inherited(type, cancellation));
-
-    private static bool Inherited(INamedTypeSymbol attributeType, CancellationToken cancellation)
+    private AttributeFacts CalculateAttribute(INamedTypeSymbol type, CancellationToken cancellation)
     {
-        foreach (var type in Ancestors(attributeType))
-        {
-            cancellation.ThrowIfCancellationRequested();
-            foreach (var usage in type.GetAttributes())
-                if (usage.AttributeClass?.ToDisplayString() == "System.AttributeUsageAttribute")
-                    return !usage.NamedArguments.Any(pair => pair.Key == "Inherited" && pair.Value.Value is false);
-        }
-        return true;
-    }
-
-    private static bool Derives(INamedTypeSymbol type, INamedTypeSymbol parent, CancellationToken cancellation)
-    {
+        var personal = false;
+        var sensitive = false;
+        var dataClassification = false;
         foreach (var candidate in Ancestors(type))
         {
             cancellation.ThrowIfCancellationRequested();
-            if (SymbolEqualityComparer.Default.Equals(candidate, parent)) return true;
+            personal |= SymbolEqualityComparer.Default.Equals(candidate, _personal);
+            sensitive |= SymbolEqualityComparer.Default.Equals(candidate, Sensitive);
+            if (!dataClassification && IsDataClassificationAttribute(candidate))
+                dataClassification = true;
+            if (personal && sensitive && dataClassification) break;
         }
-        return false;
+        return new(personal, sensitive, dataClassification,
+            _attributeUsage.Get(type, cancellation).Inherited);
     }
+
+    private bool IsDataClassificationAttribute(INamedTypeSymbol candidate) =>
+        _dataClassification != null && SymbolEqualityComparer.Default.Equals(candidate, _dataClassification) ||
+        candidate.Name == "DataClassificationAttribute" &&
+        candidate.ToDisplayString() == "Microsoft.Extensions.Compliance.Classification.DataClassificationAttribute";
 
     private sealed class ReceiverFacts
     {

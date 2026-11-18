@@ -25,7 +25,6 @@ Resolve conflicts with TRIZ first, then rank remaining tradeoffs:
 - Discover solution files, test projects, frontend roots, docs folders, and CI workflows before hardcoding paths.
 - Generic skills (`basic-*`, `test-*`, unscoped `frontend-*`) must not require one repository's types, package names, or paths.
 - Trigger framework-specific skills, such as `drn-*`, only when the profile or user request calls for them.
-- When code changes a shared fact, update source-owned docs, the profile, and affected framework or repository skills.
 - When code or package metadata changes published behavior, update the owning module's release notes by repository rules. Keep package-specific triggers in the profile or framework skills.
 
 ## Startup
@@ -75,7 +74,7 @@ Use the profile first. If it is missing or silent, discover by convention:
 - Name meaningful conditions and operations, especially in UI rendering. Keep simple checks inline.
 - Design and optimize for pit of success
 - Comment only to explain non-obvious intent.
-- Update docs and skills when code or convention changes would otherwise create drift.
+- Before finishing a change, check whether it affects guidance. Update the owning docs for public behavior, the profile for repository facts, skills for reusable practices, and workflows for changed steps or verification criteria. Apply the smallest accurate edit in the surrounding voice. Link to the owner where other guidance depends on it.
 - Document only public behavior, not internals.
 - Do not stage changes, commit, or amend commits unless the user explicitly authorizes the action. Keep changes unstaged for review by default. Preserve any pre-existing staged changes.
 - Decide release-note impact before finishing source, packaging, or published-doc changes; record "not required" when no trigger applies.

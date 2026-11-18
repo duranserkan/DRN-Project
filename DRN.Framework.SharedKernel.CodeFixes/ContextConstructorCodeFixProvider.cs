@@ -12,7 +12,7 @@ namespace DRN.Framework.SharedKernel.CodeFixes;
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(ContextConstructorCodeFixProvider)), Shared]
 public sealed class ContextConstructorCodeFixProvider : CodeFixProvider
 {
-    public override ImmutableArray<string> FixableDiagnosticIds => ["DRNCV005"];
+    public override ImmutableArray<string> FixableDiagnosticIds => ["DRNPERSISTENCE001"];
     public override FixAllProvider? GetFixAllProvider() => null;
 
     public override async Task RegisterCodeFixesAsync(CodeFixContext context)
