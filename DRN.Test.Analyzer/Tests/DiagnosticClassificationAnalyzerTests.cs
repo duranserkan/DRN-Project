@@ -1,3 +1,5 @@
+using static DRN.Test.Analyzer.Tests.ClassificationTestFixture;
+
 namespace DRN.Test.Analyzer.Tests;
 
 public sealed class DiagnosticClassificationAnalyzerTests
@@ -787,15 +789,6 @@ public sealed class DiagnosticClassificationAnalyzerTests
         diagnostics.Should().BeEmpty();
     }
 
-    internal static ImmutableArray<MetadataReference> References => AnalyzerTestCompilation.ClassificationReferences;
-
-    internal static CSharpCompilation Compilation(string source, string path = "Models.cs") => CSharpCompilation.Create(
-        "DiagnosticModelConsumer", [CSharpSyntaxTree.ParseText(source, path: path)], References,
-        new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-    internal static Task<ImmutableArray<Diagnostic>> Analyze(CSharpCompilation compilation, params AdditionalText[] files) =>
-        AnalyzerTestCompilation.Analyze(compilation, new DiagnosticClassificationAnalyzer(), new AnalyzerOptions([.. files]));
-
     [Fact]
     public async Task All_Models_Should_Be_Checked_Without_Logging_And_IgnoreLog_Should_Not_Suppress()
     {
@@ -869,15 +862,13 @@ public sealed class DiagnosticClassificationAnalyzerTests
             public class CompanyAttribute : SensitiveAttribute;
             public class ContactAttribute : PersonalAttribute;
             """).WithAssemblyName("Company.Classification");
-        using var stream = new MemoryStream();
-        producer.Emit(stream).Success.Should().BeTrue();
         var consumer = Compilation("""
             public class Model
             {
                 [Company] public string Password { get; set; } = "";
                 [Contact] public string Email { get; set; } = "";
             }
-            """).AddReferences(MetadataReference.CreateFromImage(stream.ToArray()));
+            """).AddReferences(AnalyzerTestCompilation.EmitReference(producer));
         (await Analyze(consumer)).Should().BeEmpty();
     }
 
@@ -1031,10 +1022,11 @@ public sealed class DiagnosticClassificationAnalyzerTests
                 public string Email { get; set; } = "";
             }
             """);
-        compilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+        compilation.AssertNoCompilerErrors();
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        var act = async () => await AnalyzerTestCompilation.Analyze(compilation, new DiagnosticClassificationAnalyzer(), null, cancellation.Token);
+        var act = async () => await compilation.WithAnalyzers([new DiagnosticClassificationAnalyzer()])
+            .GetAnalyzerDiagnosticsAsync(cancellation.Token);
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
 }

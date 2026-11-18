@@ -1,5 +1,5 @@
 using DRN.Framework.SharedKernel.Analyzers.Conventions;
-using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.ClassificationTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
 
@@ -114,11 +114,11 @@ public sealed class ConventionContextTests
     }
 
     [Theory]
-    [InlineData(true, false, false)]
-    [InlineData(true, true, false)]
-    [InlineData(false, false, false)]
-    [InlineData(false, true, false)]
-    [InlineData(true, false, true)]
+    [DataInlineUnit(true, false, false)]
+    [DataInlineUnit(true, true, false)]
+    [DataInlineUnit(false, false, false)]
+    [DataInlineUnit(false, true, false)]
+    [DataInlineUnit(true, false, true)]
     public void Ef_Registration_And_Configuration_Should_Report_Independently(
         bool registered, bool forwardsBuilder, bool defaultDiscoverable)
     {
@@ -163,6 +163,24 @@ public sealed class ConventionContextTests
         if (registered) expected.Add(("DRNPERSISTENCE001", "ImportContext"));
         if (!forwardsBuilder && !defaultDiscoverable) expected.Add(("DRNPERSISTENCE005", "HelperConfig"));
         findings.Should().BeEquivalentTo(expected);
+    }
+
+    [Fact]
+    public void Two_Type_Ef_Registration_Should_Record_The_Implementation()
+    {
+        var compilation = Compilation("""
+            using Microsoft.EntityFrameworkCore;
+            using Microsoft.Extensions.DependencyInjection;
+            namespace Sample.Infra.Import;
+            public interface IStore { }
+            public class ImportContext : DbContext, IStore;
+            public static class Module
+            {
+                public static void Register(IServiceCollection services) => services.AddDbContext<IStore, ImportContext>();
+            }
+            """, "Import/ImportContext.cs");
+        var calls = new ConventionCallSites(Facts(compilation));
+        calls.ReadEfRegistrations().Select(context => context.Name).Should().Equal("ImportContext");
     }
 
     [Fact]
@@ -596,7 +614,7 @@ public sealed class ConventionContextTests
         compilation.GetDiagnostics().Where(item => item.Severity == DiagnosticSeverity.Error).Should().ContainSingle()
             .Which.Id.Should().Be("CS0310");
         var facts = new ConventionFacts(compilation, new(true, "Sample.Infra", "Infra", "Sample.Infra", compilation.AssemblyName!, []),
-            new([], []), new Options(), CancellationToken.None);
+            new([], []), AnalyzerTestCompilation.EmptyOptionsProvider, CancellationToken.None);
         ConventionContextAnalysis.Analyze(facts);
         facts.Diagnostics.Should().NotContain(item => item.Id == "DRNPERSISTENCE001");
     }
@@ -752,15 +770,8 @@ public sealed class ConventionContextTests
     private static ConventionFacts Facts(CSharpCompilation compilation, params ConventionInput[] inputs)
     {
         compilation = compilation.AddReferences(FrameworkReference, UtilsReference);
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         var project = new ConventionProject(true, "Sample.Infra", "Infra", "Sample.Infra", compilation.AssemblyName!, []);
-        return new(compilation, project, new([.. inputs], []), new Options(), CancellationToken.None);
-    }
-
-    private sealed class Options : AnalyzerConfigOptionsProvider
-    {
-        public override AnalyzerConfigOptions GlobalOptions { get; } = new ConventionInputTests.Config(new());
-        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => GlobalOptions;
-        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => GlobalOptions;
+        return new(compilation, project, new([.. inputs], []), AnalyzerTestCompilation.EmptyOptionsProvider, CancellationToken.None);
     }
 }

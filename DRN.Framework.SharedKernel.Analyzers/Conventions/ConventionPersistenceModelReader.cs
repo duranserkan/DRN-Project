@@ -145,7 +145,7 @@ internal static partial class ConventionPersistenceAnalysis
             result.Ignored.Add(ignored);
             result.Applied.Remove(ignored);
         }
-        else if (method.Name == "Entity" && method.TypeArguments is [INamedTypeSymbol included])
+        else if (method.Name == "Entity" && method.Parameters.IsEmpty && method.TypeArguments is [INamedTypeSymbol included])
             result.Ignored.Remove(included);
         else
         {

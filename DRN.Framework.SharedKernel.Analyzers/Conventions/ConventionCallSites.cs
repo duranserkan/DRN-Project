@@ -67,9 +67,12 @@ internal sealed class ConventionCallSites(ConventionFacts facts, bool includeCom
             ? model.GetEnclosingSymbol(call.SpanStart, facts.Cancellation) : null;
         var boundReceiver = composition?.InspectInvocation(model, call, method, scope);
         if (method is null) return;
-        if (registeredContexts is not null && method.TypeArguments is [INamedTypeSymbol context] &&
-            IsRegistrationMethod(method, facts.Symbols))
-            registeredContexts.Add(context);
+        if (registeredContexts is not null && IsRegistrationMethod(method, facts.Symbols))
+        {
+            if (method.TypeArguments is [INamedTypeSymbol context]) registeredContexts.Add(context);
+            else if (method.Name == "AddDbContext" && method.TypeArguments is [_, INamedTypeSymbol implementation])
+                registeredContexts.Add(implementation);
+        }
         if (scope is IMethodSymbol owner) visitConfigurationCall?.Invoke(model, call, method, owner, boundReceiver);
     }
 

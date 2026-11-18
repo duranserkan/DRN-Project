@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Analyzers.Conventions;
-using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.ClassificationTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
 
@@ -11,7 +11,7 @@ public sealed class ConventionAggregateRulesTests
     private static readonly Lazy<MetadataReference> OrderDomainReference = new(() =>
     {
         var domain = Compilation(Domain + Contract).WithAssemblyName("Sample.Domain");
-        domain.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        domain.AssertNoCompilerErrors();
         return domain.ToMetadataReference();
     });
     private static readonly Lazy<MetadataReference> GenericConfigurationReference = new(() =>
@@ -127,7 +127,7 @@ public sealed class ConventionAggregateRulesTests
                 namespace {{ns}};
                 public interface IOrderRepository : DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<Sample.Domain.QA.Order.OrderEntity>;
                 """, path: "Linked/IOrderRepository.cs"));
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         var facts = new ConventionFacts(compilation,
             new(true, "Sample.Domain", "Domain", "Sample.Domain", compilation.AssemblyName!, []),
             new([
@@ -135,7 +135,7 @@ public sealed class ConventionAggregateRulesTests
                     .Add("LogicalPath", "QA/Order/OrderEntity.cs"), Location.None),
                 new("Path", "Linked/IOrderRepository.cs", ImmutableDictionary<string, string>.Empty
                     .Add("LogicalPath", folder + "/IOrderRepository.cs"), Location.None)
-            ], []), new Options(), CancellationToken.None);
+            ], []), AnalyzerTestCompilation.EmptyOptionsProvider, CancellationToken.None);
         ConventionAggregateRepositoryAnalysis.Analyze(facts);
         if (missing) facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNREPOSITORY003");
         else facts.Diagnostics.Should().BeEmpty();
@@ -240,9 +240,8 @@ public sealed class ConventionAggregateRulesTests
             : "";
         var compilation = Compilation("namespace Sample.Domain.QA; " + attribute +
             "public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot;").WithAssemblyName("Sample.Domain");
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
-        var diagnostics = await compilation.WithAnalyzers([new SourceKnownConventionAnalyzer()],
-            new AnalyzerOptions([], new Options("Domain"))).GetAnalyzerDiagnosticsAsync();
+        var diagnostics = await AnalyzerTestCompilation.Analyze(compilation, new SourceKnownConventionAnalyzer(),
+            AnalyzerTestCompilation.ConventionOptions("Sample.Domain"));
         diagnostics.Should().NotContain(item => item.Id == "AD0001");
         diagnostics.Count(item => item.Id == "DRNSTRUCTURE004").Should().Be(suppress ? 0 : 1);
         diagnostics.Count(item => item.Id == "DRNREPOSITORY003").Should().Be(1);
@@ -262,9 +261,8 @@ public sealed class ConventionAggregateRulesTests
                 public Microsoft.EntityFrameworkCore.DbSet<FrameworkStorage> OtherRows => Set<FrameworkStorage>();
             }
             """).WithAssemblyName("Sample.Infra").AddReferences(FrameworkReference, UtilsReference);
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
-        var diagnostics = await compilation.WithAnalyzers([new SourceKnownConventionAnalyzer()],
-            new AnalyzerOptions([], new Options("Infra"))).GetAnalyzerDiagnosticsAsync();
+        var diagnostics = await AnalyzerTestCompilation.Analyze(compilation, new SourceKnownConventionAnalyzer(),
+            AnalyzerTestCompilation.ConventionOptions("Sample.Infra"));
         diagnostics.Should().NotContain(item => item.Id == "AD0001" || item.Id == "DRNCONVENTIONEXCEPTION001");
         var diagnostic = diagnostics.Where(item => item.Id == "DRNPERSISTENCE008").Should().ContainSingle().Which;
         diagnostic.GetMessage().Should().Contain("OtherRows");
@@ -380,9 +378,7 @@ public sealed class ConventionAggregateRulesTests
             public class OtherEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot;
             public interface IOtherRepository : DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<OtherEntity>;
             """).WithAssemblyName("Sample.Domain");
-        using var domainImage = new MemoryStream();
-        domain.Emit(domainImage).Success.Should().BeTrue();
-        var domainReference = MetadataReference.CreateFromImage(domainImage.ToArray());
+        var domainReference = AnalyzerTestCompilation.EmitReference(domain);
         var dependency = Compilation("""
             using Microsoft.EntityFrameworkCore;
             using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -394,28 +390,15 @@ public sealed class ConventionAggregateRulesTests
                 public void Configure(EntityTypeBuilder<OtherEntity> builder) { }
             }
             """).WithAssemblyName("ConfigurationFixture").AddReferences(domainReference);
-        using var image = new MemoryStream();
-        dependency.Emit(image).Success.Should().BeTrue();
-        return [domainReference, MetadataReference.CreateFromImage(image.ToArray())];
+        return [domainReference, AnalyzerTestCompilation.EmitReference(dependency)];
     }
 
     private static ConventionFacts Facts(CSharpCompilation compilation, string role, string logicalPath = "QA/Models.cs")
     {
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         return new(compilation, new(true, "Sample." + role, role, "Sample." + role, compilation.AssemblyName!, []),
             new([new("Path", compilation.SyntaxTrees.Single().FilePath,
                 ImmutableDictionary<string, string>.Empty.Add("LogicalPath", logicalPath), Location.None)], []),
-            new Options(), CancellationToken.None);
-    }
-
-    private sealed class Options(string role = "Domain") : AnalyzerConfigOptionsProvider
-    {
-        public override AnalyzerConfigOptions GlobalOptions { get; } = new ConventionInputTests.Config(new()
-        {
-            ["build_property.MSBuildProjectName"] = "Sample." + role,
-            ["build_property.RootNamespace"] = "Sample." + role
-        });
-        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => GlobalOptions;
-        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => GlobalOptions;
+            AnalyzerTestCompilation.EmptyOptionsProvider, CancellationToken.None);
     }
 }

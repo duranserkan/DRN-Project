@@ -1,146 +1,11 @@
 using System.Diagnostics.CodeAnalysis;
+using static DRN.Test.Analyzer.Tests.EntityAnalyzerTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
 
 [SuppressMessage("ReSharper", "AccessToDisposedClosure")]
 public sealed class SourceKnownEntityTypeAnalyzerTests
 {
-    private const string SharedKernelDomainStubs = """
-                                                   namespace DRN.Framework.SharedKernel.Domain
-                                                   {
-                                                       using System;
-
-                                                       public interface IAppId
-                                                       {
-                                                           public const byte DefaultAppId = 0;
-                                                           public const byte NexusAppId = 126;
-                                                           public const byte TestAppId = 127;
-                                                           public const byte MaxAppId = 127;
-                                                           static abstract byte AppId { get; }
-                                                       }
-
-                                                       public readonly struct DefaultApp : IAppId
-                                                       {
-                                                           public const byte Value = IAppId.DefaultAppId;
-                                                           public static byte AppId => Value;
-                                                       }
-
-                                                       public readonly struct NexusApp : IAppId
-                                                       {
-                                                           public const byte Value = IAppId.NexusAppId;
-                                                           public static byte AppId => Value;
-                                                       }
-
-                                                       public readonly struct TestApp : IAppId
-                                                       {
-                                                           public const byte Value = IAppId.TestAppId;
-                                                           public static byte AppId => Value;
-                                                       }
-
-                                                       [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-                                                       public class TestEntityTypeAttribute(byte entityType) : EntityTypeAttribute<TestApp>(entityType);
-
-                                                       [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-                                                       public abstract class EntityTypeAttribute(byte entityType, byte appId) : Attribute
-                                                       {
-                                                           public byte EntityType { get; } = entityType;
-                                                           public byte AppId { get; } = appId;
-                                                       }
-
-                                                       [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-                                                       public class EntityTypeAttribute<TApp>(byte entityType)
-                                                           : EntityTypeAttribute(entityType, TApp.AppId)
-                                                           where TApp : IAppId;
-
-                                                       public abstract class SourceKnownEntity(long id = 0)
-                                                       {
-                                                           public long Id { get; set; } = id;
-                                                           public Guid EntityId => default;
-                                                           public SourceKnownEntityId EntityIdSource { get; internal set; }
-                                                           public static byte GetEntityType<TEntity>() where TEntity : SourceKnownEntity => default;
-                                                           public static byte GetEntityType<TEntity>(TEntity entity) where TEntity : SourceKnownEntity => default;
-                                                           public static byte GetEntityType(Type type) => default;
-                                                           public static EntityTypeId GetEntityTypeId<TEntity>() where TEntity : SourceKnownEntity => default;
-                                                           public static EntityTypeId GetEntityTypeId<TEntity>(TEntity entity) where TEntity : SourceKnownEntity => default;
-                                                           public static EntityTypeId GetEntityTypeId(Type type) => default;
-                                                           public static byte GetAppId<TEntity>() where TEntity : SourceKnownEntity => default;
-                                                           public static byte GetAppId<TEntity>(TEntity entity) where TEntity : SourceKnownEntity => default;
-                                                           public static byte GetAppId(Type type) => default;
-                                                           public SourceKnownEntityId GetEntityId<TEntity>(Guid id, SourceKnownEntityIdFormat format = default) where TEntity : SourceKnownEntity => default;
-                                                           public SourceKnownEntityId? GetEntityId<TEntity>(Guid? id, SourceKnownEntityIdFormat format = default) where TEntity : SourceKnownEntity => default;
-                                                           public SourceKnownEntityId GetEntityId<TEntity>(long id) where TEntity : SourceKnownEntity => default;
-                                                           public SourceKnownEntityId? GetEntityId<TEntity>(long? id) where TEntity : SourceKnownEntity => default;
-                                                           public SourceKnownEntityId ToSecure(SourceKnownEntityId id) => default;
-                                                           public SourceKnownEntityId? ToSecure(SourceKnownEntityId? id) => default;
-                                                           public SourceKnownEntityId ToPlain(SourceKnownEntityId id) => default;
-                                                           public SourceKnownEntityId? ToPlain(SourceKnownEntityId? id) => default;
-                                                       }
-
-                                                       public abstract class AggregateRoot(long id = 0) : SourceKnownEntity(id);
-                                                       public readonly record struct EntityTypeId(byte EntityType, byte AppId);
-                                                       public enum SourceKnownEntityIdFormat { ConfiguredDefault, Secure, Plain, Auto }
-                                                       public readonly record struct SourceKnownEntityId
-                                                       {
-                                                           public void Validate<TEntity>() where TEntity : SourceKnownEntity { }
-                                                           public bool HasSameEntityType<TEntity>() where TEntity : SourceKnownEntity => false;
-                                                           public bool HasSameEntityTypeId<TEntity>() where TEntity : SourceKnownEntity => false;
-                                                       }
-                                                       public interface ISourceKnownEntityIdOperations
-                                                       {
-                                                           SourceKnownEntityId Parse(Guid id, SourceKnownEntityIdFormat format = default);
-                                                           SourceKnownEntityId Validate<TEntity>(Guid id, SourceKnownEntityIdFormat format = default) where TEntity : SourceKnownEntity;
-                                                           SourceKnownEntityId Validate<TApp>(Guid id, byte entityType, SourceKnownEntityIdFormat format = default) where TApp : IAppId;
-                                                       }
-                                                       public static class EntityTypeRegistry
-                                                       {
-                                                           public static EntityTypeId GetEntityTypeId(Type type) => default;
-                                                       }
-                                                   }
-                                                   """;
-
-    private static readonly Lazy<ImmutableArray<MetadataReference>> BaseReferences = new(() =>
-        AnalyzerTestCompilation.CoreReferences.Add(AnalyzerTestCompilation.ConsoleReference)
-            .Add(CreateSharedKernelReference(SharedKernelDomainStubs)));
-
-    private static MetadataReference CreateSharedKernelReference(string source)
-    {
-        var stub = CSharpCompilation.Create("DRN.Framework.SharedKernel",
-            [CSharpSyntaxTree.ParseText(source, path: "SharedKernelDomainStubs.cs")], AnalyzerTestCompilation.CoreReferences,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-        return AnalyzerTestCompilation.EmitReference(stub);
-    }
-
-    private static ImmutableArray<MetadataReference> GetBaseReferences() => BaseReferences.Value;
-
-    internal static Task<ImmutableArray<Diagnostic>> RunAnalyzerAsync(params string[] sources)
-        => RunAnalyzerAsync(sources, assemblyName: "TestAssembly");
-
-    private static Task<ImmutableArray<Diagnostic>> RunAnalyzerAsync(
-        string[] sources,
-        string assemblyName,
-        Dictionary<string, string>? buildProperties = null) =>
-        AnalyzeEntities(CreateEntityCompilation(sources, assemblyName), buildProperties);
-
-    internal static CSharpCompilation CreateEntityCompilation(string[] sources, string assemblyName = "TestAssembly")
-    {
-        var syntaxTrees = sources
-            .Select((s, i) => CSharpSyntaxTree.ParseText(s, path: $"Source{i}.cs"))
-            .ToArray();
-
-        return CSharpCompilation.Create(
-            assemblyName,
-            syntaxTrees,
-            GetBaseReferences(),
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-    }
-
-    internal static Task<ImmutableArray<Diagnostic>> RunAnalyzerWithReferenceAsync(
-        string referencedSource,
-        string consumingSource,
-        string consumingAssemblyName = "ConsumingAssembly",
-        Dictionary<string, string>? buildProperties = null) =>
-        RunAnalyzerWithMultipleReferencesAsync([("ReferencedDomainAssembly", referencedSource)], consumingSource, consumingAssemblyName, buildProperties);
-
     [Fact]
     public async Task ValidEntity_WithEntityType_ProducesNoDiagnostics()
     {
@@ -614,7 +479,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
         var compilation = CSharpCompilation.Create("Domain",
             [CSharpSyntaxTree.ParseText(source)], GetBaseReferences(),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-        compilation.GetDiagnostics().Should().NotContain(d => d.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         var attribute = compilation.GetTypeByMetadataName("Entity")!.GetAttributes().Single();
         var metadata = new EntityAnalyzerHelper.CompilationMetadata(compilation);
         metadata.Read(attribute, CancellationToken.None, out var entityType, out var appId)
@@ -1472,44 +1337,6 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
         diagnostics[0].GetMessage().Should().Contain("5");
     }
 
-    private static Task<ImmutableArray<Diagnostic>> RunAnalyzerWithMultipleReferencesAsync(
-        (string AssemblyName, string Source)[] referencedSources,
-        string consumingSource = "",
-        string consumingAssemblyName = "ConsumingAssembly",
-        Dictionary<string, string>? buildProperties = null)
-    {
-        var baseReferences = GetBaseReferences();
-        var additionalReferences = new List<MetadataReference>();
-
-        foreach (var (assemblyName, source) in referencedSources)
-        {
-            var refSyntaxTree = CSharpSyntaxTree.ParseText(source, path: $"{assemblyName}.cs");
-            var refCompilation = CSharpCompilation.Create(
-                assemblyName,
-                [refSyntaxTree],
-                baseReferences.Concat(additionalReferences),
-                new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-            additionalReferences.Add(AnalyzerTestCompilation.EmitReference(refCompilation));
-        }
-
-        var consumingTrees = string.IsNullOrWhiteSpace(consumingSource)
-            ? []
-            : new[] { CSharpSyntaxTree.ParseText(consumingSource, path: "ConsumingSource.cs") };
-
-        var consumingCompilation = CSharpCompilation.Create(
-            consumingAssemblyName,
-            consumingTrees,
-            baseReferences.Concat(additionalReferences),
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-        return AnalyzeEntities(consumingCompilation, buildProperties);
-    }
-
-    private static Task<ImmutableArray<Diagnostic>> AnalyzeEntities(CSharpCompilation compilation, Dictionary<string, string>? properties) =>
-        AnalyzerTestCompilation.Analyze(compilation, new SourceKnownEntityTypeAnalyzer(),
-            properties == null ? null : AnalyzerTestCompilation.OptionsWithProperties(properties));
-
     [Fact]
     public async Task MultipleAppIds_InProductionAssembly_ProducesDRNENTITY005()
     {
@@ -1758,14 +1585,14 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
     }
 
     [Theory]
-    [InlineData("public static byte AppId => 6;")]
-    [InlineData("public static byte AppId { get { if (System.Environment.TickCount == 0) return 6; return Value; } }")]
-    [InlineData("public static byte AppId => Value; static byte IAppId.AppId => 6;")]
-    [InlineData("public static byte AppId { get; set; } = Value;")]
-    [InlineData("public static byte AppId { get; } = Value; static ConflictingApp() { AppId = 6; }")]
-    [InlineData(
+    [DataInlineUnit("public static byte AppId => 6;")]
+    [DataInlineUnit("public static byte AppId { get { if (System.Environment.TickCount == 0) return 6; return Value; } }")]
+    [DataInlineUnit("public static byte AppId => Value; static byte IAppId.AppId => 6;")]
+    [DataInlineUnit("public static byte AppId { get; set; } = Value;")]
+    [DataInlineUnit("public static byte AppId { get; } = Value; static ConflictingApp() { AppId = 6; }")]
+    [DataInlineUnit(
         "public static byte AppId => Wrapped; static Wrapper Wrapped => Value; readonly struct Wrapper { public static implicit operator Wrapper(byte x) => default; public static implicit operator byte(Wrapper x) => 6; }")]
-    [InlineData("private static byte _partition = 5; public static byte AppId => _partition;")]
+    [DataInlineUnit("private static byte _partition = 5; public static byte AppId => _partition;")]
     public async Task LocalEntity_WithUnprovenOrConflictingPartition_ProducesDRNENTITY006(string property)
     {
         var testCode = $$"""
@@ -1836,6 +1663,60 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
         var diagnostics = await RunAnalyzerAsync(testCode);
 
         diagnostics.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Consumer_Defined_AppId_Interface_Should_Not_Create_A_Partition_Obligation()
+    {
+        var diagnostics = await RunAnalyzerAsync("""
+            namespace DRN.Framework.SharedKernel.Domain;
+            public interface IAppId { static abstract byte AppId { get; } }
+            public readonly struct Local : IAppId { public static byte AppId => 5; }
+            """);
+        diagnostics.Should().BeEmpty();
+    }
+
+    [Theory]
+    [DataInlineUnit("=> unchecked((byte)(sbyte)Other);", 261, false)]
+    [DataInlineUnit("=> (byte)checked((sbyte)Other);", 261, true)]
+    [DataInlineUnit("{ get; } = (byte)Other;", 5, true)]
+    [DataInlineUnit("{ get; } = Value;", 5, false)]
+    public async Task Partition_Producer_Checks_Getter_Without_Entity_Consumers(string getter, int other, bool invalid)
+    {
+        var diagnostics = await RunAnalyzerAsync($$"""
+            using DRN.Framework.SharedKernel.Domain;
+            public readonly struct Partition : IAppId
+            {
+                public const byte Value = 5;
+                private static int Other => {{other}};
+                public static byte AppId {{getter}}
+            }
+            """);
+        if (invalid) diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNENTITY006");
+        else diagnostics.Should().BeEmpty();
+    }
+
+    [Theory]
+    [DataInlineUnit(127, false)]
+    [DataInlineUnit(128, true)]
+    public async Task Partition_Producer_Checks_Range_Without_Entity_Consumers(int appId, bool outOfRange)
+    {
+        var diagnostics = await RunAnalyzerAsync($$"""
+            using DRN.Framework.SharedKernel.Domain;
+            public readonly struct Partition : IAppId
+            {
+                public const byte Value = {{appId}};
+                public static byte AppId => Value;
+            }
+            """);
+        if (outOfRange)
+        {
+            var diagnostic = diagnostics.Should().ContainSingle().Which;
+            diagnostic.Id.Should().Be("DRNENTITY007");
+            diagnostic.Severity.Should().Be(DiagnosticSeverity.Error);
+            diagnostic.GetMessage().Should().Contain("Partition").And.Contain("128");
+        }
+        else diagnostics.Should().BeEmpty();
     }
 
     [Theory]
@@ -2119,12 +2000,13 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
     }
 
     [Theory]
-    [InlineData("DomainBaseAssembly", "DomainSubmoduleAssembly", "Microsoft.Consumer", true)]
-    [InlineData("System.DomainBase", "DomainSubmoduleAssembly", "Application", true)]
-    [InlineData("DomainBaseAssembly", "System.DomainSubmodule", "Application", false)]
-    [InlineData("DomainBaseAssembly", "Microsoft.DomainSubmodule", "Application", false)]
-    [InlineData("Microsoft.DomainBase", "Microsoftish.DomainSubmodule", "DRN.FrameworkTools", true)]
-    [InlineData("DomainBaseAssembly", "DomainSubmoduleAssembly", "DRN.Framework.Hosting", false)]
+    [DataInlineUnit("DomainBaseAssembly", "DomainSubmoduleAssembly", "Microsoft.Consumer", true)]
+    [DataInlineUnit("System.DomainBase", "DomainSubmoduleAssembly", "Application", true)]
+    [DataInlineUnit("DomainBaseAssembly", "System.DomainSubmodule", "Application", false)]
+    [DataInlineUnit("DomainBaseAssembly", "Microsoft.DomainSubmodule", "Application", false)]
+    [DataInlineUnit("Microsoft.DomainBase", "Microsoftish.DomainSubmodule", "DRN.FrameworkTools", true)]
+    [DataInlineUnit("DomainBaseAssembly", "DomainSubmoduleAssembly", "DRN.Framework.Hosting", false)]
+    [DataInlineUnit("DomainBaseAssembly", "DomainSubmoduleAssembly", "DRN.Framework.Customer", true)]
     public async Task TransitiveEntityCollision_UsesTheDeclaringAssemblyToFilterReferences(
         string baseAssembly, string submoduleAssembly, string consumerAssembly, bool expectCollision)
     {
@@ -2220,7 +2102,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
             [EntityType<DefaultApp>(5)]
             public class ProducerEntity : SourceKnownEntity;
             """)], GetBaseReferences(), options);
-        producer.GetDiagnostics().Should().NotContain(d => d.Severity == DiagnosticSeverity.Error);
+        producer.AssertNoCompilerErrors();
 
         // The consumer binds the same assembly identity to a compatible image with a larger public API.
         var consumerKernel = CreateSharedKernelReference(SharedKernelDomainStubs + "\npublic class NewKernelApi;");
@@ -2233,7 +2115,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                 using DRN.Framework.SharedKernel.Domain;
                 public abstract class IntermediateEntity : SourceKnownEntity;
                 """)], GetBaseReferences().Add(producer.ToMetadataReference()), options);
-            directProducer.GetDiagnostics().Should().NotContain(d => d.Severity == DiagnosticSeverity.Error);
+            directProducer.AssertNoCompilerErrors();
         }
 
         var project = directProducer.ToMetadataReference();
@@ -2337,9 +2219,9 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
             baseReferences.Add(middleCompilation.ToMetadataReference()),
             options);
 
-        appCompilation.GetDiagnostics().Should().NotContain(d => d.Severity == DiagnosticSeverity.Error);
-        domainCompilation.GetDiagnostics().Should().NotContain(d => d.Severity == DiagnosticSeverity.Error);
-        middleCompilation.GetDiagnostics().Should().NotContain(d => d.Severity == DiagnosticSeverity.Error);
+        appCompilation.AssertNoCompilerErrors();
+        domainCompilation.AssertNoCompilerErrors();
+        middleCompilation.AssertNoCompilerErrors();
 
         var diagnostics = await AnalyzeEntities(consumerCompilation, null);
         diagnostics.Should().ContainSingle(d => d.Id == "DRNENTITY002" && d.Severity == DiagnosticSeverity.Error);
@@ -2362,10 +2244,11 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
             ],
             GetBaseReferences(),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-        compilation.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
-        var act = async () => await AnalyzerTestCompilation.Analyze(compilation, new SourceKnownEntityTypeAnalyzer(), null, cancellation.Token);
+        var act = async () => await compilation.WithAnalyzers([new SourceKnownEntityTypeAnalyzer()])
+            .GetAnalyzerDiagnosticsAsync(cancellation.Token);
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
 }

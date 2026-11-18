@@ -5,25 +5,31 @@ using Microsoft.CodeAnalysis.Operations;
 
 namespace DRN.Framework.SharedKernel.Analyzers;
 
-internal sealed class EntityAppIdResolver(Compilation compilation)
+internal sealed class EntityAppIdResolver(Compilation compilation, IAssemblySymbol? framework)
 {
-    private readonly INamedTypeSymbol? _attribute = compilation.GetTypeByMetadataName(EntityAnalyzerHelper.EntityTypeAttributeMetadataName + "`1");
-    private readonly IPropertySymbol? _appId = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.IAppId")
+    private readonly INamedTypeSymbol? _attribute = framework?.GetTypeByMetadataName(EntityAnalyzerHelper.EntityTypeAttributeMetadataName + "`1");
+    private readonly IPropertySymbol? _appId = framework?.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.IAppId")
         ?.GetMembers("AppId").OfType<IPropertySymbol>().FirstOrDefault();
 
-    internal byte? Resolve(INamedTypeSymbol attribute, CancellationToken cancellation)
+    internal bool ImplementsAppId(INamedTypeSymbol type) =>
+        _appId is not null && type.AllInterfaces.Contains(_appId.ContainingType, SymbolEqualityComparer.Default);
+
+    internal byte? Resolve(INamedTypeSymbol attribute, CancellationToken cancellation) =>
+        PartitionType(attribute, cancellation) is { } app ? ReadPartition(app, cancellation) : null;
+
+    internal INamedTypeSymbol? PartitionType(INamedTypeSymbol attribute, CancellationToken cancellation)
     {
         for (var current = attribute; current != null; current = current.BaseType)
         {
             cancellation.ThrowIfCancellationRequested();
             if (SymbolEqualityComparer.Default.Equals(current.OriginalDefinition, _attribute) &&
                 current.TypeArguments is [INamedTypeSymbol app])
-                return ReadPartition(app, cancellation);
+                return app;
         }
         return null;
     }
 
-    private byte? ReadPartition(INamedTypeSymbol app, CancellationToken cancellation)
+    internal byte? ReadPartition(INamedTypeSymbol app, CancellationToken cancellation)
     {
         byte? constant = null;
         foreach (var member in app.GetMembers())
@@ -48,10 +54,11 @@ internal sealed class EntityAppIdResolver(Compilation compilation)
     private static byte? ReadGetter(IPropertySymbol property, Compilation owner, CancellationToken cancellation)
     {
         var visited = new HashSet<IPropertySymbol>(SymbolEqualityComparer.Default);
+        Stack<IConversionOperation>? conversions = null;
         while (visited.Add(property.OriginalDefinition))
         {
             cancellation.ThrowIfCancellationRequested();
-            if (!property.IsStatic || !CanRepresentByte(property.Type) || property.SetMethod is not null || property.DeclaringSyntaxReferences is not [var reference] ||
+            if (!property.IsStatic || !IntegralConstant.Supports(property.Type) || property.SetMethod is not null || property.DeclaringSyntaxReferences is not [var reference] ||
                 reference.GetSyntax(cancellation) is not PropertyDeclarationSyntax syntax) return null;
             if (!owner.ContainsSyntaxTree(reference.SyntaxTree))
             {
@@ -62,10 +69,29 @@ internal sealed class EntityAppIdResolver(Compilation compilation)
             var expression = GetterExpression(syntax, property);
             if (expression is null) return null;
             var model = owner.GetSemanticModel(reference.SyntaxTree);
-            if (model.GetConstantValue(expression, cancellation) is { HasValue: true } constant &&
-                EntityAnalyzerHelper.TryExtractByte(constant.Value, out var value)) return value;
-            if (ForwardedProperty(model.GetOperation(expression, cancellation)) is not { } next) return null;
-            property = next;
+            if (model.GetConstantValue(expression, cancellation) is { HasValue: true, Value: { } constant })
+            {
+                object value = constant is char character ? (ushort)character : constant;
+                while (conversions is not null && conversions.TryPop(out var cast))
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    if (IntegralConstant.ConvertValue(value, cast.Type!.SpecialType, cast.IsChecked) is not { } converted)
+                        return null;
+                    value = converted;
+                }
+                return EntityAnalyzerHelper.TryExtractByte(value, out var partition) ? partition : null;
+            }
+            if (syntax.Initializer is not null) return null;
+            while (expression is CheckedExpressionSyntax or ParenthesizedExpressionSyntax)
+                expression = expression is CheckedExpressionSyntax scope ? scope.Expression : ((ParenthesizedExpressionSyntax)expression).Expression;
+            var operation = model.GetOperation(expression, cancellation);
+            while (operation is IConversionOperation { OperatorMethod: null } conversion && IntegralConstant.Supports(conversion.Type))
+            {
+                (conversions ??= new()).Push(conversion);
+                operation = conversion.Operand;
+            }
+            if (operation is not IPropertyReferenceOperation next) return null;
+            property = next.Property;
         }
         return null;
     }
@@ -93,17 +119,6 @@ internal sealed class EntityAppIdResolver(Compilation compilation)
         }
         return null;
     }
-
-    private static IPropertySymbol? ForwardedProperty(IOperation? value)
-    {
-        while (value is IConversionOperation { OperatorMethod: null } conversion && CanRepresentByte(conversion.Type))
-            value = conversion.Operand;
-        return (value as IPropertyReferenceOperation)?.Property;
-    }
-
-    private static bool CanRepresentByte(ITypeSymbol? type) => type?.SpecialType is SpecialType.System_Byte or
-        SpecialType.System_Int16 or SpecialType.System_UInt16 or SpecialType.System_Int32 or SpecialType.System_UInt32 or
-        SpecialType.System_Int64 or SpecialType.System_UInt64;
 
     private static ExpressionSyntax? GetterExpression(PropertyDeclarationSyntax property, IPropertySymbol symbol)
     {

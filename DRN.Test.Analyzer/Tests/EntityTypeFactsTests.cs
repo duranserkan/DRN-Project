@@ -53,7 +53,7 @@ public sealed class EntityTypeFactsTests
 
         var changed = original.ReplaceSyntaxTree(original.SyntaxTrees.Single(),
             CSharpSyntaxTree.ParseText(source.Replace("Entity : Intermediate", "Entity : Other", StringComparison.Ordinal)));
-        changed.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        changed.AssertNoCompilerErrors();
         var changedFacts = EntityAnalyzerHelper.EntityTypeFacts.For(changed, changed.GetTypeByMetadataName("EntityBase")!);
         changedFacts.Should().NotBeSameAs(originalFacts);
         var changedEntity = changed.GetTypeByMetadataName("Entity")!;
@@ -67,7 +67,7 @@ public sealed class EntityTypeFactsTests
         var compilation = CSharpCompilation.Create("EntityFacts", [CSharpSyntaxTree.ParseText(source)],
             [AnalyzerTestCompilation.ObjectReference],
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-        compilation.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         return compilation;
     }
 }

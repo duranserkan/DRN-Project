@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.CodeAnalysis;
 
 namespace DRN.Framework.SharedKernel.CodeFixes;
@@ -9,12 +10,14 @@ internal static class CodeFixDestinationGuard
         try
         {
             var trimmedRoot = Path.TrimEndingDirectorySeparator(root);
-            if (!ConventionGenerationPreflight.IsUnderDirectory(destination, trimmedRoot) || File.Exists(destination) ||
-                Directory.Exists(destination) || new FileInfo(destination).LinkTarget is not null) return false;
+            if (!ConventionGenerationPreflight.IsUnderDirectory(destination, trimmedRoot) ||
+                !string.Equals(Path.GetFullPath(destination), destination, ConventionGenerationPreflight.RootComparison)) return false;
             var destinationDirectory = Path.GetDirectoryName(destination)!;
+            if (!AreParentDirectoriesSafe(destinationDirectory, trimmedRoot) || File.Exists(destination) ||
+                Directory.Exists(destination) || new FileInfo(destination).LinkTarget is not null) return false;
             if (Directory.Exists(destinationDirectory) && Directory.EnumerateFileSystemEntries(destinationDirectory)
                 .Any(entry => string.Equals(Path.GetFileName(entry), Path.GetFileName(destination), StringComparison.OrdinalIgnoreCase))) return false;
-            return AreParentDirectoriesSafe(destinationDirectory, trimmedRoot);
+            return true;
         }
         catch (IOException) { return false; }
         catch (UnauthorizedAccessException) { return false; }
@@ -27,14 +30,21 @@ internal static class CodeFixDestinationGuard
 
     private static bool AreParentDirectoriesSafe(string destinationDirectory, string trimmedRoot)
     {
-        for (var directory = new DirectoryInfo(destinationDirectory); directory is not null; directory = directory.Parent)
+        var descendants = new Stack<DirectoryInfo>();
+        var directory = new DirectoryInfo(destinationDirectory);
+        while (!string.Equals(Path.TrimEndingDirectorySeparator(directory.FullName), trimmedRoot, ConventionGenerationPreflight.RootComparison))
         {
-            if (string.Equals(Path.TrimEndingDirectorySeparator(directory.FullName), trimmedRoot, ConventionGenerationPreflight.RootComparison))
-                return !File.Exists(directory.FullName);
-            if (File.Exists(directory.FullName) || directory.LinkTarget is not null || HasDirectoryCaseMismatch(directory))
+            descendants.Push(directory);
+            if (directory.Parent is not { } parent) return false;
+            directory = parent;
+        }
+        if (directory.LinkTarget is not null || File.Exists(directory.FullName)) return false;
+        while (descendants.TryPop(out var child))
+        {
+            if (child.LinkTarget is not null || File.Exists(child.FullName) || HasDirectoryCaseMismatch(child))
                 return false;
         }
-        return false;
+        return true;
     }
 
     private static bool HasDirectoryCaseMismatch(DirectoryInfo directory) =>
@@ -57,6 +67,7 @@ internal static class CodeFixDestinationGuard
         catch (IOException) { return false; }
     }
 
+    [SuppressMessage("SonarQube", "S3267", Justification = "Scan projects directly to avoid a predicate capturing the destination for every candidate path.")]
     internal static bool WorkspaceDestinationConflict(Solution solution, string destination, ProjectId targetProjectId, CancellationToken token = default)
     {
         var destinationName = Path.GetFileName(destination);

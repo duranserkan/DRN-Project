@@ -26,10 +26,9 @@ public sealed class ContextConstructorCodeFixTests
             """);
         var action = (await Actions(document)).Single();
         action.Title.Should().Be("Add context options constructor");
-        var operations = await action.GetOperationsAsync(CancellationToken.None);
-        var changed = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution.GetDocument(document.Id)!;
+        var changed = (await action.GetChangedSolutionAsync()).GetDocument(document.Id)!;
         var compilation = await changed.Project.GetCompilationAsync();
-        compilation!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation!.AssertNoCompilerErrors();
         var text = (await changed.GetTextAsync()).ToString();
         text.Should().Contain("/* retain */").And.Contain("Retain the operational context identity.")
             .And.Contain("// Retain opening brace trivia.").And.Contain("/* Retain closing brace trivia. */")
@@ -62,8 +61,7 @@ public sealed class ContextConstructorCodeFixTests
         var action = (await Actions(document)).Single();
         var newText = SourceText.From((await document.GetTextAsync()) + "\n// Concurrent user edit\n");
         workspace.TryApplyChanges(document.WithText(newText).Project.Solution).Should().BeTrue();
-        var operations = await action.GetOperationsAsync(CancellationToken.None);
-        var changed = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution.GetDocument(document.Id)!;
+        var changed = (await action.GetChangedSolutionAsync()).GetDocument(document.Id)!;
         (await changed.GetTextAsync()).ContentEquals(newText).Should().BeTrue();
     }
 
@@ -95,8 +93,7 @@ public sealed class ContextConstructorCodeFixTests
             : workspace.CurrentSolution.RemoveDocument(document.Id);
         workspace.TryApplyChanges(removed).Should().BeTrue();
         var current = workspace.CurrentSolution;
-        var operations = await action.GetOperationsAsync(CancellationToken.None);
-        var changed = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var changed = await action.GetChangedSolutionAsync();
         changed.GetDocument(document.Id).Should().BeNull();
         changed.GetChanges(current).GetProjectChanges().Should().BeEmpty();
         changed.GetChanges(current).GetAddedProjects().Should().BeEmpty();
@@ -112,8 +109,7 @@ public sealed class ContextConstructorCodeFixTests
         workspace.ClearSolution();
         workspace.AddProject("Replacement", LanguageNames.CSharp);
         var current = workspace.CurrentSolution;
-        var operations = await action.GetOperationsAsync(CancellationToken.None);
-        var changed = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var changed = await action.GetChangedSolutionAsync();
         changed.Id.Should().Be(current.Id);
         changed.ProjectIds.Should().Equal(current.ProjectIds);
         changed.GetDocument(document.Id).Should().BeNull();
@@ -148,10 +144,9 @@ public sealed class ContextConstructorCodeFixTests
             }
             """);
         var action = (await Actions(document)).Single();
-        var operations = await action.GetOperationsAsync(CancellationToken.None);
-        var changed = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution.GetDocument(document.Id)!;
+        var changed = (await action.GetChangedSolutionAsync()).GetDocument(document.Id)!;
         var compilation = await changed.Project.GetCompilationAsync();
-        compilation!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation!.AssertNoCompilerErrors();
         (await Actions(changed)).Should().BeEmpty();
     }
 
@@ -173,16 +168,15 @@ public sealed class ContextConstructorCodeFixTests
             }
             """);
         var compilation = await document.Project.GetCompilationAsync();
-        compilation!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation!.AssertNoCompilerErrors();
 
         var actions = await Actions(document);
         actions.Should().HaveCount(expectedActions);
         if (expectedActions == 0) return;
 
-        var operations = await actions.Single().GetOperationsAsync(CancellationToken.None);
-        var changed = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution.GetDocument(document.Id)!;
+        var changed = (await actions.Single().GetChangedSolutionAsync()).GetDocument(document.Id)!;
         var changedCompilation = await changed.Project.GetCompilationAsync();
-        changedCompilation!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        changedCompilation!.AssertNoCompilerErrors();
         (await Actions(changed)).Should().BeEmpty();
     }
 
@@ -199,10 +193,9 @@ public sealed class ContextConstructorCodeFixTests
         var current = workspace.CurrentSolution.GetDocument(document.Id)!;
 
         var action = (await Actions(current)).Should().ContainSingle().Which;
-        var operations = await action.GetOperationsAsync(CancellationToken.None);
-        var changed = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution.GetDocument(document.Id)!;
+        var changed = (await action.GetChangedSolutionAsync()).GetDocument(document.Id)!;
         var compilation = await changed.Project.GetCompilationAsync();
-        compilation!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation!.AssertNoCompilerErrors();
         var text = (await changed.GetTextAsync()).ToString();
         text.Should().Contain("DbContextOptions<global::QAContext> options").And.Contain(": base(options)");
         (await Actions(changed)).Should().BeEmpty();
@@ -212,7 +205,7 @@ public sealed class ContextConstructorCodeFixTests
     {
         var project = workspace.AddProject("Consumer", LanguageNames.CSharp)
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
-            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
+            .AddMetadataReferences(ClassificationTestFixture.References)
             .AddMetadataReference(AnalyzerTestCompilation.EntityFrameworkReference)
             .AddMetadataReference(AnalyzerTestCompilation.UtilsReference);
         var document = project.AddDocument(name, source);

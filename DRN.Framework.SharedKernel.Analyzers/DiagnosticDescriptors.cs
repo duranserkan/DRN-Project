@@ -69,8 +69,8 @@ public static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor UnresolvableAppId = new(
         id: "DRNENTITY006",
-        title: "Unresolvable or non-constant AppId in [EntityType] declaration",
-        messageFormat: "AppId on entity '{0}' could not be statically determined. Types implementing IAppId must declare a constant value ('public const byte Value = ...;' or 'public const byte AppId = ...;') so they can be read from metadata across assemblies.",
+        title: "Unresolvable or non-constant application partition",
+        messageFormat: "AppId for '{0}' could not be statically determined. Publish a public constant named Value or AppId and return its value from the getter implementing IAppId.AppId.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
@@ -81,7 +81,7 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor AppIdOutOfRange = new(
         id: "DRNENTITY007",
         title: "AppId is outside the supported range",
-        messageFormat: "AppId value '{1}' on entity '{0}' must be between 0 and 127",
+        messageFormat: "AppId value '{1}' for '{0}' must be between 0 and 127",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,

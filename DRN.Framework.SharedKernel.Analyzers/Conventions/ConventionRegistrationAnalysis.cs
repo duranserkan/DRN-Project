@@ -354,6 +354,57 @@ internal static class ConventionRegistrationAnalysis
             return match;
         }
 
+        private bool? AttributeRegistration(INamedTypeSymbol implementation,
+            INamedTypeSymbol service, string? key)
+        {
+            if (!IsPublicTypeHierarchy(implementation)) return false;
+            var lifetime = GetLifetime(facts, implementation);
+            if (lifetime.Ambiguous || lifetime.Attribute is not { } attribute) return false;
+            if (attribute.AttributeClass is null) return null;
+            if (facts.Symbols.IsKnown(attribute.AttributeClass, facts.Symbols.HostedServiceAttribute, facts.Cancellation))
+            {
+                return facts.Symbols.IsKnown(implementation, facts.Symbols.HostedService, facts.Cancellation) &&
+                       SymbolEqualityComparer.Default.Equals(service, facts.Symbols.HostedService) && (key is null || key.Length == 0);
+            }
+            if (lifetime.Service is not { } registered) return null;
+            if (!SymbolEqualityComparer.Default.Equals(registered, service)) return false;
+
+            // Only framework constructors have known key semantics. Arbitrary derived attributes may transform arguments.
+            if (!SymbolEqualityComparer.Default.Equals(attribute.AttributeClass.ContainingAssembly, facts.Symbols.LifetimeAttribute?.ContainingAssembly))
+                return null;
+            return MatchesRegisteredKey(attribute, key);
+        }
+
+        private static bool IsPublicTypeHierarchy(INamedTypeSymbol type)
+        {
+            for (var containing = type; containing is not null; containing = containing.ContainingType)
+                if (containing.DeclaredAccessibility != Accessibility.Public) return false;
+            return true;
+        }
+
+        private static bool? MatchesRegisteredKey(AttributeData attribute, string? key)
+        {
+            if (key is null) return true;
+            var keyParameter = attribute.AttributeConstructor?.Parameters.FirstOrDefault(parameter => parameter.Name == "key");
+            if (keyParameter is null) return key.Length == 0;
+            if (attribute.ConstructorArguments.Length <= keyParameter.Ordinal) return null;
+            return attribute.ConstructorArguments[keyParameter.Ordinal].Value switch
+            {
+                null => key.Length == 0,
+                string text => ConventionCompositionReader.KeyIdentity(text) == key,
+                _ => null
+            };
+        }
+
+        private bool HasUnknownModule(IAssemblySymbol assembly)
+        {
+            // A custom module can register arbitrary services. Its presence prevents an absence proof.
+            if (!SymbolEqualityComparer.Default.Equals(assembly, facts.Compilation.Assembly)) return true;
+            return facts.Types.Any(type => facts.Symbols.EffectiveAttributes(type, facts.Symbols.RegistrationAttribute,
+                facts.Cancellation).Any(attribute =>
+                    !ConventionSymbols.Same(attribute.AttributeClass, facts.Symbols.ContextRegistrationAttribute)));
+        }
+
         internal void AnalyzeDemand(INamedTypeSymbol implementation, INamedTypeSymbol service, string? key, Location location)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
@@ -363,11 +414,11 @@ internal static class ConventionRegistrationAnalysis
                 !Evidence.Scanned.Contains(implementation.ContainingAssembly) || Evidence.UnknownComposition) return;
             if (!_unknownModules.TryGetValue(implementation.ContainingAssembly, out var unknownModule))
             {
-                unknownModule = HasUnknownModule(facts, implementation.ContainingAssembly);
+                unknownModule = HasUnknownModule(implementation.ContainingAssembly);
                 _unknownModules.Add(implementation.ContainingAssembly, unknownModule);
             }
             if (unknownModule) return;
-            if (AttributeRegistration(facts, implementation, service, key) is not false) return;
+            if (AttributeRegistration(implementation, service, key) is not false) return;
             facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.Registration, location,
                 ImmutableDictionary<string, string?>.Empty.Add(ConventionInputSyntax.TargetField, implementation.GetDocumentationCommentId()),
                 implementation.Name, service.ToDisplayString()));
@@ -437,57 +488,6 @@ internal static class ConventionRegistrationAnalysis
                 result.Add((service, ConventionCompositionReader.KeyIdentity(key)));
             // Inherited/ambient and non-string keys are unsupported, not evidence for an unkeyed demand.
         }
-    }
-
-    private static bool? AttributeRegistration(ConventionFacts facts, INamedTypeSymbol implementation,
-        INamedTypeSymbol service, string? key)
-    {
-        if (!IsPublicTypeHierarchy(implementation)) return false;
-        var lifetime = GetLifetime(facts, implementation);
-        if (lifetime.Ambiguous || lifetime.Attribute is not { } attribute) return false;
-        if (attribute.AttributeClass is null) return null;
-        if (facts.Symbols.IsKnown(attribute.AttributeClass, facts.Symbols.HostedServiceAttribute, facts.Cancellation))
-        {
-            return facts.Symbols.IsKnown(implementation, facts.Symbols.HostedService, facts.Cancellation) &&
-                   SymbolEqualityComparer.Default.Equals(service, facts.Symbols.HostedService) && (key is null || key.Length == 0);
-        }
-        if (lifetime.Service is not { } registered) return null;
-        if (!SymbolEqualityComparer.Default.Equals(registered, service)) return false;
-
-        // Only framework constructors have known key semantics. Arbitrary derived attributes may transform arguments.
-        if (!SymbolEqualityComparer.Default.Equals(attribute.AttributeClass.ContainingAssembly, facts.Symbols.LifetimeAttribute?.ContainingAssembly))
-            return null;
-        return MatchesRegisteredKey(attribute, key);
-    }
-
-    private static bool IsPublicTypeHierarchy(INamedTypeSymbol type)
-    {
-        for (var containing = type; containing is not null; containing = containing.ContainingType)
-            if (containing.DeclaredAccessibility != Accessibility.Public) return false;
-        return true;
-    }
-
-    private static bool? MatchesRegisteredKey(AttributeData attribute, string? key)
-    {
-        if (key is null) return true;
-        var keyParameter = attribute.AttributeConstructor?.Parameters.FirstOrDefault(parameter => parameter.Name == "key");
-        if (keyParameter is null) return key.Length == 0;
-        if (attribute.ConstructorArguments.Length <= keyParameter.Ordinal) return null;
-        return attribute.ConstructorArguments[keyParameter.Ordinal].Value switch
-        {
-            null => key.Length == 0,
-            string text => ConventionCompositionReader.KeyIdentity(text) == key,
-            _ => null
-        };
-    }
-
-    private static bool HasUnknownModule(ConventionFacts facts, IAssemblySymbol assembly)
-    {
-        // A custom module can register arbitrary services. Its presence prevents an absence proof.
-        if (!SymbolEqualityComparer.Default.Equals(assembly, facts.Compilation.Assembly)) return true;
-        return facts.Types.Any(type => facts.Symbols.EffectiveAttributes(type, facts.Symbols.RegistrationAttribute,
-            facts.Cancellation).Any(attribute =>
-                !ConventionSymbols.Same(attribute.AttributeClass, facts.Symbols.ContextRegistrationAttribute)));
     }
 
     private sealed class ObservedServices

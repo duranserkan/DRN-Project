@@ -36,7 +36,7 @@ SharedKernel distributes these diagnostics transitively. Public readable instanc
 | DRNCLASSIFICATION004 | An unrelated Microsoft classification cannot be verified statically. |
 | DRNCLASSIFICATION005 | A matching anonymous property requires an annotated named class or record. |
 | DRNCLASSIFICATION006 | A statically known matching dictionary key requires classification or a reviewed comment. |
-| DRNCLASSIFICATION007 | Invalid, unreadable, oversized, or ambiguous classification catalog. |
+| DRNCLASSIFICATION007 | Invalid, unreadable, oversized, or ambiguous classification catalog. Previously DRN0021. |
 | DRNCLASSIFICATION008 | Sensitive ILogger names or directly captured classified properties require a decision. |
 | DRNCLASSIFICATION009 | Malformed DiagnosticNameExemption comment. |
 | DRNCLASSIFICATION010 | Warning: a valid DiagnosticNameExemption comment suppresses no name diagnostic. |
@@ -133,7 +133,7 @@ Legacy `DiagnosticLogging` settings `SensitiveFields`, `SensitiveFieldPaths`, an
 
 If retaining runtime catalog loading, deploy loose files through None Update with build/publish copying, or None Include with Link for external files. Embedded catalogs require no loose deployment. RuleFile and RuleAssemblyName merge additively. Analyzer registration alone does not require runtime loading.
 
-The four case-sensitive groups above must be string arrays. Unknown/duplicate groups, nulls, empty normalized names, names over 512 characters, more than 256 rules per file, and files over 65,536 characters are rejected. Inheritance is bounded to 1,024 assemblies, 64 catalogs, and 4,096 rules. Use UTF-8. Catalogs contain names, never secret values. Invalid compiler catalogs report DRNCLASSIFICATION007 while baseline analysis remains active.
+The four case-sensitive groups above must be string arrays. Unknown/duplicate groups, nulls, empty normalized names, names over 512 characters, more than 256 rules per file, and files over 65,536 characters are rejected. Inheritance is bounded to 1,024 assemblies, 64 catalogs, and 4,096 rules. Use UTF-8. Catalogs contain names, never secret values. Invalid compiler catalogs report DRNCLASSIFICATION007 (previously DRN0021) while baseline analysis remains active.
 
 The browser imports the shared catalog at bundle time and supports configured name matching. Server settings do not automatically reach the browser. Configure browser rules separately for project-specific names. Browser input carries no server classification authority.
 

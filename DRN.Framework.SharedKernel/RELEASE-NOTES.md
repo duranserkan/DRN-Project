@@ -8,7 +8,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
-*   **Diagnostic IDs**: All analyzer diagnostic IDs now use domain-prefixed names. Use the mappings below to update ID-specific entries in `.editorconfig`, `NoWarn`, `WarningsAsErrors`, diagnostic suppressions, and `DrnConventionException` MSBuild items.
+*   **Diagnostic IDs**: All analyzer diagnostic IDs now use domain-prefixed names. Use the mappings below to update ID-specific entries in `.editorconfig`, `NoWarn`, `WarningsAsErrors`, paired `#pragma warning` directives, `SuppressMessage` attributes, and `DrnConventionException` MSBuild items.
     *   **Entity**: Replace `DRN0001` through `DRN0014` with `DRNENTITY001` through `DRNENTITY014`, keeping the same numeric value (for example, `DRN0006` becomes `DRNENTITY006`).
     *   **Classification and authorization**: `DRN0015` through `DRN0025` become `DRNCLASSIFICATION001` through `DRNCLASSIFICATION011`, `DRN0026` becomes `DRNAUTHORIZATION001`, and `DRN0027` becomes `DRNCLASSIFICATION012`.
     *   **Hosting**: `DRNHG001` becomes `DRNHOSTING001`, and `DRNHG002` becomes `DRNHOSTING002`.
@@ -21,6 +21,8 @@ Not every version includes changes, features or bug fixes. This project can incr
         *   `DRNCV012` -> `DRNDEPENDENCYINJECTION001`, `DRNCV031` -> `DRNDEPENDENCYINJECTION002`, `DRNCV032` -> `DRNDEPENDENCYINJECTION003`
         *   `DRNCV014` -> `DRNARCHITECTURE002`, `DRNCV015` -> `DRNARCHITECTURE003`, `DRNCV021` -> `DRNARCHITECTURE006`
         *   `DRNCV016` splits into `DRNARCHITECTURE004` for misplaced implementations and `DRNARCHITECTURE005` for forbidden layer dependencies. Migrate settings and exceptions to the rule that matches their intent.
+
+*   **Partition producers**: DRNENTITY006 and DRNENTITY007 also check concrete `IAppId` implementations in projects that declare no entities. Publish a constant partition from 0 through 127 and return it from the getter implementing `IAppId.AppId`.
 
 *   **Project DI modules**: DRNDEPENDENCYINJECTION003 requires Hosted, Application, Infra and Utils projects to expose a public static module method accepting and returning IServiceCollection and scanning the project's assembly for attributed services. Domain, Contract, SharedKernel, framework and test projects are excluded. This checks module structure rather than runtime invocation.
 

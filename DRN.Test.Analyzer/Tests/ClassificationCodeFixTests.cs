@@ -10,7 +10,7 @@ public sealed class ClassificationCodeFixTests
 {
     private static Project CreateProject(AdhocWorkspace workspace) => workspace.AddProject("Consumer", LanguageNames.CSharp)
         .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
-        .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References);
+        .AddMetadataReferences(ClassificationTestFixture.References);
 
     private static async Task<List<CodeAction>> GetActions(Document document, Diagnostic diagnostic, CodeFixProvider provider)
     {
@@ -21,14 +21,8 @@ public sealed class ClassificationCodeFixTests
         return actions;
     }
 
-    private static async Task<Solution> Apply(CodeAction action)
-    {
-        var operations = await action.GetOperationsAsync(CancellationToken.None);
-        return operations.OfType<ApplyChangesOperation>().Single().ChangedSolution;
-    }
-
     private static async Task<Document> Apply(Document document, CodeAction action) =>
-        (await Apply(action)).GetDocument(document.Id)!;
+        (await action.GetChangedSolutionAsync()).GetDocument(document.Id)!;
 
     private static CodeFixProvider ClassificationProvider(string selection) => selection == "SensitiveFalse"
         ? new NameExemptionCodeFixProvider() : new ClassificationCodeFixProvider();
@@ -42,12 +36,12 @@ public sealed class ClassificationCodeFixTests
             public class CustomAttribute() : DataClassificationAttribute(DataClassification.None);
             public class Model { [Custom] public string Password { get; set; } = ""; }
             """);
-        var diagnostic = (await DiagnosticClassificationAnalyzerTests.Analyze(
-            (CSharpCompilation)(await document.Project.GetCompilationAsync())!)).Single();
+        var diagnostic = (await ClassificationTestFixture.Analyze(
+            (await document.Project.GetCompilationAsync())!)).Single();
         diagnostic.Id.Should().Be("DRNCLASSIFICATION004");
         var actions = await GetActions(document, diagnostic, new ClassificationCodeFixProvider());
         var changed = await Apply(document, actions.Single(action => action.EquivalenceKey == "Sensitive"));
-        (await DiagnosticClassificationAnalyzerTests.Analyze((CSharpCompilation)(await changed.Project.GetCompilationAsync())!))
+        (await ClassificationTestFixture.Analyze((await changed.Project.GetCompilationAsync())!))
             .Should().BeEmpty();
     }
 
@@ -58,13 +52,13 @@ public sealed class ClassificationCodeFixTests
         var project = CreateProject(workspace);
         var document = project.AddDocument("Model.cs", "public record Model(string MembershipNumber);");
         var file = new ProjectDiagnosticRulesTests.RuleFile("data-classification-rules.json", ProjectDiagnosticRulesTests.Fixture());
-        var diagnostic = (await DiagnosticClassificationAnalyzerTests.Analyze(
-            (CSharpCompilation)(await document.Project.GetCompilationAsync())!, file)).Single();
+        var diagnostic = (await ClassificationTestFixture.Analyze(
+            (await document.Project.GetCompilationAsync())!, file)).Single();
         diagnostic.Id.Should().Be("DRNCLASSIFICATION001");
         var actions = await GetActions(document, diagnostic, new ClassificationCodeFixProvider());
         var changed = await Apply(document, actions.Single(action => action.EquivalenceKey == "Personal"));
-        var after = (CSharpCompilation)(await changed.Project.GetCompilationAsync())!;
-        (await DiagnosticClassificationAnalyzerTests.Analyze(after, file)).Should().BeEmpty();
+        var after = (await changed.Project.GetCompilationAsync())!;
+        (await ClassificationTestFixture.Analyze(after, file)).Should().BeEmpty();
         after.GetTypeByMetadataName("Model")!.GetMembers("MembershipNumber").OfType<IPropertySymbol>().Single()
             .GetAttributes().Should().ContainSingle().Which.AttributeClass!.ToDisplayString()
             .Should().Be("DRN.Framework.SharedKernel.Attributes.PersonalAttribute");
@@ -84,13 +78,13 @@ public sealed class ClassificationCodeFixTests
             var project = CreateProject(workspace);
             var document = project.AddDocument("Model.cs",
                 "public class Model { public string " + name + " { get; set; } = \"\"; }");
-            var diagnostic = (await DiagnosticClassificationAnalyzerTests.Analyze(
-                (CSharpCompilation)(await document.Project.GetCompilationAsync())!)).Single();
+            var diagnostic = (await ClassificationTestFixture.Analyze(
+                (await document.Project.GetCompilationAsync())!)).Single();
             diagnostic.Id.Should().Be("DRNCLASSIFICATION001");
             var actions = await GetActions(document, diagnostic, new ClassificationCodeFixProvider());
             var changed = await Apply(document, actions.Single(action => action.EquivalenceKey == classification));
-            var after = (CSharpCompilation)(await changed.Project.GetCompilationAsync())!;
-            (await DiagnosticClassificationAnalyzerTests.Analyze(after)).Should().BeEmpty();
+            var after = (await changed.Project.GetCompilationAsync())!;
+            (await ClassificationTestFixture.Analyze(after)).Should().BeEmpty();
             var property = after.GetTypeByMetadataName("Model")!.GetMembers(name).OfType<IPropertySymbol>().Single();
             property.GetAttributes().Should().ContainSingle().Which.AttributeClass!.ToDisplayString()
                 .Should().Be("DRN.Framework.SharedKernel.Attributes." + classification + "Attribute");
@@ -112,17 +106,17 @@ public sealed class ClassificationCodeFixTests
                 "public class Model { public string " + first + " { get; set; } = \"\"; public string FileName { get; set; } = \"\"; }");
             var record = model.Project.AddDocument("Details.cs", "public record Details(string " + second + ");");
             var document = record.Project.GetDocument(model.Id)!;
-            var before = await DiagnosticClassificationAnalyzerTests.Analyze(
-                (CSharpCompilation)(await document.Project.GetCompilationAsync())!);
+            var before = await ClassificationTestFixture.Analyze(
+                (await document.Project.GetCompilationAsync())!);
             before.Should().HaveCount(2).And.OnlyContain(diagnostic => diagnostic.Id == "DRNCLASSIFICATION001");
             var provider = new ClassificationCodeFixProvider();
             var context = new FixAllContext(document, provider, FixAllScope.Project, classification,
                 provider.FixableDiagnosticIds, new ClassificationDiagnostics(), CancellationToken.None);
             var action = await provider.GetFixAllProvider().GetFixAsync(context);
             action.Should().NotBeNull();
-            var changed = (await Apply(action)).GetProject(project.Id)!;
-            var after = (CSharpCompilation)(await changed.GetCompilationAsync())!;
-            (await DiagnosticClassificationAnalyzerTests.Analyze(after)).Should().BeEmpty();
+            var changed = (await action.GetChangedSolutionAsync()).GetProject(project.Id)!;
+            var after = (await changed.GetCompilationAsync())!;
+            (await ClassificationTestFixture.Analyze(after)).Should().BeEmpty();
             foreach (var (type, name) in new[] { ("Model", first), ("Details", second) })
             {
                 var property = after.GetTypeByMetadataName(type)!.GetMembers(name).OfType<IPropertySymbol>().Single();
@@ -150,8 +144,8 @@ public sealed class ClassificationCodeFixTests
             using var workspace = new AdhocWorkspace();
             var project = CreateProject(workspace);
             var document = project.AddDocument("Model.cs", "using DRN.Framework.SharedKernel.Attributes;\n" + declaration);
-            var diagnostic = (await DiagnosticClassificationAnalyzerTests.Analyze(
-                (CSharpCompilation)(await document.Project.GetCompilationAsync())!)).Single();
+            var diagnostic = (await ClassificationTestFixture.Analyze(
+                (await document.Project.GetCompilationAsync())!)).Single();
             diagnostic.Id.Should().Be("DRNCLASSIFICATION002");
             var provider = new InvalidExemptionCodeFixProvider();
             provider.GetFixAllProvider().Should().BeNull();
@@ -160,7 +154,7 @@ public sealed class ClassificationCodeFixTests
             var action = actions.Single();
             action.Title.Should().Be("Use Sensitive(true)");
             var changed = await Apply(document, action);
-            (await DiagnosticClassificationAnalyzerTests.Analyze((CSharpCompilation)(await changed.Project.GetCompilationAsync())!))
+            (await ClassificationTestFixture.Analyze((await changed.Project.GetCompilationAsync())!))
                 .Should().BeEmpty();
             var text = (await changed.GetTextAsync()).ToString();
             if (declaration.Contains("Flags.Disabled", StringComparison.Ordinal))
@@ -184,8 +178,8 @@ public sealed class ClassificationCodeFixTests
             using var workspace = new AdhocWorkspace();
             var project = CreateProject(workspace);
             var document = project.AddDocument(name, source.Replace("Sensitive(", "DRN.Framework.SharedKernel.Attributes.Sensitive(", StringComparison.Ordinal));
-            (await DiagnosticClassificationAnalyzerTests.Analyze(
-                (CSharpCompilation)(await document.Project.GetCompilationAsync())!)).Should().BeEmpty();
+            (await ClassificationTestFixture.Analyze(
+                (await document.Project.GetCompilationAsync())!)).Should().BeEmpty();
             var attribute = (await document.GetSyntaxRootAsync())!.DescendantNodes()
                 .OfType<AttributeSyntax>()
                 .First(item => item.Name.ToString().Contains("Sensitive"));
@@ -210,15 +204,15 @@ public sealed class ClassificationCodeFixTests
             using var workspace = new AdhocWorkspace();
             var project = CreateProject(workspace);
             var document = project.AddDocument("Model.cs", source);
-            var compilation = (CSharpCompilation)(await document.Project.GetCompilationAsync())!;
-            var diagnostic = (await DiagnosticClassificationAnalyzerTests.Analyze(compilation)).Single();
+            var compilation = (await document.Project.GetCompilationAsync())!;
+            var diagnostic = (await ClassificationTestFixture.Analyze(compilation)).Single();
             diagnostic.Id.Should().Be("DRNCLASSIFICATION001");
             var provider = ClassificationProvider(selection);
             var actions = await GetActions(document, diagnostic, provider);
             var action = actions.Single(item => item.EquivalenceKey == selection);
             var changed = await Apply(document, action);
-            var after = (CSharpCompilation)(await changed.Project.GetCompilationAsync())!;
-            (await DiagnosticClassificationAnalyzerTests.Analyze(after)).Should().BeEmpty();
+            var after = (await changed.Project.GetCompilationAsync())!;
+            (await ClassificationTestFixture.Analyze(after)).Should().BeEmpty();
             var text = (await changed.GetTextAsync()).ToString();
             text.Should().Contain("[field: " + classification + "]");
             var property = after.GetTypeByMetadataName("Model")!.GetMembers("Password").OfType<IPropertySymbol>().Single();
@@ -248,7 +242,7 @@ public sealed class ClassificationCodeFixTests
         var action = await provider.GetFixAllProvider().GetFixAsync(context);
         action.Should().NotBeNull();
         var changed = await Apply(document, action);
-        (await DiagnosticClassificationAnalyzerTests.Analyze((CSharpCompilation)(await changed.Project.GetCompilationAsync())!))
+        (await ClassificationTestFixture.Analyze((await changed.Project.GetCompilationAsync())!))
             .Should().BeEmpty();
         var text = (await changed.GetTextAsync()).ToString();
         text.Split("SensitiveAttribute").Should().HaveCount(3);
@@ -269,7 +263,7 @@ public sealed class ClassificationCodeFixTests
             Task.FromResult(Enumerable.Empty<Diagnostic>());
 
         public override async Task<IEnumerable<Diagnostic>> GetAllDiagnosticsAsync(Project project, CancellationToken cancellationToken) =>
-            await DiagnosticClassificationAnalyzerTests.Analyze((CSharpCompilation)(await project.GetCompilationAsync(cancellationToken))!);
+            await ClassificationTestFixture.Analyze((await project.GetCompilationAsync(cancellationToken))!);
     }
 
     [Fact]
@@ -285,14 +279,14 @@ public sealed class ClassificationCodeFixTests
             using var workspace = new AdhocWorkspace();
             var project = CreateProject(workspace);
             var document = project.AddDocument("Model.cs", SourceText.From(source));
-            var compilation = (CSharpCompilation)(await document.Project.GetCompilationAsync())!;
-            var diagnostic = (await DiagnosticClassificationAnalyzerTests.Analyze(compilation)).Single();
+            var compilation = (await document.Project.GetCompilationAsync())!;
+            var diagnostic = (await ClassificationTestFixture.Analyze(compilation)).Single();
             var provider = ClassificationProvider(selection);
             var actions = await GetActions(document, diagnostic, provider);
             var action = actions.Single(item => item.EquivalenceKey == selection);
             var changed = await Apply(document, action);
-            var after = (CSharpCompilation)(await changed.Project.GetCompilationAsync())!;
-            (await DiagnosticClassificationAnalyzerTests.Analyze(after)).Should().BeEmpty();
+            var after = (await changed.Project.GetCompilationAsync())!;
+            (await ClassificationTestFixture.Analyze(after)).Should().BeEmpty();
             var text = (await changed.GetTextAsync()).ToString();
             text.Should().Contain("global::DRN.Framework.SharedKernel.Attributes.");
             text.Split("global::DRN.Framework.SharedKernel.Attributes.").Should().HaveCount(2);
@@ -333,8 +327,8 @@ public sealed class ClassificationCodeFixTests
             }
             else
             {
-                var diagnostic = (await DiagnosticClassificationAnalyzerTests.Analyze(
-                    (CSharpCompilation)(await document.Project.GetCompilationAsync())!)).Single();
+                var diagnostic = (await ClassificationTestFixture.Analyze(
+                    (await document.Project.GetCompilationAsync())!)).Single();
                 action = (await GetActions(document, diagnostic, provider)).Single(item => item.EquivalenceKey == selection);
             }
             var changed = await Apply(document, action);
@@ -343,9 +337,9 @@ public sealed class ClassificationCodeFixTests
             {
                 var symbols = enabled ? new[] { "FEATURE" } : Array.Empty<string>();
                 var tree = CSharpSyntaxTree.ParseText(text, options.WithPreprocessorSymbols(symbols));
-                var after = CSharpCompilation.Create("Consumer", [tree], DiagnosticClassificationAnalyzerTests.References,
+                var after = CSharpCompilation.Create("Consumer", [tree], ClassificationTestFixture.References,
                     new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-                (await DiagnosticClassificationAnalyzerTests.Analyze(after)).Should().BeEmpty();
+                (await ClassificationTestFixture.Analyze(after)).Should().BeEmpty();
                 var model = after.GetTypeByMetadataName("Model")!;
                 model.GetMembers("Label").Single().GetAttributes().Should().BeEmpty();
                 if (enabled)
@@ -365,7 +359,7 @@ public sealed class ClassificationCodeFixTests
         using var workspace = new AdhocWorkspace();
         var project = CreateProject(workspace);
         var document = project.AddDocument("Model.g.cs", "public class Model { public string Password { get; set; } }");
-        var diagnostics = await DiagnosticClassificationAnalyzerTests.Analyze((CSharpCompilation)(await document.Project.GetCompilationAsync())!);
+        var diagnostics = await ClassificationTestFixture.Analyze((await document.Project.GetCompilationAsync())!);
         diagnostics.Should().BeEmpty();
         var property = (await document.GetSyntaxRootAsync())!.DescendantNodes()
             .OfType<PropertyDeclarationSyntax>().Single();

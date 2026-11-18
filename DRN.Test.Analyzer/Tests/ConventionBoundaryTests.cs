@@ -1,5 +1,5 @@
 using DRN.Framework.SharedKernel.Analyzers.Conventions;
-using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.ClassificationTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
 
@@ -53,7 +53,7 @@ public sealed class ConventionBoundaryTests
                 }
             }
             """).AddReferences(AnalyzerTestCompilation.HostingReference);
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         var facts = CreateFacts(compilation, "Hosted");
         ConventionBoundaryAnalysis.Analyze(facts);
         facts.Diagnostics.Should().Contain(item => item.Id == "DRNOWNERSHIP002");
@@ -262,7 +262,7 @@ public sealed class ConventionBoundaryTests
             ImmutableDictionary<string, string>.Empty.Add("Subdomain", "Billing"),
             Location.Create("DrnConventionInputs.g.cs", new(0, 1), new(new(0, 0), new(0, 1))));
         var facts = new ConventionFacts(compilation, new(true, "Sample.Domain", "Domain", "Sample.Domain", compilation.AssemblyName!, []),
-            new(declaredOwner ? [input] : [], []), new Options(), CancellationToken.None);
+            new(declaredOwner ? [input] : [], []), AnalyzerTestCompilation.EmptyOptionsProvider, CancellationToken.None);
         ConventionBoundaryAnalysis.Analyze(facts);
         var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNOWNERSHIP002").ToArray();
         diagnostics.Should().HaveCount(declaredOwner ? 1 : 0);
@@ -287,14 +287,12 @@ public sealed class ConventionBoundaryTests
             public {{kind}} Generic<T> { public System.Collections.Generic.List<T[]> Items { {{accessors}} } }
             public {{kind}} Closed : Generic<User>;
             """).WithAssemblyName("Referenced.Domain");
-        producer.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
-        using var stream = new MemoryStream();
-        producer.Emit(stream).Success.Should().BeTrue();
+        producer.AssertNoCompilerErrors();
         var consumer = Compilation($$"""
             namespace Sample.Domain.Billing;
             public {{kind}} Reader : Sample.Domain.QA.Closed;
-            """).AddReferences(MetadataReference.CreateFromImage(stream.ToArray()));
-        consumer.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+            """).AddReferences(AnalyzerTestCompilation.EmitReference(producer));
+        consumer.AssertNoCompilerErrors();
         var facts = CreateFacts(consumer, "Domain");
         ConventionBoundaryAnalysis.Analyze(facts);
         var diagnostic = facts.Diagnostics.Where(item => item.Id == "DRNOWNERSHIP002").Should().ContainSingle().Which;
@@ -345,7 +343,7 @@ public sealed class ConventionBoundaryTests
         using var cancellation = new CancellationTokenSource();
         var compilation = Compilation("namespace Sample.Domain.Billing; public class Reader;");
         var facts = new ConventionFacts(compilation, new(true, "Sample.Domain", "Domain", "Sample.Domain", compilation.AssemblyName!, []),
-            new([], []), new Options(), cancellation.Token);
+            new([], []), AnalyzerTestCompilation.EmptyOptionsProvider, cancellation.Token);
         cancellation.Cancel();
         var analyze = () => ConventionBoundaryAnalysis.Analyze(facts);
         analyze.Should().Throw<OperationCanceledException>();
@@ -367,7 +365,7 @@ public sealed class ConventionBoundaryTests
                 }
             }
             """);
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         var diagnostics = await AnalyzeWithConventions(compilation);
         diagnostics.Where(item => item.Id == "DRNOWNERSHIP002").Should().ContainSingle()
             .Which.Properties["Consumer"].Should().Be("M:Sample.Domain.Billing.Reader.Other");
@@ -467,12 +465,12 @@ public sealed class ConventionBoundaryTests
             public class User : DRN.Framework.SharedKernel.Domain.SourceKnownEntity;
             public {{kind}} BaseResponse { public User Payload { {{accessors}} } }
             """).WithAssemblyName("Upstream.Models");
-        dependency.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        dependency.AssertNoCompilerErrors();
         var compilation = Compilation($$"""
             namespace Sample.Contract.QA;
             public {{kind}} Response : Upstream.Models.BaseResponse;
             """).AddReferences(dependency.ToMetadataReference());
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         var diagnostics = await AnalyzeWithConventions(compilation, "Contract");
         diagnostics.Should().NotContain(item => item.Id == "AD0001");
         var diagnostic = diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").Should().ContainSingle().Which;
@@ -492,12 +490,12 @@ public sealed class ConventionBoundaryTests
             public interface IBaseView { User Payload { get; } }
             public interface IView : IBaseView;
             """).WithAssemblyName("Upstream.Contract");
-        dependency.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        dependency.AssertNoCompilerErrors();
         var compilation = Compilation("""
             namespace Sample.Contract.QA;
             public class Response { public Upstream.Contract.QA.IView View { get; set; } }
             """).AddReferences(dependency.ToMetadataReference());
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         var diagnostics = await AnalyzeWithConventions(compilation, "Contract");
         diagnostics.Should().NotContain(item => item.Id == "AD0001");
         var diagnostic = diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").Should().ContainSingle().Which;
@@ -529,9 +527,7 @@ public sealed class ConventionBoundaryTests
             [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Sample.{{to}}")]
             public class Marker;
             """).WithAssemblyName("PublishedDependency");
-        using var stream = new MemoryStream();
-        dependency.Emit(stream).Success.Should().BeTrue();
-        var reference = MetadataReference.CreateFromImage(stream.ToArray(), filePath: "/references/dependency.dll");
+        var reference = AnalyzerTestCompilation.EmitReference(dependency, "/references/dependency.dll");
         var compilation = Compilation("public class Consumer;").AddReferences(reference);
         var records = new List<ConventionInput>
         {
@@ -541,7 +537,7 @@ public sealed class ConventionBoundaryTests
         if (direct) records.Add(new("Reference", "App.Dependency",
             ImmutableDictionary<string, string>.Empty.Add("Stage", "Package"), Location.None));
         var facts = new ConventionFacts(compilation, new(true, "Sample." + from, from, "Sample." + from, compilation.AssemblyName!, []),
-            new([.. records], []), new Options(), CancellationToken.None);
+            new([.. records], []), AnalyzerTestCompilation.EmptyOptionsProvider, CancellationToken.None);
         ConventionBoundaryAnalysis.Analyze(facts);
         facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE003").Should().HaveCount(violation ? 1 : 0);
         if (violation) facts.Diagnostics.Single(item => item.Id == "DRNARCHITECTURE003").Properties["Target"].Should().Be("App.Dependency");
@@ -614,10 +610,10 @@ public sealed class ConventionBoundaryTests
     }
 
     [Theory]
-    [InlineData("Domain", true, true, true)]
-    [InlineData("Contract", true, false, true)]
-    [InlineData("Domain", false, true, false)]
-    [InlineData("Contract", false, false, false)]
+    [DataInlineUnit("Domain", true, true, true)]
+    [DataInlineUnit("Contract", true, false, true)]
+    [DataInlineUnit("Domain", false, true, false)]
+    [DataInlineUnit("Contract", false, false, false)]
     public async Task Dto_Placement_And_Persistence_Dependencies_Should_Report_Independently(
         string role, bool usesContext, bool misplaced, bool forbidden)
     {
@@ -704,7 +700,7 @@ public sealed class ConventionBoundaryTests
             """).AddReferences(
             AnalyzerTestCompilation.EntityFrameworkReference,
             AnalyzerTestCompilation.UtilsReference);
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         var facts = CreateFacts(compilation, "Domain");
         ConventionBoundaryAnalysis.Analyze(facts);
         facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE005").Should().ContainSingle()
@@ -735,7 +731,7 @@ public sealed class ConventionBoundaryTests
                 Justification = "Reviewed compatibility adapter scheduled for removal")]
             public class Consumer { public Microsoft.EntityFrameworkCore.DbContext Context { get; set; } }
             """);
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         var diagnostics = await AnalyzeWithConventions(compilation, "Contract");
         diagnostics.Should().NotContain(item => item.Id == "DRNARCHITECTURE005");
         diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").Should().ContainSingle();
@@ -757,7 +753,7 @@ public sealed class ConventionBoundaryTests
         var input = new ConventionInput("Reference", package,
             ImmutableDictionary<string, string>.Empty.Add("Stage", "Package"), Location.None);
         var facts = new ConventionFacts(compilation, new(true, "Sample." + role, role, "Sample." + role, compilation.AssemblyName!, []),
-            new([input], []), new Options(), CancellationToken.None);
+            new([input], []), AnalyzerTestCompilation.EmptyOptionsProvider, CancellationToken.None);
         ConventionBoundaryAnalysis.Analyze(facts);
         var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE003").ToArray();
         diagnostics.Should().HaveCount(violation ? 1 : 0);
@@ -774,7 +770,7 @@ public sealed class ConventionBoundaryTests
         var resolved = new ConventionInput("Reference", path, ImmutableDictionary<string, string>.Empty
             .Add("Stage", "Resolved").Add("Project", direct.Identity), Location.None);
         var facts = new ConventionFacts(compilation, new(true, "Sample.Contract", "Contract", "Sample.Contract", compilation.AssemblyName!, []),
-            new([direct, resolved], []), new Options(), CancellationToken.None);
+            new([direct, resolved], []), AnalyzerTestCompilation.EmptyOptionsProvider, CancellationToken.None);
         ConventionBoundaryAnalysis.Analyze(facts);
         var diagnostic = facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE003").Should().ContainSingle().Which;
         diagnostic.GetMessage().Should().Contain("Direct project").And.Contain("DRN.Framework.EntityFramework");
@@ -791,7 +787,7 @@ public sealed class ConventionBoundaryTests
             .Add("Target", direct.Identity).Add("Reason", "Reviewed compatibility integration")
             .Add("Owner", "Contract team").Add("Review", "2099-01-01"), Location.None);
         var facts = new ConventionFacts(compilation, new(true, "Sample.Contract", "Contract", "Sample.Contract", compilation.AssemblyName!, []),
-            new([direct, exception], []), new Options(), CancellationToken.None);
+            new([direct, exception], []), AnalyzerTestCompilation.EmptyOptionsProvider, CancellationToken.None);
         ConventionBoundaryAnalysis.Analyze(facts);
         var exceptions = new ConventionExceptions(facts, new DateOnly(2026, 11, 15));
         facts.Diagnostics.Should().NotContain(item => item.Id == "DRNCONVENTIONEXCEPTION001");
@@ -896,12 +892,12 @@ public sealed class ConventionBoundaryTests
             public class Entity : DRN.Framework.SharedKernel.Domain.SourceKnownEntity;
             public class Value { public {{(exposesEntity ? "Entity" : "System.Guid?")}} Data { get; init; } }
             """).WithAssemblyName("Shared.Values");
-        dependency.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        dependency.AssertNoCompilerErrors();
         var compilation = Compilation("""
             namespace Sample.Contract.QA;
             public class Response { public Shared.Utils.Value Value { get; init; } }
             """).AddReferences(dependency.ToMetadataReference());
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         var facts = CreateFacts(compilation, "Contract");
         ConventionBoundaryAnalysis.Analyze(facts);
         facts.Diagnostics.Should().NotContain(item => item.Id == "DRNCONVENTIONINPUT001");
@@ -932,7 +928,7 @@ public sealed class ConventionBoundaryTests
         GeneratorDriver driver = CSharpGeneratorDriver.Create(new GeneratedUses(generated).AsSourceGenerator());
         driver.RunGeneratorsAndUpdateCompilation(compilation, out var output, out var generatorDiagnostics);
         generatorDiagnostics.Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
-        output.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        output.AssertNoCompilerErrors();
         return output;
     }
 
@@ -950,33 +946,25 @@ public sealed class ConventionBoundaryTests
             public class User : DRN.Framework.SharedKernel.Domain.SourceKnownEntity;
             public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot;
             """, path: "Entities.cs"));
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         var domain = new ConventionInput("Role", "Domain", ImmutableDictionary<string, string>.Empty
             .Add("NamespacePrefix", "Sample.Domain").Add("LogicalPathPrefix", "Domain"), Location.None);
         return new(compilation, new(true, "Sample.Contract", "Contract", "Sample.Contract", compilation.AssemblyName!, []),
-            new([domain], []), new Options(), CancellationToken.None);
+            new([domain], []), AnalyzerTestCompilation.EmptyOptionsProvider, CancellationToken.None);
     }
 
     private static ConventionFacts Facts(string source, string role = "Domain")
     {
         var compilation = Compilation(source);
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         return CreateFacts(compilation, role);
     }
 
     private static ConventionFacts CreateFacts(Compilation compilation, string role) => new(compilation,
-        new(true, "Sample." + role, role, "Sample." + role, compilation.AssemblyName!, []), new([], []), new Options(), CancellationToken.None);
-
-    private sealed class Options : AnalyzerConfigOptionsProvider
-    {
-        public override AnalyzerConfigOptions GlobalOptions { get; } = new ConventionInputTests.Config(new());
-        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => GlobalOptions;
-        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => GlobalOptions;
-    }
+        new(true, "Sample." + role, role, "Sample." + role, compilation.AssemblyName!, []), new([], []), AnalyzerTestCompilation.EmptyOptionsProvider, CancellationToken.None);
 
     private static async Task<ImmutableArray<Diagnostic>> AnalyzeWithConventions(Compilation compilation, string role = "Domain")
     {
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
         var paths = compilation.SyntaxTrees.Select(tree => "[assembly: DRN.Conventions.Path(" +
             SymbolDisplay.FormatLiteral(tree.FilePath, true) + ", LogicalPath = " +
             SymbolDisplay.FormatLiteral("QA/" + Path.GetFileName(tree.FilePath), true) + ")]");
@@ -984,20 +972,9 @@ public sealed class ConventionBoundaryTests
         var input = new ProjectDiagnosticRulesTests.RuleFile(ConventionInputs.FileName,
             "[assembly: DRN.Conventions.Version(\"1\")]\n[assembly: DRN.Conventions.Reference(\"Inventory\", Stage = \"Complete\")]\n" +
             string.Join("\n", paths) + "\n" + ConventionTestDependencies.Serialize(fixture.Records));
-        var diagnostics = await fixture.Compilation.WithAnalyzers([new SourceKnownConventionAnalyzer()], new AnalyzerOptions([input], new ApplicationOptions(role)))
-            .GetAnalyzerDiagnosticsAsync();
+        var diagnostics = await AnalyzerTestCompilation.Analyze(fixture.Compilation, new SourceKnownConventionAnalyzer(),
+            AnalyzerTestCompilation.ConventionOptions("Sample." + role, files: input));
         diagnostics.Should().NotContain(item => item.Id == "AD0001" || item.Id == "DRNCONVENTIONINPUT001");
         return diagnostics;
-    }
-
-    private sealed class ApplicationOptions(string role) : AnalyzerConfigOptionsProvider
-    {
-        public override AnalyzerConfigOptions GlobalOptions { get; } = new ConventionInputTests.Config(new()
-        {
-            ["build_property.MSBuildProjectName"] = "Sample." + role,
-            ["build_property.RootNamespace"] = "Sample." + role
-        });
-        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => GlobalOptions;
-        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => GlobalOptions;
     }
 }

@@ -43,13 +43,20 @@ internal static class EntityAnalyzerHelper
 
     internal enum MetadataStatus { Resolved, UnsupportedAttribute, Unresolvable }
 
-    internal sealed class CompilationMetadata(Compilation compilation)
+    internal sealed class CompilationMetadata
     {
         private readonly SymbolFactCache<INamedTypeSymbol, bool> _contracts = new(capacity: 31);
         private readonly SymbolFactCache<INamedTypeSymbol, byte?> _appIds = new(capacity: 31);
-        private readonly Func<INamedTypeSymbol, CancellationToken, bool> _checkContract =
-            (type, cancellation) => EntityAttributeContract.IsSupported(type, compilation, cancellation);
-        private readonly Func<INamedTypeSymbol, CancellationToken, byte?> _resolveAppId = new EntityAppIdResolver(compilation).Resolve;
+        private readonly Func<INamedTypeSymbol, CancellationToken, bool> _checkContract;
+        private readonly Func<INamedTypeSymbol, CancellationToken, byte?> _resolveAppId;
+        internal EntityAppIdResolver Partitions { get; }
+
+        internal CompilationMetadata(Compilation compilation)
+        {
+            Partitions = new(compilation, compilation.GetTypeByMetadataName(SourceKnownEntityMetadataName)?.ContainingAssembly);
+            _resolveAppId = Partitions.Resolve;
+            _checkContract = (type, cancellation) => EntityAttributeContract.IsSupported(type, compilation, cancellation);
+        }
 
         internal bool IsSupported(INamedTypeSymbol? attribute, CancellationToken cancellation) =>
             attribute != null && _contracts.GetOrAdd(attribute, _checkContract, cancellation);

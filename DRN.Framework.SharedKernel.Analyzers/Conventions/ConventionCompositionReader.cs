@@ -151,8 +151,9 @@ internal sealed class ConventionCompositionReader(ConventionFacts facts)
         }
         if (keyed)
         {
-            var constant = semantic.GetConstantValue(invocation.ArgumentList.Arguments[argumentOffset].Expression, facts.Cancellation);
-            if (!constant.HasValue || constant.Value is not string value)
+            var operation = semantic.GetOperation(invocation, facts.Cancellation) as IInvocationOperation;
+            var argument = operation?.Arguments.FirstOrDefault(item => item.Parameter?.Name == "serviceKey");
+            if (UnwrapImplicitConversions(facts, argument?.Value) is not { ConstantValue: { HasValue: true, Value: string value } })
             {
                 evidence.UnknownComposition = true;
                 return;

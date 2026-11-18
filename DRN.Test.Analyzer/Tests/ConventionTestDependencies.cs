@@ -1,5 +1,5 @@
 using DRN.Framework.SharedKernel.Analyzers.Conventions;
-using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.ClassificationTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
 
@@ -48,9 +48,7 @@ internal static class ConventionTestDependencies
             namespace {{project}}.QA;
             public class RequiredLayerMarker;
             """).WithAssemblyName(project);
-        using var image = new MemoryStream();
-        dependency.Emit(image).Success.Should().BeTrue();
-        return new(MetadataReference.CreateFromImage(image.ToArray(), filePath: path + ".dll"),
+        return new(AnalyzerTestCompilation.EmitReference(dependency, path + ".dll"),
         [
             new("Reference", path + ".csproj", ImmutableDictionary<string, string>.Empty
                 .Add("Stage", "Project").Add("Source", path + ".csproj"), Location.None),

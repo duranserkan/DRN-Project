@@ -1,4 +1,4 @@
-using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.ClassificationTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
 

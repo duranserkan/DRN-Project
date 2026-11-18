@@ -20,11 +20,11 @@ internal sealed class UninitializedEntityOperationsAnalysis
         internal INamedTypeSymbol Entity { get; } = entity;
         internal EntityAnalyzerHelper.EntityTypeFacts EntityFacts { get; } = entityFacts;
         internal INamedTypeSymbol? EntityGeneric { get; } =
-            compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity`1");
+            entity.ContainingAssembly.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity`1");
         internal INamedTypeSymbol? Aggregate { get; } =
-            compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.AggregateRoot");
+            entity.ContainingAssembly.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.AggregateRoot");
         internal INamedTypeSymbol? AggregateGeneric { get; } =
-            compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.AggregateRoot`1");
+            entity.ContainingAssembly.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.AggregateRoot`1");
         internal INamedTypeSymbol? ListType { get; } =
             compilation.GetTypeByMetadataName("System.Collections.Generic.List`1");
         internal ConcurrentDictionary<IMethodSymbol, bool> PassiveConstructors { get; } =

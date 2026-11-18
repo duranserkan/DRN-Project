@@ -193,6 +193,5 @@ internal static class ReferencedEntityDiscovery
     }
 
     private static bool IsDrnFramework(IAssemblySymbol assembly) =>
-        assembly.Name.StartsWith("DRN.Framework.", StringComparison.OrdinalIgnoreCase) ||
-        assembly.Name.Equals("DRN.Framework", StringComparison.OrdinalIgnoreCase);
+        Conventions.ConventionReferenceBoundaryAnalysis.FrameworkPackage(assembly.Name) is not null;
 }

@@ -854,6 +854,8 @@ Generation requires SDK Web and a public, concrete, non-generic, top-level DRN p
 
 Every class deriving directly or indirectly from `DrnProgramBase<TProgram>` must end with the case-sensitive suffix `Program`. Diagnostic `DRNHOSTING002` reports an error otherwise, including abstract, generic and nested descendants. `HostedAccessors` is no longer needed or available. Remove its assembly declarations and use the program's name and namespace for the generated roots.
 
+If your diagnostic settings or suppressions use the earlier IDs, replace `DRNHG001` with `DRNHOSTING001` for accessor diagnostics and `DRNHG002` with `DRNHOSTING002` for program naming.
+
 Return the generated singleton from the program's startup hook:
 
 ```csharp

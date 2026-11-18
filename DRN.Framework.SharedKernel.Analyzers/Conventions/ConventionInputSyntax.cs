@@ -125,9 +125,9 @@ internal static class ConventionInputSyntax
         if (parsedIdentity is null || first.NameEquals is not null || first.NameColon is not null)
             return false;
         identity = parsedIdentity;
-        foreach (var argument in arguments.Arguments.Skip(1))
+        for (var index = 1; index < arguments.Arguments.Count; index++)
         {
-            if (!TryAddAttributeField(kind, argument, fields, token))
+            if (!TryAddAttributeField(kind, arguments.Arguments[index], fields, token))
                 return false;
         }
         return true;

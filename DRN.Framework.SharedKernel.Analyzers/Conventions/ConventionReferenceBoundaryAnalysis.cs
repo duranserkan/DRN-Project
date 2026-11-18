@@ -44,15 +44,12 @@ internal static class ConventionReferenceBoundaryAnalysis
     private static void AnalyzeResolvedReference(ConventionFacts facts, ReferenceInventory inventory,
         ConventionInput resolved, HashSet<string> reported)
     {
-        var directProject = inventory.Projects.Contains(ConventionProject.NormalizeSeparators(resolved.Get(ConventionInputSyntax.ProjectField))) ||
-            inventory.ProjectItems.Contains(ConventionProject.NormalizeSeparators(resolved.Get(ConventionInputSyntax.OriginalProjectField)));
-        var directPackage = inventory.Packages.Contains(resolved.Get(ConventionInputSyntax.PackageField));
-        if (!directProject && !directPackage ||
-            !inventory.Metadata.TryGetValue(ConventionProject.NormalizeSeparators(resolved.Identity), out var reference) ||
+        var target = inventory.DeclaredProject(resolved);
+        var kind = target is null ? "package" : "project";
+        if (target is null && !inventory.Packages.TryGetValue(resolved.Get(ConventionInputSyntax.PackageField), out target)) return;
+        if (!inventory.Metadata.TryGetValue(ConventionProject.NormalizeSeparators(resolved.Identity), out var reference) ||
             facts.Compilation.GetAssemblyOrModuleSymbol(reference) is not IAssemblySymbol assembly) return;
         var project = facts.ReferenceProject(assembly);
-        var target = ResolveDeclaredReferenceTarget(inventory.References, resolved, directProject);
-        var kind = directProject ? "project" : "package";
         if (project is null)
         {
             if (FrameworkAssembly(facts, assembly) is { } framework)
@@ -60,25 +57,11 @@ internal static class ConventionReferenceBoundaryAnalysis
                     ReportFrameworkReference(facts, resolved, target, framework, role, kind, reported);
             return;
         }
-        ReportDisallowedRoleReferences(facts, inventory.Roles, resolved, assembly, project, target, kind, reported);
-    }
-
-    private static string ResolveDeclaredReferenceTarget(ConventionInput[] references, ConventionInput resolved, bool directProject)
-    {
-        if (directProject)
-        {
-            var projectPath = ConventionProject.NormalizeSeparators(resolved.Get(ConventionInputSyntax.ProjectField));
-            var originalPath = ConventionProject.NormalizeSeparators(resolved.Get(ConventionInputSyntax.OriginalProjectField));
-            return references.First(record => record.Get(ConventionInputSyntax.StageField) == ConventionInputSyntax.ProjectField &&
-                (ConventionProject.NormalizeSeparators(record.Identity) == projectPath ||
-                 originalPath.Length > 0 && ConventionProject.NormalizeSeparators(record.Get(ConventionInputSyntax.SourceField)) == originalPath)).Identity;
-        }
-        return references.First(record => record.Get(ConventionInputSyntax.StageField) == ConventionInputSyntax.PackageField &&
-            string.Equals(record.Identity, resolved.Get(ConventionInputSyntax.PackageField), StringComparison.OrdinalIgnoreCase)).Identity;
+        ReportDisallowedRoleReferences(facts, inventory.Roles, resolved, assembly, project, (kind, target), reported);
     }
 
     private static void ReportDisallowedRoleReferences(ConventionFacts facts, string[] roles, ConventionInput resolved,
-        IAssemblySymbol assembly, ConventionProject project, string target, string kind, HashSet<string> reported)
+        IAssemblySymbol assembly, ConventionProject project, (string Kind, string Target) declaration, HashSet<string> reported)
     {
         foreach (var role in roles)
         {
@@ -86,8 +69,8 @@ internal static class ConventionReferenceBoundaryAnalysis
             var key = role + ":" + assembly.Identity.Name;
             if (!reported.Add(key)) continue;
             facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.Reference, resolved.Location,
-                ImmutableDictionary<string, string?>.Empty.Add(ConventionInputSyntax.TargetField, target),
-                kind, facts.Project.Name, project.Name));
+                ImmutableDictionary<string, string?>.Empty.Add(ConventionInputSyntax.TargetField, declaration.Target),
+                declaration.Kind, facts.Project.Name, project.Name));
         }
     }
 
@@ -107,7 +90,7 @@ internal static class ConventionReferenceBoundaryAnalysis
     }
 
     [SuppressMessage("SonarQube", "S3267", Justification = "The direct loop avoids a predicate delegate capturing package on each lookup.")]
-    private static string? FrameworkPackage(string package)
+    internal static string? FrameworkPackage(string package)
     {
         foreach (var known in FrameworkPackages)
             if (string.Equals(package, known, StringComparison.OrdinalIgnoreCase)) return known;
@@ -126,32 +109,41 @@ internal static class ConventionReferenceBoundaryAnalysis
     private sealed class ReferenceInventory
     {
         internal ConventionInput[] References { get; }
-        internal HashSet<string> Projects { get; }
-        internal HashSet<string> ProjectItems { get; }
+        private readonly Dictionary<string, int> _projects = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, int> _projectItems = new(StringComparer.Ordinal);
         internal HashSet<string> Packages { get; }
         internal Dictionary<string, PortableExecutableReference> Metadata { get; }
         internal string[] Roles { get; }
 
-        private ReferenceInventory(ConventionInput[] references, HashSet<string> projects, HashSet<string> projectItems,
-            HashSet<string> packages, Dictionary<string, PortableExecutableReference> metadata, string[] roles)
+        private ReferenceInventory(ConventionInput[] references, HashSet<string> packages,
+            Dictionary<string, PortableExecutableReference> metadata, string[] roles)
         {
             References = references;
-            Projects = projects;
-            ProjectItems = projectItems;
+            for (var index = 0; index < references.Length; index++)
+            {
+                var record = references[index];
+                if (record.Get(ConventionInputSyntax.StageField) != ConventionInputSyntax.ProjectField) continue;
+                var project = ConventionProject.NormalizeSeparators(record.Identity);
+                var item = ConventionProject.NormalizeSeparators(record.Get(ConventionInputSyntax.SourceField));
+                if (project.Length > 0) _projects.TryAdd(project, index);
+                if (item.Length > 0) _projectItems.TryAdd(item, index);
+            }
             Packages = packages;
             Metadata = metadata;
             Roles = roles;
         }
 
+        internal string? DeclaredProject(ConventionInput resolved)
+        {
+            var project = ConventionProject.NormalizeSeparators(resolved.Get(ConventionInputSyntax.ProjectField));
+            var original = ConventionProject.NormalizeSeparators(resolved.Get(ConventionInputSyntax.OriginalProjectField));
+            var first = Math.Min(_projects.GetValueOrDefault(project, int.MaxValue), _projectItems.GetValueOrDefault(original, int.MaxValue));
+            return first == int.MaxValue ? null : References[first].Identity;
+        }
+
         internal static ReferenceInventory Create(ConventionFacts facts)
         {
             var references = facts.Records.Where(record => record.Kind == ConventionInputSyntax.ReferenceKind).ToArray();
-            var projects = references.Where(record => record.Get(ConventionInputSyntax.StageField) == ConventionInputSyntax.ProjectField)
-                .Select(record => ConventionProject.NormalizeSeparators(record.Identity))
-                .Where(value => value.Length > 0).ToHashSet(StringComparer.Ordinal);
-            var projectItems = references.Where(record => record.Get(ConventionInputSyntax.StageField) == ConventionInputSyntax.ProjectField)
-                .Select(record => ConventionProject.NormalizeSeparators(record.Get(ConventionInputSyntax.SourceField)))
-                .Where(value => value.Length > 0).ToHashSet(StringComparer.Ordinal);
             var packages = references.Where(record => record.Get(ConventionInputSyntax.StageField) == ConventionInputSyntax.PackageField)
                 .Select(record => record.Identity).Where(value => value.Length > 0).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var metadata = facts.Compilation.References.OfType<PortableExecutableReference>()
@@ -160,7 +152,7 @@ internal static class ConventionReferenceBoundaryAnalysis
                 .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
             var roles = facts.Records.Where(record => record.Kind == ConventionInputSyntax.RoleKind).Select(record => record.Identity)
                 .Append(facts.Project.Role).Where(ConventionProject.IsRole).Distinct(StringComparer.Ordinal).ToArray();
-            return new(references, projects, projectItems, packages, metadata, roles);
+            return new(references, packages, metadata, roles);
         }
     }
 }

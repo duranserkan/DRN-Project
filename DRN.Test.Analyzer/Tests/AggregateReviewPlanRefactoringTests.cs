@@ -18,7 +18,7 @@ public sealed class AggregateReviewPlanRefactoringTests
         var document = Create(workspace);
         var action = (await Actions(document, expectAction: true)).Should().ContainSingle().Which;
         action.Title.Should().Contain("plan only").And.Contain("Sample.Infra.Sales.SalesContext");
-        var changed = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var changed = await action.GetChangedSolutionAsync();
         var delta = changed.GetChanges(workspace.CurrentSolution).GetProjectChanges().Should().ContainSingle().Which;
         delta.GetAddedDocuments().Should().BeEmpty();
         delta.GetChangedDocuments().Should().BeEmpty();
@@ -54,7 +54,7 @@ public sealed class AggregateReviewPlanRefactoringTests
             .And.Contain(title => title.Contains("WriteContext", StringComparison.Ordinal));
         foreach (var action in actions)
         {
-            var changed = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+            var changed = await action.GetChangedSolutionAsync();
             var text = (await changed.Projects.Single(project => project.Name == "Sample.Infra").AdditionalDocuments.Single().GetTextAsync()).ToString();
             text.Should().Contain("existing, preserve identity").And.Contain("Context source SHA-256").And.NotContain("proposed new context");
         }
@@ -131,7 +131,7 @@ public sealed class AggregateReviewPlanRefactoringTests
             """);
         var action = (await Actions(document)).Should().ContainSingle().Which;
         action.Title.Should().Contain("Sample.Infra.Sales.Container.SalesContext");
-        var changed = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var changed = await action.GetChangedSolutionAsync();
         var content = (await changed.Projects.Single(project => project.Name == "Sample.Infra").AdditionalDocuments.Single().GetTextAsync()).ToString();
         content.Should().Contain("Context: Sample.Infra.Sales.Container.SalesContext (existing, preserve identity and configuration)")
             .And.NotContain("Context: Sample.Infra.Sales.SalesContext");
@@ -190,7 +190,7 @@ public sealed class AggregateReviewPlanRefactoringTests
                 """));
         workspace.TryApplyChanges(changed).Should().BeTrue();
         var action = (await Actions(workspace.CurrentSolution.GetDocument(document.Id)!)).Single();
-        var result = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var result = await action.GetChangedSolutionAsync();
         var text = (await result.Projects.Single(project => project.Name == "Sample.Infra").AdditionalDocuments.Single().GetTextAsync()).ToString();
         text.Should().Contain("&lt;script&gt;").And.Contain("&#91;link&#93;").And.Contain("&#96;code&#96;").And.NotContain("<script>");
     }
@@ -210,7 +210,7 @@ public sealed class AggregateReviewPlanRefactoringTests
         var changed = project.Solution.AddAdditionalDocument(DocumentId.CreateNewId(project.Id), "DrnConventionInputs.g.cs", SourceText.From(inventory));
         workspace.TryApplyChanges(changed).Should().BeTrue();
         var action = (await Actions(workspace.CurrentSolution.GetDocument(document.Id)!)).Should().ContainSingle().Which;
-        var result = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var result = await action.GetChangedSolutionAsync();
         var plan = result.Projects.Single(item => item.Name == "Sample.Infra").AdditionalDocuments.Single(item => item.Name.EndsWith(".aggregate-review.md", StringComparison.Ordinal));
         var text = (await plan.GetTextAsync()).ToString();
         var fingerprint = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(inventory)));
@@ -242,7 +242,7 @@ public sealed class AggregateReviewPlanRefactoringTests
         var action = (await Actions(document)).Single();
         var solution = document.Project.Solution.AddAdditionalDocument(DocumentId.CreateNewId(document.Project.Id), "notes.md", SourceText.From("changed"));
         workspace.TryApplyChanges(solution).Should().BeTrue();
-        var changed = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var changed = await action.GetChangedSolutionAsync();
         changed.Should().BeSameAs(workspace.CurrentSolution);
         changed.Projects.Single(project => project.Name == "Sample.Infra").AdditionalDocuments.Should().BeEmpty();
     }
@@ -269,7 +269,7 @@ public sealed class AggregateReviewPlanRefactoringTests
         var document = Create(workspace, infraName: infraName);
         var action = (await Actions(document)).Should().ContainSingle().Which;
         action.Title.Should().Contain(infraName + ".Sales.SalesContext");
-        var changed = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var changed = await action.GetChangedSolutionAsync();
         var plan = changed.Projects.Single(project => project.Name == infraName).AdditionalDocuments.Single();
         (await plan.GetTextAsync()).ToString().Should().Contain("Context: " + infraName + ".Sales.SalesContext")
             .And.NotContain("Context: Sample.Infra.");
@@ -283,8 +283,7 @@ public sealed class AggregateReviewPlanRefactoringTests
         using var nestedWorkspace = new AdhocWorkspace();
         var nestedDoc = Create(nestedWorkspace);
         var nestedAction = (await Actions(nestedDoc)).Should().ContainSingle().Which;
-        var nestedChanged = (await nestedAction.GetOperationsAsync(CancellationToken.None))
-            .OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var nestedChanged = await nestedAction.GetChangedSolutionAsync();
         nestedChanged.Projects.Single(project => project.Name == "Sample.Infra").AdditionalDocuments.Single()
             .Folders.Should().Equal("Sales");
 
@@ -292,13 +291,13 @@ public sealed class AggregateReviewPlanRefactoringTests
         var domain = rootWorkspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
                 "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: "/source/Sample.Domain/Sample.Domain.csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
-            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References);
+            .AddMetadataReferences(ClassificationTestFixture.References);
         var document = domain.AddDocument("Order.cs", Source, filePath: "/source/Sample.Domain/Sales/Order.cs");
         rootWorkspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
         var infra = rootWorkspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
                 "Sample.Infra", "Sample.Infra", LanguageNames.CSharp, filePath: "/source/Sample.Infra/Sample.Infra.csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
-            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
+            .AddMetadataReferences(ClassificationTestFixture.References)
             .AddMetadataReference(AnalyzerTestCompilation.EntityFrameworkReference)
             .AddProjectReference(new ProjectReference(domain.Id))
             .AddDocument("SalesContext.cs", """
@@ -310,8 +309,7 @@ public sealed class AggregateReviewPlanRefactoringTests
                 """, filePath: "/source/Sample.Infra/SalesContext.cs").Project;
         rootWorkspace.TryApplyChanges(infra.Solution).Should().BeTrue();
         var rootAction = (await Actions(rootWorkspace.CurrentSolution.GetDocument(document.Id)!)).Should().ContainSingle().Which;
-        var rootChanged = (await rootAction.GetOperationsAsync(CancellationToken.None))
-            .OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var rootChanged = await rootAction.GetChangedSolutionAsync();
         var rootPlan = rootChanged.Projects.Single(project => project.Name == "Sample.Infra").AdditionalDocuments.Single();
         rootPlan.Folders.Should().BeEmpty();
         var content = (await rootPlan.GetTextAsync()).ToString();
@@ -333,13 +331,13 @@ public sealed class AggregateReviewPlanRefactoringTests
         var domain = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
                 "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: "/source/Sample.Domain/Sample.Domain.csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
-            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References);
+            .AddMetadataReferences(ClassificationTestFixture.References);
         var document = domain.AddDocument("Order.cs", Source, filePath: "/source/Sample.Domain/Sales/Order.cs");
         workspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
         var infra = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
                 infraName, infraName, LanguageNames.CSharp, filePath: "/source/" + infraName + "/" + infraName + ".csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
-            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
+            .AddMetadataReferences(ClassificationTestFixture.References)
             .AddMetadataReference(AnalyzerTestCompilation.EntityFrameworkReference);
         if (reference) infra = infra.AddProjectReference(new ProjectReference(domain.Id));
         if (contexts.Length > 0) infra = infra.AddDocument("Contexts.cs", contexts, filePath: "/source/" + infraName + "/Sales/Contexts.cs").Project;

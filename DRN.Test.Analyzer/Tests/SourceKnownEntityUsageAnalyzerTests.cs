@@ -1,5 +1,5 @@
 using System.Globalization;
-using static DRN.Test.Analyzer.Tests.SourceKnownEntityTypeAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.EntityAnalyzerTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
 
@@ -117,6 +117,8 @@ public sealed class SourceKnownEntityUsageAnalyzerTests
                     Accept((SourceKnownEntityIdFormat?)(decimal)1);
                     Accept((SourceKnownEntityIdFormat?)(char)1);
                     Accept(unchecked((SourceKnownEntityIdFormat?)(long?)4294967296L));
+                    Accept(unchecked((SourceKnownEntityIdFormat?)(short?)(long?)65537L));
+                    Accept(unchecked((SourceKnownEntityIdFormat?)(short?)(long?)65540L));
                     Accept((SourceKnownEntityIdFormat?)4.9);
                     Accept(SourceKnownEntityIdFormat.Plain);
                     Accept(null);
@@ -128,7 +130,8 @@ public sealed class SourceKnownEntityUsageAnalyzerTests
 
         var diagnostics = await RunAnalyzerAsync(source);
         diagnostics.Select(AnalyzerTestCompilation.LocationText).Should().BeEquivalentTo(
-            "(SourceKnownEntityIdFormat)4", "(SourceKnownEntityIdFormat?)5", "(SourceKnownEntityIdFormat)6", "(SourceKnownEntityIdFormat?)4.9");
+            "(SourceKnownEntityIdFormat)4", "(SourceKnownEntityIdFormat?)5", "(SourceKnownEntityIdFormat)6", "(SourceKnownEntityIdFormat?)4.9",
+            "(SourceKnownEntityIdFormat?)(short?)(long?)65540L");
         diagnostics.Should().OnlyContain(d => d.Id == "DRNENTITY010" && d.Severity == DiagnosticSeverity.Error);
     }
 

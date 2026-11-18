@@ -155,16 +155,16 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         var sourceRoot = Path.GetDirectoryName(sourceProjectPath)!;
         var targetRoot = Path.GetDirectoryName(targetProjectPath)!;
         if (!ConventionGenerationPreflight.IsUnderDirectory(entityPath, sourceRoot)) return null;
-        return await ResolveDtoCompilationModelsAsync(source, target, selection, sourceIdentity.Namespace, targetIdentity.Namespace,
-            sourceInputs, sourceRoot, targetRoot, entityPath, token);
+        return await ResolveDtoCompilationModelsAsync((source, sourceIdentity.Namespace, sourceRoot),
+            (target, targetIdentity.Namespace, targetRoot), selection, sourceInputs, entityPath, token);
     }
 
-    private static async Task<DtoCompilations?> ResolveDtoCompilationModelsAsync(Project source, Project target, Selection selection,
-        string roleNamespace, string targetRoleNamespace, CompilationUnitSyntax sourceInputs,
-        string sourceRoot, string targetRoot, string entityPath, CancellationToken token)
+    private static async Task<DtoCompilations?> ResolveDtoCompilationModelsAsync(
+        (Project Project, string Namespace, string Root) source, (Project Project, string Namespace, string Root) target,
+        Selection selection, CompilationUnitSyntax sourceInputs, string entityPath, CancellationToken token)
     {
-        var sourceCompilation = await source.GetCompilationAsync(token);
-        var targetCompilation = await target.GetCompilationAsync(token);
+        var sourceCompilation = await source.Project.GetCompilationAsync(token);
+        var targetCompilation = await target.Project.GetCompilationAsync(token);
         if (sourceCompilation is null || targetCompilation is null ||
             !selection.Entity.ContainingAssembly.Identity.Equals(sourceCompilation.Assembly.Identity)) return null;
         var dto = targetCompilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.Dto");
@@ -173,13 +173,13 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
             sourceCompilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.Dto") is not { } sourceDto ||
             !sourceDto.ContainingAssembly.Identity.Equals(dto.ContainingAssembly.Identity)) return null;
         var sourceNamespace = selection.Entity.ContainingNamespace.ToDisplayString();
-        if (!ValidNamespace(roleNamespace) || !ValidNamespace(targetRoleNamespace) ||
-            !sourceNamespace.StartsWith(roleNamespace + ".", StringComparison.Ordinal)) return null;
-        var area = sourceNamespace[(roleNamespace.Length + 1)..];
+        if (!ValidNamespace(source.Namespace) || !ValidNamespace(target.Namespace) ||
+            !sourceNamespace.StartsWith(source.Namespace + ".", StringComparison.Ordinal)) return null;
+        var area = sourceNamespace[(source.Namespace.Length + 1)..];
         if (!ValidNamespace(area) || !PreservesOwnership(selection.Entity, sourceCompilation, sourceInputs, area.Split('.')[0], token))
             return null;
-        return new(sourceCompilation, targetCompilation, dto, sourceRoot, targetRoot, entityPath,
-            sourceNamespace, targetRoleNamespace + "." + area, area);
+        return new(sourceCompilation, targetCompilation, dto, source.Root, target.Root, entityPath,
+            sourceNamespace, target.Namespace + "." + area, area);
     }
 
     private static DtoDestinations? TryBuildDtoDestinations(Project source, Project target, Selection selection,

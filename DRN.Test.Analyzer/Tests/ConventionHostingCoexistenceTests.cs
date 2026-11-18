@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.Hosting.Generators;
 using DRN.Framework.SharedKernel.Analyzers.Conventions;
 using Microsoft.CodeAnalysis.Text;
@@ -6,7 +5,6 @@ using static DRN.Test.Analyzer.Tests.ProjectDiagnosticRulesTests;
 
 namespace DRN.Test.Analyzer.Tests;
 
-[SuppressMessage("ReSharper", "AccessToDisposedClosure")]
 public sealed class ConventionHostingCoexistenceTests
 {
     private const string Program = """
@@ -95,7 +93,7 @@ public sealed class ConventionHostingCoexistenceTests
             additionalTexts: [page], optionsProvider: new Options(false));
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var initial, out var generatorDiagnostics);
         generatorDiagnostics.Should().BeEmpty();
-        initial.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        initial.AssertNoCompilerErrors();
         var baseline = Outputs(driver);
         baseline.Should().Contain(text => text.Contains("ApiEndpoint Read", StringComparison.Ordinal));
         baseline.Should().Contain(text => text.Contains("Index", StringComparison.Ordinal) && text.Contains("Page", StringComparison.Ordinal));
@@ -107,7 +105,7 @@ public sealed class ConventionHostingCoexistenceTests
         driver = driver.RunGeneratorsAndUpdateCompilation(edited, out var enabled, out generatorDiagnostics);
         generatorDiagnostics.Should().BeEmpty();
         Outputs(driver).Should().Equal(baseline);
-        enabled.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        enabled.AssertNoCompilerErrors();
         var diagnostics = await enabled.WithAnalyzers([new SourceKnownConventionAnalyzer(), new DrnProgramNameAnalyzer()], Inputs(true))
             .GetAnalyzerDiagnosticsAsync();
         diagnostics.Should().NotContain(item => item.Id == "AD0001" || item.Id == "DRNHOSTING002" || item.Id == "DRNDEPENDENCYINJECTION003");
@@ -126,7 +124,7 @@ public sealed class ConventionHostingCoexistenceTests
         driver = driver.RunGeneratorsAndUpdateCompilation(removed, out var final, out generatorDiagnostics);
         generatorDiagnostics.Should().BeEmpty();
         Outputs(driver).Should().NotContain(text => text.Contains("ApiEndpoint Read", StringComparison.Ordinal));
-        final.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        final.AssertNoCompilerErrors();
     }
 
     [Fact]
@@ -137,11 +135,12 @@ public sealed class ConventionHostingCoexistenceTests
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         var driver1 = driver;
-        Action canceled = () => driver1.RunGenerators(compilation, cancellation.Token);
+        var token = cancellation.Token;
+        Action canceled = () => driver1.RunGenerators(compilation, token);
         canceled.Should().Throw<OperationCanceledException>();
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var output, out var diagnostics);
         diagnostics.Should().BeEmpty();
-        output.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        output.AssertNoCompilerErrors();
         driver.GetRunResult().GeneratedTrees.Should().HaveCount(2);
     }
 
@@ -154,7 +153,7 @@ public sealed class ConventionHostingCoexistenceTests
             CSharpSyntaxTree.ParseText(source, path: "Fixture" + index + ".cs")), AnalyzerTestCompilation.HostingReferences,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
         compilation = ConventionTestDependencies.WithModule(compilation);
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         return compilation;
     }
 
@@ -165,14 +164,14 @@ public sealed class ConventionHostingCoexistenceTests
 
     private sealed class Options(bool enabled, string role = "Hosted") : AnalyzerConfigOptionsProvider
     {
-        public override AnalyzerConfigOptions GlobalOptions { get; } = new ConventionInputTests.Config(new()
+        public override AnalyzerConfigOptions GlobalOptions { get; } = new AnalyzerTestCompilation.ConfigOptions(new Dictionary<string, string>
         {
             ["build_property.MSBuildProjectName"] = enabled ? "Sample." + role : "Sample.Tests." + role,
             ["build_property.RootNamespace"] = "Sample.Hosted",
             ["build_property.UsingMicrosoftNETSdkWeb"] = "true"
         });
         public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => GlobalOptions;
-        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => new ConventionInputTests.Config(new()
+        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => new AnalyzerTestCompilation.ConfigOptions(new Dictionary<string, string>
         {
             ["build_metadata.AdditionalFiles.TargetPath"] = textFile.Path
         });

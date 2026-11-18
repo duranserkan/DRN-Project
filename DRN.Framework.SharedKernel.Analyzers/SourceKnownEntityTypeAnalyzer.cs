@@ -42,14 +42,42 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
             UninitializedEntityOperationsAnalysis.Register(start, entity, facts);
             var metadata = new EntityAnalyzerHelper.CompilationMetadata(start.Compilation);
             var declarations = new ConcurrentBag<EntityDeclaration>();
-            start.RegisterSymbolAction(symbol => AnalyzeNamedType(symbol, facts, usage, attribute, metadata, declarations), SymbolKind.NamedType);
-            start.RegisterCompilationEndAction(end => AnalyzeCompilationEnd(end, entity, facts, attribute, metadata, declarations));
+            var invalidPartitions = new ConcurrentBag<(INamedTypeSymbol App, Diagnostic Problem)>();
+            var reportedPartitions = new ConcurrentDictionary<INamedTypeSymbol, byte>(SymbolEqualityComparer.Default);
+            start.RegisterSymbolAction(symbol =>
+            {
+                var type = (INamedTypeSymbol)symbol.Symbol;
+                if (type.TypeKind is TypeKind.Class or TypeKind.Struct && !type.IsAbstract &&
+                    metadata.Partitions.ImplementsAppId(type))
+                {
+                    var appId = metadata.Partitions.ReadPartition(type, symbol.CancellationToken);
+                    if (appId is null or > EntityAnalyzerHelper.MaxAppId && GeneratedSource.FirstUserLocation(type, symbol) is { } location)
+                    {
+                        var problem = appId.HasValue
+                            ? Diagnostic.Create(DiagnosticDescriptors.AppIdOutOfRange, location, type.Name, appId.Value)
+                            : Diagnostic.Create(DiagnosticDescriptors.UnresolvableAppId, location, type.Name);
+                        invalidPartitions.Add((type, problem));
+                    }
+                }
+                AnalyzeNamedType(symbol, facts, usage, attribute, metadata, declarations, reportedPartitions);
+            }, SymbolKind.NamedType);
+            start.RegisterCompilationEndAction(end =>
+            {
+                foreach (var (app, problem) in invalidPartitions)
+                {
+                    end.CancellationToken.ThrowIfCancellationRequested();
+                    if (!reportedPartitions.ContainsKey(app))
+                        end.ReportDiagnostic(problem);
+                }
+                AnalyzeCompilationEnd(end, entity, facts, attribute, metadata, declarations);
+            });
         });
     }
 
     private static void AnalyzeNamedType(SymbolAnalysisContext context, EntityAnalyzerHelper.EntityTypeFacts facts,
         SourceKnownEntityUsageAnalysis usage, INamedTypeSymbol attributeType,
-        EntityAnalyzerHelper.CompilationMetadata metadata, ConcurrentBag<EntityDeclaration> declarations)
+        EntityAnalyzerHelper.CompilationMetadata metadata, ConcurrentBag<EntityDeclaration> declarations,
+        ConcurrentDictionary<INamedTypeSymbol, byte> reportedPartitions)
     {
         var type = (INamedTypeSymbol)context.Symbol;
         context.CancellationToken.ThrowIfCancellationRequested();
@@ -84,7 +112,14 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         }
 
         var declaration = EntityDeclaration.Read(type, attribute, location, attributeLocation, metadata, context.CancellationToken, out var problem);
-        if (problem != null) context.ReportDiagnostic(problem);
+        if (problem != null)
+        {
+            context.ReportDiagnostic(problem);
+            if ((problem.Descriptor == DiagnosticDescriptors.UnresolvableAppId || problem.Descriptor == DiagnosticDescriptors.AppIdOutOfRange) &&
+                attribute.AttributeClass is { } attributeClass &&
+                metadata.Partitions.PartitionType(attributeClass, context.CancellationToken) is { } app)
+                reportedPartitions.TryAdd(app.OriginalDefinition, 0);
+        }
         if (declaration != null) declarations.Add(declaration);
     }
 

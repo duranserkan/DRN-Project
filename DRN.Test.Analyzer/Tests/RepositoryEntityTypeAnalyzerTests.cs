@@ -1,4 +1,4 @@
-using static DRN.Test.Analyzer.Tests.SourceKnownEntityTypeAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.EntityAnalyzerTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
 

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -46,6 +47,7 @@ internal static partial class ConventionPersistenceAnalysis
             CheckService(facts, type);
     }
 
+    [SuppressMessage("SonarQube", "S3267", Justification = "Enumerate the included set directly to avoid a filter iterator for each context.")]
     private static void ReportContradictoryInclusion(ConventionFacts facts, INamedTypeSymbol type, ContextModel model)
     {
         var location = facts.Location(type);
@@ -255,7 +257,7 @@ internal static partial class ConventionPersistenceAnalysis
         {
             if (binding.TypeArguments is not [INamedTypeSymbol entity] || evidence.Excluded.Contains(entity) || evidence.Ignored.Contains(entity)) continue;
             if (IsEntityExplicitlyConfigured(facts, configuration, entity, evidence)) continue;
-            if (HasPossibleApplication(facts, configuration, context, evidence, uses.Value)) return;
+            if (HasPossibleApplication(facts, configuration, binding, context, evidence, uses.Value)) continue;
             var location = facts.Location(configuration);
             facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.Configuration,
                 location == Location.None ? fallback : location, Properties(configuration, context, entity), configuration.Name, entity.Name, context.Name));
@@ -276,7 +278,7 @@ internal static partial class ConventionPersistenceAnalysis
     private static ConfigurationUses ReadConfigurationUses(ConventionFacts facts, ConventionCallSites calls)
     {
         var callers = new Dictionary<IMethodSymbol, HashSet<IMethodSymbol>>(SymbolEqualityComparer.Default);
-        var applications = new List<(INamedTypeSymbol Configuration, IMethodSymbol Method)>();
+        var applications = new List<(INamedTypeSymbol Configuration, INamedTypeSymbol Binding, IMethodSymbol Caller)>();
         var registeredContexts = calls.ReadEfRegistrations((semantic, call, method, owner, boundReceiver) =>
             TryRecordConfigurationCall(facts, semantic, call, method, owner, boundReceiver, callers, applications));
         var result = new ConfigurationUses(registeredContexts);
@@ -287,9 +289,9 @@ internal static partial class ConventionPersistenceAnalysis
     private static void TryRecordConfigurationCall(ConventionFacts facts, SemanticModel semantic,
         InvocationExpressionSyntax invocation, IMethodSymbol method, IMethodSymbol ownerMethod, TypeInfo? boundReceiver,
         Dictionary<IMethodSymbol, HashSet<IMethodSymbol>> callers,
-        List<(INamedTypeSymbol Configuration, IMethodSymbol Method)> applications)
+        List<(INamedTypeSymbol Configuration, INamedTypeSymbol Binding, IMethodSymbol Caller)> applications)
     {
-        if (ownerMethod.MethodKind is not (MethodKind.Ordinary or MethodKind.LocalFunction) ||
+        if (ownerMethod.MethodKind is not (MethodKind.Ordinary or MethodKind.ExplicitInterfaceImplementation or MethodKind.LocalFunction) ||
             ownerMethod.Parameters is not [var builder] ||
             !SymbolEqualityComparer.Default.Equals(semantic.GetSymbolInfo(invocation.ArgumentList.Arguments[0].Expression, facts.Cancellation).Symbol, builder))
             return;
@@ -306,16 +308,16 @@ internal static partial class ConventionPersistenceAnalysis
         }
         if (invocation.Expression is MemberAccessExpressionSyntax access &&
             (boundReceiver ?? semantic.GetTypeInfo(access.Expression, facts.Cancellation)).Type is INamedTypeSymbol configuration &&
-            configuration.TypeKind != TypeKind.Interface && IsConfigureImplementation(facts, configuration, method))
-            applications.Add((configuration, ownerMethod));
+            configuration.TypeKind != TypeKind.Interface && ConfigurationBinding(facts, configuration, method) is { } binding)
+            applications.Add((configuration, binding, ownerMethod));
     }
 
     private static void PropagateConfigurationOwners(ConventionFacts facts,
         Dictionary<IMethodSymbol, HashSet<IMethodSymbol>> callers,
-        List<(INamedTypeSymbol Configuration, IMethodSymbol Method)> applications,
+        List<(INamedTypeSymbol Configuration, INamedTypeSymbol Binding, IMethodSymbol Caller)> applications,
         ConfigurationUses result)
     {
-        foreach (var (configuration, method) in applications)
+        foreach (var (configuration, binding, method) in applications)
         {
             var pending = new Stack<IMethodSymbol>();
             var visited = new HashSet<IMethodSymbol>(SymbolEqualityComparer.Default);
@@ -327,39 +329,49 @@ internal static partial class ConventionPersistenceAnalysis
                 if (callers.TryGetValue(current, out var parents))
                     foreach (var parent in parents) pending.Push(parent);
                 // Uninvoked helpers have no path back to the effective Configure implementation.
-                if (current.ContainingType is not { } owner || !IsConfigureImplementation(facts, owner, current)) continue;
-                if (!result.Owners.TryGetValue(configuration, out var owners))
+                if (current.ContainingType is not { } owner ||
+                    !SymbolEqualityComparer.Default.Equals(ConfigurationBinding(facts, owner, current), binding)) continue;
+                if (!result.OwnersByBinding.TryGetValue(binding, out var byConfiguration))
+                {
+                    byConfiguration = new(SymbolEqualityComparer.Default);
+                    result.OwnersByBinding.Add(binding, byConfiguration);
+                }
+                if (!byConfiguration.TryGetValue(configuration, out var owners))
                 {
                     owners = new(SymbolEqualityComparer.Default);
-                    result.Owners.Add(configuration, owners);
+                    byConfiguration.Add(configuration, owners);
                 }
                 owners.Add(owner);
             }
         }
     }
 
-    private static bool IsConfigureImplementation(ConventionFacts facts, INamedTypeSymbol type, IMethodSymbol method) =>
-        facts.Symbols.Bindings(type, facts.Symbols.Configuration, facts.Cancellation)
-            .SelectMany(binding => binding.GetMembers("Configure"))
-            .Any(member => SymbolEqualityComparer.Default.Equals(type.FindImplementationForInterfaceMember(member)?.OriginalDefinition,
-                method.OriginalDefinition));
+    private static INamedTypeSymbol? ConfigurationBinding(ConventionFacts facts, INamedTypeSymbol type, IMethodSymbol method)
+    {
+        foreach (var binding in facts.Symbols.Bindings(type, facts.Symbols.Configuration, facts.Cancellation))
+        foreach (var member in binding.GetMembers("Configure"))
+            if (SymbolEqualityComparer.Default.Equals(type.FindImplementationForInterfaceMember(member), method))
+                return binding;
+        return null;
+    }
 
-    private static bool HasPossibleApplication(ConventionFacts facts, INamedTypeSymbol configuration, INamedTypeSymbol context,
+    private static bool HasPossibleApplication(ConventionFacts facts, INamedTypeSymbol configuration, INamedTypeSymbol binding, INamedTypeSymbol context,
         ContextModel evidence, ConfigurationUses uses)
     {
+        if (!uses.OwnersByBinding.TryGetValue(binding, out var byConfiguration)) return false;
         var pending = new Stack<INamedTypeSymbol>();
         var visited = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
         pending.Push(configuration);
         while (pending.TryPop(out var current))
         {
             facts.Cancellation.ThrowIfCancellationRequested();
-            if (!visited.Add(current) || !uses.Owners.TryGetValue(current, out var owners)) continue;
-            if (TryVisitOwnerContexts(facts, context, evidence, owners, pending)) return true;
+            if (!visited.Add(current) || !byConfiguration.TryGetValue(current, out var owners)) continue;
+            if (TryVisitOwnerContexts(facts, context, (INamedTypeSymbol)binding.TypeArguments[0], evidence, owners, pending)) return true;
         }
         return false;
     }
 
-    private static bool TryVisitOwnerContexts(ConventionFacts facts, INamedTypeSymbol context, ContextModel evidence,
+    private static bool TryVisitOwnerContexts(ConventionFacts facts, INamedTypeSymbol context, INamedTypeSymbol entity, ContextModel evidence,
         HashSet<INamedTypeSymbol> owners, Stack<INamedTypeSymbol> pending)
     {
         foreach (var owner in owners)
@@ -369,7 +381,7 @@ internal static partial class ConventionPersistenceAnalysis
                 if (SymbolEqualityComparer.Default.Equals(owner, context)) return true;
                 continue;
             }
-            if (evidence.Applied.Values.Any(configurations => configurations.Contains(owner)) ||
+            if (evidence.Applied.TryGetValue(entity, out var applied) && applied.Contains(owner) ||
                 DefaultDiscoverable(facts, owner, context)) return true;
             pending.Push(owner);
         }
@@ -470,6 +482,7 @@ internal static partial class ConventionPersistenceAnalysis
     private sealed class ConfigurationUses(IReadOnlySet<INamedTypeSymbol> registeredContexts)
     {
         internal IReadOnlySet<INamedTypeSymbol> RegisteredContexts { get; } = registeredContexts;
-        internal Dictionary<INamedTypeSymbol, HashSet<INamedTypeSymbol>> Owners { get; } = new(SymbolEqualityComparer.Default);
+        internal Dictionary<INamedTypeSymbol, Dictionary<INamedTypeSymbol, HashSet<INamedTypeSymbol>>> OwnersByBinding { get; } =
+            new(SymbolEqualityComparer.Default);
     }
 }

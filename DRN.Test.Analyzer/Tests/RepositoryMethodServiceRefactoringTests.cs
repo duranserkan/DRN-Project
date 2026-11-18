@@ -21,7 +21,7 @@ public sealed class RepositoryMethodServiceRefactoringTests
         actions.Should().HaveCount(2);
         var action = actions.Single(item => item.Title.StartsWith("Add scoped", StringComparison.Ordinal));
         action.Title.Should().Contain("OrderCountVisibleService.cs").And.Contain("CountVisibleAsync");
-        var changed = await Changed(action);
+        var changed = await action.GetChangedSolutionAsync();
         var added = changed.GetChanges(workspace.CurrentSolution).GetProjectChanges().Single();
         added.GetAddedDocuments().Should().ContainSingle();
         added.GetChangedDocuments().Should().BeEmpty();
@@ -35,7 +35,7 @@ public sealed class RepositoryMethodServiceRefactoringTests
             .And.Contain("=> this._repository.CountVisibleAsync(filter, cancellationToken);")
             .And.NotContain("NotImplementedException").And.NotContain("ConfigureAwait").And.NotContain("Http");
         (await changed.GetDocument(document.Id)!.GetTextAsync()).ContentEquals(original).Should().BeTrue();
-        (await service.Project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        (await service.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
         workspace.TryApplyChanges(changed).Should().BeTrue();
         (await Actions(workspace.CurrentSolution.GetDocument(document.Id)!)).Should().BeEmpty();
     }
@@ -46,7 +46,7 @@ public sealed class RepositoryMethodServiceRefactoringTests
         using var workspace = new AdhocWorkspace();
         var document = Create(workspace);
         var action = (await Actions(document)).Single(item => item.Title.StartsWith("Add unregistered", StringComparison.Ordinal));
-        var changed = await Changed(action);
+        var changed = await action.GetChangedSolutionAsync();
         var service = changed.Projects.Single(project => project.Name == "Sample.Application").Documents.Single();
         (await service.GetTextAsync()).ToString().Should().NotContain("Scoped");
     }
@@ -56,11 +56,11 @@ public sealed class RepositoryMethodServiceRefactoringTests
     {
         using var workspace = new AdhocWorkspace();
         var document = Create(workspace, "void Refresh(string key);");
-        var changed = await Changed((await Actions(document)).First());
+        var changed = await (await Actions(document)).First().GetChangedSolutionAsync();
         var service = changed.Projects.Single(project => project.Name == "Sample.Application").Documents.Single();
         (await service.GetTextAsync()).ToString().Should().Contain("public void Refresh(global::System.String key)")
             .And.Contain("=> this._repository.Refresh(key);");
-        (await service.Project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        (await service.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
     }
 
     [Fact]
@@ -68,11 +68,11 @@ public sealed class RepositoryMethodServiceRefactoringTests
     {
         using var workspace = new AdhocWorkspace();
         var document = Create(workspace, "string? Lookup(string? _repository);");
-        var changed = await Changed((await Actions(document)).First());
+        var changed = await (await Actions(document)).First().GetChangedSolutionAsync();
         var service = changed.Projects.Single(project => project.Name == "Sample.Application").Documents.Single();
         (await service.GetTextAsync()).ToString().Should().Contain("public global::System.String? Lookup(global::System.String? _repository)")
             .And.Contain("=> this._repository.Lookup(_repository);");
-        (await service.Project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        (await service.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
     }
 
     [Theory]
@@ -126,14 +126,13 @@ public sealed class RepositoryMethodServiceRefactoringTests
         using var workspace = new AdhocWorkspace();
         var document = Create(workspace, targetName: target);
         var action = (await Actions(document)).Single(item => item.Title.StartsWith("Add scoped", StringComparison.Ordinal));
-        var changed = await Changed(action);
+        var changed = await action.GetChangedSolutionAsync();
         var application = changed.Projects.Single(project => project.Name == target);
         (await application.Documents.Single().GetTextAsync()).ToString()
             .Should().Contain("namespace " + target + ".Services.QA.Orders;");
         changed.GetChanges(workspace.CurrentSolution).GetProjectChanges().Should()
             .OnlyContain(change => !change.GetAddedProjectReferences().Any());
-        (await application.GetCompilationAsync())!.GetDiagnostics().Should()
-            .NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        (await application.GetCompilationAsync())!.AssertNoCompilerErrors();
     }
 
     [Fact]
@@ -156,7 +155,7 @@ public sealed class RepositoryMethodServiceRefactoringTests
         var action = (await Actions(document)).First();
         var target = workspace.CurrentSolution.Projects.Single(project => project.Name == "Sample.Application");
         workspace.TryApplyChanges(workspace.CurrentSolution.RemoveProject(target.Id)).Should().BeTrue();
-        var changed = await Changed(action);
+        var changed = await action.GetChangedSolutionAsync();
         changed.GetProject(target.Id).Should().BeNull();
         changed.GetChanges(workspace.CurrentSolution).GetAddedProjects().Should().BeEmpty();
     }
@@ -211,7 +210,7 @@ public sealed class RepositoryMethodServiceRefactoringTests
         var domain = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
                 "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: "/source/Sample.Domain/Sample.Domain.csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
-            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References);
+            .AddMetadataReferences(ClassificationTestFixture.References);
         var document = domain.AddDocument("IOrderRepository.cs", $$"""
             namespace Sample.Domain.QA.Order;
             public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot;
@@ -227,7 +226,7 @@ public sealed class RepositoryMethodServiceRefactoringTests
                 "Sample.Application", "Sample.Application", LanguageNames.CSharp, filePath: "/source/Sample.Application/Sample.Application.csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddProjectReference(new ProjectReference(domain.Id))
-            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
+            .AddMetadataReferences(ClassificationTestFixture.References)
             .AddMetadataReference(AnalyzerTestCompilation.UtilsReference);
         application = application.AddDocument("ApplicationModule.cs", """
             namespace Sample.Application;
@@ -246,18 +245,15 @@ public sealed class RepositoryMethodServiceRefactoringTests
         var action = (await Actions(workspace.CurrentSolution.GetDocument(document.Id)!))
             .Single(item => item.Title.StartsWith("Add scoped", StringComparison.Ordinal));
         action.Title.Should().Contain("OrderCountVisibleService.cs");
-        var changed = await Changed(action);
+        var changed = await action.GetChangedSolutionAsync();
         var changedApp = changed.Projects.Single(project => project.Name == "Sample.Application");
         var service = changedApp.Documents.Single(item => item.Name == "OrderCountVisibleService.cs");
         (await service.GetTextAsync()).ToString().Should().Contain("public sealed class OrderCountVisibleService");
         var domainCompilation = (await changed.Projects.Single(project => project.Name == "Sample.Domain").GetCompilationAsync())!;
-        domainCompilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
-        using var domainImage = new MemoryStream();
-        domainCompilation.Emit(domainImage).Success.Should().BeTrue();
-        var domainReference = MetadataReference.CreateFromImage(domainImage.ToArray(), filePath: "/source/Sample.Domain/Sample.Domain.dll");
+        domainCompilation.AssertNoCompilerErrors();
+        var domainReference = AnalyzerTestCompilation.EmitReference(domainCompilation, "/source/Sample.Domain/Sample.Domain.dll");
         var compilation = (await changedApp.GetCompilationAsync())!;
         var appCompilation = compilation.RemoveReferences(compilation.References.OfType<CompilationReference>()).AddReferences(domainReference);
-        appCompilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
         var inputs = new ProjectDiagnosticRulesTests.RuleFile(Framework.SharedKernel.Analyzers.Conventions.ConventionInputs.FileName, """
             [assembly: DRN.Conventions.Version("1")]
             [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
@@ -266,21 +262,10 @@ public sealed class RepositoryMethodServiceRefactoringTests
             [assembly: DRN.Conventions.Path("/source/Sample.Application/ApplicationModule.cs", LogicalPath = "ApplicationModule.cs")]
             [assembly: DRN.Conventions.Path("/source/Sample.Application/Services/QA/Order/OrderCountVisibleService.cs", LogicalPath = "Services/QA/Order/OrderCountVisibleService.cs")]
             """);
-        var diagnostics = await appCompilation.WithAnalyzers(
-            [new Framework.SharedKernel.Analyzers.Conventions.SourceKnownConventionAnalyzer()],
-            new AnalyzerOptions([inputs], new Options("Application"))).GetAnalyzerDiagnosticsAsync();
+        var diagnostics = await AnalyzerTestCompilation.Analyze(appCompilation,
+            new Framework.SharedKernel.Analyzers.Conventions.SourceKnownConventionAnalyzer(),
+            AnalyzerTestCompilation.ConventionOptions("Sample.Application", files: inputs));
         diagnostics.Should().BeEmpty();
-    }
-
-    private sealed class Options(string role) : AnalyzerConfigOptionsProvider
-    {
-        public override AnalyzerConfigOptions GlobalOptions { get; } = new ConventionInputTests.Config(new()
-        {
-            ["build_property.MSBuildProjectName"] = "Sample." + role,
-            ["build_property.RootNamespace"] = "Sample." + role
-        });
-        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => GlobalOptions;
-        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => GlobalOptions;
     }
 
     private static Document Create(AdhocWorkspace workspace, string method = Method, bool reference = true, string targetName = "Sample.Application")
@@ -288,7 +273,7 @@ public sealed class RepositoryMethodServiceRefactoringTests
         var domain = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
                 "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: "/source/Sample.Domain/Sample.Domain.csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
-            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References);
+            .AddMetadataReferences(ClassificationTestFixture.References);
         var document = domain.AddDocument("IOrderRepository.cs", $$"""
             namespace Sample.Domain.QA.Orders;
             public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot;
@@ -303,7 +288,7 @@ public sealed class RepositoryMethodServiceRefactoringTests
         var application = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
                 targetName, targetName, LanguageNames.CSharp, filePath: "/source/" + targetName + "/" + targetName + ".csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
-            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
+            .AddMetadataReferences(ClassificationTestFixture.References)
             .AddMetadataReference(AnalyzerTestCompilation.UtilsReference);
         if (reference) application = application.AddProjectReference(new ProjectReference(domain.Id));
         workspace.TryApplyChanges(application.Solution).Should().BeTrue();
@@ -320,7 +305,4 @@ public sealed class RepositoryMethodServiceRefactoringTests
             TextSpan.FromBounds(start, end), actions.Add, CancellationToken.None));
         return actions;
     }
-
-    private static async Task<Solution> Changed(CodeAction action) =>
-        (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
 }

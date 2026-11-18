@@ -1,6 +1,5 @@
-using Microsoft.CodeAnalysis.Emit;
 using DRN.Test.Shared;
-using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.ClassificationTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
 
@@ -26,7 +25,7 @@ public sealed class ProjectDiagnosticRulesTests
         var middle = Reference("RuleMiddle", "public class Middle : Contract;",
             "{\"secretFields\":[\"middleProof\"]}", true, dependency);
         var unrelated = Reference("RuleUnrelated", "public class Unrelated;", "{\"personalFields\":[\"unrelatedMember\"]}", false);
-        var compilation = DiagnosticClassificationAnalyzerTests.Compilation("""
+        var compilation = ClassificationTestFixture.Compilation("""
             public class Model
             {
                 public string InheritedMember { get; set; } = "";
@@ -38,7 +37,7 @@ public sealed class ProjectDiagnosticRulesTests
         diagnostics.Should().HaveCount(2).And.OnlyContain(item => item.Id == "DRNCLASSIFICATION001");
         diagnostics.Should().Contain(item => item.GetMessage().Contains("InheritedMember"));
         diagnostics.Should().Contain(item => item.GetMessage().Contains("MiddleProof"));
-        (await Analyze(DiagnosticClassificationAnalyzerTests.Compilation("public class Model { public string InheritedMember => \"\"; }")))
+        (await Analyze(ClassificationTestFixture.Compilation("public class Model { public string InheritedMember => \"\"; }")))
             .Should().BeEmpty();
     }
 
@@ -47,7 +46,7 @@ public sealed class ProjectDiagnosticRulesTests
     {
         var dependency = Reference("InvalidRuleDependency",
             "public class Contract { public DRN.Framework.SharedKernel.Attributes.SensitiveAttribute Marker => new(); }", "{");
-        var diagnostics = await Analyze(DiagnosticClassificationAnalyzerTests.Compilation("public class Model;").AddReferences(dependency));
+        var diagnostics = await Analyze(ClassificationTestFixture.Compilation("public class Model;").AddReferences(dependency));
         diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCLASSIFICATION007");
     }
 
@@ -57,7 +56,7 @@ public sealed class ProjectDiagnosticRulesTests
         var source = "[assembly: DRN.Framework.SharedKernel.Attributes.DataClassificationRules(" +
                      SymbolDisplay.FormatLiteral(Fixture(), true) + ")]\n" +
                      "public class Model { public string MembershipNumber => \"\"; }";
-        var diagnostics = await Analyze(DiagnosticClassificationAnalyzerTests.Compilation(source));
+        var diagnostics = await Analyze(ClassificationTestFixture.Compilation(source));
         diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCLASSIFICATION001");
     }
 
@@ -68,10 +67,7 @@ public sealed class ProjectDiagnosticRulesTests
                            "[assembly: System.Reflection.AssemblyMetadata(\"DRN.DataClassificationRules\", ") +
                        SymbolDisplay.FormatLiteral(json, true) + ")]\n";
         var compilation = Compilation(metadata + source).WithAssemblyName(name).AddReferences(dependencies);
-        using var stream = new MemoryStream();
-        var result = compilation.Emit(stream, options: new EmitOptions(metadataOnly: true, includePrivateMembers: false));
-        result.Success.Should().BeTrue(string.Join(Environment.NewLine, result.Diagnostics));
-        return MetadataReference.CreateFromImage(stream.ToArray());
+        return AnalyzerTestCompilation.EmitReference(compilation, options: AnalyzerTestCompilation.ReferenceAssemblyOptions);
     }
 
     [Fact]
@@ -98,7 +94,7 @@ public sealed class ProjectDiagnosticRulesTests
     [Fact]
     public async Task Custom_Rules_Should_Cover_Anonymous_Scalar_And_Dictionary_Captures()
     {
-        var compilation = DiagnosticClassificationAnalyzerTests.Compilation("""
+        var compilation = ClassificationTestFixture.Compilation("""
             using System.Collections.Generic;
             namespace DRN.Framework.Utils.Logging
             {
@@ -140,7 +136,7 @@ public sealed class ProjectDiagnosticRulesTests
                 declarations.Append($"[\"Branch{branch}\"] = level{level - 1}, ");
             declarations.AppendLine("};");
         }
-        var compilation = DiagnosticClassificationAnalyzerTests.Compilation($$"""
+        var compilation = ClassificationTestFixture.Compilation($$"""
             using System.Collections.Generic;
             namespace DRN.Framework.Utils.Logging
             {
@@ -156,7 +152,7 @@ public sealed class ProjectDiagnosticRulesTests
                 }
             }
             """);
-        compilation.GetDiagnostics().Where(item => item.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+        compilation.AssertNoCompilerErrors();
         using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var diagnostics = await compilation.WithAnalyzers([new DiagnosticClassificationAnalyzer()],
                 new AnalyzerOptions([new RuleFile("data-classification-rules.json", Fixture())]))
@@ -191,7 +187,7 @@ public sealed class ProjectDiagnosticRulesTests
                 }
             }
             """);
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var diagnostics = await compilation.WithAnalyzers([new DiagnosticClassificationAnalyzer()],
                 new AnalyzerOptions([new RuleFile("data-classification-rules.json", """{"sensitiveFieldPaths":["Payload.Value"]}""")]))
@@ -259,7 +255,7 @@ public sealed class ProjectDiagnosticRulesTests
     [Fact]
     public async Task Project_Field_Paths_Should_Check_Typed_Capture_Prefixes()
     {
-        var compilation = DiagnosticClassificationAnalyzerTests.Compilation("""
+        var compilation = ClassificationTestFixture.Compilation("""
             using DRN.Framework.SharedKernel.Attributes;
             namespace DRN.Framework.Utils.Logging
             {
@@ -286,7 +282,7 @@ public sealed class ProjectDiagnosticRulesTests
     [Fact]
     public async Task Invalid_Rule_Files_Should_Report_Configuration_Errors_And_Keep_Builtins()
     {
-        var compilation = DiagnosticClassificationAnalyzerTests.Compilation("public class Model { public string Password { get; set; } = \"\"; }");
+        var compilation = ClassificationTestFixture.Compilation("public class Model { public string Password { get; set; } = \"\"; }");
         foreach (var json in InvalidDiagnosticRuleCases.Create().Cast<string?>().Prepend(null))
         {
             var diagnostics = await Analyze(compilation, new RuleFile("data-classification-rules.json", json));

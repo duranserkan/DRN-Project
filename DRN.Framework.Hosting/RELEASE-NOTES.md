@@ -17,6 +17,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
+*   **Diagnostic IDs**: Replace `DRNHG001` and `DRNHG002` with `DRNHOSTING001` and `DRNHOSTING002` respectively in severity settings and intentional suppressions.
+
 *   **Program naming**: Classes deriving directly or indirectly from `DrnProgramBase<TProgram>` must end with the case-sensitive suffix `Program`. The Hosting analyzer reports error `DRNHOSTING002` for other names, including abstract, generic and nested descendants.
 
 *   **Typed endpoint collections**: Replace `EndpointCollectionBase<TProgram>` with `EndpointCollectionBase<TProgram, TCollection>` and return `TCollection.EndpointCollection` from the program's `ConfigureEndpointCollection` override. Collections are constructed directly instead of discovered through assembly scanning. Generated roots use the new base and also require the host hook. Use `IEndpointAccessor` for runtime endpoint lists instead of the removed base's static catalog properties. To replace `EndpointSource`, construct `DrnEndpointSource` from the accessor's endpoint helper data source.

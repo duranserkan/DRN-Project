@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Analyzers.Conventions;
-using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.ClassificationTestFixture;
 using static DRN.Test.Analyzer.Tests.ProjectDiagnosticRulesTests;
 
 namespace DRN.Test.Analyzer.Tests;
@@ -17,8 +17,7 @@ public sealed class SourceKnownConventionAnalyzerTests
     public async Task Unidentified_Project_Should_Leave_Conventions_Inactive()
     {
         var compilation = Compilation("public class Marker;");
-        var diagnostics = await compilation.WithAnalyzers([new SourceKnownConventionAnalyzer()], new AnalyzerOptions([]))
-            .GetAnalyzerDiagnosticsAsync();
+        var diagnostics = await AnalyzerTestCompilation.Analyze(compilation, new SourceKnownConventionAnalyzer(), new AnalyzerOptions([]));
         diagnostics.Should().BeEmpty();
     }
 
@@ -27,7 +26,7 @@ public sealed class SourceKnownConventionAnalyzerTests
     {
         var compilation = Compilation("public class Marker;");
         var options = AnalyzerTestCompilation.ConventionOptions("Sample.Domain");
-        var diagnostics = await compilation.WithAnalyzers([new SourceKnownConventionAnalyzer()], options).GetAnalyzerDiagnosticsAsync();
+        var diagnostics = await AnalyzerTestCompilation.Analyze(compilation, new SourceKnownConventionAnalyzer(), options);
         diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCONVENTIONINPUT001");
     }
 
@@ -39,9 +38,8 @@ public sealed class SourceKnownConventionAnalyzerTests
             public class Payload : DRN.Framework.SharedKernel.Domain.Dto;
             """);
         var invalidInput = new RuleFile(ConventionInputs.FileName, "invalid convention input");
-        var diagnostics = await ConventionTestDependencies.SuppressConventions(compilation)
-            .WithAnalyzers([new SourceKnownConventionAnalyzer()],
-                AnalyzerTestCompilation.ConventionOptions("Sample.Domain", files: invalidInput)).GetAnalyzerDiagnosticsAsync();
+        var diagnostics = await AnalyzerTestCompilation.Analyze(ConventionTestDependencies.SuppressConventions(compilation),
+            new SourceKnownConventionAnalyzer(), AnalyzerTestCompilation.ConventionOptions("Sample.Domain", files: invalidInput));
         diagnostics.Should().BeEmpty();
     }
 
@@ -62,7 +60,7 @@ public sealed class SourceKnownConventionAnalyzerTests
             [assembly: DRN.Conventions.Ownership("Sample.Domain.QA.Thing", Subdomain = "QA", Kind = "Entity")]
             """ + "\n" + ConventionTestDependencies.Serialize(fixture.Records));
         var options = AnalyzerTestCompilation.ConventionOptions("Sample.Domain", files: input);
-        var diagnostics = await fixture.Compilation.WithAnalyzers([new SourceKnownConventionAnalyzer()], options).GetAnalyzerDiagnosticsAsync();
+        var diagnostics = await AnalyzerTestCompilation.Analyze(fixture.Compilation, new SourceKnownConventionAnalyzer(), options);
         diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCONVENTIONEXCEPTION001");
     }
 
@@ -70,8 +68,8 @@ public sealed class SourceKnownConventionAnalyzerTests
     public async Task Missing_Reference_Inventory_Should_Not_Look_Complete()
     {
         var input = new RuleFile(ConventionInputs.FileName, "[assembly: DRN.Conventions.Version(\"1\")]");
-        var diagnostics = await Compilation("public class Marker;").WithAnalyzers([new SourceKnownConventionAnalyzer()],
-            AnalyzerTestCompilation.ConventionOptions("Sample.Domain", files: input)).GetAnalyzerDiagnosticsAsync();
+        var diagnostics = await AnalyzerTestCompilation.Analyze(Compilation("public class Marker;"), new SourceKnownConventionAnalyzer(),
+            AnalyzerTestCompilation.ConventionOptions("Sample.Domain", files: input));
         diagnostics.Should().ContainSingle().Which.GetMessage().Should().Contain("inventory provenance");
     }
 
@@ -84,8 +82,8 @@ public sealed class SourceKnownConventionAnalyzerTests
             [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
             [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
             """ + "\n" + ConventionTestDependencies.Serialize(fixture.Records));
-        var diagnostics = await fixture.Compilation.WithAnalyzers([new SourceKnownConventionAnalyzer()],
-            AnalyzerTestCompilation.ConventionOptions("Sample.Domain", files: input)).GetAnalyzerDiagnosticsAsync();
+        var diagnostics = await AnalyzerTestCompilation.Analyze(fixture.Compilation, new SourceKnownConventionAnalyzer(),
+            AnalyzerTestCompilation.ConventionOptions("Sample.Domain", files: input));
         diagnostics.Should().BeEmpty();
     }
 
@@ -95,14 +93,13 @@ public sealed class SourceKnownConventionAnalyzerTests
         var analyzer = new SourceKnownConventionAnalyzer();
         var first = Compilation("public class First;");
         var options = AnalyzerTestCompilation.ConventionOptions("Sample.Domain");
-        (await first.WithAnalyzers([analyzer], options).GetAnalyzerDiagnosticsAsync()).Should().ContainSingle();
+        (await AnalyzerTestCompilation.Analyze(first, analyzer, options)).Should().ContainSingle();
         var second = ConventionTestDependencies.WithRequiredLayers(Compilation("public class Second;"), "Domain");
         var file = new RuleFile(ConventionInputs.FileName, """
             [assembly: DRN.Conventions.Version("1")]
             [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
             """ + "\n" + ConventionTestDependencies.Serialize(second.Records));
-        (await second.Compilation.WithAnalyzers([analyzer], AnalyzerTestCompilation.ConventionOptions("Sample.Domain", files: file))
-                .GetAnalyzerDiagnosticsAsync())
+        (await AnalyzerTestCompilation.Analyze(second.Compilation, analyzer, AnalyzerTestCompilation.ConventionOptions("Sample.Domain", files: file)))
             .Should().BeEmpty();
     }
 
@@ -121,31 +118,27 @@ public sealed class SourceKnownConventionAnalyzerTests
             namespace Legacy.Models;
             public class Customer : DRN.Framework.SharedKernel.Domain.SourceKnownEntity;
             """).WithAssemblyName("Published.Domain");
-        producer.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
-        MetadataReference reference;
-        if (shape == "source") reference = producer.ToMetadataReference();
-        else
+        producer.AssertNoCompilerErrors();
+        MetadataReference reference = shape switch
         {
-            using var image = new MemoryStream();
-            var result = producer.Emit(image, options: new Microsoft.CodeAnalysis.Emit.EmitOptions(
-                metadataOnly: shape == "reference-assembly", includePrivateMembers: shape != "reference-assembly"));
-            result.Diagnostics.Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
-            result.Success.Should().BeTrue();
-            reference = MetadataReference.CreateFromImage(image.ToArray());
-        }
+            "source" => producer.ToMetadataReference(),
+            "reference-assembly" => AnalyzerTestCompilation.EmitReference(producer, options: AnalyzerTestCompilation.ReferenceAssemblyOptions),
+            "assembly" => AnalyzerTestCompilation.EmitReference(producer),
+            _ => throw new ArgumentOutOfRangeException(nameof(shape))
+        };
         var consumer = Compilation("""
             namespace Sample.Domain.Billing;
             public class Reader { public Legacy.Models.Customer Read() => new(); }
             """, "Billing/Reader.cs").AddReferences(reference);
-        consumer.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        consumer.AssertNoCompilerErrors();
         var fixture = ConventionTestDependencies.WithRequiredLayers(consumer, "Domain");
         var file = new RuleFile(ConventionInputs.FileName, """
             [assembly: DRN.Conventions.Version("1")]
             [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
             [assembly: DRN.Conventions.Path("Billing/Reader.cs", LogicalPath = "Billing/Reader.cs")]
             """ + "\n" + ConventionTestDependencies.Serialize(fixture.Records));
-        var diagnostics = await fixture.Compilation.WithAnalyzers([new SourceKnownConventionAnalyzer()],
-            AnalyzerTestCompilation.ConventionOptions("Sample.Domain", files: file)).GetAnalyzerDiagnosticsAsync();
+        var diagnostics = await AnalyzerTestCompilation.Analyze(fixture.Compilation, new SourceKnownConventionAnalyzer(),
+            AnalyzerTestCompilation.ConventionOptions("Sample.Domain", files: file));
         var diagnostic = diagnostics.Should().ContainSingle().Which;
         diagnostic.Id.Should().Be("DRNOWNERSHIP002");
         diagnostic.Severity.Should().Be(DiagnosticSeverity.Warning);
@@ -163,8 +156,8 @@ public sealed class SourceKnownConventionAnalyzerTests
             namespace Sample.Domain.QA;
             public class Payload : DRN.Framework.SharedKernel.Domain.Dto;
             """);
-        var diagnostics = await compilation.WithAnalyzers([new SourceKnownConventionAnalyzer()],
-            AnalyzerTestCompilation.ConventionOptions("Sample.Domain")).GetAnalyzerDiagnosticsAsync();
+        var diagnostics = await AnalyzerTestCompilation.Analyze(compilation, new SourceKnownConventionAnalyzer(),
+            AnalyzerTestCompilation.ConventionOptions("Sample.Domain"));
         diagnostics.Should().NotContain(item => item.Id == "AD0001");
         diagnostics.Where(item => item.Id == "DRNCONVENTIONINPUT001").Select(item => item.GetMessage()).Should().BeEquivalentTo(MissingInputMessages);
         var role = diagnostics.Where(item => item.Id == "DRNARCHITECTURE004").Should().ContainSingle().Which;
@@ -180,11 +173,11 @@ public sealed class SourceKnownConventionAnalyzerTests
             namespace Sample.Domain.QA;
             public class Payload : DRN.Framework.SharedKernel.Domain.Dto;
             """);
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
-        var act = async () => await AnalyzerTestCompilation.Analyze(compilation, new SourceKnownConventionAnalyzer(),
-            AnalyzerTestCompilation.ConventionOptions("Sample.Domain"), cancellation.Token);
+        var act = async () => await compilation.WithAnalyzers([new SourceKnownConventionAnalyzer()],
+            AnalyzerTestCompilation.ConventionOptions("Sample.Domain")).GetAnalyzerDiagnosticsAsync(cancellation.Token);
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
 }

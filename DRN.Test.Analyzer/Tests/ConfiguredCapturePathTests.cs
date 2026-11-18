@@ -1,4 +1,4 @@
-using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.ClassificationTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
 
@@ -33,7 +33,6 @@ public sealed class ConfiguredCapturePathTests
                 }
             }
             """);
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
         var diagnostics = await Analyze(compilation, new ProjectDiagnosticRulesTests.RuleFile(
             "data-classification-rules.json", """{"sensitiveFieldPaths":["Payload.Detail"]}"""));
 

@@ -208,6 +208,7 @@ internal sealed class ConventionExceptions
     private static bool IsSuppressionTarget(ISymbol? symbol) =>
         symbol is INamedTypeSymbol or IMethodSymbol or IPropertySymbol or IFieldSymbol or IEventSymbol;
 
+    [SuppressMessage("SonarQube", "S3267", Justification = "Scan compilation trees directly without allocating a filtered sequence per compilation.")]
     private void ValidatePragmas()
     {
         foreach (var tree in _facts.Compilation.SyntaxTrees)

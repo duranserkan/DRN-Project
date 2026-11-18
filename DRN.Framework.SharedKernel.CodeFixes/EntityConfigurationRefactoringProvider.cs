@@ -113,7 +113,8 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
         var infraInputs = await ConventionGenerationPreflight.ReadInputs(project, required: false, token);
         if (infraInputs is null || HasRoleOverride(infraInputs)) return result;
         if (await ResolveAccessibleEntityAsync(project, entityName, entityAssembly, infraIdentity.Namespace, infraInputs, token)
-            is not var (compilation, entity, entityOwner)) return result;
+            is not { } resolved) return result;
+        var (compilation, entity, _) = resolved;
         if (HasConfigurationForEntity(compilation, entity, token, out var types, out var contextContract) ||
             await HasUnknownDependentDiscovery(project, token)) return result;
         var contexts = types.Where(type => !type.IsAbstract && !IsOpen(type) &&
@@ -125,8 +126,8 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
         foreach (var context in contexts)
         {
             token.ThrowIfCancellationRequested();
-            if (await TryBuildContextCandidateAsync(project, compilation, entity, entityOwner, infraIdentity.Namespace,
-                    infraInputs, projectDirectory, discovery, context, token) is { } candidate &&
+            if (await TryBuildContextCandidateAsync(project, resolved, (infraIdentity.Namespace, projectDirectory),
+                    infraInputs, discovery, context, token) is { } candidate &&
                 !result.Contains(candidate))
                 result.Add(candidate);
         }
@@ -169,21 +170,22 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
             SymbolEqualityComparer.Default.Equals(contract.TypeArguments[0], entity)));
     }
 
-    private static async Task<ConfigurationCandidate?> TryBuildContextCandidateAsync(Project project, Compilation compilation,
-        INamedTypeSymbol entity, string entityOwner, string infraNamespace, CompilationUnitSyntax infraInputs,
-        string projectDirectory, (INamedTypeSymbol Context, List<ConfigurationDiscovery.Scope>? Scopes)[] discovery,
+    private static async Task<ConfigurationCandidate?> TryBuildContextCandidateAsync(Project project,
+        (Compilation Compilation, INamedTypeSymbol Entity, string EntityOwner) resolved, (string Namespace, string Directory) home,
+        CompilationUnitSyntax infraInputs, (INamedTypeSymbol Context, List<ConfigurationDiscovery.Scope>? Scopes)[] discovery,
         INamedTypeSymbol context, CancellationToken token)
     {
+        var (compilation, entity, entityOwner) = resolved;
         if (context.ContainingNamespace.IsGlobalNamespace || !HasMembership(context, entity, compilation) ||
             context.DeclaringSyntaxReferences.Length == 0) return null;
         var contextNamespace = context.ContainingNamespace.ToDisplayString();
         if (!ValidNamespace(contextNamespace) ||
-            NamespaceOwner(context, infraNamespace) != entityOwner ||
-            !ContextOwnershipCompatible(context, infraNamespace, entityOwner, infraInputs, compilation, token)) return null;
+            NamespaceOwner(context, home.Namespace) != entityOwner ||
+            !ContextOwnershipCompatible(context, home.Namespace, entityOwner, infraInputs, compilation, token)) return null;
         var configurationNamespace = contextNamespace + ".Configurations";
         var affected = discovery.Where(item => item.Scopes!.Any(scope => scope.Contains(configurationNamespace)))
             .Select(item => item.Context).ToArray();
-        if (!AreAffectedContextsCompatible(affected, context, entity, infraNamespace, entityOwner, infraInputs, compilation, token))
+        if (!AreAffectedContextsCompatible(affected, context, resolved, home.Namespace, infraInputs, token))
             return null;
         var contextDocument = await ResolveEditableHomeAsync(project, context, rejectSpanErrors: false, token);
         if (contextDocument?.FilePath is null) return null;
@@ -192,20 +194,20 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
             ConventionGenerationPreflight.SymbolCollision(compilation, configurationNamespace, className, token)) return null;
         if (!TryFullPath(Path.Combine(Path.GetDirectoryName(contextDocument.FilePath)!, "Configurations", className + ".cs"), out var destination))
             return null;
-        if (!SafeDocumentDestination(project, projectDirectory, destination, token)) return null;
-        var relative = Path.GetRelativePath(projectDirectory, destination).Replace('\\', '/');
+        if (!SafeDocumentDestination(project, home.Directory, destination, token)) return null;
+        var relative = Path.GetRelativePath(home.Directory, destination).Replace('\\', '/');
         return new(string.Join(", ", affected.Select(CodeFixSymbolFacts.MetadataName).OrderBy(name => name, StringComparer.Ordinal)),
             configurationNamespace, className, entity.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), relative, destination,
             affected.Length == 1 ? CodeFixSymbolFacts.MetadataName(affected[0]) : null);
     }
 
     private static bool AreAffectedContextsCompatible(INamedTypeSymbol[] affected, INamedTypeSymbol context,
-        INamedTypeSymbol entity, string infraNamespace, string entityOwner, CompilationUnitSyntax infraInputs,
-        Compilation compilation, CancellationToken token) =>
+        (Compilation Compilation, INamedTypeSymbol Entity, string EntityOwner) resolved, string infraNamespace,
+        CompilationUnitSyntax infraInputs, CancellationToken token) =>
         affected.Any(item => SymbolEqualityComparer.Default.Equals(item, context)) &&
-        !affected.Any(item => !HasMembership(item, entity, compilation) ||
-            NamespaceOwner(item, infraNamespace) != entityOwner ||
-            !ContextOwnershipCompatible(item, infraNamespace, entityOwner, infraInputs, compilation, token));
+        !affected.Any(item => !HasMembership(item, resolved.Entity, resolved.Compilation) ||
+            NamespaceOwner(item, infraNamespace) != resolved.EntityOwner ||
+            !ContextOwnershipCompatible(item, infraNamespace, resolved.EntityOwner, infraInputs, resolved.Compilation, token));
 
     private static async Task<bool> HasUnknownDependentDiscovery(Project project, CancellationToken token)
     {

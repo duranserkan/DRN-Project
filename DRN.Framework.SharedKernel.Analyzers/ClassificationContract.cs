@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using DRN.Framework.CompilerTools;
@@ -74,6 +75,7 @@ internal sealed class ClassificationContract
         return _positive.GetOrAdd(symbol, _calculatePositive, cancellation);
     }
 
+    [SuppressMessage("SonarQube", "S3267", Justification = "Scanning the immutable attribute array directly avoids a captured predicate for each symbol in the inheritance chain.")]
     private bool CalculatePositive(ISymbol symbol, CancellationToken cancellation)
     {
         for (ISymbol? current = symbol; current != null; current = NextClassifiedSymbol(current))

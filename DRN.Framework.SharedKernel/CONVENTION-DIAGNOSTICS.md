@@ -10,6 +10,8 @@ dotnet_analyzer_diagnostic.category-DRN.Conventions.Architecture.severity = erro
 
 The rules from Architecture through Convention exceptions default to Warning in recognized application projects. Their messages below show placeholders for the relevant symbols or inputs. DRNPERSISTENCE001 offers an individual constructor code fix. See [project identity and exceptions](CONVENTIONS.md) and [editable assistance](SCAFFOLDING.md).
 
+For older settings, update the ID in `.editorconfig`, `NoWarn`, both ends of a `#pragma warning` suppression, the check ID in `SuppressMessage`, and the rule ID in any `DrnConventionException`. The [release notes](RELEASE-NOTES.md#version-0110) map each previous ID, including split rules.
+
 ## Entity identity
 
 Roslyn category: `DRN.Domain`. For examples of entity declarations, partitions, repository type arguments and metadata calls, see the [entity guide](README.md#compile-time-roslyn-analyzers).
@@ -35,6 +37,8 @@ Roslyn category: `DRN.Domain`. For examples of entity declarations, partitions, 
 
 Roslyn category: `DRN.Classification`. See [classification examples, code fixes and runtime boundaries](../DRN.Framework.Utils/Logging/Diagnostics/README.md#compile-time-classification).
 
+Replace `DRN0015` through `DRN0025` with `DRNCLASSIFICATION001` through `DRNCLASSIFICATION011` in the same order. Replace `DRN0027` with `DRNCLASSIFICATION012`.
+
 | ID | Default | Requirement |
 |---|---|---|
 | DRNCLASSIFICATION001 | Error | Classify matching model properties or declare a reviewed false positive. |
@@ -43,7 +47,7 @@ Roslyn category: `DRN.Classification`. See [classification examples, code fixes 
 | DRNCLASSIFICATION004 | Error | Use a supported classification attribute. |
 | DRNCLASSIFICATION005 | Error | Move matching anonymous properties to a named, annotated model. |
 | DRNCLASSIFICATION006 | Error | Classify a dictionary key or acknowledge an eligible exact-name match. |
-| DRNCLASSIFICATION007 | Error | Supply a readable, valid, unambiguous classification catalog. |
+| DRNCLASSIFICATION007 | Error | Supply a readable, valid, unambiguous classification catalog. Previously DRN0021. |
 | DRNCLASSIFICATION008 | Error | Remove or redact sensitive logging values. |
 | DRNCLASSIFICATION009 | Error | Put the exact name and a nonempty justification in the exemption comment immediately above the logging statement. |
 | DRNCLASSIFICATION010 | Warning | Remove or correct an unused name exemption comment. |

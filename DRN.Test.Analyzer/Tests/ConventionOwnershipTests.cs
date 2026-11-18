@@ -1,5 +1,5 @@
 using DRN.Framework.SharedKernel.Analyzers.Conventions;
-using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.ClassificationTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
 
@@ -16,10 +16,10 @@ public sealed class ConventionOwnershipTests
             {{attribute}}
             public class Category : DRN.Framework.SharedKernel.Domain.AggregateRoot;
             """, "/outside/Category.cs");
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         var input = new ConventionInput("Path", "/outside/Category.cs", ImmutableDictionary<string, string>.Empty
             .Add("LogicalPath", "QA/Category.cs"), Location.None);
-        var facts = new ConventionFacts(compilation, Project(compilation), new([input], []), new Options(), CancellationToken.None);
+        var facts = new ConventionFacts(compilation, Project(compilation), new([input], []), AnalyzerTestCompilation.EmptyOptionsProvider, CancellationToken.None);
         ConventionOwnershipAnalysis.Analyze(facts);
         var ownership = facts.Diagnostics.Where(item => item.Id == "DRNOWNERSHIP001").ToArray();
         ownership.Should().HaveCount(missing ? 1 : 0);
@@ -64,9 +64,9 @@ public sealed class ConventionOwnershipTests
     }
 
     [Theory]
-    [InlineData("disable DRNSTRUCTURE001 // Reviewed compatibility declaration", "not restored")]
-    [InlineData("restore DRNSTRUCTURE001", "without a matching")]
-    [InlineData("disable DRNOWNERSHIP999", "unknown")]
+    [DataInlineUnit("disable DRNSTRUCTURE001 // Reviewed compatibility declaration", "not restored")]
+    [DataInlineUnit("restore DRNSTRUCTURE001", "without a matching")]
+    [DataInlineUnit("disable DRNOWNERSHIP999", "unknown")]
     public void Invalid_Local_Pragmas_Should_Remain_Visible(string pragma, string message)
     {
         var facts = Facts($$"""
@@ -111,7 +111,7 @@ public sealed class ConventionOwnershipTests
     public void Unclassified_Lookalike_Should_Not_Acquire_Organization_Warnings()
     {
         var compilation = Compilation("namespace Sample.Domain; public class ThingRepository;", "/outside/Anything.cs");
-        var facts = new ConventionFacts(compilation, Project(compilation), new([], []), new Options(), CancellationToken.None);
+        var facts = new ConventionFacts(compilation, Project(compilation), new([], []), AnalyzerTestCompilation.EmptyOptionsProvider, CancellationToken.None);
         ConventionOwnershipAnalysis.Analyze(facts);
         facts.Diagnostics.Should().BeEmpty();
     }
@@ -279,7 +279,7 @@ public sealed class ConventionOwnershipTests
             public class Category : DRN.Framework.SharedKernel.Domain.AggregateRoot;
             public interface ICategoryRepository : DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<Category>;
             """, path: "Category.cs"));
-        compilation.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         var input = new ConventionInput("Path", "Service.cs", ImmutableDictionary<string, string>.Empty
             .Add("LogicalPath", path), Location.None);
         var domain = new ConventionInput("Role", "Domain", ImmutableDictionary<string, string>.Empty
@@ -288,7 +288,7 @@ public sealed class ConventionOwnershipTests
             .Add("LogicalPath", "Domain/QA/Category.cs"), Location.None);
         var facts = new ConventionFacts(compilation,
             new(true, "Sample.Application", "Application", "Sample.Application", compilation.AssemblyName!, []),
-            new([input, domain, domainPath], []), new Options(), CancellationToken.None);
+            new([input, domain, domainPath], []), AnalyzerTestCompilation.EmptyOptionsProvider, CancellationToken.None);
         ConventionOwnershipAnalysis.Analyze(facts);
         facts.Diagnostics.Count(diagnostic => diagnostic.Id == "DRNOWNERSHIP001").Should().Be(missingOwners,
             "only the service and its contract may lack ownership. Diagnostics: {0}",
@@ -304,7 +304,7 @@ public sealed class ConventionOwnershipTests
         var compilation = Compilation("namespace Sample.Domain.QA; public partial class Thing;", "/outside/first.cs")
             .AddSyntaxTrees(CSharpSyntaxTree.ParseText("namespace Sample.Domain.QA; public partial class Thing;",
                 path: "/outside/second.cs"));
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         var records = new ConventionInput[]
         {
             new("Ownership", "Sample.Domain.QA.Thing", ImmutableDictionary<string, string>.Empty
@@ -312,7 +312,7 @@ public sealed class ConventionOwnershipTests
             new("Path", "/outside/first.cs", ImmutableDictionary<string, string>.Empty.Add("LogicalPath", "QA/Thing.cs"), Location.None),
             new("Path", "/outside/second.cs", ImmutableDictionary<string, string>.Empty.Add("LogicalPath", "Wrong/Thing.More.cs"), Location.None)
         };
-        var facts = new ConventionFacts(compilation, Project(compilation), new([.. records], []), new Options(), CancellationToken.None);
+        var facts = new ConventionFacts(compilation, Project(compilation), new([.. records], []), AnalyzerTestCompilation.EmptyOptionsProvider, CancellationToken.None);
         ConventionOwnershipAnalysis.Analyze(facts);
         var diagnostic = facts.Diagnostics.Should().ContainSingle().Which;
         diagnostic.Id.Should().Be("DRNSTRUCTURE001");
@@ -326,7 +326,7 @@ public sealed class ConventionOwnershipTests
     private static ConventionFacts Facts(string source, string? logicalPath, params ConventionInput[] extra)
     {
         var compilation = Compilation(source, "/outside/linked.cs");
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         var records = new List<ConventionInput>
         {
             new("Ownership", "Sample.Domain.QA.Thing", ImmutableDictionary<string, string>.Empty
@@ -336,15 +336,8 @@ public sealed class ConventionOwnershipTests
             records.Add(new("Path", "/outside/linked.cs", ImmutableDictionary<string, string>.Empty
                 .Add("LogicalPath", logicalPath), Location.None));
         records.AddRange(extra);
-        return new(compilation, Project(compilation), new([.. records], []), new Options(), CancellationToken.None);
+        return new(compilation, Project(compilation), new([.. records], []), AnalyzerTestCompilation.EmptyOptionsProvider, CancellationToken.None);
     }
 
     private static ConventionProject Project(Compilation compilation) => new(true, "Sample.Domain", "Domain", "Sample.Domain", compilation.AssemblyName!, []);
-
-    private sealed class Options : AnalyzerConfigOptionsProvider
-    {
-        public override AnalyzerConfigOptions GlobalOptions { get; } = new ConventionInputTests.Config(new());
-        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => GlobalOptions;
-        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => GlobalOptions;
-    }
 }

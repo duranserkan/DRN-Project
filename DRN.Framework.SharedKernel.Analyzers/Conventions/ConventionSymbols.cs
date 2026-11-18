@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 
@@ -153,6 +154,7 @@ internal sealed class ConventionSymbols(Compilation compilation)
         return result;
     }
 
+    [SuppressMessage("SonarQube", "S3267", Justification = "A direct attribute scan avoids a capturing predicate and a filtered sequence per base type.")]
     internal IEnumerable<AttributeData> EffectiveAttributes(INamedTypeSymbol type, INamedTypeSymbol? target,
         CancellationToken cancellation)
     {

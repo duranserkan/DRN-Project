@@ -1,5 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
-using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.ClassificationTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
 
@@ -307,7 +307,7 @@ public sealed class ClassificationFactTests
 
     private static ClassificationContract CreateContract(Compilation compilation)
     {
-        compilation.GetDiagnostics().Where(item => item.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+        compilation.AssertNoCompilerErrors();
         return new ClassificationContract(
             compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.SensitiveAttribute")!,
             compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.PersonalAttribute")!, compilation);

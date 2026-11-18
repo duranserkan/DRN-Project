@@ -16,7 +16,7 @@ public sealed class ControllerReviewPlanRefactoringTests
         var project = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
                 "Sample.Hosted", "Sample.Hosted", LanguageNames.CSharp, filePath: "/source/Sample.Hosted/Sample.Hosted.csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
-            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
+            .AddMetadataReferences(ClassificationTestFixture.References)
             .AddMetadataReference(AnalyzerTestCompilation.HostingReference);
         var source = """
             using DRN.Framework.SharedKernel.Domain;
@@ -36,9 +36,9 @@ public sealed class ControllerReviewPlanRefactoringTests
         var document = project.AddDocument("OrdersController.cs", source, filePath: "/source/Sample.Hosted/QA/OrdersController.cs");
         workspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
         document = workspace.CurrentSolution.GetDocument(document.Id)!;
-        (await document.Project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        (await document.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
         var action = (await Actions(document)).Should().ContainSingle().Which;
-        var changed = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var changed = await action.GetChangedSolutionAsync();
         var content = (await changed.GetProject(document.Project.Id)!.AdditionalDocuments.Single().GetTextAsync()).ToString();
         content.Length.Should().BeLessThan(12000);
         content.Should().Contain("GetAsync").And.Contain("PaginateWithBodyAsync").And.Contain("PostAsync").And.Contain("DeleteAsync")
@@ -86,7 +86,7 @@ public sealed class ControllerReviewPlanRefactoringTests
         var document = Create(workspace);
         var action = (await Actions(document)).Should().ContainSingle().Which;
         action.Title.Should().StartWith("Create controller review plan only:");
-        var changed = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var changed = await action.GetChangedSolutionAsync();
         var delta = changed.GetChanges(workspace.CurrentSolution).GetProjectChanges().Should().ContainSingle().Which;
         delta.GetAddedDocuments().Should().BeEmpty();
         delta.GetChangedDocuments().Should().BeEmpty();
@@ -121,7 +121,7 @@ public sealed class ControllerReviewPlanRefactoringTests
         var document = Create(workspace);
         var action = (await Actions(document)).Single();
         workspace.TryApplyChanges(document.WithText(SourceText.From(Source + "\n// changed")).Project.Solution).Should().BeTrue();
-        var changed = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var changed = await action.GetChangedSolutionAsync();
         changed.Should().BeSameAs(workspace.CurrentSolution);
         changed.GetProject(document.Project.Id)!.AdditionalDocuments.Should().BeEmpty();
     }

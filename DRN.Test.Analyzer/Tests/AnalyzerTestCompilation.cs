@@ -21,19 +21,6 @@ internal static class AnalyzerTestCompilation
         .Append(typeof(Framework.SharedKernel.Domain.Dto).Assembly.Location)
         .Distinct(StringComparer.Ordinal).Select(FileReference).ToImmutableArray());
 
-    private static readonly Lazy<ImmutableArray<MetadataReference>> Classification = new(() =>
-    [
-        .. ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
-        .Split(Path.PathSeparator).Where(path => !Path.GetFileName(path).StartsWith("DRN.", StringComparison.Ordinal))
-        .Append(typeof(Framework.SharedKernel.Attributes.SensitiveAttribute).Assembly.Location)
-        .Append(typeof(NSubstitute.SubstituteExtensions).Assembly.Location)
-        .Append(typeof(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder).Assembly.Location)
-        .Append(typeof(Microsoft.EntityFrameworkCore.DbContext).Assembly.Location)
-        .Append(typeof(Microsoft.Extensions.Compliance.Classification.DataClassificationAttribute).Assembly.Location)
-        .Append(typeof(Microsoft.Extensions.Logging.ILogger).Assembly.Location)
-        .Distinct(StringComparer.Ordinal).Select(FileReference)
-    ]);
-
     internal static MetadataReference ObjectReference => FileReference(typeof(object).Assembly.Location);
     internal static MetadataReference ConsoleReference => FileReference(typeof(Console).Assembly.Location);
     internal static MetadataReference SharedKernelReference => FileReference(typeof(Framework.SharedKernel.Domain.Dto).Assembly.Location);
@@ -43,28 +30,25 @@ internal static class AnalyzerTestCompilation
 
     internal static ImmutableArray<MetadataReference> CoreReferences => Core.Value;
     internal static ImmutableArray<MetadataReference> HostingReferences => Hosted.Value;
-    internal static ImmutableArray<MetadataReference> ClassificationReferences => Classification.Value;
 
     internal static MetadataReference FileReference(string path) =>
         FileReferences.GetOrAdd(path, static filePath => MetadataReference.CreateFromFile(filePath));
 
-    internal static Task<ImmutableArray<Diagnostic>> Analyze(CSharpCompilation compilation, DiagnosticAnalyzer analyzer, AnalyzerOptions? options = null) =>
-        Analyze(compilation, analyzer, options, CancellationToken.None);
+    internal static void AssertNoCompilerErrors(this Compilation compilation) =>
+        compilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
+            .Should().BeEmpty("fixture {0} must compile", compilation.AssemblyName ?? "<unnamed>");
 
-    internal static Task<ImmutableArray<Diagnostic>> Analyze(CSharpCompilation compilation, DiagnosticAnalyzer analyzer,
-        AnalyzerOptions? options, CancellationToken cancellationToken)
+    internal static Task<ImmutableArray<Diagnostic>> Analyze(Compilation compilation, DiagnosticAnalyzer analyzer, AnalyzerOptions? options = null)
     {
-        compilation.GetDiagnostics(cancellationToken).Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
-        return compilation.WithAnalyzers([analyzer], options).GetAnalyzerDiagnosticsAsync(cancellationToken);
+        compilation.AssertNoCompilerErrors();
+        return compilation.WithAnalyzers([analyzer], options).GetAnalyzerDiagnosticsAsync();
     }
 
-    internal static PortableExecutableReference EmitReference(CSharpCompilation compilation) =>
-        EmitReference(compilation, filePath: null);
+    internal static EmitOptions ReferenceAssemblyOptions { get; } = new(metadataOnly: true, includePrivateMembers: false);
 
-    internal static PortableExecutableReference EmitReference(CSharpCompilation compilation, string? filePath, bool metadataOnly = false)
+    internal static PortableExecutableReference EmitReference(Compilation compilation, string? filePath = null, EmitOptions? options = null)
     {
         using var stream = new MemoryStream();
-        var options = metadataOnly ? new EmitOptions(metadataOnly: true, includePrivateMembers: false) : null;
         var result = compilation.Emit(stream, options: options);
         result.Diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
         result.Success.Should().BeTrue();
@@ -74,12 +58,18 @@ internal static class AnalyzerTestCompilation
     internal static AnalyzerOptions OptionsWithProperties(IReadOnlyDictionary<string, string> properties, params AdditionalText[] files) =>
         new([.. files], new ConfigOptionsProvider(new ConfigOptions(properties)));
 
+    internal static AnalyzerConfigOptionsProvider EmptyOptionsProvider { get; } =
+        new ConfigOptionsProvider(new ConfigOptions(ImmutableDictionary<string, string>.Empty));
+
     internal static AnalyzerOptions ConventionOptions(string projectName, string? rootNamespace = null, params AdditionalText[] files) =>
-        OptionsWithProperties(new Dictionary<string, string>
+        new([.. files], ConventionOptionsProvider(projectName, rootNamespace));
+
+    internal static AnalyzerConfigOptionsProvider ConventionOptionsProvider(string projectName, string? rootNamespace = null) =>
+        new ConfigOptionsProvider(new ConfigOptions(new Dictionary<string, string>
         {
             ["build_property.MSBuildProjectName"] = projectName,
             ["build_property.RootNamespace"] = rootNamespace ?? projectName
-        }, files);
+        }));
 
     internal static string LocationText(Diagnostic diagnostic) =>
         diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan);
@@ -95,7 +85,7 @@ internal static class AnalyzerTestCompilation
         public override bool TryGetValue(string key, out string value) => values.TryGetValue(key, out value!);
     }
 
-    internal sealed class ConfigOptionsProvider(AnalyzerConfigOptions global) : AnalyzerConfigOptionsProvider
+    private sealed class ConfigOptionsProvider(AnalyzerConfigOptions global) : AnalyzerConfigOptionsProvider
     {
         public override AnalyzerConfigOptions GlobalOptions => global;
         public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => global;

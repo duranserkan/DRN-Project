@@ -167,7 +167,7 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
         var path = Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar));
         if (!SafeDocumentDestination(application, root, path, token))
             return null;
-        return RenderForwardingService(selected, context.Repository, constructed, ns, name, relative, path, scoped);
+        return RenderForwardingService(selected, context.Repository, constructed, ns, name, (relative, path), scoped);
     }
 
     private static async Task<ServiceContext?> ResolveServiceContextAsync(Project domain, Project application,
@@ -184,15 +184,15 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
         var applicationInputs = await ReadInputsWithoutRoleOverrideAsync(application, required: false, token);
         if (domainInputs is null || applicationInputs is null)
             return null;
-        return await ResolveServiceSymbolsAsync(domain, application, selected, domainIdentity.Namespace,
-            applicationIdentity.Namespace, projectPath, domainInputs, applicationInputs, token);
+        return await ResolveServiceSymbolsAsync((domain, domainIdentity.Namespace, domainInputs),
+            (application, applicationIdentity.Namespace, applicationInputs), selected, projectPath, token);
     }
 
-    private static async Task<ServiceContext?> ResolveServiceSymbolsAsync(Project domain, Project application,
-        Selection selected, string domainNamespace, string applicationNamespace, string projectPath,
-        CompilationUnitSyntax domainInputs, CompilationUnitSyntax applicationInputs, CancellationToken token)
+    private static async Task<ServiceContext?> ResolveServiceSymbolsAsync(
+        (Project Project, string Namespace, CompilationUnitSyntax Inputs) domain,
+        (Project Project, string Namespace, CompilationUnitSyntax Inputs) application, Selection selected, string projectPath, CancellationToken token)
     {
-        var compilation = await application.GetCompilationAsync(token);
+        var compilation = await application.Project.GetCompilationAsync(token);
         var repository = compilation?.GetTypeByMetadataName(MetadataName(selected.Method.ContainingType));
         var entity = compilation?.GetTypeByMetadataName(MetadataName(selected.Entity));
         var service = compilation?.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownService`1");
@@ -202,16 +202,16 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
             !Bases(entity).Any(type => Same(type, compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.AggregateRoot"))) ||
             !compilation.IsSymbolAccessibleWithin(repository, compilation.Assembly) ||
             !compilation.IsSymbolAccessibleWithin(entity, compilation.Assembly)) return null;
-        var source = await domain.GetCompilationAsync(token);
+        var source = await domain.Project.GetCompilationAsync(token);
         if (source is null || !SymbolEqualityComparer.Default.Equals(selected.Method.ContainingType.ContainingAssembly, source.Assembly) ||
             source.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownService`1") is not { } sourceService ||
             !sourceService.ContainingAssembly.Identity.Equals(service.ContainingAssembly.Identity)) return null;
         var sourceNamespace = selected.Method.ContainingType.ContainingNamespace.ToDisplayString();
-        if (!ValidNamespace(sourceNamespace) || !sourceNamespace.StartsWith(domainNamespace + ".", StringComparison.Ordinal))
+        if (!ValidNamespace(sourceNamespace) || !sourceNamespace.StartsWith(domain.Namespace + ".", StringComparison.Ordinal))
             return null;
-        var area = sourceNamespace[(domainNamespace.Length + 1)..];
-        return new(compilation, source, repository, entity, service, domainInputs, applicationInputs,
-            domainNamespace, applicationNamespace, projectPath, area, area.Split('.')[0]);
+        var area = sourceNamespace[(domain.Namespace.Length + 1)..];
+        return new(compilation, source, repository, entity, service, domain.Inputs, application.Inputs,
+            domain.Namespace, application.Namespace, projectPath, area, area.Split('.')[0]);
     }
 
     private static bool HasMatchingConventionalOwnership(Selection selected, string domainNamespace, Compilation source,
@@ -248,7 +248,7 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
     }
 
     private static ServicePlan RenderForwardingService(Selection selected, INamedTypeSymbol repository,
-        INamedTypeSymbol constructed, string ns, string name, string relative, string path, bool scoped)
+        INamedTypeSymbol constructed, string ns, string name, (string Relative, string Full) path, bool scoped)
     {
         var format = SymbolDisplayFormat.FullyQualifiedFormat.WithMiscellaneousOptions(
             SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier | SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers);
@@ -275,7 +275,7 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
             }
 
             """;
-        return new(name, relative, path, code);
+        return new(name, path.Relative, path.Full, code);
     }
 
     private static bool Available(ITypeSymbol type, Compilation compilation, CancellationToken token)

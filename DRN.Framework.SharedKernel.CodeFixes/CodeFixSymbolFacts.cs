@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Analyzers.Conventions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -73,16 +74,9 @@ internal static class CodeFixSymbolFacts
         foreach (var reference in type.DeclaringSyntaxReferences)
         {
             token.ThrowIfCancellationRequested();
-            var part = project.GetDocument(reference.SyntaxTree);
-            if (part is null || part.GetLinkedDocumentIds().Length != 0 ||
-                await ClassificationEdit.FindEditableRoot(part, reference.Span.Start, token) is null)
+            var document = project.GetDocument(reference.SyntaxTree);
+            if (document is null || !await IsEditablePartAsync(document, reference, rejectSpanErrors, token))
                 return false;
-            if (rejectSpanErrors)
-            {
-                var model = await part.GetSemanticModelAsync(token);
-                if (model is null || model.GetDiagnostics(reference.Span, token).Any(item => item.Severity == DiagnosticSeverity.Error))
-                    return false;
-            }
         }
         return true;
     }
@@ -96,15 +90,8 @@ internal static class CodeFixSymbolFacts
             token.ThrowIfCancellationRequested();
             var document = project.GetDocument(reference.SyntaxTree);
             if (document?.FilePath is null || !CodeFixDestinationGuard.TryFullPath(document.FilePath, out _) ||
-                document.GetLinkedDocumentIds().Length != 0 ||
-                await ClassificationEdit.FindEditableRoot(document, reference.Span.Start, token) is null)
+                !await IsEditablePartAsync(document, reference, rejectSpanErrors, token))
                 return null;
-            if (rejectSpanErrors)
-            {
-                var model = await document.GetSemanticModelAsync(token);
-                if (model is null || model.GetDiagnostics(reference.Span, token).Any(item => item.Severity == DiagnosticSeverity.Error))
-                    return null;
-            }
             if (home is not null && Path.GetDirectoryName(home.FilePath) != Path.GetDirectoryName(document.FilePath))
                 return null;
             home = document;
@@ -112,6 +99,17 @@ internal static class CodeFixSymbolFacts
         return home;
     }
 
+    private static async Task<bool> IsEditablePartAsync(Document document, SyntaxReference reference, bool rejectSpanErrors,
+        CancellationToken token)
+    {
+        if (document.GetLinkedDocumentIds().Length != 0 ||
+            await ClassificationEdit.FindEditableRoot(document, reference.Span.Start, token) is null) return false;
+        if (!rejectSpanErrors) return true;
+        var model = await document.GetSemanticModelAsync(token);
+        return model is not null && !model.GetDiagnostics(reference.Span, token).Any(item => item.Severity == DiagnosticSeverity.Error);
+    }
+
+    [SuppressMessage("SonarQube", "S3267", Justification = "Inspect matching members directly without a filtered sequence or captured predicate per base type.")]
     internal static bool DefaultDiscovery(INamedTypeSymbol context, Compilation compilation, CancellationToken token = default)
     {
         var drn = compilation.GetTypeByMetadataName("DRN.Framework.EntityFramework.Context.DrnContext`1");
@@ -120,8 +118,8 @@ internal static class CodeFixSymbolFacts
         {
             token.ThrowIfCancellationRequested();
             if (Same(current, drn) || Same(current, identity)) return true;
-            foreach (var method in current.GetMembers("OnModelCreating").OfType<IMethodSymbol>())
-                if (!ForwardsSingleBaseOnModelCreating(method, compilation, token)) return false;
+            foreach (var member in current.GetMembers("OnModelCreating"))
+                if (member is IMethodSymbol method && !ForwardsSingleBaseOnModelCreating(method, compilation, token)) return false;
         }
         return false;
     }

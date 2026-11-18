@@ -1,5 +1,5 @@
 using DRN.Framework.SharedKernel.Analyzers.Conventions;
-using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.ClassificationTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
 
@@ -251,9 +251,8 @@ public sealed class ConventionInfrastructureRulesTests
             [assembly: DRN.Conventions.Version("1")]
             [assembly: DRN.Conventions.Path("Models.cs", LogicalPath = "QA/QAContext.cs")]
             [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
-            """)], new Options());
-        var diagnostics = await analyzerCompilation.WithAnalyzers([new SourceKnownConventionAnalyzer()], inputs)
-            .GetAnalyzerDiagnosticsAsync();
+            """)], AnalyzerTestCompilation.EmptyOptionsProvider);
+        var diagnostics = await AnalyzerTestCompilation.Analyze(analyzerCompilation, new SourceKnownConventionAnalyzer(), inputs);
         diagnostics.Should().NotContain(item => item.Id == "AD0001" || item.Id == "DRNCONVENTIONEXCEPTION001" || item.Id == "DRNPERSISTENCE009");
         diagnostics.Where(item => item.Id == "DRNSTRUCTURE007").Should().HaveCount(suppressed ? 0 : 1);
     }
@@ -264,18 +263,11 @@ public sealed class ConventionInfrastructureRulesTests
     private static ConventionFacts Facts(CSharpCompilation compilation, ImmutableArray<ConventionInput> paths)
     {
         compilation = compilation.WithAssemblyName("Sample.Infra").AddReferences(Framework, Utils);
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         return new(compilation, new(true, "Sample.Infra", "Infra", "Sample.Infra", compilation.AssemblyName!, []),
-            new(paths, []), new Options(), CancellationToken.None);
+            new(paths, []), AnalyzerTestCompilation.EmptyOptionsProvider, CancellationToken.None);
     }
 
     private static ConventionInput PathInput(string source, string logical) => new("Path", source,
         ImmutableDictionary<string, string>.Empty.Add("LogicalPath", logical), Location.None);
-
-    private sealed class Options : AnalyzerConfigOptionsProvider
-    {
-        public override AnalyzerConfigOptions GlobalOptions { get; } = new ConventionInputTests.Config(new());
-        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => GlobalOptions;
-        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => GlobalOptions;
-    }
 }

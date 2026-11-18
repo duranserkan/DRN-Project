@@ -128,17 +128,17 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         if (compilation is null || contract is null) return;
         var contextOwners = TryMergeContextOwners(target.DomainInputs.Contexts, infraInputs.Contexts);
         if (contextOwners is null) return;
-        var inputEvidence = target.DomainInputs.Evidence + infraInputs.Evidence;
+        var evidence = entityEvidence + target.DomainInputs.Evidence + infraInputs.Evidence;
         var types = Types(compilation.Assembly.GlobalNamespace, token).ToArray();
         var contexts = types.Where(type => !type.IsAbstract && !IsOpen(type) &&
             type.AllInterfaces.Any(item => Same(item, contract)) &&
             (type.ContainingNamespace.ToDisplayString() == infraNamespace + "." + target.Owner ||
              type.ContainingNamespace.ToDisplayString().StartsWith(infraNamespace + "." + target.Owner + ".", StringComparison.Ordinal))).ToArray();
         var selections = contexts.Length == 0 ? new INamedTypeSymbol?[] { null } : contexts.Cast<INamedTypeSymbol?>();
+        var project = new InfraPlanProject(infra, infraPath, infraNamespace, compilation, types, infraInputs, contextOwners);
         foreach (var selected in selections)
         {
-            var plan = await TryCreatePlanForContextAsync(target, entityEvidence, infra, infraPath, infraNamespace, compilation, types,
-                contextOwners, infraInputs, inputEvidence, selected, token);
+            var plan = await TryCreatePlanForContextAsync(target, project, evidence, selected, token);
             if (plan is not null) plans.Add(plan);
         }
     }
@@ -158,33 +158,29 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         return merged;
     }
 
-    private static async Task<Plan?> TryCreatePlanForContextAsync(AggregateTarget target, string entityEvidence, Project infra,
-        string infraPath, string infraNamespace, Compilation compilation, INamedTypeSymbol[] types,
-        Dictionary<string, (string Owner, string Reason, string Declaration)> contextOwners,
-        ParsedInputs infraInputs, string inputEvidence, INamedTypeSymbol? selected, CancellationToken token)
+    private static async Task<Plan?> TryCreatePlanForContextAsync(AggregateTarget target, InfraPlanProject infra,
+        string evidence, INamedTypeSymbol? selected, CancellationToken token)
     {
         if (selected is not null &&
             (target.DomainInputs.OwnershipTargets.Contains(CodeFixSymbolFacts.MetadataName(selected)) ||
-             infraInputs.OwnershipTargets.Contains(CodeFixSymbolFacts.MetadataName(selected)))) return null;
-        var infraDirectory = Path.GetDirectoryName(infraPath)!;
+             infra.Inputs.OwnershipTargets.Contains(CodeFixSymbolFacts.MetadataName(selected)))) return null;
         var contextName = selected?.Name ?? target.Owner + "Context";
-        var contextNamespace = selected?.ContainingNamespace.ToDisplayString() ?? infraNamespace + "." + target.Owner;
+        var contextNamespace = selected?.ContainingNamespace.ToDisplayString() ?? infra.Namespace + "." + target.Owner;
         var contextSymbol = selected?.ToDisplayString() ?? contextNamespace + "." + contextName;
-        if (!IsContextSelectionCompatible(compilation, target.Owner, contextOwners, selected, contextNamespace, contextName, token))
+        if (!IsContextSelectionCompatible(infra.Compilation, target.Owner, infra.ContextOwners, selected, contextNamespace, contextName, token))
             return null;
-        var contextDocument = await ResolveEditableContextHomeAsync(infra, selected, token);
+        var contextDocument = await ResolveEditableContextHomeAsync(infra.Project, selected, token);
         if (selected is not null && contextDocument is null) return null;
-        var contextEvidence = await TryCollectContextEvidenceAsync(infra, infraDirectory, contextOwners, selected, token);
+        var contextEvidence = await TryCollectContextEvidenceAsync(infra.Project, infra.Directory, infra.ContextOwners, selected, token);
         if (contextEvidence is null) return null;
-        var contextPath = ResolveContextPlanSourcePath(target, infra, infraDirectory, types, selected, contextDocument,
+        var contextPath = ResolveContextPlanSourcePath(target, infra, selected, contextDocument,
             contextName, contextSymbol, token);
         if (contextPath is null) return null;
         var planName = target.Entity.Name + "." + contextName + ".aggregate-review.md";
         var planPath = Path.Combine(Path.GetDirectoryName(contextPath)!, planName);
-        if (!SafeDestination(infraDirectory, planPath) ||
-            WorkspaceDestinationConflict(target.Domain.Solution, planPath, infra.Id, token)) return null;
-        return BuildAggregatePlan(target, entityEvidence, infra, infraPath, infraDirectory, contextSymbol,
-            selected is null, contextPath, planName, planPath, inputEvidence, contextEvidence);
+        if (!SafeDestination(infra.Directory, planPath) ||
+            WorkspaceDestinationConflict(target.Domain.Solution, planPath, infra.Project.Id, token)) return null;
+        return BuildAggregatePlan(target, infra, (contextSymbol, selected is null, contextPath), planPath, evidence, contextEvidence);
     }
 
     private static bool IsContextSelectionCompatible(Compilation compilation, string owner,
@@ -196,15 +192,15 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         return IsSelectedContextCompatible(compilation, owner, contextOwners, selected, contextName);
     }
 
-    private static string? ResolveContextPlanSourcePath(AggregateTarget target, Project infra, string infraDirectory,
-        INamedTypeSymbol[] types, INamedTypeSymbol? selected, Document? contextDocument, string contextName,
+    private static string? ResolveContextPlanSourcePath(AggregateTarget target, InfraPlanProject infra,
+        INamedTypeSymbol? selected, Document? contextDocument, string contextName,
         string contextSymbol, CancellationToken token)
     {
-        var contextPath = contextDocument?.FilePath ?? Path.Combine(infraDirectory, target.Owner, contextName + ".cs");
+        var contextPath = contextDocument?.FilePath ?? Path.Combine(infra.Directory, target.Owner, contextName + ".cs");
         if (!TryFullPath(contextPath, out contextPath) ||
-            !ConventionGenerationPreflight.IsUnderDirectory(contextPath, infraDirectory)) return null;
-        if (selected is null && (types.Any(type => string.Equals(CodeFixSymbolFacts.MetadataName(type), contextSymbol, StringComparison.OrdinalIgnoreCase)) ||
-                !SafeDocumentDestination(infra, infraDirectory, contextPath, token))) return null;
+            !ConventionGenerationPreflight.IsUnderDirectory(contextPath, infra.Directory)) return null;
+        if (selected is null && (infra.Types.Any(type => string.Equals(CodeFixSymbolFacts.MetadataName(type), contextSymbol, StringComparison.OrdinalIgnoreCase)) ||
+                !SafeDocumentDestination(infra.Project, infra.Directory, contextPath, token))) return null;
         return contextPath;
     }
 
@@ -270,25 +266,24 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         return contextEvidence.ToString();
     }
 
-    private static Plan? BuildAggregatePlan(AggregateTarget target, string entityEvidence, Project infra, string infraPath,
-        string infraDirectory, string contextSymbol, bool isNewContext, string contextPath, string planName, string planPath,
-        string inputEvidence, string contextEvidence)
+    private static Plan? BuildAggregatePlan(AggregateTarget target, InfraPlanProject infra,
+        (string Symbol, bool IsNew, string Path) context, string planPath, string evidence, string contextEvidence)
     {
-        var relativePlanPath = Path.GetRelativePath(infraDirectory, planPath).Replace('\\', '/');
-        var relative = Path.GetRelativePath(infraDirectory, Path.GetDirectoryName(contextPath)!).Replace('\\', '/');
+        var relativePlanPath = Path.GetRelativePath(infra.Directory, planPath).Replace('\\', '/');
+        var relative = Path.GetRelativePath(infra.Directory, Path.GetDirectoryName(context.Path)!).Replace('\\', '/');
         var destinationPrefix = relative == "." ? "" : relative + "/";
         var body = new StringBuilder("# Aggregate review plan\n\nPlan only. Adds this Markdown AdditionalFiles review plan without modifying source, project metadata, references, membership or identity.\n\n");
         body.AppendLine("Aggregate: " + Escape(target.Entity.ToDisplayString()) + "\n\nDomain project: " + Escape(target.DomainPath));
-        body.AppendLine("Infra project: " + Escape(infraPath) + "\n\nPlan destination: " + Escape(planPath));
-        body.AppendLine("Context: " + Escape(contextSymbol) + (isNewContext ? " (proposed new context, not created)" : " (existing, preserve identity and configuration)"));
-        body.AppendLine("Context source destination: " + Escape(contextPath));
+        body.AppendLine("Infra project: " + Escape(infra.ProjectPath) + "\n\nPlan destination: " + Escape(planPath));
+        body.AppendLine("Context: " + Escape(context.Symbol) + (context.IsNew ? " (proposed new context, not created)" : " (existing, preserve identity and configuration)"));
+        body.AppendLine("Context source destination: " + Escape(context.Path));
         body.AppendLine("Proposed Repositories destination: " + Escape(destinationPrefix + "Repositories"));
         body.AppendLine("Proposed Migrations destination: " + Escape(destinationPrefix + "Migrations"));
         body.AppendLine("Conventional destinations need no Context item when namespace and logical source homes agree. Declare alternate or ambiguous destinations explicitly, with a Reason for alternatives.");
-        body.AppendLine("\n## Existing evidence\n" + entityEvidence + inputEvidence);
+        body.AppendLine("\n## Existing evidence\n" + evidence);
         body.Append(contextEvidence);
         body.AppendLine("\n## Required review\n\n- Confirm namespace-derived ownership and every supplied input. Multiple contexts are valid. No membership is inferred from selection.\n- Reconcile proposed destinations with existing Context items. Reuse existing metadata; do not duplicate or replace it.\n- Select optional configuration, repository, DTO, service and transport artifacts independently. Attribute-only mapping remains valid.\n- Confirm entity inclusion and all shared configuration discovery paths. Cross-owner use requires a separate narrow reasoned exception.\n- Preserve existing entity ID declarations, context CLR name, connection keys, schema, migrations and runtime safeguards. Missing identity is unresolved, never allocated here.\n- For a new context, review the SCAFFOLDING.md DrnContext template and conventional options/parameterless constructors. No provider settings are inferred.\n- Review exact source and project preimages, path/case/symbol collisions and references before implementation. No required project reference is inferred or added.\n- Project-system atomic application is unsupported by this plan. Keep source and any explicit destination overrides together in a separately reviewed host transaction.\n- EF tooling alone owns generated migrations. No database operation, executable scaffold or empty directory placeholder is produced.\n\nCompilation, model compatibility and host atomic application remain unverified.\n");
-        return body.Length < 12000 ? new(infra.Id, infra.Name, contextSymbol, planName, planPath, relativePlanPath, body.ToString()) : null;
+        return body.Length < 12000 ? new(infra.Project.Id, infra.Project.Name, context.Symbol, Path.GetFileName(planPath), planPath, relativePlanPath, body.ToString()) : null;
     }
 
     private static async Task<ParsedInputs?> ReadProjectInputs(Project project, CancellationToken token)
@@ -366,6 +361,12 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
             return false;
         contexts[name] = (declaredOwner, reason, attribute.ToString());
         return true;
+    }
+
+    private sealed record InfraPlanProject(Project Project, string ProjectPath, string Namespace, Compilation Compilation,
+        INamedTypeSymbol[] Types, ParsedInputs Inputs, Dictionary<string, (string Owner, string Reason, string Declaration)> ContextOwners)
+    {
+        internal string Directory { get; } = Path.GetDirectoryName(ProjectPath)!;
     }
 
     private sealed record AggregateTarget(Project Domain, Compilation DomainCompilation, string DomainPath,

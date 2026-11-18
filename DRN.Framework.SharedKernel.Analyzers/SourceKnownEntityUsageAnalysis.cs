@@ -246,36 +246,9 @@ internal sealed class SourceKnownEntityUsageAnalysis
         if (operand is null || SymbolEqualityComparer.Default.Equals(target, UnderlyingType(conversion.Operand.Type)))
             return operand;
 
-        // Roslyn leaves lifted casts unfolded. The two identity contracts use int and byte storage.
+        // Roslyn leaves lifted casts unfolded. Apply each intermediate storage conversion in order.
         var storage = target is INamedTypeSymbol { EnumUnderlyingType: { } storageType } ? storageType : target;
-        if (storage?.SpecialType is not (SpecialType.System_Byte or SpecialType.System_Int32)) return null;
-        return ConvertIdentityConstant(operand, storage.SpecialType == SpecialType.System_Byte, conversion.IsChecked);
-    }
-
-    private static object? ConvertIdentityConstant(object operand, bool isByte, bool isChecked)
-    {
-        var min = isByte ? byte.MinValue : int.MinValue;
-        var max = isByte ? byte.MaxValue : int.MaxValue;
-        if (operand is double or float)
-        {
-            var truncated = Math.Truncate(operand is double d ? d : (float)operand);
-            if (!(truncated >= min && truncated <= max)) return null;
-            return isByte ? (object)(byte)truncated : (int)truncated;
-        }
-
-        decimal number;
-        if (operand is decimal dec) number = decimal.Truncate(dec);
-        else if (operand is char character) number = character;
-        else if (operand is ulong unsigned) number = unsigned;
-        else if (TryToInt64(operand, out var integer)) number = integer;
-        else return null;
-
-        if (number < min || number > max)
-        {
-            if (isChecked || operand is decimal) return null;
-            number %= isByte ? 256L : 1L << 32;
-        }
-        return isByte ? (object)unchecked((byte)(long)number) : unchecked((int)(long)number);
+        return storage is null ? null : IntegralConstant.ConvertValue(operand, storage.SpecialType, conversion.IsChecked);
     }
 
     private static bool TryToInt64(object? rawValue, out long value)

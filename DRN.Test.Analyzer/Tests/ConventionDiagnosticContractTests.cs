@@ -4,7 +4,7 @@ using DRN.Framework.SharedKernel.Analyzers.Conventions;
 using static DRN.Framework.SharedKernel.Analyzers.ClassificationDiagnosticDescriptors;
 using static DRN.Framework.SharedKernel.Analyzers.Conventions.ConventionDiagnosticDescriptors;
 using static DRN.Framework.SharedKernel.Analyzers.DiagnosticDescriptors;
-using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.ClassificationTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
 
@@ -80,10 +80,10 @@ public sealed class ConventionDiagnosticContractTests
     }
 
     [Theory]
-    [InlineData(true, true)]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    [InlineData(false, false)]
+    [DataInlineUnit(true, true)]
+    [DataInlineUnit(true, false)]
+    [DataInlineUnit(false, true)]
+    [DataInlineUnit(false, false)]
     public async Task Ef_Registration_And_Module_Scan_Should_Report_Independently(bool registerContext, bool includeModule)
     {
         var registrationApi = registerContext ? "Ef" : "Lookalike";
@@ -639,8 +639,8 @@ public sealed class ConventionDiagnosticContractTests
     private static ConventionFacts Analyze(Scenario scenario, params ConventionInput[] extra)
     {
         var compilation = CreateCompilation(scenario);
-        compilation.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
-        var options = new Options(scenario.Role);
+        compilation.AssertNoCompilerErrors();
+        var options = AnalyzerTestCompilation.ConventionOptionsProvider("Sample." + scenario.Role);
         var facts = new ConventionFacts(compilation, new(true, "Sample." + scenario.Role, scenario.Role, "Sample." + scenario.Role, compilation.AssemblyName!, []),
             new([.. scenario.Inputs, .. extra], []), options, CancellationToken.None);
         scenario.Analyze(facts);
@@ -652,7 +652,6 @@ public sealed class ConventionDiagnosticContractTests
         var compilation = CreateCompilation(scenario);
         if (scenario is { IncludeModule: true, Role: ("Hosted" or "Application" or "Infra" or "Utils") })
             compilation = ConventionTestDependencies.WithModule(compilation);
-        compilation.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
         var (layered, layerRecords) = scenario.IncludeRequiredLayers
             ? ConventionTestDependencies.WithRequiredLayers(compilation, scenario.Role)
             : ((Compilation)compilation, ImmutableArray<ConventionInput>.Empty);
@@ -668,8 +667,8 @@ public sealed class ConventionDiagnosticContractTests
         var input = new ProjectDiagnosticRulesTests.RuleFile(ConventionInputs.FileName,
             "[assembly: DRN.Conventions.Version(\"1\")]\n" + string.Join("\n", declarations));
         var subject = scenario.ConventionsEnabled ? layered : ConventionTestDependencies.SuppressConventions(layered);
-        var diagnostics = await subject.WithAnalyzers([new SourceKnownConventionAnalyzer()],
-            new AnalyzerOptions([input], new Options(scenario.Role))).GetAnalyzerDiagnosticsAsync();
+        var diagnostics = await AnalyzerTestCompilation.Analyze(subject, new SourceKnownConventionAnalyzer(),
+            AnalyzerTestCompilation.ConventionOptions("Sample." + scenario.Role, files: input));
         diagnostics.Should().NotContain(diagnostic => diagnostic.Id == "AD0001");
         if (scenario.IncludeModule) diagnostics.Should().NotContain(diagnostic => diagnostic.Id == "DRNDEPENDENCYINJECTION003");
         return diagnostics;
@@ -678,16 +677,14 @@ public sealed class ConventionDiagnosticContractTests
     private static (MetadataReference Reference, ConventionInput[] Records) CreateDomainFixture(string assemblyName, string source)
     {
         var domain = Compilation(source).WithAssemblyName(assemblyName);
-        domain.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
-        using var image = new MemoryStream();
-        domain.Emit(image).Success.Should().BeTrue();
+        domain.AssertNoCompilerErrors();
         var path = "/convention-fixtures/" + assemblyName;
         ConventionInput[] records =
         [
             Input("Reference", path + ".csproj", ("Stage", "Project"), ("Source", path + ".csproj")),
             Input("Reference", path + ".dll", ("Stage", "Resolved"), ("Project", path + ".csproj"))
         ];
-        return (MetadataReference.CreateFromImage(image.ToArray(), filePath: path + ".dll"), records);
+        return (AnalyzerTestCompilation.EmitReference(domain, path + ".dll"), records);
     }
 
     private static ConventionInput Input(string kind, string identity, params (string Key, string Value)[] fields) => new(kind, identity,
@@ -697,15 +694,4 @@ public sealed class ConventionDiagnosticContractTests
     private sealed record Scenario(string Role, string Source, ConventionInput[] Inputs, string Target, string Location,
         string Message, Action<ConventionFacts> Analyze, bool ConventionsEnabled = true, bool IncludeModule = true,
         bool IncludeRequiredLayers = true, MetadataReference[]? ExtraReferences = null, SyntaxTree? ExtraTree = null);
-
-    private sealed class Options(string role = "Domain") : AnalyzerConfigOptionsProvider
-    {
-        public override AnalyzerConfigOptions GlobalOptions { get; } = new ConventionInputTests.Config(new()
-        {
-            ["build_property.MSBuildProjectName"] = "Sample." + role,
-            ["build_property.RootNamespace"] = "Sample." + role
-        });
-        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => GlobalOptions;
-        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => GlobalOptions;
-    }
 }

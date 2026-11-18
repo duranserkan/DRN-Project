@@ -1,4 +1,5 @@
 using DRN.Framework.SharedKernel.CodeFixes;
+using DRN.Framework.Testing.Contexts;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeRefactorings;
 using Microsoft.CodeAnalysis.Text;
@@ -13,6 +14,28 @@ public sealed class EntityConfigurationRefactoringTests
         public class User : DRN.Framework.SharedKernel.Domain.SourceKnownEntity;
         """;
 
+    [Theory]
+    [DataInlineUnit]
+    public void Destination_Guard_Should_Reject_Linked_Roots_And_Descendants(DrnTestContextUnit context)
+    {
+        var temp = context.GetTempPath();
+        var root = Directory.CreateDirectory(Path.Combine(temp, "Project")).FullName;
+        var target = Directory.CreateDirectory(Path.Combine(temp, "Outside")).FullName;
+        var link = Path.Combine(root, "Linked");
+        try
+        {
+            Directory.CreateSymbolicLink(link, target);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            Assert.Skip("Directory symbolic links are unavailable.");
+        }
+        var destination = Path.Combine(link, "Missing", "Config.cs");
+        CodeFixDestinationGuard.SafeDestination(link, destination).Should().BeFalse();
+        CodeFixDestinationGuard.SafeDestination(root, destination).Should().BeFalse();
+        CodeFixDestinationGuard.SafeDestination(root, Path.Combine(root, "Missing", "Config.cs")).Should().BeTrue();
+    }
+
     [Fact]
     public async Task Attribute_Only_Entity_Should_Offer_Additive_Context_Selected_Configuration()
     {
@@ -21,15 +44,14 @@ public sealed class EntityConfigurationRefactoringTests
         var actions = await Actions(entity);
         var action = actions.Should().ContainSingle().Which;
         action.Title.Should().Contain("Sample.Infra.QA.QAContext").And.Contain("QA/Configurations/UserConfig.cs");
-        var operations = await action.GetOperationsAsync(CancellationToken.None);
-        var changed = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var changed = await action.GetChangedSolutionAsync();
         (await changed.GetDocument(entity.Id)!.GetTextAsync()).ToString().Should().Be(EntitySource);
         var added = changed.GetProject(entity.Project.Id)!.Documents.Single(document => document.Name == "UserConfig.cs");
         var source = (await added.GetTextAsync()).ToString();
         source.Should().Contain("namespace Sample.Infra.QA.Configurations;")
             .And.Contain("IEntityTypeConfiguration<global::Sample.Domain.QA.User>")
             .And.Contain("public void Configure(").And.NotContain("HasKey").And.NotContain("ToTable");
-        (await added.Project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        (await added.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
         workspace.TryApplyChanges(changed).Should().BeTrue();
         (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().BeEmpty();
     }
@@ -58,7 +80,7 @@ public sealed class EntityConfigurationRefactoringTests
             "public static Microsoft.EntityFrameworkCore.DbSet", StringComparison.Ordinal);
         workspace.TryApplyChanges(context.WithText(SourceText.From(source)).Project.Solution).Should().BeTrue();
         var current = workspace.CurrentSolution.GetDocument(entity.Id)!;
-        (await current.Project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        (await current.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
         (await Actions(current)).Should().BeEmpty();
     }
 
@@ -96,8 +118,7 @@ public sealed class EntityConfigurationRefactoringTests
             """;
         workspace.TryApplyChanges(context.WithText(SourceText.From(source)).Project.Solution).Should().BeTrue();
         var current = workspace.CurrentSolution.GetDocument(entity.Id)!;
-        (await current.Project.GetCompilationAsync())!.GetDiagnostics().Should()
-            .NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        (await current.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
         (await Actions(current)).Should().HaveCount(!derivedSet || explicitInclusion ? 1 : 0);
     }
 
@@ -119,8 +140,7 @@ public sealed class EntityConfigurationRefactoringTests
             .WithDocumentText(context.Id, SourceText.From(contextSource));
         workspace.TryApplyChanges(solution).Should().BeTrue();
         var current = workspace.CurrentSolution.GetDocument(entity.Id)!;
-        (await current.Project.GetCompilationAsync())!.GetDiagnostics()
-            .Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        (await current.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
         (await Actions(current)).Should().BeEmpty();
     }
 
@@ -210,8 +230,7 @@ public sealed class EntityConfigurationRefactoringTests
         var action = (await Actions(entity)).Single();
         var changed = entity.WithText(SourceText.From(EntitySource + "\n// concurrent edit"));
         workspace.TryApplyChanges(changed.Project.Solution).Should().BeTrue();
-        var operations = await action.GetOperationsAsync(CancellationToken.None);
-        var result = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var result = await action.GetChangedSolutionAsync();
         result.GetProject(entity.Project.Id)!.Documents.Should().NotContain(document => document.Name == "UserConfig.cs");
         (await result.GetDocument(entity.Id)!.GetTextAsync()).ToString().Should().EndWith("// concurrent edit");
     }
@@ -242,7 +261,7 @@ public sealed class EntityConfigurationRefactoringTests
         var actions = await Actions(entity);
         actions.Should().HaveCount(supported ? 1 : 0);
         if (!supported) return;
-        var changed = (await actions[0].GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var changed = await actions[0].GetChangedSolutionAsync();
         (await changed.GetDocument(entity.Id)!.GetTextAsync()).ToString().Should().Be(EntitySource);
         var context = changed.GetProject(entity.Project.Id)!.Documents.Single(document => document.Name == "QAContext.cs");
         (await context.GetTextAsync()).ToString().Should().Contain(members);
@@ -275,10 +294,10 @@ public sealed class EntityConfigurationRefactoringTests
         var actions = await Actions(entity);
         actions.Should().HaveCount(supported ? 1 : 0);
         if (!supported) return;
-        var changed = (await actions[0].GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var changed = await actions[0].GetChangedSolutionAsync();
         var project = changed.GetProject(entity.Project.Id)!;
         (await project.Documents.Single(document => document.Name == "QAContext.cs").GetTextAsync()).ToString().Should().Contain(members);
-        (await project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        (await project.GetCompilationAsync())!.AssertNoCompilerErrors();
     }
 
     [Theory]
@@ -371,16 +390,16 @@ public sealed class EntityConfigurationRefactoringTests
     }
 
     [Theory]
-    [InlineData("")]
-    [InlineData("[assembly: DRN.Conventions.Version(\"2\")]")]
-    [InlineData("[module: DRN.Conventions.Version(\"1\")]")]
-    [InlineData("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Version(\"1\")]")]
-    [InlineData("[assembly: DRN.Conventions.Version(\"1\")] class Executable { }")]
-    [InlineData("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Path(\"/source/User.cs\", LogicalPath = \"../outside.cs\")]")]
-    [InlineData("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Reference(\"Inventory\", Stage = \"Custom\")]")]
-    [InlineData("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Ownership(\"Sample.Domain.QA.User\", Subdomain = \"QA\", Kind = \"Helper\")]")]
-    [InlineData("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Context(\"Sample.Infra.QA.QAContext\", Repositories = \"../outside\")]")]
-    [InlineData("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Exception(\"DRNARCHITECTURE004\", SymbolTarget = \"T:Sample.Domain.QA.User\")]")]
+    [DataInlineUnit("")]
+    [DataInlineUnit("[assembly: DRN.Conventions.Version(\"2\")]")]
+    [DataInlineUnit("[module: DRN.Conventions.Version(\"1\")]")]
+    [DataInlineUnit("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Version(\"1\")]")]
+    [DataInlineUnit("[assembly: DRN.Conventions.Version(\"1\")] class Executable { }")]
+    [DataInlineUnit("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Path(\"/source/User.cs\", LogicalPath = \"../outside.cs\")]")]
+    [DataInlineUnit("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Reference(\"Inventory\", Stage = \"Custom\")]")]
+    [DataInlineUnit("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Ownership(\"Sample.Domain.QA.User\", Subdomain = \"QA\", Kind = \"Helper\")]")]
+    [DataInlineUnit("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Context(\"Sample.Infra.QA.QAContext\", Repositories = \"../outside\")]")]
+    [DataInlineUnit("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Exception(\"DRNARCHITECTURE004\", SymbolTarget = \"T:Sample.Domain.QA.User\")]")]
     public async Task Invalid_Present_Input_Should_Not_Authorize_Default_Configuration_Paths(string input)
     {
         using var workspace = new AdhocWorkspace();
@@ -427,14 +446,14 @@ public sealed class EntityConfigurationRefactoringTests
         var source = (await context.GetTextAsync()).ToString().Replace("namespace Sample.Infra.QA;", "", StringComparison.Ordinal);
         workspace.TryApplyChanges(context.WithText(SourceText.From(source)).Project.Solution).Should().BeTrue();
         entity = workspace.CurrentSolution.GetDocument(entity.Id)!;
-        (await entity.Project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        (await entity.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
         (await Actions(entity)).Should().BeEmpty();
     }
 
     [Fact]
     public async Task EntitySuffixed_Aggregate_Should_Generate_Stemmed_Config_And_Detect_Verbatim_And_Relative_Input_Rules()
     {
-        var collisionCompilation = DiagnosticClassificationAnalyzerTests.Compilation("""
+        var collisionCompilation = ClassificationTestFixture.Compilation("""
             namespace Sample.@event { public class Order; }
             namespace Sample.QA { public class @event; }
             """);
@@ -453,7 +472,7 @@ public sealed class EntityConfigurationRefactoringTests
         var domain = entityWorkspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
                 "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: "/source/Sample.Domain/Sample.Domain.csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
-            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References);
+            .AddMetadataReferences(ClassificationTestFixture.References);
         var entity = domain.AddDocument("OrderEntity.cs", """
             namespace Sample.Domain.QA.Order;
             [DRN.Framework.SharedKernel.Domain.EntityType<SampleApp>(1)]
@@ -466,7 +485,7 @@ public sealed class EntityConfigurationRefactoringTests
                 "Sample.Infra", "Sample.Infra", LanguageNames.CSharp, filePath: "/source/Sample.Infra/Sample.Infra.csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddProjectReference(new ProjectReference(domain.Id))
-            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
+            .AddMetadataReferences(ClassificationTestFixture.References)
             .AddMetadataReference(AnalyzerTestCompilation.EntityFrameworkReference)
             .AddMetadataReference(AnalyzerTestCompilation.UtilsReference);
         var context = infra.AddDocument("QAContext.cs", """
@@ -498,11 +517,11 @@ public sealed class EntityConfigurationRefactoringTests
             new TextSpan(text.IndexOf("OrderEntity :", StringComparison.Ordinal), 0), actions.Add, CancellationToken.None));
         var action = actions.Should().ContainSingle().Which;
         action.Title.Should().Contain("QA/Configurations/OrderConfig.cs");
-        var changed = (await action.GetOperationsAsync(CancellationToken.None)).OfType<ApplyChangesOperation>().Single().ChangedSolution;
+        var changed = await action.GetChangedSolutionAsync();
         var added = changed.Projects.Single(project => project.Name == "Sample.Infra").Documents
             .Single(document => document.Name == "OrderConfig.cs");
         (await added.GetTextAsync()).ToString().Should().Contain("public sealed class OrderConfig : global::Microsoft.EntityFrameworkCore.IEntityTypeConfiguration<global::Sample.Domain.QA.Order.OrderEntity>");
-        (await added.Project.GetCompilationAsync())!.GetDiagnostics().Should().NotContain(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        (await added.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
     }
 
     [Fact]
@@ -512,7 +531,7 @@ public sealed class EntityConfigurationRefactoringTests
         var domain = aliasWorkspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
                 "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: "/source/Sample.Domain/Sample.Domain.csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
-            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References);
+            .AddMetadataReferences(ClassificationTestFixture.References);
         var entityDoc = domain.AddDocument("OrderEntity.cs", """
             namespace Sample.Domain.QA.Order;
             public sealed class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot;
@@ -522,7 +541,7 @@ public sealed class EntityConfigurationRefactoringTests
                 "Sample.Infra", "Sample.Infra", LanguageNames.CSharp, filePath: "/source/Sample.Infra/Sample.Infra.csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddProjectReference(new ProjectReference(domain.Id, ["DomainAlias"]))
-            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
+            .AddMetadataReferences(ClassificationTestFixture.References)
             .AddMetadataReference(AnalyzerTestCompilation.EntityFrameworkReference)
             .AddMetadataReference(AnalyzerTestCompilation.UtilsReference);
         var aliasedContext = infra.AddDocument("QAContext.cs", """
@@ -577,7 +596,7 @@ public sealed class EntityConfigurationRefactoringTests
         var project = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
                 "Sample.Infra", "Sample.Infra", LanguageNames.CSharp, filePath: "/source/Sample.Infra/Sample.Infra.csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
-            .AddMetadataReferences(DiagnosticClassificationAnalyzerTests.References)
+            .AddMetadataReferences(ClassificationTestFixture.References)
             .AddMetadataReference(AnalyzerTestCompilation.EntityFrameworkReference)
             .AddMetadataReference(AnalyzerTestCompilation.UtilsReference);
         var entity = project.AddDocument("User.cs", EntitySource, filePath: "/source/Sample.Infra/QA/User.cs");

@@ -377,7 +377,7 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
                 public void Two() { }
             }
             """, FrameworkReference.Value);
-        compilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error).Should().BeEmpty();
+        compilation.AssertNoCompilerErrors();
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
         var act = async () => await compilation.WithAnalyzers([new SourceKnownControllerAuthorizationAnalyzer()])

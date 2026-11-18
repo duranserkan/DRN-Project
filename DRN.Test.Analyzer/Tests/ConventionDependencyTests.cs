@@ -1,7 +1,7 @@
 using System.Xml.Linq;
 using DRN.Framework.SharedKernel.Analyzers.Conventions;
 using Microsoft.CodeAnalysis.Emit;
-using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.ClassificationTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
 
@@ -217,12 +217,11 @@ public sealed class ConventionDependencyTests
                     }
                     """, path: "HostedModule.cs"))
         };
-        fixture.Compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
         var compilation = suppressed ? ConventionTestDependencies.SuppressConventions(fixture.Compilation) : fixture.Compilation;
         var input = new ProjectDiagnosticRulesTests.RuleFile(ConventionInputs.FileName,
             "[assembly: DRN.Conventions.Version(\"1\")]\n" + ConventionTestDependencies.Serialize(fixture.Records));
-        var diagnostics = await compilation.WithAnalyzers([new SourceKnownConventionAnalyzer()],
-            new AnalyzerOptions([input], new Options(fixture.Name))).GetAnalyzerDiagnosticsAsync();
+        var diagnostics = await AnalyzerTestCompilation.Analyze(compilation, new SourceKnownConventionAnalyzer(),
+            AnalyzerTestCompilation.ConventionOptions(fixture.Name, files: input));
         diagnostics.Should().NotContain(item => item.Id == "AD0001");
         if (suppressed)
         {
@@ -260,16 +259,12 @@ public sealed class ConventionDependencyTests
             namespace Finance.Domain.Billing;
             public class Invoice;
             """).WithAssemblyName("Finance.Domain");
-        using var commerceImage = new MemoryStream();
-        commerce.Emit(commerceImage).Success.Should().BeTrue();
-        using var financeImage = new MemoryStream();
-        finance.Emit(financeImage).Success.Should().BeTrue();
         var commercePath = "/dependency-tests/Commerce.Domain.dll";
         var financePath = "/dependency-tests/Finance.Domain.dll";
         var compilation = Compilation("public class Consumer;", "Consumer.cs").WithAssemblyName("Storage.Infra")
             .AddReferences(
-                MetadataReference.CreateFromImage(commerceImage.ToArray(), filePath: commercePath),
-                MetadataReference.CreateFromImage(financeImage.ToArray(), filePath: financePath));
+                AnalyzerTestCompilation.EmitReference(commerce, commercePath),
+                AnalyzerTestCompilation.EmitReference(finance, financePath));
         ConventionInput[] references =
         [
             new("Reference", ProjectPath("Commerce.Domain"), ImmutableDictionary<string, string>.Empty
@@ -306,11 +301,7 @@ public sealed class ConventionDependencyTests
             namespace Web.Hosted;
             public class HomeMarker;
             """).WithAssemblyName("Web.Hosted");
-        using var domainImage = new MemoryStream();
-        domain.Emit(domainImage, options: new EmitOptions(metadataOnly: true)).Success.Should().BeTrue();
-        using var hostedImage = new MemoryStream();
-        hosted.Emit(hostedImage, options: new EmitOptions(metadataOnly: true)).Success.Should().BeTrue();
-
+        var emitOptions = new EmitOptions(metadataOnly: true);
         var domainRefPath = "/dependency-tests/Commerce.Domain/obj/Debug/net11.0/ref/Commerce.Domain.dll";
         var hostedRefPath = "/dependency-tests/Web.Hosted/obj/Debug/net11.0/ref/Web.Hosted.dll";
         var compilation = Compilation("""
@@ -319,8 +310,8 @@ public sealed class ConventionDependencyTests
             """, "Sales/SalesContext.cs").WithAssemblyName("Storage.Infra")
             .AddReferences(AnalyzerTestCompilation.EntityFrameworkReference)
             .AddReferences(
-                MetadataReference.CreateFromImage(domainImage.ToArray(), filePath: domainRefPath),
-                MetadataReference.CreateFromImage(hostedImage.ToArray(), filePath: hostedRefPath));
+                AnalyzerTestCompilation.EmitReference(domain, domainRefPath, emitOptions),
+                AnalyzerTestCompilation.EmitReference(hosted, hostedRefPath, emitOptions));
         ConventionInput[] records =
         [
             new("Reference", "Inventory", ImmutableDictionary<string, string>.Empty.Add("Stage", "Complete"), location),
@@ -396,7 +387,7 @@ public sealed class ConventionDependencyTests
 
     private static ConventionFacts Facts(Fixture fixture)
     {
-        var options = new Options(fixture.Name);
+        var options = AnalyzerTestCompilation.ConventionOptionsProvider(fixture.Name);
         return new(fixture.Compilation, ConventionProject.Read(fixture.Compilation, options.GlobalOptions),
             new(fixture.Records, []), options, CancellationToken.None);
     }
@@ -435,23 +426,11 @@ public sealed class ConventionDependencyTests
             if (dependency.Kind == "Package") fields = fields.Add("Package", dependency.Name);
             records.Add(new("Reference", assemblyPath, fields, location));
         }
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         return new(name, compilation, records.ToImmutable());
     }
 
     private static string ProjectPath(string name) => "/dependency-tests/" + name + ".csproj";
     private sealed record Dependency(string Name, string Subdomain = "QA", string Kind = "Project", bool Resolved = true);
     private sealed record Fixture(string Name, CSharpCompilation Compilation, ImmutableArray<ConventionInput> Records);
-
-    private sealed class Options(string name) : AnalyzerConfigOptionsProvider
-    {
-        public override AnalyzerConfigOptions GlobalOptions { get; } = new AnalyzerTestCompilation.ConfigOptions(
-            new Dictionary<string, string>
-            {
-                ["build_property.MSBuildProjectName"] = name,
-                ["build_property.RootNamespace"] = name
-            });
-        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => GlobalOptions;
-        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => GlobalOptions;
-    }
 }

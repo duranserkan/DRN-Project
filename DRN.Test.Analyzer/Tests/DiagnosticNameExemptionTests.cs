@@ -1,4 +1,4 @@
-using static DRN.Test.Analyzer.Tests.DiagnosticClassificationAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.ClassificationTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
 
@@ -241,8 +241,6 @@ public sealed class DiagnosticNameExemptionTests
             public class Envelope { public Details Password { get; set; } }
             public class Details { public string Secret { get; set; } }
             """).WithAssemblyName("ExternalModels");
-        using var stream = new MemoryStream();
-        producer.Emit(stream).Success.Should().BeTrue();
         var consumer = Compilation("""
             namespace DRN.Framework.Utils.Logging
             {
@@ -261,7 +259,7 @@ public sealed class DiagnosticNameExemptionTests
                     log.Add("Protected", value);
                 }
             }
-            """).AddReferences(MetadataReference.CreateFromImage(stream.ToArray()));
+            """).AddReferences(AnalyzerTestCompilation.EmitReference(producer));
         var diagnostics = await Analyze(consumer, new ProjectDiagnosticRulesTests.RuleFile("data-classification-rules.json",
             """{"sensitiveFieldPaths":["Protected.Password"]}"""));
 

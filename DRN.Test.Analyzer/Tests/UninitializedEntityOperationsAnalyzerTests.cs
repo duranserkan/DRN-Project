@@ -1,4 +1,4 @@
-using static DRN.Test.Analyzer.Tests.SourceKnownEntityTypeAnalyzerTests;
+using static DRN.Test.Analyzer.Tests.EntityAnalyzerTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
 
@@ -58,7 +58,7 @@ public sealed class UninitializedEntityOperationsAnalyzerTests
             """;
 
         var compilation = CreateEntityCompilation([FreshEntityStubs, source]);
-        compilation.GetDiagnostics().Should().NotContain(item => item.Severity == DiagnosticSeverity.Error);
+        compilation.AssertNoCompilerErrors();
         var tree = compilation.SyntaxTrees.Last();
         var analyzers = compilation.WithAnalyzers([new SourceKnownEntityTypeAnalyzer()]);
         var diagnostics = await analyzers.GetAnalyzerSemanticDiagnosticsAsync(

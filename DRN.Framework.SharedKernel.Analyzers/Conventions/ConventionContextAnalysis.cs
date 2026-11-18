@@ -169,19 +169,19 @@ internal static class ConventionContextAnalysis
         if (role.PathPrefix.Length > 0) area = role.PathPrefix + "/" + area;
         if (HasAggregateDbSet(facts, type) || artifacts.Repositories.ContainsKey(type) ||
             !string.IsNullOrWhiteSpace(input?.Get(ConventionInputSyntax.RepositoriesField)))
-            CheckDestination(facts, type, input, location, artifacts, ns, area, ConventionInputSyntax.RepositoriesField);
+            CheckDestination(facts, type, input, location, artifacts, (ns, area), ConventionInputSyntax.RepositoriesField);
         if (artifacts.Migrations.ContainsKey(type) ||
             !string.IsNullOrWhiteSpace(input?.Get(ConventionInputSyntax.MigrationsField)) ||
             !string.IsNullOrWhiteSpace(input?.Get(ConventionInputSyntax.MigrationsAssemblyField)))
-            CheckDestination(facts, type, input, location, artifacts, ns, area, ConventionInputSyntax.MigrationsField);
+            CheckDestination(facts, type, input, location, artifacts, (ns, area), ConventionInputSyntax.MigrationsField);
     }
 
     private static void CheckDestination(ConventionFacts facts, INamedTypeSymbol type, ConventionInput? input,
-        Location location, ContextArtifacts artifacts, string ns, string area, string kind)
+        Location location, ContextArtifacts artifacts, (string Namespace, string Directory) home, string kind)
     {
-        var expected = area + "/" + kind;
+        var expected = home.Directory + "/" + kind;
         var actual = input?.Get(kind) ?? "";
-        if (actual.Length == 0 && HasConventionalDestination(facts, type, input, artifacts, ns, area, kind, expected)) return;
+        if (actual.Length == 0 && HasConventionalDestination(facts, type, input, artifacts, home, kind, expected)) return;
         var valid = ConventionProject.IsLogicalPath(actual);
         var conventional = ConventionProject.NormalizeSeparators(actual) == expected;
         var reasonedOverride = !string.IsNullOrWhiteSpace(input?.Get(ConventionInputSyntax.ReasonField));
@@ -195,15 +195,15 @@ internal static class ConventionContextAnalysis
     }
 
     private static bool HasConventionalDestination(ConventionFacts facts, INamedTypeSymbol type, ConventionInput? input,
-        ContextArtifacts artifacts, string ns, string area, string kind, string expected)
+        ContextArtifacts artifacts, (string Namespace, string Directory) home, string kind, string expected)
     {
         if (kind == ConventionInputSyntax.MigrationsField &&
             input?.Get(ConventionInputSyntax.MigrationsAssemblyField) is { Length: > 0 } assembly &&
             assembly != type.ContainingAssembly.Name) return false;
-        if (!HasLogicalHome(facts, type, area, ignoreGenerated: true)) return false;
+        if (!HasLogicalHome(facts, type, home.Directory, ignoreGenerated: true)) return false;
         var index = kind == ConventionInputSyntax.RepositoriesField ? artifacts.Repositories : artifacts.Migrations;
         if (!index.TryGetValue(type, out var associated)) return true;
-        var expectedNamespace = ns + "." + kind;
+        var expectedNamespace = home.Namespace + "." + kind;
         foreach (var artifact in associated)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
