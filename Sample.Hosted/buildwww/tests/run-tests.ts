@@ -3,7 +3,7 @@ import { copyFileSync, globSync, mkdtempDisposableSync, statSync } from 'node:fs
 import { basename, dirname, join, matchesGlob, normalize, relative, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { parseArgs } from 'node:util';
-import { startVitest, type CoverageV8Options } from 'vitest/node';
+import { startVitest, type CoverageOptions } from 'vitest/node';
 import { defaultCoverageExcludes, unitTestPattern } from '../../vitest.config.ts';
 import { coverageReportPath } from '../../../.github/actions/frontend-validation/coverage.mts';
 import { printCoverageReport } from './reporters/summary.ts';
@@ -33,7 +33,7 @@ function runNode(args: string[]): Promise<number> {
 
 const report = values.coverage ? coverageReportPath(values.report ?? 'coverage-frontend.info') : undefined;
 using output = report ? mkdtempDisposableSync(join(tmpdir(), 'sample-unit-coverage-')) : undefined;
-const coverage: CoverageV8Options = { enabled: output !== undefined };
+const coverage: CoverageOptions = { enabled: output !== undefined };
 if (output) {
     coverage.reportsDirectory = output.path;
     if (values.include) {
@@ -74,7 +74,7 @@ const include = Array.from(files, (file) =>
     file
         .split(sep)
         .join('/')
-        .replace(/[\\()[\]{}*?!+@|]/g, '\\$&'),
+        .replace(/[\\()[\]{}*?!+@|]/g, String.raw`\$&`),
 );
 const browser = values.browser ? runNode(['--run', 'test:browser']) : 0;
 await startVitest([], { run: true, include, coverage });
