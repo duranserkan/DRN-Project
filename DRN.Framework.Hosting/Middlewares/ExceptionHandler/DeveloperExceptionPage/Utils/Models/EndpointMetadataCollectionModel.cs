@@ -18,6 +18,7 @@ public class EndpointMetadataCollectionModel
     }
 
     public MetadataModel[] Values { get; init; } = [];
+    public bool HasOmittedEntries { get; init; }
 }
 
 public class MetadataModel

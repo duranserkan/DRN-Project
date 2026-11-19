@@ -211,7 +211,7 @@ Source codes under this file is derived from https://github.com/dotnet/aspnetcor
         <p>No End point</p>
     }
     <h2>Metadata</h2>
-    @if (errorModel.Endpoint?.MetadataCollection.Values.Length > 0)
+    @if (errorModel.Endpoint?.MetadataCollection is { } collection && (collection.Values.Length > 0 || collection.HasOmittedEntries))
     {
         <table>
             <thead>
@@ -221,7 +221,7 @@ Source codes under this file is derived from https://github.com/dotnet/aspnetcor
             </tr>
             </thead>
             <tbody>
-            @foreach (var metadata in errorModel.Endpoint.MetadataCollection.Values)
+            @foreach (var metadata in collection.Values)
             {
                 <tr>
                     <td>@metadata.Name</td>
@@ -231,6 +231,10 @@ Source codes under this file is derived from https://github.com/dotnet/aspnetcor
                         }
                     </td>
                 </tr>
+            }
+            @if (collection.HasOmittedEntries)
+            {
+                <tr><td colspan="2">Additional endpoint metadata omitted because the capture limit was reached.</td></tr>
             }
             </tbody>
         </table>

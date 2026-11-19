@@ -20,6 +20,56 @@ namespace DRN.Test.Unit.Tests.Framework.Hosting.Middlewares.ExceptionHandler;
 public class DiagnosticModelProjectionTests
 {
     [Theory]
+    [DataInlineUnit(0, 0, 0, false)]
+    [DataInlineUnit(2, 0, 2, false)]
+    [DataInlineUnit(3, 0, 2, true)]
+    [DataInlineUnit(3, 15, 1, true)]
+    [DataInlineUnit(3, 16, 0, true)]
+    public void Endpoint_Metadata_Should_Preserve_Captured_Rows_And_Report_Omissions(
+        int count, int consumedNodes, int expectedRows, bool omitted)
+    {
+        var sanitizer = new DiagnosticSanitizer(new DiagnosticLogOptions
+        {
+            MaxNodes = 16, MaxCollectionEntries = 2, MaxProcessingMilliseconds = 100
+        });
+        for (var index = 0; index < consumedNodes; index++)
+            sanitizer.SanitizeValue("Previous", index);
+
+        var metadata = new EndpointMetadataCollection(Enumerable.Range(1, count).Cast<object>());
+        var projection = new DiagnosticModelProjection(sanitizer);
+        var captured = projection.Endpoint(new Endpoint(null, metadata, "test"))!.MetadataCollection;
+
+        captured.Values.Select(row => row.Value).Should().Equal(Enumerable.Range(1, expectedRows).Select(value => JsonSerializer.Serialize(value)));
+        captured.HasOmittedEntries.Should().Be(omitted);
+    }
+
+    [Fact]
+    public async Task Request_Heading_Should_Survive_Metadata_Exhausting_The_Node_Budget()
+    {
+        using var settings = DiagnosticTestSupport.Settings("Development");
+        var sanitizer = new DiagnosticSanitizer(new DiagnosticLogOptions { MaxNodes = 16, MaxProcessingMilliseconds = 100 });
+        var log = new ScopedLog(settings, sanitizer);
+        using var services = new ServiceCollection().AddSingleton<IScopedLog>(log).BuildServiceProvider();
+        var context = new DefaultHttpContext { RequestServices = services };
+        context.Request.Protocol = "HTTP/2";
+        context.Request.Scheme = "https";
+        context.Request.Method = "PATCH";
+        var metadata = new EndpointMetadataCollection(Enumerable.Range(1, 32).Cast<object>());
+        context.SetEndpoint(new Endpoint(null, metadata, "test"));
+        var host = Substitute.For<IWebHostEnvironment>();
+        host.ContentRootFileProvider.Returns(new NullFileProvider());
+        var options = Options.Create(new DeveloperExceptionPageOptions());
+        var utils = new ExceptionUtils(new ExceptionDetailsProvider(options, host), settings, options);
+
+        var model = await utils.CreateErrorPageModelAsync(context, new InvalidOperationException("failure"));
+
+        model.Endpoint!.MetadataCollection.HasOmittedEntries.Should().BeTrue();
+        model.RequestProtocol.Should().Be("HTTP/2");
+        model.RequestScheme.Should().Be("https");
+        model.RequestMethod.Should().Be("PATCH");
+    }
+
+    [Theory]
     [DataInlineUnit(1, false)]
     [DataInlineUnit(2, false)]
     [DataInlineUnit(3, true)]

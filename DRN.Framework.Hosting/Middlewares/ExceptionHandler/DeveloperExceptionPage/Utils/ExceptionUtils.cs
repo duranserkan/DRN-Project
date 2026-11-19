@@ -135,6 +135,10 @@ public class ExceptionUtils(
         var projection = new DiagnosticModelProjection(sanitizer);
         var title = GetPageTitle(exception);
         var body = await RequestBufferingState.ReadBodyAsync(context, context.RequestAborted);
+        // Capture the request heading before larger diagnostics consume the shared budget.
+        var protocol = projection.Text(request.Protocol);
+        var scheme = projection.Text(request.Scheme);
+        var method = projection.Text(request.Method);
         var safeUrl = sanitizer.SanitizeUrl(request.PathBase.Add(request.Path).Value + request.QueryString.Value);
         var queryStart = safeUrl.IndexOf('?');
         var safeQuery = queryStart < 0 ? string.Empty : safeUrl[queryStart..];
@@ -154,11 +158,11 @@ public class ExceptionUtils(
             Logs = scopedLog is ScopedLog native ? native.GetLogs(redact: !appSettings.IsDevelopmentEnvironment)
                 : sanitizer.SanitizeValue("", scopedLog.GetLogs()) as IReadOnlyDictionary<string, object>
                 ?? new Dictionary<string, object> { ["DiagnosticCapture"] = DiagnosticSanitizer.Limited },
-            RequestMethod = projection.Text(request.Method),
+            RequestMethod = method,
             RequestPath = queryStart < 0 ? safeUrl : safeUrl[..queryStart],
             RequestBody = sanitizer.SanitizeBody(body, request.ContentType, request.Path.ToString()),
-            RequestScheme = projection.Text(request.Scheme),
-            RequestProtocol = projection.Text(request.Protocol)
+            RequestScheme = scheme,
+            RequestProtocol = protocol
         };
 
         return model;

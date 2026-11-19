@@ -112,6 +112,8 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
         }
     }
 
+    internal bool HasRemainingBudget() => Guard(WorkAvailable, false);
+
     internal bool WorkAvailable()
     {
         if (_spentMilliseconds + _timeProvider.GetElapsedTime(_started).TotalMilliseconds <= Options.MaxProcessingMilliseconds &&

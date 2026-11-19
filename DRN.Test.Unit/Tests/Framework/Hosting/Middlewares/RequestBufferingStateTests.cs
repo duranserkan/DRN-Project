@@ -158,8 +158,7 @@ public class RequestBufferingStateTests
             {
                 Method = "POST",
                 ContentLength = bodyBytes.Length,
-                // Use a MemoryStream pre-filled with the body; EnableBuffering will wrap it
-                Body = new MemoryStream(bodyBytes)
+                Body = new ShortReadStream(bodyBytes)
             }
         };
 
@@ -172,6 +171,12 @@ public class RequestBufferingStateTests
 
         // Stream must be rewound so downstream middleware can still read it
         context.Request.Body.Position.Should().Be(0);
+    }
+
+    private sealed class ShortReadStream(byte[] bytes) : MemoryStream(bytes)
+    {
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) =>
+            base.ReadAsync(buffer[..Math.Min(3, buffer.Length)], cancellationToken);
     }
 
     [Fact]
