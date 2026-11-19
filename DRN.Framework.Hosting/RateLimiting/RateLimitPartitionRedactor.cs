@@ -1,5 +1,4 @@
 using DRN.Framework.Utils.Data.Hashing;
-using DRN.Framework.Utils.Settings;
 
 namespace DRN.Framework.Hosting.RateLimiting;
 

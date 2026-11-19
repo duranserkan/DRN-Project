@@ -1,5 +1,3 @@
-using DRN.Framework.Utils.Settings;
-
 namespace DRN.Framework.Utils.Data.Encryption;
 
 internal sealed class NexusKeyRing : IDisposable

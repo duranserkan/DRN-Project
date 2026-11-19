@@ -1,8 +1,6 @@
-using System.Net;
 using System.Net.Http.Headers;
 using DRN.Framework.Hosting.Utils.Vite;
 using Microsoft.AspNetCore.Hosting;
-using Sample.Hosted;
 
 namespace DRN.Test.Integration.Tests.Framework.Hosting;
 

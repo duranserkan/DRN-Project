@@ -1,9 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Runtime.CompilerServices;
 using System.Text;
-using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Diagnostics;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
 
 namespace DRN.Framework.Utils.Logging.Diagnostics;
 

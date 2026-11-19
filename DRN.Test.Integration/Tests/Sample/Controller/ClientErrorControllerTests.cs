@@ -1,9 +1,6 @@
-using System.Net;
 using System.Net.Http.Json;
 using DRN.Test.Integration.Tests.Sample.Controller.Helpers;
-using Sample.Hosted;
 using Sample.Hosted.Controllers.Sample;
-using Sample.Hosted.Helpers;
 
 namespace DRN.Test.Integration.Tests.Sample.Controller;
 

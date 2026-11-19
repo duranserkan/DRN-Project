@@ -1,8 +1,6 @@
-using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.Utils.Extensions;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Routing;

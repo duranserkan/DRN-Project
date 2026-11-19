@@ -1,8 +1,5 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Collections.Concurrent;
-using System.Collections.Immutable;
 using DRN.Framework.CompilerTools;
-using Microsoft.CodeAnalysis;
 
 namespace DRN.Framework.SharedKernel.Analyzers;
 
@@ -124,6 +121,7 @@ internal sealed class ClassificationContract
         return properties.ToImmutable();
     }
 
+    [SuppressMessage("SonarQube", "S3267", Justification = "Both immutable attribute scans avoid predicates capturing the cancellation token and contract per property.")]
     internal bool HasUnknown(IPropertySymbol property, CancellationToken cancellation = default)
     {
         foreach (var attribute in property.GetAttributes())

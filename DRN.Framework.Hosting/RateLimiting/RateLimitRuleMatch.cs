@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Http;
-
 namespace DRN.Framework.Hosting.RateLimiting;
 
 internal readonly record struct RateLimitRuleMatch(IRateLimitRule Rule, RateLimitRuleResult Result);

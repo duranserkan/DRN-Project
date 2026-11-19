@@ -2,9 +2,9 @@ using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.Hosting.Nexus;
 using DRN.Nexus.Hosted;
-using DRN.Nexus.Hosted.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Get = DRN.Nexus.Hosted.Helpers.Get;
 
 namespace DRN.Test.Integration.Tests.Nexus.Controller;
 

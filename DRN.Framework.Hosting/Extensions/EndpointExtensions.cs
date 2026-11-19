@@ -1,5 +1,4 @@
 using DRN.Framework.Hosting.Endpoints;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Routing;
 

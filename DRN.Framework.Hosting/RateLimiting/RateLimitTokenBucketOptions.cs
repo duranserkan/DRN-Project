@@ -1,5 +1,4 @@
 using System.Threading.RateLimiting;
-using DRN.Framework.Utils.Settings;
 
 namespace DRN.Framework.Hosting.RateLimiting;
 

@@ -1,6 +1,7 @@
 global using System.Collections;
 global using System.IO;
 global using System.Linq;
+global using System.Net;
 global using System.Reflection;
 global using AutoFixture;
 global using AutoFixture.AutoNSubstitute;
@@ -19,4 +20,6 @@ global using Microsoft.Extensions.Configuration;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.DependencyInjection.Extensions;
 global using NSubstitute;
+global using Sample.Hosted;
+global using Sample.Hosted.Helpers;
 global using Xunit;

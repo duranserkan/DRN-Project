@@ -1,7 +1,5 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using DRN.Framework.SharedKernel;
-using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.HostFiltering;
 using Microsoft.AspNetCore.HttpOverrides;

@@ -6,7 +6,6 @@ using DRN.Framework.Utils.Ids;
 using Sample.Contract.QA.Tags;
 using Sample.Domain.QA.Tag;
 using Tag = Sample.Domain.QA.Tag.TagEntity;
-using Sample.Hosted;
 using Sample.Infra.QA;
 
 namespace DRN.Test.Integration.Tests.Framework.Utils;

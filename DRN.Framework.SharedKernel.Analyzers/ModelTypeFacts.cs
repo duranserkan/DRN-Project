@@ -1,5 +1,3 @@
-using Microsoft.CodeAnalysis;
-
 namespace DRN.Framework.SharedKernel.Analyzers;
 
 internal readonly record struct ModelTypeFacts(bool Scalar, bool Model, bool TimeSpan, bool SkipProperties, ITypeSymbol? ListElement)

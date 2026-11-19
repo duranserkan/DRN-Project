@@ -3,7 +3,6 @@ using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.EntityFramework.Extensions;
 using DRN.Framework.SharedKernel.Domain;
-using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Models;
 using Microsoft.EntityFrameworkCore;
 

@@ -1,7 +1,3 @@
-using System.Net;
-using Sample.Hosted;
-using Sample.Hosted.Helpers;
-
 namespace DRN.Test.Integration.Tests.Sample.Controller.Sample;
 
 public class ExceptionControllerTests

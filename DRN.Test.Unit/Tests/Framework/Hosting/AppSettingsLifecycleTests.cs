@@ -1,7 +1,5 @@
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
-using DRN.Framework.Utils.Logging;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using DRN.Test.Utils.Hosting;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting;

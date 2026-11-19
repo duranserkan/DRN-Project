@@ -1,6 +1,3 @@
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-
 namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 
 // Persistence and context checks request EF evidence first. An eligible DI check reuses the same walk.
@@ -36,28 +33,37 @@ internal sealed class ConventionCallSites(ConventionFacts facts, bool includeCom
         var composition = readComposition ? new ConventionCompositionReader(facts) : null;
 
         foreach (var tree in facts.Compilation.SyntaxTrees)
-        {
-            facts.Cancellation.ThrowIfCancellationRequested();
-            SemanticModel? model = null;
-            foreach (var node in tree.GetRoot(facts.Cancellation).DescendantNodes())
-            {
-                facts.Cancellation.ThrowIfCancellationRequested();
-                if (composition is not null && node is BaseObjectCreationExpressionSyntax { ArgumentList.Arguments.Count: > 0 } creation)
-                    composition.InspectCreation(model ??= facts.SemanticModel(tree), creation);
-                if (node is not InvocationExpressionSyntax call) continue;
-                var registrationCandidate = canRegister && InvocationName(call) is ("AddDbContext" or "AddDbContextWithConventions");
-                var configurationCandidate = visitConfigurationCall is not null && call.ArgumentList.Arguments.Count == 1;
-                if (composition is null && !registrationCandidate && !configurationCandidate) continue;
-
-                model ??= facts.SemanticModel(tree);
-                InspectInvocation(model, call, composition, registrationCandidate ? registeredContexts : null,
-                    configurationCandidate ? visitConfigurationCall : null);
-            }
-        }
+            ScanTree(tree, composition, canRegister ? registeredContexts : null, visitConfigurationCall);
         var evidence = composition?.Complete();
         facts.Cancellation.ThrowIfCancellationRequested();
         if (evidence is not null) _composition = evidence;
     }
+
+    private void ScanTree(SyntaxTree tree, ConventionCompositionReader? composition, HashSet<INamedTypeSymbol>? registeredContexts,
+        ConfigurationCall? visitConfigurationCall)
+    {
+        facts.Cancellation.ThrowIfCancellationRequested();
+        SemanticModel? model = null;
+        foreach (var node in tree.GetRoot(facts.Cancellation).DescendantNodes())
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            if (composition is not null && node is BaseObjectCreationExpressionSyntax { ArgumentList.Arguments.Count: > 0 } creation)
+                composition.InspectCreation(model ??= facts.SemanticModel(tree), creation);
+            if (node is not InvocationExpressionSyntax call) continue;
+            var callRegistrations = RegistrationTarget(call, registeredContexts);
+            var callConfiguration = ConfigurationTarget(call, visitConfigurationCall);
+            if (composition is null && callRegistrations is null && callConfiguration is null) continue;
+
+            model ??= facts.SemanticModel(tree);
+            InspectInvocation(model, call, composition, callRegistrations, callConfiguration);
+        }
+    }
+
+    private static HashSet<INamedTypeSymbol>? RegistrationTarget(InvocationExpressionSyntax call, HashSet<INamedTypeSymbol>? registeredContexts) =>
+        registeredContexts is not null && InvocationName(call) is ("AddDbContext" or "AddDbContextWithConventions") ? registeredContexts : null;
+
+    private static ConfigurationCall? ConfigurationTarget(InvocationExpressionSyntax call, ConfigurationCall? visitConfigurationCall) =>
+        visitConfigurationCall is not null && call.ArgumentList.Arguments.Count == 1 ? visitConfigurationCall : null;
 
     private void InspectInvocation(SemanticModel model, InvocationExpressionSyntax call, ConventionCompositionReader? composition,
         HashSet<INamedTypeSymbol>? registeredContexts, ConfigurationCall? visitConfigurationCall)

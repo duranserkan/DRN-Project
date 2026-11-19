@@ -1,8 +1,6 @@
 using System.Collections.Frozen;
 using System.Security.Claims;
 using System.Text.Json.Serialization;
-using DRN.Framework.SharedKernel.Attributes;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Extensions;
 
 namespace DRN.Framework.Utils.Auth;

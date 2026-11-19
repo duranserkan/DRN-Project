@@ -1,4 +1,3 @@
-using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Ids;
 using Microsoft.EntityFrameworkCore.Diagnostics;

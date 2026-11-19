@@ -1,7 +1,6 @@
 // This file is licensed to you under the MIT license.
 
 using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.Http;
 
 namespace DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
 
@@ -18,6 +17,7 @@ public class EndpointMetadataCollectionModel
     }
 
     public MetadataModel[] Values { get; init; } = [];
+    public bool HasOmittedEntries { get; init; }
 }
 
 public class MetadataModel

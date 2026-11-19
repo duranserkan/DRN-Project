@@ -1,8 +1,5 @@
 using System.Collections.Concurrent;
-using System.Collections.Immutable;
 using DRN.Framework.CompilerTools;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace DRN.Framework.SharedKernel.Analyzers;
 
@@ -46,19 +43,7 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
             var reportedPartitions = new ConcurrentDictionary<INamedTypeSymbol, byte>(SymbolEqualityComparer.Default);
             start.RegisterSymbolAction(symbol =>
             {
-                var type = (INamedTypeSymbol)symbol.Symbol;
-                if (type.TypeKind is TypeKind.Class or TypeKind.Struct && !type.IsAbstract &&
-                    metadata.Partitions.ImplementsAppId(type))
-                {
-                    var appId = metadata.Partitions.ReadPartition(type, symbol.CancellationToken);
-                    if (appId is null or > EntityAnalyzerHelper.MaxAppId && GeneratedSource.FirstUserLocation(type, symbol) is { } location)
-                    {
-                        var problem = appId.HasValue
-                            ? Diagnostic.Create(DiagnosticDescriptors.AppIdOutOfRange, location, type.Name, appId.Value)
-                            : Diagnostic.Create(DiagnosticDescriptors.UnresolvableAppId, location, type.Name);
-                        invalidPartitions.Add((type, problem));
-                    }
-                }
+                CollectInvalidPartition(symbol, metadata, invalidPartitions);
                 AnalyzeNamedType(symbol, facts, usage, attribute, metadata, declarations, reportedPartitions);
             }, SymbolKind.NamedType);
             start.RegisterCompilationEndAction(end =>
@@ -72,6 +57,19 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
                 AnalyzeCompilationEnd(end, entity, facts, attribute, metadata, declarations);
             });
         });
+    }
+
+    private static void CollectInvalidPartition(SymbolAnalysisContext symbol, EntityAnalyzerHelper.CompilationMetadata metadata,
+        ConcurrentBag<(INamedTypeSymbol App, Diagnostic Problem)> invalidPartitions)
+    {
+        var type = (INamedTypeSymbol)symbol.Symbol;
+        if (type.TypeKind is not (TypeKind.Class or TypeKind.Struct) || type.IsAbstract || !metadata.Partitions.ImplementsAppId(type)) return;
+        var appId = metadata.Partitions.ReadPartition(type, symbol.CancellationToken);
+        if (appId is <= EntityAnalyzerHelper.MaxAppId || GeneratedSource.FirstUserLocation(type, symbol) is not { } location) return;
+        var problem = appId.HasValue
+            ? Diagnostic.Create(DiagnosticDescriptors.AppIdOutOfRange, location, type.Name, appId.Value)
+            : Diagnostic.Create(DiagnosticDescriptors.UnresolvableAppId, location, type.Name);
+        invalidPartitions.Add((type, problem));
     }
 
     private static void AnalyzeNamedType(SymbolAnalysisContext context, EntityAnalyzerHelper.EntityTypeFacts facts,
@@ -101,10 +99,15 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
             if (eligible) context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.MissingEntityTypeAttribute, location, type.Name));
             return;
         }
-        var attributeLocation = location;
-        if (attribute.ApplicationSyntaxReference is { } reference && (reference.SyntaxTree == location.SourceTree ||
-            !GeneratedSource.IsGenerated(reference.SyntaxTree, context.Compilation, context.Options.AnalyzerConfigOptionsProvider, context.CancellationToken)))
-            attributeLocation = reference.GetSyntax(context.CancellationToken).GetLocation();
+        AnalyzeEntityAttribute(context, attribute, location, eligible, metadata, declarations, reportedPartitions);
+    }
+
+    private static void AnalyzeEntityAttribute(SymbolAnalysisContext context, AttributeData attribute, Location location, bool eligible,
+        EntityAnalyzerHelper.CompilationMetadata metadata, ConcurrentBag<EntityDeclaration> declarations,
+        ConcurrentDictionary<INamedTypeSymbol, byte> reportedPartitions)
+    {
+        var type = (INamedTypeSymbol)context.Symbol;
+        var attributeLocation = AttributeLocation(context, attribute, location);
         if (!eligible)
         {
             context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.InvalidEntityTypeAttributeUsage, attributeLocation, type.Name));
@@ -121,6 +124,14 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
                 reportedPartitions.TryAdd(app.OriginalDefinition, 0);
         }
         if (declaration != null) declarations.Add(declaration);
+    }
+
+    private static Location AttributeLocation(SymbolAnalysisContext context, AttributeData attribute, Location fallback)
+    {
+        if (attribute.ApplicationSyntaxReference is { } reference && (reference.SyntaxTree == fallback.SourceTree ||
+            !GeneratedSource.IsGenerated(reference.SyntaxTree, context.Compilation, context.Options.AnalyzerConfigOptionsProvider, context.CancellationToken)))
+            return reference.GetSyntax(context.CancellationToken).GetLocation();
+        return fallback;
     }
 
     private static void AnalyzeCompilationEnd(CompilationAnalysisContext context, INamedTypeSymbol entity,

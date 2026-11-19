@@ -1,12 +1,10 @@
 using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Attributes;
 using Microsoft.AspNetCore.Antiforgery;
-using Microsoft.AspNetCore.Mvc.RazorPages;
-using Sample.Domain.SampleIdentity;
 
 namespace Sample.Hosted.Pages.Test;
 
-[Authorize(Policy = UserClaims.TestPagesAccess)]
+[Authorize(Policy = Get.Policy.TestPagesAccess)]
 public class Htmx(IAntiforgery antiForgery) : PageModel
 {
     private const string TimestampFormat = "HH:mm:ss";

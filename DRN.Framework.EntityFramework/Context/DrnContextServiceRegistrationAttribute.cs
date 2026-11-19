@@ -1,14 +1,10 @@
 using System.Reflection;
 using DRN.Framework.EntityFramework.Context.Interceptors;
 using DRN.Framework.EntityFramework.Extensions;
-using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Entity;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Logging;
-using DRN.Framework.Utils.Settings;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace DRN.Framework.EntityFramework.Context;

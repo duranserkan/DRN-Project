@@ -1,13 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text;
 using DRN.Framework.SharedKernel.Attributes;
-using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.Identity;
 using DRN.Framework.Utils.Auth;
 using Flurl;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using QRCoder;
 using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
 using Sample.Hosted.Extensions;

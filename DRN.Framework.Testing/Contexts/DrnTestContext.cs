@@ -5,11 +5,8 @@ using DRN.Framework.Testing.Providers;
 using DRN.Framework.Utils;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection;
-using DRN.Framework.Utils.Settings;
 using Flurl.Http.Testing;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Memory;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using DRN.Framework.Utils.Concurrency;
 

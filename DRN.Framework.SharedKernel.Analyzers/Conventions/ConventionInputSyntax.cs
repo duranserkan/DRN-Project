@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -249,6 +250,7 @@ internal static class ConventionInputSyntax
         namespacePrefix.Split('.').All(SyntaxFacts.IsValidIdentifier) &&
         IsLogicalPath(Field(fields, LogicalPathPrefixField));
 
+    [SuppressMessage("SonarQube", "S3267", Justification = "Scanning the prefixes directly avoids a predicate capturing the diagnostic ID on each lookup.")]
     internal static string? ConventionRulePrefix(string id)
     {
         if (!id.StartsWith("DRN", StringComparison.Ordinal)) return null;

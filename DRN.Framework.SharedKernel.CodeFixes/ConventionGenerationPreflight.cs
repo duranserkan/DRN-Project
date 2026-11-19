@@ -1,7 +1,4 @@
 using DRN.Framework.SharedKernel.Analyzers.Conventions;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace DRN.Framework.SharedKernel.CodeFixes;
 

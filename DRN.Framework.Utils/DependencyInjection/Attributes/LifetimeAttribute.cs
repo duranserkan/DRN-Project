@@ -1,4 +1,3 @@
-using DRN.Framework.SharedKernel.Attributes;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Utils.DependencyInjection.Attributes;

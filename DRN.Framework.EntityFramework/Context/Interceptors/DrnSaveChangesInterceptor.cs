@@ -1,8 +1,6 @@
-using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Time;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace DRN.Framework.EntityFramework.Context.Interceptors;

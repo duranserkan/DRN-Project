@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using DRN.Framework.Hosting.Utils.Vite;
 using DRN.Framework.Hosting.Utils.Vite.Models;
-using Microsoft.Extensions.Configuration;
 
 namespace DRN.Framework.Testing.Contexts.Application;
 

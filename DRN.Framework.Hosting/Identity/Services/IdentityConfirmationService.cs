@@ -4,12 +4,9 @@ using System.Text;
 using System.Text.Encodings.Web;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Extensions;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Hosting.Identity.Services;
 

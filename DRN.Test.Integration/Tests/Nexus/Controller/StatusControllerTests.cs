@@ -1,8 +1,8 @@
 using System.Net.Http.Json;
 using DRN.Framework.Utils.Configurations;
 using DRN.Nexus.Hosted;
-using DRN.Nexus.Hosted.Helpers;
 using DRN.Test.Integration.Tests.Sample.Controller.Helpers;
+using Get = DRN.Nexus.Hosted.Helpers.Get;
 
 namespace DRN.Test.Integration.Tests.Nexus.Controller;
 

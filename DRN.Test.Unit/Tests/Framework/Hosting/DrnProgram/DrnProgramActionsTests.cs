@@ -1,5 +1,4 @@
 using DRN.Framework.Hosting.DrnProgram;
-using DRN.Framework.Utils.Logging;
 using DRN.Test.Utils.Hosting;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting.DrnProgram;

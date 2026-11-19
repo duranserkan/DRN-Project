@@ -1,5 +1,4 @@
 using DRN.Framework.SharedKernel.Domain;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.Extensions.Configuration;
 
 namespace DRN.Framework.Utils.Settings;

@@ -1,5 +1,4 @@
 using System.Text;
-using Microsoft.AspNetCore.Http;
 
 namespace DRN.Framework.Hosting.Extensions;
 

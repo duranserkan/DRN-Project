@@ -1,8 +1,5 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Hosting.RateLimiting;
 

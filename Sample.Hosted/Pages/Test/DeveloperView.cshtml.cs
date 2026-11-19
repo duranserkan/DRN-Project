@@ -1,11 +1,10 @@
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils;
-using Microsoft.AspNetCore.Mvc.RazorPages;
-using Sample.Domain.SampleIdentity;
 
 namespace Sample.Hosted.Pages.Test;
 
-[Authorize(Policy = UserClaims.TestPagesAccess)]
+[DeveloperExceptionPreview]
+[ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public class DeveloperView(IExceptionUtils exceptionUtils, IExceptionPageContentProvider contentProvider) : PageModel
 {
     public async Task<IActionResult> OnGetAsync()

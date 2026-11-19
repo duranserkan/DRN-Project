@@ -2,7 +2,6 @@ using System.Reflection;
 using System.Text.Json;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
 using DRN.Framework.Utils.Logging.Diagnostics;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
 namespace DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils;
@@ -97,11 +96,26 @@ internal sealed class DiagnosticModelProjection(IDiagnosticSanitizer sanitizer)
         {
             DisplayName = Text(endpoint.DisplayName), RoutePattern = Text(route?.RoutePattern.RawText), Order = route?.Order,
             HttpMethods = Text(string.Join(", ", endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods.Take(32) ?? [])),
-            MetadataCollection = new EndpointMetadataCollectionModel
-            {
-                Values = endpoint.Metadata.Take(sanitizer.Options.MaxCollectionEntries).Select(metadata =>
-                    new MetadataModel(Text(metadata.GetType().FullName), JsonSerializer.Serialize(sanitizer.SanitizeValue("Endpoint.Metadata", metadata)))).ToArray()
-            }
+            MetadataCollection = CaptureMetadata(endpoint.Metadata)
         };
+    }
+
+    private EndpointMetadataCollectionModel CaptureMetadata(EndpointMetadataCollection metadata)
+    {
+        var rows = new List<MetadataModel>();
+        foreach (var item in metadata.Take(sanitizer.Options.MaxCollectionEntries))
+        {
+            var name = Text(item.GetType().FullName);
+            var value = sanitizer.SanitizeValue("Endpoint.Metadata", item);
+            if (name == DiagnosticSanitizer.Limited && value is DiagnosticSanitizer.Limited)
+            {
+                if (sanitizer is DiagnosticSanitizer native && !native.HasRemainingBudget()) break;
+                continue;
+            }
+
+            rows.Add(new MetadataModel(name, JsonSerializer.Serialize(value)));
+        }
+
+        return new EndpointMetadataCollectionModel { Values = rows.ToArray(), HasOmittedEntries = rows.Count < metadata.Count };
     }
 }

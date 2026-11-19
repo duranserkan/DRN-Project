@@ -2,9 +2,6 @@ using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Configurations;
-using DRN.Framework.Utils.Settings;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Testing.Providers;
 

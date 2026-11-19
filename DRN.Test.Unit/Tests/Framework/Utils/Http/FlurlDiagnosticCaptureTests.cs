@@ -1,6 +1,5 @@
 using System.Text;
 using DRN.Framework.Utils.Extensions;
-using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Logging.Diagnostics;
 using Flurl.Http;
 

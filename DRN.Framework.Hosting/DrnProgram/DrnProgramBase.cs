@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Threading.RateLimiting;
 using DRN.Framework.Hosting.Auth.Policies;
@@ -8,26 +7,21 @@ using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Hosting.RateLimiting;
 using DRN.Framework.Hosting.Utils.Vite;
-using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
-using DRN.Framework.Utils.Settings;
 using DRN.Framework.Utils.Time;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.HostFiltering;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCaching;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NetEscapades.AspNetCore.SecurityHeaders.Infrastructure;
@@ -294,6 +288,9 @@ public abstract class DrnProgramBase<TProgram> : DrnProgram
 
         DrnSecurityConfigurator.AddAntiforgery(services, appSettings);
 
+        services.AddOptions<AuthorizationOptions>().Configure<AuthenticationClaimConfig>((options, claims) =>
+            options.AddPolicy(DeveloperExceptionAccess.Policy, policy => policy.RequireAssertion(context =>
+                DeveloperExceptionAccess.Allows(appSettings, context.User, claims))));
         services.AddAuthorization(ConfigureAuthorizationOptions);
         if (AppBuilderType != DrnAppBuilderType.DrnDefaults) return;
 

@@ -1,5 +1,3 @@
-using System.Collections.Immutable;
-
 namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 
 internal static class ConventionArchitecture

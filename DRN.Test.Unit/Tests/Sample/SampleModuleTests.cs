@@ -1,7 +1,5 @@
-using System.Security.Claims;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.Utils.Auth;
-using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Scope;
 using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Authentication.Cookies;

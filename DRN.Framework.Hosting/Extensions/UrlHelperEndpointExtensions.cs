@@ -1,4 +1,3 @@
-using System;
 using DRN.Framework.Hosting.Endpoints;
 using Microsoft.AspNetCore.Mvc;
 

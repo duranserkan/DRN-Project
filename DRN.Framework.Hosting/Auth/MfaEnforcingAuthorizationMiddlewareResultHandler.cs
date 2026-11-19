@@ -1,13 +1,8 @@
 using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.Logging;
-using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Logging;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 

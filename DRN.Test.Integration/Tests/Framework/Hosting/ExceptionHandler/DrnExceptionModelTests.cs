@@ -1,10 +1,7 @@
-using System.Net;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
 using Microsoft.AspNetCore.Http;
-using Sample.Hosted;
 using Sample.Hosted.Filters;
-using Sample.Hosted.Helpers;
 
 namespace DRN.Test.Integration.Tests.Framework.Hosting.ExceptionHandler;
 
@@ -12,15 +9,13 @@ public class DrnExceptionModelTests
 {
     [DataInline]
     [Theory]
-    public async Task ErrorPageModel_Should_Be_Serialized_As_Expected(DrnTestContext context)
+    public async Task Anonymous_Request_Should_Be_Denied_The_ErrorPageModel(DrnTestContext context)
     {
         var client = await context.ApplicationContext.CreateClientAsync<SampleProgram>();
         context.ApplicationContext.GetCreatedApplication<SampleProgram>()!.Services
             .GetServices<IDrnExceptionFilter>().Should().BeEmpty();
-        var errorModel = (await client.GetFromJsonAsync<DrnExceptionModel>(Get.Endpoint.Sample.Exception.GetErrorPageModel.RoutePattern))!;
-
-        errorModel.Should().NotBeNull();
-        errorModel.RequestPath.Trim('/').Should().Be(Get.Endpoint.Sample.Exception.GetErrorPageModel.RoutePattern);
+        using var response = await client.GetAsync(Get.Endpoint.Sample.Exception.GetErrorPageModel.RoutePattern);
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [DataInline]

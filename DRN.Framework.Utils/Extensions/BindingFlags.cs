@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
 namespace DRN.Framework.Utils.Extensions;

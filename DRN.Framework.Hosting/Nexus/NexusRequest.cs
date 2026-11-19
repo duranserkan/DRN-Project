@@ -1,6 +1,4 @@
-using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Http;
-using DRN.Framework.Utils.Settings;
 using Flurl.Http;
 
 namespace DRN.Framework.Hosting.Nexus;

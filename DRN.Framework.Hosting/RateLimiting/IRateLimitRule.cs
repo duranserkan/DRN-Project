@@ -1,7 +1,5 @@
 using System.Threading.RateLimiting;
 using DRN.Framework.Hosting.Middlewares;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
-using Microsoft.AspNetCore.Http;
 
 namespace DRN.Framework.Hosting.RateLimiting;
 

@@ -1,9 +1,7 @@
 using System.ComponentModel.DataAnnotations;
-using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
-using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Data.Encryption;
 using DRN.Framework.Utils.Data.Encodings;

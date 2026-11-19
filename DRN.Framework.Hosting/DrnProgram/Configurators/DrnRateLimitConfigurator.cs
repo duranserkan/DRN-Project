@@ -1,10 +1,7 @@
 using System.Threading.RateLimiting;
 using DRN.Framework.Hosting.RateLimiting;
 using DRN.Framework.Utils.Logging;
-using DRN.Framework.Utils.Settings;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Hosting.DrnProgram.Configurators;
 

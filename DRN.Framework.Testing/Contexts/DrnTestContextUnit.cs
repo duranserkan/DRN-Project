@@ -4,10 +4,7 @@ using DRN.Framework.Utils;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
-using DRN.Framework.Utils.Settings;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Memory;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace DRN.Framework.Testing.Contexts;

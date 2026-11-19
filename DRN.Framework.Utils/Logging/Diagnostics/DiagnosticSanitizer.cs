@@ -1,9 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 using System.Text;
-using DRN.Framework.SharedKernel.Attributes;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
-using DRN.Framework.Utils.Settings;
 
 namespace DRN.Framework.Utils.Logging.Diagnostics;
 
@@ -111,6 +108,8 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
             }
         }
     }
+
+    internal bool HasRemainingBudget() => Guard(WorkAvailable, false);
 
     internal bool WorkAvailable()
     {

@@ -1,7 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-using System.Collections.Immutable;
-using Microsoft.CodeAnalysis;
-
 namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 
 internal sealed class ConventionSymbols(Compilation compilation)

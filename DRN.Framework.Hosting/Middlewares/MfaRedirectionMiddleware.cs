@@ -3,13 +3,9 @@ using DRN.Framework.Hosting.Extensions;
 using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.DrnProgram;
-using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Flurl;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Authorization.Policy;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Hosting.Middlewares;
 

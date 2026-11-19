@@ -1,5 +1,3 @@
-using DRN.Framework.SharedKernel.Attributes;
-
 namespace DRN.Framework.Utils.Logging.Diagnostics;
 
 public enum DiagnosticDataKind

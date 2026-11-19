@@ -1,7 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Extensions;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Routing;

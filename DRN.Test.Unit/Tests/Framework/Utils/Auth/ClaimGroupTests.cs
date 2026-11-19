@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using DRN.Framework.Utils.Auth;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Auth;

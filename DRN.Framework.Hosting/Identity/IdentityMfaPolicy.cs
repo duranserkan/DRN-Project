@@ -1,10 +1,7 @@
 using System.Security.Claims;
 using DRN.Framework.Hosting.Auth.Policies;
-using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace DRN.Framework.Hosting.Identity;

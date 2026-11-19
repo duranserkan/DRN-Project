@@ -1,7 +1,6 @@
 // This file is licensed to you under the MIT license.
 
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
 namespace DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils;

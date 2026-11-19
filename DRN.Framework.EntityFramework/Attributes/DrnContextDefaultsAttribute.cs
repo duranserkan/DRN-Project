@@ -1,10 +1,7 @@
 using DRN.Framework.SharedKernel.Extensions;
 using DRN.Framework.SharedKernel.Json;
 using DRN.Framework.Utils.Logging;
-using DRN.Framework.Utils.Settings;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;

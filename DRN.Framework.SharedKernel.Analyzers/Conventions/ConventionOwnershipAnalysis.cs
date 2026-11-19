@@ -1,5 +1,3 @@
-using Microsoft.CodeAnalysis;
-
 namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 
 internal static class ConventionOwnershipAnalysis

@@ -1,5 +1,4 @@
 using System.Security.Cryptography;
-using DRN.Framework.Utils.Settings;
 
 namespace DRN.Framework.Utils.Data.Encryption;
 

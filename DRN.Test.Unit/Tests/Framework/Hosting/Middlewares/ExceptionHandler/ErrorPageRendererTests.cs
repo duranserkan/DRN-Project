@@ -1,7 +1,6 @@
 using DRN.Framework.Hosting;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 

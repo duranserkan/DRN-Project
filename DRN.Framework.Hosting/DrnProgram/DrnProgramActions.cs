@@ -1,5 +1,4 @@
 using DRN.Framework.Utils.Logging;
-using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Builder;
 
 namespace DRN.Framework.Hosting.DrnProgram;

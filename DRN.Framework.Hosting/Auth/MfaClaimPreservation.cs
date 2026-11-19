@@ -1,7 +1,5 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Security.Claims;
-using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
 
 namespace DRN.Framework.Hosting.Auth;

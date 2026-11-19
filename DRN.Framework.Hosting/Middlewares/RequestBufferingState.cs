@@ -1,6 +1,4 @@
 using System.Buffers;
-using DRN.Framework.Utils.Settings;
-using Microsoft.AspNetCore.Http;
 
 namespace DRN.Framework.Hosting.Middlewares;
 
@@ -130,7 +128,7 @@ public class RequestBufferingState
         try
         {
             using var reader = new StreamReader(stream, leaveOpen: true);
-            var charsRead = await reader.ReadAsync(buffer.AsMemory(0, bufferSize), cancellationToken);
+            var charsRead = await reader.ReadBlockAsync(buffer.AsMemory(0, bufferSize), cancellationToken);
             var result = new string(buffer, 0, charsRead);
             readFailed = false;
             return result;

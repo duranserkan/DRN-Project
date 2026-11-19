@@ -1,7 +1,4 @@
 using System.Collections.Concurrent;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
 
 namespace DRN.Framework.SharedKernel.Analyzers;
@@ -39,8 +36,8 @@ internal sealed class UninitializedEntityOperationsAnalysis
     private readonly List<FreshEntity> _origins = [];
     private FreshEntity? _this;
 
-    private UninitializedEntityOperationsAnalysis(Compilation compilation, CancellationToken cancellation,
-        Action<Diagnostic> reportDiagnostic, OperationsFacts facts)
+    private UninitializedEntityOperationsAnalysis(Compilation compilation, Action<Diagnostic> reportDiagnostic,
+        OperationsFacts facts, CancellationToken cancellation)
     {
         _compilation = compilation;
         _cancellation = cancellation;
@@ -66,22 +63,27 @@ internal sealed class UninitializedEntityOperationsAnalysis
             start.RegisterOperationBlockEndAction(end =>
             {
                 if (Volatile.Read(ref hasOperationsCall) == 0) return;
-                IOperation? previousRoot = null;
-                foreach (var block in end.OperationBlocks)
-                {
-                    var root = block;
-                    while (root.Parent is { } parent) root = parent;
-                    // The constructor initializer and body can share the same root operation.
-                    if (ReferenceEquals(root, previousRoot)) continue;
-                    previousRoot = root;
-
-                    var analysis = new UninitializedEntityOperationsAnalysis(
-                        end.Compilation, end.CancellationToken, end.ReportDiagnostic, facts);
-                    analysis.InitializeConstructorReceiver(method);
-                    analysis.Evaluate(root);
-                }
+                AnalyzeRoots(end, method, facts);
             });
         });
+    }
+
+    private static void AnalyzeRoots(OperationBlockAnalysisContext end, IMethodSymbol method, OperationsFacts facts)
+    {
+        IOperation? previousRoot = null;
+        foreach (var block in end.OperationBlocks)
+        {
+            var root = block;
+            while (root.Parent is { } parent) root = parent;
+            // The constructor initializer and body can share the same root operation.
+            if (ReferenceEquals(root, previousRoot)) continue;
+            previousRoot = root;
+
+            var analysis = new UninitializedEntityOperationsAnalysis(
+                end.Compilation, end.ReportDiagnostic, facts, end.CancellationToken);
+            analysis.InitializeConstructorReceiver(method);
+            analysis.Evaluate(root);
+        }
     }
 
     private void InitializeConstructorReceiver(IMethodSymbol method)

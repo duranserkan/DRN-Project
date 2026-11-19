@@ -4,18 +4,20 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Changed
 
+*   **Exception diagnostics**: Buffered request-body capture continues across short reads up to the capture limit. Exception pages capture the request protocol, scheme, and method before larger fields consume the shared budget, and capture the request body before endpoint metadata can exhaust the node budget. They retain captured endpoint metadata rows and indicate when additional entries were omitted.
+
 *   **Static-file headers**: Configure exact-path response headers at startup with `DrnStaticFileHeaderOptions`. Rules support replacement, removal, and override or set-if-missing behavior. Static `/robots.txt` responses now require cache revalidation by default. Other static files retain their existing cache lifetime.
 *   **Swagger configuration**: Swagger UI resolves its default document URL from the configured OpenAPI route, including deployment prefixes. Explicit UI document URLs remain supported.
 *   **OpenAPI 64-bit integers**: Generated schemas describe both JSON numbers and decimal strings for `long` values, including null for nullable values. Clients can preserve precision when reading large integers.
 *   **Request Diagnostics**: Request values use bounded capture. `Request_IpAddress` is recorded as an empty string when no remote address is available. Empty `l5d-client-id` headers are omitted.
-
-*   **Development Exception Pages**: Display unredacted scoped logs and request details within capture limits and `[IgnoreLog]` exclusions. Emitted logs and views outside Development remain redacted.
 
 *   **Diagnostic Redaction**: HTTP and startup logs redact explicitly classified data within capture limits. Backend capture does not infer classification from names, including configured field paths and URL/query/form names. Applications must classify dynamic data explicitly. URL processing removes credentials and validates encoding. Callbacks can still receive raw objects and must keep private diagnostics out of public responses.
 *   **Rate Limit Defaults**: Post-auth buckets now allow 250 tokens per user and pre-auth buckets allow 2,500 tokens per IP, with matching refills every 60 seconds. Explicit settings override these defaults.
 *   **Rate Limit Diagnostics**: Rejection logs include the rule action, distinguishing limiter rejections from explicit deny rules and unattributed rejections, consistent with rate-limit metrics.
 
 ### Breaking Changes
+
+*   **Development exception responses**: Detailed pages and their diagnostic JSON fallback require completed MFA and either `SystemAdmin` or `TestPagesAccess=true`. Both honor stricter host requirements on `DeveloperExceptionAccess.Policy` and send `Cache-Control: no-store`. Authorized pages display unredacted scoped logs and request details within capture limits and `[IgnoreLog]` exclusions. Protect preview endpoints with `[DeveloperExceptionPreview]` and check link visibility with `DeveloperExceptionAccess.AllowsAsync`.
 
 *   **Diagnostic IDs**: Replace `DRNHG001` and `DRNHG002` with `DRNHOSTING001` and `DRNHOSTING002` respectively in severity settings and intentional suppressions.
 

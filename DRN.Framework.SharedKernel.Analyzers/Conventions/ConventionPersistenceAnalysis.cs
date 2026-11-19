@@ -1,8 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-using System.Collections.Immutable;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-
 namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 
 internal static partial class ConventionPersistenceAnalysis
@@ -279,37 +274,34 @@ internal static partial class ConventionPersistenceAnalysis
     {
         var callers = new Dictionary<IMethodSymbol, HashSet<IMethodSymbol>>(SymbolEqualityComparer.Default);
         var applications = new List<(INamedTypeSymbol Configuration, INamedTypeSymbol Binding, IMethodSymbol Caller)>();
-        var registeredContexts = calls.ReadEfRegistrations((semantic, call, method, owner, boundReceiver) =>
-            TryRecordConfigurationCall(facts, semantic, call, method, owner, boundReceiver, callers, applications));
+        var registeredContexts = calls.ReadEfRegistrations(RecordConfigurationCall);
         var result = new ConfigurationUses(registeredContexts);
         PropagateConfigurationOwners(facts, callers, applications, result);
         return result;
-    }
 
-    private static void TryRecordConfigurationCall(ConventionFacts facts, SemanticModel semantic,
-        InvocationExpressionSyntax invocation, IMethodSymbol method, IMethodSymbol ownerMethod, TypeInfo? boundReceiver,
-        Dictionary<IMethodSymbol, HashSet<IMethodSymbol>> callers,
-        List<(INamedTypeSymbol Configuration, INamedTypeSymbol Binding, IMethodSymbol Caller)> applications)
-    {
-        if (ownerMethod.MethodKind is not (MethodKind.Ordinary or MethodKind.ExplicitInterfaceImplementation or MethodKind.LocalFunction) ||
-            ownerMethod.Parameters is not [var builder] ||
-            !SymbolEqualityComparer.Default.Equals(semantic.GetSymbolInfo(invocation.ArgumentList.Arguments[0].Expression, facts.Cancellation).Symbol, builder))
-            return;
-        // Follow only same-type helpers that forward the original builder unchanged.
-        if (method.Parameters.Length == 1 && !method.IsGenericMethod && !method.IsVirtual && !method.IsAbstract &&
-            !method.IsOverride && SymbolEqualityComparer.Default.Equals(method.ContainingType, ownerMethod.ContainingType))
+        void RecordConfigurationCall(SemanticModel semantic, InvocationExpressionSyntax invocation, IMethodSymbol method,
+            IMethodSymbol ownerMethod, TypeInfo? boundReceiver)
         {
-            if (!callers.TryGetValue(method, out var parents))
+            if (ownerMethod.MethodKind is not (MethodKind.Ordinary or MethodKind.ExplicitInterfaceImplementation or MethodKind.LocalFunction) ||
+                ownerMethod.Parameters is not [var builder] ||
+                !SymbolEqualityComparer.Default.Equals(semantic.GetSymbolInfo(invocation.ArgumentList.Arguments[0].Expression, facts.Cancellation).Symbol, builder))
+                return;
+            // Follow only same-type helpers that forward the original builder unchanged.
+            if (method.Parameters.Length == 1 && !method.IsGenericMethod && !method.IsVirtual && !method.IsAbstract &&
+                !method.IsOverride && SymbolEqualityComparer.Default.Equals(method.ContainingType, ownerMethod.ContainingType))
             {
-                parents = new(SymbolEqualityComparer.Default);
-                callers.Add(method, parents);
+                if (!callers.TryGetValue(method, out var parents))
+                {
+                    parents = new(SymbolEqualityComparer.Default);
+                    callers.Add(method, parents);
+                }
+                parents.Add(ownerMethod);
             }
-            parents.Add(ownerMethod);
+            if (invocation.Expression is MemberAccessExpressionSyntax access &&
+                (boundReceiver ?? semantic.GetTypeInfo(access.Expression, facts.Cancellation)).Type is INamedTypeSymbol configuration &&
+                configuration.TypeKind != TypeKind.Interface && ConfigurationBinding(facts, configuration, method) is { } binding)
+                applications.Add((configuration, binding, ownerMethod));
         }
-        if (invocation.Expression is MemberAccessExpressionSyntax access &&
-            (boundReceiver ?? semantic.GetTypeInfo(access.Expression, facts.Cancellation)).Type is INamedTypeSymbol configuration &&
-            configuration.TypeKind != TypeKind.Interface && ConfigurationBinding(facts, configuration, method) is { } binding)
-            applications.Add((configuration, binding, ownerMethod));
     }
 
     private static void PropagateConfigurationOwners(ConventionFacts facts,
@@ -346,12 +338,13 @@ internal static partial class ConventionPersistenceAnalysis
         }
     }
 
+    [SuppressMessage("SonarQube", "S3267", Justification = "Scanning Configure members directly avoids a predicate capturing the type and method for each binding.")]
     private static INamedTypeSymbol? ConfigurationBinding(ConventionFacts facts, INamedTypeSymbol type, IMethodSymbol method)
     {
         foreach (var binding in facts.Symbols.Bindings(type, facts.Symbols.Configuration, facts.Cancellation))
-        foreach (var member in binding.GetMembers("Configure"))
-            if (SymbolEqualityComparer.Default.Equals(type.FindImplementationForInterfaceMember(member), method))
-                return binding;
+            foreach (var member in binding.GetMembers("Configure"))
+                if (SymbolEqualityComparer.Default.Equals(type.FindImplementationForInterfaceMember(member), method))
+                    return binding;
         return null;
     }
 

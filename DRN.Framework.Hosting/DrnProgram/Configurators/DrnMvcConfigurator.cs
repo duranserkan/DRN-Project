@@ -1,6 +1,5 @@
 using System.Reflection;
 using DRN.Framework.SharedKernel.Json;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Hosting.DrnProgram.Configurators;
 

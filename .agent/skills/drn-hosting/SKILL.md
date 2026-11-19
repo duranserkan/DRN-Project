@@ -1,7 +1,7 @@
 ---
 name: drn-hosting
 description: "Configure DRN hosts, MFA, API errors, rate limits, Razor endpoints, CSP and TagHelpers."
-last-updated: 2026-11-14
+last-updated: 2026-11-18
 difficulty: advanced
 ---
 
@@ -80,7 +80,7 @@ For access-denied references, use `AccessDeniedPageModel` and `PreserveAccessDen
 
 Follow [Utils](../drn-utils/SKILL.md) and the profile's diagnostic guide. Apps own dynamic classification. `SanitizeText` does not certify content. Runtime names do not redact. Keep private diagnostics out of public errors, including raw callbacks.
 
-See [Developer Diagnostics](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#developer-diagnostics) and [Startup Exception Reports](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Hosting/README.md#startup-exception-reports) for privacy and failure-logging rules.
+Use `[DeveloperExceptionPreview]` on preview endpoints and `DeveloperExceptionAccess.AllowsAsync` for links. See the [Hosting README][hosting], Developer Diagnostics and Startup Exception Reports.
 
 ## Rate Limiting Rules
 

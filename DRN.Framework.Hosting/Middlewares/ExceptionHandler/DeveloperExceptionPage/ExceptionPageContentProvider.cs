@@ -5,10 +5,7 @@ using DRN.Framework.Hosting.Areas.Developer.Pages;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
-using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Http;
 
 namespace DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 

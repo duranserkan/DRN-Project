@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Mvc.RazorPages;
-
 namespace Sample.Hosted.Pages;
 
 [AllowAnonymous]

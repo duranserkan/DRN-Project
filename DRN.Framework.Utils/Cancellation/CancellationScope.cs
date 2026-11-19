@@ -1,5 +1,3 @@
-using DRN.Framework.SharedKernel.Attributes;
-
 namespace DRN.Framework.Utils.Cancellation;
 
 /// <summary>Represents one stable, terminal cancellation scope.</summary>

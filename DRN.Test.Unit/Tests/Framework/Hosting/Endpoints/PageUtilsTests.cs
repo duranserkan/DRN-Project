@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Text.Encodings.Web;
 using DRN.Framework.Hosting.Endpoints;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;

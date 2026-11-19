@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.SharedKernel.Domain.Repository;

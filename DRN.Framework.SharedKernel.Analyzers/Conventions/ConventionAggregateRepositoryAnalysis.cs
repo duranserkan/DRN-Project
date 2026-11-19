@@ -1,7 +1,3 @@
-using System.Collections.Immutable;
-using System.Diagnostics.CodeAnalysis;
-using Microsoft.CodeAnalysis;
-
 namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 
 internal static class ConventionAggregateRepositoryAnalysis

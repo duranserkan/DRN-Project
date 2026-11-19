@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Http;
-
 namespace DRN.Framework.Hosting.Extensions;
 
 public static class ApplicationUrlExtensions

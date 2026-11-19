@@ -1,5 +1,4 @@
 using DRN.Framework.Utils.Auth;
-using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Logging.Diagnostics;
 using DRN.Framework.Utils.Scope;
 using Sample.Hosted.Controllers.Sample;

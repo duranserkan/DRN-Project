@@ -1,7 +1,4 @@
-using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.Hosting.Auth.Policies;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 
 namespace DRN.Framework.Hosting.Auth;

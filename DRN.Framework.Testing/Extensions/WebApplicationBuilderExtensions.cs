@@ -1,7 +1,6 @@
 using DRN.Framework.Testing.Contexts.Postgres;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Logging;
-using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Builder;
 
 namespace DRN.Framework.Testing.Extensions;

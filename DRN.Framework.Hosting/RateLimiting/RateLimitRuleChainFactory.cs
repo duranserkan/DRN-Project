@@ -1,5 +1,4 @@
 using System.Threading.RateLimiting;
-using Microsoft.AspNetCore.Http;
 
 namespace DRN.Framework.Hosting.RateLimiting;
 

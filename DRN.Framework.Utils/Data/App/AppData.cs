@@ -1,6 +1,4 @@
 using DRN.Framework.SharedKernel.Extensions;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
-using DRN.Framework.Utils.Settings;
 
 namespace DRN.Framework.Utils.Data.App;
 

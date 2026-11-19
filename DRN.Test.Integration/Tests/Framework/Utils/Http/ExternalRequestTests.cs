@@ -1,4 +1,3 @@
-using System.Net;
 using DRN.Framework.Utils.Http;
 using Flurl.Http;
 

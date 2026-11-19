@@ -1,9 +1,5 @@
-using System.Collections.Immutable;
 using DRN.Framework.CompilerTools;
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
 
 namespace DRN.Framework.SharedKernel.Analyzers;
@@ -99,15 +95,7 @@ internal sealed class SourceKnownEntityUsageAnalysis
             usingDirective.StaticKeyword.RawKind == 0)
             return false;
 
-        if (ReferenceEquals(current, identifier))
-        {
-            if (parent is InvocationExpressionSyntax invocation && invocation.Expression == identifier)
-                return false;
-            if (parent is MemberAccessExpressionSyntax access && access.Name == identifier &&
-                access.Parent is not (MemberAccessExpressionSyntax or ConstantPatternSyntax or BinaryExpressionSyntax) &&
-                !IsInsideNameof(access.Parent))
-                return false;
-        }
+        if (ReferenceEquals(current, identifier) && IsMemberOrInvocationName(identifier, parent)) return false;
 
         if (parent is ArgumentSyntax) return IsInsideNameof(parent);
         if (parent is BinaryExpressionSyntax binary)
@@ -119,6 +107,14 @@ internal sealed class SourceKnownEntityUsageAnalysis
             ConditionalExpressionSyntax or PrefixUnaryExpressionSyntax or PostfixUnaryExpressionSyntax or
             AwaitExpressionSyntax or InterpolationSyntax or InitializerExpressionSyntax or
             ElementAccessExpressionSyntax or ExpressionStatementSyntax);
+    }
+
+    private static bool IsMemberOrInvocationName(IdentifierNameSyntax identifier, SyntaxNode? parent)
+    {
+        if (parent is InvocationExpressionSyntax invocation) return invocation.Expression == identifier;
+        return parent is MemberAccessExpressionSyntax access && access.Name == identifier &&
+               access.Parent is not (MemberAccessExpressionSyntax or ConstantPatternSyntax or BinaryExpressionSyntax) &&
+               !IsInsideNameof(access.Parent);
     }
 
     private static SyntaxNode ClimbQualifiedName(SyntaxNode node, out SyntaxNode? parent)

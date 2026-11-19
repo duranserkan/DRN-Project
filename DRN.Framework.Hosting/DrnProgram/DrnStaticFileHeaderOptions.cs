@@ -1,5 +1,4 @@
 using System.Text;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Net.Http.Headers;
 
 namespace DRN.Framework.Hosting.DrnProgram;

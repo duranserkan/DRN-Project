@@ -1,6 +1,5 @@
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.SharedKernel.Domain.Repository;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Time;
 
 namespace DRN.Framework.Utils.Entity;

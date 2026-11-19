@@ -10,7 +10,6 @@ using Microsoft.AspNetCore.Mvc.Razor;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Routing;
-using Sample.Hosted;
 
 namespace DRN.Test.Integration.Tests.Sample.Pages;
 

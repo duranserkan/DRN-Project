@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
 
 namespace DRN.Framework.Hosting.RateLimiting;
