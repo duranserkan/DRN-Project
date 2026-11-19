@@ -301,9 +301,9 @@ public sealed class EntityConfigurationRefactoringTests
     }
 
     [Theory]
-    [DataInline("typeof(Microsoft.EntityFrameworkCore.DbContext).Assembly")]
+    [DataInline("typeof(Microsoft.EntityFrameworkCore.DbContext).Assembly", "")]
     [DataInline("typeof(QAContext).Assembly", "builder.Ignore<Sample.Domain.QA.User>();")]
-    public async Task External_Or_Model_Mutating_Custom_Scan_Should_Decline(string assembly, string suffix = "")
+    public async Task External_Or_Model_Mutating_Custom_Scan_Should_Decline(string assembly, string suffix)
     {
         using var workspace = new AdhocWorkspace();
         var entity = CreateDocuments(workspace, contextMembers:
