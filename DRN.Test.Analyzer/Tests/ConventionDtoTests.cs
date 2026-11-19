@@ -18,6 +18,8 @@ public sealed class ConventionDtoTests
     [DataInline("[Personal, Sensitive]", "Display", "=> new(this) { Display = Name + Secret };", "")]
     [DataInline("[Personal]", "Display", "{ return new UserDto(this) { Display = Name }; }", "")]
     [DataInline("", "Name", "=> new(this);", "DRNDTO003")]
+    [DataInline("", "Name", "=> new(this) { Name = string.Empty };", "")]
+    [DataInline("[Sensitive]", "Name", "=> new(this) { Name = Secret };", "")]
     [DataInline("", "", "=> new();", "DRNDTO001")]
     [DataInline("", "", "=> new(null);", "DRNDTO001")]
     [DataInline("", "", "", "DRNDTO001")]
@@ -116,13 +118,14 @@ public sealed class ConventionDtoTests
     }
 
     [Theory]
-    [DataInline("public", "ProfileDto", "QA.Users")]
-    [DataInline("public", "UserDto", "QA.Other")]
-    [DataInline("internal", "UserDto", "QA.Users")]
-    public void Mapper_Contract_And_Projection_Should_Report_Independently(string access, string dto, string area)
+    [DataInline("public", "ProfileDto", "QA.Users", "this")]
+    [DataInline("public", "UserDto", "QA.Other", "this")]
+    [DataInline("internal", "UserDto", "QA.Users", "this")]
+    [DataInline("public", "UserDto", "QA.Users", "this, 2")]
+    public void Mapper_Contract_And_Projection_Should_Report_Independently(string access, string dto, string area, string arguments)
     {
         var diagnostics = Project($$"""
-            {{access}} class {{dto}}(SourceKnownEntity? entity = null) : Dto(entity)
+            {{access}} class {{dto}}(SourceKnownEntity? entity = null, int version = 1) : Dto(entity)
             {
                 public string Label { get; init; } = "";
             }
@@ -130,7 +133,7 @@ public sealed class ConventionDtoTests
             internal class UserEntity : SourceKnownEntity
             {
                 [Personal] public string Email => "";
-                public {{dto}} ToDto() => new(this) { Label = Email };
+                public {{dto}} ToDto() => new({{arguments}}) { Label = Email };
             }
             """, area);
         diagnostics.Select(diagnostic => diagnostic.Id).Should().BeEquivalentTo("DRNDTO001", "DRNDTO003");
@@ -152,20 +155,41 @@ public sealed class ConventionDtoTests
     public void Messages_Should_Use_The_Longest_Entity_Prefix_In_Their_Subdomain(
         string name, string area, string directory, bool batchDto, bool misplaced)
     {
-        var batch = batchDto ? "namespace Shop.Contract.QA.ProductBatches { public class ProductBatchDto : Dto; }" : "";
-        var compilation = Compilation($$"""
-            using DRN.Framework.SharedKernel.Domain;
-            namespace Shop.Contract.QA.Orders { public class OrderDto : Dto; }
-            namespace Shop.Contract.QA.Products { public class ProductDto : Dto; }
-            namespace Shop.Contract.Other.Products { public class ProductDto : Dto; }
-            {{batch}}
-            namespace Shop.Contract.{{area}} { public record {{name}}; }
-            """, "Unrelated.cs").WithAssemblyName("Shop.Contract");
+        var compilation = Compilation($"namespace Shop.Contract.{area}; public record {name};", "Unrelated.cs").WithAssemblyName("Shop.Contract");
+        var paths = new List<ConventionInput> { PathInput("Unrelated.cs", directory + "/Unrelated.cs") };
+        AddDto("QA.Orders", "OrderDto");
+        AddDto("QA.Products", "ProductDto");
+        AddDto("Other.Products", "ProductDto");
+        if (batchDto) AddDto("QA.ProductBatches", "ProductBatchDto");
         compilation.AssertNoCompilerErrors();
-        var path = PathInput("Unrelated.cs", directory + "/Unrelated.cs");
-        var diagnostics = Analyze(compilation, "Contract", path);
+        var diagnostics = Analyze(compilation, "Contract", [.. paths]);
         if (misplaced) diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNDTO004");
         else diagnostics.Should().BeEmpty();
+
+        void AddDto(string dtoArea, string dtoName)
+        {
+            var file = dtoArea.Replace('.', '/') + "/" + dtoName + ".cs";
+            compilation = compilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText(
+                $"namespace Shop.Contract.{dtoArea}; public class {dtoName} : DRN.Framework.SharedKernel.Domain.Dto;", path: file));
+            paths.Add(PathInput(file, file));
+        }
+    }
+
+    [Fact]
+    public void Messages_Should_Follow_The_Actual_Namespace_And_Logical_Folder_Of_A_Misplaced_Dto()
+    {
+        var compilation = Compilation("""
+            namespace Shop.Contract.QA.Legacy;
+            public class OrderDto : DRN.Framework.SharedKernel.Domain.Dto;
+            public record OrderRequest;
+            """, "Dto.cs").WithAssemblyName("Shop.Contract").AddSyntaxTrees(CSharpSyntaxTree.ParseText(
+                "namespace Shop.Contract.QA.Orders; public record OrderResponse;", path: "Response.cs"));
+        compilation.AssertNoCompilerErrors();
+        var diagnostics = Analyze(compilation, "Contract", PathInput("Dto.cs", "QA/Linked/Dto.cs"),
+            PathInput("Response.cs", "QA/Orders/Response.cs"));
+        diagnostics.Select(item => item.Id).Should().BeEquivalentTo("DRNDTO002", "DRNDTO004");
+        diagnostics.Single(item => item.Id == "DRNDTO004").GetMessage().Should()
+            .Be("Place 'OrderResponse' in 'QA/Linked' with namespace 'Shop.Contract.QA.Legacy' alongside its entity DTO.");
     }
 
     [Fact]
@@ -269,6 +293,7 @@ public sealed class ConventionDtoTests
     [Theory]
     [DataInline("System.Collections.Generic.List<string>", "Email")]
     [DataInline("Labels", "new ContactDto { Label = Email }")]
+    [DataInline("RelistedLabels", "new ContactDto { Label = Email }")]
     public void Scalar_Elements_And_Custom_Add_Inputs_Should_Classify_The_Collection(string collection, string element)
     {
         var diagnostics = Project($$"""
@@ -276,6 +301,10 @@ public sealed class ConventionDtoTests
             public class Labels : System.Collections.Generic.List<string>
             {
                 public void Add(ContactDto contact) => Add(contact.Label);
+            }
+            public class RelistedLabels : System.Collections.Generic.List<object>, System.Collections.Generic.ICollection<object>
+            {
+                public new void Add(object item) => base.Add(((ContactDto)item).Label);
             }
             public class UserDto(SourceKnownEntity? e = null) : Dto(e)
             {
@@ -288,8 +317,9 @@ public sealed class ConventionDtoTests
                 public UserDto ToDto() => new(this) { Contacts = new() { {{element}} } };
             }
             """);
-        diagnostics.Should().ContainSingle().Which.GetMessage().Should()
-            .Be("DTO property 'Contacts' requires [Personal] from mapped property 'Email'.");
+        var diagnostic = diagnostics.Should().ContainSingle().Which;
+        diagnostic.Id.Should().Be("DRNDTO003");
+        diagnostic.GetMessage().Should().Be("DTO property 'Contacts' requires [Personal] from mapped property 'Email'.");
     }
 
     [Theory]
@@ -744,6 +774,7 @@ public sealed class ConventionDtoTests
     [Theory]
     [DataInline("Labels", "new ContactDto { Label = Email }", "", "[Personal]", "Contacts")]
     [DataInline("Labels", "new ContactDto { Label = Email }", "[Personal]", "", null)]
+    [DataInline("Relisted", "new ContactDto { Label = Email }", "", "[Personal]", "Contacts")]
     [DataInline("Mixed", "new ContactDto { Label = Email }", "", "[Personal]", "Contacts")]
     [DataInline("Mixed", "(object)new ContactDto { Label = Email }", "[Personal]", "", "Label")]
     [DataInline("Plain", "new ContactDto { Label = Email }", "", "[Personal]", null)]
@@ -755,6 +786,10 @@ public sealed class ConventionDtoTests
         var diagnostics = Project($$"""
             public class ContactDto { {{leafAnnotation}} public string Label { get; init; } = ""; }
             public class Plain : System.Collections.Generic.List<object>;
+            public class Relisted : Plain, System.Collections.Generic.ICollection<object>
+            {
+                public new void Add(object item) => base.Add(((ContactDto)item).Label);
+            }
             public class Labels : Plain
             {
                 public new void Add(object item) => base.Add(((ContactDto)item).Label);

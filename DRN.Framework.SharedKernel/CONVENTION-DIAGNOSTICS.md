@@ -18,7 +18,7 @@ For older settings, update the ID in `.editorconfig`, `NoWarn`, both ends of a `
 |---|---|---|
 | DRNDTO001 | DRN.Conventions.Contract | A concrete, closed Domain `SourceKnownEntity` declares a public parameterless instance `ToDto()` returning its matching public Contract DTO. Return the DTO directly with `new(this)` or the equivalent explicit constructor. |
 | DRNDTO002 | DRN.Conventions.Structure | Place the DTO under the owning subdomain and plural entity folder, for example `QA/Categories/CategoryDto.cs`. DRNSTRUCTURE001 checks the logical path against the namespace. |
-| DRNDTO003 | DRN.Conventions.Contract | Preserve each positive Personal and Sensitive classification on the corresponding DTO property. The analyzer checks matching property names and property reads in mapper initializers, including renamed assignments. |
+| DRNDTO003 | DRN.Conventions.Contract | Preserve each positive Personal and Sensitive classification on the corresponding DTO property. Explicit initializer assignments use the properties they read. Unassigned DTO properties use the same-name entity property when one exists. |
 | DRNDTO004 | DRN.Conventions.Structure | Place a public entity-prefixed `Request` or `Response` beside its DTO in the same namespace and logical compile folder. |
 
 DRNDTO004 matches the declared type name against public entity DTOs in the same Contract project and subdomain. The longest prefix at a PascalCase word boundary determines the owner. With only `ProductDto`, `ProductBatchRequest` belongs in `Products/`. Adding `ProductBatchDto` makes `ProductBatches/` its destination. `OrderDto` matches `OrderResponse` and leaves `OrderingRequest` unmatched. A request or response can define its own payload.
@@ -35,7 +35,7 @@ The same rules apply to bracket collection expressions. If a custom `Add` extrac
 
 DTO folders use a deterministic suffix. A consonant followed by lowercase `y` becomes `ies`. Stems ending in lowercase `s`, `x`, `z`, `ch` or `sh` take `es`. All other stems take `s`, including `Person` → `Persons`. The IDE action requires the result to be a valid namespace segment.
 
-For DRNDTO003, copy each positive source property annotation to the mapped DTO property, including a nested destination such as `Contact.Email`. An inherited annotation on an override counts. When the concrete receiver is known, annotations on its selected virtual override or interface implementation also count, including through `?.`. A class annotation alone cannot satisfy a source property annotation. When protection comes solely from a source type, an equivalent destination type or property classification preserves it. A DRNDTO001 exception for a DTO's name, namespace or accessibility leaves this classification check active.
+For DRNDTO003, copy each positive source property annotation to the mapped DTO property, including a nested destination such as `Contact.Email`. An inherited annotation on an override counts. When the concrete receiver is known, annotations on its selected virtual override or interface implementation also count, including through `?.`. A class annotation alone cannot satisfy a source property annotation. When protection comes solely from a source type, an equivalent destination type or property classification preserves it. Classification checks on the initializer remain active whether DRNDTO001 reports a problem or an approved exception covers the DTO's name, namespace, accessibility or constructor arguments.
 
 | ID | Message template | Exception target |
 |---|---|---|

@@ -79,7 +79,7 @@ internal static class ConventionOwnershipAnalysis
     }
 
     internal static void AnalyzeTypePlacement(ConventionFacts facts, INamedTypeSymbol type, Location location,
-        string ns, string expectedNamespace, string expectedDirectory, DiagnosticDescriptor? descriptor = null)
+        string ns, string expectedNamespace, string? expectedDirectory, DiagnosticDescriptor? descriptor = null)
     {
         var namespaceConflict = ns != expectedNamespace;
         var conflictingParts = new HashSet<Location>();
@@ -90,7 +90,7 @@ internal static class ConventionOwnershipAnalysis
             if (facts.IsGenerated(reference.SyntaxTree) || facts.HasInvalidPath(reference.SyntaxTree)) continue;
             var placement = facts.LogicalDirectory(reference.SyntaxTree);
             if (placement is null) { missing = true; continue; }
-            if (placement.Value.Directory == expectedDirectory && !namespaceConflict) continue;
+            if ((expectedDirectory is null || placement.Value.Directory == expectedDirectory) && !namespaceConflict) continue;
             var part = type.Locations.FirstOrDefault(candidate => candidate.SourceTree == reference.SyntaxTree &&
                 reference.Span.Contains(candidate.SourceSpan)) ?? reference.GetSyntax(facts.Cancellation).GetLocation();
             conflictingParts.Add(part);
@@ -105,7 +105,7 @@ internal static class ConventionOwnershipAnalysis
                 conflictingParts.OrderBy(part => facts.LogicalPath(part.SourceTree!) ?? part.SourceTree!.FilePath, StringComparer.Ordinal)
                     .ThenBy(part => part.SourceSpan.Start),
                 properties: descriptor is null ? null : ImmutableDictionary<string, string?>.Empty.Add("Target", type.GetDocumentationCommentId()),
-                messageArgs: [type.Name, expectedDirectory, expectedNamespace]));
+                messageArgs: [type.Name, expectedDirectory ?? "<unknown>", expectedNamespace]));
         }
     }
 

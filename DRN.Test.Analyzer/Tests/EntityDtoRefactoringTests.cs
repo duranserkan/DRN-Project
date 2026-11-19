@@ -768,6 +768,33 @@ public sealed class EntityDtoRefactoringTests
     }
 
     [Theory]
+    [DataInlineUnit("User", false)]
+    [DataInlineUnit("UserBase", false)]
+    [DataInlineUnit("Earlier", true)]
+    public async Task Inactive_Part_In_Another_File_Should_Protect_Type_Classification(
+        DrnTestContextUnit context, string disabledType, bool offered)
+    {
+        using var workspace = new AdhocWorkspace();
+        var source = Source.Replace("public class User : DRN.Framework.SharedKernel.Domain.SourceKnownEntity",
+            "public partial class UserBase : DRN.Framework.SharedKernel.Domain.SourceKnownEntity;\npublic partial class User : UserBase",
+            StringComparison.Ordinal);
+        var document = Create(workspace, context, source);
+        var part = document.Project.AddDocument("Conditional.cs", $$"""
+            namespace Sample.Domain.QA;
+            #if FEATURE
+            [DRN.Framework.SharedKernel.Attributes.Personal]
+            public partial class {{disabledType}} { }
+            #endif
+            """);
+        workspace.TryApplyChanges(part.Project.Solution).Should().BeTrue();
+        document = workspace.CurrentSolution.GetDocument(document.Id)!;
+        (await document.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
+        var actions = await Actions(document);
+        if (offered) actions.Should().ContainSingle();
+        else actions.Should().BeEmpty();
+    }
+
+    [Theory]
     [DataInlineUnit("external-project")]
     [DataInlineUnit("other-contract")]
     [DataInlineUnit("external-metadata")]
@@ -789,7 +816,7 @@ public sealed class EntityDtoRefactoringTests
                         filePath: Path.Combine(context.GetTempPath(), "Legacy.Shared", "Legacy.Shared.csproj")))
                     .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
                     .AddMetadataReferences(ClassificationTestFixture.References)
-                    .AddDocument("UserDto.cs", scenario == "external-project"
+                    .AddDocument("LegacyTypes.cs", scenario == "external-project"
                         ? collidingDto
                         : "namespace Sample.Contract.QA.Users; internal sealed class UserDto;");
                 solution = extra.Project.Solution.AddProjectReference(document.Project.Id, new ProjectReference(extra.Project.Id));
@@ -832,6 +859,35 @@ public sealed class EntityDtoRefactoringTests
         var changed = await action.GetChangedSolutionAsync();
         foreach (var project in changed.Projects)
             (await project.GetCompilationAsync())!.AssertNoCompilerErrors();
+    }
+
+    [Theory]
+    [DataInlineUnit(true)]
+    [DataInlineUnit(false)]
+    public async Task Only_New_Compiler_Errors_In_Affected_Projects_Should_Block_The_Projection(
+        DrnTestContextUnit context, bool ambiguous)
+    {
+        using var workspace = new AdhocWorkspace();
+        var document = Create(workspace, context, Source + "\nclass Broken { MissingType field; }");
+        var contract = document.Project.Solution.Projects.Single(project => project.Name == "Sample.Contract");
+        var consumer = workspace.AddProject("Consumer", LanguageNames.CSharp)
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(ClassificationTestFixture.References)
+            .AddProjectReference(new ProjectReference(contract.Id))
+            .AddDocument("Caller.cs", $$"""
+                using Legacy;
+                using Sample.Contract.QA.Users;
+                namespace Sample.Contract.QA.Users { public class Existing; }
+                namespace Legacy { public class UserDto; }
+                class Caller { {{(ambiguous ? "UserDto" : "Legacy.UserDto")}} value; }
+                """);
+        workspace.TryApplyChanges(consumer.Project.Solution).Should().BeTrue();
+        (await workspace.CurrentSolution.GetProject(consumer.Project.Id)!.GetCompilationAsync())!.AssertNoCompilerErrors();
+        document = workspace.CurrentSolution.GetDocument(document.Id)!;
+        (await document.Project.GetCompilationAsync())!.GetDiagnostics().Should().Contain(d => d.Id == "CS0246");
+        var actions = await Actions(document);
+        if (ambiguous) actions.Should().BeEmpty();
+        else actions.Should().ContainSingle();
     }
 
     [Theory]

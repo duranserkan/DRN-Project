@@ -6,6 +6,8 @@ namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 
 internal static class ConventionDtoAnalysis
 {
+    private readonly record struct DtoPlacement(string Namespace, string? Directory);
+
     internal static void Analyze(ConventionFacts facts)
     {
         var classifications = new Lazy<ClassificationContract?>(() =>
@@ -14,7 +16,7 @@ internal static class ConventionDtoAnalysis
             var personal = facts.Compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.PersonalAttribute");
             return sensitive is null || personal is null ? null : new ClassificationContract(sensitive, personal, facts.Compilation);
         }, isThreadSafe: false);
-        var dtoStems = new HashSet<(string Root, string Subdomain, string Stem)>();
+        var dtoStems = new Dictionary<(string Root, string Subdomain, string Stem), DtoPlacement?>();
         var messages = new List<INamedTypeSymbol>();
         foreach (var type in facts.Types)
         {
@@ -34,8 +36,14 @@ internal static class ConventionDtoAnalysis
                 var folder = ConventionNames.DtoFolder(stem);
                 var subdomain = facts.Owner(type)?.Subdomain;
                 if (facts.HasInvalidOwner(type)) continue;
-                if (subdomain is not null && ConventionBoundaryAnalysis.IsPublic(type))
-                    dtoStems.Add((role.Namespace, subdomain, stem));
+                if (subdomain is not null && ConventionBoundaryAnalysis.IsPublic(type) && facts.Location(type).SourceTree is { } tree)
+                {
+                    var key = (role.Namespace, subdomain, stem);
+                    var placement = new DtoPlacement(type.ContainingNamespace.ToDisplayString(),
+                        facts.HasInvalidPath(tree) ? null : facts.LogicalDirectory(tree)?.Directory);
+                    // A shared stem can identify more than one DTO. Only report a unique destination.
+                    if (!dtoStems.TryAdd(key, placement) && dtoStems[key] != placement) dtoStems[key] = null;
+                }
                 if (facts.Location(type) != Location.None && !InDtoNamespace(facts, type, subdomain, folder))
                     Report(facts, ConventionDiagnosticDescriptors.DtoFolder, type, facts.Location(type), type.Name, folder);
                 // DRNSTRUCTURE001 independently verifies each declaration's logical folder against its namespace.
@@ -53,7 +61,7 @@ internal static class ConventionDtoAnalysis
     }
 
     private static void CheckMessagePlacement(ConventionFacts facts, INamedTypeSymbol message,
-        HashSet<(string Root, string Subdomain, string Stem)> dtoStems)
+        Dictionary<(string Root, string Subdomain, string Stem), DtoPlacement?> dtoStems)
     {
         facts.Cancellation.ThrowIfCancellationRequested();
         if (facts.Owner(message) is not { Subdomain: var subdomain }) return;
@@ -64,12 +72,10 @@ internal static class ConventionDtoAnalysis
         {
             if (end != stemLength && !IsWordBoundary(name, end)) continue;
             var stem = name[..end];
-            if (!dtoStems.Contains((role.Namespace, subdomain, stem))) continue;
-            var folder = ConventionNames.DtoFolder(stem);
-            var path = (role.PathPrefix.Length == 0 ? "" : role.PathPrefix + "/") + subdomain + "/" + folder;
-            var ns = role.Namespace + "." + subdomain + "." + folder;
-            ConventionOwnershipAnalysis.AnalyzeTypePlacement(facts, message, facts.Location(message),
-                message.ContainingNamespace.ToDisplayString(), ns, path, ConventionDiagnosticDescriptors.DtoMessagePlacement);
+            if (!dtoStems.TryGetValue((role.Namespace, subdomain, stem), out var placement)) continue;
+            if (placement is { } dto)
+                ConventionOwnershipAnalysis.AnalyzeTypePlacement(facts, message, facts.Location(message),
+                    message.ContainingNamespace.ToDisplayString(), dto.Namespace, dto.Directory, ConventionDiagnosticDescriptors.DtoMessagePlacement);
             return;
         }
     }
@@ -90,10 +96,12 @@ internal static class ConventionDtoAnalysis
             candidate is { IsStatic: false, Arity: 0, Parameters.Length: 0, DeclaredAccessibility: Accessibility.Public });
         var creation = method?.ReturnType is INamedTypeSymbol result && facts.Symbols.IsKnown(result, facts.Symbols.Dto, facts.Cancellation)
             ? GetConstruction(facts, method) : null;
-        if (creation?.Type is not INamedTypeSymbol dto || dto.Name != stem + "Dto" || !IsPublicDtoType(dto) ||
+        if (creation?.Type is not INamedTypeSymbol dto || !SymbolEqualityComparer.Default.Equals(dto, method?.ReturnType) ||
+            !ConstructsWithEntity(facts, creation) || dto.Name != stem + "Dto" || !IsPublicDtoType(dto) ||
             !InDtoNamespace(facts, dto, owner?.Subdomain, ConventionNames.DtoFolder(stem)))
             Report(facts, ConventionDiagnosticDescriptors.EntityDto, entity, facts.Location(entity), entity.Name, stem + "Dto");
-        if (creation?.Type is INamedTypeSymbol projected && classifications.Value is { } contract)
+        if (creation?.Type is INamedTypeSymbol projected && facts.Symbols.IsKnown(projected, facts.Symbols.Dto, facts.Cancellation) &&
+            classifications.Value is { } contract)
             CheckProjection(facts, entity, projected, creation, contract);
     }
 
@@ -114,16 +122,21 @@ internal static class ConventionDtoAnalysis
             var expression = syntax.ExpressionBody?.Expression ??
                 (syntax.Body?.Statements is [ReturnStatementSyntax statement] ? statement.Expression : null);
             if (expression is null || facts.SemanticModel(syntax.SyntaxTree).GetOperation(expression, facts.Cancellation)
-                is not IObjectCreationOperation creation || !SymbolEqualityComparer.Default.Equals(creation.Type, method.ReturnType)) continue;
-            // The operation also contains compiler-supplied arguments for omitted optional parameters.
-            if (creation.Arguments is not [{ ArgumentKind: ArgumentKind.Explicit } argument, ..] ||
-                creation.Arguments.Skip(1).Any(arg => arg.ArgumentKind != ArgumentKind.DefaultValue)) continue;
-            var value = argument.Value;
-            while (value is IConversionOperation { Conversion.IsReference: true } conversion) value = conversion.Operand;
-            if (value is IInstanceReferenceOperation { Syntax: ThisExpressionSyntax, ReferenceKind: InstanceReferenceKind.ContainingTypeInstance } &&
-                ConventionSymbols.Same(argument.Parameter?.Type, facts.Symbols.Entity)) return creation;
+                is not IObjectCreationOperation creation) continue;
+            return creation;
         }
         return null;
+    }
+
+    private static bool ConstructsWithEntity(ConventionFacts facts, IObjectCreationOperation creation)
+    {
+        // The operation also contains compiler-supplied arguments for omitted optional parameters.
+        if (creation.Arguments is not [{ ArgumentKind: ArgumentKind.Explicit } argument, ..] ||
+            creation.Arguments.Skip(1).Any(arg => arg.ArgumentKind != ArgumentKind.DefaultValue)) return false;
+        var value = argument.Value;
+        while (value is IConversionOperation { Conversion.IsReference: true } conversion) value = conversion.Operand;
+        return value is IInstanceReferenceOperation { Syntax: ThisExpressionSyntax, ReferenceKind: InstanceReferenceKind.ContainingTypeInstance } &&
+            ConventionSymbols.Same(argument.Parameter?.Type, facts.Symbols.Entity);
     }
 
     private static IEnumerable<(IPropertyReferenceOperation Source, IPropertyReferenceOperation Target)> MappedReads(
@@ -241,7 +254,7 @@ internal static class ConventionDtoAnalysis
 
     private static bool IsStorageAdd(IMethodSymbol method, INamedTypeSymbol collection, ConventionFacts facts)
     {
-        if (method.Name != "Add") return false;
+        if (method.Name != "Add" || method.DeclaringSyntaxReferences.Length != 0) return false;
         // Collection contracts identify a stored element. Other Add methods can consume arbitrary helper inputs.
         foreach (var contract in collection.AllInterfaces.Prepend(collection))
         {
@@ -250,6 +263,8 @@ internal static class ConventionDtoAnalysis
                 contract.MetadataName == "ISet`1" && ConventionSymbols.Same(contract, facts.Compilation.GetTypeByMetadataName("System.Collections.Generic.ISet`1")) ||
                 contract.MetadataName == "IList" && ConventionSymbols.Same(contract, facts.Compilation.GetTypeByMetadataName("System.Collections.IList"));
             if (!elementContract) continue;
+            // A derived Add can reimplement the storage contract even when the DTO assembly is metadata-only.
+            if (method.ContainingType.BaseType?.AllInterfaces.Contains(contract, SymbolEqualityComparer.Default) == true) continue;
             foreach (var member in contract.GetMembers("Add"))
                 if (SymbolEqualityComparer.Default.Equals(method, member) ||
                     SymbolEqualityComparer.Default.Equals(method, collection.FindImplementationForInterfaceMember(member)))
@@ -262,16 +277,29 @@ internal static class ConventionDtoAnalysis
         IObjectCreationOperation creation, ClassificationContract classifications)
     {
         var reported = new Dictionary<IPropertySymbol, PropertyClassification>(SymbolEqualityComparer.Default);
+        var assigned = new HashSet<IPropertySymbol>(SymbolEqualityComparer.Default);
         if (creation.Initializer is { } initializer)
+        {
+            foreach (var assignment in initializer.Initializers)
+            {
+                var destination = assignment switch
+                {
+                    ISimpleAssignmentOperation simple => simple.Target,
+                    IMemberInitializerOperation member => member.InitializedMember,
+                    _ => null
+                };
+                if (destination is IPropertyReferenceOperation property) assigned.Add(property.Property);
+            }
             foreach (var (source, target) in MappedReads(initializer, facts))
                 Check(source.Property, Receiver(source), target.Property, Receiver(target), (target.Parent ?? target).Syntax.GetLocation(),
                     source.Instance?.Type, target.Instance?.Type);
+        }
         var overridden = new HashSet<IPropertySymbol>(SymbolEqualityComparer.Default);
         for (var contract = dto; contract is not null && !ConventionSymbols.Same(contract, facts.Symbols.Dto); contract = contract.BaseType)
         foreach (var target in contract.GetMembers().OfType<IPropertySymbol>().Where(Eligible))
         {
             if (target.OverriddenProperty is { } parent) overridden.Add(parent);
-            if (overridden.Contains(target)) continue;
+            if (overridden.Contains(target) || assigned.Contains(target)) continue;
             for (var domain = entity; domain is not null && !ConventionSymbols.Same(domain, facts.Symbols.Entity); domain = domain.BaseType)
             {
                 if (domain.GetMembers(target.Name).OfType<IPropertySymbol>().FirstOrDefault() is not { } source) continue;

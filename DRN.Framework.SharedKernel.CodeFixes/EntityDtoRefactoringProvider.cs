@@ -70,11 +70,9 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         if (added is not MethodDeclarationSyntax method || model?.GetDeclaredSymbol(method, token) is not IMethodSymbol symbol ||
             symbol.ReturnType is not INamedTypeSymbol { TypeKind: TypeKind.Class } returnType ||
             proposed.GetProject(returnType.ContainingAssembly, token) is not { } targetProject ||
-            targetProject.Id != targetId || MetadataName(returnType) != expectedName ||
-            model.GetDiagnostics(method.Span, token).Any(BlocksProjection))
+            targetProject.Id != targetId || MetadataName(returnType) != expectedName)
             return null;
-        var dtoModel = await proposed.GetDocument(dtoId)!.GetSemanticModelAsync(token);
-        if (dtoModel is null || dtoModel.GetDiagnostics(cancellationToken: token).Any(BlocksProjection))
+        if (await IntroducesBlockingDiagnosticsAsync(document, proposed, targetId, method.FullSpan, token))
             return null;
 
         // Ask the compiler which callers in the proposed solution actually bind to the new mapper.
@@ -96,9 +94,52 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
             if (before.GetSymbolInfo(site, token).Symbol is IMethodSymbol) return null;
         }
         return edited;
+    }
+
+    private static async Task<bool> IntroducesBlockingDiagnosticsAsync(Document document, Solution proposed,
+        ProjectId targetId, TextSpan insertion, CancellationToken token)
+    {
+        var original = document.Project.Solution;
+        var graph = proposed.GetProjectDependencyGraph();
+        // The Domain project and its consumers are already dependents of the Contract target.
+        foreach (var id in graph.GetProjectsThatTransitivelyDependOnThisProject(targetId).Prepend(targetId))
+        {
+            token.ThrowIfCancellationRequested();
+            var project = proposed.GetProject(id)!;
+            if (!project.SupportsCompilation) continue;
+            if (await project.GetCompilationAsync(token) is not { } after) return true;
+            var blockers = after.GetDiagnostics(token).Where(BlocksProjection).ToArray();
+            if (blockers.Length == 0) continue;
+            if (await original.GetProject(id)!.GetCompilationAsync(token) is not { } before) return true;
+            var existing = before.GetDiagnostics(token).Where(BlocksProjection)
+                .Select(diagnostic => Key(original, diagnostic, beforeEdit: true)).CountBy(key => key).ToDictionary();
+            foreach (var diagnostic in blockers)
+            {
+                var key = Key(proposed, diagnostic, beforeEdit: false);
+                if (!existing.TryGetValue(key, out var count) || count == 0) return true;
+                existing[key] = count - 1;
+            }
+        }
+        return false;
 
         static bool BlocksProjection(Diagnostic diagnostic) =>
             diagnostic.Severity == DiagnosticSeverity.Error || diagnostic.Id == "CS0436";
+
+        (string Id, DiagnosticSeverity Severity, string Message, DocumentId? Document, string? Path, TextSpan Span) Key(
+            Solution solution, Diagnostic diagnostic, bool beforeEdit)
+        {
+            var location = diagnostic.Location;
+            var tree = location.SourceTree;
+            var documentId = tree is null ? null : solution.GetDocument(tree)?.Id;
+            var span = location.SourceSpan;
+            if (beforeEdit && documentId == document.Id)
+            {
+                // Compare locations in the proposed tree's coordinates, including errors after the inserted member.
+                if (span.Start >= insertion.Start) span = new TextSpan(span.Start + insertion.Length, span.Length);
+                else if (span.End > insertion.Start) span = new TextSpan(span.Start, span.Length + insertion.Length);
+            }
+            return (diagnostic.Id, diagnostic.Severity, diagnostic.GetMessage(), documentId, tree?.FilePath, span);
+        }
     }
 
     private static async Task<Selection?> ReadSelection(Document document, TextSpan span, CancellationToken token)
@@ -174,11 +215,11 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
                 return true;
             if (!trivia.IsKind(SyntaxKind.DisabledTextTrivia)) continue;
             var disabled = trivia.ToString();
-            if (!disabled.Contains('[')) continue;
-            // Ask the parser whether disabled attributes would attach to the following type or to an earlier declaration.
+            // A disabled attribute or partial modifier can change the classification of the following type.
             var probe = SyntaxFactory.ParseCompilationUnit(disabled + "\nclass __Header {}",
                 options: (CSharpParseOptions)declaration.SyntaxTree.Options);
-            if (probe.FindToken(disabled.Length + 1).Parent is ClassDeclarationSyntax { AttributeLists.Count: > 0 }) return true;
+            if (probe.FindToken(disabled.Length + 1).Parent is ClassDeclarationSyntax headerType &&
+                (headerType.AttributeLists.Count != 0 || headerType.Modifiers.Any(SyntaxKind.PartialKeyword))) return true;
         }
         return false;
     }
@@ -217,10 +258,48 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         var entityBase = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity");
         if (entity.IsAbstract || IsOpen(entity) || !IsPublicType(entity) || !Inherits(entity, entityBase)) return false;
         foreach (var type in Bases(entity))
-        foreach (var reference in type.DeclaringSyntaxReferences)
-            if (reference.GetSyntax(token) is TypeDeclarationSyntax declaration && HasConditionalTypeHeader(declaration, token))
-                return false;
+        {
+            Compilation? definingCompilation = compilation;
+            var definition = type;
+            if (!SymbolEqualityComparer.Default.Equals(type.ContainingAssembly, compilation.Assembly))
+            {
+                var owner = document.Project.Solution.GetProject(type.ContainingAssembly, token);
+                definingCompilation = owner is null ? null : await owner.GetCompilationAsync(token);
+                definition = definingCompilation?.Assembly.GetTypeByMetadataName(MetadataName(type)) ?? type;
+            }
+            var partial = false;
+            foreach (var reference in definition.DeclaringSyntaxReferences)
+            {
+                if (reference.GetSyntax(token) is not TypeDeclarationSyntax declaration) continue;
+                if (HasConditionalTypeHeader(declaration, token)) return false;
+                partial |= declaration.Modifiers.Any(SyntaxKind.PartialKeyword);
+            }
+            if (partial && (definingCompilation is null || HasInactiveDeclaration(definingCompilation, type.Name, token))) return false;
+        }
         return await ArePartsEditableAsync(document.Project, entity, rejectSpanErrors: false, token);
+    }
+
+    private static bool HasInactiveDeclaration(Compilation compilation, string typeName, CancellationToken token)
+    {
+        // A wholly disabled part has no symbol. Its class name can also be split from the keyword by a directive.
+        foreach (var tree in compilation.SyntaxTrees)
+        {
+            var root = tree.GetRoot(token);
+            if (!root.ContainsDirectives) continue;
+            foreach (var trivia in root.DescendantTrivia(descendIntoChildren: node => node.ContainsDirectives))
+            {
+                token.ThrowIfCancellationRequested();
+                if (!trivia.IsKind(SyntaxKind.DisabledTextTrivia)) continue;
+                var previous = SyntaxKind.None;
+                foreach (var part in SyntaxFactory.ParseTokens(trivia.ToString(), options: (CSharpParseOptions)tree.Options))
+                {
+                    if (part.IsKind(SyntaxKind.IdentifierToken) && part.ValueText == typeName &&
+                        previous is SyntaxKind.None or SyntaxKind.ClassKeyword) return true;
+                    previous = part.Kind();
+                }
+            }
+        }
+        return false;
     }
 
     private static async Task<DtoPlan?> Plan(Document document, Selection selection, Project target, CancellationToken token)

@@ -600,7 +600,7 @@ public sealed class ConventionDiagnosticContractTests
                 namespace Sample.Contract.QA { public class OtherTarget; public record OrderResponse; }
                 """, [Input("Path", "ContractFixture.cs", ("LogicalPath", "QA/ContractFixture.cs"))],
                 "T:Sample.Contract.QA.OrderResponse", "OrderResponse",
-                "Place 'OrderResponse' in 'QA/Orders' with namespace 'Sample.Contract.QA.Orders' alongside its entity DTO.",
+                "Place 'OrderResponse' in 'QA' with namespace 'Sample.Contract.QA.Orders' alongside its entity DTO.",
                 ConventionDtoAnalysis.Analyze),
             "DRNARCHITECTURE006" => new("Domain", "namespace Sample.Domain.QA; public class OtherTarget;",
                 [Input("Reference", "Inventory", ("Stage", "Complete"))], "Sample.Domain:Contract", "input",

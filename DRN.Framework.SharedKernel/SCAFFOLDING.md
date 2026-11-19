@@ -157,7 +157,7 @@ To request the bounded DTO action, select the complete declarations of the publi
 
 The selected entity file must exist inside its Domain project. A symbolic link at the file, its project root or an intervening directory prevents the edit. If the path becomes unsafe after preview, both project edits are discarded. An existing instance overload callable without arguments prevents the action. The action also checks extension calls in the loaded solution, including dependent projects. A call that would bind to the new mapper prevents the action.
 
-Conditional compilation around the selected properties, the mapper insertion point or attributes on the entity declaration can prevent the action. Compiler errors in either generated change also prevent the action, including warnings that the project treats as errors.
+Conditional compilation around the selected properties, the mapper insertion point or type classifications can prevent the action. This includes inactive partial declarations of the entity or a base class. The action checks for new compiler errors throughout the edited projects and their loaded dependents, including warnings promoted to errors.
 
 Enum properties require an accessible matching enum in the Contract project. Enums nested inside generic containing types are declined.
 
