@@ -458,6 +458,30 @@ public class DrnExceptionHandlerTests
         original.Identities.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task Diagnostics_Should_Preserve_Final_Scheme_Identities_Like_AspNetCore()
+    {
+        const string diagnostics = "Diagnostics";
+        var authentication = Substitute.For<IAuthenticationService>();
+        var registrations = DiagnosticsServices().AddSingleton(authentication);
+        registrations.Configure<AuthorizationOptions>(options => options.AddPolicy(DeveloperExceptionAccess.Policy,
+            policy => policy.AddAuthenticationSchemes(diagnostics)
+                .RequireAssertion(auth => auth.User.Identity?.IsAuthenticated == false && auth.User.Identities.Count() == 2)));
+        using var services = registrations.BuildServiceProvider();
+        var original = new ClaimsPrincipal();
+        var context = new DefaultHttpContext { RequestServices = services, User = original };
+        var subject = new Claim(ClaimTypes.NameIdentifier, "viewer");
+        var diagnosticsIdentity = new ClaimsIdentity([subject, new Claim("amr", "mfa"), new Claim("TestPagesAccess", "true")], diagnostics);
+        var diagnosticsUser = new ClaimsPrincipal(new[] { new ClaimsIdentity(), diagnosticsIdentity });
+        authentication.AuthenticateAsync(context, diagnostics).Returns(AuthenticateResult.Success(new AuthenticationTicket(diagnosticsUser, diagnostics)));
+        var settings = Substitute.For<IAppSettings>();
+        settings.IsDevelopmentEnvironment.Returns(true);
+
+        (await DeveloperExceptionAccess.AllowsAsync(settings, context)).Should().BeTrue();
+        context.User.Should().BeSameAs(original);
+        original.Identities.Should().BeEmpty();
+    }
+
     [Theory]
     [DataInlineUnit(false, false)]
     [DataInlineUnit(true, false)]

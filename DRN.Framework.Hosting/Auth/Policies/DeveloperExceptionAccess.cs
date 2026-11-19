@@ -37,8 +37,11 @@ public static class DeveloperExceptionAccess
                 foreach (var scheme in policy.AuthenticationSchemes)
                 {
                     var result = await context.AuthenticateAsync(scheme);
-                    if (result.Succeeded)
-                        identities.InsertRange(0, result.Principal!.Identities.Where(identity => identity.IsAuthenticated || identity.Claims.Any()));
+                    if (result?.Succeeded != true)
+                        continue;
+
+                    identities.RemoveAll(identity => !identity.IsAuthenticated && !identity.Claims.Any());
+                    identities.InsertRange(0, result.Principal!.Identities);
                 }
                 viewer = new ClaimsPrincipal(identities);
             }

@@ -153,6 +153,7 @@ public class ExceptionUtils(
                 .ToDictionary(pair => pair.Key, pair => pair.Value.FirstOrDefault()),
             Headers = projection.Headers(request.Headers),
             RouteValues = SafeRoutes(context, sanitizer),
+            RequestBody = sanitizer.SanitizeBody(body, request.ContentType, request.Path.ToString()),
             Endpoint = projection.Endpoint(context.GetEndpoint()),
             ConfigurationDebugViewSummary = appSettings.GetDebugView().ToSummary(),
             Logs = scopedLog is ScopedLog native ? native.GetLogs(redact: !appSettings.IsDevelopmentEnvironment)
@@ -160,7 +161,6 @@ public class ExceptionUtils(
                 ?? new Dictionary<string, object> { ["DiagnosticCapture"] = DiagnosticSanitizer.Limited },
             RequestMethod = method,
             RequestPath = queryStart < 0 ? safeUrl : safeUrl[..queryStart],
-            RequestBody = sanitizer.SanitizeBody(body, request.ContentType, request.Path.ToString()),
             RequestScheme = scheme,
             RequestProtocol = protocol
         };

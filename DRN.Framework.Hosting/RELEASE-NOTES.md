@@ -4,7 +4,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Changed
 
-*   **Exception diagnostics**: Buffered request-body capture continues across short reads up to the capture limit. Exception pages capture the request protocol, scheme, and method before larger fields consume the shared budget. They retain captured endpoint metadata rows and indicate when additional entries were omitted.
+*   **Exception diagnostics**: Buffered request-body capture continues across short reads up to the capture limit. Exception pages capture the request protocol, scheme, and method before larger fields consume the shared budget, and capture the request body before endpoint metadata can exhaust the node budget. They retain captured endpoint metadata rows and indicate when additional entries were omitted.
 
 *   **Static-file headers**: Configure exact-path response headers at startup with `DrnStaticFileHeaderOptions`. Rules support replacement, removal, and override or set-if-missing behavior. Static `/robots.txt` responses now require cache revalidation by default. Other static files retain their existing cache lifetime.
 *   **Swagger configuration**: Swagger UI resolves its default document URL from the configured OpenAPI route, including deployment prefixes. Explicit UI document URLs remain supported.

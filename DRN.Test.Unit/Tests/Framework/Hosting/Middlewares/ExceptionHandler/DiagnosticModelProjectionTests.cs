@@ -44,7 +44,7 @@ public class DiagnosticModelProjectionTests
     }
 
     [Fact]
-    public async Task Request_Heading_Should_Survive_Metadata_Exhausting_The_Node_Budget()
+    public async Task Request_Heading_And_Body_Should_Survive_Metadata_Exhausting_The_Node_Budget()
     {
         using var settings = DiagnosticTestSupport.Settings("Development");
         var sanitizer = new DiagnosticSanitizer(new DiagnosticLogOptions { MaxNodes = 16, MaxProcessingMilliseconds = 100 });
@@ -54,6 +54,11 @@ public class DiagnosticModelProjectionTests
         context.Request.Protocol = "HTTP/2";
         context.Request.Scheme = "https";
         context.Request.Method = "PATCH";
+        var bodyBytes = Encoding.UTF8.GetBytes("body-probe");
+        context.Request.ContentType = "text/plain";
+        context.Request.ContentLength = bodyBytes.Length;
+        context.Request.Body = new MemoryStream(bodyBytes);
+        RequestBufferingState.TryEnableBuffering(context, new DrnAppFeatures());
         var metadata = new EndpointMetadataCollection(Enumerable.Range(1, 32).Cast<object>());
         context.SetEndpoint(new Endpoint(null, metadata, "test"));
         var host = Substitute.For<IWebHostEnvironment>();
@@ -67,6 +72,7 @@ public class DiagnosticModelProjectionTests
         model.RequestProtocol.Should().Be("HTTP/2");
         model.RequestScheme.Should().Be("https");
         model.RequestMethod.Should().Be("PATCH");
+        model.RequestBody.Should().Be("body-probe");
     }
 
     [Theory]
