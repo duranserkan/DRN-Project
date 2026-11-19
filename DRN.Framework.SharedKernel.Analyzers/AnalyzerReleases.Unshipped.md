@@ -29,6 +29,10 @@
 | DRNDEPENDENCYINJECTION001 | DRN.Conventions.Registration | Warning | Establish effective registration for explicit demands and eligible services on observed attribute-scan paths |
 | DRNDEPENDENCYINJECTION002 | DRN.Conventions.Registration | Warning | Require one lifetime attribute bound to the matching IName interface on concrete Application/Infra implementations |
 | DRNDEPENDENCYINJECTION003 | DRN.Conventions.Registration | Warning | Require Hosted, Application, Infra and Utils project modules to scan their own assembly for attributed services |
+| DRNDTO001 | DRN.Conventions.Contract | Warning | Require entity-owned DTO projection |
+| DRNDTO002 | DRN.Conventions.Structure | Warning | Require DTO subdomain and entity folders |
+| DRNDTO003 | DRN.Conventions.Contract | Warning | Preserve projected property classifications |
+| DRNDTO004 | DRN.Conventions.Structure | Warning | Place entity-prefixed requests and responses beside their DTO |
 | DRNENTITY001 | DRN.Domain | Error    | https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/README.md#compile-time-roslyn-analyzers |
 | DRNENTITY002 | DRN.Domain | Error    | https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/README.md#compile-time-roslyn-analyzers |
 | DRNENTITY003 | DRN.Domain | Error    | https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/README.md#compile-time-roslyn-analyzers |

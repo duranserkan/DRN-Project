@@ -46,11 +46,11 @@ public sealed class ConventionAggregateRulesTests
         """;
 
     [Theory]
-    [InlineData("OrderEntity", "Order", "QA/Order/OrderEntity.cs", null)]
-    [InlineData("Order", "Order", "QA/Order/Order.cs", "DRNSTRUCTURE004")]
-    [InlineData("Entity", "Order", "QA/Order/Entity.cs", "DRNSTRUCTURE004")]
-    [InlineData("OrderEntity", "Orders", "QA/Orders/OrderEntity.cs", "DRNSTRUCTURE005")]
-    [InlineData("OrderEntity", "Order", "QA/Orders/OrderEntity.cs", "DRNSTRUCTURE005")]
+    [DataInline("OrderEntity", "Order", "QA/Order/OrderEntity.cs", null)]
+    [DataInline("Order", "Order", "QA/Order/Order.cs", "DRNSTRUCTURE004")]
+    [DataInline("Entity", "Order", "QA/Order/Entity.cs", "DRNSTRUCTURE004")]
+    [DataInline("OrderEntity", "Orders", "QA/Orders/OrderEntity.cs", "DRNSTRUCTURE005")]
+    [DataInline("OrderEntity", "Order", "QA/Orders/OrderEntity.cs", "DRNSTRUCTURE005")]
     public void Aggregate_Name_And_Placement_Should_Match(string name, string area, string path, string? expected)
     {
         var source = $"namespace Sample.Domain.QA.{area}; public class {name} : DRN.Framework.SharedKernel.Domain.AggregateRoot;";
@@ -61,8 +61,8 @@ public sealed class ConventionAggregateRulesTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [DataInline(false)]
+    [DataInline(true)]
     public void Semantic_Repository_Service_And_Controller_Types_Should_Require_Suffixes(bool valid)
     {
         var source = Domain + """
@@ -88,8 +88,8 @@ public sealed class ConventionAggregateRulesTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [DataInline(false)]
+    [DataInline(true)]
     public void Domain_Aggregate_Should_Require_Its_Repository_Contract(bool declared)
     {
         var facts = Facts(Compilation(Domain + (declared ? Contract : "")).WithAssemblyName("Sample.Domain"), "Domain");
@@ -99,9 +99,9 @@ public sealed class ConventionAggregateRulesTests
     }
 
     [Theory]
-    [InlineData(false, false, true)]
-    [InlineData(true, false, true)]
-    [InlineData(true, true, false)]
+    [DataInline(false, false, true)]
+    [DataInline(true, false, true)]
+    [DataInline(true, true, false)]
     public void Infra_Should_Require_A_Concrete_Repository_Implementing_The_Domain_Interface(bool repository, bool implements, bool missing)
     {
         var source = Infra + (repository ? """
@@ -117,9 +117,9 @@ public sealed class ConventionAggregateRulesTests
     }
 
     [Theory]
-    [InlineData("QA/Order", "Sample.Domain.QA.Order", false)]
-    [InlineData("QA/Repositories", "Sample.Domain.QA.Order", true)]
-    [InlineData("QA/Order", "Sample.Domain.QA.Repositories", true)]
+    [DataInline("QA/Order", "Sample.Domain.QA.Order", false)]
+    [DataInline("QA/Repositories", "Sample.Domain.QA.Order", true)]
+    [DataInline("QA/Order", "Sample.Domain.QA.Repositories", true)]
     public void Domain_Repository_Should_Share_Aggregate_Namespace_And_Logical_Folder(string folder, string ns, bool missing)
     {
         var compilation = Compilation(Domain, "OrderEntity.cs").WithAssemblyName("Sample.Domain")
@@ -155,9 +155,9 @@ public sealed class ConventionAggregateRulesTests
     }
 
     [Theory]
-    [InlineData("include", true)]
-    [InlineData("exclude", false)]
-    [InlineData("configuration", true)]
+    [DataInline("include", true)]
+    [DataInline("exclude", false)]
+    [DataInline("configuration", true)]
     public void Repository_Requirement_Should_Use_Explicit_And_Configuration_Assignment(string evidence, bool missing)
     {
         var attribute = evidence == "configuration" ? "" :
@@ -183,11 +183,11 @@ public sealed class ConventionAggregateRulesTests
     }
 
     [Theory]
-    [InlineData("Sample.Infra.QA.Configurations", false, true)]
-    [InlineData("Sample.Infra.QA", false, true)]
-    [InlineData("Sample.Infra.QAOther", false, false)]
-    [InlineData("Sample.Infra.QB.Configurations", false, false)]
-    [InlineData("Sample.Infra.QA.Configurations", true, false)]
+    [DataInline("Sample.Infra.QA.Configurations", false, true)]
+    [DataInline("Sample.Infra.QA", false, true)]
+    [DataInline("Sample.Infra.QAOther", false, false)]
+    [DataInline("Sample.Infra.QB.Configurations", false, false)]
+    [DataInline("Sample.Infra.QA.Configurations", true, false)]
     public void Configuration_Assignment_Should_Respect_Namespace_And_Deduplicate_Contexts(string ns, bool abstractConfiguration, bool missing)
     {
         var source = $$"""
@@ -230,8 +230,8 @@ public sealed class ConventionAggregateRulesTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [DataInline(false)]
+    [DataInline(true)]
     [SuppressMessage("ReSharper", "RedundantArgumentDefaultValue")]
     public async Task Production_Analyzer_Should_Report_New_Rules_And_Respect_Narrow_Suppression(bool suppress)
     {

@@ -10,20 +10,20 @@ namespace DRN.Test.Analyzer.Tests;
 public sealed class ConventionInputTests
 {
     [Theory]
-    [InlineData("Sample.Domain", "Domain")]
-    [InlineData("DRN.Nexus.Infra", "Infra")]
-    [InlineData("Sample.Contract", "Contract")]
-    [InlineData("Sample.Application", "Application")]
-    [InlineData("Sample.Hosted", "Hosted")]
-    [InlineData("Sample.Utils", "Utils")]
-    [InlineData("Sample.SharedKernel", "SharedKernel")]
-    [InlineData("Company.Shop.Infrastructure.Postgres", "Infra")]
-    [InlineData("Company.Shop.infra.Postgres", "Infra")]
-    [InlineData("Sample.Host.Web", "Hosted")]
-    [InlineData("Sample.Hosting.Worker", "Hosted")]
-    [InlineData("Sample.Contracts.Public", "Contract")]
-    [InlineData("Infra", "Infra")]
-    [InlineData("Hosted", "Hosted")]
+    [DataInline("Sample.Domain", "Domain")]
+    [DataInline("DRN.Nexus.Infra", "Infra")]
+    [DataInline("Sample.Contract", "Contract")]
+    [DataInline("Sample.Application", "Application")]
+    [DataInline("Sample.Hosted", "Hosted")]
+    [DataInline("Sample.Utils", "Utils")]
+    [DataInline("Sample.SharedKernel", "SharedKernel")]
+    [DataInline("Company.Shop.Infrastructure.Postgres", "Infra")]
+    [DataInline("Company.Shop.infra.Postgres", "Infra")]
+    [DataInline("Sample.Host.Web", "Hosted")]
+    [DataInline("Sample.Hosting.Worker", "Hosted")]
+    [DataInline("Sample.Contracts.Public", "Contract")]
+    [DataInline("Infra", "Infra")]
+    [DataInline("Hosted", "Hosted")]
     public void Project_Identity_Should_Preserve_Project_Names_And_Infer_Only_The_Role(string name, string role)
     {
         var project = ConventionProject.Read(Compilation("public class Marker;").WithAssemblyName("Published.Library"),
@@ -61,24 +61,24 @@ public sealed class ConventionInputTests
     }
 
     [Theory]
-    [InlineData("Library", false, 0)]
-    [InlineData("Sample.domain", true, 0)]
-    [InlineData("Sample.Domain.Tests", false, 0)]
-    [InlineData("Sample.Test.Infra", false, 0)]
-    [InlineData("Sample.Testing.Domain", false, 0)]
-    [InlineData("DRN.Framework.Utils", false, 0)]
-    [InlineData("DRN.Framework.SharedKernel", false, 0)]
-    [InlineData("Sample.Domain.Analyzers", false, 0)]
-    [InlineData("Sample.Domain.Analyzer", false, 0)]
-    [InlineData("Sample.Domain.CodeFixes", false, 0)]
-    [InlineData("Sample.Hosting.Generators", false, 0)]
-    [InlineData("Sample.Hosting.Generator", false, 0)]
-    [InlineData("Sample.Domain.Infra", false, 1)]
-    [InlineData("Sample.Infra.Infrastructure", false, 1)]
-    [InlineData("Infra", true, 0)]
-    [InlineData("Sample.DomainHelpers", false, 0)]
-    [InlineData("Sample.InfrastructureHelpers", false, 0)]
-    [InlineData("Sample..Domain", true, 0)]
+    [DataInline("Library", false, 0)]
+    [DataInline("Sample.domain", true, 0)]
+    [DataInline("Sample.Domain.Tests", false, 0)]
+    [DataInline("Sample.Test.Infra", false, 0)]
+    [DataInline("Sample.Testing.Domain", false, 0)]
+    [DataInline("DRN.Framework.Utils", false, 0)]
+    [DataInline("DRN.Framework.SharedKernel", false, 0)]
+    [DataInline("Sample.Domain.Analyzers", false, 0)]
+    [DataInline("Sample.Domain.Analyzer", false, 0)]
+    [DataInline("Sample.Domain.CodeFixes", false, 0)]
+    [DataInline("Sample.Hosting.Generators", false, 0)]
+    [DataInline("Sample.Hosting.Generator", false, 0)]
+    [DataInline("Sample.Domain.Infra", false, 1)]
+    [DataInline("Sample.Infra.Infrastructure", false, 1)]
+    [DataInline("Infra", true, 0)]
+    [DataInline("Sample.DomainHelpers", false, 0)]
+    [DataInline("Sample.InfrastructureHelpers", false, 0)]
+    [DataInline("Sample..Domain", true, 0)]
     public void Activation_Should_Use_Unambiguous_Role_Tokens_And_Exclude_Support_Projects(string name,
         bool expected, int errors)
     {
@@ -114,13 +114,13 @@ public sealed class ConventionInputTests
     }
 
     [Theory]
-    [InlineData("QA\\Read\\Configurations", true)]
-    [InlineData("QA/Read/Configurations", true)]
-    [InlineData("../Outside", false)]
-    [InlineData("QA/../Outside", false)]
-    [InlineData("/Outside", false)]
-    [InlineData("C:\\Outside", false)]
-    [InlineData("QA//Configurations", false)]
+    [DataInline("QA\\Read\\Configurations", true)]
+    [DataInline("QA/Read/Configurations", true)]
+    [DataInline("../Outside", false)]
+    [DataInline("QA/../Outside", false)]
+    [DataInline("/Outside", false)]
+    [DataInline("C:\\Outside", false)]
+    [DataInline("QA//Configurations", false)]
     public void Logical_Paths_Should_Normalize_Separators_Without_Allowing_Traversal(string path, bool expected) =>
         ConventionProject.IsLogicalPath(path).Should().Be(expected);
 
@@ -162,12 +162,12 @@ public sealed class ConventionInputTests
     }
 
     [Theory]
-    [InlineData("[assembly: DRN.Conventions.Version(1)]")]
-    [InlineData("[assembly: DRN.Conventions.Version(\"2\")]")]
-    [InlineData("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Version(\"1\")]")]
-    [InlineData("[assembly: DRN.Conventions.Context(System.Environment.MachineName)]")]
-    [InlineData("[assembly: Other.Context(\"1\")]")]
-    [InlineData("class Executable { }")]
+    [DataInline("[assembly: DRN.Conventions.Version(1)]")]
+    [DataInline("[assembly: DRN.Conventions.Version(\"2\")]")]
+    [DataInline("[assembly: DRN.Conventions.Version(\"1\")][assembly: DRN.Conventions.Version(\"1\")]")]
+    [DataInline("[assembly: DRN.Conventions.Context(System.Environment.MachineName)]")]
+    [DataInline("[assembly: Other.Context(\"1\")]")]
+    [DataInline("class Executable { }")]
     public void Malformed_Or_Nonliteral_Input_Should_Report_Incomplete_Evidence(string source) =>
         Read(source).Diagnostics.Should().NotBeEmpty().And.OnlyContain(diagnostic => diagnostic.Id == "DRNCONVENTIONINPUT001");
 
@@ -216,11 +216,11 @@ public sealed class ConventionInputTests
     }
 
     [Theory]
-    [InlineData("[module: DRN.Conventions.Version(\"1\")]")]
-    [InlineData("[assembly: DRN.Conventions.Version(Identity = \"1\")]")]
-    [InlineData("[assembly: DRN.Conventions.Version(\"1\", Extra = \"x\")]")]
-    [InlineData("extern alias Untrusted; [assembly: DRN.Conventions.Version(\"1\")]")]
-    [InlineData("[assembly: DRN.Conventions.Version(\"1\")][assembly: Unknown.Record(\"x\")]")]
+    [DataInline("[module: DRN.Conventions.Version(\"1\")]")]
+    [DataInline("[assembly: DRN.Conventions.Version(Identity = \"1\")]")]
+    [DataInline("[assembly: DRN.Conventions.Version(\"1\", Extra = \"x\")]")]
+    [DataInline("extern alias Untrusted; [assembly: DRN.Conventions.Version(\"1\")]")]
+    [DataInline("[assembly: DRN.Conventions.Version(\"1\")][assembly: Unknown.Record(\"x\")]")]
     public void Unsupported_Data_Fragment_Should_Fail_Closed(string source)
     {
         var input = Read(source);
@@ -257,15 +257,15 @@ public sealed class ConventionInputTests
     }
 
     [Theory]
-    [InlineData("[assembly: DRN.Conventions.Path(\"/source/User.cs\", LogicalPath = \"QA/User.cs\")]", true)]
-    [InlineData("[assembly: DRN.Conventions.Path(\"/source/User.cs\", LogicalPath = \"QA/../User.cs\")]", false)]
-    [InlineData("[assembly: DRN.Conventions.Reference(\"Inventory\", Stage = \"Complete\")]", true)]
-    [InlineData("[assembly: DRN.Conventions.Reference(\"Other\", Stage = \"Complete\")]", false)]
-    [InlineData("[assembly: DRN.Conventions.Reference(\"Inventory\", Stage = \"Custom\")]", false)]
-    [InlineData("[assembly: DRN.Conventions.Ownership(\"Sample.User\", Subdomain = \"QA\", Kind = \"Entity\")]", true)]
-    [InlineData("[assembly: DRN.Conventions.Ownership(\"Sample.User\", Subdomain = \"QA\", Kind = \"Helper\")]", false)]
-    [InlineData("[assembly: DRN.Conventions.Registration(\"Sample.Service\", Service = \"\")]", false)]
-    [InlineData("[assembly: DRN.Conventions.Configuration(\"Sample.Mapping\", Context = \"\")]", false)]
+    [DataInline("[assembly: DRN.Conventions.Path(\"/source/User.cs\", LogicalPath = \"QA/User.cs\")]", true)]
+    [DataInline("[assembly: DRN.Conventions.Path(\"/source/User.cs\", LogicalPath = \"QA/../User.cs\")]", false)]
+    [DataInline("[assembly: DRN.Conventions.Reference(\"Inventory\", Stage = \"Complete\")]", true)]
+    [DataInline("[assembly: DRN.Conventions.Reference(\"Other\", Stage = \"Complete\")]", false)]
+    [DataInline("[assembly: DRN.Conventions.Reference(\"Inventory\", Stage = \"Custom\")]", false)]
+    [DataInline("[assembly: DRN.Conventions.Ownership(\"Sample.User\", Subdomain = \"QA\", Kind = \"Entity\")]", true)]
+    [DataInline("[assembly: DRN.Conventions.Ownership(\"Sample.User\", Subdomain = \"QA\", Kind = \"Helper\")]", false)]
+    [DataInline("[assembly: DRN.Conventions.Registration(\"Sample.Service\", Service = \"\")]", false)]
+    [DataInline("[assembly: DRN.Conventions.Configuration(\"Sample.Mapping\", Context = \"\")]", false)]
     public void Generation_Should_Reject_Invalid_Structural_Field_Values(string record, bool supported)
         => SupportsGeneration(record).Should().Be(supported);
 

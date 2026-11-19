@@ -50,7 +50,7 @@ internal static class ConventionInputSyntax
 
     private static readonly string[] ConventionRulePrefixes =
     [
-        "DRNARCHITECTURE", "DRNOWNERSHIP", "DRNSTRUCTURE", "DRNPERSISTENCE",
+        "DRNARCHITECTURE", "DRNDTO", "DRNOWNERSHIP", "DRNSTRUCTURE", "DRNPERSISTENCE",
         "DRNREPOSITORY", "DRNDEPENDENCYINJECTION", "DRNCONVENTIONINPUT", "DRNCONVENTIONEXCEPTION"
     ];
 

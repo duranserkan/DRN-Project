@@ -9,12 +9,14 @@ internal sealed class ClassificationContract
     private readonly INamedTypeSymbol? _dataClassification;
     private readonly AttributeUsageFacts.Cache _attributeUsage;
     private readonly SymbolFactCache<ISymbol, bool> _positive = new();
+    private readonly SymbolFactCache<ISymbol, PropertyClassification> _symbolKinds = new();
     private readonly SymbolFactCache<INamedTypeSymbol, ImmutableArray<IPropertySymbol>> _properties = new();
     private readonly SymbolFactCache<IPropertySymbol, bool> _exemptions = new();
     private readonly SymbolFactCache<INamedTypeSymbol, AttributeFacts> _attributes = new();
     private readonly SymbolFactCache<ITypeSymbol, ModelTypeFacts> _modelTypes = new();
     private readonly ConcurrentDictionary<INamedTypeSymbol, ReceiverFacts> _receivers = new(SymbolEqualityComparer.Default);
     private readonly Func<ISymbol, CancellationToken, bool> _calculatePositive;
+    private readonly Func<ISymbol, CancellationToken, PropertyClassification> _calculateSymbolKinds;
     private readonly Func<IPropertySymbol, CancellationToken, bool> _calculateExempt;
     private readonly Func<INamedTypeSymbol, CancellationToken, AttributeFacts> _calculateAttribute;
     private readonly Func<INamedTypeSymbol, ReceiverFacts> _createReceiver;
@@ -26,12 +28,103 @@ internal sealed class ClassificationContract
         _dataClassification = compilation.GetTypeByMetadataName("Microsoft.Extensions.Compliance.Classification.DataClassificationAttribute");
         _attributeUsage = AttributeUsageFacts.Cache.For(compilation);
         _calculatePositive = CalculatePositive;
+        _calculateSymbolKinds = CalculateSymbolKinds;
         _calculateExempt = CalculateExempt;
         _calculateAttribute = CalculateAttribute;
         _createReceiver = type => new ReceiverFacts(this, type);
     }
 
     internal INamedTypeSymbol Sensitive { get; }
+
+    [Flags]
+    internal enum PropertyClassification { None = 0, Sensitive = 1, Personal = 2 }
+
+    internal (PropertyClassification Property, PropertyClassification Context) ProjectionClassification(
+        IPropertySymbol property, INamedTypeSymbol receiver, ITypeSymbol? receiverView, CancellationToken cancellation)
+    {
+        var direct = SymbolKinds(property, cancellation);
+        var context = SymbolKinds(receiver, cancellation) | SymbolKinds(property.Type, cancellation);
+        if (!SymbolEqualityComparer.Default.Equals(receiver, property.ContainingType))
+            context |= SymbolKinds(property.ContainingType, cancellation);
+        if (receiverView is not null && !SymbolEqualityComparer.Default.Equals(receiver, receiverView))
+            context |= SymbolKinds(receiverView, cancellation);
+        var implementation = property;
+        if (property.ContainingType.TypeKind == TypeKind.Interface &&
+            receiver.FindImplementationForInterfaceMember(property) is IPropertySymbol implementationProperty)
+        {
+            implementation = implementationProperty;
+            Include(implementationProperty);
+        }
+        if (FindReceiverOverride(implementation, receiver, cancellation) is { } overridingProperty)
+        {
+            implementation = overridingProperty;
+            Include(overridingProperty);
+        }
+        foreach (var member in implementation.ExplicitInterfaceImplementations)
+            Include(member);
+        foreach (var contract in receiver.AllInterfaces)
+        foreach (var member in contract.GetMembers(implementation.Name).OfType<IPropertySymbol>())
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (receiver.FindImplementationForInterfaceMember(member) is IPropertySymbol interfaceImplementation &&
+                OverridesOrEquals(implementation, interfaceImplementation))
+                Include(member);
+        }
+        return (direct, context);
+
+        void Include(IPropertySymbol member)
+        {
+            direct |= SymbolKinds(member, cancellation);
+            context |= SymbolKinds(member.ContainingType, cancellation) | SymbolKinds(member.Type, cancellation);
+        }
+    }
+
+    private static IPropertySymbol? FindReceiverOverride(IPropertySymbol property, INamedTypeSymbol receiver, CancellationToken cancellation)
+    {
+        if (property.ContainingType.TypeKind != TypeKind.Class || property.IsSealed ||
+            !(property.IsVirtual || property.IsAbstract || property.IsOverride)) return null;
+        for (var type = receiver; type is not null && !SymbolEqualityComparer.Default.Equals(type, property.ContainingType); type = type.BaseType)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            foreach (var member in type.GetMembers(property.Name))
+                if (member is IPropertySymbol { OverriddenProperty: { } parent } candidate && OverridesOrEquals(parent, property))
+                    return candidate;
+        }
+        return null;
+    }
+
+    private static bool OverridesOrEquals(IPropertySymbol property, IPropertySymbol ancestor)
+    {
+        for (var current = property; current is not null; current = current.OverriddenProperty)
+            if (SymbolEqualityComparer.Default.Equals(current, ancestor)) return true;
+        return false;
+    }
+
+    internal PropertyClassification SymbolKinds(ISymbol symbol, CancellationToken cancellation)
+    {
+        if (symbol is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable)
+            symbol = nullable.TypeArguments[0];
+        return _symbolKinds.GetOrAdd(symbol, _calculateSymbolKinds, cancellation);
+    }
+
+    private PropertyClassification CalculateSymbolKinds(ISymbol symbol, CancellationToken cancellation)
+    {
+        var result = PropertyClassification.None;
+        for (ISymbol? current = symbol; current is not null; current = NextClassifiedSymbol(current))
+        {
+            cancellation.ThrowIfCancellationRequested();
+            foreach (var attribute in current.GetAttributes())
+            {
+                if (attribute.AttributeClass is not { } type) continue;
+                var facts = _attributes.GetOrAdd(type, _calculateAttribute, cancellation);
+                if (!facts.IsInherited && !SymbolEqualityComparer.Default.Equals(current, symbol)) continue;
+                if (facts.IsPersonal) result |= PropertyClassification.Personal;
+                if (facts.IsSensitive && (!SymbolEqualityComparer.Default.Equals(type, Sensitive) || !IsFalse(attribute)))
+                    result |= PropertyClassification.Sensitive;
+            }
+        }
+        return result;
+    }
 
     internal static bool Eligible(IPropertySymbol property) => !property.IsStatic && !property.IsIndexer &&
         property.DeclaredAccessibility == Accessibility.Public && property.GetMethod?.DeclaredAccessibility == Accessibility.Public;

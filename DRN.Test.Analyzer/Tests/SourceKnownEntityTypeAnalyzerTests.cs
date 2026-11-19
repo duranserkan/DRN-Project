@@ -1615,10 +1615,10 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
     }
 
     [Theory]
-    [InlineData(false, 5, false)]
-    [InlineData(false, 6, true)]
-    [InlineData(true, 5, false)]
-    [InlineData(true, 6, false)]
+    [DataInline(false, 5, false)]
+    [DataInline(false, 6, true)]
+    [DataInline(true, 5, false)]
+    [DataInline(true, 6, false)]
     public async Task Referenced_Partition_Should_Check_Available_Source_And_Use_The_Published_Constant_In_Metadata(
         bool emitted, int getterValue, bool expectUnresolvable)
     {
@@ -1720,9 +1720,9 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
     }
 
     [Theory]
-    [InlineData("public const byte AppId = 5; static byte IAppId.AppId => AppId; public static string Value => \"Display label\";")]
-    [InlineData("public const byte Value = 5; static byte IAppId.AppId => Value; public static byte AppId => 6;")]
-    [InlineData("""
+    [DataInline("public const byte AppId = 5; static byte IAppId.AppId => AppId; public static string Value => \"Display label\";")]
+    [DataInline("public const byte Value = 5; static byte IAppId.AppId => Value; public static byte AppId => 6;")]
+    [DataInline("""
         public const byte AppId = 5;
         static byte IAppId.AppId => AppId;
         private readonly string Value;
@@ -2091,9 +2091,9 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
     }
 
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(true, false)]
-    [InlineData(true, true)]
+    [DataInline(false, false)]
+    [DataInline(true, false)]
+    [DataInline(true, true)]
     public async Task RetargetedCompilationReference_DetectsCollisionWithProducerEntity(bool transitive, bool includeProducerImage)
     {
         var options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);

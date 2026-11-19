@@ -333,8 +333,8 @@ public sealed class ConventionRegistrationTests
         """;
 
     [Theory]
-    [InlineData("", true)]
-    [InlineData("[Scoped<ICategoryService>]", false)]
+    [DataInline("", true)]
+    [DataInline("[Scoped<ICategoryService>]", false)]
     public void Declared_Scanned_Service_Should_Require_An_Effective_Registration(string attribute, bool missing)
     {
         var facts = Analyze(Prefix + attribute + """
@@ -413,8 +413,8 @@ public sealed class ConventionRegistrationTests
     }
 
     [Theory]
-    [InlineData("read", false)]
-    [InlineData("write", true)]
+    [DataInline("read", false)]
+    [DataInline("write", true)]
     public void Keyed_Selection_Should_Match_The_Declared_Key(string key, bool missing)
     {
         var facts = Analyze(Prefix + """
@@ -497,8 +497,8 @@ public sealed class ConventionRegistrationTests
     }
 
     [Theory]
-    [InlineData("", true)]
-    [InlineData("[Scoped<ICategoryService>]", false)]
+    [DataInline("", true)]
+    [DataInline("[Scoped<ICategoryService>]", false)]
     public void Explicit_Ordinary_Orchestration_Demand_Should_Not_Require_A_SourceKnown_Service_Base(string attribute, bool missing)
     {
         var source = Prefix.Replace("public interface ICategoryService : ISourceKnownService<Category>;",
@@ -513,8 +513,8 @@ public sealed class ConventionRegistrationTests
     }
 
     [Theory]
-    [InlineData("DRN.Framework.EntityFramework.Context.DrnContextServiceRegistration", true)]
-    [InlineData("CustomContextRegistration", false)]
+    [DataInline("DRN.Framework.EntityFramework.Context.DrnContextServiceRegistration", true)]
+    [DataInline("CustomContextRegistration", false)]
     public void Known_Context_Registration_Should_Not_Hide_An_Unregistered_Service(string registration, bool missing)
     {
         var facts = Analyze(Prefix + $$"""
@@ -530,9 +530,9 @@ public sealed class ConventionRegistrationTests
     }
 
     [Theory]
-    [InlineData("", true)]
-    [InlineData("[Scoped<ICategoryService>]", false)]
-    [InlineData("[ScopedWithKey<ICategoryService>(\"read\")]", false)]
+    [DataInline("", true)]
+    [DataInline("[Scoped<ICategoryService>]", false)]
+    [DataInline("[ScopedWithKey<ICategoryService>(\"read\")]", false)]
     public void Ordinary_Paired_Service_Should_Be_Checked_Without_Explicit_Demands(string attribute, bool missing)
     {
         var source = Prefix.Replace("public interface ICategoryService : ISourceKnownService<Category>;",
@@ -545,8 +545,8 @@ public sealed class ConventionRegistrationTests
     }
 
     [Theory]
-    [InlineData("Application")]
-    [InlineData("Infra")]
+    [DataInline("Application")]
+    [DataInline("Infra")]
     public void Ordinary_Repository_Should_Not_Require_SourceKnown_Or_Explicit_Demand(string role)
     {
         var source = """
@@ -573,8 +573,8 @@ public sealed class ConventionRegistrationTests
     }
 
     [Theory]
-    [InlineData("AddScoped<ICategoryService, CategoryService>()")]
-    [InlineData("AddKeyedScoped<ICategoryService, CategoryService>(\"read\")")]
+    [DataInline("AddScoped<ICategoryService, CategoryService>()")]
+    [DataInline("AddKeyedScoped<ICategoryService, CategoryService>(\"read\")")]
     public void Matching_Manual_Registration_Should_Count_Without_Explicit_Demands(string registration)
     {
         Analyze(Prefix.Replace("public interface ICategoryService : ISourceKnownService<Category>;",
@@ -592,8 +592,8 @@ public sealed class ConventionRegistrationTests
     }
 
     [Theory]
-    [InlineData("read", false)]
-    [InlineData("write", true)]
+    [DataInline("read", false)]
+    [DataInline("write", true)]
     public void Observed_Constructor_Key_Should_Require_An_Exact_Registration(string key, bool missing)
     {
         var source = """
@@ -616,8 +616,8 @@ public sealed class ConventionRegistrationTests
     }
 
     [Theory]
-    [InlineData("", true)]
-    [InlineData("services.AddScoped<ReaderImplementation>();", false)]
+    [DataInline("", true)]
+    [DataInline("services.AddScoped<ReaderImplementation>();", false)]
     public void Concrete_Constructor_Service_Should_Support_Manual_Self_Registration(string registration, bool missing)
     {
         var source = $$"""
@@ -763,8 +763,8 @@ public sealed class ConventionRegistrationTests
     }
 
     [Theory]
-    [InlineData("public", false)]
-    [InlineData("internal", true)]
+    [DataInline("public", false)]
+    [DataInline("internal", true)]
     public void Inferred_Registration_Should_Respect_Runtime_Visibility(string accessibility, bool missing)
     {
         Analyze(Prefix.Replace("public interface ICategoryService : ISourceKnownService<Category>;",
@@ -775,8 +775,8 @@ public sealed class ConventionRegistrationTests
     }
 
     [Theory]
-    [InlineData("public Consumer(ReaderImplementation reader = null) { }")]
-    [InlineData("public Consumer() { } public Consumer(ReaderImplementation reader) { }")]
+    [DataInline("public Consumer(ReaderImplementation reader = null) { }")]
+    [DataInline("public Consumer() { } public Consumer(ReaderImplementation reader) { }")]
     public void Optional_Or_Ambiguous_Constructors_Should_Not_Establish_Required_Demands(string constructors)
     {
         Analyze($$"""
@@ -886,8 +886,8 @@ public sealed class ConventionRegistrationTests
     }
 
     [Theory]
-    [InlineData("", true)]
-    [InlineData("[FromKeyedServices(\"\")]", false)]
+    [DataInline("", true)]
+    [DataInline("[FromKeyedServices(\"\")]", false)]
     public void Empty_String_Attribute_Key_Should_Not_Satisfy_An_Unkeyed_Demand(string selector, bool missing)
     {
         Analyze($$"""

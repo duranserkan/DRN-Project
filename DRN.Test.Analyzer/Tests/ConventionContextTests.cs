@@ -53,11 +53,11 @@ public sealed class ConventionContextTests
     }
 
     [Theory]
-    [InlineData("QAContext", false)]
-    [InlineData("QAReadContext", false)]
-    [InlineData("QAWriteContext", false)]
-    [InlineData("Context", true)]
-    [InlineData("QAStore", true)]
+    [DataInline("QAContext", false)]
+    [DataInline("QAReadContext", false)]
+    [DataInline("QAWriteContext", false)]
+    [DataInline("Context", true)]
+    [DataInline("QAStore", true)]
     public void Context_Names_Should_Require_A_Nonempty_Stem_Without_Limiting_Cqrs(string name, bool warning)
     {
         var facts = Facts(ContextSource(name));
@@ -225,17 +225,17 @@ public sealed class ConventionContextTests
     }
 
     [Theory]
-    [InlineData(false, false, "qualified")]
-    [InlineData(false, true, "qualified")]
-    [InlineData(true, false, "qualified")]
-    [InlineData(true, true, "qualified")]
-    [InlineData(false, false, "extension")]
-    [InlineData(false, false, "conditional")]
-    [InlineData(false, false, "alias")]
-    [InlineData(false, false, "escaped")]
-    [InlineData(false, false, "non-generic")]
-    [InlineData(true, true, "non-generic")]
-    [InlineData(false, false, "non-generic-only")]
+    [DataInline(false, false, "qualified")]
+    [DataInline(false, true, "qualified")]
+    [DataInline(true, false, "qualified")]
+    [DataInline(true, true, "qualified")]
+    [DataInline(false, false, "extension")]
+    [DataInline(false, false, "conditional")]
+    [DataInline(false, false, "alias")]
+    [DataInline(false, false, "escaped")]
+    [DataInline(false, false, "non-generic")]
+    [DataInline(true, true, "non-generic")]
+    [DataInline(false, false, "non-generic-only")]
     public void Ef_Registration_Should_Accept_Options_With_Additional_Injected_Dependencies(bool conventions, bool optionsLast, string form)
     {
         var registration = conventions
@@ -277,8 +277,8 @@ public sealed class ConventionContextTests
     }
 
     [Theory]
-    [InlineData("Microsoft.EntityFrameworkCore.DbContextOptions<QAContext> options, ITenant tenant")]
-    [InlineData("Microsoft.EntityFrameworkCore.DbContextOptions options")]
+    [DataInline("Microsoft.EntityFrameworkCore.DbContextOptions<QAContext> options, ITenant tenant")]
+    [DataInline("Microsoft.EntityFrameworkCore.DbContextOptions options")]
     public void Drn_Design_Time_Factory_Should_Still_Require_An_Options_Only_Constructor(string parameters)
     {
         var facts = Facts($$"""
@@ -311,8 +311,8 @@ public sealed class ConventionContextTests
     }
 
     [Theory]
-    [InlineData("")]
-    [InlineData("Configure(builder);")]
+    [DataInline("")]
+    [DataInline("Configure(builder);")]
     public void Provider_Analysis_Should_Not_Confuse_Local_Absence_With_Complete_Composition(string optionsBody)
     {
         var facts = Facts(ContextSource("QAContext") + $$"""
@@ -332,10 +332,10 @@ public sealed class ConventionContextTests
     }
 
     [Theory]
-    [InlineData("options", false)]
-    [InlineData("null", true)]
-    [InlineData("new Microsoft.EntityFrameworkCore.DbContextOptions<QAContext>()", true)]
-    [InlineData("Configure(options)", false)]
+    [DataInline("options", false)]
+    [DataInline("null", true)]
+    [DataInline("new Microsoft.EntityFrameworkCore.DbContextOptions<QAContext>()", true)]
+    [DataInline("Configure(options)", false)]
     public void Selected_Drn_Factory_Should_Report_Provably_Discarded_Provider_Options(string forwarded, bool warning)
     {
         var facts = Facts(DiscardingContext(forwarded));
@@ -385,11 +385,11 @@ public sealed class ConventionContextTests
         """;
 
     [Theory]
-    [InlineData("", true)]
-    [InlineData("return;", true)]
-    [InlineData("base.OnModelCreating(model);", false)]
-    [InlineData("Forward(model);", false)]
-    [InlineData("Unknown(model);", false)]
+    [DataInline("", true)]
+    [DataInline("return;", true)]
+    [DataInline("base.OnModelCreating(model);", false)]
+    [DataInline("Forward(model);", false)]
+    [DataInline("Unknown(model);", false)]
     public void Base_Model_Proof_Should_Distinguish_Omission_From_Forwarding_And_Unknown_Helpers(string body, bool warning)
     {
         var source = ContextSource("QAContext", $$"""
@@ -433,10 +433,10 @@ public sealed class ConventionContextTests
     }
 
     [Theory]
-    [InlineData("", false)]
-    [InlineData("public Microsoft.EntityFrameworkCore.DbSet<object> Rows => Set<object>();", false)]
-    [InlineData("public static Microsoft.EntityFrameworkCore.DbSet<DRN.Framework.SharedKernel.Domain.AggregateRoot> Roots => null!;", false)]
-    [InlineData("public Microsoft.EntityFrameworkCore.DbSet<DRN.Framework.SharedKernel.Domain.AggregateRoot> Roots => Set<DRN.Framework.SharedKernel.Domain.AggregateRoot>();", true)]
+    [DataInline("", false)]
+    [DataInline("public Microsoft.EntityFrameworkCore.DbSet<object> Rows => Set<object>();", false)]
+    [DataInline("public static Microsoft.EntityFrameworkCore.DbSet<DRN.Framework.SharedKernel.Domain.AggregateRoot> Roots => null!;", false)]
+    [DataInline("public Microsoft.EntityFrameworkCore.DbSet<DRN.Framework.SharedKernel.Domain.AggregateRoot> Roots => Set<DRN.Framework.SharedKernel.Domain.AggregateRoot>();", true)]
     public void Unknown_Repository_Destination_Should_Require_An_Aggregate_DbSet(string members, bool required)
     {
         var facts = Facts(ContextSource("QAContext", members));
@@ -463,8 +463,8 @@ public sealed class ConventionContextTests
     }
 
     [Theory]
-    [InlineData("QAContext", true)]
-    [InlineData("OtherContext", false)]
+    [DataInline("QAContext", true)]
+    [DataInline("OtherContext", false)]
     public void Unknown_Migration_Destination_Should_Be_Required_Only_For_The_Associated_Context(string target, bool required)
     {
         var facts = Facts(ContextSource("QAContext") + $$"""
@@ -501,8 +501,8 @@ public sealed class ConventionContextTests
         """;
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
+    [DataInline(true)]
+    [DataInline(false)]
     public void Identity_Context_Should_Preserve_Base_Model_And_Reasoned_Prefix_Alias(bool forwards)
     {
         var facts = Facts($$"""
@@ -553,8 +553,8 @@ public sealed class ConventionContextTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [DataInline(false)]
+    [DataInline(true)]
     public void Closed_Generic_And_Nested_Contexts_Should_Use_Constructed_Options(bool nested)
     {
         var context = """
@@ -638,13 +638,13 @@ public sealed class ConventionContextTests
     }
 
     [Theory]
-    [InlineData("Repositories", "QA/Repositories", "Sample.Infra.QA.Repositories", false)]
-    [InlineData("Migrations", "QA/Migrations", "Sample.Infra.QA.Migrations", false)]
-    [InlineData("Migrations", "QA\\Migrations", "Sample.Infra.QA.Migrations", false)]
-    [InlineData("Repositories", "Other/Repositories", "Sample.Infra.QA.Repositories", true)]
-    [InlineData("Migrations", "Other/Migrations", "Sample.Infra.QA.Migrations", true)]
-    [InlineData("Repositories", "QA/Repositories", "Sample.Infra.Other.Repositories", true)]
-    [InlineData("Migrations", "QA/Migrations", "Sample.Infra.Other.Migrations", true)]
+    [DataInline("Repositories", "QA/Repositories", "Sample.Infra.QA.Repositories", false)]
+    [DataInline("Migrations", "QA/Migrations", "Sample.Infra.QA.Migrations", false)]
+    [DataInline("Migrations", "QA\\Migrations", "Sample.Infra.QA.Migrations", false)]
+    [DataInline("Repositories", "Other/Repositories", "Sample.Infra.QA.Repositories", true)]
+    [DataInline("Migrations", "Other/Migrations", "Sample.Infra.QA.Migrations", true)]
+    [DataInline("Repositories", "QA/Repositories", "Sample.Infra.Other.Repositories", true)]
+    [DataInline("Migrations", "QA/Migrations", "Sample.Infra.Other.Migrations", true)]
     public void Conventional_Artifact_Destinations_Should_Be_Inferred_From_Logical_Paths_And_Namespaces(
         string kind, string directory, string artifactNamespace, bool requiresEntry)
     {
@@ -670,9 +670,9 @@ public sealed class ConventionContextTests
     }
 
     [Theory]
-    [InlineData("QA/Context.cs", "QA/Other.cs", false)]
-    [InlineData("QA/Context.cs", "Other/Other.cs", true)]
-    [InlineData("Other/Context.cs", "Other/Other.cs", true)]
+    [DataInline("QA/Context.cs", "QA/Other.cs", false)]
+    [DataInline("QA/Context.cs", "Other/Other.cs", true)]
+    [DataInline("Other/Context.cs", "Other/Other.cs", true)]
     public void Repository_Destination_Without_Artifacts_Should_Require_An_Unambiguous_Conventional_Context_Home(
         string firstPath, string secondPath, bool requiresEntry)
     {
@@ -687,12 +687,12 @@ public sealed class ConventionContextTests
     }
 
     [Theory]
-    [InlineData("Repositories", "QA/Repositories", "", false)]
-    [InlineData("Repositories", "Other/Repositories", "", true)]
-    [InlineData("Repositories", "Other/Repositories", "Reviewed alternate destination", false)]
-    [InlineData("Migrations", "Other/Migrations", "", true)]
-    [InlineData("Migrations", "Other/Migrations", "Reviewed alternate destination", false)]
-    [InlineData("Migrations", "../Migrations", "Reviewed alternate destination", true)]
+    [DataInline("Repositories", "QA/Repositories", "", false)]
+    [DataInline("Repositories", "Other/Repositories", "", true)]
+    [DataInline("Repositories", "Other/Repositories", "Reviewed alternate destination", false)]
+    [DataInline("Migrations", "Other/Migrations", "", true)]
+    [DataInline("Migrations", "Other/Migrations", "Reviewed alternate destination", false)]
+    [DataInline("Migrations", "../Migrations", "Reviewed alternate destination", true)]
     public void Explicit_Destinations_Should_Remain_Validated_Even_Without_Artifacts(string kind, string path, string reason, bool invalid)
     {
         var input = new ConventionInput("Context", "Sample.Infra.QA.QAContext",

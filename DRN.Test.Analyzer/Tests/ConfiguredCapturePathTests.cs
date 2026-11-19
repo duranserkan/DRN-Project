@@ -5,8 +5,8 @@ namespace DRN.Test.Analyzer.Tests;
 public sealed class ConfiguredCapturePathTests
 {
     [Theory]
-    [InlineData(3, "DRNCLASSIFICATION003")]
-    [InlineData(14, "DRNCLASSIFICATION011")]
+    [DataInline(3, "DRNCLASSIFICATION003")]
+    [DataInline(14, "DRNCLASSIFICATION011")]
     public async Task Configured_Paths_After_Shared_Subtrees_Should_Report_Matches_Or_Incomplete_Analysis(
         int levels, string expectedDiagnostic)
     {
@@ -44,9 +44,9 @@ public sealed class ConfiguredCapturePathTests
     }
 
     [Theory]
-    [InlineData("null")]
-    [InlineData("\"\"")]
-    [InlineData("\"[redacted]\"")]
+    [DataInline("null")]
+    [DataInline("\"\"")]
+    [DataInline("\"[redacted]\"")]
     public async Task Configured_Dictionary_Paths_Should_Check_User_Defined_Conversions(string literal)
     {
         var diagnostics = await Analyze(Compilation($$"""
@@ -109,11 +109,11 @@ public sealed class ConfiguredCapturePathTests
     }
 
     [Theory]
-    [InlineData("native.AddDictionary(")]
-    [InlineData("nativeSanitizer.SanitizeDictionary(")]
-    [InlineData("log.AddDictionary(")]
-    [InlineData("sanitizer.SanitizeDictionary(")]
-    [InlineData("DiagnosticCaptureExtensions.AddDictionary(log, ")]
+    [DataInline("native.AddDictionary(")]
+    [DataInline("nativeSanitizer.SanitizeDictionary(")]
+    [DataInline("log.AddDictionary(")]
+    [DataInline("sanitizer.SanitizeDictionary(")]
+    [DataInline("DiagnosticCaptureExtensions.AddDictionary(log, ")]
     public async Task Dictionary_APIs_Should_Require_Protection_For_Configured_Paths(string capture)
     {
         var diagnostics = await Analyze(Compilation($$"""

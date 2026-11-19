@@ -1,6 +1,7 @@
 using Sample.Domain.QA.Question;
 using Sample.Domain.QA.User;
 using Sample.Domain.QA.AnswerComment;
+using Sample.Contract.QA.Answers;
 
 namespace Sample.Domain.QA.Answer;
 
@@ -24,4 +25,10 @@ public class AnswerEntity : AggregateRoot
     public bool IsAccepted { get; set; }
 
     public List<AnswerCommentEntity> Comments { get; private set; } = [];
+
+    public AnswerDto ToDto() => new(this)
+    {
+        Body = Body,
+        IsAccepted = IsAccepted
+    };
 }

@@ -3,6 +3,7 @@ using Sample.Domain.QA.Category;
 using Sample.Domain.QA.Tag;
 using Sample.Domain.QA.User;
 using Sample.Domain.QA.QuestionComment;
+using Sample.Contract.QA.Questions;
 
 namespace Sample.Domain.QA.Question;
 
@@ -34,4 +35,10 @@ public class QuestionEntity : AggregateRoot
     public List<TagEntity> Tags { get; private set; } = [];
     public List<AnswerEntity> Answers { get; private set; } = [];
     public List<QuestionCommentEntity> Comments { get; private set; } = [];
+
+    public QuestionDto ToDto() => new(this)
+    {
+        Title = Title,
+        Body = Body
+    };
 }

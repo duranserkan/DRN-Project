@@ -94,8 +94,8 @@ public sealed class AggregateReviewPlanRefactoringTests
     }
 
     [Theory]
-    [InlineData("namespace Sample.Infra.Sales.SalesContext { public class Detail; }")]
-    [InlineData("namespace Sample.Infra { public class Sales; }")]
+    [DataInline("namespace Sample.Infra.Sales.SalesContext { public class Detail; }")]
+    [DataInline("namespace Sample.Infra { public class Sales; }")]
     public async Task Proposed_Context_Symbol_Collision_Should_Block_Markdown_Plan(string collision)
     {
         using var workspace = new AdhocWorkspace();
@@ -196,8 +196,8 @@ public sealed class AggregateReviewPlanRefactoringTests
     }
 
     [Theory]
-    [InlineData("Sample.Domain")]
-    [InlineData("Sample.Infra")]
+    [DataInline("Sample.Domain")]
+    [DataInline("Sample.Infra")]
     public async Task Large_Valid_Inventory_Should_Produce_A_Compact_Fingerprinted_Plan(string projectName)
     {
         using var workspace = new AdhocWorkspace();
@@ -220,8 +220,8 @@ public sealed class AggregateReviewPlanRefactoringTests
     }
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
+    [DataInline(true)]
+    [DataInline(false)]
     public async Task Inventory_Exceeding_Analyzer_Size_Or_Record_Bound_Should_Decline_Plan(bool exceedCharacters)
     {
         using var workspace = new AdhocWorkspace();
@@ -261,8 +261,8 @@ public sealed class AggregateReviewPlanRefactoringTests
     }
 
     [Theory]
-    [InlineData("Storage.Infra")]
-    [InlineData("Infra")]
+    [DataInline("Storage.Infra")]
+    [DataInline("Infra")]
     public async Task Referencing_Infrastructure_Should_Use_Its_Own_Namespace_For_Proposed_Context(string infraName)
     {
         using var workspace = new AdhocWorkspace();

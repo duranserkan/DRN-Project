@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Sample.Contract.QB.QBTests;
 
 namespace Sample.Domain.QB.QBTest;
 
@@ -18,4 +19,10 @@ public class QBTestEntity : AggregateRoot
 
     [MaxLength(100)]
     public string TestValueString { get; init; } = string.Empty;
+
+    public QBTestDto ToDto() => new(this)
+    {
+        TestValue = TestValue,
+        TestValueString = TestValueString
+    };
 }

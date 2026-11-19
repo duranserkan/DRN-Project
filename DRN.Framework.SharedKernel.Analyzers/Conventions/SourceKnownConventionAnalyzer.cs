@@ -36,6 +36,7 @@ public sealed class SourceKnownConventionAnalyzer : DiagnosticAnalyzer
         ConventionRegistrationAnalysis.AnalyzeAll(facts, registrations, calls);
         ConventionBoundaryAnalysis.Analyze(facts);
         ConventionNamingAnalysis.Analyze(facts);
+        ConventionDtoAnalysis.Analyze(facts);
         ConventionAggregateRepositoryAnalysis.Analyze(facts);
         ConventionInfrastructureAnalysis.Analyze(facts);
         foreach (var diagnostic in facts.Diagnostics)

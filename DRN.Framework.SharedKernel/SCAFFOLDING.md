@@ -145,15 +145,19 @@ public class OrderRepository(SalesContext context, IEntityUtils utils)
 
 Preserve the application's existing registration path. Attribute registration requires the application's real assembly composition path. Do not add duplicate manual registration. Do not guess query filters, tracking settings, keyed selection or a new transaction boundary. Verify effective DI when execution is authorized.
 
-## Optional service, DTO and request
+## Entity DTO, optional service and request
 
 A requested repository-backed service may derive from `SourceKnownService<TEntity>` or implement `ISourceKnownService<TEntity>`. Supply the actual requested operation and domain behavior before writing it. If the request only needs repository access, no service is required. A service skeleton with a hidden TODO or `NotImplementedException` is not an acceptable output.
 
 For an explicitly requested forwarding use case, select one complete method declaration on an existing Domain repository interface. The Add forwarding service action offers eligible loaded Application projects and separate scoped/unregistered choices. It forwards exactly the selected method to the repository, and asynchronous (`Task`/`ValueTask`) methods require a `CancellationToken` parameter to qualify. It adds no business validation, query, write behavior or extra operations. Unsupported signatures, unavailable types, ownership conflicts or a missing existing Domain reference prevent the offer. Use this only when forwarding that existing operation is the intended use case. More involved orchestration still requires the real business implementation.
 
-For DTO/request assistance, list each external field, its type, classification, validation owner and mapping source first. Public DTOs derive from `Dto` and expose Guid identity. Preserve CreatedAt/ModifiedAt mapping. Put public contracts in Contract and entity mapping in an allowed Domain/Application location. Do not introduce a Contract-to-Domain reference just to simplify mapping.
+For DTO/request assistance, list each external field, its type, classification, validation owner and mapping source first. Public DTOs derive from `Dto` and expose Guid identity. Preserve CreatedAt/ModifiedAt mapping. Put public contracts in Contract and the public parameterless ToDto method on the Domain entity. Do not introduce a Contract-to-Domain reference just to simplify mapping.
 
-To request the bounded DTO action, select the complete declarations of the public readable scalar properties to expose on an existing Domain entity. The action offers a loaded Contract project only when the selected Domain project already references it, regardless of naming prefix. Preview includes a Contract DTO and a Domain mapping extension. The DTO constructor forwards the source entity to Dto, preserving identity and timestamps. The mapper initializes every selected field. Nonnullable reference fields are required init properties, without invented defaults. Known classification attributes are retained. Internal numeric *Id properties (long or long?), partial properties, unsupported types or unprojected classification metadata prevent the action. This does not generate a creation request, validation, endpoint or authorization behavior.
+To request the bounded DTO action, select the complete declarations of the public readable scalar properties to expose on an existing Domain entity. The action offers a loaded Contract project only when the selected Domain project already references it, regardless of naming prefix. Preview includes a Contract DTO in the subdomain and plural entity folder plus a ToDto method on the selected entity. The DTO constructor forwards the source entity to Dto, preserving identity and timestamps. The mapper initializes every selected field. Nonnullable reference fields are required init properties, without invented defaults. Known classification attributes are retained. Internal numeric *Id properties (long or long?), partial properties, unsupported types or unprojected classification metadata prevent the action. This does not generate a creation request, validation, endpoint or authorization behavior.
+
+The selected entity file must exist inside its Domain project. A symbolic link at the file, its project root or an intervening directory prevents the edit. If the path becomes unsafe after preview, both project edits are discarded. An existing instance overload callable without arguments prevents the action. The action also checks extension calls in the loaded solution, including dependent projects. A call that would bind to the new mapper prevents the action.
+
+Conditional compilation around the selected properties, the mapper insertion point or attributes on the entity declaration can prevent the action. Compiler errors in either generated change also prevent the action, including warnings that the project treats as errors.
 
 Enum properties require an accessible matching enum in the Contract project. Enums nested inside generic containing types are declined.
 
@@ -162,7 +166,7 @@ For example, only after the user selects a public `Number` field, a Contract DTO
 ```csharp
 using DRN.Framework.SharedKernel.Domain;
 
-namespace Shop.Contract.Sales.Order;
+namespace Shop.Contract.Sales.Orders;
 
 public sealed class OrderDto(SourceKnownEntity? entity = null) : Dto(entity)
 {

@@ -27,23 +27,50 @@ internal static class CodeFixDestinationGuard
     internal static bool SafeDocumentDestination(Project project, string root, string destination, CancellationToken token) =>
         SafeDestination(root, destination) && !WorkspaceDestinationConflict(project.Solution, destination, project.Id, token);
 
-    private static bool AreParentDirectoriesSafe(string destinationDirectory, string trimmedRoot)
+    internal static bool SafeExistingDocument(Document document)
+    {
+        if (document.Project.FilePath is not { } project || !TryFullPath(project, out var projectPath) ||
+            document.FilePath is not { } path || !TryFullPath(path, out var filePath) ||
+            !IsCanonicalPath(project, projectPath) || !IsCanonicalPath(path, filePath) ||
+            Path.GetDirectoryName(projectPath) is not { } root || !ConventionGenerationPreflight.IsUnderDirectory(filePath, root))
+            return false;
+        try
+        {
+            var file = new FileInfo(filePath);
+            return file.Exists && !file.Attributes.HasFlag(FileAttributes.ReparsePoint) &&
+                   AreParentDirectoriesSafe(file.DirectoryName!, root, requireExisting: true);
+        }
+        catch (IOException) { return false; }
+        catch (UnauthorizedAccessException) { return false; }
+
+        // Normalizing ".." before inspecting the directory chain could hide a symbolic link.
+        static bool IsCanonicalPath(string path, string fullPath) => string.Equals(
+            path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar), fullPath, ConventionGenerationPreflight.RootComparison);
+    }
+
+    private static bool AreParentDirectoriesSafe(string destinationDirectory, string trimmedRoot, bool requireExisting = false)
     {
         var descendants = new Stack<DirectoryInfo>();
         var directory = new DirectoryInfo(destinationDirectory);
-        while (!string.Equals(Path.TrimEndingDirectorySeparator(directory.FullName), trimmedRoot, ConventionGenerationPreflight.RootComparison))
+        // Windows also supports case-sensitive directories. A differently cased source root may be a sibling.
+        var comparison = requireExisting ? StringComparison.Ordinal : ConventionGenerationPreflight.RootComparison;
+        while (!string.Equals(Path.TrimEndingDirectorySeparator(directory.FullName), trimmedRoot, comparison))
         {
             descendants.Push(directory);
             if (directory.Parent is not { } parent) return false;
             directory = parent;
         }
-        if (directory.LinkTarget is not null || File.Exists(directory.FullName)) return false;
+        if (UnsafeDirectory(directory)) return false;
         while (descendants.TryPop(out var child))
         {
-            if (child.LinkTarget is not null || File.Exists(child.FullName) || HasDirectoryCaseMismatch(child))
+            if (UnsafeDirectory(child) || HasDirectoryCaseMismatch(child))
                 return false;
         }
         return true;
+
+        bool UnsafeDirectory(DirectoryInfo entry) => requireExisting
+            ? (entry.Attributes & (FileAttributes.Directory | FileAttributes.ReparsePoint)) != FileAttributes.Directory
+            : entry.LinkTarget is not null || File.Exists(entry.FullName);
     }
 
     private static bool HasDirectoryCaseMismatch(DirectoryInfo directory) =>

@@ -40,8 +40,8 @@ public sealed class ConventionHostingCoexistenceTests
         """;
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [DataInline(false)]
+    [DataInline(true)]
     public async Task Convention_Severity_Should_Not_Weaken_Inherited_Action_Authorization(bool enabled)
     {
         Compilation compilation = Compile(Controller);
@@ -62,8 +62,8 @@ public sealed class ConventionHostingCoexistenceTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [DataInline(false)]
+    [DataInline(true)]
     public async Task Program_Name_Guard_Should_Remain_An_Error_Independently_Of_Convention_Severity(bool enabled)
     {
         Compilation compilation = Compile(Program.Replace("SampleProgram", "SampleHost", StringComparison.Ordinal));

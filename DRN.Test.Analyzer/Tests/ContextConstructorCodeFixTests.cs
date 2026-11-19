@@ -41,11 +41,11 @@ public sealed class ContextConstructorCodeFixTests
     }
 
     [Theory]
-    [InlineData("public class QAContext() : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>(null);", "Context.cs")]
-    [InlineData("public class QAContext : DRN.Framework.EntityFramework.Context.DrnContext<QAContext> { public QAContext() : base(null) { System.Console.WriteLine(1); } }", "Context.cs")]
-    [InlineData("public class QAContext : DRN.Framework.EntityFramework.Context.DrnContext<QAContext> { public QAContext() : base(null) { } public QAContext(string value) : base(null) { } }", "Context.cs")]
-    [InlineData("public class QAContext : DRN.Framework.EntityFramework.Context.DrnContext<QAContext> { public QAContext() : base(null) { } }", "Context.g.cs")]
-    [InlineData("public class QAContext { public QAContext() { } }", "Context.cs")]
+    [DataInline("public class QAContext() : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>(null);", "Context.cs")]
+    [DataInline("public class QAContext : DRN.Framework.EntityFramework.Context.DrnContext<QAContext> { public QAContext() : base(null) { System.Console.WriteLine(1); } }", "Context.cs")]
+    [DataInline("public class QAContext : DRN.Framework.EntityFramework.Context.DrnContext<QAContext> { public QAContext() : base(null) { } public QAContext(string value) : base(null) { } }", "Context.cs")]
+    [DataInline("public class QAContext : DRN.Framework.EntityFramework.Context.DrnContext<QAContext> { public QAContext() : base(null) { } }", "Context.g.cs")]
+    [DataInline("public class QAContext { public QAContext() { } }", "Context.cs")]
     public async Task Constructor_Action_Should_Reject_Ambiguous_Or_Unsafe_Construction(string source, string name)
     {
         using var workspace = new AdhocWorkspace();
@@ -81,8 +81,8 @@ public sealed class ContextConstructorCodeFixTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [DataInline(false)]
+    [DataInline(true)]
     public async Task Removed_Document_Or_Project_Should_Not_Be_Reintroduced(bool removeProject)
     {
         using var workspace = new AdhocWorkspace();
@@ -116,8 +116,8 @@ public sealed class ContextConstructorCodeFixTests
     }
 
     [Theory]
-    [InlineData("public int Number => 1;", 1)]
-    [InlineData("public MissingType Invalid => null;", 0)]
+    [DataInline("public int Number => 1;", 1)]
+    [DataInline("public MissingType Invalid => null;", 0)]
     public async Task Constructor_Action_Should_Check_All_Partial_Declarations(string member, int expectedActions)
     {
         using var workspace = new AdhocWorkspace();

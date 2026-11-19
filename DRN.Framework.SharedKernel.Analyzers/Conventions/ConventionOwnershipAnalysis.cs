@@ -14,8 +14,10 @@ internal static class ConventionOwnershipAnalysis
     private static void AnalyzeTypeOwnership(ConventionFacts facts, INamedTypeSymbol type)
     {
         var location = facts.Location(type);
-        if (location == Location.None || facts.Symbols.IsOpen(type, facts.Cancellation)) return;
+        if (location == Location.None) return;
         var role = facts.Role(type);
+        if (facts.Symbols.IsOpen(type, facts.Cancellation) &&
+            !(role.Role == ConventionArchitecture.Contract && facts.Symbols.IsKnown(type, facts.Symbols.Dto, facts.Cancellation))) return;
         if (role.Role == ConventionArchitecture.SharedKernel && (type.TypeKind == TypeKind.Interface || type.IsAbstract)) return;
         if (!TryClassifyOwnedType(facts, type, role.Role, out var entity, out var configuration, out var repository, out var service))
             return;
@@ -76,8 +78,8 @@ internal static class ConventionOwnershipAnalysis
         return (ns, expectedNamespace, expectedDirectory);
     }
 
-    private static void AnalyzeTypePlacement(ConventionFacts facts, INamedTypeSymbol type, Location location,
-        string ns, string expectedNamespace, string expectedDirectory)
+    internal static void AnalyzeTypePlacement(ConventionFacts facts, INamedTypeSymbol type, Location location,
+        string ns, string expectedNamespace, string expectedDirectory, DiagnosticDescriptor? descriptor = null)
     {
         var namespaceConflict = ns != expectedNamespace;
         var conflictingParts = new HashSet<Location>();
@@ -99,10 +101,11 @@ internal static class ConventionOwnershipAnalysis
         if (namespaceConflict || conflictingParts.Count != 0)
         {
             conflictingParts.Remove(location);
-            facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.Placement, location,
+            facts.Diagnostics.Add(Diagnostic.Create(descriptor ?? ConventionDiagnosticDescriptors.Placement, location,
                 conflictingParts.OrderBy(part => facts.LogicalPath(part.SourceTree!) ?? part.SourceTree!.FilePath, StringComparer.Ordinal)
                     .ThenBy(part => part.SourceSpan.Start),
-                properties: null, messageArgs: [type.Name, expectedDirectory, expectedNamespace]));
+                properties: descriptor is null ? null : ImmutableDictionary<string, string?>.Empty.Add("Target", type.GetDocumentationCommentId()),
+                messageArgs: [type.Name, expectedDirectory, expectedNamespace]));
         }
     }
 

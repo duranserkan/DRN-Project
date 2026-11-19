@@ -104,9 +104,9 @@ public sealed class SourceKnownConventionAnalyzerTests
     }
 
     [Theory]
-    [InlineData("source")]
-    [InlineData("assembly")]
-    [InlineData("reference-assembly")]
+    [DataInline("source")]
+    [DataInline("assembly")]
+    [DataInline("reference-assembly")]
     public async Task Producer_Ownership_Should_Survive_Source_And_Emitted_Reference_Boundaries(string shape)
     {
         var producer = Compilation("""

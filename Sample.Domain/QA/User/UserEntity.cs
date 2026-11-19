@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using DRN.Framework.SharedKernel.Attributes;
+using Sample.Contract.QA.Users;
 
 namespace Sample.Domain.QA.User;
 
@@ -24,6 +25,8 @@ public class UserEntity : AggregateRoot
     [Personal] public string UserName { get; private set; } = null!;
     public ContactDetail Contact { get; private set; } = null!;
     public Address Address { get; private set; } = null!;
+
+    public UserDto ToDto() => new(this);
 }
 
 [Owned]

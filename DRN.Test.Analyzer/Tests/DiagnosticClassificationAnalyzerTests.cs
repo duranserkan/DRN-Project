@@ -138,12 +138,12 @@ public sealed class DiagnosticClassificationAnalyzerTests
     }
 
     [Theory]
-    [InlineData("DRN.Framework.Utils.Logging", "IScopedLog", "Add", 2)]
-    [InlineData("DRN.Framework.Utils.Logging", "ScopedLog", "Add", 2)]
-    [InlineData("DRN.Framework.Utils.Logging.Diagnostics", "IDiagnosticSanitizer", "SanitizeValue", 2)]
-    [InlineData("DRN.Framework.Utils.Logging.Diagnostics", "DiagnosticSanitizer", "SanitizeValue", 2)]
-    [InlineData("Other.Logging", "ScopedLog", "Add", 0)]
-    [InlineData("Other.Logging", "DiagnosticSanitizer", "SanitizeValue", 0)]
+    [DataInline("DRN.Framework.Utils.Logging", "IScopedLog", "Add", 2)]
+    [DataInline("DRN.Framework.Utils.Logging", "ScopedLog", "Add", 2)]
+    [DataInline("DRN.Framework.Utils.Logging.Diagnostics", "IDiagnosticSanitizer", "SanitizeValue", 2)]
+    [DataInline("DRN.Framework.Utils.Logging.Diagnostics", "DiagnosticSanitizer", "SanitizeValue", 2)]
+    [DataInline("Other.Logging", "ScopedLog", "Add", 0)]
+    [DataInline("Other.Logging", "DiagnosticSanitizer", "SanitizeValue", 0)]
     public async Task Capture_Owners_Should_Check_Scalars_And_Dictionaries_Without_Matching_Lookalikes(
         string ownerNamespace, string owner, string method, int expectedCount)
     {
@@ -171,9 +171,9 @@ public sealed class DiagnosticClassificationAnalyzerTests
     }
 
     [Theory]
-    [InlineData("DRN.Framework.Utils.Logging", "interface", "IScopedLog", true)]
-    [InlineData("DRN.Framework.Utils.Logging", "class", "ScopedLog", true)]
-    [InlineData("Other.Logging", "class", "ScopedLog", false)]
+    [DataInline("DRN.Framework.Utils.Logging", "interface", "IScopedLog", true)]
+    [DataInline("DRN.Framework.Utils.Logging", "class", "ScopedLog", true)]
+    [DataInline("Other.Logging", "class", "ScopedLog", false)]
     public async Task Conditional_String_Captures_Should_Check_Constant_Keys_And_Ignore_Uncaptured_Values(
         string ownerNamespace, string declaration, string owner, bool supported)
     {
@@ -831,8 +831,8 @@ public sealed class DiagnosticClassificationAnalyzerTests
     }
 
     [Theory]
-    [InlineData("Models.cs", 4)]
-    [InlineData("Models.g.cs", 0)]
+    [DataInline("Models.cs", 4)]
+    [DataInline("Models.g.cs", 0)]
     public async Task Inheritance_Generics_And_Records_Should_Report_Only_In_User_Code(string path, int expectedCount)
     {
         var diagnostics = await Analyze(Compilation("""

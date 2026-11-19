@@ -30,9 +30,9 @@ public sealed class DiagnosticNameExemptionTests
     }
 
     [Theory]
-    [InlineData("DRN.Framework.Utils.Logging", "IScopedLog", "Add")]
-    [InlineData("DRN.Framework.Utils.Logging", "IScopedLog", "AddToList")]
-    [InlineData("DRN.Framework.Utils.Logging.Diagnostics", "IDiagnosticSanitizer", "SanitizeValue")]
+    [DataInline("DRN.Framework.Utils.Logging", "IScopedLog", "Add")]
+    [DataInline("DRN.Framework.Utils.Logging", "IScopedLog", "AddToList")]
+    [DataInline("DRN.Framework.Utils.Logging.Diagnostics", "IDiagnosticSanitizer", "SanitizeValue")]
     public async Task Dictionary_Comments_Should_Match_Exact_Keys_Only_On_The_Adjacent_Capture(
         string ownerNamespace, string ownerType, string method)
     {
@@ -136,9 +136,9 @@ public sealed class DiagnosticNameExemptionTests
     }
 
     [Theory]
-    [InlineData("Add")]
-    [InlineData("AddToList")]
-    [InlineData("AddIfNotNullOrEmpty")]
+    [DataInline("Add")]
+    [DataInline("AddToList")]
+    [DataInline("AddIfNotNullOrEmpty")]
     public async Task Scoped_Name_Comments_Should_Exempt_Only_The_Exact_Adjacent_Capture(string method)
     {
         var diagnostics = await Analyze(Compilation($$"""
@@ -302,11 +302,11 @@ public sealed class DiagnosticNameExemptionTests
     }
 
     [Theory]
-    [InlineData("// DiagnosticNameExemption: TokenCount")]
-    [InlineData("// DiagnosticNameExemption: TokenCount | ")]
-    [InlineData("// DiagnosticNameExemption: | Numeric metric.")]
-    [InlineData("// DiagnosticNameExemption TokenCount | Missing colon.")]
-    [InlineData("// DiagnosticNameExemption: * | No wildcard exemptions.")]
+    [DataInline("// DiagnosticNameExemption: TokenCount")]
+    [DataInline("// DiagnosticNameExemption: TokenCount | ")]
+    [DataInline("// DiagnosticNameExemption: | Numeric metric.")]
+    [DataInline("// DiagnosticNameExemption TokenCount | Missing colon.")]
+    [DataInline("// DiagnosticNameExemption: * | No wildcard exemptions.")]
     public async Task Malformed_Comments_Should_Explain_The_Syntax_And_Keep_The_Capture_Error(string comment)
     {
         var diagnostics = await Analyze(Compilation($$"""

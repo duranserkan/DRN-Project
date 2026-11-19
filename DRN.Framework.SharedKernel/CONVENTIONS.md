@@ -112,6 +112,10 @@ Convention rules default to Warning in enabled application projects, affecting w
 | ID | Why and ordinary remedy | Valid / invalid example | Exception and limit |
 |---|---|---|---|
 | DRNARCHITECTURE001 | Review incomplete public contract inspection. | Public model fits the analysis budget / a member's nested model exhausts it. | Review the named member or reduce its public shape. |
+| DRNDTO001 | Each concrete, closed Domain SourceKnownEntity declares public ToDto() returning its Contract DTO. | CategoryDto ToDto() => new(this) { Name = Name }; | Metadata-only and partial projections are supported. |
+| DRNDTO002 | Put the DTO in its subdomain and plural entity folder. | QA/Categories/CategoryDto.cs | DRNSTRUCTURE001 checks logical source placement. |
+| DRNDTO003 | Preserve each mapped Personal or Sensitive property classification on the DTO property. | A renamed personal property still requires Personal. | Omitted fields need no DTO member. |
+| DRNDTO004 | Place public entity-prefixed requests and responses beside their DTO. | QA/Categories/CategoryPostRequest.cs | The longest matching entity stem in the Contract subdomain wins. |
 | DRNARCHITECTURE002 | Keep external contracts free of persistence objects. | Dto/Guid / public collection containing an entity. | Approved neutral value model. Dto mapping constructors may accept their source entity. Complex or external graphs remain bounded. |
 | DRNARCHITECTURE003 | Respect direct application-role edges. | Application to Infra / Domain to Infra. | Exact reasoned integration edge. Direct provenance and resolved assembly/project identity are required. Package IDs do not establish roles. |
 | DRNARCHITECTURE004 | Place the implementation in its owning layer. | Context in Infra, controller in Hosted / DTO declared in Domain. | Exact reasoned role exception. |

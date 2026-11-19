@@ -11,6 +11,18 @@ internal static class ConventionDiagnosticDescriptors
     private const string RegistrationArea = "Registration";
     private const string ApplicationArea = "Application";
     private const string ContractArea = "Contract";
+
+    internal static readonly DiagnosticDescriptor EntityDto = Create("DRNDTO001", "Provide an entity-owned DTO projection",
+        "'{0}' requires a public instance ToDto() returning {1} from its Contract subdomain and constructing it with this.", ContractArea);
+
+    internal static readonly DiagnosticDescriptor DtoFolder = Create("DRNDTO002", "Place the DTO in its entity folder",
+        "Place '{0}' under its subdomain in the '{1}' folder and matching namespace.", StructureArea);
+
+    internal static readonly DiagnosticDescriptor DtoClassification = Create("DRNDTO003", "Preserve projected property classification",
+        "DTO property '{0}' requires [{1}] from mapped property '{2}'.", ContractArea);
+
+    internal static readonly DiagnosticDescriptor DtoMessagePlacement = Create("DRNDTO004", "Place entity requests and responses beside their DTO",
+        "Place '{0}' in '{1}' with namespace '{2}' alongside its entity DTO.", StructureArea);
     private const string ArchitectureArea = "Architecture";
     private const string MigrationsArea = "Migrations";
     private const string ExceptionsArea = "Exceptions";
@@ -124,7 +136,7 @@ internal static class ConventionDiagnosticDescriptors
         Placement, ContextName, Destination, RoleSuffix, AggregatePlacement, InfrastructureFolder, ContextOptionsName,
         ContextConstructor, Provider, BaseModel, Persistence, Configuration, Migration, ContextContract, DbSetAggregate, ContextOptionsRequired,
         Repository, Service, AggregateContract, AggregateRepository,
-        Registration, LifetimeRequired, ModuleScan, InvalidInput, Exception
+        Registration, LifetimeRequired, ModuleScan, InvalidInput, Exception, EntityDto, DtoFolder, DtoClassification, DtoMessagePlacement
     ];
 
     private static DiagnosticDescriptor Create(string id, string title, string message, string area) =>

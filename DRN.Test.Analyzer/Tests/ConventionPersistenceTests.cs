@@ -236,8 +236,8 @@ public sealed class ConventionPersistenceTests
     }
 
     [Theory]
-    [InlineData("Sample.Infra.QA.Configurations", false)]
-    [InlineData("Sample.Infra.QAOther.Configurations", true)]
+    [DataInline("Sample.Infra.QA.Configurations", false)]
+    [DataInline("Sample.Infra.QAOther.Configurations", true)]
     public void Declared_Configuration_Should_Respect_Exact_Or_Child_Namespace(string configNamespace, bool invalid)
     {
         var source = """
@@ -403,8 +403,8 @@ public sealed class ConventionPersistenceTests
     }
 
     [Theory]
-    [InlineData("private CategoryConfiguration() { }", false)]
-    [InlineData("public CategoryConfiguration(int dependency) { }", true)]
+    [DataInline("private CategoryConfiguration() { }", false)]
+    [DataInline("public CategoryConfiguration(int dependency) { }", true)]
     public void Configuration_Scan_Should_Require_A_Parameterless_Constructor_Without_Rejecting_Private_Ones(string constructor, bool invalid)
     {
         var facts = Analyze(Imports + $$"""
@@ -419,8 +419,8 @@ public sealed class ConventionPersistenceTests
     }
 
     [Theory]
-    [InlineData("private CategoryConfiguration() { }", false)]
-    [InlineData("public CategoryConfiguration(int dependency) { }", true)]
+    [DataInline("private CategoryConfiguration() { }", false)]
+    [DataInline("public CategoryConfiguration(int dependency) { }", true)]
     public void Ordinary_Configuration_Should_Be_Checked_Without_An_Explicit_Association(string constructor, bool invalid)
     {
         var facts = Analyze(Imports + $$"""
@@ -548,8 +548,8 @@ public sealed class ConventionPersistenceTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [DataInline(false)]
+    [DataInline(true)]
     public void Cqrs_Configuration_Association_Should_Stay_In_The_Nearest_Context_Area(bool invalidReadConfiguration)
     {
         var constructor = invalidReadConfiguration ? "public ReadConfiguration(int dependency) { }" : "";
@@ -625,8 +625,8 @@ public sealed class ConventionPersistenceTests
     }
 
     [Theory]
-    [InlineData("public void Unused(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<Category> builder) => new HelperConfiguration(32).Configure(builder);")]
-    [InlineData("public object Unused() => new HelperConfiguration(32);")]
+    [DataInline("public void Unused(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<Category> builder) => new HelperConfiguration(32).Configure(builder);")]
+    [DataInline("public object Unused() => new HelperConfiguration(32);")]
     public void Unrelated_Composite_Member_Should_Not_Claim_Application(string member)
     {
         var facts = Analyze(Imports + $$"""
@@ -665,8 +665,8 @@ public sealed class ConventionPersistenceTests
     }
 
     [Theory]
-    [InlineData("System.Action deferred = () => new HelperConfiguration(32).Configure(builder);")]
-    [InlineData("void Deferred() => new HelperConfiguration(32).Configure(builder);")]
+    [DataInline("System.Action deferred = () => new HelperConfiguration(32).Configure(builder);")]
+    [DataInline("void Deferred() => new HelperConfiguration(32).Configure(builder);")]
     public void Uninvoked_Nested_Configure_Delegation_Should_Not_Waive_Discovery(string nested)
     {
         var facts = Analyze(Imports + $$"""
@@ -704,11 +704,11 @@ public sealed class ConventionPersistenceTests
     }
 
     [Theory]
-    [InlineData("ConfigureCore(builder);", false)]
-    [InlineData("Forward(builder);", false)]
-    [InlineData("void Apply(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<Category> value) => ConfigureCore(value); Apply(builder);", false)]
-    [InlineData("", true)]
-    [InlineData("Cycle(builder);", false)]
+    [DataInline("ConfigureCore(builder);", false)]
+    [DataInline("Forward(builder);", false)]
+    [DataInline("void Apply(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<Category> value) => ConfigureCore(value); Apply(builder);", false)]
+    [DataInline("", true)]
+    [DataInline("Cycle(builder);", false)]
     public void Helper_Delegation_Should_Require_A_Forwarding_Path_From_Configure(string body, bool warning)
     {
         var facts = Analyze(Imports + $$"""
@@ -774,8 +774,8 @@ public sealed class ConventionPersistenceTests
     }
 
     [Theory]
-    [InlineData("QA/Migrations", false)]
-    [InlineData("Other/Migrations", true)]
+    [DataInline("QA/Migrations", false)]
+    [DataInline("Other/Migrations", true)]
     public void Migration_And_Designer_Partials_Should_Report_One_Context_Association(string destination, bool conflict)
     {
         var facts = Analyze("""
@@ -807,8 +807,8 @@ public sealed class ConventionPersistenceTests
     }
 
     [Theory]
-    [InlineData("QA/Migrations", false)]
-    [InlineData("Other/Migrations", true)]
+    [DataInline("QA/Migrations", false)]
+    [DataInline("Other/Migrations", true)]
     public void Snapshot_Metadata_Should_Be_Checked_Even_When_Generated(string destination, bool conflict)
     {
         var source = """
@@ -839,9 +839,9 @@ public sealed class ConventionPersistenceTests
     }
 
     [Theory]
-    [InlineData("Shop.Persistence.Sales.Migrations", "Infra/Sales/Migrations/Snapshot.cs", false)]
-    [InlineData("Shop.Persistence.Infra.Sales.Migrations", "Infra/Sales/Migrations/Snapshot.cs", true)]
-    [InlineData("Shop.Persistence.Sales.Migrations", "Sales/Migrations/Snapshot.cs", true)]
+    [DataInline("Shop.Persistence.Sales.Migrations", "Infra/Sales/Migrations/Snapshot.cs", false)]
+    [DataInline("Shop.Persistence.Infra.Sales.Migrations", "Infra/Sales/Migrations/Snapshot.cs", true)]
+    [DataInline("Shop.Persistence.Sales.Migrations", "Sales/Migrations/Snapshot.cs", true)]
     public void Split_Role_Migration_Namespace_Should_Exclude_Only_The_Logical_Role_Prefix(string snapshotNamespace, string logicalPath, bool conflict)
     {
         var facts = Analyze($$"""
@@ -882,10 +882,10 @@ public sealed class ConventionPersistenceTests
     }
 
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(false, true)]
-    [InlineData(true, false)]
-    [InlineData(true, true)]
+    [DataInline(false, false)]
+    [DataInline(false, true)]
+    [DataInline(true, false)]
+    [DataInline(true, true)]
     public async Task Separate_Migration_Assembly_Should_Use_Its_Own_Namespace_And_Exact_Declared_Assembly(bool emitted, bool wrongAssembly)
     {
         var framework = FrameworkReference;
@@ -950,8 +950,8 @@ public sealed class ConventionPersistenceTests
     }
 
     [Theory]
-    [InlineData("Category", false)]
-    [InlineData("Other", true)]
+    [DataInline("Category", false)]
+    [DataInline("Other", true)]
     public void Explicit_Service_Repository_Binding_Should_Use_The_Contract_Entity(string repositoryEntity, bool conflict)
     {
         var facts = AnalyzeRole("""
