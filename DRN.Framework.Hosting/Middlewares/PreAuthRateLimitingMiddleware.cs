@@ -3,8 +3,6 @@ using System.Threading.RateLimiting;
 using DRN.Framework.Hosting.RateLimiting;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Logging.Diagnostics;
-using DRN.Framework.Utils.Settings;
-using Microsoft.AspNetCore.Http;
 
 namespace DRN.Framework.Hosting.Middlewares;
 

@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.Endpoints;

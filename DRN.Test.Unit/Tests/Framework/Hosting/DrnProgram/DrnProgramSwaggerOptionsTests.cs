@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Text.Json;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.SharedKernel.Json;
-using Microsoft.AspNetCore.Http;
 using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.Swagger;
 using Swashbuckle.AspNetCore.SwaggerGen;

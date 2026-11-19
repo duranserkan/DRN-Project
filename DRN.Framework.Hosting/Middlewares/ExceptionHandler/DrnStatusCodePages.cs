@@ -1,7 +1,6 @@
 using DRN.Framework.Hosting.Middlewares.ApiErrors;
 using DRN.Framework.Utils.Logging;
 using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 

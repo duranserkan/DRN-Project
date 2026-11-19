@@ -2,7 +2,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Auth;
-using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Logging.Diagnostics;
 using Microsoft.Extensions.Logging;
 using static DRN.Test.Unit.Tests.Framework.Utils.Logging.DiagnosticTestSupport;

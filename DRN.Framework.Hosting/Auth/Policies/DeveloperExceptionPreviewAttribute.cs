@@ -1,8 +1,3 @@
-using DRN.Framework.Utils.Settings;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
-using DRN.Framework.Utils.Auth;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Infrastructure;
 
 namespace DRN.Framework.Hosting.Auth.Policies;

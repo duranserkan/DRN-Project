@@ -1,5 +1,4 @@
 using DRN.Framework.SharedKernel.Cancellation;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
 
 namespace DRN.Framework.Utils.Cancellation;
 

@@ -2,9 +2,7 @@ using System.Reflection;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Hosting.Utils;
 using DRN.Framework.Utils.Logging;
-using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace DRN.Framework.Hosting.DrnProgram;

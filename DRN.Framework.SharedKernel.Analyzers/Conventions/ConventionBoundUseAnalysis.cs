@@ -1,6 +1,3 @@
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-
 namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 
 internal static class ConventionBoundUseAnalysis

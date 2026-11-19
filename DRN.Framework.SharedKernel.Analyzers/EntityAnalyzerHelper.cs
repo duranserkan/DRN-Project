@@ -1,7 +1,5 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using DRN.Framework.CompilerTools;
-using Microsoft.CodeAnalysis;
 
 namespace DRN.Framework.SharedKernel.Analyzers;
 

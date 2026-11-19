@@ -1,4 +1,3 @@
-using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Routing;
 

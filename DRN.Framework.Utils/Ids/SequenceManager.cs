@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.Utils.Time;
 
 namespace DRN.Framework.Utils.Ids;

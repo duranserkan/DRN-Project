@@ -1,4 +1,3 @@
-using DRN.Framework.Utils.Settings;
 using Microsoft.Extensions.Logging;
 using NLog;
 using NLog.Extensions.Logging;

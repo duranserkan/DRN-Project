@@ -4,16 +4,11 @@ using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.Consent;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Middlewares;
-using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Data.Encodings;
-using DRN.Framework.Utils.Settings;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.CookiePolicy;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.DependencyInjection;
 using NetEscapades.AspNetCore.SecurityHeaders.Infrastructure;
 
 namespace DRN.Framework.Hosting.DrnProgram.Configurators;

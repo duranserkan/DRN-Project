@@ -1,6 +1,3 @@
-using DRN.Framework.Utils.Logging;
-using Microsoft.AspNetCore.Http;
-using System.Security.Claims;
 using System.Diagnostics;
 using DRN.Framework.Hosting;
 using DRN.Framework.Hosting.Auth.Policies;

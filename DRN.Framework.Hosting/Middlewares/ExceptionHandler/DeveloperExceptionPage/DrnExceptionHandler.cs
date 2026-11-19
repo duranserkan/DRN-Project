@@ -1,17 +1,12 @@
 // This file is licensed to you under the MIT license.
 
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.Middlewares.ApiErrors;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Logging;
-using DRN.Framework.Utils.Settings;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 

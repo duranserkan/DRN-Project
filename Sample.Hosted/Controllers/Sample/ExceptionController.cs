@@ -1,4 +1,3 @@
-using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
 using DRN.Framework.Utils.Settings;

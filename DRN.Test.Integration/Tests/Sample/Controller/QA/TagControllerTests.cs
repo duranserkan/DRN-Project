@@ -1,4 +1,3 @@
-using System.Net;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.Utils.Data.Serialization;
 using DRN.Test.Integration.Tests.Sample.Controller.Helpers;
@@ -6,9 +5,7 @@ using Flurl;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Sample.Contract.QA.Tags;
-using Sample.Hosted;
 using Sample.Hosted.Controllers.QA;
-using Sample.Hosted.Helpers;
 
 namespace DRN.Test.Integration.Tests.Sample.Controller.QA;
 

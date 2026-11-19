@@ -1,14 +1,11 @@
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.SharedKernel;
-using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Logging.Diagnostics;
 using DRN.Framework.Utils.Scope;
-using DRN.Framework.Utils.Settings;
 using Flurl.Http;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
 namespace DRN.Framework.Hosting.Middlewares;

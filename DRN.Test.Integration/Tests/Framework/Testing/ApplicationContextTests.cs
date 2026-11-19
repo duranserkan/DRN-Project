@@ -1,4 +1,3 @@
-using System.Net;
 using System.Net.Http.Json;
 using DRN.Framework.Testing.Contexts.Application;
 using DRN.Framework.Utils.Models.Sample;
@@ -13,9 +12,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Npgsql;
-using Sample.Hosted;
 using Sample.Hosted.Filters;
-using Sample.Hosted.Helpers;
 using Sample.Infra.QA;
 using NexusGet = DRN.Nexus.Hosted.Helpers.Get;
 // ReSharper disable AccessToDisposedClosure

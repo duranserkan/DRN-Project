@@ -4,12 +4,10 @@ using System.Text;
 using System.Text.Encodings.Web;
 using DRN.Framework.Hosting.Identity.Services;
 using DRN.Framework.Utils.Scope;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Hosting.Identity.Controllers;
 

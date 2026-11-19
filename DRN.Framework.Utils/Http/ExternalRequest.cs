@@ -1,5 +1,4 @@
 using DRN.Framework.SharedKernel.Json;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Flurl;
 using Flurl.Http;
 using Flurl.Http.Configuration;

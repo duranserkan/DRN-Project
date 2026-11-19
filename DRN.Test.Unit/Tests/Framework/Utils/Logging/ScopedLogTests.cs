@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using DRN.Framework.SharedKernel.Attributes;
-using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Logging.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;

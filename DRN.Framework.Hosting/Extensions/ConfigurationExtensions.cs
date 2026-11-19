@@ -1,12 +1,9 @@
-using System.Linq;
 using System.Reflection;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Configurations;
-using DRN.Framework.Utils.Settings;
 using DRN.Framework.Utils.Settings.Conventions;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 
 namespace DRN.Framework.Hosting.Extensions;

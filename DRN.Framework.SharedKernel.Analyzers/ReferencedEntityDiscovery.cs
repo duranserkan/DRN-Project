@@ -1,6 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-using Microsoft.CodeAnalysis;
-
 namespace DRN.Framework.SharedKernel.Analyzers;
 
 internal static class ReferencedEntityDiscovery

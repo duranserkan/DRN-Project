@@ -1,7 +1,6 @@
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.Logging;
-using DRN.Framework.Utils.Settings;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Utils.Scope;

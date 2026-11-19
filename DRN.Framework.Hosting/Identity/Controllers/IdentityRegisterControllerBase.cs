@@ -5,13 +5,10 @@ using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Hosting.Identity.Services;
 using DRN.Framework.Utils.Scope;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Hosting.Identity.Controllers;
 

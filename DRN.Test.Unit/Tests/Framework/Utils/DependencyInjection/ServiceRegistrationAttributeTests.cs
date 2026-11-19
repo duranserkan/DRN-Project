@@ -1,5 +1,3 @@
-using DRN.Framework.Utils.Logging;
-
 namespace DRN.Test.Unit.Tests.Framework.Utils.DependencyInjection;
 
 public class ServiceRegistrationAttributeTests

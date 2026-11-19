@@ -1,16 +1,13 @@
 using System.Diagnostics;
 using System.Net;
-using System.Security.Claims;
 using System.Text.Encodings.Web;
 using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Utils.Auth;
-using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 

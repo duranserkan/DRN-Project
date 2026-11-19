@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.Middlewares;
@@ -8,7 +7,6 @@ using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.WebUtilities;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting.Auth;

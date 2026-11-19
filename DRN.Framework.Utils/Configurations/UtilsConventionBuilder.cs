@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Json;
 using Flurl.Http;
 using Flurl.Http.Configuration;

@@ -1,6 +1,5 @@
 using System.Text.Json;
 using DRN.Framework.Hosting.Middlewares.ApiErrors;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.Filters;

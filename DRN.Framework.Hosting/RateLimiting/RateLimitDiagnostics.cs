@@ -1,6 +1,5 @@
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Logging.Diagnostics;
-using DRN.Framework.Utils.Settings;
 
 namespace DRN.Framework.Hosting.RateLimiting;
 

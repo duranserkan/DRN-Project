@@ -1,6 +1,3 @@
-using System.Net;
-using Sample.Hosted;
-using Sample.Hosted.Helpers;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
 using Microsoft.AspNetCore.Http;

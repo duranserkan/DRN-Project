@@ -1,6 +1,4 @@
 using System.Buffers;
-using DRN.Framework.Utils.Settings;
-using Microsoft.AspNetCore.Http;
 
 namespace DRN.Framework.Hosting.Middlewares;
 

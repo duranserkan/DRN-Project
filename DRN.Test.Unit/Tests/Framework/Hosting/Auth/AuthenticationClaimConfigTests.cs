@@ -1,12 +1,10 @@
 using System.Net;
-using System.Security.Claims;
 using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.RateLimiting;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting.Auth;
 

@@ -2,7 +2,6 @@ using System.Reflection;
 using System.Text.Json;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
 using DRN.Framework.Utils.Logging.Diagnostics;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
 namespace DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils;

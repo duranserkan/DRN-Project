@@ -1,5 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-
 namespace DRN.Framework.Hosting.Endpoints;
 
 [SuppressMessage("ReSharper", "StaticMemberInGenericType")]

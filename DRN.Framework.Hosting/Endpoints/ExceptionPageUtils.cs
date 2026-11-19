@@ -1,5 +1,3 @@
-using DRN.Framework.Utils.DependencyInjection.Attributes;
-
 namespace DRN.Framework.Hosting.Endpoints;
 
 public interface IExceptionPageAccessor

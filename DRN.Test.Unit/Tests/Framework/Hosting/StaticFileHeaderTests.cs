@@ -2,7 +2,6 @@ using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Hosting.DrnProgram.Configurators;
 using DRN.Framework.Hosting.Utils.Vite;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;

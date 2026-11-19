@@ -2,7 +2,6 @@ using DRN.Framework.Testing.Contexts.Postgres;
 using DRN.Framework.Testing.Contexts.Startup;
 using DRN.Nexus.Hosted;
 using DRN.Test.Integration.Tests.Sample.Controller.Helpers;
-using Sample.Hosted;
 
 namespace DRN.Test.Integration;
 

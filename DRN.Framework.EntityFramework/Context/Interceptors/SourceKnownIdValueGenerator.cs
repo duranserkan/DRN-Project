@@ -1,4 +1,3 @@
-using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Ids;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Infrastructure;

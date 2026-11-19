@@ -1,6 +1,4 @@
 using DRN.Framework.EntityFramework.Context;
-using DRN.Framework.Utils.Settings;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Npgsql;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;

@@ -2,7 +2,6 @@
 
 #nullable enable
 
-using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils;

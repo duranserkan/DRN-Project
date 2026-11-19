@@ -1,9 +1,7 @@
 // This file is licensed to you under the MIT license.
 
-using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Extensions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;

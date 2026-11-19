@@ -1,5 +1,3 @@
-using DRN.Framework.SharedKernel.Attributes;
-
 namespace DRN.Framework.Utils.Logging;
 
 public struct ScopeDuration(string key, IScopedLog? log = null) : IDisposable

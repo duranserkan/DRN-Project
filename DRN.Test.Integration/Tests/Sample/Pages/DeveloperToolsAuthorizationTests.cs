@@ -1,6 +1,3 @@
-using System.Net;
-using Sample.Hosted;
-using Sample.Hosted.Helpers;
 using System.Security.Claims;
 using System.Text.Json;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;

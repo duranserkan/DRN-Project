@@ -1,8 +1,6 @@
-﻿// This file is licensed to you under the MIT license.
+// This file is licensed to you under the MIT license.
 
-using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.Utils.Models.Sample;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DRN.Framework.Hosting.HealthCheck;

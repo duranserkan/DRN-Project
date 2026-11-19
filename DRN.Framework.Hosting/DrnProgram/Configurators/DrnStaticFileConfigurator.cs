@@ -1,7 +1,6 @@
 using System.Collections.Frozen;
 using DRN.Framework.Hosting.Utils.Vite;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Options;
 

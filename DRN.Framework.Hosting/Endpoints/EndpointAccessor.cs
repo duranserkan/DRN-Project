@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Http;
-
 namespace DRN.Framework.Hosting.Endpoints;
 
 public interface IEndpointAccessor

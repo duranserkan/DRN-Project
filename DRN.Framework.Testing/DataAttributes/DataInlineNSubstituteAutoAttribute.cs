@@ -1,3 +1,7 @@
+using AutoFixture;
+using AutoFixture.AutoNSubstitute;
+using AutoFixture.Xunit3;
+
 namespace DRN.Framework.Testing.DataAttributes;
 
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]

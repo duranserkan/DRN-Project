@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Hosting.Extensions;

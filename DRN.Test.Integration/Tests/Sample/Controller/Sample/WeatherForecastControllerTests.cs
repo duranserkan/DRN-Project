@@ -1,9 +1,6 @@
-using System.Net;
 using DRN.Framework.Hosting.Nexus;
 using DRN.Framework.Utils.Models.Sample;
 using DRN.Nexus.Hosted;
-using Sample.Hosted;
-using Sample.Hosted.Helpers;
 
 namespace DRN.Test.Integration.Tests.Sample.Controller.Sample;
 

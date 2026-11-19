@@ -1,16 +1,13 @@
 using System.Net;
-using System.Security.Claims;
 using System.Threading.RateLimiting;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Hosting.RateLimiting;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Extensions;
-using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Logging.Diagnostics;
 using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
 using Sample.Hosted.Helpers;
 

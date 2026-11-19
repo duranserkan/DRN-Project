@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Settings.Conventions;
 

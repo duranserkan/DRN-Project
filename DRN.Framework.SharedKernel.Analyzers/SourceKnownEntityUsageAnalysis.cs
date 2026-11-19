@@ -1,9 +1,5 @@
-using System.Collections.Immutable;
 using DRN.Framework.CompilerTools;
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
 
 namespace DRN.Framework.SharedKernel.Analyzers;

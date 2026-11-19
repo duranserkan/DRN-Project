@@ -1,16 +1,12 @@
 using System.Reflection;
 using System.Text;
 using DRN.Framework.SharedKernel;
-using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Data.Serialization;
 using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Models;
-using DRN.Framework.Utils.Settings;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
-using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 
 namespace DRN.Framework.EntityFramework.Context;

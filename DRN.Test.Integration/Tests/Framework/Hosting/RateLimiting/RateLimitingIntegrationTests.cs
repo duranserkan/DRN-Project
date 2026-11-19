@@ -1,4 +1,3 @@
-using System.Net;
 using DRN.Test.Utils.RateLimiting;
 
 namespace DRN.Test.Integration.Tests.Framework.Hosting.RateLimiting;

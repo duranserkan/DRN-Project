@@ -1,13 +1,7 @@
-using System.Composition;
 using System.Security.Cryptography;
 using System.Text;
 using DRN.Framework.SharedKernel.Analyzers.Conventions;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeRefactorings;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Text;
 using static DRN.Framework.SharedKernel.CodeFixes.CodeFixDestinationGuard;
 using static DRN.Framework.SharedKernel.CodeFixes.CodeFixSymbolFacts;
 

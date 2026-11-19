@@ -6,12 +6,9 @@ using DRN.Framework.Hosting.Utils.Vite;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging;
-using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 

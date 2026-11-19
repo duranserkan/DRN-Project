@@ -1,8 +1,6 @@
 using System.Collections.Frozen;
-using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using DRN.Framework.SharedKernel.Attributes;
 using Microsoft.Extensions.Compliance.Classification;
 
 namespace DRN.Framework.Utils.Logging.Diagnostics;

@@ -1,6 +1,5 @@
 using System.Runtime.ExceptionServices;
 using System.Text.Json.Serialization;
-using DRN.Framework.SharedKernel.Attributes;
 
 namespace DRN.Framework.Utils.Http;
 

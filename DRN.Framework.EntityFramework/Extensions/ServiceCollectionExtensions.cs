@@ -3,9 +3,6 @@ using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.EntityFramework.Context.Interceptors;
 using DRN.Framework.SharedKernel.Enums;
 using DRN.Framework.Utils.Extensions;
-using DRN.Framework.Utils.Settings;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 
 namespace DRN.Framework.EntityFramework.Extensions;

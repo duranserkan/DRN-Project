@@ -6,12 +6,10 @@ using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
 using DRN.Framework.Utils.Logging.Diagnostics;
-using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
 using DRN.Test.Unit.Tests.Framework.Utils.Logging;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
 

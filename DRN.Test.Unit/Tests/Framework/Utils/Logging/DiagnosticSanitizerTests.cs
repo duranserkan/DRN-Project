@@ -2,7 +2,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils;
-using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Logging.Diagnostics;
 using Microsoft.Extensions.Compliance.Classification;
 using Microsoft.Extensions.Compliance.Redaction;

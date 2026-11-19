@@ -1,17 +1,14 @@
-using System.Security.Claims;
 using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.Identity;
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
-using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Settings;
 using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting.Auth;

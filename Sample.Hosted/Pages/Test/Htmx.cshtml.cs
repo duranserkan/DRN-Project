@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Attributes;
 using Microsoft.AspNetCore.Antiforgery;

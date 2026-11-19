@@ -2,7 +2,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.ComponentModel.DataAnnotations;
 using DRN.Framework.SharedKernel.Attributes;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
 using Sample.Hosted.Extensions;
 using Sample.Hosted.Settings;

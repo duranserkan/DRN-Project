@@ -1,4 +1,3 @@
-using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.Extensions.Hosting;
 
 namespace DRN.Framework.Hosting.Utils;

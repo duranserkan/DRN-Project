@@ -1,8 +1,6 @@
 using System.Collections.Concurrent;
 using DRN.Framework.CompilerTools;
 using DRN.Framework.SharedKernel.Diagnostics;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
 
 namespace DRN.Framework.SharedKernel.Analyzers;

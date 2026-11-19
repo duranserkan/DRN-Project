@@ -8,9 +8,7 @@ using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.AspNetCore.Routing;
 using Sample.Contract.QA.Categories;
 using Sample.Contract.QA.Tags;
-using Sample.Hosted;
 using Sample.Hosted.Controllers.QA;
-using Sample.Hosted.Helpers;
 
 namespace DRN.Test.Integration.Tests.Sample.Controller;
 

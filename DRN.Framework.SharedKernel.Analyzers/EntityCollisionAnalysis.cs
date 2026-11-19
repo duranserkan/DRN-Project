@@ -1,7 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.Diagnostics;
-
 namespace DRN.Framework.SharedKernel.Analyzers;
 
 internal sealed record EntityDeclaration(INamedTypeSymbol Symbol, byte AppId, byte Value, Location NameLocation, Location AttributeLocation)

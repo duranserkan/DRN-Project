@@ -1,8 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-using System.Collections.Immutable;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-
 namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 
 internal static partial class ConventionPersistenceAnalysis

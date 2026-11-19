@@ -1,7 +1,4 @@
 using System.Security.Claims;
-using DRN.Framework.Utils.Auth;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Hosting.RateLimiting;
 

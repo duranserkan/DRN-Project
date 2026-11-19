@@ -1,10 +1,7 @@
 using DRN.Framework.EntityFramework.Attributes;
 using DRN.Framework.EntityFramework.Extensions;
-using DRN.Framework.SharedKernel.Domain;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.EntityFrameworkCore.Migrations.Design;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.EntityFramework.Context;
 

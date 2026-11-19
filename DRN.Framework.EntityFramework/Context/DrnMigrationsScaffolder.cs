@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations.Design;
 
 namespace DRN.Framework.EntityFramework.Context;

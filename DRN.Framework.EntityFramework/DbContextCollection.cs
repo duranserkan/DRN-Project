@@ -1,7 +1,3 @@
-using DRN.Framework.Utils.Settings;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-
 namespace DRN.Framework.EntityFramework;
 
 public class DbContextCollection

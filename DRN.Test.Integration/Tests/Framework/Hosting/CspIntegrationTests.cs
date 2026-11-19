@@ -1,4 +1,3 @@
-using System.Net;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Test.Utils.Hosting;
 using DRN.Test.Utils.Hosting.Auth;

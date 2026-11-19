@@ -2,7 +2,6 @@ using DRN.Framework.SharedKernel;
 using DRN.Framework.Testing.Extensions;
 using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.Extensions;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DRN.Framework.Testing.Contexts;
 

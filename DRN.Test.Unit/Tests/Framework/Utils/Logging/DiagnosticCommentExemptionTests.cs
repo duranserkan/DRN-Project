@@ -1,5 +1,4 @@
 using System.Text.Json;
-using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Logging.Diagnostics;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Logging;

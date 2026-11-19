@@ -1,5 +1,3 @@
-using DRN.Framework.Utils.DependencyInjection.Attributes;
-
 namespace DRN.Framework.Utils.Time;
 
 public interface IDateTimeProvider

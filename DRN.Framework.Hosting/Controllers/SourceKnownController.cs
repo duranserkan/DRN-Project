@@ -1,7 +1,5 @@
-using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.SharedKernel.Domain.Repository;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DRN.Framework.Hosting.Controllers;

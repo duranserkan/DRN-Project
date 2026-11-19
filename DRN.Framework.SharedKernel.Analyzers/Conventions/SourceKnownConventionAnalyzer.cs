@@ -1,7 +1,3 @@
-using System.Collections.Immutable;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.Diagnostics;
-
 namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 
 [DiagnosticAnalyzer(LanguageNames.CSharp)]

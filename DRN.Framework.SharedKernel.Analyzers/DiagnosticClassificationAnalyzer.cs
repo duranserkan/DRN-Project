@@ -1,9 +1,5 @@
 using System.Collections.Concurrent;
-using System.Collections.Immutable;
 using DRN.Framework.SharedKernel.Diagnostics;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
 using Microsoft.CodeAnalysis.Text;
 

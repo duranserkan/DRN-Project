@@ -1,10 +1,8 @@
 using DRN.Framework.Hosting.Consent;
-using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Logging.Diagnostics;
 using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 
 namespace DRN.Framework.Hosting.Middlewares;

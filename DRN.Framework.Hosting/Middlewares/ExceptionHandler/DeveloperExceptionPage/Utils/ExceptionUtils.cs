@@ -4,17 +4,13 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils.Models;
 using DRN.Framework.SharedKernel.Json;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Logging.Diagnostics;
-using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils;

@@ -1,11 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.ExceptionServices;
 using DRN.Framework.Hosting.DrnProgram;
-using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using NLog;

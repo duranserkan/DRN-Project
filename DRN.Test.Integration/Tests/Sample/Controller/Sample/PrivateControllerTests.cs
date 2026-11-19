@@ -1,8 +1,5 @@
-using System.Net;
 using DRN.Framework.Utils.Auth;
 using DRN.Test.Integration.Tests.Sample.Controller.Helpers;
-using Sample.Hosted;
-using Sample.Hosted.Helpers;
 
 namespace DRN.Test.Integration.Tests.Sample.Controller.Sample;
 

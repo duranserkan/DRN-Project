@@ -1,7 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.Utils.Configurations;
 using DRN.Framework.Utils.Extensions;
-using DRN.Framework.Utils.Settings;
 
 namespace DRN.Framework.Testing.Contexts.Startup;
 

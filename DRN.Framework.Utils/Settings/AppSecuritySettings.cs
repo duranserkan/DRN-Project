@@ -1,10 +1,8 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
-using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Data.Encodings;
 using DRN.Framework.Utils.Data.Hashing;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
 
 namespace DRN.Framework.Utils.Settings;
 

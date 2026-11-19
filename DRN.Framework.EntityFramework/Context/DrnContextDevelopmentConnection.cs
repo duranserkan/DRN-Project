@@ -1,5 +1,4 @@
 using DRN.Framework.SharedKernel;
-using DRN.Framework.Utils.Settings;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
 

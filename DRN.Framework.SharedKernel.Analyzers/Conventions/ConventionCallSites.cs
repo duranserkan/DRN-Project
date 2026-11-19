@@ -1,6 +1,3 @@
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-
 namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 
 // Persistence and context checks request EF evidence first. An eligible DI check reuses the same walk.

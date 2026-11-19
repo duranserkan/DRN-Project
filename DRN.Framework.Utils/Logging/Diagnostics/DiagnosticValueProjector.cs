@@ -1,5 +1,4 @@
 using System.Collections;
-using DRN.Framework.SharedKernel.Attributes;
 using static DRN.Framework.Utils.Logging.Diagnostics.DiagnosticSanitizer;
 
 namespace DRN.Framework.Utils.Logging.Diagnostics;

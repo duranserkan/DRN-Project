@@ -1,5 +1,4 @@
 using System.Security.Claims;
-using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Auth.MFA;
 
 namespace DRN.Framework.Utils.Auth;

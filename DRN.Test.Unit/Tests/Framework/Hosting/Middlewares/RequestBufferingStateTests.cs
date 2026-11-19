@@ -1,5 +1,4 @@
 using DRN.Framework.Hosting.Middlewares;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.WebUtilities;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting.Middlewares;

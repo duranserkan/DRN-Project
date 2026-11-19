@@ -3,7 +3,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Diagnostics;
-using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Logging.Diagnostics;
 using DRN.Test.Shared;
 using static DRN.Test.Unit.Tests.Framework.Utils.Logging.DiagnosticTestSupport;

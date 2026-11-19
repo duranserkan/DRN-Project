@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Application.Services.SampleIdentity;
 using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
 using ValidationException = DRN.Framework.SharedKernel.ValidationException;

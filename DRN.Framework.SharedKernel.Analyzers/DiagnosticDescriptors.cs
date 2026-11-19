@@ -1,6 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-using Microsoft.CodeAnalysis;
-
 namespace DRN.Framework.SharedKernel.Analyzers;
 
 public static class DiagnosticDescriptors

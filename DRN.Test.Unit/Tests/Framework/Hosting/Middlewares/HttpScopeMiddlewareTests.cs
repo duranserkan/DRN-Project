@@ -1,9 +1,7 @@
 using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Utils.Auth;
-using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Logging.Diagnostics;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Logging;
 

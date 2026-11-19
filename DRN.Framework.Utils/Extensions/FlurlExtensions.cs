@@ -2,7 +2,6 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using DRN.Framework.Utils.Logging;
 using DRN.Framework.Utils.Logging.Diagnostics;
-using DRN.Framework.Utils.Settings;
 using Flurl.Http;
 using Flurl.Http.Testing;
 

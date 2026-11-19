@@ -4,13 +4,11 @@ using System.Runtime.CompilerServices;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.SharedKernel;
-using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.SharedKernel.Domain.Repository;
 using DRN.Framework.Utils.Cancellation;
 using DRN.Framework.Utils.Entity;
 using DRN.Framework.Utils.Logging;
-using Microsoft.EntityFrameworkCore;
 
 namespace DRN.Framework.EntityFramework.Domain;
 

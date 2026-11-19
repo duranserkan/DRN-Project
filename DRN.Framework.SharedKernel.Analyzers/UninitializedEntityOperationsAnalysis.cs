@@ -1,7 +1,4 @@
 using System.Collections.Concurrent;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
 
 namespace DRN.Framework.SharedKernel.Analyzers;

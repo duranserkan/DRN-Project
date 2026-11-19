@@ -1,9 +1,7 @@
 using System.Security;
-using System.Security.Claims;
 using System.Text.Json;
 using DRN.Framework.Hosting.DrnProgram;
 using DRN.Framework.Utils.Auth;
-using DRN.Framework.Utils.Logging;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;

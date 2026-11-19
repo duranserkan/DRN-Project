@@ -1,11 +1,7 @@
 using System.Collections.Frozen;
 using System.Security.Claims;
 using DRN.Framework.SharedKernel.Attributes;
-using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 
 namespace DRN.Framework.Hosting.Auth.Policies;
 

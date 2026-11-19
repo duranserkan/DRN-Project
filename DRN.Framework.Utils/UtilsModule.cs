@@ -1,4 +1,4 @@
-using DRN.Framework.SharedKernel.Attributes;
+using DRN.Framework.Utils.DependencyInjection;
 using DRN.Framework.Utils.Logging.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;

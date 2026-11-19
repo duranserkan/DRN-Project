@@ -1,6 +1,3 @@
-using System.Net;
-using Sample.Hosted;
-using Sample.Hosted.Helpers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using DRN.Framework.SharedKernel.Domain.Pagination;

@@ -1,9 +1,7 @@
-global using System.IO;
-global using System.Linq;
 global using System.Reflection;
-global using AutoFixture;
-global using AutoFixture.AutoNSubstitute;
-global using AutoFixture.Xunit3;
+global using DRN.Framework.Utils.Settings;
+global using Microsoft.Extensions.Configuration;
+global using Microsoft.Extensions.DependencyInjection;
 global using Xunit;
 global using Xunit.Sdk;
 global using Xunit.v3;

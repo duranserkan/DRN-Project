@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Mvc.RazorPages;
-using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler.Utils;
 

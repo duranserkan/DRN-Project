@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using Sample.Domain.SampleIdentity;
 using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
 using Sample.Hosted.Extensions;

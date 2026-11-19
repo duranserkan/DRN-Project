@@ -1,6 +1,5 @@
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.SharedKernel.Domain.Repository;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DRN.Framework.Hosting.Controllers;

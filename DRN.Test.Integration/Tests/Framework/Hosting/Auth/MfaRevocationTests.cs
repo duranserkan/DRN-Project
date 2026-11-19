@@ -1,4 +1,3 @@
-using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
@@ -11,8 +10,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.Extensions.Options;
 using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
-using Sample.Hosted;
-using Sample.Hosted.Helpers;
 
 namespace DRN.Test.Integration.Tests.Framework.Hosting.Auth;
 

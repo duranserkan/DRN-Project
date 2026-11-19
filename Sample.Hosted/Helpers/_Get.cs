@@ -1,4 +1,3 @@
-using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.Endpoints;
 using Sample.Domain.SampleIdentity;
 using Sample.Hosted.Pages.Shared.Models;

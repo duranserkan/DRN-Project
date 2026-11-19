@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using DRN.Framework.Hosting.Auth;
 using DRN.Framework.Hosting.Auth.Policies;
 using DRN.Framework.Hosting.TagHelpers;
@@ -6,7 +5,6 @@ using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Auth.MFA;
 using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.Razor.TagHelpers;
 

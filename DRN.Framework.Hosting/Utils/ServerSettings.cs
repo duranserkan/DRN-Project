@@ -1,5 +1,3 @@
-using DRN.Framework.Utils.DependencyInjection.Attributes;
-using DRN.Framework.Utils.Settings;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 

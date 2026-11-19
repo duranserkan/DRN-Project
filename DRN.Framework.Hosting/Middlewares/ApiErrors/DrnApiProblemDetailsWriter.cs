@@ -1,5 +1,3 @@
-using DRN.Framework.Utils.DependencyInjection.Attributes;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 
 namespace DRN.Framework.Hosting.Middlewares.ApiErrors;

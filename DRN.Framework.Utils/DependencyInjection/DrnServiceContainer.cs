@@ -1,8 +1,5 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
-using DRN.Framework.Utils.DependencyInjection.Attributes;
 using DRN.Framework.Utils.Extensions;
-using DRN.Framework.Utils.Settings;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;

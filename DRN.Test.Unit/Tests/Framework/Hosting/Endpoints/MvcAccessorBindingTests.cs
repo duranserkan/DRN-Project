@@ -2,7 +2,6 @@ using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.SharedKernel;
 using DRN.Nexus.Hosted.Controllers.Sample;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
