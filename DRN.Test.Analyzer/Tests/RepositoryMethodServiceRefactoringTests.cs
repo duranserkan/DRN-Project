@@ -76,13 +76,13 @@ public sealed class RepositoryMethodServiceRefactoringTests
     }
 
     [Theory]
-    [InlineData("System.Threading.Tasks.Task<int> CountVisibleAsync(string filter);")]
-    [InlineData("int CountVisible(string filter = \"default\");")]
-    [InlineData("int CountVisible(ref string filter);")]
-    [InlineData("int CountVisible<T>(T filter);")]
-    [InlineData("[System.Obsolete] int CountVisible(string filter);")]
-    [InlineData("int CountVisible(params string[] filters);")]
-    [InlineData("int _repository();")]
+    [DataInline("System.Threading.Tasks.Task<int> CountVisibleAsync(string filter);")]
+    [DataInline("int CountVisible(string filter = \"default\");")]
+    [DataInline("int CountVisible(ref string filter);")]
+    [DataInline("int CountVisible<T>(T filter);")]
+    [DataInline("[System.Obsolete] int CountVisible(string filter);")]
+    [DataInline("int CountVisible(params string[] filters);")]
+    [DataInline("int _repository();")]
     public async Task Unsupported_Signatures_Should_Not_Lose_Defaults_Annotations_Or_Cancellation(string method)
     {
         using var workspace = new AdhocWorkspace();
@@ -110,8 +110,8 @@ public sealed class RepositoryMethodServiceRefactoringTests
     }
 
     [Theory]
-    [InlineData("Sample.Application")]
-    [InlineData("Other.Application")]
+    [DataInline("Sample.Application")]
+    [DataInline("Other.Application")]
     public async Task Absent_Edge_Should_Not_Create_New_Dependencies(string target)
     {
         using var workspace = new AdhocWorkspace();
@@ -119,8 +119,8 @@ public sealed class RepositoryMethodServiceRefactoringTests
     }
 
     [Theory]
-    [InlineData("Other.Application")]
-    [InlineData("Application")]
+    [DataInline("Other.Application")]
+    [DataInline("Application")]
     public async Task Referencing_Application_Should_Not_Require_A_Shared_Project_Prefix(string target)
     {
         using var workspace = new AdhocWorkspace();
@@ -175,10 +175,10 @@ public sealed class RepositoryMethodServiceRefactoringTests
     }
 
     [Theory]
-    [InlineData("namespace Sample.Application.Services.QA.Orders.OrderCountVisibleService { public class Detail; }")]
-    [InlineData("namespace Sample.Application { public class Services; }")]
-    [InlineData("namespace Sample.Application.Services { public class QA; }")]
-    [InlineData("namespace Sample.Application.Services.QA { public class Orders; }")]
+    [DataInline("namespace Sample.Application.Services.QA.Orders.OrderCountVisibleService { public class Detail; }")]
+    [DataInline("namespace Sample.Application { public class Services; }")]
+    [DataInline("namespace Sample.Application.Services { public class QA; }")]
+    [DataInline("namespace Sample.Application.Services.QA { public class Orders; }")]
     public async Task Leaf_And_Namespace_Segment_Collisions_Should_Block_Forwarding_Service(string collision)
     {
         using var workspace = new AdhocWorkspace();
@@ -190,9 +190,9 @@ public sealed class RepositoryMethodServiceRefactoringTests
     }
 
     [Theory]
-    [InlineData("Sample.Domain", "[module: DRN.Conventions.Version(\"1\")]")]
-    [InlineData("Sample.Application", "[assembly: DRN.Conventions.Version(\"2\")]")]
-    [InlineData("Sample.Application", "[assembly: DRN.Conventions.Version(\"1\")][assembly: Unknown.Record(\"x\")]")]
+    [DataInline("Sample.Domain", "[module: DRN.Conventions.Version(\"1\")]")]
+    [DataInline("Sample.Application", "[assembly: DRN.Conventions.Version(\"2\")]")]
+    [DataInline("Sample.Application", "[assembly: DRN.Conventions.Version(\"1\")][assembly: Unknown.Record(\"x\")]")]
     public async Task Invalid_Input_Should_Block_Forwarding_Service_Defaults(string projectName, string input)
     {
         using var workspace = new AdhocWorkspace();

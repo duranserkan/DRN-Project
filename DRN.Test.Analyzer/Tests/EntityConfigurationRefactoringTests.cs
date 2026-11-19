@@ -123,8 +123,8 @@ public sealed class EntityConfigurationRefactoringTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [DataInline(false)]
+    [DataInline(true)]
     public async Task Nonpublic_Entity_Or_Containing_Type_Should_Decline_Public_Configuration(bool nested)
     {
         using var workspace = new AdhocWorkspace();
@@ -156,8 +156,8 @@ public sealed class EntityConfigurationRefactoringTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [DataInline(false)]
+    [DataInline(true)]
     public async Task Non_Source_Workspace_Documents_Should_Not_Be_Overwritten(bool analyzerConfig)
     {
         using var workspace = new AdhocWorkspace();
@@ -185,9 +185,9 @@ public sealed class EntityConfigurationRefactoringTests
     }
 
     [Theory]
-    [InlineData("/source/Sample.Infra/QA/Configurations")]
-    [InlineData("/source/Sample.Infra/QA/configurations")]
-    [InlineData("/source/Sample.Infra/QA/Configurations/UserConfig.cs/notes.md")]
+    [DataInline("/source/Sample.Infra/QA/Configurations")]
+    [DataInline("/source/Sample.Infra/QA/configurations")]
+    [DataInline("/source/Sample.Infra/QA/Configurations/UserConfig.cs/notes.md")]
     public async Task Workspace_File_And_Directory_Conflicts_Should_Decline_Configuration(string path)
     {
         using var workspace = new AdhocWorkspace();
@@ -250,10 +250,10 @@ public sealed class EntityConfigurationRefactoringTests
     }
 
     [Theory]
-    [InlineData("protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder builder) => base.OnModelCreating(builder);", true)]
-    [InlineData("protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder builder) { base.OnModelCreating(builder); }", true)]
-    [InlineData("protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder builder) { base.OnModelCreating(builder); builder.Ignore<Sample.Domain.QA.User>(); }", false)]
-    [InlineData("protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder builder) { Forward(builder); } private void Forward(Microsoft.EntityFrameworkCore.ModelBuilder builder) => base.OnModelCreating(builder);", false)]
+    [DataInline("protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder builder) => base.OnModelCreating(builder);", true)]
+    [DataInline("protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder builder) { base.OnModelCreating(builder); }", true)]
+    [DataInline("protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder builder) { base.OnModelCreating(builder); builder.Ignore<Sample.Domain.QA.User>(); }", false)]
+    [DataInline("protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder builder) { Forward(builder); } private void Forward(Microsoft.EntityFrameworkCore.ModelBuilder builder) => base.OnModelCreating(builder);", false)]
     public async Task Discovery_Should_Accept_Only_Exact_Base_Forwarding(string members, bool supported)
     {
         using var workspace = new AdhocWorkspace();
@@ -281,10 +281,10 @@ public sealed class EntityConfigurationRefactoringTests
     }
 
     [Theory]
-    [InlineData("type.Namespace == \"Sample.Infra.QA.Configurations\"", true)]
-    [InlineData("\"Sample.Infra.QA.Configurations\" == type.Namespace", true)]
-    [InlineData("type.Namespace == \"Sample.Infra.Other.Configurations\"", false)]
-    [InlineData("type.Namespace!.StartsWith(\"Sample.Infra\")", false)]
+    [DataInline("type.Namespace == \"Sample.Infra.QA.Configurations\"", true)]
+    [DataInline("\"Sample.Infra.QA.Configurations\" == type.Namespace", true)]
+    [DataInline("type.Namespace == \"Sample.Infra.Other.Configurations\"", false)]
+    [DataInline("type.Namespace!.StartsWith(\"Sample.Infra\")", false)]
     public async Task Exact_Custom_Assembly_Scan_Should_Offer_Only_Proven_Destination(string predicate, bool supported)
     {
         using var workspace = new AdhocWorkspace();
@@ -301,9 +301,9 @@ public sealed class EntityConfigurationRefactoringTests
     }
 
     [Theory]
-    [InlineData("typeof(Microsoft.EntityFrameworkCore.DbContext).Assembly")]
-    [InlineData("typeof(QAContext).Assembly", "builder.Ignore<Sample.Domain.QA.User>();")]
-    public async Task External_Or_Model_Mutating_Custom_Scan_Should_Decline(string assembly, string suffix = "")
+    [DataInline("typeof(Microsoft.EntityFrameworkCore.DbContext).Assembly", "")]
+    [DataInline("typeof(QAContext).Assembly", "builder.Ignore<Sample.Domain.QA.User>();")]
+    public async Task External_Or_Model_Mutating_Custom_Scan_Should_Decline(string assembly, string suffix)
     {
         using var workspace = new AdhocWorkspace();
         var entity = CreateDocuments(workspace, contextMembers:
@@ -313,8 +313,8 @@ public sealed class EntityConfigurationRefactoringTests
     }
 
     [Theory]
-    [InlineData(true, true)]
-    [InlineData(false, false)]
+    [DataInline(true, true)]
+    [DataInline(false, false)]
     public async Task Shared_Discovery_Should_Name_Every_Context_And_Require_Existing_Membership(bool member, bool supported)
     {
         using var workspace = new AdhocWorkspace();
@@ -357,8 +357,8 @@ public sealed class EntityConfigurationRefactoringTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [DataInline(false)]
+    [DataInline(true)]
     public async Task Referencing_Context_Scanning_The_Target_Assembly_Should_Block_Unannounced_Sharing(bool externalScan)
     {
         using var workspace = new AdhocWorkspace();
@@ -379,9 +379,9 @@ public sealed class EntityConfigurationRefactoringTests
     }
 
     [Theory]
-    [InlineData("namespace Sample.Infra.QA.Configurations.UserConfig { public class Detail; }")]
-    [InlineData("namespace Sample.Infra.QA { public class Configurations; }")]
-    [InlineData("namespace Sample.Infra.QA { public class configurations; }")]
+    [DataInline("namespace Sample.Infra.QA.Configurations.UserConfig { public class Detail; }")]
+    [DataInline("namespace Sample.Infra.QA { public class Configurations; }")]
+    [DataInline("namespace Sample.Infra.QA { public class configurations; }")]
     public async Task Leaf_Namespaces_And_Namespace_Segment_Types_Should_Block_Configuration(string collision)
     {
         using var workspace = new AdhocWorkspace();
@@ -410,8 +410,8 @@ public sealed class EntityConfigurationRefactoringTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [DataInline(false)]
+    [DataInline(true)]
     public async Task Oversized_Input_Should_Not_Authorize_Default_Configuration_Paths(bool characters)
     {
         using var workspace = new AdhocWorkspace();

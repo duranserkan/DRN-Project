@@ -59,11 +59,11 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
     private static readonly Lazy<MetadataReference> FrameworkReference = new(() => EmitReference(Compile("Framework", Framework)));
 
     [Theory]
-    [InlineData("[Authorize(\"Readers\")]", "")]
-    [InlineData("[Authorize(Policy = \"Readers\")]", "")]
-    [InlineData("", "[Authorize(\"Readers\")]")]
-    [InlineData("", "[Authorize(null, Policy = \"Readers\")]")]
-    [InlineData("[Authorize(Roles = \"Admin\")][Authorize(\"Readers\")]", "")]
+    [DataInline("[Authorize(\"Readers\")]", "")]
+    [DataInline("[Authorize(Policy = \"Readers\")]", "")]
+    [DataInline("", "[Authorize(\"Readers\")]")]
+    [DataInline("", "[Authorize(null, Policy = \"Readers\")]")]
+    [DataInline("[Authorize(Roles = \"Admin\")][Authorize(\"Readers\")]", "")]
     public async Task Explicit_Class_Or_Action_Policy_Should_Qualify(string classAttribute, string methodAttribute)
     {
         var diagnostics = await Analyze(classAttribute + """
@@ -74,15 +74,15 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
     }
 
     [Theory]
-    [InlineData("")]
-    [InlineData("[Authorize]")]
-    [InlineData("[Authorize(\"\")]")]
-    [InlineData("[Authorize(\"  \t\")]")]
-    [InlineData("[Authorize(null)]")]
-    [InlineData("[Authorize(\"Readers\", Policy = null)]")]
-    [InlineData("[Authorize(\"Readers\", Policy = \" \")]")]
-    [InlineData("[Authorize(Roles = \"Admin\", AuthenticationSchemes = \"Bearer\")]")]
-    [InlineData("[ApiExplorerSettings(IgnoreApi = true)]")]
+    [DataInline("")]
+    [DataInline("[Authorize]")]
+    [DataInline("[Authorize(\"\")]")]
+    [DataInline("[Authorize(\"  \t\")]")]
+    [DataInline("[Authorize(null)]")]
+    [DataInline("[Authorize(\"Readers\", Policy = null)]")]
+    [DataInline("[Authorize(\"Readers\", Policy = \" \")]")]
+    [DataInline("[Authorize(Roles = \"Admin\", AuthenticationSchemes = \"Bearer\")]")]
+    [DataInline("[ApiExplorerSettings(IgnoreApi = true)]")]
     public async Task Missing_Named_Policy_Should_Report_Ordinary_Custom_Action(string attribute)
     {
         var diagnostics = await Analyze("public class TestController : SourceKnownControllerBase<object, object> { " +
@@ -92,9 +92,9 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
     }
 
     [Theory]
-    [InlineData("[AllowAnonymous]", "[Authorize(\"Readers\")]")]
-    [InlineData("[Authorize(\"Readers\")]", "[AllowAnonymous]")]
-    [InlineData("[AllowAnonymous][Authorize(\"Readers\")]", "")]
+    [DataInline("[AllowAnonymous]", "[Authorize(\"Readers\")]")]
+    [DataInline("[Authorize(\"Readers\")]", "[AllowAnonymous]")]
+    [DataInline("[AllowAnonymous][Authorize(\"Readers\")]", "")]
     public async Task Anonymous_Metadata_Should_Override_Named_Policy(string classAttribute, string methodAttribute)
     {
         var diagnostics = await Analyze(classAttribute +

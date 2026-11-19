@@ -8,6 +8,11 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
+*   **Entity DTO conventions**: DRNDTO001 through DRNDTO003 check entity-owned ToDto methods, Contract DTO placement and preservation of mapped property classifications. DTOs can expose any subset of entity properties, including metadata only. The selected-property IDE action now adds ToDto to the entity.
+    DRNDTO004 warns when a public entity-prefixed request or response is outside the matching DTO's folder or namespace.
+    DRNDTO003 follows nested assignments, collection elements, inherited properties and type classifications independently of DRNDTO001 exceptions. A classified source property requires the same classification on its mapped DTO property. Dictionary keys and values contribute to the collection property's classification. Visible helper inputs contribute to the classification of the property receiving the result.
+    The IDE action requires a physically contained entity file and preserves existing mapper calls in loaded projects.
+
 *   **Diagnostic IDs**: All analyzer diagnostic IDs now use domain-prefixed names. Use the mappings below to update ID-specific entries in `.editorconfig`, `NoWarn`, `WarningsAsErrors`, paired `#pragma warning` directives, `SuppressMessage` attributes, and `DrnConventionException` MSBuild items.
     *   **Entity**: Replace `DRN0001` through `DRN0014` with `DRNENTITY001` through `DRNENTITY014`, keeping the same numeric value (for example, `DRN0006` becomes `DRNENTITY006`).
     *   **Classification and authorization**: `DRN0015` through `DRN0025` become `DRNCLASSIFICATION001` through `DRNCLASSIFICATION011`, `DRN0026` becomes `DRNAUTHORIZATION001`, and `DRN0027` becomes `DRNCLASSIFICATION012`.

@@ -185,9 +185,9 @@ public sealed class ConventionFactsTests
     }
 
     [Theory]
-    [InlineData(false, false, 0)]
-    [InlineData(true, false, 1)]
-    [InlineData(true, true, 2)]
+    [DataInline(false, false, 0)]
+    [DataInline(true, false, 1)]
+    [DataInline(true, true, 2)]
     public void Cached_Attribute_Usage_Should_Preserve_Inheritance_And_Multiplicity(bool inherited, bool multiple, int count)
     {
         var compilation = Compilation($$"""
@@ -228,8 +228,8 @@ public sealed class ConventionFactsTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [DataInline(false)]
+    [DataInline(true)]
     public void Malformed_Referenced_Project_Identity_Should_Be_Reported_Once_For_Multiple_Requested_Types(bool emitted)
     {
         var producer = Compilation("""
@@ -252,8 +252,8 @@ public sealed class ConventionFactsTests
     }
 
     [Theory]
-    [InlineData("Role.Infra", "Sample.Domain.QA")]
-    [InlineData("Role.Imaginary", "Sample.Other")]
+    [DataInline("Role.Infra", "Sample.Domain.QA")]
+    [DataInline("Role.Imaginary", "Sample.Other")]
     public void Malformed_Referenced_Role_Inventory_Should_Not_Supply_An_Owner(string key, string value)
     {
         var producer = Compilation($$"""
@@ -272,8 +272,8 @@ public sealed class ConventionFactsTests
     }
 
     [Theory]
-    [InlineData("")]
-    [InlineData("[assembly: System.Reflection.AssemblyMetadata(\"DRN.Conventions.ProjectName\", null)]")]
+    [DataInline("")]
+    [DataInline("[assembly: System.Reflection.AssemblyMetadata(\"DRN.Conventions.ProjectName\", null)]")]
     public void Missing_Producer_Name_Should_Use_Assembly_Identity_But_Explicit_Null_Should_Be_Rejected(string projectName)
     {
         var producer = Compilation(projectName + """
@@ -339,9 +339,9 @@ public sealed class ConventionFactsTests
     }
 
     [Theory]
-    [InlineData("QA", "", false)]
-    [InlineData("Other", "", true)]
-    [InlineData("Other", "External technical owner is explicitly mapped.", false)]
+    [DataInline("QA", "", false)]
+    [DataInline("Other", "", true)]
+    [DataInline("Other", "External technical owner is explicitly mapped.", false)]
     public void Referenced_Ownership_Should_Require_Reason_Only_For_An_Exception(string owner, string reason, bool invalid)
     {
         var producer = Compilation($$"""
@@ -436,8 +436,8 @@ public sealed class ConventionFactsTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [DataInline(false)]
+    [DataInline(true)]
     public void Producer_Project_Ownership_And_Classification_Should_Survive_Source_And_Emitted_References(bool emitted)
     {
         var producer = Compilation("""
@@ -466,8 +466,8 @@ public sealed class ConventionFactsTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [DataInline(false)]
+    [DataInline(true)]
     public void Producer_Context_Owner_Should_Survive_Reference_Boundaries(bool emitted)
     {
         var framework = AnalyzerTestCompilation.EntityFrameworkReference;
@@ -512,8 +512,8 @@ public sealed class ConventionFactsTests
     }
 
     [Theory]
-    [InlineData("Subdomain", "Other")]
-    [InlineData("Kind", "Value")]
+    [DataInline("Subdomain", "Other")]
+    [DataInline("Kind", "Value")]
     public void Contradictory_Producer_Metadata_Should_Be_Reported_Once_And_Not_Used(string field, string value)
     {
         var producer = Compilation($$"""
@@ -537,9 +537,9 @@ public sealed class ConventionFactsTests
     }
 
     [Theory]
-    [InlineData("Identity", "Entity", false)]
-    [InlineData("Billing", "Entity", true)]
-    [InlineData("Identity", "Value", true)]
+    [DataInline("Identity", "Entity", false)]
+    [DataInline("Billing", "Entity", true)]
+    [DataInline("Identity", "Value", true)]
     public void Consumer_Inputs_Should_Not_Redefine_The_Producer_Owner_Or_Entity_Kind(string owner, string kind, bool invalid)
     {
         var producer = Compilation("""

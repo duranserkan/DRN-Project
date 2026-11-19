@@ -12,6 +12,7 @@ Roles come from recognized project-name tokens. References need no matching pref
 | Dependency direction | DRNARCHITECTURE003 reports forbidden direct references. DRNARCHITECTURE005 reports bound uses of forbidden APIs, such as a Domain class using DbContext. |
 | Domain subdomains | DRNOWNERSHIP003 checks populated namespaces across directly referenced Domains and matches recognized concrete, closed Infra contexts/repositories by subdomain name. |
 | Ownership and placement | DRNCONVENTIONINPUT001 validates generated convention inputs. DRNOWNERSHIP001, DRNSTRUCTURE001, DRNARCHITECTURE004, DRNOWNERSHIP002, DRNSTRUCTURE004, DRNSTRUCTURE005, and DRNSTRUCTURE006 check semantic naming, dedicated directories, domain/infrastructure placement, and cross-subdomain entity uses. |
+| Entity DTOs | DRNDTO001 through DRNDTO003 check the entity-owned mapper, Contract DTO placement and classifications on projected properties. Metadata-only and partial projections are valid. DRNDTO004 checks that entity-prefixed requests and responses live beside the matching DTO. |
 | Public contracts and transport | DRNARCHITECTURE001 names a member whose public model exceeded the inspection limit. DRNARCHITECTURE002 reports a recognized entity or persistence type exposed by the contract. |
 
 See [architecture conventions](../DRN.Framework.SharedKernel/CONVENTIONS.md) for allowed directions, exception targets, and DRNCONVENTIONEXCEPTION001 review-expiry rules.

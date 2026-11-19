@@ -16,14 +16,23 @@ public sealed class ConventionDiagnosticContractTests
         "namespace Sample.Contract.QA; public class Wide { " +
         string.Join("\n", Enumerable.Range(0, 4097).Select(index => $"public int Field{index};")) + " }",
         path: "Wide.cs"));
+    private static readonly Lazy<(MetadataReference Reference, ConventionInput[] Records)> ItemContract =
+        new(() => CreateReferenceFixture("Shared.Contract", """
+            namespace Shared.Contract.QA.Items;
+            public class ItemDto(DRN.Framework.SharedKernel.Domain.SourceKnownEntity? entity = null)
+                : DRN.Framework.SharedKernel.Domain.Dto(entity)
+            {
+                public string Label { get; init; } = "";
+            }
+            """));
     private static readonly Lazy<(MetadataReference Reference, ConventionInput[] Records)> EmptyDomain =
-        new(() => CreateDomainFixture("Empty.Domain", """
+        new(() => CreateReferenceFixture("Empty.Domain", """
             [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Empty.Domain")]
             [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Empty.Domain")]
             namespace UnrelatedRoot { public class Marker; }
             """));
     private static readonly Lazy<(MetadataReference Reference, ConventionInput[] Records)> OrderDomain =
-        new(() => CreateDomainFixture("Order.Domain", """
+        new(() => CreateReferenceFixture("Order.Domain", """
             [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Order.Domain")]
             [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Order.Domain")]
             namespace Order.Domain.QA.Order
@@ -50,6 +59,7 @@ public sealed class ConventionDiagnosticContractTests
                 AnonymousClassification, DictionaryClassification, InvalidRuleFile, UnsafeLoggingCapture,
                 InvalidNameExemptionComment, UnusedNameExemptionComment, IncompleteModelAnalysis, IncompleteInterfaceAnalysis],
             ["DRNAUTHORIZATION"] = [SourceKnownControllerPolicyRequired],
+            ["DRNDTO"] = [EntityDto, DtoFolder, DtoClassification, DtoMessagePlacement],
             ["DRNHOSTING"] = [accessor, program.Single()],
             ["DRNARCHITECTURE"] = [IncompleteContract, Contract, Reference, ImplementationRole, ForbiddenDependency, RequiredReference],
             ["DRNOWNERSHIP"] = [MissingOwnership, CrossSubdomain, DomainSubdomain],
@@ -108,9 +118,9 @@ public sealed class ConventionDiagnosticContractTests
     }
 
     [Theory]
-    [InlineData("DRNOWNERSHIP001", "", true)]
-    [InlineData("DRNOWNERSHIP001", "Reviewed legacy entity ownership boundary.", false)]
-    [InlineData("DRNOWNERSHIP999", "Reviewed legacy entity ownership boundary.", true)]
+    [DataInline("DRNOWNERSHIP001", "", true)]
+    [DataInline("DRNOWNERSHIP001", "Reviewed legacy entity ownership boundary.", false)]
+    [DataInline("DRNOWNERSHIP999", "Reviewed legacy entity ownership boundary.", true)]
     public async Task Exception_Audit_Should_Report_Real_Invalid_Suppressions_And_Cannot_Suppress_Itself(
         string rule, string reason, bool invalid)
     {
@@ -137,10 +147,10 @@ public sealed class ConventionDiagnosticContractTests
     }
 
     [Theory]
-    [InlineData("Domain")]
-    [InlineData("Infra")]
-    [InlineData("Application")]
-    [InlineData("Contract")]
+    [DataInline("Domain")]
+    [DataInline("Infra")]
+    [DataInline("Application")]
+    [DataInline("Contract")]
     public async Task Semantic_Lookalikes_Should_Not_Acquire_Framework_Diagnostic_Obligations(string role)
     {
         var scenario = new Scenario(role, $$"""
@@ -200,6 +210,10 @@ public sealed class ConventionDiagnosticContractTests
     [DataInlineUnit("DRNPERSISTENCE006")]
     [DataInlineUnit("DRNOWNERSHIP002")]
     [DataInlineUnit("DRNPERSISTENCE007")]
+    [DataInlineUnit("DRNDTO001")]
+    [DataInlineUnit("DRNDTO002")]
+    [DataInlineUnit("DRNDTO003")]
+    [DataInlineUnit("DRNDTO004")]
     [DataInlineUnit("DRNARCHITECTURE006")]
     [DataInlineUnit("DRNOWNERSHIP003")]
     [DataInlineUnit("DRNPERSISTENCE008")]
@@ -278,6 +292,10 @@ public sealed class ConventionDiagnosticContractTests
     [DataInlineUnit("DRNPERSISTENCE006")]
     [DataInlineUnit("DRNOWNERSHIP002")]
     [DataInlineUnit("DRNPERSISTENCE007")]
+    [DataInlineUnit("DRNDTO001")]
+    [DataInlineUnit("DRNDTO002")]
+    [DataInlineUnit("DRNDTO003")]
+    [DataInlineUnit("DRNDTO004")]
     [DataInlineUnit("DRNARCHITECTURE006")]
     [DataInlineUnit("DRNOWNERSHIP003")]
     [DataInlineUnit("DRNPERSISTENCE008")]
@@ -325,10 +343,29 @@ public sealed class ConventionDiagnosticContractTests
         unsuppressed.Should().NotContain(diagnostic => diagnostic.Id == "DRNCONVENTIONEXCEPTION001");
     }
 
+    [Fact]
+    public async Task Exact_Mapper_Exception_Should_Leave_The_Renamed_Property_Classification_Active()
+    {
+        var scenario = ScenarioFor("DRNDTO003");
+        scenario = scenario with { Source = scenario.Source.Replace("ItemEntity", "OrderEntity", StringComparison.Ordinal) };
+        const string target = "T:Sample.Domain.QA.OrderEntity";
+        var baseline = await AnalyzeProduction(scenario);
+        baseline.Where(item => item.Id.StartsWith("DRNDTO", StringComparison.Ordinal)).Select(item => item.Id)
+            .Should().BeEquivalentTo("DRNDTO001", "DRNDTO003");
+        var exception = Input("Exception", "DRNDTO001", ("Target", target),
+            ("Reason", "The published ItemDto contract retains its name during the entity rename."),
+            ("Owner", "Contract maintainers"), ("Review", "9999-12-31"));
+        var reviewed = await AnalyzeProduction(scenario, exception);
+        reviewed.Should().NotContain(item => item.Id == "DRNDTO001" || item.Id == "DRNCONVENTIONEXCEPTION001");
+        var classification = reviewed.Where(item => item.Id == "DRNDTO003").Should().ContainSingle().Which;
+        classification.GetMessage().Should().Be(scenario.Message);
+        classification.Properties["Target"].Should().Be(target);
+    }
+
     [Theory]
-    [InlineData("DRNPERSISTENCE004")]
-    [InlineData("DRNPERSISTENCE005")]
-    [InlineData("DRNREPOSITORY001")]
+    [DataInline("DRNPERSISTENCE004")]
+    [DataInline("DRNPERSISTENCE005")]
+    [DataInline("DRNREPOSITORY001")]
     public void Entity_Qualified_Exception_Should_Not_Cover_A_Different_Persistence_Pair(string id)
     {
         var scenario = ScenarioFor(id);
@@ -534,6 +571,37 @@ public sealed class ConventionDiagnosticContractTests
                 public class QAContext : Microsoft.EntityFrameworkCore.DbContext;
                 """, [], "T:Sample.Application.QA.QAContext", "QAContext",
                 "Application context 'QAContext' must implement IDrnContext or declare a narrow, justified exception.", ConventionContextAnalysis.Analyze),
+            "DRNDTO001" => new("Domain", """
+                namespace Sample.Domain.QA;
+                public class OtherTarget;
+                public class OrderEntity : DRN.Framework.SharedKernel.Domain.SourceKnownEntity;
+                """, [], "T:Sample.Domain.QA.OrderEntity", "OrderEntity",
+                "'OrderEntity' requires a public instance ToDto() returning OrderDto from its Contract subdomain and constructing it with this.",
+                ConventionDtoAnalysis.Analyze),
+            "DRNDTO002" => new("Contract", """
+                namespace Sample.Contract.QA;
+                public class OtherTarget;
+                public class OrderDto : DRN.Framework.SharedKernel.Domain.Dto;
+                """, [], "T:Sample.Contract.QA.OrderDto", "OrderDto",
+                "Place 'OrderDto' under its subdomain in the 'Orders' folder and matching namespace.", ConventionDtoAnalysis.Analyze),
+            "DRNDTO003" => new("Domain", """
+                namespace Sample.Domain.QA;
+                public class OtherTarget;
+                public class ItemEntity : DRN.Framework.SharedKernel.Domain.SourceKnownEntity
+                {
+                    [DRN.Framework.SharedKernel.Attributes.Personal] public string Name => "";
+                    public Shared.Contract.QA.Items.ItemDto ToDto() => new(this) { Label = Name };
+                }
+                """, [.. ItemContract.Value.Records], "T:Sample.Domain.QA.ItemEntity", "Label = Name",
+                "DTO property 'Label' requires [Personal] from mapped property 'Name'.", ConventionDtoAnalysis.Analyze,
+                ExtraReferences: [ItemContract.Value.Reference]),
+            "DRNDTO004" => new("Contract", """
+                namespace Sample.Contract.QA.Orders { public class OrderDto : DRN.Framework.SharedKernel.Domain.Dto; }
+                namespace Sample.Contract.QA { public class OtherTarget; public record OrderResponse; }
+                """, [Input("Path", "ContractFixture.cs", ("LogicalPath", "QA/ContractFixture.cs"))],
+                "T:Sample.Contract.QA.OrderResponse", "OrderResponse",
+                "Place 'OrderResponse' in 'QA' with namespace 'Sample.Contract.QA.Orders' alongside its entity DTO.",
+                ConventionDtoAnalysis.Analyze),
             "DRNARCHITECTURE006" => new("Domain", "namespace Sample.Domain.QA; public class OtherTarget;",
                 [Input("Reference", "Inventory", ("Stage", "Complete"))], "Sample.Domain:Contract", "input",
                 "Project 'Sample.Domain' requires a direct project reference to its 'Contract' layer.", ConventionDependencyAnalysis.Analyze,
@@ -674,7 +742,7 @@ public sealed class ConventionDiagnosticContractTests
         return diagnostics;
     }
 
-    private static (MetadataReference Reference, ConventionInput[] Records) CreateDomainFixture(string assemblyName, string source)
+    private static (MetadataReference Reference, ConventionInput[] Records) CreateReferenceFixture(string assemblyName, string source)
     {
         var domain = Compilation(source).WithAssemblyName(assemblyName);
         domain.AssertNoCompilerErrors();

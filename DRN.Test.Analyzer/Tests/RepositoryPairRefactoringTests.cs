@@ -174,8 +174,8 @@ public sealed class RepositoryPairRefactoringTests
     }
 
     [Theory]
-    [InlineData(false, true)]
-    [InlineData(false, false)]
+    [DataInline(false, true)]
+    [DataInline(false, false)]
     public async Task Missing_Membership_Should_Not_Offer_Partial_Scaffolding(bool membership, bool destination)
     {
         using var workspace = new AdhocWorkspace();
@@ -228,8 +228,8 @@ public sealed class RepositoryPairRefactoringTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [DataInline(false)]
+    [DataInline(true)]
     public async Task Conventional_Repository_Destination_Should_Not_Require_Explicit_Metadata(bool contextRecord)
     {
         using var workspace = new AdhocWorkspace();
@@ -346,8 +346,8 @@ public sealed class RepositoryPairRefactoringTests
     }
 
     [Theory]
-    [InlineData("protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder builder) => base.OnModelCreating(builder);", true)]
-    [InlineData("protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder builder) { base.OnModelCreating(builder); builder.Ignore<Sample.Domain.QA.Orders.Order>(); }", false)]
+    [DataInline("protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder builder) => base.OnModelCreating(builder);", true)]
+    [DataInline("protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder builder) { base.OnModelCreating(builder); builder.Ignore<Sample.Domain.QA.Orders.Order>(); }", false)]
     public async Task Context_Override_Should_Require_Exact_Base_Forwarding(string members, bool supported)
     {
         using var workspace = new AdhocWorkspace();
@@ -362,8 +362,8 @@ public sealed class RepositoryPairRefactoringTests
     }
 
     [Theory]
-    [InlineData("[assembly: DRN.Conventions.Role(\"Infra\", NamespacePrefix = \"Sample.Infra\", LogicalPathPrefix = \"Storage\")]")]
-    [InlineData("[assembly: DRN.Conventions.Ownership(\"Sample.Infra.QA.QAContext\", Subdomain = \"Billing\", Reason = \"Reviewed ownership alias\")]")]
+    [DataInline("[assembly: DRN.Conventions.Role(\"Infra\", NamespacePrefix = \"Sample.Infra\", LogicalPathPrefix = \"Storage\")]")]
+    [DataInline("[assembly: DRN.Conventions.Ownership(\"Sample.Infra.QA.QAContext\", Subdomain = \"Billing\", Reason = \"Reviewed ownership alias\")]")]
     public async Task Split_Roles_Or_Conflicting_Ownership_Should_Not_Use_Default_Pair_Placement(string record)
     {
         using var workspace = new AdhocWorkspace();
@@ -377,10 +377,10 @@ public sealed class RepositoryPairRefactoringTests
     }
 
     [Theory]
-    [InlineData("Sample.Domain", "namespace Sample.Domain.QA.Orders.IOrderRepository { public class Detail; }")]
-    [InlineData("Sample.Infra", "namespace Sample.Infra.QA.Repositories.OrderRepository { public class Detail; }")]
-    [InlineData("Sample.Infra", "namespace Sample.Infra.QA { public class Repositories; }")]
-    [InlineData("Sample.Infra", "namespace Sample.Infra.QA { public class repositories; }")]
+    [DataInline("Sample.Domain", "namespace Sample.Domain.QA.Orders.IOrderRepository { public class Detail; }")]
+    [DataInline("Sample.Infra", "namespace Sample.Infra.QA.Repositories.OrderRepository { public class Detail; }")]
+    [DataInline("Sample.Infra", "namespace Sample.Infra.QA { public class Repositories; }")]
+    [DataInline("Sample.Infra", "namespace Sample.Infra.QA { public class repositories; }")]
     public async Task Leaf_And_Namespace_Segment_Collisions_Should_Block_Repository_Pair(string projectName, string collision)
     {
         using var workspace = new AdhocWorkspace();
@@ -426,8 +426,8 @@ public sealed class RepositoryPairRefactoringTests
     }
 
     [Theory]
-    [InlineData("Storage.Infra")]
-    [InlineData("Infra")]
+    [DataInline("Storage.Infra")]
+    [DataInline("Infra")]
     public async Task Referencing_Infrastructure_Should_Not_Require_A_Shared_Project_Prefix(string infraName)
     {
         using var workspace = new AdhocWorkspace();
@@ -444,8 +444,8 @@ public sealed class RepositoryPairRefactoringTests
     }
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
+    [DataInline(true)]
+    [DataInline(false)]
     public async Task Reasoned_Owner_Should_Not_Generate_A_Pair_In_A_Different_Namespace_Owner(bool moveEntity)
     {
         using var workspace = new AdhocWorkspace();
@@ -481,13 +481,23 @@ public sealed class RepositoryPairRefactoringTests
     public async Task EntitySuffixed_Aggregate_Should_Generate_Stemmed_Bundle_Without_Convention_Diagnostics()
     {
         using var workspace = new AdhocWorkspace();
+        var contract = ClassificationTestFixture.Compilation("""
+            using DRN.Framework.SharedKernel.Domain;
+            namespace Sample.Contract.QA.Orders;
+            public class OrderDto(SourceKnownEntity? entity = null) : Dto(entity);
+            """).WithAssemblyName("Sample.Contract");
+        var contractReference = AnalyzerTestCompilation.EmitReference(contract, "/source/Sample.Contract/Sample.Contract.dll");
         var domain = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
                 "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: "/source/Sample.Domain/Sample.Domain.csproj"))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
-            .AddMetadataReferences(ClassificationTestFixture.References);
+            .AddMetadataReferences(ClassificationTestFixture.References)
+            .AddMetadataReference(contractReference);
         var entity = domain.AddDocument("OrderEntity.cs", """
             namespace Sample.Domain.QA.Order;
-            public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+            public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot
+            {
+                public Sample.Contract.QA.Orders.OrderDto ToDto() => new(this);
+            }
             """, filePath: "/source/Sample.Domain/QA/Order/OrderEntity.cs");
         workspace.TryApplyChanges(entity.Project.Solution).Should().BeTrue();
 
@@ -534,15 +544,16 @@ public sealed class RepositoryPairRefactoringTests
         changedInfra.Documents.Should().ContainSingle(document => document.Name == "OrderConfig.cs");
 
         var domainCompilation = (await changedDomain.GetCompilationAsync())!;
-        var (layeredDomain, domainLayerRecords) = ConventionTestDependencies.WithRequiredLayers(domainCompilation, "Domain");
         var domainReference = AnalyzerTestCompilation.EmitReference(domainCompilation, "/source/Sample.Domain/Sample.Domain.dll");
         var infraCompilation = (await changedInfra.GetCompilationAsync())!;
-        var layeredInfra = infraCompilation.RemoveReferences(infraCompilation.References.OfType<CompilationReference>()).AddReferences(domainReference);
+        var layeredInfra = infraCompilation.RemoveReferences(infraCompilation.References.OfType<CompilationReference>())
+            .AddReferences(domainReference, contractReference);
 
-        var domainInputs = new ProjectDiagnosticRulesTests.RuleFile(Framework.SharedKernel.Analyzers.Conventions.ConventionInputs.FileName, $$"""
+        var domainInputs = new ProjectDiagnosticRulesTests.RuleFile(Framework.SharedKernel.Analyzers.Conventions.ConventionInputs.FileName, """
             [assembly: DRN.Conventions.Version("1")]
             [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
-            {{ConventionTestDependencies.Serialize(domainLayerRecords)}}
+            [assembly: DRN.Conventions.Reference("/source/Sample.Contract/Sample.Contract.csproj", Stage = "Project", Source = "/source/Sample.Contract/Sample.Contract.csproj")]
+            [assembly: DRN.Conventions.Reference("/source/Sample.Contract/Sample.Contract.dll", Stage = "Resolved", Project = "/source/Sample.Contract/Sample.Contract.csproj")]
             [assembly: DRN.Conventions.Path("/source/Sample.Domain/QA/Order/OrderEntity.cs", LogicalPath = "QA/Order/OrderEntity.cs")]
             [assembly: DRN.Conventions.Path("/source/Sample.Domain/QA/Order/IOrderRepository.cs", LogicalPath = "QA/Order/IOrderRepository.cs")]
             """);
@@ -556,7 +567,7 @@ public sealed class RepositoryPairRefactoringTests
             [assembly: DRN.Conventions.Path("/source/Sample.Infra/QA/Configurations/OrderConfig.cs", LogicalPath = "QA/Configurations/OrderConfig.cs")]
             """);
         var analyzer = new Framework.SharedKernel.Analyzers.Conventions.SourceKnownConventionAnalyzer();
-        var domainDiagnostics = await AnalyzerTestCompilation.Analyze(layeredDomain, analyzer,
+        var domainDiagnostics = await AnalyzerTestCompilation.Analyze(domainCompilation, analyzer,
             AnalyzerTestCompilation.ConventionOptions("Sample.Domain", files: domainInputs));
         var infraDiagnostics = await AnalyzerTestCompilation.Analyze(layeredInfra, analyzer,
             AnalyzerTestCompilation.ConventionOptions("Sample.Infra", files: infraInputs));

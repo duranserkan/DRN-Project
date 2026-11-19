@@ -12,6 +12,38 @@ The rules from Architecture through Convention exceptions default to Warning in 
 
 For older settings, update the ID in `.editorconfig`, `NoWarn`, both ends of a `#pragma warning` suppression, the check ID in `SuppressMessage`, and the rule ID in any `DrnConventionException`. The [release notes](RELEASE-NOTES.md#version-0110) map each previous ID, including split rules.
 
+## Entity DTOs
+
+| ID | Category | Requirement |
+|---|---|---|
+| DRNDTO001 | DRN.Conventions.Contract | A concrete, closed Domain `SourceKnownEntity` declares a public parameterless instance `ToDto()` returning its matching public Contract DTO. Return the DTO directly with `new(this)` or the equivalent explicit constructor. |
+| DRNDTO002 | DRN.Conventions.Structure | Place the DTO under the owning subdomain and plural entity folder, for example `QA/Categories/CategoryDto.cs`. DRNSTRUCTURE001 checks the logical path against the namespace. |
+| DRNDTO003 | DRN.Conventions.Contract | Preserve each positive Personal and Sensitive classification on the corresponding DTO property. Explicit initializer assignments use the properties they read. Unassigned DTO properties use the same-name entity property when one exists. |
+| DRNDTO004 | DRN.Conventions.Structure | Place a public entity-prefixed `Request` or `Response` beside its DTO in the same namespace and logical compile folder. |
+
+DRNDTO004 matches the declared type name against public entity DTOs in the same Contract project and subdomain. The longest prefix at a PascalCase word boundary determines the owner. With only `ProductDto`, `ProductBatchRequest` belongs in `Products/`. Adding `ProductBatchDto` makes `ProductBatches/` its destination. `OrderDto` matches `OrderResponse` and leaves `OrderingRequest` unmatched. A request or response can define its own payload.
+
+These conventions default to Warning. A projection can expose only the inherited DTO metadata. Domain members can be omitted. A name-rule exemption such as `[Sensitive(false)]` does not preserve a positive classification.
+
+A partial mapper can supply its body in the implementing declaration. The DTO constructor can have additional optional parameters when the mapper calls `new(this)`. The DTO, its containing types and all their type arguments must be public. For an array argument, this includes its element type.
+
+DRNDTO003 checks property reads in dictionary keys and values against the enclosing DTO property. In `Extra = { [Email] = Secret }`, a personal email and a sensitive secret require both annotations on `Extra`. For `Display = Format(new Options { Prefix = Name })`, the classification of `Name` belongs on `Display`. The analyzer checks inputs visible at the call site. Review any additional data read inside the helper body.
+
+In `Contacts = new() { new ContactDto { Label = Email } }`, a personal `Email` requires `[Personal]` on `ContactDto.Label`. In a scalar list initialized with `{ Email }`, the collection property carries the classification. An expression such as `nameof(Email)` exposes only the property name.
+
+The same rules apply to bracket collection expressions. If a custom `Add` extracts the label and stores it as a scalar, classify the collection property. Visible inputs to a collection constructor or a user-defined conversion, including conversions in `??` and spread expressions, contribute to the classification of the property receiving the result.
+
+DTO folders use a deterministic suffix. A consonant followed by lowercase `y` becomes `ies`. Stems ending in lowercase `s`, `x`, `z`, `ch` or `sh` take `es`. All other stems take `s`, including `Person` → `Persons`. The IDE action requires the result to be a valid namespace segment.
+
+For DRNDTO003, copy each positive source property annotation to the mapped DTO property, including a nested destination such as `Contact.Email`. An inherited annotation on an override counts. When the concrete receiver is known, annotations on its selected virtual override or interface implementation also count, including through `?.`. A class annotation alone cannot satisfy a source property annotation. When protection comes solely from a source type, an equivalent destination type or property classification preserves it. Classification checks on the initializer remain active whether DRNDTO001 reports a problem or an approved exception covers the DTO's name, namespace, accessibility or constructor arguments.
+
+| ID | Message template | Exception target |
+|---|---|---|
+| DRNDTO001 | `'{0}' requires a public instance ToDto() returning {1} from its Contract subdomain and constructing it with this.` | Entity type |
+| DRNDTO002 | `Place '{0}' under its subdomain in the '{1}' folder and matching namespace.` | DTO type |
+| DRNDTO003 | `DTO property '{0}' requires [{1}] from mapped property '{2}'.` | Entity type |
+| DRNDTO004 | `Place '{0}' in '{1}' with namespace '{2}' alongside its entity DTO.` | Request or response type |
+
 ## Entity identity
 
 Roslyn category: `DRN.Domain`. For examples of entity declarations, partitions, repository type arguments and metadata calls, see the [entity guide](README.md#compile-time-roslyn-analyzers).

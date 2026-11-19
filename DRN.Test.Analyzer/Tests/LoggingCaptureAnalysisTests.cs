@@ -5,9 +5,9 @@ namespace DRN.Test.Analyzer.Tests;
 public sealed class LoggingCaptureAnalysisTests
 {
     [Theory]
-    [InlineData("null")]
-    [InlineData("\"\"")]
-    [InlineData("\"[redacted]\"")]
+    [DataInline("null")]
+    [DataInline("\"\"")]
+    [DataInline("\"[redacted]\"")]
     public async Task Safe_Constants_Should_Not_Waive_User_Defined_Logging_Conversions(string literal)
     {
         var diagnostics = await Analyze(Compilation($$"""
@@ -83,12 +83,12 @@ public sealed class LoggingCaptureAnalysisTests
     }
 
     [Theory]
-    [InlineData("LogTrace")]
-    [InlineData("LogDebug")]
-    [InlineData("LogInformation")]
-    [InlineData("LogWarning")]
-    [InlineData("LogError")]
-    [InlineData("LogCritical")]
+    [DataInline("LogTrace")]
+    [DataInline("LogDebug")]
+    [DataInline("LogInformation")]
+    [DataInline("LogWarning")]
+    [DataInline("LogError")]
+    [DataInline("LogCritical")]
     public async Task Logger_Templates_Should_Check_Holes_And_Preserve_Escaped_Text(string method)
     {
         var diagnostics = await Analyze(Compilation($$$$"""
@@ -243,13 +243,13 @@ public sealed class LoggingCaptureAnalysisTests
     }
 
     [Theory]
-    [InlineData(255, false, false, null)]
-    [InlineData(256, false, false, null)]
-    [InlineData(257, false, false, "DRNCLASSIFICATION012")]
-    [InlineData(255, true, false, "DRNCLASSIFICATION008")]
-    [InlineData(256, true, false, "DRNCLASSIFICATION008")]
-    [InlineData(257, true, false, "DRNCLASSIFICATION012")]
-    [InlineData(257, true, true, "DRNCLASSIFICATION008")]
+    [DataInline(255, false, false, null)]
+    [DataInline(256, false, false, null)]
+    [DataInline(257, false, false, "DRNCLASSIFICATION012")]
+    [DataInline(255, true, false, "DRNCLASSIFICATION008")]
+    [DataInline(256, true, false, "DRNCLASSIFICATION008")]
+    [DataInline(257, true, false, "DRNCLASSIFICATION012")]
+    [DataInline(257, true, true, "DRNCLASSIFICATION008")]
     public async Task Interface_Scan_Should_Distinguish_Completed_And_Incomplete_Captures(
         int propertyCount, bool classified, bool valueFirst, string? expectedId)
     {

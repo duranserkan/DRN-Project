@@ -140,8 +140,8 @@ public sealed class ControllerReviewPlanRefactoringTests
     }
 
     [Theory]
-    [InlineData("/outside/OrdersController.cs")]
-    [InlineData("/source/Sample.Hosted/QA/OrdersController.g.cs")]
+    [DataInline("/outside/OrdersController.cs")]
+    [DataInline("/source/Sample.Hosted/QA/OrdersController.g.cs")]
     public async Task External_Or_Generated_Source_Should_Not_Offer_Plan(string path)
     {
         using var workspace = new AdhocWorkspace();

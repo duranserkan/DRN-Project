@@ -8,13 +8,13 @@ namespace DRN.Test.Analyzer.Tests;
 public sealed class ConventionDependencyTests
 {
     [Theory]
-    [InlineData("Orders.Hosted", "Application,Infra")]
-    [InlineData("Storage.Infra", "Domain")]
-    [InlineData("Business.Domain", "Contract")]
-    [InlineData("Business.Application", "")]
-    [InlineData("Public.Contract", "")]
-    [InlineData("Common.SharedKernel", "")]
-    [InlineData("Technical.Utils", "")]
+    [DataInline("Orders.Hosted", "Application,Infra")]
+    [DataInline("Storage.Infra", "Domain")]
+    [DataInline("Business.Domain", "Contract")]
+    [DataInline("Business.Application", "")]
+    [DataInline("Public.Contract", "")]
+    [DataInline("Common.SharedKernel", "")]
+    [DataInline("Technical.Utils", "")]
     public void Required_Layers_Should_Be_Directional_And_Progressive(string project, string missing)
     {
         var fixture = Create(project);
@@ -31,8 +31,8 @@ public sealed class ConventionDependencyTests
     }
 
     [Theory]
-    [InlineData("Application", "Infra")]
-    [InlineData("Infra", "Application")]
+    [DataInline("Application", "Infra")]
+    [DataInline("Infra", "Application")]
     public void Hosted_Should_Report_Only_The_Missing_Required_Role(string present, string missing)
     {
         var diagnostic = Analyze(Create("Presentation.Hosted", dependencies: [new("Other." + present)]))
@@ -42,8 +42,8 @@ public sealed class ConventionDependencyTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [DataInline(false)]
+    [DataInline(true)]
     public void Additional_Valid_Edges_And_Their_Order_Should_Not_Hide_A_Forbidden_Edge(bool reverse)
     {
         Dependency[] dependencies = [new("Sales.Domain"), new("Billing.Domain"), new("Public.Contract"), new("Web.Hosted")];
@@ -57,10 +57,10 @@ public sealed class ConventionDependencyTests
     }
 
     [Theory]
-    [InlineData("Infra", true)]
-    [InlineData("Application", true)]
-    [InlineData("Hosted", true)]
-    [InlineData("Domain", false)]
+    [DataInline("Infra", true)]
+    [DataInline("Application", true)]
+    [DataInline("Hosted", true)]
+    [DataInline("Domain", false)]
     public void Matching_Subdomains_Should_Respect_Assembly_Ownership_And_Referenced_Domain_Layers(string role, bool shared)
     {
         var fixture = Create("Consumer." + role, "namespace Consumer." + role + ".QA; public class Consumer;",
@@ -75,9 +75,9 @@ public sealed class ConventionDependencyTests
     }
 
     [Theory]
-    [InlineData(0, 2)]
-    [InlineData(1, 0)]
-    [InlineData(2, 0)]
+    [DataInline(0, 2)]
+    [DataInline(1, 0)]
+    [DataInline(2, 0)]
     public void Hosted_Should_Accept_One_Or_Many_Direct_Application_And_Infra_Projects(int count, int expected)
     {
         var dependencies = Enumerable.Range(1, count).SelectMany(index => new[]
@@ -89,12 +89,12 @@ public sealed class ConventionDependencyTests
     }
 
     [Theory]
-    [InlineData("Storage.Infra", "Business.Domain", 0, 1)]
-    [InlineData("Storage.Infra", "Business.Domain", 1, 0)]
-    [InlineData("Storage.Infra", "Business.Domain", 2, 0)]
-    [InlineData("Business.Domain", "Public.Contracts", 0, 1)]
-    [InlineData("Business.Domain", "Public.Contracts", 1, 0)]
-    [InlineData("Business.Domain", "Public.Contracts", 2, 0)]
+    [DataInline("Storage.Infra", "Business.Domain", 0, 1)]
+    [DataInline("Storage.Infra", "Business.Domain", 1, 0)]
+    [DataInline("Storage.Infra", "Business.Domain", 2, 0)]
+    [DataInline("Business.Domain", "Public.Contracts", 0, 1)]
+    [DataInline("Business.Domain", "Public.Contracts", 1, 0)]
+    [DataInline("Business.Domain", "Public.Contracts", 2, 0)]
     public void Infra_And_Domain_Should_Accept_One_Or_Many_Direct_Layers_Across_Name_Prefixes(
         string project, string dependency, int count, int expected)
     {
@@ -114,8 +114,8 @@ public sealed class ConventionDependencyTests
     }
 
     [Theory]
-    [InlineData("Package")]
-    [InlineData("Transitive")]
+    [DataInline("Package")]
+    [DataInline("Transitive")]
     public void Package_And_Transitive_References_Should_Not_Satisfy_A_Direct_Project_Requirement(string kind)
     {
         var diagnostics = Analyze(Create("Business.Domain", dependencies: [new("Public.Contract", Kind: kind)]));
@@ -124,8 +124,8 @@ public sealed class ConventionDependencyTests
     }
 
     [Theory]
-    [InlineData(false, true)]
-    [InlineData(true, false)]
+    [DataInline(false, true)]
+    [DataInline(true, false)]
     public void Missing_Inventory_Or_Unresolved_Project_Edges_Should_Defer_Absence_Claims(bool complete, bool resolved)
     {
         Analyze(Create("Presentation.Hosted", complete: complete,
@@ -174,13 +174,13 @@ public sealed class ConventionDependencyTests
     }
 
     [Theory]
-    [InlineData("Domain", "Contract,Utils,SharedKernel")]
-    [InlineData("Contract", "SharedKernel")]
-    [InlineData("Infra", "Domain,Contract,Utils,SharedKernel")]
-    [InlineData("Application", "Domain,Contract,Infra,Utils,SharedKernel")]
-    [InlineData("Hosted", "Domain,Contract,Infra,Application,Utils,SharedKernel")]
-    [InlineData("Utils", "SharedKernel")]
-    [InlineData("SharedKernel", "")]
+    [DataInline("Domain", "Contract,Utils,SharedKernel")]
+    [DataInline("Contract", "SharedKernel")]
+    [DataInline("Infra", "Domain,Contract,Utils,SharedKernel")]
+    [DataInline("Application", "Domain,Contract,Infra,Utils,SharedKernel")]
+    [DataInline("Hosted", "Domain,Contract,Infra,Application,Utils,SharedKernel")]
+    [DataInline("Utils", "SharedKernel")]
+    [DataInline("SharedKernel", "")]
     public void Every_Direct_Edge_Should_Respect_The_Directional_Role_Matrix(string from, string allowed)
     {
         string[] roles = ["Domain", "Contract", "Infra", "Application", "Hosted", "Utils", "SharedKernel"];
@@ -194,8 +194,8 @@ public sealed class ConventionDependencyTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [DataInline(false)]
+    [DataInline(true)]
     public async Task Production_Analyzer_Should_Expose_Required_Edges_And_Respect_Standard_Severity(bool suppressed)
     {
         var fixture = Create("Public.Hosted");

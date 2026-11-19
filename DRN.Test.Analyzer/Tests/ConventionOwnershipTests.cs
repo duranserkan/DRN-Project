@@ -6,9 +6,9 @@ namespace DRN.Test.Analyzer.Tests;
 public sealed class ConventionOwnershipTests
 {
     [Theory]
-    [InlineData("Sample.Domain.QA", "", false)]
-    [InlineData("Sample.Domain", "", true)]
-    [InlineData("Sample.Domain", "[DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomain(\"QA\", Reason = \"Published aggregate CLR identity is retained.\")]", false)]
+    [DataInline("Sample.Domain.QA", "", false)]
+    [DataInline("Sample.Domain", "", true)]
+    [DataInline("Sample.Domain", "[DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomain(\"QA\", Reason = \"Published aggregate CLR identity is retained.\")]", false)]
     public void Aggregate_Ownership_Should_Accept_Conventions_Or_A_Reasoned_Explicit_Alias(string ns, string attribute, bool missing)
     {
         var compilation = Compilation($$"""
@@ -81,10 +81,10 @@ public sealed class ConventionOwnershipTests
     }
 
     [Theory]
-    [InlineData("QA/Thing.cs", false)]
-    [InlineData("Other/Thing.cs", true)]
-    [InlineData("qa/Thing.cs", true)]
-    [InlineData("QA\\Thing.cs", false)]
+    [DataInline("QA/Thing.cs", false)]
+    [DataInline("Other/Thing.cs", true)]
+    [DataInline("qa/Thing.cs", true)]
+    [DataInline("QA\\Thing.cs", false)]
     public void Placement_Should_Use_Logical_Path_And_Ordinal_Case(string path, bool violation)
     {
         var facts = Facts("namespace Sample.Domain.QA; public class Thing;", path);
@@ -132,9 +132,9 @@ public sealed class ConventionOwnershipTests
     }
 
     [Theory]
-    [InlineData("", "T:Sample.Domain.QA.Thing")]
-    [InlineData("Reviewed", "T:Sample.Domain.QA.*")]
-    [InlineData("Reviewed", "T:Sample.Domain.QA.Missing")]
+    [DataInline("", "T:Sample.Domain.QA.Thing")]
+    [DataInline("Reviewed", "T:Sample.Domain.QA.*")]
+    [DataInline("Reviewed", "T:Sample.Domain.QA.Missing")]
     public void Invalid_Project_Exception_Should_Remain_Visible(string reason, string target)
     {
         var facts = Facts("namespace Sample.Domain.QA; public class Thing;", "QA/Thing.cs",
@@ -236,10 +236,10 @@ public sealed class ConventionOwnershipTests
     }
 
     [Theory]
-    [InlineData("DRNSTRUCTURE001", "", false)]
-    [InlineData("DRNSTRUCTURE001", "public class Other;", true)]
-    [InlineData("DRNAUTHORIZATION001", "public class Other;", false)]
-    [InlineData("", "", true)]
+    [DataInline("DRNSTRUCTURE001", "", false)]
+    [DataInline("DRNSTRUCTURE001", "public class Other;", true)]
+    [DataInline("DRNAUTHORIZATION001", "public class Other;", false)]
+    [DataInline("", "", true)]
     public void Pragma_Audit_Should_Reject_Blanket_And_Multiple_Declaration_Scopes(string rule, string other, bool invalid)
     {
         var facts = Facts($$"""
@@ -255,8 +255,8 @@ public sealed class ConventionOwnershipTests
     }
 
     [Theory]
-    [InlineData("Sample.Application.Services", "Services/Service.cs", 2)]
-    [InlineData("Sample.Application.Services.QA", "Services/QA/Service.cs", 0)]
+    [DataInline("Sample.Application.Services", "Services/Service.cs", 2)]
+    [DataInline("Sample.Application.Services.QA", "Services/QA/Service.cs", 0)]
     public void Repository_Backed_Orchestration_And_Its_Entity_Contract_Should_Have_Ownership(
         string ns, string path, int missingOwners)
     {

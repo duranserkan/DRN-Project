@@ -1,5 +1,6 @@
 using DRN.Framework.SharedKernel.Attributes;
 using Sample.Domain.QA.Question;
+using Sample.Contract.QA.Authors;
 
 namespace Sample.Domain.QA.Author;
 
@@ -19,4 +20,6 @@ public class AuthorEntity : AggregateRoot
     public string Name { get; private set; } = null!;
 
     public List<QuestionEntity> Posts { get; private set; } = [];
+
+    public AuthorDto ToDto() => new(this);
 }

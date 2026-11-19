@@ -53,7 +53,10 @@ using DRN.Framework.SharedKernel.Domain;
 [EntityType<DefaultApp>(1)] // Unique byte identifier for this entity type
 public class UserEntity : AggregateRoot
 {
+    [Personal]
     public string Name { get; private set; }
+
+    public UserDto ToDto() => new(this);
 
     public UserEntity(string name)
     {
@@ -73,7 +76,7 @@ The constructor alone does not assign `EntityId` or `CreatedAt`. The event reads
 
 ## QuickStart: Advanced
 
-Use the `UserEntity` above with a repository implementation. This service maps entities to DTOs, filters by creation date, and reports missing users:
+Place the example `UserDto` in the Contract project's subdomain and `Users` folder. The example exposes inherited identity and timestamps only. Use the `UserEntity` above with a repository implementation. This service maps entities to DTOs, filters by creation date, and reports missing users:
 
 ```csharp
 using System;
@@ -83,10 +86,7 @@ using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.SharedKernel.Domain.Repository;
 
-public class UserDto(SourceKnownEntity? entity = null) : Dto(entity)
-{
-    public string Name { get; init; } = string.Empty;
-}
+public class UserDto(SourceKnownEntity? entity = null) : Dto(entity);
 
 public class UserService(ISourceKnownRepository<UserEntity> repository)
 {
@@ -95,7 +95,7 @@ public class UserService(ISourceKnownRepository<UserEntity> repository)
         var filter = EntityCreatedFilter.After(DateTimeOffset.UtcNow.AddDays(-30));
         var result = await repository.PaginateAsync(request, filter);
 
-        return result.ToModel(user => new UserDto(user) { Name = user.Name });
+        return result.ToModel(user => user.ToDto());
     }
 
     public async Task<UserDto> GetUserAsync(Guid id)
@@ -104,7 +104,7 @@ public class UserService(ISourceKnownRepository<UserEntity> repository)
         if (user is null)
             throw ExceptionFor.NotFound($"User {id} not found");
 
-        return new UserDto(user) { Name = user.Name };
+        return user.ToDto();
     }
 }
 ```
@@ -542,7 +542,7 @@ public class UsersController(ISourceKnownRepository<UserEntity> repository) : Co
     public async Task<PaginationResultModel<UserDto>> GetAsync([FromQuery] PaginationRequest request)
     {
         var result = await repository.PaginateAsync(request);
-        return result.ToModel(user => new UserDto(user) { Name = user.Name });
+        return result.ToModel(user => user.ToDto());
     }
 }
 ```

@@ -245,7 +245,7 @@ internal static class ConventionBoundaryAnalysis
         }
     }
 
-    private static bool IsPublic(ISymbol symbol)
+    internal static bool IsPublic(ISymbol symbol)
     {
         for (var current = symbol; current is not null && current is not INamespaceSymbol; current = current.ContainingSymbol)
             if (current is INamedTypeSymbol or IMethodSymbol or IFieldSymbol or IPropertySymbol or IEventSymbol &&

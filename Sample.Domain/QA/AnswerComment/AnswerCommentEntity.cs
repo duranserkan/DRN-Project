@@ -1,5 +1,6 @@
 using Sample.Domain.QA.User;
 using Sample.Domain.QA.Answer;
+using Sample.Contract.QA.AnswerComments;
 
 namespace Sample.Domain.QA.AnswerComment;
 
@@ -23,4 +24,8 @@ public class AnswerCommentEntity : AggregateRoot
 
     public List<AnswerCommentEntity> Comments { get; private set; } = [];
 
+    public AnswerCommentDto ToDto() => new(this)
+    {
+        Body = Body
+    };
 }

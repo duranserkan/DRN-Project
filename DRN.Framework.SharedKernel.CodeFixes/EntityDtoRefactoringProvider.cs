@@ -1,4 +1,7 @@
 using System.Collections.Immutable;
+using DRN.Framework.SharedKernel.Analyzers.Conventions;
+using Microsoft.CodeAnalysis.FindSymbols;
+using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.CodeRefactorings;
 using static DRN.Framework.SharedKernel.CodeFixes.CodeFixDestinationGuard;
 using static DRN.Framework.SharedKernel.CodeFixes.CodeFixSymbolFacts;
@@ -12,6 +15,7 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
     {
         var solution = context.Document.Project.Solution;
         if (context.Span.IsEmpty || !solution.Workspace.CanApplyChange(ApplyChangesKind.AddDocument) ||
+            !solution.Workspace.CanApplyChange(ApplyChangesKind.ChangeDocument) ||
             ConventionGenerationPreflight.Identity(context.Document.Project).Role != "Domain") return;
         var selection = await ReadSelection(context.Document, context.Span, context.CancellationToken);
         if (selection is null) return;
@@ -20,31 +24,122 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
             context.CancellationToken.ThrowIfCancellationRequested();
             var candidate = await Plan(context.Document, selection, project, context.CancellationToken);
             if (candidate is null) continue;
-            if (!ReferenceEquals(solution.Workspace.CurrentSolution, solution)) return;
+            var edited = await AddProjectionAsync(context.Document, selection, project.Id, candidate, context.CancellationToken);
+            if (edited is null) continue;
+            if (!ReferenceEquals(solution.Workspace.CurrentSolution, solution) || !SafeExistingDocument(context.Document)) return;
             context.RegisterRefactoring(CodeAction.Create(
                 "Add DTO and mapping: " + project.Name + " / " + candidate.RelativeDtoPath + " (" +
                 string.Join(", ", selection.Properties.Select(property => property.Name + (RequiresInitialization(property) ? " required" : ""))) + ")",
-                token => Apply(context.Document, context.Span, project.Id, candidate, solution, token),
+                token => Apply(context.Document, edited, project, candidate, token),
                 "DrnEntityDto:" + project.Id + ":" + MetadataName(selection.Entity)));
         }
     }
 
-    private static async Task<Solution> Apply(Document document, TextSpan span, ProjectId targetId, DtoPlan expected,
-        Solution snapshot, CancellationToken token)
+    private static async Task<Solution> Apply(Document document, Document edited, Project target, DtoPlan plan, CancellationToken token)
     {
+        var snapshot = document.Project.Solution;
         token.ThrowIfCancellationRequested();
         if (!ReferenceEquals(snapshot.Workspace.CurrentSolution, snapshot)) return snapshot.Workspace.CurrentSolution;
-        var target = snapshot.GetProject(targetId);
-        var selection = await ReadSelection(document, span, token);
-        if (target is null || selection is null) return snapshot.Workspace.CurrentSolution;
-        var plan = await Plan(document, selection, target, token);
-        if (plan is null || plan != expected) return snapshot.Workspace.CurrentSolution;
+        var formatted = await Formatter.FormatAsync(edited, Formatter.Annotation, cancellationToken: token);
         token.ThrowIfCancellationRequested();
-        if (!ReferenceEquals(snapshot.Workspace.CurrentSolution, snapshot)) return snapshot.Workspace.CurrentSolution;
-        return snapshot.AddDocument(DocumentId.CreateNewId(targetId), plan.DtoName + ".cs", SourceText.From(plan.DtoSource),
-                plan.RelativeDtoPath.Split('/')[..^1], plan.DtoPath)
-            .AddDocument(DocumentId.CreateNewId(document.Project.Id), plan.MapperName + ".cs", SourceText.From(plan.MapperSource),
-                plan.RelativeMapperPath.Split('/')[..^1], plan.MapperPath);
+        if (!SafeExistingDocument(document) || target.FilePath is null || !TryFullPath(target.FilePath, out var projectPath) ||
+            !SafeDocumentDestination(target, Path.GetDirectoryName(projectPath)!, plan.DtoPath, token) ||
+            !ReferenceEquals(snapshot.Workspace.CurrentSolution, snapshot))
+            return snapshot.Workspace.CurrentSolution;
+        return formatted.Project.Solution;
+    }
+
+    private static async Task<Document?> AddProjectionAsync(Document document, Selection selection, ProjectId targetId,
+        DtoPlan plan, CancellationToken token)
+    {
+        var root = await document.GetSyntaxRootAsync(token);
+        var propertySpan = selection.Properties[0].DeclaringSyntaxReferences[0].Span;
+        var declaration = root?.FindNode(propertySpan).FirstAncestorOrSelf<TypeDeclarationSyntax>();
+        if (root is null || declaration is null || SyntaxFactory.ParseMemberDeclaration(plan.MapperSource) is not MethodDeclarationSyntax mapper)
+            return null;
+        var marker = new SyntaxAnnotation();
+        var updated = declaration.AddMembers(mapper.WithAdditionalAnnotations(marker, Formatter.Annotation));
+        var dtoId = DocumentId.CreateNewId(targetId);
+        var proposed = document.WithSyntaxRoot(root.ReplaceNode(declaration, updated)).Project.Solution
+            .AddDocument(dtoId, plan.DtoName + ".cs", SourceText.From(plan.DtoSource),
+                plan.RelativeDtoPath.Split('/')[..^1], plan.DtoPath);
+        var edited = proposed.GetDocument(document.Id)!;
+        var model = await edited.GetSemanticModelAsync(token);
+        var added = (await edited.GetSyntaxRootAsync(token))?.GetAnnotatedNodes(marker).SingleOrDefault();
+        var expectedName = plan.DtoNamespace + "." + plan.DtoName;
+        if (added is not MethodDeclarationSyntax method || model?.GetDeclaredSymbol(method, token) is not IMethodSymbol symbol ||
+            symbol.ReturnType is not INamedTypeSymbol { TypeKind: TypeKind.Class } returnType ||
+            proposed.GetProject(returnType.ContainingAssembly, token) is not { } targetProject ||
+            targetProject.Id != targetId || MetadataName(returnType) != expectedName)
+            return null;
+        if (await IntroducesBlockingDiagnosticsAsync(document, proposed, targetId, method.FullSpan, token))
+            return null;
+
+        // Ask the compiler which callers in the proposed solution actually bind to the new mapper.
+        var references = await SymbolFinder.FindReferencesAsync(symbol, proposed, token);
+        foreach (var location in references.Where(reference => SymbolEqualityComparer.Default.Equals(reference.Definition, symbol))
+                     .SelectMany(reference => reference.Locations))
+        {
+            token.ThrowIfCancellationRequested();
+            if (location.IsImplicit) continue;
+            var original = document.Project.Solution.GetDocument(location.Document.Id);
+            if (original is null || await original.GetSemanticModelAsync(token) is not { } before) return null;
+            var position = location.Location.SourceSpan.Start;
+            // Appending the unformatted member was the only edit to this tree.
+            if (original.Id == document.Id && position >= method.FullSpan.End) position -= method.FullSpan.Length;
+            var name = (await before.SyntaxTree.GetRootAsync(token)).FindToken(position).Parent;
+            if (name is null) continue;
+            var call = name.FirstAncestorOrSelf<InvocationExpressionSyntax>();
+            var site = call is not null && call.Expression.Span.End == name.Span.End ? call : name;
+            if (before.GetSymbolInfo(site, token).Symbol is IMethodSymbol) return null;
+        }
+        return edited;
+    }
+
+    private static async Task<bool> IntroducesBlockingDiagnosticsAsync(Document document, Solution proposed,
+        ProjectId targetId, TextSpan insertion, CancellationToken token)
+    {
+        var original = document.Project.Solution;
+        var graph = proposed.GetProjectDependencyGraph();
+        // The Domain project and its consumers are already dependents of the Contract target.
+        foreach (var id in graph.GetProjectsThatTransitivelyDependOnThisProject(targetId).Prepend(targetId))
+        {
+            token.ThrowIfCancellationRequested();
+            var project = proposed.GetProject(id)!;
+            if (!project.SupportsCompilation) continue;
+            if (await project.GetCompilationAsync(token) is not { } after) return true;
+            var blockers = after.GetDiagnostics(token).Where(BlocksProjection).ToArray();
+            if (blockers.Length == 0) continue;
+            if (await original.GetProject(id)!.GetCompilationAsync(token) is not { } before) return true;
+            var existing = before.GetDiagnostics(token).Where(BlocksProjection)
+                .Select(diagnostic => Key(original, diagnostic, beforeEdit: true)).CountBy(key => key).ToDictionary();
+            foreach (var diagnostic in blockers)
+            {
+                var key = Key(proposed, diagnostic, beforeEdit: false);
+                if (!existing.TryGetValue(key, out var count) || count == 0) return true;
+                existing[key] = count - 1;
+            }
+        }
+        return false;
+
+        static bool BlocksProjection(Diagnostic diagnostic) =>
+            diagnostic.Severity == DiagnosticSeverity.Error || diagnostic.Id == "CS0436";
+
+        (string Id, DiagnosticSeverity Severity, string Message, DocumentId? Document, string? Path, TextSpan Span) Key(
+            Solution solution, Diagnostic diagnostic, bool beforeEdit)
+        {
+            var location = diagnostic.Location;
+            var tree = location.SourceTree;
+            var documentId = tree is null ? null : solution.GetDocument(tree)?.Id;
+            var span = location.SourceSpan;
+            if (beforeEdit && documentId == document.Id)
+            {
+                // Compare locations in the proposed tree's coordinates, including errors after the inserted member.
+                if (span.Start >= insertion.Start) span = new TextSpan(span.Start + insertion.Length, span.Length);
+                else if (span.End > insertion.Start) span = new TextSpan(span.Start, span.Length + insertion.Length);
+            }
+            return (diagnostic.Id, diagnostic.Severity, diagnostic.GetMessage(), documentId, tree?.FilePath, span);
+        }
     }
 
     private static async Task<Selection?> ReadSelection(Document document, TextSpan span, CancellationToken token)
@@ -53,7 +148,7 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         var syntaxRoot = await document.GetSyntaxRootAsync(token);
         if (syntaxRoot is null || span.End > syntaxRoot.FullSpan.End) return null;
         var declarations = CollectSelectedPropertyNodes(syntaxRoot, span, token);
-        if (declarations is null) return null;
+        if (declarations is null || !SafeExistingDocument(document)) return null;
         var root = await ClassificationEdit.FindEditableRoot(document, span.Start, token);
         var model = await document.GetSemanticModelAsync(token);
         if (root is null || model is null ||
@@ -78,9 +173,55 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
             declarations.Add(declaration);
             if (declarations.Count > 64) return null;
         }
-        if (declarations.Count == 0) return null;
+        if (declarations.Count == 0 || containingType is null) return null;
         declarations.Sort(static (left, right) => left.SpanStart.CompareTo(right.SpanStart));
-        return declarations;
+        return HasConditionalCompilationConflict(syntaxRoot, containingType, declarations, token) ? null : declarations;
+    }
+
+    private static bool HasConditionalCompilationConflict(SyntaxNode root, TypeDeclarationSyntax containingType,
+        List<PropertyDeclarationSyntax> declarations, CancellationToken token)
+    {
+        if (containingType.CloseBraceToken.IsMissing) return true;
+        if (!root.ContainsDirectives) return false;
+        var insertionPoint = containingType.CloseBraceToken.FullSpan.Start;
+        var depth = 0;
+        var index = 0;
+        for (var directive = root.GetFirstDirective(); directive is not null; directive = directive.GetNextDirective())
+        {
+            token.ThrowIfCancellationRequested();
+            var position = directive.SpanStart;
+            while (index < declarations.Count && declarations[index].SpanStart < position)
+            {
+                if (depth > 0) return true;
+                index++;
+            }
+            if (position >= insertionPoint) break;
+            if (directive is IfDirectiveTriviaSyntax) depth++;
+            else if (directive is EndIfDirectiveTriviaSyntax && depth > 0) depth--;
+        }
+        return depth > 0;
+    }
+
+    private static bool HasConditionalTypeHeader(TypeDeclarationSyntax declaration, CancellationToken token)
+    {
+        if (!declaration.ContainsDirectives) return false;
+        var headerEnd = declaration.OpenBraceToken.RawKind == 0 ? declaration.Span.End : declaration.OpenBraceToken.SpanStart;
+        var header = TextSpan.FromBounds(declaration.FullSpan.Start, headerEnd);
+        foreach (var trivia in declaration.DescendantTrivia(header))
+        {
+            token.ThrowIfCancellationRequested();
+            if (trivia.SpanStart >= declaration.SpanStart &&
+                trivia.GetStructure() is ConditionalDirectiveTriviaSyntax or ElseDirectiveTriviaSyntax or EndIfDirectiveTriviaSyntax)
+                return true;
+            if (!trivia.IsKind(SyntaxKind.DisabledTextTrivia)) continue;
+            var disabled = trivia.ToString();
+            // A disabled attribute or partial modifier can change the classification of the following type.
+            var probe = SyntaxFactory.ParseCompilationUnit(disabled + "\nclass __Header {}",
+                options: (CSharpParseOptions)declaration.SyntaxTree.Options);
+            if (probe.FindToken(disabled.Length + 1).Parent is ClassDeclarationSyntax headerType &&
+                (headerType.AttributeLists.Count != 0 || headerType.Modifiers.Any(SyntaxKind.PartialKeyword))) return true;
+        }
+        return false;
     }
 
     private static async Task<Selection?> TryBuildEntitySelectionAsync(Document document, SemanticModel model,
@@ -115,21 +256,62 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         INamedTypeSymbol entity, CancellationToken token)
     {
         var entityBase = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity");
-        return !entity.IsAbstract && !IsOpen(entity) && IsPublicType(entity) &&
-               Inherits(entity, entityBase) &&
-               await ArePartsEditableAsync(document.Project, entity, rejectSpanErrors: false, token);
+        if (entity.IsAbstract || IsOpen(entity) || !IsPublicType(entity) || !Inherits(entity, entityBase)) return false;
+        foreach (var type in Bases(entity))
+        {
+            Compilation? definingCompilation = compilation;
+            var definition = type;
+            if (!SymbolEqualityComparer.Default.Equals(type.ContainingAssembly, compilation.Assembly))
+            {
+                var owner = document.Project.Solution.GetProject(type.ContainingAssembly, token);
+                definingCompilation = owner is null ? null : await owner.GetCompilationAsync(token);
+                definition = definingCompilation?.Assembly.GetTypeByMetadataName(MetadataName(type)) ?? type;
+            }
+            var partial = false;
+            foreach (var reference in definition.DeclaringSyntaxReferences)
+            {
+                if (reference.GetSyntax(token) is not TypeDeclarationSyntax declaration) continue;
+                if (HasConditionalTypeHeader(declaration, token)) return false;
+                partial |= declaration.Modifiers.Any(SyntaxKind.PartialKeyword);
+            }
+            if (partial && (definingCompilation is null || HasInactiveDeclaration(definingCompilation, type.Name, token))) return false;
+        }
+        return await ArePartsEditableAsync(document.Project, entity, rejectSpanErrors: false, token);
+    }
+
+    private static bool HasInactiveDeclaration(Compilation compilation, string typeName, CancellationToken token)
+    {
+        // A wholly disabled part has no symbol. Its class name can also be split from the keyword by a directive.
+        foreach (var tree in compilation.SyntaxTrees)
+        {
+            var root = tree.GetRoot(token);
+            if (!root.ContainsDirectives) continue;
+            foreach (var trivia in root.DescendantTrivia(descendIntoChildren: node => node.ContainsDirectives))
+            {
+                token.ThrowIfCancellationRequested();
+                if (!trivia.IsKind(SyntaxKind.DisabledTextTrivia)) continue;
+                var previous = SyntaxKind.None;
+                foreach (var part in SyntaxFactory.ParseTokens(trivia.ToString(), options: (CSharpParseOptions)tree.Options))
+                {
+                    if (part.IsKind(SyntaxKind.IdentifierToken) && part.ValueText == typeName &&
+                        previous is SyntaxKind.None or SyntaxKind.ClassKeyword) return true;
+                    previous = part.Kind();
+                }
+            }
+        }
+        return false;
     }
 
     private static async Task<DtoPlan?> Plan(Document document, Selection selection, Project target, CancellationToken token)
     {
         var resolved = await ResolveDtoCompilationsAsync(document, selection, target, token);
         if (resolved is null) return null;
-        var destinations = TryBuildDtoDestinations(document.Project, target, selection, resolved, token);
+        var destinations = TryBuildDtoDestinations(target, selection, resolved, token);
         if (destinations is null) return null;
         var typeAttributes = TypeClassifications(selection.Entity, resolved.SourceCompilation, resolved.TargetCompilation);
         if (typeAttributes is null) return null;
         var fields = TryBuildDtoFields(selection, resolved.Dto, destinations.DtoName, resolved.SourceCompilation, resolved.TargetCompilation);
-        return fields is null ? null : Render(selection, fields, typeAttributes, destinations);
+        return fields is null ? null : Render(fields, typeAttributes, destinations);
     }
 
     private static async Task<DtoCompilations?> ResolveDtoCompilationsAsync(Document document, Selection selection,
@@ -141,21 +323,17 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         if (sourceIdentity.Role != "Domain" || targetIdentity.Role != "Contract" || target.Language != LanguageNames.CSharp ||
             !source.ProjectReferences.Any(reference => reference.ProjectId == target.Id &&
                 (reference.Aliases.IsEmpty || reference.Aliases.Contains("global", StringComparer.Ordinal))) ||
-            source.FilePath is null || target.FilePath is null || document.FilePath is null ||
-            !TryFullPath(source.FilePath, out var sourceProjectPath) || !TryFullPath(target.FilePath, out var targetProjectPath) ||
-            !TryFullPath(document.FilePath, out var entityPath)) return null;
+            target.FilePath is null || !TryFullPath(target.FilePath, out var targetProjectPath)) return null;
         var sourceInputs = await ReadInputsWithoutRoleOverrideAsync(source, required: false, token);
         if (sourceInputs is null || await HasRoleOverrides(target, token)) return null;
-        var sourceRoot = Path.GetDirectoryName(sourceProjectPath)!;
         var targetRoot = Path.GetDirectoryName(targetProjectPath)!;
-        if (!ConventionGenerationPreflight.IsUnderDirectory(entityPath, sourceRoot)) return null;
-        return await ResolveDtoCompilationModelsAsync((source, sourceIdentity.Namespace, sourceRoot),
-            (target, targetIdentity.Namespace, targetRoot), selection, sourceInputs, entityPath, token);
+        return await ResolveDtoCompilationModelsAsync((source, sourceIdentity.Namespace),
+            (target, targetIdentity.Namespace, targetRoot), selection, sourceInputs, token);
     }
 
     private static async Task<DtoCompilations?> ResolveDtoCompilationModelsAsync(
-        (Project Project, string Namespace, string Root) source, (Project Project, string Namespace, string Root) target,
-        Selection selection, CompilationUnitSyntax sourceInputs, string entityPath, CancellationToken token)
+        (Project Project, string Namespace) source, (Project Project, string Namespace, string Root) target,
+        Selection selection, CompilationUnitSyntax sourceInputs, CancellationToken token)
     {
         var sourceCompilation = await source.Project.GetCompilationAsync(token);
         var targetCompilation = await target.Project.GetCompilationAsync(token);
@@ -172,29 +350,25 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         var area = sourceNamespace[(source.Namespace.Length + 1)..];
         if (!ValidNamespace(area) || !PreservesOwnership(selection.Entity, sourceCompilation, sourceInputs, area.Split('.')[0], token))
             return null;
-        return new(sourceCompilation, targetCompilation, dto, source.Root, target.Root, entityPath,
-            sourceNamespace, target.Namespace + "." + area, area);
+        var folder = ConventionNames.DtoFolder(ConventionGenerationPreflight.EntityStem(selection.Entity.Name));
+        if (!ConventionGenerationPreflight.ValidNamespaceSegment(folder)) return null;
+        var dtoArea = area.Split('.')[0] + "." + folder;
+        return new(sourceCompilation, targetCompilation, dto, target.Root, target.Namespace + "." + dtoArea, dtoArea);
     }
 
-    private static DtoDestinations? TryBuildDtoDestinations(Project source, Project target, Selection selection,
-        DtoCompilations resolved, CancellationToken token)
+    private static DtoDestinations? TryBuildDtoDestinations(Project target, Selection selection, DtoCompilations resolved, CancellationToken token)
     {
-        var stem = ConventionGenerationPreflight.EntityStem(selection.Entity.Name);
-        var dtoName = stem + "Dto";
-        var mapperName = stem + "DtoMapping";
-        if (!SyntaxFacts.IsValidIdentifier(dtoName) || !SyntaxFacts.IsValidIdentifier(mapperName) ||
-            resolved.TargetCompilation.GetTypeByMetadataName(resolved.DtoNamespace + "." + dtoName) is not null ||
-            resolved.SourceCompilation.GetTypeByMetadataName(resolved.SourceNamespace + "." + mapperName) is not null ||
-            ConflictingMapperMethod(resolved.SourceCompilation, selection.Entity, resolved.SourceNamespace, dtoName, token))
-            return null;
-        if (ConventionGenerationPreflight.SymbolCollision(resolved.TargetCompilation, resolved.DtoNamespace, dtoName, token) ||
-            ConventionGenerationPreflight.SymbolCollision(resolved.SourceCompilation, resolved.SourceNamespace, mapperName, token)) return null;
+        var dtoName = ConventionGenerationPreflight.EntityStem(selection.Entity.Name) + "Dto";
+        if (!SyntaxFacts.IsValidIdentifier(dtoName) ||
+            Bases(selection.Entity).Any(type => type.GetMembers("ToDto").Any(ConflictsWithMapper)) ||
+            ConventionGenerationPreflight.SymbolCollision(resolved.TargetCompilation, resolved.DtoNamespace, dtoName, token)) return null;
         var dtoPath = Path.Combine(resolved.TargetRoot, resolved.Area.Replace('.', Path.DirectorySeparatorChar), dtoName + ".cs");
-        var mapperPath = Path.Combine(Path.GetDirectoryName(resolved.EntityPath)!, mapperName + ".cs");
-        if (!SafeDocumentDestination(target, resolved.TargetRoot, dtoPath, token) ||
-            !SafeDocumentDestination(source, resolved.SourceRoot, mapperPath, token)) return null;
-        return new(resolved.DtoNamespace, dtoName, dtoPath, Path.GetRelativePath(resolved.TargetRoot, dtoPath).Replace('\\', '/'),
-            resolved.SourceNamespace, mapperName, mapperPath, Path.GetRelativePath(resolved.SourceRoot, mapperPath).Replace('\\', '/'));
+        if (!SafeDocumentDestination(target, resolved.TargetRoot, dtoPath, token)) return null;
+        return new(resolved.DtoNamespace, dtoName, dtoPath, Path.GetRelativePath(resolved.TargetRoot, dtoPath).Replace('\\', '/'));
+
+        bool ConflictsWithMapper(ISymbol member) => member is not IMethodSymbol method || method.Arity == 0 &&
+            (method.Parameters.IsEmpty || !method.IsStatic && resolved.SourceCompilation.IsSymbolAccessibleWithin(method, selection.Entity) &&
+                method.Parameters.All(parameter => parameter.IsOptional || parameter.IsParams));
     }
 
     private static List<(string Name, string Type, string Attributes, bool Required)>? TryBuildDtoFields(
@@ -233,22 +407,6 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
                     HasClassificationOrErrorAttribute(memberType.GetAttributes(), sourceCompilation))
                     return true;
             }
-        }
-        return false;
-    }
-
-    private static bool ConflictingMapperMethod(Compilation compilation, INamedTypeSymbol entity,
-        string sourceNamespace, string dtoName, CancellationToken token)
-    {
-        foreach (var method in compilation.GetSymbolsWithName("To" + dtoName, SymbolFilter.Member, token).OfType<IMethodSymbol>())
-        {
-            if (method.IsStatic && method.IsExtensionMethod && method.Parameters.Length >= 1 &&
-                (method.ContainingNamespace.ToDisplayString() == sourceNamespace ||
-                 method.Parameters[0].Type is ITypeParameterSymbol ||
-                 compilation.ClassifyCommonConversion(entity, method.Parameters[0].Type).IsImplicit))
-                return true;
-            if (!method.IsStatic && Bases(entity).Any(type => SymbolEqualityComparer.Default.Equals(type, method.ContainingType)))
-                return true;
         }
         return false;
     }
@@ -383,7 +541,7 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         return OwnershipCompatible(root, MetadataName(entity), owner, token);
     }
 
-    private static DtoPlan Render(Selection selection, List<(string Name, string Type, string Attributes, bool Required)> fields,
+    private static DtoPlan Render(List<(string Name, string Type, string Attributes, bool Required)> fields,
         string typeAttributes, DtoDestinations destinations)
     {
         var declarations = string.Join("\n", fields.Select(field => field.Attributes + "    public " + (field.Required ? "required " : "") +
@@ -403,34 +561,19 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
 
             """;
         var qualifiedDto = "global::" + destinations.DtoNamespace + "." + destinations.DtoName;
-        var entityType = selection.Entity.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        var values = string.Join(",\n", fields.Select(field => "            " + field.Name + " = entity." + field.Name));
+        var values = string.Join(",\n", fields.Select(field => "    " + field.Name + " = this." + field.Name));
         var mapperSource = $$"""
-            #nullable enable
-            namespace {{destinations.SourceNamespace}};
-
-            public static class {{destinations.MapperName}}
+            public {{qualifiedDto}} ToDto() => new(this)
             {
-                public static {{qualifiedDto}} To{{destinations.DtoName}}(this {{entityType}} entity)
-                {
-                    global::System.ArgumentNullException.ThrowIfNull(entity);
-                    return new {{qualifiedDto}}(entity)
-                    {
             {{values}}
-                    };
-                }
-            }
-
+            };
             """;
-        return new(destinations.DtoName, destinations.MapperName, destinations.DtoPath, destinations.MapperPath,
-            destinations.RelativeDtoPath, destinations.RelativeMapperPath, dtoSource, mapperSource);
+        return new(destinations.DtoNamespace, destinations.DtoName, destinations.DtoPath, destinations.RelativeDtoPath, dtoSource, mapperSource);
     }
 
     private sealed record DtoCompilations(Compilation SourceCompilation, Compilation TargetCompilation, INamedTypeSymbol Dto,
-        string SourceRoot, string TargetRoot, string EntityPath, string SourceNamespace, string DtoNamespace, string Area);
-    private sealed record DtoDestinations(string DtoNamespace, string DtoName, string DtoPath, string RelativeDtoPath,
-        string SourceNamespace, string MapperName, string MapperPath, string RelativeMapperPath);
+        string TargetRoot, string DtoNamespace, string Area);
+    private sealed record DtoDestinations(string DtoNamespace, string DtoName, string DtoPath, string RelativeDtoPath);
     private sealed record Selection(INamedTypeSymbol Entity, ImmutableArray<IPropertySymbol> Properties);
-    private sealed record DtoPlan(string DtoName, string MapperName, string DtoPath, string MapperPath,
-        string RelativeDtoPath, string RelativeMapperPath, string DtoSource, string MapperSource);
+    private sealed record DtoPlan(string DtoNamespace, string DtoName, string DtoPath, string RelativeDtoPath, string DtoSource, string MapperSource);
 }

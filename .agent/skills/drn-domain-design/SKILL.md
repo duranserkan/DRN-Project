@@ -1,7 +1,7 @@
 ---
 name: drn-domain-design
 description: "Model DRN aggregates, repository boundaries, contract DTOs, mapping, and paginated APIs."
-last-updated: 2026-11-13
+last-updated: 2026-11-19
 difficulty: advanced
 ---
 
@@ -53,9 +53,11 @@ public class CategoryDto(SourceKnownEntity? entity = null) : Dto(entity)
 }
 ```
 
-In Domain, map out with `CategoryDto ToDto() => new(this) { Name = Name };` on the entity. Move mapping to a domain extension class if it crowds out domain behavior. Map back through a Domain extension that calls the entity's constructor, such as `new CategoryEntity(dto.Name)`, so validation runs on every path.
+In Domain, map out with `CategoryDto ToDto() => new(this) { Name = Name };` on the entity. Place each DTO in the Contract subdomain and plural entity folder. Select only fields needed by consumers. Preserve each mapped property's Personal and Sensitive classifications, including when renaming it. A metadata-only mapper can simply return `new(this)`. Map back through a Domain extension that calls the entity's constructor, such as `new CategoryEntity(dto.Name)`, so validation runs on every path.
 
 ## API Integration
+
+Keep entity-prefixed public requests and responses beside the matching DTO. DRNDTO004 uses the longest entity stem at a PascalCase word boundary within the same Contract subdomain.
 
 Use paged collection endpoints by default. Accept `PaginationRequest` from the query for the initial GET and `PaginationResultInfo` for subsequent GET-query or POST-body navigation. For an individual item accept a GUID and map the entity to its DTO. Map page items with `result.ToModel(entity => entity.ToDto())`. Enumerate the full dataset only when explicitly requested.
 

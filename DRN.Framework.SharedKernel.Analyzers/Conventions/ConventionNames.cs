@@ -3,6 +3,16 @@ namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 // Shared by diagnostics and IDE actions so project identity cannot drift between them.
 internal static class ConventionNames
 {
+    internal static string DtoFolder(string stem)
+    {
+        if (stem.Length > 1 && stem.EndsWith('y') && !"aeiouAEIOU".Contains(stem[^2]))
+            return stem[..^1] + "ies";
+        if (stem.EndsWith('s') || stem.EndsWith('x') || stem.EndsWith('z') ||
+            stem.EndsWith("ch", StringComparison.Ordinal) || stem.EndsWith("sh", StringComparison.Ordinal))
+            return stem + "es";
+        return stem + "s";
+    }
+
     internal static (string Role, string Problem) Read(string name)
     {
         var parts = name.Split('.');

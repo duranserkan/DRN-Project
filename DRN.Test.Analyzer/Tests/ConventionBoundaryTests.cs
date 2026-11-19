@@ -6,17 +6,17 @@ namespace DRN.Test.Analyzer.Tests;
 public sealed class ConventionBoundaryTests
 {
     [Theory]
-    [InlineData("Hosted", "public class Consumer : Microsoft.AspNetCore.Mvc.RazorPages.PageModel", false)]
-    [InlineData("Hosted", "public class Consumer : Microsoft.AspNetCore.Mvc.ControllerBase", false)]
-    [InlineData("Hosted", "public class Consumer : Microsoft.AspNetCore.Razor.TagHelpers.TagHelper", false)]
-    [InlineData("Hosted", "public class Consumer", false)]
-    [InlineData("Application", "public class Consumer", false)]
-    [InlineData("Infra", "public class Consumer", false)]
-    [InlineData("Infra", "public class Consumer : Microsoft.EntityFrameworkCore.DbContext", true)]
-    [InlineData("Infra", "public interface IConsumer : DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<Sample.Infra.QA.User>", true)]
-    [InlineData("Application", "public interface IConsumer : DRN.Framework.SharedKernel.Domain.ISourceKnownService<Sample.Application.QA.User>", true)]
-    [InlineData("Domain", "public class Consumer", true)]
-    [InlineData("Application", "public interface IConsumerService", true)]
+    [DataInline("Hosted", "public class Consumer : Microsoft.AspNetCore.Mvc.RazorPages.PageModel", false)]
+    [DataInline("Hosted", "public class Consumer : Microsoft.AspNetCore.Mvc.ControllerBase", false)]
+    [DataInline("Hosted", "public class Consumer : Microsoft.AspNetCore.Razor.TagHelpers.TagHelper", false)]
+    [DataInline("Hosted", "public class Consumer", false)]
+    [DataInline("Application", "public class Consumer", false)]
+    [DataInline("Infra", "public class Consumer", false)]
+    [DataInline("Infra", "public class Consumer : Microsoft.EntityFrameworkCore.DbContext", true)]
+    [DataInline("Infra", "public interface IConsumer : DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<Sample.Infra.QA.User>", true)]
+    [DataInline("Application", "public interface IConsumer : DRN.Framework.SharedKernel.Domain.ISourceKnownService<Sample.Application.QA.User>", true)]
+    [DataInline("Domain", "public class Consumer", true)]
+    [DataInline("Application", "public interface IConsumerService", true)]
     public void Entity_Boundaries_Should_Require_An_Architectural_Role(string role, string declaration, bool scoped)
     {
         var member = declaration.Contains("interface", StringComparison.Ordinal)
@@ -60,8 +60,8 @@ public sealed class ConventionBoundaryTests
     }
 
     [Theory]
-    [InlineData("QA", 0)]
-    [InlineData("Billing", 1)]
+    [DataInline("QA", 0)]
+    [DataInline("Billing", 1)]
     public void Entity_Uses_Should_Compare_Actual_Ownership_And_Deduplicate_A_Member(string owner, int count)
     {
         var facts = Facts($$"""
@@ -128,8 +128,8 @@ public sealed class ConventionBoundaryTests
     }
 
     [Theory]
-    [InlineData("QA", 0)]
-    [InlineData("Billing", 1)]
+    [DataInline("QA", 0)]
+    [DataInline("Billing", 1)]
     public void Generated_Partial_Members_Should_Report_Once_At_Their_User_Type(string owner, int count)
     {
         var compilation = GeneratedCompilation($$"""
@@ -245,8 +245,8 @@ public sealed class ConventionBoundaryTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [DataInline(false)]
+    [DataInline(true)]
     public void Fully_Generated_Types_Should_Require_A_Related_User_Input_To_Report(bool declaredOwner)
     {
         var compilation = GeneratedCompilation("""
@@ -275,8 +275,8 @@ public sealed class ConventionBoundaryTests
     }
 
     [Theory]
-    [InlineData("class", "get; set;")]
-    [InlineData("interface", "get;")]
+    [DataInline("class", "get; set;")]
+    [DataInline("interface", "get;")]
     public void Closed_Referenced_Base_Signatures_Should_Retain_Their_Substituted_Entity_Owner(string kind, string accessors)
     {
         var producer = Compilation($$"""
@@ -372,9 +372,9 @@ public sealed class ConventionBoundaryTests
     }
 
     [Theory]
-    [InlineData("System.Collections.Generic.List<Envelope<User[]>>", true)]
-    [InlineData("System.Collections.Generic.List<Envelope<System.Guid>>", false)]
-    [InlineData("Microsoft.EntityFrameworkCore.DbSet<Envelope<System.Guid>>", true)]
+    [DataInline("System.Collections.Generic.List<Envelope<User[]>>", true)]
+    [DataInline("System.Collections.Generic.List<Envelope<System.Guid>>", false)]
+    [DataInline("Microsoft.EntityFrameworkCore.DbSet<Envelope<System.Guid>>", true)]
     public void Public_Contract_Shapes_Should_Find_Nested_Persistence_Without_Name_Heuristics(string shape, bool violation)
     {
         var facts = ContractFacts($$"""
@@ -394,10 +394,10 @@ public sealed class ConventionBoundaryTests
     }
 
     [Theory]
-    [InlineData("public static User Read() => new();", false)]
-    [InlineData("public User Read<T>() => new();", false)]
-    [InlineData("[Microsoft.AspNetCore.Mvc.NonAction] public User Read() => new();", false)]
-    [InlineData("public User Read() => new();", true)]
+    [DataInline("public static User Read() => new();", false)]
+    [DataInline("public User Read<T>() => new();", false)]
+    [DataInline("[Microsoft.AspNetCore.Mvc.NonAction] public User Read() => new();", false)]
+    [DataInline("public User Read() => new();", true)]
     public void Transport_Contract_Check_Should_Exclude_Static_And_Generic_Helpers(string member, bool violation)
     {
         var facts = Facts($$"""
@@ -443,8 +443,8 @@ public sealed class ConventionBoundaryTests
     }
 
     [Theory]
-    [InlineData("User user", 0)]
-    [InlineData("User user, User other", 1)]
+    [DataInline("User user", 0)]
+    [DataInline("User user, User other", 1)]
     public void Primary_Dto_Constructor_Should_Exempt_Only_The_Forwarded_Entity(string parameters, int count)
     {
         var facts = ContractFacts($$"""
@@ -456,8 +456,8 @@ public sealed class ConventionBoundaryTests
     }
 
     [Theory]
-    [InlineData("class", "get; set;")]
-    [InlineData("interface", "get;")]
+    [DataInline("class", "get; set;")]
+    [DataInline("interface", "get;")]
     public async Task Inherited_Referenced_Contract_Members_Should_Be_Checked_At_The_Consumer_Declaration(string kind, string accessors)
     {
         var dependency = Compilation($$"""
@@ -517,9 +517,9 @@ public sealed class ConventionBoundaryTests
     }
 
     [Theory]
-    [InlineData("Domain", "Hosted", true, true)]
-    [InlineData("Application", "Infra", true, false)]
-    [InlineData("Domain", "Hosted", false, false)]
+    [DataInline("Domain", "Hosted", true, true)]
+    [DataInline("Application", "Infra", true, false)]
+    [DataInline("Domain", "Hosted", false, false)]
     public void Reference_Rules_Should_Use_Direct_Provenance_And_Exported_Roles(string from, string to, bool direct, bool violation)
     {
         var dependency = Compilation($$"""
@@ -544,9 +544,9 @@ public sealed class ConventionBoundaryTests
     }
 
     [Theory]
-    [InlineData("Domain", "Domain", false)]
-    [InlineData("Infra", "Domain", true)]
-    [InlineData("Utils", "Domain", true)]
+    [DataInline("Domain", "Domain", false)]
+    [DataInline("Infra", "Domain", true)]
+    [DataInline("Utils", "Domain", true)]
     public void Entity_Role_Should_Be_Semantic(string role, string expected, bool violation)
     {
         var facts = Facts($$"""
@@ -637,10 +637,10 @@ public sealed class ConventionBoundaryTests
     }
 
     [Theory]
-    [InlineData("Domain", "private Microsoft.EntityFrameworkCore.DbContext context;")]
-    [InlineData("Domain", "private Microsoft.EntityFrameworkCore.ModelBuilder model;")]
-    [InlineData("Contract", "public Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder Configure() => null;")]
-    [InlineData("Utils", "public bool Read() { var context = new Microsoft.EntityFrameworkCore.DbContext(new Microsoft.EntityFrameworkCore.DbContextOptions<Microsoft.EntityFrameworkCore.DbContext>()); return context.ChangeTracker.HasChanges(); }")]
+    [DataInline("Domain", "private Microsoft.EntityFrameworkCore.DbContext context;")]
+    [DataInline("Domain", "private Microsoft.EntityFrameworkCore.ModelBuilder model;")]
+    [DataInline("Contract", "public Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder Configure() => null;")]
+    [DataInline("Utils", "public bool Read() { var context = new Microsoft.EntityFrameworkCore.DbContext(new Microsoft.EntityFrameworkCore.DbContextOptions<Microsoft.EntityFrameworkCore.DbContext>()); return context.ChangeTracker.HasChanges(); }")]
     public void Persistence_Implementation_Use_Should_Be_Diagnosed_Without_Inheritance(string role, string body)
     {
         var facts = Facts($$"""
@@ -738,15 +738,15 @@ public sealed class ConventionBoundaryTests
     }
 
     [Theory]
-    [InlineData("Contract", "DRN.Framework.SharedKernel", false)]
-    [InlineData("Contract", "DRN.Framework.Utils", true)]
-    [InlineData("Domain", "DRN.Framework.Utils", false)]
-    [InlineData("Domain", "DRN.Framework.EntityFramework", true)]
-    [InlineData("Utils", "DRN.Framework.Hosting", true)]
-    [InlineData("Domain", "Microsoft.EntityFrameworkCore", false)]
-    [InlineData("Domain", "Microsoft.Extensions.Identity.Stores", false)]
-    [InlineData("Contract", "Neutral.Values", false)]
-    [InlineData("Contract", "DRN.Framework.Hosting.Extensions", false)]
+    [DataInline("Contract", "DRN.Framework.SharedKernel", false)]
+    [DataInline("Contract", "DRN.Framework.Utils", true)]
+    [DataInline("Domain", "DRN.Framework.Utils", false)]
+    [DataInline("Domain", "DRN.Framework.EntityFramework", true)]
+    [DataInline("Utils", "DRN.Framework.Hosting", true)]
+    [DataInline("Domain", "Microsoft.EntityFrameworkCore", false)]
+    [DataInline("Domain", "Microsoft.Extensions.Identity.Stores", false)]
+    [DataInline("Contract", "Neutral.Values", false)]
+    [DataInline("Contract", "DRN.Framework.Hosting.Extensions", false)]
     public void Framework_Package_Rules_Should_Use_Exact_Identities_And_Preserve_Mapping_Dependencies(string role, string package, bool violation)
     {
         var compilation = Compilation("public class Consumer;");
@@ -795,10 +795,10 @@ public sealed class ConventionBoundaryTests
     }
 
     [Theory]
-    [InlineData("User?", "Sample.Domain.QA.User?")]
-    [InlineData("(System.Guid Key, User? Entity)", "Sample.Domain.QA.User?")]
-    [InlineData("(User Entity, int Count)?", "Sample.Domain.QA.User")]
-    [InlineData("System.Collections.Generic.IReadOnlyList<(string Name, User?[] Entities)>", "Sample.Domain.QA.User?")]
+    [DataInline("User?", "Sample.Domain.QA.User?")]
+    [DataInline("(System.Guid Key, User? Entity)", "Sample.Domain.QA.User?")]
+    [DataInline("(User Entity, int Count)?", "Sample.Domain.QA.User")]
+    [DataInline("System.Collections.Generic.IReadOnlyList<(string Name, User?[] Entities)>", "Sample.Domain.QA.User?")]
     public void Nullable_And_Tuple_Contracts_Should_Report_The_Exact_First_Public_Member(string shape, string exposed)
     {
         var facts = ContractFacts($$"""
@@ -839,10 +839,10 @@ public sealed class ConventionBoundaryTests
     }
 
     [Theory]
-    [InlineData("Microsoft.EntityFrameworkCore.DbContext", "Microsoft.EntityFrameworkCore.DbContext")]
-    [InlineData("Microsoft.EntityFrameworkCore.ModelBuilder", "Microsoft.EntityFrameworkCore.ModelBuilder")]
-    [InlineData("Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder", "Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder")]
-    [InlineData("DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<Order>", "DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<Sample.Domain.QA.Order>")]
+    [DataInline("Microsoft.EntityFrameworkCore.DbContext", "Microsoft.EntityFrameworkCore.DbContext")]
+    [DataInline("Microsoft.EntityFrameworkCore.ModelBuilder", "Microsoft.EntityFrameworkCore.ModelBuilder")]
+    [DataInline("Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder", "Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder")]
+    [DataInline("DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<Order>", "DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<Sample.Domain.QA.Order>")]
     public void Contract_Context_And_Repository_Exposure_Should_Report_Exact_Public_Surface(string shape, string exposed)
     {
         var facts = ContractFacts($$"""
@@ -878,8 +878,8 @@ public sealed class ConventionBoundaryTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [DataInline(false)]
+    [DataInline(true)]
     public void Explicit_Neutral_Referenced_Value_Should_Be_Traversed_Without_Exempting_Nested_Persistence(bool exposesEntity)
     {
         var dependency = Compilation($$"""
@@ -909,8 +909,8 @@ public sealed class ConventionBoundaryTests
     }
 
     [Theory]
-    [InlineData("object")]
-    [InlineData("dynamic")]
+    [DataInline("object")]
+    [DataInline("dynamic")]
     public void Opaque_Contract_Values_Should_Not_Fabricate_A_Provable_Entity_Leak(string shape)
     {
         var facts = Facts($$"""
