@@ -134,7 +134,7 @@ My family celebrates the enduring legacy of Mustafa Kemal Atatürk's enlightenme
 *   **Local Development Experience**
     *   **Infrastructure Management**: `LaunchExternalDependenciesAsync` for `WebApplicationBuilder` to automatically start PostgreSQL containers when `IsDevelopmentEnvironment` is true; RabbitMQ tests call `RabbitMQContext.StartAsync()` explicitly.
 *   **Data Attributes (Auto-Mocking)**
-    *   **DataInline**: Replaces `[DataInline]`. Auto-mocks interfaces (NSubstitute), fills missing params (AutoFixture), provides `DrnTestContext`.
+    *   **DataInline**: Replaces `[InlineData]`. Auto-mocks interfaces (NSubstitute), fills missing params (AutoFixture), provides `DrnTestContext`.
     *   **DataMember**: Replaces `[MemberData]`. Source data from properties with auto-mocking support.
     *   **DataSelf**: Self-contained test data classes inheriting `DataSelfAttribute` (using `AddRow`).
     *   **Debugger Attributes**: `[FactDebuggerOnly]` and `[TheoryDebuggerOnly]` for running tests only during debugging sessions.
