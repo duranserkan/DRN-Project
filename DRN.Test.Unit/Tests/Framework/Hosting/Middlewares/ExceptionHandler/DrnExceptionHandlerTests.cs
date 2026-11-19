@@ -431,6 +431,33 @@ public class DrnExceptionHandlerTests
         context.User.Should().BeSameAs(original);
     }
 
+    [Fact]
+    public async Task Diagnostics_Should_Use_The_Last_Successful_Scheme_As_Primary()
+    {
+        const string diagnostics = "Diagnostics";
+        const string secondary = "Secondary";
+        var authentication = Substitute.For<IAuthenticationService>();
+        var registrations = DiagnosticsServices().AddSingleton(authentication);
+        registrations.Configure<AuthorizationOptions>(options => options.AddPolicy(DeveloperExceptionAccess.Policy,
+            policy => policy.AddAuthenticationSchemes(diagnostics, secondary)
+                .RequireAssertion(auth => auth.User.Identity?.AuthenticationType == secondary && auth.User.Identities.Count() == 2)));
+        using var services = registrations.BuildServiceProvider();
+        var original = new ClaimsPrincipal();
+        var context = new DefaultHttpContext { RequestServices = services, User = original };
+        var subject = new Claim(ClaimTypes.NameIdentifier, "viewer");
+        var diagnosticsIdentity = new ClaimsIdentity([subject, new Claim("amr", "mfa"), new Claim("TestPagesAccess", "true")], diagnostics);
+        var diagnosticsUser = new ClaimsPrincipal(new[] { new ClaimsIdentity(), diagnosticsIdentity });
+        var secondaryUser = new ClaimsPrincipal(new ClaimsIdentity([subject], secondary));
+        authentication.AuthenticateAsync(context, diagnostics).Returns(AuthenticateResult.Success(new AuthenticationTicket(diagnosticsUser, diagnostics)));
+        authentication.AuthenticateAsync(context, secondary).Returns(AuthenticateResult.Success(new AuthenticationTicket(secondaryUser, secondary)));
+        var settings = Substitute.For<IAppSettings>();
+        settings.IsDevelopmentEnvironment.Returns(true);
+
+        (await DeveloperExceptionAccess.AllowsAsync(settings, context)).Should().BeTrue();
+        context.User.Should().BeSameAs(original);
+        original.Identities.Should().BeEmpty();
+    }
+
     [Theory]
     [DataInlineUnit(false, false)]
     [DataInlineUnit(true, false)]

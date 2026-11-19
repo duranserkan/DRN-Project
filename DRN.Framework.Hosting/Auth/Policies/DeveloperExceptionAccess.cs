@@ -33,13 +33,14 @@ public static class DeveloperExceptionAccess
             if (policy.AuthenticationSchemes.Count > 0)
             {
                 // Evaluate only the selected schemes without replacing the failing request's principal.
-                viewer = new ClaimsPrincipal();
+                var identities = new List<ClaimsIdentity>();
                 foreach (var scheme in policy.AuthenticationSchemes)
                 {
                     var result = await context.AuthenticateAsync(scheme);
                     if (result.Succeeded)
-                        viewer.AddIdentities(result.Principal!.Identities);
+                        identities.InsertRange(0, result.Principal!.Identities.Where(identity => identity.IsAuthenticated || identity.Claims.Any()));
                 }
+                viewer = new ClaimsPrincipal(identities);
             }
 
             if (!Allows(settings, viewer, services.GetService<AuthenticationClaimConfig>()))
