@@ -6,6 +6,7 @@ using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Data.Encryption;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Time;
+using DRN.Test.Utils.Testing;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 
@@ -1256,12 +1257,12 @@ public class SourceKnownEntityIdUtilsTests
         public static byte AppId => Value;
     }
 
-    [EntityType<SampleApp5>(200)]
+    [FixtureEntityType<SampleApp5>(FixtureEntityTypes.X)]
     internal class XEntity(long id) : SourceKnownEntity(id);
-    [EntityType<SampleApp5>(201)]
+    [FixtureEntityType<SampleApp5>(FixtureEntityTypes.Y)]
     internal class YEntity(long id) : SourceKnownEntity(id);
 
-    [EntityType<SampleApp6>(200)]
+    [FixtureEntityType<SampleApp6>(FixtureEntityTypes.X)]
     [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
     internal class XEntityInApp6(long id) : SourceKnownEntity(id);
 }

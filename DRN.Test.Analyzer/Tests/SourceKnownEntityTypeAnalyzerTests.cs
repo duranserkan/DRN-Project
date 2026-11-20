@@ -12,7 +12,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
         const string testCode = """
                                 using DRN.Framework.SharedKernel.Domain;
 
-                                [EntityType<DefaultApp>(1)]
+                                [FixtureType<DefaultApp>(FixtureKind.One)]
                                 public class ValidEntity : SourceKnownEntity;
                                 """;
 
@@ -77,10 +77,10 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
         const string testCode = """
                                 using DRN.Framework.SharedKernel.Domain;
 
-                                [EntityType<DefaultApp>(5)]
+                                [FixtureType<DefaultApp>(FixtureKind.Five)]
                                 public class FirstEntity : SourceKnownEntity;
 
-                                [EntityType<DefaultApp>(5)]
+                                [FixtureType<DefaultApp>(FixtureKind.Five)]
                                 public class SecondEntity : SourceKnownEntity;
                                 """;
 
@@ -98,13 +98,13 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
         const string testCode = """
                                 using DRN.Framework.SharedKernel.Domain;
 
-                                [EntityType<DefaultApp>(1)]
+                                [FixtureType<DefaultApp>(FixtureKind.One)]
                                 public class FirstEntity : SourceKnownEntity;
 
-                                [EntityType<DefaultApp>(2)]
+                                [FixtureType<DefaultApp>(FixtureKind.Two)]
                                 public class SecondEntity : SourceKnownEntity;
 
-                                [EntityType<DefaultApp>(3)]
+                                [FixtureType<DefaultApp>(FixtureKind.Three)]
                                 public class ThirdEntity : AggregateRoot;
                                 """;
 
@@ -119,7 +119,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
         const string testCode = """
                                 using DRN.Framework.SharedKernel.Domain;
 
-                                [EntityType<DefaultApp>(1)]
+                                [FixtureType<DefaultApp>(FixtureKind.One)]
                                 public abstract class AbstractEntityWithAttribute : SourceKnownEntity;
                                 """;
 
@@ -137,7 +137,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
         const string testCode = """
                                 using DRN.Framework.SharedKernel.Domain;
 
-                                [EntityType<DefaultApp>(1)]
+                                [FixtureType<DefaultApp>(FixtureKind.One)]
                                 public class RegularNonEntityClass;
                                 """;
 
@@ -157,7 +157,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                 public class Fixture
                                 {
-                                    [EntityType<DefaultApp>(1)]
+                                    [FixtureType<DefaultApp>(FixtureKind.One)]
                                     private class PrivateEntity : SourceKnownEntity;
                                 }
                                 """;
@@ -188,7 +188,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
     }
 
     [Fact]
-    public async Task EnumCastInEntityType_WorksAndDetectsDuplicates()
+    public async Task AliasedEnumValues_DetectDuplicates()
     {
         const string testCode = """
                                 using DRN.Framework.SharedKernel.Domain;
@@ -199,10 +199,12 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                     ItemDuplicate = 10
                                 }
 
-                                [EntityType<DefaultApp>((byte)DomainEntityTypes.ItemOne)]
+                                public sealed class DomainTypeAttribute(DomainEntityTypes kind) : EntityTypeAttribute<DefaultApp>((byte)kind);
+
+                                [DomainType(DomainEntityTypes.ItemOne)]
                                 public class EntityA : SourceKnownEntity;
 
-                                [EntityType<DefaultApp>((byte)DomainEntityTypes.ItemDuplicate)]
+                                [DomainType(DomainEntityTypes.ItemDuplicate)]
                                 public class EntityB : SourceKnownEntity;
                                 """;
 
@@ -222,13 +224,13 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                 namespace DomainA
                                 {
-                                    [EntityType<DefaultApp>(1)]
+                                    [FixtureType<DefaultApp>(FixtureKind.One)]
                                     public class User : SourceKnownEntity;
                                 }
 
                                 namespace DomainB
                                 {
-                                    [EntityType<DefaultApp>(2)]
+                                    [FixtureType<DefaultApp>(FixtureKind.Two)]
                                     public class User : SourceKnownEntity;
                                 }
                                 """;
@@ -249,7 +251,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                 namespace DomainA
                                 {
-                                    [EntityType<DefaultApp>(1)]
+                                    [FixtureType<DefaultApp>(FixtureKind.One)]
                                     public class User : SourceKnownEntity;
                                 }
 
@@ -275,7 +277,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                         namespace ExternalDomain
                                         {
-                                            [EntityType<DefaultApp>(42)]
+                                            [FixtureType<DefaultApp>(FixtureKind.FortyTwo)]
                                             public class ExternalEntity : SourceKnownEntity;
                                         }
                                         """;
@@ -285,7 +287,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                        namespace LocalDomain
                                        {
-                                           [EntityType<DefaultApp>(42)]
+                                           [FixtureType<DefaultApp>(FixtureKind.FortyTwo)]
                                            public class LocalEntity : SourceKnownEntity;
                                        }
                                        """;
@@ -307,7 +309,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                         namespace ExternalDomain
                                         {
-                                            [EntityType<DefaultApp>(1)]
+                                            [FixtureType<DefaultApp>(FixtureKind.One)]
                                             public class Order : SourceKnownEntity;
                                         }
                                         """;
@@ -317,7 +319,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                        namespace LocalDomain
                                        {
-                                           [EntityType<DefaultApp>(2)]
+                                           [FixtureType<DefaultApp>(FixtureKind.Two)]
                                            public class Order : SourceKnownEntity;
                                        }
                                        """;
@@ -338,7 +340,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                         namespace ExternalDomain
                                         {
-                                            [EntityType<DefaultApp>(42)]
+                                            [FixtureType<DefaultApp>(FixtureKind.FortyTwo)]
                                             public class ExternalEntity : SourceKnownEntity;
                                         }
                                         """;
@@ -382,7 +384,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                 namespace LocalDomain
                                 {
-                                    [EntityType<DefaultApp>({{entityType}})]
+                                    [FixtureType<DefaultApp>((FixtureKind){{entityType}})]
                                     public class ConflictingEntity : SourceKnownEntity;
                                 }
                                 """;
@@ -410,18 +412,122 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
     }
 
     [Fact]
+    public async Task ByteConstructors_AreRejectedOnLocalAndReferencedEntities()
+    {
+        const string producer = """
+            using DRN.Framework.SharedKernel.Domain;
+            [EntityType<DefaultApp>((byte)FixtureKind.One)] public class DirectEntity : SourceKnownEntity;
+            [TestEntityType(2)] public class LegacyEntity : SourceKnownEntity;
+            """;
+
+        var local = await RunAnalyzerAsync(producer);
+        local.Should().HaveCount(2);
+        local.Should().OnlyContain(d => d.Id == "DRNENTITY008" && d.Location.IsInSource);
+        var localMessages = local.Select(d => d.GetMessage()).ToArray();
+        localMessages.Should().ContainSingle(message => message.Contains("'EntityTypeAttribute'."));
+        localMessages.Should().ContainSingle(message => message.Contains("'TestEntityTypeAttribute'."));
+
+        const string otherProducer = """
+            using DRN.Framework.SharedKernel.Domain;
+            namespace Orders;
+            [EntityType<DefaultApp>(1)] public class DirectEntity : SourceKnownEntity;
+            """;
+        var referenced = await RunAnalyzerWithMultipleReferencesAsync([("First.Domain", producer), ("Second.Domain", otherProducer)]);
+        referenced.Should().HaveCount(3);
+        referenced.Should().OnlyContain(d => d.Id == "DRNENTITY008" && d.Location == Location.None);
+        var messages = referenced.Select(d => d.GetMessage()).ToArray();
+        messages.Should().ContainSingle(message => message.Contains(
+            "'DRN.Framework.SharedKernel.Domain.EntityTypeAttribute<DRN.Framework.SharedKernel.Domain.DefaultApp>' on 'First.Domain::DirectEntity'"));
+        messages.Should().ContainSingle(message => message.Contains(
+            "'DRN.Framework.SharedKernel.Domain.TestEntityTypeAttribute' on 'First.Domain::LegacyEntity'"));
+        messages.Should().ContainSingle(message => message.Contains(
+            "'DRN.Framework.SharedKernel.Domain.EntityTypeAttribute<DRN.Framework.SharedKernel.Domain.DefaultApp>' on 'Second.Domain::Orders.DirectEntity'"));
+    }
+
+    [Fact]
+    public async Task ReferencedWideEnum_IsRejectedEvenWhenItsValueFitsInAByte()
+    {
+        const string producer = """
+            using DRN.Framework.SharedKernel.Domain;
+            public enum WideKind : ushort { First = 1 }
+            public sealed class WideAttribute(WideKind kind) : EntityTypeAttribute<DefaultApp>((byte)kind);
+            """;
+        const string consumer = """
+            using DRN.Framework.SharedKernel.Domain;
+            [Wide(WideKind.First)] public class Entity : SourceKnownEntity;
+            """;
+
+        var diagnostic = (await RunAnalyzerWithReferenceAsync(producer, consumer)).Should().ContainSingle().Which;
+        diagnostic.Id.Should().Be("DRNENTITY008");
+        AnalyzerTestCompilation.LocationText(diagnostic).Should().Be("Wide(WideKind.First)");
+    }
+
+    [Fact]
+    public async Task ReferencedGenericEnumBaseAttribute_IsRejectedEvenWhenClosedWithByteEnum()
+    {
+        const string producer = """
+            using System;
+            using DRN.Framework.SharedKernel.Domain;
+            public abstract class GenericBaseAttribute<TApp, TEnum> : EntityTypeAttribute<TApp>
+                where TApp : IAppId where TEnum : struct, Enum
+            {
+                protected GenericBaseAttribute(TEnum kind) : base((byte)(object)kind) { }
+            }
+            public sealed class LeafAttribute(FixtureKind kind) : GenericBaseAttribute<DefaultApp, FixtureKind>(kind);
+            """;
+        const string consumer = """
+            using DRN.Framework.SharedKernel.Domain;
+            [Leaf(FixtureKind.One)] public class Entity : SourceKnownEntity;
+            """;
+
+        var diagnostic = (await RunAnalyzerWithReferenceAsync(producer, consumer)).Should().ContainSingle().Which;
+        diagnostic.Id.Should().Be("DRNENTITY008");
+        AnalyzerTestCompilation.LocationText(diagnostic).Should().Be("Leaf(FixtureKind.One)");
+    }
+
+    [Fact]
+    public async Task ByteIntermediateAttribute_IsRejectedLocallyAndFromMetadata()
+    {
+        const string producer = """
+            using DRN.Framework.SharedKernel.Domain;
+            public class RawBaseAttribute(byte value) : EntityTypeAttribute<DefaultApp>(value);
+            public sealed class EnumLeafAttribute(FixtureKind kind) : RawBaseAttribute((byte)kind);
+            [EnumLeaf(FixtureKind.One)] public class Entity : SourceKnownEntity;
+            """;
+        const string consumer = """
+            using DRN.Framework.SharedKernel.Domain;
+            [EnumLeaf(FixtureKind.Two)] public class LocalEntity : SourceKnownEntity;
+            """;
+
+        var local = await RunAnalyzerAsync(producer);
+        local.Should().OnlyContain(d => d.Id == "DRNENTITY008");
+        local.Select(AnalyzerTestCompilation.LocationText)
+            .Should().BeEquivalentTo(["RawBaseAttribute", "EnumLeafAttribute", "EnumLeaf(FixtureKind.One)"]);
+
+        var referenced = await RunAnalyzerWithReferenceAsync(producer, consumer);
+        referenced.Should().HaveCount(2);
+        referenced.Should().OnlyContain(d => d.Id == "DRNENTITY008");
+        referenced.Should().ContainSingle(d => d.Location == Location.None);
+        var localDiagnostic = referenced.Should().ContainSingle(d => d.Location.IsInSource).Which;
+        AnalyzerTestCompilation.LocationText(localDiagnostic).Should().Be("EnumLeaf(FixtureKind.Two)");
+    }
+
+    [Fact]
     public async Task DerivedAttribute_UnsupportedConstructors_AreRejectedAtDeclaration()
     {
         string[] declarations =
         [
-            "public sealed class CustomAttribute(byte value) : EntityTypeAttribute<DefaultApp>((byte)(value + 1));",
-            "public sealed class CustomAttribute(byte ignored, byte entityType) : EntityTypeAttribute<DefaultApp>(entityType);",
-            "public sealed class CustomAttribute(byte entityType, byte unrelated) : EntityTypeAttribute<DefaultApp>(entityType);",
+            "public sealed class CustomAttribute(byte value) : EntityTypeAttribute<DefaultApp>(value);",
+            "public enum Kind { One = 1 } public sealed class CustomAttribute(Kind kind) : EntityTypeAttribute<DefaultApp>((byte)kind);",
+            "public enum Kind : sbyte { One = 1 } public sealed class CustomAttribute(Kind kind) : EntityTypeAttribute<DefaultApp>((byte)kind);",
+            "public sealed class CustomAttribute(FixtureKind value) : EntityTypeAttribute<DefaultApp>((byte)((byte)value + 1));",
+            "public sealed class CustomAttribute(FixtureKind ignored, FixtureKind entityType) : EntityTypeAttribute<DefaultApp>((byte)entityType);",
+            "public sealed class CustomAttribute(FixtureKind entityType, FixtureKind unrelated) : EntityTypeAttribute<DefaultApp>((byte)entityType);",
             "public sealed class CustomAttribute() : EntityTypeAttribute<DefaultApp>(42);",
-            "public sealed class CustomAttribute(byte entityType) : EntityTypeAttribute<DefaultApp>(42);",
-            "public sealed class CustomAttribute(byte entityType) : EntityTypeAttribute(entityType, 5);",
-            "public sealed class CustomAttribute : EntityTypeAttribute<DefaultApp> { public CustomAttribute(byte value) : base((byte)(value + 1)) {} }",
-            "public sealed class CustomAttribute : EntityTypeAttribute<DefaultApp> { public CustomAttribute() : base(1) {} public CustomAttribute(byte value) : base(value) {} }"
+            "public sealed class CustomAttribute(FixtureKind entityType) : EntityTypeAttribute<DefaultApp>(42);",
+            "public sealed class CustomAttribute(FixtureKind entityType) : EntityTypeAttribute((byte)entityType, 5);",
+            "public sealed class CustomAttribute : EntityTypeAttribute<DefaultApp> { public CustomAttribute(FixtureKind value) : base((byte)((byte)value + 1)) {} }",
+            "public sealed class CustomAttribute : EntityTypeAttribute<DefaultApp> { public CustomAttribute() : base(1) {} public CustomAttribute(FixtureKind value) : base((byte)value) {} }"
         ];
 
         foreach (var declaration in declarations)
@@ -438,7 +544,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
         const string source = """
                               using DRN.Framework.SharedKernel.Domain;
                               public interface IOther;
-                              public sealed class CustomAttribute(byte value) : EntityTypeAttribute<DefaultApp>(value), IOther;
+                              public sealed class CustomAttribute(FixtureKind value) : EntityTypeAttribute<DefaultApp>((byte)value), IOther;
                               """;
         var tree = CSharpSyntaxTree.ParseText(source);
         var root = await tree.GetRootAsync();
@@ -474,7 +580,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                   public static byte AppId => (byte)Partition;
                                   private static int Partition => Value;
                               }
-                              [EntityType<App>(42)] public class Entity : SourceKnownEntity;
+                              [FixtureType<App>(FixtureKind.FortyTwo)] public class Entity : SourceKnownEntity;
                               """;
         var compilation = CSharpCompilation.Create("Domain",
             [CSharpSyntaxTree.ParseText(source)], GetBaseReferences(),
@@ -504,9 +610,9 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
     {
         const string source = """
                               using DRN.Framework.SharedKernel.Domain;
-                              public sealed class CustomAttribute(byte value) : EntityTypeAttribute<DefaultApp>((byte)(value + 1));
-                              [Custom(1)] public class First : SourceKnownEntity;
-                              [EntityType<DefaultApp>(1)] public class Second : SourceKnownEntity;
+                              public sealed class CustomAttribute(FixtureKind value) : EntityTypeAttribute<DefaultApp>((byte)((byte)value + 1));
+                              [Custom(FixtureKind.One)] public class First : SourceKnownEntity;
+                              [FixtureType<DefaultApp>(FixtureKind.One)] public class Second : SourceKnownEntity;
                               """;
 
         var diagnostics = await RunAnalyzerAsync(source);
@@ -520,16 +626,16 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
         const string producer = """
                                 using DRN.Framework.SharedKernel.Domain;
                                 public enum Kinds : byte { First = 42 }
-                                public class DomainAttribute<TApp>(byte value) : EntityTypeAttribute<TApp>(value) where TApp : IAppId;
+                                public class DomainAttribute<TApp>(Kinds value) : EntityTypeAttribute<TApp>((byte)value) where TApp : IAppId;
                                 public sealed class CustomAttribute : DomainAttribute<DefaultApp>
                                 {
-                                    public CustomAttribute(Kinds kind) : base((byte)(kind)) {}
+                                    public CustomAttribute(Kinds kind) : base((kind)) {}
                                 }
                                 [Custom(Kinds.First)] public class First : SourceKnownEntity;
                                 """;
         const string consumer = """
                                 using DRN.Framework.SharedKernel.Domain;
-                                [EntityType<DefaultApp>(42)] public class Second : SourceKnownEntity;
+                                [FixtureType<DefaultApp>(FixtureKind.FortyTwo)] public class Second : SourceKnownEntity;
                                 """;
 
         var localDiagnostics = await RunAnalyzerAsync(producer, consumer);
@@ -565,12 +671,12 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
     {
         const string source = """
                               using DRN.Framework.SharedKernel.Domain;
-                              public sealed class CustomAttribute(byte value) : EntityTypeAttribute<DefaultApp>(value)
+                              public sealed class CustomAttribute(FixtureKind value) : EntityTypeAttribute<DefaultApp>((byte)value)
                               {
                                   public new byte AppId { get; set; }
                               }
-                              [Custom(42, AppId = 10)] public class First : SourceKnownEntity;
-                              [EntityType<DefaultApp>(42)] public class Second : SourceKnownEntity;
+                              [Custom(FixtureKind.FortyTwo, AppId = 10)] public class First : SourceKnownEntity;
+                              [FixtureType<DefaultApp>(FixtureKind.FortyTwo)] public class Second : SourceKnownEntity;
                               """;
 
         var diagnostics = await RunAnalyzerAsync(source);
@@ -594,7 +700,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                 """;
         const string consumer = """
                                 using DRN.Framework.SharedKernel.Domain;
-                                [EntityType<DefaultApp>(1)] public class Entity : SourceKnownEntity;
+                                [FixtureType<DefaultApp>(FixtureKind.One)] public class Entity : SourceKnownEntity;
                                 """;
 
         (await RunAnalyzerAsync(producer, consumer)).Should().BeEmpty();
@@ -613,13 +719,13 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                 {
                                     private class Container
                                     {
-                                        [EntityType<DefaultApp>(1)] public class Entity : SourceKnownEntity;
+                                        [FixtureType<DefaultApp>(FixtureKind.One)] public class Entity : SourceKnownEntity;
                                     }
                                 }
                                 """;
         const string consumer = """
                                 using DRN.Framework.SharedKernel.Domain;
-                                [EntityType<DefaultApp>(1)] public class Entity : SourceKnownEntity;
+                                [FixtureType<DefaultApp>(FixtureKind.One)] public class Entity : SourceKnownEntity;
                                 """;
 
         var diagnostics = await RunAnalyzerAsync(producer, consumer);
@@ -634,17 +740,17 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
         const string source1 = """
                                using DRN.Framework.SharedKernel.Domain;
 
-                               [EntityType<DefaultApp>(7)]
+                               [FixtureType<DefaultApp>(FixtureKind.Seven)]
                                public class AlphaEntity : SourceKnownEntity;
                                """;
 
         const string source2 = """
                                using DRN.Framework.SharedKernel.Domain;
 
-                               [EntityType<DefaultApp>(7)]
+                               [FixtureType<DefaultApp>(FixtureKind.Seven)]
                                public class BetaEntity : SourceKnownEntity;
 
-                               [EntityType<DefaultApp>(7)]
+                               [FixtureType<DefaultApp>(FixtureKind.Seven)]
                                public class GammaEntity : SourceKnownEntity;
                                """;
 
@@ -669,7 +775,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                namespace DomainA
                                {
-                                   [EntityType<DefaultApp>(1)]
+                                   [FixtureType<DefaultApp>(FixtureKind.One)]
                                    public class Customer : SourceKnownEntity;
                                }
                                """;
@@ -679,13 +785,13 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                namespace DomainB
                                {
-                                   [EntityType<DefaultApp>(2)]
+                                   [FixtureType<DefaultApp>(FixtureKind.Two)]
                                    public class Customer : SourceKnownEntity;
                                }
 
                                namespace DomainC
                                {
-                                   [EntityType<DefaultApp>(3)]
+                                   [FixtureType<DefaultApp>(FixtureKind.Three)]
                                    public class Customer : SourceKnownEntity;
                                }
                                """;
@@ -713,7 +819,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                     namespace DomainA
                                     {
-                                        [EntityType<DefaultApp>(42)]
+                                        [FixtureType<DefaultApp>(FixtureKind.FortyTwo)]
                                         public class EntityA : SourceKnownEntity;
                                     }
                                     """),
@@ -722,7 +828,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                     namespace DomainB
                                     {
-                                        [EntityType<DefaultApp>(42)]
+                                        [FixtureType<DefaultApp>(FixtureKind.FortyTwo)]
                                         public class EntityB : SourceKnownEntity;
                                     }
                                     """)
@@ -744,17 +850,17 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
     {
         const string producer = """
                                 using DRN.Framework.SharedKernel.Domain;
-                                namespace External { [EntityType<DefaultApp>(7)] public class Row : SourceKnownEntity; }
+                                namespace External { [FixtureType<DefaultApp>(FixtureKind.Seven)] public class Row : SourceKnownEntity; }
                                 """;
         const string consumer = """
                                 using DRN.Framework.SharedKernel.Domain;
-                                namespace First { [EntityType<DefaultApp>(7)] public class Row : SourceKnownEntity; }
-                                namespace Second { [EntityType<DefaultApp>(7)] public class Row : SourceKnownEntity; }
+                                namespace First { [FixtureType<DefaultApp>(FixtureKind.Seven)] public class Row : SourceKnownEntity; }
+                                namespace Second { [FixtureType<DefaultApp>(FixtureKind.Seven)] public class Row : SourceKnownEntity; }
                                 """;
         var diagnostics = await RunAnalyzerWithReferenceAsync(producer, consumer);
         diagnostics.Should().HaveCount(4);
         diagnostics.Where(d => d.Id == "DRNENTITY002").Should().HaveCount(2).And.OnlyContain(d =>
-            d.GetMessage().Contains("ReferencedDomainAssembly::Row") && AnalyzerTestCompilation.LocationText(d) == "EntityType<DefaultApp>(7)");
+            d.GetMessage().Contains("ReferencedDomainAssembly::Row") && AnalyzerTestCompilation.LocationText(d) == "FixtureType<DefaultApp>(FixtureKind.Seven)");
         var names = diagnostics.Where(d => d.Id == "DRNENTITY004").OrderBy(d => d.Location.SourceSpan.Start).ToArray();
         names.Should().HaveCount(2);
         names[0].GetMessage().Should().Contain("First.Row").And.Contain("External.Row");
@@ -792,7 +898,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
         var compilation = CSharpCompilation.Create("Mixed", [
             CSharpSyntaxTree.ParseText("""
                                        using DRN.Framework.SharedKernel.Domain;
-                                       [EntityType<DefaultApp>(1)] public abstract partial class MixedEntity : SourceKnownEntity;
+                                       [FixtureType<DefaultApp>(FixtureKind.One)] public abstract partial class MixedEntity : SourceKnownEntity;
                                        """, path: "Model.g.cs"),
             CSharpSyntaxTree.ParseText("public abstract partial class MixedEntity;", path: "User.cs")
         ], GetBaseReferences(), new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
@@ -835,7 +941,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                     namespace DomainA
                                     {
-                                        [EntityType<DefaultApp>(1)]
+                                        [FixtureType<DefaultApp>(FixtureKind.One)]
                                         public class Product : SourceKnownEntity;
                                     }
                                     """),
@@ -844,7 +950,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                     namespace DomainB
                                     {
-                                        [EntityType<DefaultApp>(2)]
+                                        [FixtureType<DefaultApp>(FixtureKind.Two)]
                                         public class Product : SourceKnownEntity;
                                     }
                                     """)
@@ -871,7 +977,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                      namespace CommonDomain
                                      {
-                                         [EntityType<DefaultApp>(10)]
+                                         [FixtureType<DefaultApp>(FixtureKind.Ten)]
                                          public class SharedEntity : SourceKnownEntity;
                                      }
                                      """),
@@ -881,7 +987,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                     namespace DomainA
                                     {
-                                        [EntityType<DefaultApp>(20)]
+                                        [FixtureType<DefaultApp>(FixtureKind.Twenty)]
                                         public class EntityA : SourceKnownEntity
                                         {
                                             public SharedEntity? Shared { get; set; }
@@ -894,7 +1000,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                     namespace DomainB
                                     {
-                                        [EntityType<DefaultApp>(30)]
+                                        [FixtureType<DefaultApp>(FixtureKind.Thirty)]
                                         public class EntityB : SourceKnownEntity
                                         {
                                             public SharedEntity? Shared { get; set; }
@@ -926,10 +1032,10 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                     public static byte AppId => Value;
                                 }
 
-                                [EntityType<App5>(1)]
+                                [FixtureType<App5>(FixtureKind.One)]
                                 public class FirstEntity : SourceKnownEntity;
 
-                                [EntityType<App6>(1)]
+                                [FixtureType<App6>(FixtureKind.One)]
                                 public class SecondEntity : SourceKnownEntity;
                                 """;
 
@@ -950,10 +1056,10 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                     public static byte AppId => Value;
                                 }
 
-                                [EntityType<App5>(1)]
+                                [FixtureType<App5>(FixtureKind.One)]
                                 public class FirstEntity : SourceKnownEntity;
 
-                                [EntityType<App5>(1)]
+                                [FixtureType<App5>(FixtureKind.One)]
                                 public class SecondEntity : SourceKnownEntity;
                                 """;
 
@@ -985,13 +1091,13 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                 namespace DomainA
                                 {
-                                    [EntityType<App5>(1)]
+                                    [FixtureType<App5>(FixtureKind.One)]
                                     public class Customer : SourceKnownEntity;
                                 }
 
                                 namespace DomainB
                                 {
-                                    [EntityType<App6>(1)]
+                                    [FixtureType<App6>(FixtureKind.One)]
                                     public class Customer : SourceKnownEntity;
                                 }
                                 """;
@@ -1015,13 +1121,13 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                 namespace DomainA
                                 {
-                                    [EntityType<App5>(1)]
+                                    [FixtureType<App5>(FixtureKind.One)]
                                     public class Customer : SourceKnownEntity;
                                 }
 
                                 namespace DomainB
                                 {
-                                    [EntityType<App5>(2)]
+                                    [FixtureType<App5>(FixtureKind.Two)]
                                     public class Customer : SourceKnownEntity;
                                 }
                                 """;
@@ -1052,10 +1158,10 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                     public static byte AppId => Value;
                                 }
 
-                                [EntityType<CustomNexusApp>(1)]
+                                [FixtureType<CustomNexusApp>(FixtureKind.One)]
                                 public class NexusDevice : SourceKnownEntity;
 
-                                [EntityType<SampleApp>(1)]
+                                [FixtureType<SampleApp>(FixtureKind.One)]
                                 public class SampleAuthor : SourceKnownEntity;
                                 """;
 
@@ -1076,10 +1182,10 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                     public static byte AppId => Value;
                                 }
 
-                                [EntityType<CustomNexusApp>(1)]
+                                [FixtureType<CustomNexusApp>(FixtureKind.One)]
                                 public class FirstDevice : SourceKnownEntity;
 
-                                [EntityType<CustomNexusApp>(1)]
+                                [FixtureType<CustomNexusApp>(FixtureKind.One)]
                                 public class SecondDevice : SourceKnownEntity;
                                 """;
 
@@ -1103,7 +1209,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                     public static byte AppId => Value;
                                 }
 
-                                public sealed class CustomNexusEntityTypeAttribute(byte entityType) : EntityTypeAttribute<CustomNexusApp>(entityType);
+                                public sealed class CustomNexusEntityTypeAttribute(FixtureKind entityType) : EntityTypeAttribute<CustomNexusApp>((byte)entityType);
 
                                 public readonly struct SampleApp : IAppId
                                 {
@@ -1111,12 +1217,12 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                     public static byte AppId => Value;
                                 }
 
-                                public sealed class SampleEntityTypeAttribute(byte entityType) : EntityTypeAttribute<SampleApp>(entityType);
+                                public sealed class SampleEntityTypeAttribute(FixtureKind entityType) : EntityTypeAttribute<SampleApp>((byte)entityType);
 
-                                [CustomNexusEntityType(1)]
+                                [CustomNexusEntityType(FixtureKind.One)]
                                 public class NexusDevice : SourceKnownEntity;
 
-                                [SampleEntityType(1)]
+                                [SampleEntityType(FixtureKind.One)]
                                 public class SampleAuthor : SourceKnownEntity;
                                 """;
 
@@ -1137,12 +1243,12 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                     public static byte AppId => Value;
                                 }
 
-                                public sealed class CustomNexusEntityTypeAttribute(byte entityType) : EntityTypeAttribute<CustomNexusApp>(entityType);
+                                public sealed class CustomNexusEntityTypeAttribute(FixtureKind entityType) : EntityTypeAttribute<CustomNexusApp>((byte)entityType);
 
-                                [CustomNexusEntityType(1)]
+                                [CustomNexusEntityType(FixtureKind.One)]
                                 public class FirstDevice : SourceKnownEntity;
 
-                                [CustomNexusEntityType(1)]
+                                [CustomNexusEntityType(FixtureKind.One)]
                                 public class SecondDevice : SourceKnownEntity;
                                 """;
 
@@ -1170,10 +1276,10 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                         public static byte AppId => Value;
                                     }
 
-                                    [EntityType<NestedApp>(1)]
+                                    [FixtureType<NestedApp>(FixtureKind.One)]
                                     public class NestedEntity : SourceKnownEntity;
 
-                                    [EntityType<DefaultApp>(1)]
+                                    [FixtureType<DefaultApp>(FixtureKind.One)]
                                     public class DefaultEntity : SourceKnownEntity;
                                 }
                                 """;
@@ -1189,13 +1295,13 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
         const string testCode = """
                                 using DRN.Framework.SharedKernel.Domain;
 
-                                [EntityType<DefaultApp>(1)]
+                                [FixtureType<DefaultApp>(FixtureKind.One)]
                                 public class DefaultEntity : SourceKnownEntity;
 
-                                [EntityType<NexusApp>(1)]
+                                [FixtureType<NexusApp>(FixtureKind.One)]
                                 public class NexusEntity : SourceKnownEntity;
 
-                                [TestEntityType(1)]
+                                [FixtureType<TestApp>(FixtureKind.One)]
                                 public class TestEntity : SourceKnownEntity;
                                 """;
 
@@ -1220,7 +1326,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                            static byte IAppId.AppId => AppId;
                                        }
 
-                                       [EntityType<App5>(42)]
+                                       [FixtureType<App5>(FixtureKind.FortyTwo)]
                                        public class ExternalEntity : SourceKnownEntity;
                                    }
                                    """)
@@ -1232,7 +1338,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                        namespace LocalDomain
                                        {
-                                           [EntityType<App5>(42)]
+                                           [FixtureType<App5>(FixtureKind.FortyTwo)]
                                            public class LocalEntity : SourceKnownEntity;
                                        }
                                        """;
@@ -1263,7 +1369,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                            static byte IAppId.AppId => AppId;
                                        }
 
-                                       [EntityType<App5>(42)]
+                                       [FixtureType<App5>(FixtureKind.FortyTwo)]
                                        public class ExternalEntity : SourceKnownEntity;
                                    }
                                    """)
@@ -1280,7 +1386,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                                public static byte AppId => Value;
                                            }
 
-                                           [EntityType<App6>(42)]
+                                           [FixtureType<App6>(FixtureKind.FortyTwo)]
                                            public class LocalEntity : SourceKnownEntity;
                                        }
                                        """;
@@ -1309,9 +1415,9 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                            static byte IAppId.AppId => AppId;
                                        }
 
-                                       public sealed class App5EntityTypeAttribute(byte entityType) : EntityTypeAttribute<App5>(entityType);
+                                       public sealed class App5EntityTypeAttribute(FixtureKind entityType) : EntityTypeAttribute<App5>((byte)entityType);
 
-                                       [App5EntityType(42)]
+                                       [App5EntityType(FixtureKind.FortyTwo)]
                                        public class ExternalEntity : SourceKnownEntity;
                                    }
                                    """)
@@ -1323,7 +1429,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                        namespace LocalDomain
                                        {
-                                           [EntityType<App5>(42)]
+                                           [FixtureType<App5>(FixtureKind.FortyTwo)]
                                            public class LocalEntity : SourceKnownEntity;
                                        }
                                        """;
@@ -1355,10 +1461,10 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                     public static byte AppId => Value;
                                 }
 
-                                [EntityType<App1>(1)]
+                                [FixtureType<App1>(FixtureKind.One)]
                                 public class FirstEntity : SourceKnownEntity;
 
-                                [EntityType<App2>(2)]
+                                [FixtureType<App2>(FixtureKind.Two)]
                                 public class SecondEntity : SourceKnownEntity;
                                 """;
 
@@ -1392,10 +1498,10 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                     public static byte AppId => Value;
                                 }
 
-                                [EntityType<App1>(1)]
+                                [FixtureType<App1>(FixtureKind.One)]
                                 public class FirstEntity : SourceKnownEntity;
 
-                                [EntityType<App2>(2)]
+                                [FixtureType<App2>(FixtureKind.Two)]
                                 public class SecondEntity : SourceKnownEntity;
                                 """;
 
@@ -1414,10 +1520,10 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
         const string testCode = """
                                 using DRN.Framework.SharedKernel.Domain;
 
-                                [EntityType<DefaultApp>(1)]
+                                [FixtureType<DefaultApp>(FixtureKind.One)]
                                 public class ProdEntity : SourceKnownEntity;
 
-                                [TestEntityType(2)]
+                                [FixtureType<TestApp>(FixtureKind.Two)]
                                 public class TestEntity : SourceKnownEntity;
                                 """;
 
@@ -1438,7 +1544,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                           public static byte AppId => Value;
                                       }
 
-                                      [EntityType<App1>(1)]
+                                      [FixtureType<App1>(FixtureKind.One)]
                                       public class RefEntity : SourceKnownEntity;
                                       """;
 
@@ -1451,7 +1557,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                          public static byte AppId => Value;
                                      }
 
-                                     [EntityType<App2>(2)]
+                                     [FixtureType<App2>(FixtureKind.Two)]
                                      public class ConsumingEntity : SourceKnownEntity;
                                      """;
 
@@ -1481,10 +1587,10 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                     public static byte AppId => Value;
                                 }
 
-                                [EntityType<App1>(1)]
+                                [FixtureType<App1>(FixtureKind.One)]
                                 public class FirstEntity : SourceKnownEntity;
 
-                                [EntityType<App2>(2)]
+                                [FixtureType<App2>(FixtureKind.Two)]
                                 public class SecondEntity : SourceKnownEntity;
                                 """;
 
@@ -1515,7 +1621,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                            public static byte AppId => 5;
                                        }
 
-                                       [EntityType<PropertyOnlyApp>(42)]
+                                       [FixtureType<PropertyOnlyApp>(FixtureKind.FortyTwo)]
                                        public class ExternalEntity : SourceKnownEntity;
                                    }
                                    """)
@@ -1527,7 +1633,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                        namespace LocalDomain
                                        {
-                                           [EntityType<DefaultApp>(1)]
+                                           [FixtureType<DefaultApp>(FixtureKind.One)]
                                            public class LocalEntity : SourceKnownEntity;
                                        }
                                        """;
@@ -1553,7 +1659,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                     public static byte AppId => Compute();
                                 }
 
-                                [EntityType<UnresolvableApp>(1)]
+                                [FixtureType<UnresolvableApp>(FixtureKind.One)]
                                 public class BadEntity : SourceKnownEntity;
                                 """;
 
@@ -1574,7 +1680,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                     public static byte AppId => 5;
                                 }
 
-                                [EntityType<PropertyOnlyApp>(1)]
+                                [FixtureType<PropertyOnlyApp>(FixtureKind.One)]
                                 public class BadEntity : SourceKnownEntity;
                                 """;
 
@@ -1604,7 +1710,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                              {{property}}
                          }
 
-                         [EntityType<ConflictingApp>(1)]
+                         [FixtureType<ConflictingApp>(FixtureKind.One)]
                          public class BadEntity : SourceKnownEntity;
                          """;
 
@@ -1636,7 +1742,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
         var consumer = CSharpCompilation.Create("Consumer", [
             CSharpSyntaxTree.ParseText("""
                                        using DRN.Framework.SharedKernel.Domain;
-                                       [EntityType<ExternalApp>(42)] public class Entity : SourceKnownEntity;
+                                       [FixtureType<ExternalApp>(FixtureKind.FortyTwo)] public class Entity : SourceKnownEntity;
                                        """)
         ], GetBaseReferences().Add(reference), new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
         var diagnostics = await AnalyzeEntities(consumer, null);
@@ -1656,7 +1762,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                     public static byte AppId => Value;
                                 }
 
-                                [EntityType<GoodApp>(1)]
+                                [FixtureType<GoodApp>(FixtureKind.One)]
                                 public class GoodEntity : SourceKnownEntity;
                                 """;
 
@@ -1739,7 +1845,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                              {{members}}
                          }
 
-                         [EntityType<LabeledApp>(1)]
+                         [FixtureType<LabeledApp>(FixtureKind.One)]
                          public class GoodEntity : SourceKnownEntity;
                          """;
 
@@ -1765,7 +1871,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                     public static byte AppId => Other.Value;
                                 }
 
-                                [EntityType<App>(1)]
+                                [FixtureType<App>(FixtureKind.One)]
                                 public class GoodEntity : SourceKnownEntity;
                                 """;
 
@@ -1791,7 +1897,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                     public static byte AppId => Other.Value;
                                 }
 
-                                [EntityType<App>(1)]
+                                [FixtureType<App>(FixtureKind.One)]
                                 public class BadEntity : SourceKnownEntity;
                                 """;
 
@@ -1815,7 +1921,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                 {{getters}}
             }
 
-            [EntityType<RecursiveApp>(1)]
+            [FixtureType<RecursiveApp>(FixtureKind.One)]
             public class BadEntity : SourceKnownEntity;
             """;
         var diagnostics = await RunAnalyzerAsync(testCode);
@@ -1839,7 +1945,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                     }
                                 }
 
-                                [EntityType<OuterScope.NestedApp>(1)]
+                                [FixtureType<OuterScope.NestedApp>(FixtureKind.One)]
                                 public class BadEntity : SourceKnownEntity;
                                 """;
 
@@ -1861,7 +1967,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                     public static byte AppId => Value;
                                 }
 
-                                [EntityType<PrivateConstApp>(1)]
+                                [FixtureType<PrivateConstApp>(FixtureKind.One)]
                                 public class BadEntity : SourceKnownEntity;
                                 """;
 
@@ -1888,7 +1994,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                     }
                                 }
 
-                                [EntityType<OuterScope.NestedApp>(1)]
+                                [FixtureType<OuterScope.NestedApp>(FixtureKind.One)]
                                 public class GoodEntity : SourceKnownEntity;
                                 """;
 
@@ -1909,7 +2015,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                     public static byte AppId => Value;
                                 }
 
-                                [EntityType<OutOfRangeApp>(1)]
+                                [FixtureType<OutOfRangeApp>(FixtureKind.One)]
                                 public class BadEntity : SourceKnownEntity;
                                 """;
 
@@ -1935,7 +2041,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                            public static byte AppId => Value;
                                        }
 
-                                       [EntityType<OutOfRangeApp>(1)]
+                                       [FixtureType<OutOfRangeApp>(FixtureKind.One)]
                                        public class ExternalEntity : SourceKnownEntity;
                                    }
                                    """)
@@ -1965,13 +2071,13 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                        public abstract class BaseDomainEntity : SourceKnownEntity;
 
-                                       public sealed class CustomEntityTypeAttribute(byte entityType) : EntityTypeAttribute<TransitiveApp1>(entityType);
+                                       public sealed class CustomEntityTypeAttribute(FixtureKind entityType) : EntityTypeAttribute<TransitiveApp1>((byte)entityType);
                                    }
                                    """),
             ("DomainSubmoduleAssembly", """
                                         namespace DomainSubmodule
                                         {
-                                            [DomainBase.CustomEntityType(1)]
+                                            [DomainBase.CustomEntityType(DRN.Framework.SharedKernel.Domain.FixtureKind.One)]
                                             public class TransitiveEntity : DomainBase.BaseDomainEntity;
                                         }
                                         """)
@@ -1986,7 +2092,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                          public static byte AppId => Value;
                                      }
 
-                                     [EntityType<App2>(2)]
+                                     [FixtureType<App2>(FixtureKind.Two)]
                                      public class ConsumingEntity : SourceKnownEntity;
                                      """;
 
@@ -2025,13 +2131,13 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                public abstract class BaseDomainEntity : SourceKnownEntity;
 
-                               public sealed class CustomEntityTypeAttribute(byte entityType) : EntityTypeAttribute<SharedApp>(entityType);
+                               public sealed class CustomEntityTypeAttribute(FixtureKind entityType) : EntityTypeAttribute<SharedApp>((byte)entityType);
                            }
                            """),
             (submoduleAssembly, """
                                 namespace DomainSubmodule
                                 {
-                                    [DomainBase.CustomEntityType(5)]
+                                    [DomainBase.CustomEntityType(DRN.Framework.SharedKernel.Domain.FixtureKind.Five)]
                                     public class TransitiveEntity : DomainBase.BaseDomainEntity;
                                 }
                                 """)
@@ -2040,7 +2146,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
         const string consumingCode = """
                                      using DRN.Framework.SharedKernel.Domain;
 
-                                     [EntityType<DomainBase.SharedApp>(5)]
+                                     [FixtureType<DomainBase.SharedApp>(FixtureKind.Five)]
                                      public class LocalCollidingEntity : SourceKnownEntity;
                                      """;
 
@@ -2067,20 +2173,20 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
         var diagnostics = await RunAnalyzerWithMultipleReferencesAsync([
             ("Vendor.Transitive", """
                                   using DRN.Framework.SharedKernel.Domain;
-                                  [EntityType<DefaultApp>(7)] public class TransitiveEntity : SourceKnownEntity;
+                                  [FixtureType<DefaultApp>(FixtureKind.Seven)] public class TransitiveEntity : SourceKnownEntity;
                                   """),
             ("Vendor.Direct", """
                               using DRN.Framework.SharedKernel.Domain;
-                              [EntityType<DefaultApp>(7)] public class DirectEntity : TransitiveEntity;
+                              [FixtureType<DefaultApp>(FixtureKind.Seven)] public class DirectEntity : TransitiveEntity;
                               """),
             ("DRN.Framework.Utils", """
                                     using DRN.Framework.SharedKernel.Domain;
-                                    [EntityType<DefaultApp>(7)] public class FrameworkEntity : DirectEntity;
+                                    [FixtureType<DefaultApp>(FixtureKind.Seven)] public class FrameworkEntity : DirectEntity;
                                     """),
             ("DRN.Framework.Hosting", "public abstract class FrameworkBase : FrameworkEntity;"),
             ("Vendor.Application", """
                                    using DRN.Framework.SharedKernel.Domain;
-                                   [EntityType<DefaultApp>(7)] public class ApplicationEntity : DirectEntity;
+                                   [FixtureType<DefaultApp>(FixtureKind.Seven)] public class ApplicationEntity : DirectEntity;
                                    """)
         ]);
 
@@ -2099,7 +2205,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
         var options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);
         var producer = CSharpCompilation.Create("Producer.Domain", [CSharpSyntaxTree.ParseText("""
             using DRN.Framework.SharedKernel.Domain;
-            [EntityType<DefaultApp>(5)]
+            [FixtureType<DefaultApp>(FixtureKind.Five)]
             public class ProducerEntity : SourceKnownEntity;
             """)], GetBaseReferences(), options);
         producer.AssertNoCompilerErrors();
@@ -2124,7 +2230,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
         if (includeProducerImage) references = references.Add(AnalyzerTestCompilation.EmitReference(producer));
         var consumer = CSharpCompilation.Create("Consumer.Domain", [CSharpSyntaxTree.ParseText("""
             using DRN.Framework.SharedKernel.Domain;
-            [EntityType<DefaultApp>(5)]
+            [FixtureType<DefaultApp>(FixtureKind.Five)]
             public class ConsumerEntity : SourceKnownEntity;
             """)], references, options);
 
@@ -2161,7 +2267,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                                    public static byte AppId => Value;
                                                }
 
-                                               public sealed class SharedEntityTypeAttribute(byte entityType) : EntityTypeAttribute<SharedApp>(entityType);
+                                               public sealed class SharedEntityTypeAttribute(FixtureKind entityType) : EntityTypeAttribute<SharedApp>((byte)entityType);
                                            }
                                            """, path: "AppPartition.cs")
             ],
@@ -2176,7 +2282,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
 
                                            namespace TransitiveDomain
                                            {
-                                               [AppPartition.SharedEntityType(5)]
+                                               [AppPartition.SharedEntityType(FixtureKind.Five)]
                                                public class TransitiveEntity : SourceKnownEntity;
                                            }
                                            """, path: "DomainCompilation.cs")
@@ -2211,7 +2317,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                                                    public static byte AppId => Value;
                                                }
 
-                                               [EntityType<LocalApp>(5)]
+                                               [FixtureType<LocalApp>(FixtureKind.Five)]
                                                public class CollidingEntity : SourceKnownEntity;
                                            }
                                            """, path: "LeafConsumer.cs")
@@ -2238,7 +2344,7 @@ public sealed class SourceKnownEntityTypeAnalyzerTests
                 CSharpSyntaxTree.ParseText("""
                                            using DRN.Framework.SharedKernel.Domain;
 
-                                           [EntityType<DefaultApp>(1)]
+                                           [FixtureType<DefaultApp>(FixtureKind.One)]
                                            public class Order : SourceKnownEntity;
                                            """, path: "CanceledOrder.cs")
             ],

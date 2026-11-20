@@ -140,7 +140,7 @@ public sealed class SourceKnownEntityUsageAnalyzerTests
     {
         const string first = """
             using DRN.Framework.SharedKernel.Domain;
-            [EntityType<DefaultApp>(1)] public partial class Entity<T> : AggregateRoot;
+            [FixtureType<DefaultApp>(FixtureKind.One)] public partial class Entity<T> : AggregateRoot;
             """;
         const string second = """
             public partial class Entity<T> { public new long Id { get; set; } }
@@ -187,14 +187,14 @@ public sealed class SourceKnownEntityUsageAnalyzerTests
     {
         const string source = """
             using DRN.Framework.SharedKernel.Domain;
-            [EntityType<DefaultApp>(1)] public class Item<T> : SourceKnownEntity;
+            [FixtureType<DefaultApp>(FixtureKind.One)] public class Item<T> : SourceKnownEntity;
             public class Container<T>
             {
-                [EntityType<DefaultApp>(2)] public class Nested : SourceKnownEntity;
+                [FixtureType<DefaultApp>(FixtureKind.Two)] public class Nested : SourceKnownEntity;
             }
             public abstract class Base<T> : SourceKnownEntity;
-            [EntityType<DefaultApp>(3)] public class TextItem : Base<string>;
-            [EntityType<DefaultApp>(4)] public class NumberItem : Base<int>;
+            [FixtureType<DefaultApp>(FixtureKind.Three)] public class TextItem : Base<string>;
+            [FixtureType<DefaultApp>(FixtureKind.Four)] public class NumberItem : Base<int>;
             public class PrivateContainer
             {
                 private class Ignored<T> : SourceKnownEntity;
@@ -242,7 +242,7 @@ public sealed class SourceKnownEntityUsageAnalyzerTests
         const string source = """
             using System;
             using DRN.Framework.SharedKernel.Domain;
-            [EntityType<DefaultApp>(1)] public class Order : AggregateRoot;
+            [FixtureType<DefaultApp>(FixtureKind.One)] public class Order : AggregateRoot;
             public abstract class AppEntity : AggregateRoot, IAppId
             {
                 public const byte Value = 0;
@@ -316,7 +316,7 @@ public sealed class SourceKnownEntityUsageAnalyzerTests
             using DRN.Framework.SharedKernel.Domain.Repository;
             using DRN.Framework.Utils.Ids;
             using DRN.Framework.EntityFramework.Domain;
-            [EntityType<DefaultApp>(1)] public class Order : AggregateRoot;
+            [FixtureType<DefaultApp>(FixtureKind.One)] public class Order : AggregateRoot;
             public class Consumer
             {
                 public void Run(ISourceKnownEntityIdUtils ids, SourceKnownEntityIdUtils implementation,

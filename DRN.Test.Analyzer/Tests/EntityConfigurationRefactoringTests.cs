@@ -475,7 +475,10 @@ public sealed class EntityConfigurationRefactoringTests
             .AddMetadataReferences(ClassificationTestFixture.References);
         var entity = domain.AddDocument("OrderEntity.cs", """
             namespace Sample.Domain.QA.Order;
-            [DRN.Framework.SharedKernel.Domain.EntityType<SampleApp>(1)]
+            public enum SampleKinds : byte { Order = 1 }
+            public sealed class SampleTypeAttribute(SampleKinds kind)
+                : DRN.Framework.SharedKernel.Domain.EntityTypeAttribute<SampleApp>((byte)kind);
+            [SampleType(SampleKinds.Order)]
             public sealed class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot;
             public readonly struct SampleApp : DRN.Framework.SharedKernel.Domain.IAppId { public static byte AppId => 1; }
             """, filePath: "/source/Sample.Domain/QA/Order/OrderEntity.cs");

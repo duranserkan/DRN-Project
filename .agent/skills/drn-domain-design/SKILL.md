@@ -1,7 +1,7 @@
 ---
 name: drn-domain-design
 description: "Model DRN aggregates, repository boundaries, contract DTOs, mapping, and paginated APIs."
-last-updated: 2026-11-19
+last-updated: 2026-11-20
 difficulty: advanced
 ---
 
@@ -11,7 +11,7 @@ difficulty: advanced
 
 Use application-owned types and installed SharedKernel/EntityFramework APIs. [Resolve the package version](../overview-drn-framework/SKILL.md#documentation-and-source-references)
 
-Use `SourceKnownEntity` for an entity and `AggregateRoot` for a repository root. Select the domain's existing `IAppId` and a unique entity byte for that partition. Annotate the concrete entity with `[EntityType<TApp>(byte)]` or the application-derived attribute. Keep an EF materialization constructor and enforce invariants in the domain constructor and mutation methods. Restrict setters. Use `AggregateRoot<TModel>` for a document model whose `Model` property maps to PostgreSQL `jsonb`. [SharedKernel identity](../drn-sharedkernel/SKILL.md#entity-base-class)
+Use `SourceKnownEntity` for an entity and `AggregateRoot` for a repository root. Select the domain's existing `IAppId` and a unique entity byte for that partition. Annotate the concrete entity with the application-derived attribute and a member of its byte-backed enum. Keep an EF materialization constructor and enforce invariants in the domain constructor and mutation methods. Restrict setters. Use `AggregateRoot<TModel>` for a document model whose `Model` property maps to PostgreSQL `jsonb`. [SharedKernel identity](../drn-sharedkernel/SKILL.md#entity-base-class)
 
 ## EF Core Configuration
 

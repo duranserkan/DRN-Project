@@ -1,7 +1,7 @@
 ---
 name: drn-sharedkernel
 description: "DRN domain primitives, Source-Known identity and time, repository contracts, pagination, exceptions, and classification analyzers."
-last-updated: 2026-11-16
+last-updated: 2026-11-20
 difficulty: intermediate
 ---
 
@@ -13,9 +13,9 @@ Contract and Domain projects can reference `DRN.Framework.SharedKernel` directly
 
 Derive an entity from `SourceKnownEntity` or an aggregate from `AggregateRoot`. Use `AggregateRoot<TModel>` for a JSON model. Enforce invariants through domain operations. Use the internal long ID for persistence and the Guid externally. EF supplies identity operations on saved and queried entities. Use injected ID utilities on fresh entities. An assigned ID does not prove persistence. Created, modified and deleted domain events correspond to lifecycle transitions. [EF lifecycle](../drn-entityframework/SKILL.md#augmented-entity-behavior)
 
-Assign each concrete, effectively non-private entity a unique byte in its application partition with `[EntityType<TApp>(byte)]` or a supported derived attribute. Generic abstract bases need closed concrete descendants. Keep identity members visible and unshadowed. Bind metadata and repositories to concrete types. Derived attributes forward one byte or byte-backed enum unchanged.
+Assign each concrete, effectively non-private entity a unique byte in its application partition with a domain-derived attribute accepting a byte-backed enum. Generic abstract bases need closed concrete descendants. Keep identity members visible and unshadowed. Bind metadata and repositories to concrete types. Derived attributes forward the enum value unchanged to the base constructor.
 
-`IAppId` declares a constant-resolvable partition from 0 through 127. Return the published constant from the getter implementing `IAppId.AppId`. DefaultApp uses 0, NexusApp 126, and TestApp 127. Use `[TestEntityType(byte)]` for fixtures. The same entity byte can appear in different partitions. Collision checks include transitive project references and DRN Framework assemblies. They skip referenced `System.*`, `Microsoft.*` and external framework dependencies. See the installed analyzer documentation for opt-ins, eligibility and diagnostic IDs.
+`IAppId` declares a constant-resolvable partition from 0 through 127. Return the published constant from the getter implementing `IAppId.AppId`. DefaultApp uses 0, NexusApp 126, and TestApp 127. Define an enum-based fixture attribute for the selected test partition. The same entity byte can appear in different partitions. Collision checks include transitive project references and DRN Framework assemblies. They skip referenced `System.*`, `Microsoft.*` and external framework dependencies. See the installed analyzer documentation for opt-ins, eligibility and diagnostic IDs.
 
 ## Source-Known Identity System
 

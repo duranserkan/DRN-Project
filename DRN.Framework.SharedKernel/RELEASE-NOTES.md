@@ -8,6 +8,8 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Breaking Changes
 
+*   **Entity type declarations**: DRNENTITY008 now requires a domain attribute with a byte-backed enum parameter. Replace direct `[EntityType<TApp>(n)]`, `[TestEntityType(n)]` and raw-byte wrappers in domain and test projects. Give each enum member its existing numeric value and retain the application partition to preserve stored IDs. Referenced domain assemblies compiled with byte-based annotations also report DRNENTITY008, naming the assembly and entity, until they are rebuilt.
+
 *   **Entity DTO conventions**: DRNDTO001 through DRNDTO003 check entity-owned ToDto methods, Contract DTO placement and preservation of mapped property classifications. DTOs can expose any subset of entity properties, including metadata only. The selected-property IDE action now adds ToDto to the entity.
     DRNDTO004 warns when a public entity-prefixed request or response is outside the matching DTO's folder or namespace.
     DRNDTO003 follows nested assignments, collection elements, inherited properties and type classifications independently of DRNDTO001 exceptions. A classified source property requires the same classification on its mapped DTO property. Dictionary keys and values contribute to the collection property's classification. Visible helper inputs contribute to the classification of the property receiving the result.

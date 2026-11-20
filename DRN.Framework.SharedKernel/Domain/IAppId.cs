@@ -44,7 +44,10 @@ public readonly struct TestApp : IAppId
 }
 
 /// <summary>
-/// Convenience EntityType attribute bound to <see cref="TestApp"/> (AppId = 127).
+/// Legacy byte-based attribute retained for compiled consumers. Use a fixture-owned
+/// attribute with a byte-backed enum parameter bound to <see cref="TestApp"/>.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+[System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+[System.Diagnostics.CodeAnalysis.SuppressMessage("DRN.Domain", "DRNENTITY008", Justification = "Preserve the published byte constructor for existing binaries. New usages are diagnosed.")]
 public class TestEntityTypeAttribute(byte entityType) : EntityTypeAttribute<TestApp>(entityType);

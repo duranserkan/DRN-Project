@@ -9,14 +9,14 @@ internal sealed class ClassificationContract
     private readonly INamedTypeSymbol? _dataClassification;
     private readonly AttributeUsageFacts.Cache _attributeUsage;
     private readonly SymbolFactCache<ISymbol, bool> _positive = new();
-    private readonly SymbolFactCache<ISymbol, PropertyClassification> _symbolKinds = new();
+    private readonly SymbolFactCache<ISymbol, PropertyClassifications> _symbolKinds = new();
     private readonly SymbolFactCache<INamedTypeSymbol, ImmutableArray<IPropertySymbol>> _properties = new();
     private readonly SymbolFactCache<IPropertySymbol, bool> _exemptions = new();
     private readonly SymbolFactCache<INamedTypeSymbol, AttributeFacts> _attributes = new();
     private readonly SymbolFactCache<ITypeSymbol, ModelTypeFacts> _modelTypes = new();
     private readonly ConcurrentDictionary<INamedTypeSymbol, ReceiverFacts> _receivers = new(SymbolEqualityComparer.Default);
     private readonly Func<ISymbol, CancellationToken, bool> _calculatePositive;
-    private readonly Func<ISymbol, CancellationToken, PropertyClassification> _calculateSymbolKinds;
+    private readonly Func<ISymbol, CancellationToken, PropertyClassifications> _calculateSymbolKinds;
     private readonly Func<IPropertySymbol, CancellationToken, bool> _calculateExempt;
     private readonly Func<INamedTypeSymbol, CancellationToken, AttributeFacts> _calculateAttribute;
     private readonly Func<INamedTypeSymbol, ReceiverFacts> _createReceiver;
@@ -37,9 +37,9 @@ internal sealed class ClassificationContract
     internal INamedTypeSymbol Sensitive { get; }
 
     [Flags]
-    internal enum PropertyClassification { None = 0, Sensitive = 1, Personal = 2 }
+    internal enum PropertyClassifications { None = 0, Sensitive = 1, Personal = 2 }
 
-    internal (PropertyClassification Property, PropertyClassification Context) ProjectionClassification(
+    internal (PropertyClassifications Property, PropertyClassifications Context) ProjectionClassification(
         IPropertySymbol property, INamedTypeSymbol receiver, ITypeSymbol? receiverView, CancellationToken cancellation)
     {
         var direct = SymbolKinds(property, cancellation);
@@ -63,12 +63,14 @@ internal sealed class ClassificationContract
         foreach (var member in implementation.ExplicitInterfaceImplementations)
             Include(member);
         foreach (var contract in receiver.AllInterfaces)
-        foreach (var member in contract.GetMembers(implementation.Name).OfType<IPropertySymbol>())
         {
-            cancellation.ThrowIfCancellationRequested();
-            if (receiver.FindImplementationForInterfaceMember(member) is IPropertySymbol interfaceImplementation &&
-                OverridesOrEquals(implementation, interfaceImplementation))
-                Include(member);
+            foreach (var member in contract.GetMembers(implementation.Name).OfType<IPropertySymbol>())
+            {
+                cancellation.ThrowIfCancellationRequested();
+                if (receiver.FindImplementationForInterfaceMember(member) is IPropertySymbol interfaceImplementation &&
+                    OverridesOrEquals(implementation, interfaceImplementation))
+                    Include(member);
+            }
         }
         return (direct, context);
 
@@ -100,28 +102,22 @@ internal sealed class ClassificationContract
         return false;
     }
 
-    internal PropertyClassification SymbolKinds(ISymbol symbol, CancellationToken cancellation)
+    internal PropertyClassifications SymbolKinds(ISymbol symbol, CancellationToken cancellation)
     {
         if (symbol is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable)
             symbol = nullable.TypeArguments[0];
         return _symbolKinds.GetOrAdd(symbol, _calculateSymbolKinds, cancellation);
     }
 
-    private PropertyClassification CalculateSymbolKinds(ISymbol symbol, CancellationToken cancellation)
+    private PropertyClassifications CalculateSymbolKinds(ISymbol symbol, CancellationToken cancellation)
     {
-        var result = PropertyClassification.None;
+        var result = PropertyClassifications.None;
         for (ISymbol? current = symbol; current is not null; current = NextClassifiedSymbol(current))
         {
             cancellation.ThrowIfCancellationRequested();
+            var directSymbol = SymbolEqualityComparer.Default.Equals(current, symbol);
             foreach (var attribute in current.GetAttributes())
-            {
-                if (attribute.AttributeClass is not { } type) continue;
-                var facts = _attributes.GetOrAdd(type, _calculateAttribute, cancellation);
-                if (!facts.IsInherited && !SymbolEqualityComparer.Default.Equals(current, symbol)) continue;
-                if (facts.IsPersonal) result |= PropertyClassification.Personal;
-                if (facts.IsSensitive && (!SymbolEqualityComparer.Default.Equals(type, Sensitive) || !IsFalse(attribute)))
-                    result |= PropertyClassification.Sensitive;
-            }
+                result |= ClassifyAttribute(attribute, directSymbol, cancellation);
         }
         return result;
     }
@@ -174,7 +170,7 @@ internal sealed class ClassificationContract
             var directSymbol = SymbolEqualityComparer.Default.Equals(current, symbol);
             foreach (var attribute in current.GetAttributes())
             {
-                if (IsPositiveAttribute(attribute, directSymbol, cancellation))
+                if (ClassifyAttribute(attribute, directSymbol, cancellation) != PropertyClassifications.None)
                     return true;
             }
         }
@@ -188,13 +184,15 @@ internal sealed class ClassificationContract
         _ => null
     };
 
-    private bool IsPositiveAttribute(AttributeData attribute, bool directSymbol, CancellationToken cancellation)
+    private PropertyClassifications ClassifyAttribute(AttributeData attribute, bool directSymbol, CancellationToken cancellation)
     {
-        if (attribute.AttributeClass is not { } attributeType) return false;
+        if (attribute.AttributeClass is not { } attributeType) return PropertyClassifications.None;
         var facts = _attributes.GetOrAdd(attributeType, _calculateAttribute, cancellation);
-        if (!directSymbol && !facts.IsInherited) return false;
-        if (facts.IsPersonal) return true;
-        return facts.IsSensitive && (!SymbolEqualityComparer.Default.Equals(attributeType, Sensitive) || !IsFalse(attribute));
+        if (!directSymbol && !facts.IsInherited) return PropertyClassifications.None;
+        var result = facts.IsPersonal ? PropertyClassifications.Personal : PropertyClassifications.None;
+        if (facts.IsSensitive && (!SymbolEqualityComparer.Default.Equals(attributeType, Sensitive) || !IsFalse(attribute)))
+            result |= PropertyClassifications.Sensitive;
+        return result;
     }
 
     internal ImmutableArray<IPropertySymbol> DeclaredProperties(INamedTypeSymbol type, CancellationToken cancellation) =>

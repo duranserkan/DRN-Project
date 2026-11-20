@@ -6,12 +6,12 @@ public sealed class UninitializedEntityOperationsAnalyzerTests
 {
     private const string FreshEntityStubs = """
         using DRN.Framework.SharedKernel.Domain;
-        [EntityType<DefaultApp>(1)] public class Order : AggregateRoot
+        [FixtureType<DefaultApp>(FixtureKind.One)] public class Order : AggregateRoot
         {
             public string Name { get; }
             public Order(string name = "order") { Name = name; }
         }
-        [EntityType<DefaultApp>(2)] public class Customer(long id = 0) : AggregateRoot(id);
+        [FixtureType<DefaultApp>(FixtureKind.Two)] public class Customer(long id = 0) : AggregateRoot(id);
         """;
 
     [Fact]
@@ -107,7 +107,7 @@ public sealed class UninitializedEntityOperationsAnalyzerTests
         const string source = """
             using System;
             using DRN.Framework.SharedKernel.Domain;
-            [EntityType<DefaultApp>(3)] public class DuringConstruction : AggregateRoot
+            [FixtureType<DefaultApp>(FixtureKind.Three)] public class DuringConstruction : AggregateRoot
             {
                 public DuringConstruction(Guid externalId, SourceKnownEntityId parsedId)
                 {
@@ -182,12 +182,12 @@ public sealed class UninitializedEntityOperationsAnalyzerTests
             using System;
             using DRN.Framework.SharedKernel.Domain;
             public static class Lifecycle { public static void Initialize(SourceKnownEntity entity) { } }
-            [EntityType<DefaultApp>(3)] public class Initialized : AggregateRoot
+            [FixtureType<DefaultApp>(FixtureKind.Three)] public class Initialized : AggregateRoot
             {
                 public Initialized() { Lifecycle.Initialize(this); ToPlain(default(SourceKnownEntityId)); }
             }
-            [EntityType<DefaultApp>(4)] public class ViaBase : Initialized;
-            [EntityType<DefaultApp>(5)] public class ViaSetter : AggregateRoot
+            [FixtureType<DefaultApp>(FixtureKind.Four)] public class ViaBase : Initialized;
+            [FixtureType<DefaultApp>(FixtureKind.Five)] public class ViaSetter : AggregateRoot
             {
                 public bool Ready { set => Lifecycle.Initialize(this); }
             }
@@ -299,7 +299,7 @@ public sealed class UninitializedEntityOperationsAnalyzerTests
         const string source = """
             using System.Collections.Generic;
             using DRN.Framework.SharedKernel.Domain;
-            [EntityType<DefaultApp>(3)] public class WithDefaults : AggregateRoot
+            [FixtureType<DefaultApp>(FixtureKind.Three)] public class WithDefaults : AggregateRoot
             {
                 public string Name { get; set; } = "name";
                 public List<string> Values { get; } = [];

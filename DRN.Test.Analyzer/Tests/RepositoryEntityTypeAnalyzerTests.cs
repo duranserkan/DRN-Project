@@ -93,7 +93,7 @@ public sealed class RepositoryEntityTypeAnalyzerTests
             using DRN.Framework.SharedKernel.Domain;
             using Invalid = DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<DRN.Framework.SharedKernel.Domain.AggregateRoot>;
             using Valid = DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<Order>;
-            [EntityType<DefaultApp>(1)] public class Order : AggregateRoot;
+            [FixtureType<DefaultApp>(FixtureKind.One)] public class Order : AggregateRoot;
             public class Consumer
             {
                 public Valid First;
@@ -118,7 +118,7 @@ public sealed class RepositoryEntityTypeAnalyzerTests
             using DRN.Framework.SharedKernel.Domain;
             using DRN.Framework.SharedKernel.Domain.Repository;
             using DRN.Framework.EntityFramework.Domain;
-            [EntityType<DefaultApp>(1)] public class Order(long id) : AggregateRoot(id);
+            [FixtureType<DefaultApp>(FixtureKind.One)] public class Order(long id) : AggregateRoot(id);
             public abstract class RepositoryBase<T> : SourceKnownRepository<object, T> where T : AggregateRoot;
             public interface IRepository<T> : ISourceKnownRepository<T> where T : AggregateRoot;
             public class Orders : RepositoryBase<Order>;
@@ -164,7 +164,7 @@ public sealed class RepositoryEntityTypeAnalyzerTests
         const string source = """
             using System;
             using DRN.Framework.SharedKernel.Domain;
-            [EntityType<DefaultApp>(1)] public class Order : AggregateRoot;
+            [FixtureType<DefaultApp>(FixtureKind.One)] public class Order : AggregateRoot;
             public class Consumer
             {
                 public void Run<T>(ISourceKnownEntityIdOperations ops, SourceKnownEntity entity,

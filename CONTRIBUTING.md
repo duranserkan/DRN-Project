@@ -108,7 +108,7 @@ Tests use **Testcontainers** — Docker must be running for integration tests.
 | Area | Convention |
 |------|-----------|
 | **DI** | Attribute-based: `[Scoped<T>]`, `[Singleton<T>]`, `[Transient<T>]` |
-| **Entities** | Source-Known ID pattern; `[EntityType<TApp>(byte)]` or derived attribute required |
+| **Entities** | Apply a domain attribute with a byte-backed enum to each eligible Source-Known entity |
 | **DTOs** | Derive from `Dto`; live in `*.Contract` projects |
 | **Testing** | DTT — unit and analyzer tests before integration; `[Fact]` for no-data tests, data attributes request context only when needed |
 | **Git** | GitFlow-inspired: `develop` → `master` → tag `v*.*.*` |

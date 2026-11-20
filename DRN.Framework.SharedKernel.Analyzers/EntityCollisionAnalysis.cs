@@ -12,8 +12,11 @@ internal sealed record EntityDeclaration(INamedTypeSymbol Symbol, byte AppId, by
         var status = metadata.Read(attribute, cancellation, out var value, out var appId);
         if (status == EntityAnalyzerHelper.MetadataStatus.UnsupportedAttribute)
         {
-            var attributeName = nameLocation.IsInSource ? attribute.AttributeClass?.Name : attribute.AttributeClass?.ToDisplayString();
-            problem = Diagnostic.Create(DiagnosticDescriptors.UnsupportedEntityAttribute, attributeLocation, attributeName ?? symbol.Name);
+            var attributeName = (nameLocation.IsInSource ? attribute.AttributeClass?.Name : attribute.AttributeClass?.ToDisplayString()) ?? symbol.Name;
+            var ownerSuffix = nameLocation.IsInSource
+                ? string.Empty
+                : $" on '{symbol.ContainingAssembly.Name}::{symbol.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)}'";
+            problem = Diagnostic.Create(DiagnosticDescriptors.UnsupportedEntityAttribute, attributeLocation, attributeName, ownerSuffix);
             return null;
         }
         var resolved = status == EntityAnalyzerHelper.MetadataStatus.Resolved;

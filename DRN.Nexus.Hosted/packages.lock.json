@@ -380,15 +380,15 @@
       },
       "Npgsql": {
         "type": "Transitive",
-        "resolved": "10.0.3",
-        "contentHash": "7nb5YzXuvWWJxB0J8DiyL3we+X4FOctZrt0fIBnucOIaIevFEEwGQVZKtiu9olXdlNAK1eNgqSral6r/jlhI4w=="
+        "resolved": "10.0.4",
+        "contentHash": "m2VCpcU9MKD8lLxTn+YaNIRWd+Gz3y/9wIaM+2ifDF24xZ2Kvvjx4CDB2BIgobr1Gj6a/gsdmfz1sQ+kmd7liw=="
       },
       "Npgsql.DependencyInjection": {
         "type": "Transitive",
-        "resolved": "10.0.3",
-        "contentHash": "L0595kRX2NS5QWu/XGhQPmdhRLv3KhFGhnwpy8pEKZh4qlkom6wek1GW+eMBiPzoqFWlxHp3nc5myIKlX8VvYA==",
+        "resolved": "10.0.4",
+        "contentHash": "+vG77KU5YV3EK9MB00FDBqX9qsPs12VesIe/5sIxYAsi1RT1ly3GErQdDaOrahzkN8XtPW+jQPQl02ARR9W8Rg==",
         "dependencies": {
-          "Npgsql": "10.0.3"
+          "Npgsql": "10.0.4"
         }
       },
       "Npgsql.EntityFrameworkCore.PostgreSQL": {
@@ -573,7 +573,7 @@
           "Microsoft.AspNetCore.Identity.EntityFrameworkCore": "[10.0.15, )",
           "Microsoft.EntityFrameworkCore.Design": "[10.0.15, )",
           "Microsoft.EntityFrameworkCore.Tools": "[10.0.15, )",
-          "Npgsql.DependencyInjection": "[10.0.3, )",
+          "Npgsql.DependencyInjection": "[10.0.4, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )"
         }
       },

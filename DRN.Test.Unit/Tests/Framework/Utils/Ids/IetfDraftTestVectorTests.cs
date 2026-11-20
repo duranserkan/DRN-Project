@@ -7,6 +7,7 @@ using DRN.Framework.Utils.Data.Encodings;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Numbers;
 using DRN.Framework.Utils.Time;
+using DRN.Test.Utils.Testing;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 
@@ -297,6 +298,6 @@ public class IetfDraftTestVectorTests(ITestOutputHelper output)
         public static byte AppId => Value;
     }
 
-    [EntityType<IetfTestApp>(TestEntityType)]
+    [FixtureEntityType<IetfTestApp>(FixtureEntityTypes.SingleEntity)]
     internal class TestVectorEntity(long id) : SourceKnownEntity(id);
 }

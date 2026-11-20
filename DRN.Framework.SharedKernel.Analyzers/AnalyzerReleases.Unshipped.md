@@ -40,7 +40,7 @@
 | DRNENTITY005 | DRN.Domain | Error    | https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/README.md#compile-time-roslyn-analyzers |
 | DRNENTITY006 | DRN.Domain | Error    | https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/README.md#compile-time-roslyn-analyzers |
 | DRNENTITY007 | DRN.Domain | Error    | https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/README.md#compile-time-roslyn-analyzers |
-| DRNENTITY008 | DRN.Domain | Error    | Derived entity attribute constructor must preserve one byte or byte-backed enum parameter |
+| DRNENTITY008 | DRN.Domain | Error    | Entities require a derived attribute forwarding one byte-backed enum parameter |
 | DRNENTITY009 | DRN.Domain | Error    | Constant EntityTypeId AppId must be within 0..127 |
 | DRNENTITY010 | DRN.Domain | Error    | Constant SourceKnownEntityIdFormat arguments and assignments must be defined |
 | DRNENTITY011 | DRN.Domain | Warning  | Entity descendants must not hide framework identity properties |

@@ -50,7 +50,12 @@ Define an entity and collect a domain event. SharedKernel supplies the domain ty
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Domain;
 
-[EntityType<DefaultApp>(1)] // Unique byte identifier for this entity type
+public enum UserEntityTypes : byte { User = 1 }
+
+public sealed class UserEntityTypeAttribute(UserEntityTypes kind)
+    : EntityTypeAttribute<DefaultApp>((byte)kind);
+
+[UserEntityType(UserEntityTypes.User)]
 public class UserEntity : AggregateRoot
 {
     [Personal]
@@ -135,13 +140,13 @@ Entity and aggregate base constructors accept an optional internal `long id = 0`
 
 ### Application Partitions
 
-`IAppId` requires `static abstract byte AppId { get; }` in the range `0..127`. `[EntityType<TApp>(byte)]` binds an entity type byte to that application partition. The non-generic `EntityTypeAttribute` is abstract. Attributes are not inherited, and each entity can declare only one.
+`IAppId` requires `static abstract byte AppId { get; }` in the range `0..127`. Define an attribute for the domain and apply it to each eligible concrete entity with its enum member. The attribute accepts a byte-backed enum and forwards the value to `EntityTypeAttribute<TApp>(byte)`. When migrating a numeric annotation, assign its existing byte to the enum member and keep the same `TApp` to preserve stored IDs. Rebuild referenced domain assemblies that still use byte-based annotations because the analyzer checks their metadata too.
 
 | Partition | `AppId` and `Value` | Attribute example |
 |---|---|---|
-| `DefaultApp` | 0 | `[EntityType<DefaultApp>(1)]` for standalone domains |
-| `NexusApp` | 126 | `[EntityType<NexusApp>(1)]`; Nexus also supplies a domain-derived `NexusEntityTypeAttribute` accepting `NexusEntityTypes` |
-| `TestApp` | 127 | `[TestEntityType(1)]`, equivalent to `[EntityType<TestApp>(1)]` |
+| `DefaultApp` | 0 | `[UserEntityType(UserEntityTypes.User)]` in the QuickStart |
+| `NexusApp` | 126 | `[NexusEntityType(NexusEntityTypes.User)]` in the Nexus domain |
+| `TestApp` | 127 | Define a fixture attribute derived from `EntityTypeAttribute<TestApp>` |
 
 `IAppId.DefaultAppId`, `NexusAppId`, and `TestAppId` expose these constants; `MaxAppId` is 127. Different partitions may reuse an entity type byte. See [IAppId.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/IAppId.cs).
 
@@ -189,14 +194,14 @@ DRNAUTHORIZATION001 checks inherited and custom public actions, including action
 
 | Diagnostic ID | Severity | Title | Description |
 |---|---|---|---|
-| **DRNENTITY001** | Error | Missing `[EntityType]` attribute | Concrete, effectively non-private `SourceKnownEntity` classes must declare `[EntityType<TApp>(byte)]` or a supported derived domain attribute. |
+| **DRNENTITY001** | Error | Missing entity type attribute | Concrete, effectively non-private `SourceKnownEntity` classes must declare a derived domain attribute. |
 | **DRNENTITY002** | Error | Duplicate `EntityType` value | Every entity class in the domain compilation and referenced assemblies must have a unique `EntityType` byte value per `AppId`. |
-| **DRNENTITY003** | Error | Invalid `[EntityType]` usage | `[EntityType]` attribute must not be placed on abstract classes, private classes, or non-`SourceKnownEntity` types. |
+| **DRNENTITY003** | Error | Invalid entity type attribute usage | Entity type attributes must not be placed on abstract classes, private classes, or non-`SourceKnownEntity` types. |
 | **DRNENTITY004** | Warning | Duplicate entity class name | Warns when multiple entities across the domain model share identical unqualified class names within the same `AppId` to prevent EF Core and messaging collisions. |
 | **DRNENTITY005** | Error | Multiple `AppId`s in single compilation | Allows at most one non-test partition unless a multi-application or test exemption applies. `TestApp` (127) is excluded from the count. |
 | **DRNENTITY006** | Error | Unresolvable or non-constant application partition | A concrete `IAppId` implementation must publish a constant partition and return it from its getter, including in projects that declare no entities. |
-| **DRNENTITY007** | Error | `AppId` outside the supported range | Concrete `IAppId` implementations and `[EntityType]` declarations must use a partition from 0 through 127, including in projects that declare no entities. |
-| **DRNENTITY008** | Error | Unsupported entity attribute constructor | Derived attributes must reach `EntityTypeAttribute<TApp>` through one constructor per class, with one byte or byte-backed enum parameter forwarded unchanged to the base constructor. |
+| **DRNENTITY007** | Error | `AppId` outside the supported range | Concrete `IAppId` implementations and entity type attribute declarations must use a partition from 0 through 127, including in projects that declare no entities. |
+| **DRNENTITY008** | Error | Unsupported entity attribute constructor | Each derived attribute in the chain must declare one constructor that forwards one byte-backed enum parameter unchanged. Applying the byte-taking framework attribute directly also produces this error. For an entity in a referenced assembly, the message names the assembly and entity to update. |
 | **DRNENTITY009** | Error | Invalid constant application partition | Constant `AppId` values in `EntityTypeId` construction and property initializers/assignments must be within `0..127`. |
 | **DRNENTITY010** | Error | Undefined constant entity ID format | Constant `SourceKnownEntityIdFormat` arguments and assignments must be defined enum values. |
 | **DRNENTITY011** | Warning | Hidden entity identity member | Descendant members must not hide `Id`, `EntityId`, or `EntityIdSource`, with or without the `new` keyword. |

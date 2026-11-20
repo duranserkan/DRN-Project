@@ -11,6 +11,8 @@ namespace DRN.Test.Analyzer.Tests;
 [SuppressMessage("ReSharper", "AccessToDisposedClosure")]
 public sealed class EntityDtoRefactoringTests
 {
+    private static readonly string[] FeatureSymbols = ["FEATURE"];
+
     private const string Source = """
         #nullable enable
         namespace Sample.Domain.QA;
@@ -745,7 +747,7 @@ public sealed class EntityDtoRefactoringTests
         using var workspace = new AdhocWorkspace();
         var document = Create(workspace, context, source);
         var parseOptions = (document.Project.ParseOptions as CSharpParseOptions ?? CSharpParseOptions.Default)
-            .WithPreprocessorSymbols(feature ? new[] { "FEATURE" } : Array.Empty<string>());
+            .WithPreprocessorSymbols(feature ? FeatureSymbols : Array.Empty<string>());
         workspace.TryApplyChanges(document.Project.WithParseOptions(parseOptions).Solution).Should().BeTrue();
         document = workspace.CurrentSolution.GetDocument(document.Id)!;
         (await document.Project.GetCompilationAsync())!.AssertNoCompilerErrors();

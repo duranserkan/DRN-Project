@@ -5,6 +5,7 @@ using DRN.Framework.EntityFramework.Context.Interceptors;
 using DRN.Framework.EntityFramework.Extensions;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.DependencyInjection;
+using DRN.Test.Utils.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 
@@ -120,16 +121,16 @@ public class InheritanceModelTests
 
     public abstract class InheritanceRoot : SourceKnownEntity;
 
-    [EntityType<TestApp>(211)]
+    [FixtureEntityType<TestApp>(FixtureEntityTypes.InheritanceBranch)]
     public class InheritanceBranch : InheritanceRoot;
 
-    [EntityType<TestApp>(212)]
+    [FixtureEntityType<TestApp>(FixtureEntityTypes.InheritanceLeaf)]
     public sealed class InheritanceLeaf : InheritanceBranch
     {
         public string Description { get; set; } = string.Empty;
     }
 
-    [EntityType<TestApp>(213)]
+    [FixtureEntityType<TestApp>(FixtureEntityTypes.Standalone)]
     public sealed class StandaloneEntity : SourceKnownEntity;
 
     private sealed class PrivateHelperEntity : SourceKnownEntity;

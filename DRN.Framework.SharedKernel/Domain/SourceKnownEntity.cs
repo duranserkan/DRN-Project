@@ -31,7 +31,8 @@ public abstract class EntityTypeAttribute : Attribute
 }
 
 /// <summary>
-/// Generic EntityType attribute bound to a strongly typed application identifier.
+/// Base generic EntityType attribute bound to a strongly typed application identifier.
+/// Derive a domain-specific attribute accepting a byte-backed enum instead of applying this attribute directly.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 public class EntityTypeAttribute<TApp>(byte entityType): EntityTypeAttribute(entityType, TApp.AppId)
