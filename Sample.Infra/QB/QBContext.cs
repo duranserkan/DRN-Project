@@ -1,4 +1,5 @@
 using DRN.Framework.EntityFramework.Attributes;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 
 namespace Sample.Infra.QB;
@@ -8,6 +9,13 @@ public class QBContextNpgsqlDbContextOptionsAttribute : NpgsqlDbContextOptionsAt
 {
     public override void ConfigureNpgsqlOptions<TContext>(NpgsqlDbContextOptionsBuilder builder, IServiceProvider? serviceProvider)
         => builder.CommandTimeout(30);
+
+    public override void ConfigureDbContextOptions<TContext>(DbContextOptionsBuilder builder, IServiceProvider? serviceProvider)
+    {
+        base.ConfigureDbContextOptions<TContext>(builder, serviceProvider);
+        // The entityless context has no migrations by design. EF Core 11 otherwise fails MigrateAsync.
+        builder.ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.MigrationsNotFound));
+    }
 
     public override bool UsePrototypeMode { get; set; } = false;
 }
