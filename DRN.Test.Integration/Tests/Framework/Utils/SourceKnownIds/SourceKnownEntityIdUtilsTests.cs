@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Time;
+using DRN.Test.Utils.Testing;
 
 namespace DRN.Test.Integration.Tests.Framework.Utils.SourceKnownIds;
 
@@ -80,6 +81,6 @@ public class SourceKnownEntityIdUtilsTests
         public static byte AppId => Value;
         }
 
-    [EntityType<SampleApp7>(200)]
+    [FixtureEntityType<SampleApp7>(FixtureEntityTypes.X)]
     internal class XEntity(long id) : SourceKnownEntity(id);
 }

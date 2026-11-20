@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Time;
+using DRN.Test.Utils.Testing;
 
 namespace DRN.Test.Integration.Tests.Framework.Utils.SourceKnownIds;
 
@@ -11,7 +12,7 @@ public readonly struct CustomIntegrationTestApp : IAppId
     public static byte AppId => Value;
 }
 
-[EntityType<CustomIntegrationTestApp>(1)]
+[FixtureEntityType<CustomIntegrationTestApp>(FixtureEntityTypes.SingleEntity)]
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
 public class CustomIntegrationTestEntity : SourceKnownEntity;
 

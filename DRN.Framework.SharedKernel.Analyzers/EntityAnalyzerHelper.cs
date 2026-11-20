@@ -65,7 +65,9 @@ internal static class EntityAnalyzerHelper
             cancellation.ThrowIfCancellationRequested();
             value = 0;
             appId = 0;
-            if (attribute.AttributeClass is not { } type || !IsSupported(type, cancellation)) return MetadataStatus.UnsupportedAttribute;
+            // The framework base accepts a byte for forwarding. Entity annotations must use an enum constructor.
+            if (attribute.AttributeClass is not { } type || attribute.AttributeConstructor?.Parameters is not [{ Type.TypeKind: TypeKind.Enum }] ||
+                !IsSupported(type, cancellation)) return MetadataStatus.UnsupportedAttribute;
             if (attribute.ConstructorArguments is not [var argument] || !TryExtractByte(argument.Value, out value) ||
                 _appIds.GetOrAdd(type, _resolveAppId, cancellation) is not { } partition) return MetadataStatus.Unresolvable;
             appId = partition;

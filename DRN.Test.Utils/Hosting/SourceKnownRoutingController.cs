@@ -2,6 +2,7 @@ using DRN.Framework.Hosting.Controllers;
 using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.SharedKernel.Domain.Repository;
+using DRN.Test.Utils.Testing;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,7 +15,7 @@ public static class SourceKnownRoutingPolicies
     public const string WriteClaim = "source-known-write";
 }
 
-[TestEntityType(249)]
+[FixtureEntityType<TestApp>(FixtureEntityTypes.Routing)]
 public sealed class SourceKnownRoutingEntity : AggregateRoot
 {
     public string Label { get; init; } = string.Empty;

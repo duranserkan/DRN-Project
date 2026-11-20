@@ -37,6 +37,15 @@ internal static class EntityAnalyzerTestFixture
                                                        [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
                                                        public class TestEntityTypeAttribute(byte entityType) : EntityTypeAttribute<TestApp>(entityType);
 
+                                                       public enum FixtureKind : byte
+                                                       {
+                                                           One = 1, Two = 2, Three = 3, Four = 4, Five = 5,
+                                                           Seven = 7, Ten = 10, Twenty = 20, Thirty = 30, FortyTwo = 42
+                                                       }
+
+                                                       public sealed class FixtureTypeAttribute<TApp>(FixtureKind kind)
+                                                           : EntityTypeAttribute<TApp>((byte)kind) where TApp : IAppId;
+
                                                        [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
                                                        public abstract class EntityTypeAttribute(byte entityType, byte appId) : Attribute
                                                        {

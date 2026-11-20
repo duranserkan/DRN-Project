@@ -27,7 +27,7 @@ internal static class EntityAttributeContract
             return false;
 
         var constructor = current.InstanceConstructors[0];
-        if (constructor.Parameters.Length != 1 || !IsIdentityType(constructor.Parameters[0].Type))
+        if (constructor.Parameters.Length != 1 || !IsByteBackedEnum(constructor.OriginalDefinition.Parameters[0].Type))
             return false;
 
         return ForwardsParameterToInitializer(constructor.OriginalDefinition.Parameters[0], compilation, cancellationToken);
@@ -111,8 +111,9 @@ internal static class EntityAttributeContract
     }
 
     private static bool IsIdentityCast(CastExpressionSyntax cast, SemanticModel model, CancellationToken cancellationToken) =>
-        model.GetTypeInfo(cast.Type, cancellationToken).Type is { } castType && IsIdentityType(castType);
+        model.GetTypeInfo(cast.Type, cancellationToken).Type is { } castType &&
+        (castType.SpecialType == SpecialType.System_Byte || IsByteBackedEnum(castType));
 
-    private static bool IsIdentityType(ITypeSymbol type) => type.SpecialType == SpecialType.System_Byte ||
+    private static bool IsByteBackedEnum(ITypeSymbol type) =>
         type is INamedTypeSymbol { TypeKind: TypeKind.Enum, EnumUnderlyingType.SpecialType: SpecialType.System_Byte };
 }

@@ -67,7 +67,7 @@ reviews:
       instructions: |
         Enforce the Source-Known entity contract.
         - Entities keep long internal IDs and Guid external EntityId values.
-        - Every SourceKnownEntity type requires a unique [EntityType(byte)].
+        - Each concrete, effectively non-private SourceKnownEntity descendant requires a domain-derived attribute with a unique byte-backed enum value per AppId.
         - Public contracts must not expose entities, long Id, or SourceKnownEntityId directly.
         - DTO-facing APIs should expose Guid IDs only.
 
@@ -104,7 +104,7 @@ reviews:
         - Enforce layering: Contract has DTOs only; Domain owns entities and invariants; Infra owns DbContexts, EF configurations, migrations, and repository implementations; Application orchestrates use cases; Hosted owns controllers, Razor pages, endpoints, and web concerns.
         - DTOs live in Sample.Contract, derive from Dto, and expose Guid IDs only.
         - Public APIs return DTOs or PaginationResultModel<Dto>, never entities.
-        - SourceKnownEntity/AggregateRoot types need unique [EntityType((byte)...)] and should keep persistence details behind repository boundaries.
+        - Each concrete, effectively non-private SourceKnownEntity or AggregateRoot descendant requires a domain-derived attribute with a unique byte-backed enum value per AppId. Keep persistence details behind repository boundaries.
         - Flag direct public DbContext usage, unbounded entity enumeration, and repository/API code that bypasses entity-ID validation.
 
     - path: "DRN.Nexus.*/**"

@@ -13,12 +13,12 @@ public static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor MissingEntityTypeAttribute = new(
         id: "DRNENTITY001",
-        title: "Missing [EntityType] attribute on SourceKnownEntity descendant",
-        messageFormat: "Class '{0}' inherits from SourceKnownEntity but does not have the [EntityType] attribute",
+        title: "Missing entity type attribute on SourceKnownEntity descendant",
+        messageFormat: "Class '{0}' inherits from SourceKnownEntity but does not declare a derived entity type attribute",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "All non-abstract classes that derive from SourceKnownEntity must declare an [EntityType<TApp>] or derived domain attribute with a unique byte identifier per AppId.",
+        description: "Concrete, effectively non-private SourceKnownEntity classes must declare a derived domain attribute with a unique byte-backed enum value per AppId.",
         helpLinkUri: HelpLinkUri);
 
     public static readonly DiagnosticDescriptor DuplicateEntityTypeValue = new(
@@ -34,12 +34,12 @@ public static class DiagnosticDescriptors
 
     public static readonly DiagnosticDescriptor InvalidEntityTypeAttributeUsage = new(
         id: "DRNENTITY003",
-        title: "Invalid [EntityType] attribute usage",
-        messageFormat: "Class '{0}' is decorated with [EntityType] attribute but is abstract, effectively private, or does not inherit from SourceKnownEntity",
+        title: "Invalid entity type attribute usage",
+        messageFormat: "Class '{0}' is decorated with an entity type attribute but is abstract, effectively private, or does not inherit from SourceKnownEntity",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
-        description: "The [EntityType] attribute should only be applied to non-abstract classes that inherit from SourceKnownEntity and are neither private nor nested within a private type.",
+        description: "Derived entity type attributes should only be applied to non-abstract classes that inherit from SourceKnownEntity and are neither private nor nested within a private type.",
         helpLinkUri: HelpLinkUri);
 
     public static readonly DiagnosticDescriptor DuplicateEntityName = new(
@@ -89,7 +89,7 @@ public static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor UnsupportedEntityAttribute = new(
         id: "DRNENTITY008",
         title: "Unsupported entity attribute constructor",
-        messageFormat: "Entity attribute '{0}' must derive from EntityTypeAttribute<TApp> and declare one constructor with one byte or byte-backed enum parameter forwarded unchanged to its base constructor",
+        messageFormat: "Unsupported entity attribute '{0}'{1}. Derive from EntityTypeAttribute<TApp> and declare one constructor that forwards one byte-backed enum parameter unchanged to its base constructor.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,

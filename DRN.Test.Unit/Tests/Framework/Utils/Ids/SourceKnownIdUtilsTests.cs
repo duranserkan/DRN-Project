@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Time;
+using DRN.Test.Utils.Testing;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 
@@ -13,7 +14,7 @@ public readonly struct CustomUtilsTestApp : IAppId
     public static byte AppId => Value;
 }
 
-[EntityType<CustomUtilsTestApp>(1)]
+[FixtureEntityType<CustomUtilsTestApp>(FixtureEntityTypes.SingleEntity)]
 public class CustomTestEntityForUtils : SourceKnownEntity;
 
 [SuppressMessage("ReSharper", "RedundantCast")]

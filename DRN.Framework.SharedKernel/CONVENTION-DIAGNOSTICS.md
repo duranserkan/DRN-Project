@@ -57,7 +57,7 @@ Roslyn category: `DRN.Domain`. For examples of entity declarations, partitions, 
 | DRNENTITY005 | Error | Use a single application partition unless the compilation permits multiple partitions. |
 | DRNENTITY006 | Error | Publish a constant partition ID and return it from the application ID getter. |
 | DRNENTITY007 | Error | Keep the declared application partition in the range 0 through 127. |
-| DRNENTITY008 | Error | Forward one byte or byte-backed enum value unchanged from a derived entity attribute constructor. |
+| DRNENTITY008 | Error | Apply a derived entity attribute that forwards one byte-backed enum value unchanged to its base constructor. |
 | DRNENTITY009 | Error | Use a supported constant partition value in an entity identity expression. |
 | DRNENTITY010 | Error | Use a defined constant entity ID format. |
 | DRNENTITY011 | Warning | Preserve inherited entity identity members. |

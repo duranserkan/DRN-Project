@@ -64,7 +64,12 @@ public readonly struct MyApp : IAppId
     public static byte AppId => Value;
 }
 
-[EntityType<MyApp>(1)] // Unique byte within MyApp partition
+public enum DomainEntityTypes : byte { User = 1, Question = 2 }
+
+public sealed class DomainEntityTypeAttribute(DomainEntityTypes kind)
+    : EntityTypeAttribute<MyApp>((byte)kind);
+
+[DomainEntityType(DomainEntityTypes.User)]
 public class UserEntity : AggregateRoot
 {
     public string Username { get; set; } = "";
@@ -509,7 +514,7 @@ The framework supports both attribute-based and Fluent API configuration.
 Use attributes for constraints and indexes that they can express. This is an alternative definition of the beginner `UserEntity` entity:
 
 ```csharp
-[EntityType<MyApp>(1)]
+[DomainEntityType(DomainEntityTypes.User)]
 [Table("users")]
 [Index(nameof(Username), IsUnique = true)]
 public class UserEntity : AggregateRoot
@@ -574,7 +579,7 @@ Sample.Infra/QA/
 Source-Known entities implementing `IEntityWithModel<TModel>` have their public `Model` property mapped as an owned JSON object with `OwnsOne(...).ToJson()`. PostgreSQL stores it as `jsonb`:
 
 ```csharp
-[EntityType<MyApp>(2)]
+[DomainEntityType(DomainEntityTypes.Question)]
 public class QuestionEntity : AggregateRoot<QuestionModel>
 {
     public QuestionEntity() => Model = new QuestionModel();

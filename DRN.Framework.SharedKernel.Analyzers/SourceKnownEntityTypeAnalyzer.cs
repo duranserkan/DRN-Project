@@ -91,7 +91,7 @@ public sealed class SourceKnownEntityTypeAnalyzer : DiagnosticAnalyzer
         if (!unsupportedProducer && !eligible && attribute == null) return;
         if (GeneratedSource.FirstUserLocation(type, context) is not { } location) return;
         if (unsupportedProducer)
-            context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.UnsupportedEntityAttribute, location, type.Name));
+            context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.UnsupportedEntityAttribute, location, type.Name, string.Empty));
         if (eligible && type.IsGenericType)
             context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.GenericConcreteEntity, location, type.ToDisplayString()));
         if (attribute == null)

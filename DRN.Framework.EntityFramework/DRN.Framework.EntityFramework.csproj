@@ -40,12 +40,11 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.15" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.15" PrivateAssets="none" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.15" PrivateAssets="none" />
-        <PackageReference Include="Npgsql.DependencyInjection" Version="10.0.3" />
-        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
-        <PackageReference Include="EFCore.NamingConventions" Version="10.0.1" />
+        <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="11.0.0" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="11.0.0" PrivateAssets="none" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="11.0.0" PrivateAssets="none" />
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="11.0.0" />
+        <PackageReference Include="EFCore.NamingConventions" Version="11.0.0" />
     </ItemGroup>
 
     <Target Name="PrepareDescription" BeforeTargets="GenerateNuspec">

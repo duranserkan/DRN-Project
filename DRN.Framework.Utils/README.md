@@ -499,7 +499,7 @@ Changing `SeedKey` changes app-specific names, rate-limit keyed hashes, Developm
 
 ### NexusAppSettings and Nexus Keys
 
-`NexusAppSettings` configures Nexus routing, generator instances, secure/plain IDs, and the key ring used by `SourceKnownEntityIdUtils`. Entity ID generation derives `AppId` from `[EntityType<TApp>]` metadata. Configured `NexusAppSettings.AppId` controls the host's client routing partition and host domain partition alignment in Entity Framework.
+`NexusAppSettings` configures Nexus routing, generator instances, secure/plain IDs, and the key ring used by `SourceKnownEntityIdUtils`. Entity ID generation reads `AppId` from the entity's domain attribute, which derives from `EntityTypeAttribute<TApp>`. Configured `NexusAppSettings.AppId` controls the host's client routing partition and host domain partition alignment in Entity Framework.
 
 `NexusAppSettings:AppId` and `NexusAppSettings:AppInstanceId` must be explicitly configured in every environment. Missing, null, empty and whitespace values fail configuration validation; explicit `0` is valid for both. AppId supports 0 through 127; AppInstanceId supports 0 through 63. Assign distinct AppInstanceIds to concurrent instances generating IDs for the same application. The Testing package's `SettingsProvider.Development()` supplies both defaults explicitly.
 

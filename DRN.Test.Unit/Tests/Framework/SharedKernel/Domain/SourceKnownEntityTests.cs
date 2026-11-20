@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Domain;
+using DRN.Test.Utils.Testing;
 
 namespace DRN.Test.Unit.Tests.Framework.SharedKernel.Domain;
 
@@ -10,10 +11,10 @@ public readonly struct CustomTestApp : IAppId
     public static byte AppId => Value;
 }
 
-[EntityType<CustomTestApp>(7)]
+[FixtureEntityType<CustomTestApp>(FixtureEntityTypes.CustomPartition)]
 public class CustomTestEntity : SourceKnownEntity;
 
-[EntityType<DefaultApp>(101)]
+[FixtureEntityType<DefaultApp>(FixtureEntityTypes.DefaultPartition)]
 public class DefaultAppTestEntity : SourceKnownEntity;
 
 public class SourceKnownEntityTests

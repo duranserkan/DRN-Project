@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Ids;
 using DRN.Framework.Utils.Numbers;
+using DRN.Test.Utils.Testing;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Ids;
 
@@ -327,6 +328,6 @@ public class PaperNumericWalkthroughTests
         public static byte AppId => Value;
     }
 
-    [EntityType<WalkthroughApp>(WalkthroughEntityType)]
+    [FixtureEntityType<WalkthroughApp>(FixtureEntityTypes.Walkthrough)]
     internal class WalkthroughEntity(long id) : SourceKnownEntity(id);
 }

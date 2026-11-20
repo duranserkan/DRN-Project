@@ -4,6 +4,7 @@ using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.EntityFramework.Extensions;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.Models;
+using DRN.Test.Utils.Testing;
 using Microsoft.EntityFrameworkCore;
 
 namespace DRN.Test.Unit.Tests.Framework.EntityFramework;
@@ -481,18 +482,18 @@ public readonly struct SecondValidationApp : IAppId
     public static byte AppId => Value;
 }
 
-[EntityType<FirstValidationApp>(250)]
+[FixtureEntityType<FirstValidationApp>(FixtureEntityTypes.PartitionValidation)]
 public sealed class FirstPartitionEntity : SourceKnownEntity;
 
 [SuppressMessage("DRN.Domain", "DRNENTITY002", Justification = "Intentional duplicate entity type exercises runtime validation.")]
-[EntityType<FirstValidationApp>(250)]
+[FixtureEntityType<FirstValidationApp>(FixtureEntityTypes.PartitionValidation)]
 public sealed class FirstPartitionDuplicateEntity : SourceKnownEntity;
 
-[EntityType<SecondValidationApp>(250)]
+[FixtureEntityType<SecondValidationApp>(FixtureEntityTypes.PartitionValidation)]
 public sealed class SecondPartitionEntity : SourceKnownEntity;
 
-[EntityType<TestApp>(250)]
+[FixtureEntityType<TestApp>(FixtureEntityTypes.PartitionValidation)]
 public sealed class TestPartitionEntity : SourceKnownEntity;
 
-[EntityType<DefaultApp>(250)]
+[FixtureEntityType<DefaultApp>(FixtureEntityTypes.PartitionValidation)]
 public sealed class DefaultPartitionEntity : SourceKnownEntity;

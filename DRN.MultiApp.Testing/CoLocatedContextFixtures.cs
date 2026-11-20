@@ -16,13 +16,22 @@ public readonly struct CoLocatedSecondApp : IAppId
     public static byte AppId => Value;
 }
 
-[EntityType<CoLocatedFirstApp>(1)]
+public enum CoLocatedEntityTypes : byte
+{
+    ModelEntity = 1,
+    NonModelEntity = 2
+}
+
+public sealed class CoLocatedEntityTypeAttribute<TApp>(CoLocatedEntityTypes entityType)
+    : EntityTypeAttribute<TApp>((byte)entityType) where TApp : IAppId;
+
+[CoLocatedEntityType<CoLocatedFirstApp>(CoLocatedEntityTypes.ModelEntity)]
 public sealed class CoLocatedFirstEntity : SourceKnownEntity;
 
-[EntityType<CoLocatedSecondApp>(1)]
+[CoLocatedEntityType<CoLocatedSecondApp>(CoLocatedEntityTypes.ModelEntity)]
 public sealed class CoLocatedSecondEntity : SourceKnownEntity;
 
-[EntityType<CoLocatedFirstApp>(2)]
+[CoLocatedEntityType<CoLocatedFirstApp>(CoLocatedEntityTypes.NonModelEntity)]
 public sealed class CoLocatedNonModelDomainEntity : SourceKnownEntity;
 
 public static class CoLocatedPrivateEntityFixture

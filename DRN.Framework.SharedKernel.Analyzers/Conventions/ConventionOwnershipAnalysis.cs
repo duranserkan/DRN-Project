@@ -82,19 +82,7 @@ internal static class ConventionOwnershipAnalysis
         string ns, string expectedNamespace, string? expectedDirectory, DiagnosticDescriptor? descriptor = null)
     {
         var namespaceConflict = ns != expectedNamespace;
-        var conflictingParts = new HashSet<Location>();
-        var missing = false;
-        foreach (var reference in type.DeclaringSyntaxReferences)
-        {
-            facts.Cancellation.ThrowIfCancellationRequested();
-            if (facts.IsGenerated(reference.SyntaxTree) || facts.HasInvalidPath(reference.SyntaxTree)) continue;
-            var placement = facts.LogicalDirectory(reference.SyntaxTree);
-            if (placement is null) { missing = true; continue; }
-            if ((expectedDirectory is null || placement.Value.Directory == expectedDirectory) && !namespaceConflict) continue;
-            var part = type.Locations.FirstOrDefault(candidate => candidate.SourceTree == reference.SyntaxTree &&
-                reference.Span.Contains(candidate.SourceSpan)) ?? reference.GetSyntax(facts.Cancellation).GetLocation();
-            conflictingParts.Add(part);
-        }
+        var (conflictingParts, missing) = FindConflictingParts(facts, type, namespaceConflict, expectedDirectory);
         if (missing)
             facts.Diagnostics.Add(ConventionProject.InputIssue(ConventionSymbols.MetadataName(type),
                 "missing logical source placement", "Compile or Link path", location));
@@ -107,6 +95,30 @@ internal static class ConventionOwnershipAnalysis
                 properties: descriptor is null ? null : ImmutableDictionary<string, string?>.Empty.Add("Target", type.GetDocumentationCommentId()),
                 messageArgs: [type.Name, expectedDirectory ?? "<unknown>", expectedNamespace]));
         }
+    }
+
+    private static (HashSet<Location> Conflicts, bool MissingPlacement) FindConflictingParts(ConventionFacts facts,
+        INamedTypeSymbol type, bool namespaceConflict, string? expectedDirectory)
+    {
+        var conflicts = new HashSet<Location>();
+        var missingPlacement = false;
+        foreach (var reference in type.DeclaringSyntaxReferences)
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            if (facts.IsGenerated(reference.SyntaxTree) || facts.HasInvalidPath(reference.SyntaxTree)) continue;
+            var placement = facts.LogicalDirectory(reference.SyntaxTree);
+            if (placement is null)
+            {
+                missingPlacement = true;
+                continue;
+            }
+            var directoryConflict = expectedDirectory is not null && placement.Value.Directory != expectedDirectory;
+            if (!directoryConflict && !namespaceConflict) continue;
+            var part = type.Locations.FirstOrDefault(candidate => candidate.SourceTree == reference.SyntaxTree &&
+                reference.Span.Contains(candidate.SourceSpan)) ?? reference.GetSyntax(facts.Cancellation).GetLocation();
+            conflicts.Add(part);
+        }
+        return (conflicts, missingPlacement);
     }
 
     internal static bool HasEntityBinding(ConventionFacts facts, INamedTypeSymbol type)
