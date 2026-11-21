@@ -1,8 +1,22 @@
 using DRN.Framework.CompilerTools;
+using Microsoft.CodeAnalysis.CSharp;
 
 namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 
-internal sealed record ConventionOwner(string AssemblyName, string Subdomain, string Role, string RoleNamespace);
+// Represents resolved ownership identity by (AssemblyName, Domain, Subdomain) and project layout metadata.
+internal sealed record ConventionOwner(string AssemblyName, string Domain, string Subdomain, string Role, string RoleNamespace,
+    bool HasFolderDomain = false, bool HasExplicitDomain = false)
+{
+    internal string NamespacePrefix => HasFolderDomain ? Domain + "." + Subdomain : Subdomain;
+    internal string DisplayName => HasFolderDomain ? Domain + "/" + Subdomain : Subdomain;
+
+    internal bool SameOwner(ConventionOwner other) =>
+        ConventionNames.SameOwner(Domain, Subdomain, other.Domain, other.Subdomain);
+
+    internal bool MatchesAcrossLayers(ConventionOwner other) =>
+        ConventionNames.MatchesOwnerAcrossLayers(Domain, Subdomain, HasFolderDomain, HasExplicitDomain,
+            other.Domain, other.Subdomain, other.HasFolderDomain, other.HasExplicitDomain);
+}
 
 internal sealed partial class ConventionFacts
 {
@@ -27,6 +41,19 @@ internal sealed partial class ConventionFacts
     private readonly HashSet<string> _invalidOwnershipNames = new(StringComparer.Ordinal);
     private readonly HashSet<string> _invalidContextNames = new(StringComparer.Ordinal);
     private readonly HashSet<string> _invalidPaths = new(StringComparer.Ordinal);
+    private readonly Dictionary<ISymbol, HashSet<ISymbol>> _incompleteContracts = new(SymbolEqualityComparer.Default);
+    private readonly Dictionary<INamedTypeSymbol, ImmutableArray<ISymbol>> _publicContractMembers = new(SymbolEqualityComparer.Default);
+    private readonly Dictionary<INamedTypeSymbol, ImmutableArray<ISymbol>> _publicTransportMembers = new(SymbolEqualityComparer.Default);
+    private readonly Dictionary<INamedTypeSymbol, ImmutableArray<(int StatusCode, ITypeSymbol Type)>> _controllerProducesResponseTypes = new(SymbolEqualityComparer.Default);
+    private readonly Dictionary<IMethodSymbol, ImmutableArray<(int StatusCode, ITypeSymbol? Type)>> _methodProducesResponseTypes = new(SymbolEqualityComparer.Default);
+    private readonly HashSet<ITypeSymbol>[] _cleanPublicShapeTypes =
+    [
+        new(SymbolEqualityComparer.Default),
+        new(SymbolEqualityComparer.Default),
+        new(SymbolEqualityComparer.Default)
+    ];
+    private bool? _hasGlobalResponseAlias;
+    private readonly Dictionary<SyntaxTree, bool> _treeHasResponseAlias = [];
 
     internal ConventionFacts(Compilation compilation, ConventionProject project, ConventionInputs inputs,
         AnalyzerConfigOptionsProvider options, CancellationToken cancellation)
@@ -57,6 +84,146 @@ internal sealed partial class ConventionFacts
     internal Dictionary<INamedTypeSymbol, ConventionRegistrationAnalysis.LifetimeAnalysis> Lifetimes { get; } = new(SymbolEqualityComparer.Default);
 
     internal bool IsLocal(INamedTypeSymbol type) => SymbolEqualityComparer.Default.Equals(type.ContainingAssembly, Compilation.Assembly);
+
+    internal bool HasDomainRole() => Project.Role == ConventionArchitecture.Domain ||
+        _roles.Any(role => role.Identity == ConventionArchitecture.Domain);
+
+    internal bool TryGetDomainRelativeDirectory(string directory, out string relativeDirectory)
+    {
+        foreach (var mapping in _roles)
+        {
+            var prefix = ConventionProject.NormalizeSeparators(mapping.Get(ConventionInputSyntax.LogicalPathPrefixField));
+            if (directory != prefix && !directory.StartsWith(prefix + "/", StringComparison.Ordinal)) continue;
+            if (mapping.Identity != ConventionArchitecture.Domain)
+            {
+                relativeDirectory = "";
+                return false;
+            }
+            relativeDirectory = directory.Length == prefix.Length ? "" : directory[(prefix.Length + 1)..];
+            return true;
+        }
+        if (Project.Role == ConventionArchitecture.Domain)
+        {
+            relativeDirectory = directory;
+            return true;
+        }
+        relativeDirectory = "";
+        return false;
+    }
+
+    internal void ReportIncompleteContract(ISymbol reportingSymbol, ISymbol member, Location location)
+    {
+        if (!_incompleteContracts.TryGetValue(reportingSymbol, out var members))
+        {
+            members = new(SymbolEqualityComparer.Default);
+            _incompleteContracts.Add(reportingSymbol, members);
+        }
+        if (members.Add(member))
+            Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.IncompleteContract, location,
+                ConventionBoundaryAnalysis.Properties(reportingSymbol), member.ToDisplayString()));
+    }
+
+    internal Stack<ITypeSymbol> PublicShapePending { get; } = [];
+    internal HashSet<ITypeSymbol> PublicShapeVisited { get; } = new(SymbolEqualityComparer.Default);
+
+    internal HashSet<ITypeSymbol> CleanPublicShapeTypes(PublicShapeRule rule) => _cleanPublicShapeTypes[(int)rule];
+
+    internal ImmutableArray<ISymbol> GetOrAddPublicMembers(INamedTypeSymbol type, bool transport,
+        Func<ConventionFacts, INamedTypeSymbol, bool, ImmutableArray<ISymbol>> factory)
+    {
+        Cancellation.ThrowIfCancellationRequested();
+        var cache = transport ? _publicTransportMembers : _publicContractMembers;
+        if (cache.TryGetValue(type, out var cached)) return cached;
+        var members = factory(this, type, transport);
+        Cancellation.ThrowIfCancellationRequested();
+        cache.Add(type, members);
+        return members;
+    }
+
+    internal ImmutableArray<(int StatusCode, ITypeSymbol Type)> GetOrAddControllerProducesResponseTypes(
+        INamedTypeSymbol controller, Func<ConventionFacts, INamedTypeSymbol, ImmutableArray<(int StatusCode, ITypeSymbol Type)>> factory)
+    {
+        Cancellation.ThrowIfCancellationRequested();
+        if (_controllerProducesResponseTypes.TryGetValue(controller, out var cached)) return cached;
+        var entries = factory(this, controller);
+        Cancellation.ThrowIfCancellationRequested();
+        _controllerProducesResponseTypes.Add(controller, entries);
+        return entries;
+    }
+
+    internal ImmutableArray<(int StatusCode, ITypeSymbol? Type)> GetOrAddMethodProducesResponseTypes(
+        IMethodSymbol method, Func<ConventionFacts, IMethodSymbol, ImmutableArray<(int StatusCode, ITypeSymbol? Type)>> factory)
+    {
+        Cancellation.ThrowIfCancellationRequested();
+        if (_methodProducesResponseTypes.TryGetValue(method, out var cached)) return cached;
+        var entries = factory(this, method);
+        Cancellation.ThrowIfCancellationRequested();
+        _methodProducesResponseTypes.Add(method, entries);
+        return entries;
+    }
+
+    internal bool HasResponseUsingAlias(SyntaxTree tree)
+    {
+        Cancellation.ThrowIfCancellationRequested();
+        if (HasGlobalResponseAlias()) return true;
+        if (_treeHasResponseAlias.TryGetValue(tree, out var cached)) return cached;
+        var result = TreeHasResponseAlias(tree, Cancellation);
+        Cancellation.ThrowIfCancellationRequested();
+        _treeHasResponseAlias.Add(tree, result);
+        return result;
+    }
+
+    private bool HasGlobalResponseAlias()
+    {
+        Cancellation.ThrowIfCancellationRequested();
+        if (_hasGlobalResponseAlias is { } cached) return cached;
+        var result = AnyGlobalResponseAlias(Compilation, Cancellation);
+        Cancellation.ThrowIfCancellationRequested();
+        _hasGlobalResponseAlias = result;
+        return result;
+    }
+
+    private static bool AnyGlobalResponseAlias(Compilation compilation, CancellationToken cancellation)
+    {
+        foreach (var tree in compilation.SyntaxTrees)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (tree.GetRoot(cancellation) is not CompilationUnitSyntax root) continue;
+            foreach (var directive in root.Usings)
+            {
+                if (directive.GlobalKeyword.IsKind(SyntaxKind.GlobalKeyword) && IsResponseAlias(directive))
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    private static bool TreeHasResponseAlias(SyntaxTree tree, CancellationToken cancellation)
+    {
+        if (tree.GetRoot(cancellation) is not CompilationUnitSyntax root) return false;
+        foreach (var node in root.DescendantNodes(static current =>
+                     current is CompilationUnitSyntax or BaseNamespaceDeclarationSyntax))
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (node is UsingDirectiveSyntax directive && IsResponseAlias(directive))
+                return true;
+        }
+        return false;
+    }
+
+    private static bool IsResponseAlias(UsingDirectiveSyntax directive) =>
+        directive.Alias is not null &&
+        !directive.Alias.Name.Identifier.ValueText.EndsWith("Response", StringComparison.Ordinal) &&
+        RightmostTypeIdentifier(directive.NamespaceOrType) is { } target &&
+        target.EndsWith("Response", StringComparison.Ordinal);
+
+    internal static string? RightmostTypeIdentifier(TypeSyntax type) => type switch
+    {
+        SimpleNameSyntax simple => simple.Identifier.ValueText,
+        QualifiedNameSyntax qualified => qualified.Right.Identifier.ValueText,
+        AliasQualifiedNameSyntax alias => alias.Name.Identifier.ValueText,
+        _ => null
+    };
 
     internal bool HasInvalidOwner(INamedTypeSymbol type) => _invalidOwners.Contains(type.OriginalDefinition) ||
         _invalidOwnershipNames.Contains(ConventionSymbols.MetadataName(type)) || HasInvalidContext(type);
@@ -100,6 +267,14 @@ internal sealed partial class ConventionFacts
 
     internal string? LogicalPath(SyntaxTree tree) =>
         _paths.TryGetValue(ConventionProject.NormalizeSeparators(tree.FilePath), out var input) ? input.Get("LogicalPath") : null;
+
+    internal bool HasLogicalPath(string logicalPath)
+    {
+        var normalized = ConventionProject.NormalizeSeparators(logicalPath);
+        return _paths.Values.Any(input => string.Equals(
+            ConventionProject.NormalizeSeparators(input.Get(ConventionInputSyntax.LogicalPathField)),
+            normalized, StringComparison.Ordinal));
+    }
 
     internal (string Directory, string Name)? LogicalDirectory(SyntaxTree tree)
     {
@@ -219,60 +394,81 @@ internal sealed partial class ConventionFacts
         var local = IsLocal(type);
         var project = local ? Project : ReferenceProject(type.ContainingAssembly);
         var role = Role(type);
-        var conventional = project is null ? null : InferOwner(type, role.Role, role.Namespace);
-        var (declarations, hasDirectAttribute, hasProducerDeclaration) = CollectDeclaredOwners(type, local, ref project);
+        var conventional = project is null ? null : InferOwner(type, role.Role, role.Namespace, project);
+        var (declarations, hasDirectAttribute, hasProducerDeclaration) = CollectDeclaredOwners(type, local, ref project, conventional?.Domain ?? "");
 
         var nameKey = ConventionSymbols.MetadataName(type);
-        ValidateDeclaredOwners(type, nameKey, conventional, declarations);
+        ValidateDeclaredOwners(type, nameKey, project, conventional, declarations);
         if (IsInvalidConsumerRedefinition(type, local, conventional, nameKey, declarations, hasDirectAttribute, hasProducerDeclaration))
             InvalidOwner(type, nameKey, "a consumer redefinition of referenced ownership", declarations[0].Location);
 
         _ = DeclaredKind(type);
 
         if (_invalidOwners.Contains(type)) return null;
-        var owner = declarations.Count > 0 ? declarations[0].Name : conventional;
-        if (owner is null || project is null) return null;
-        return new(type.ContainingAssembly.Name, owner, role.Role, role.Namespace);
+        if (project is null) return null;
+        if (declarations.Count > 0)
+        {
+            var chosen = declarations[0];
+            var hasFolderDomain = project.DomainLayout == ConventionProject.FoldersLayout;
+            var hasExplicitDomain = project.HasExplicitDomain || declarations.Any(declaration => declaration.ExplicitDomain);
+            return new(type.ContainingAssembly.Name, chosen.Domain, chosen.Name, role.Role, role.Namespace,
+                hasFolderDomain, hasExplicitDomain);
+        }
+        if (conventional is not { } inferred) return null;
+        return new(type.ContainingAssembly.Name, inferred.Domain, inferred.Subdomain, role.Role, role.Namespace,
+            inferred.HasFolderDomain, project.HasExplicitDomain);
     }
 
-    private (List<(string Name, string Reason, Location Location, bool ConsumerOverride)> Declarations,
-        bool HasDirectAttribute, bool HasProducerDeclaration) CollectDeclaredOwners(
-        INamedTypeSymbol type, bool local, ref ConventionProject? project)
+    private readonly record struct DeclaredOwnerEntry(string Domain, string Name, string Reason,
+        Location Location, bool ConsumerOverride, bool ExplicitDomain);
+
+    private static DeclaredOwnerEntry CreateDeclaredOwner(string declaredDomain, string defaultDomain, string name,
+        string reason, Location location, bool consumerOverride)
     {
-        var declarations = new List<(string Name, string Reason, Location Location, bool ConsumerOverride)>();
-        var hasDirectAttribute = CollectAttributeOwners(type, declarations);
+        var explicitDomain = declaredDomain.Length > 0;
+        return new(explicitDomain ? declaredDomain : defaultDomain, name, reason, location, consumerOverride, explicitDomain);
+    }
+
+    private (List<DeclaredOwnerEntry> Declarations, bool HasDirectAttribute, bool HasProducerDeclaration) CollectDeclaredOwners(
+        INamedTypeSymbol type, bool local, ref ConventionProject? project, string conventionalDomain)
+    {
+        var declarations = new List<DeclaredOwnerEntry>();
+        var defaultDomain = project?.DomainLayout == ConventionProject.FoldersLayout ? conventionalDomain : project?.DefaultDomain ?? "";
+        var hasDirectAttribute = CollectAttributeOwners(type, defaultDomain, declarations);
         var producer = local ? null : ReferenceOwnership(type);
         var hasProducerDeclaration = producer is { Declarations.Count: > 0 };
         if (producer is not null)
         {
             foreach (var declaration in producer.Declarations)
-                declarations.Add((declaration.Subdomain, declaration.Reason, Microsoft.CodeAnalysis.Location.None, false));
+                declarations.Add(new(declaration.EffectiveDomain, declaration.Subdomain, declaration.Reason,
+                    Microsoft.CodeAnalysis.Location.None, ConsumerOverride: false, declaration.ExplicitDomain));
         }
 
         var nameKey = ConventionSymbols.MetadataName(type);
         if (_contexts.TryGetValue(nameKey, out var context) && context.Get(ConventionInputSyntax.SubdomainField).Length > 0)
-            declarations.Insert(0, (context.Get(ConventionInputSyntax.SubdomainField),
-                context.Get(ConventionInputSyntax.ReasonField), context.Location, !local));
+            declarations.Insert(0, CreateDeclaredOwner(context.Get(ConventionInputSyntax.DomainField), defaultDomain,
+                context.Get(ConventionInputSyntax.SubdomainField), context.Get(ConventionInputSyntax.ReasonField),
+                context.Location, consumerOverride: !local));
         if (_ownership.TryGetValue(nameKey, out var ownership))
         {
-            declarations.Insert(0, (ownership.Get(ConventionInputSyntax.SubdomainField),
-                ownership.Get(ConventionInputSyntax.ReasonField), ownership.Location, !local));
+            declarations.Insert(0, CreateDeclaredOwner(ownership.Get(ConventionInputSyntax.DomainField), defaultDomain,
+                ownership.Get(ConventionInputSyntax.SubdomainField), ownership.Get(ConventionInputSyntax.ReasonField),
+                ownership.Location, consumerOverride: !local));
             project ??= Project;
         }
 
         // A consumer may fill a missing external fact, but cannot redefine an established owner.
         if (_externalOwners.TryGetValue(type, out var external))
         {
-            var externalName = (string)external.ConstructorArguments[1].Value!;
-            declarations.Add((externalName, Reason(external), AttributeLocation(external, type), true));
+            declarations.Add(CreateDeclaredOwner(Domain(external), defaultDomain, (string)external.ConstructorArguments[1].Value!,
+                Reason(external), AttributeLocation(external, type), consumerOverride: true));
             project ??= Project;
         }
 
         return (declarations, hasDirectAttribute, hasProducerDeclaration);
     }
 
-    private bool CollectAttributeOwners(INamedTypeSymbol type,
-        List<(string Name, string Reason, Location Location, bool ConsumerOverride)> declarations)
+    private bool CollectAttributeOwners(INamedTypeSymbol type, string defaultDomain, List<DeclaredOwnerEntry> declarations)
     {
         var hasDirectAttribute = false;
         foreach (var attribute in type.GetAttributes())
@@ -289,36 +485,45 @@ internal sealed partial class ConventionFacts
                 InvalidOwner(type, "type ownership", "not a single subdomain declaration", AttributeLocation(attribute, type));
                 continue;
             }
-            declarations.Add((name, Reason(attribute), AttributeLocation(attribute, type), false));
+            declarations.Add(CreateDeclaredOwner(Domain(attribute), defaultDomain, name, Reason(attribute),
+                AttributeLocation(attribute, type), consumerOverride: false));
         }
         return hasDirectAttribute;
     }
 
-    private void ValidateDeclaredOwners(INamedTypeSymbol type, string nameKey, string? conventional,
-        List<(string Name, string Reason, Location Location, bool ConsumerOverride)> declarations)
+    private void ValidateDeclaredOwners(INamedTypeSymbol type, string nameKey, ConventionProject? project,
+        (string Domain, string Subdomain, bool HasFolderDomain)? conventional, List<DeclaredOwnerEntry> declarations)
     {
-        if (declarations.Select(item => item.Name).Distinct(StringComparer.Ordinal).Skip(1).Any())
+        if (declarations.Select(item => (item.Domain, item.Name)).Distinct().Skip(1).Any())
             InvalidOwner(type, nameKey, "contradictory", declarations[0].Location, declarations.Select(item => item.Location));
+        var requireDomain = project?.DomainLayout == ConventionProject.FoldersLayout;
         foreach (var declaration in declarations)
         {
-            if (!Microsoft.CodeAnalysis.CSharp.SyntaxFacts.IsValidIdentifier(declaration.Name) ||
-                (declaration.Name != conventional || declaration.ConsumerOverride) && string.IsNullOrWhiteSpace(declaration.Reason))
+            var invalidDomain = (requireDomain || declaration.ExplicitDomain) &&
+                !Microsoft.CodeAnalysis.CSharp.SyntaxFacts.IsValidIdentifier(declaration.Domain);
+            var differsFromConventional = conventional is null ||
+                declaration.Name != conventional.Value.Subdomain ||
+                declaration.Domain != conventional.Value.Domain;
+            if (invalidDomain || !Microsoft.CodeAnalysis.CSharp.SyntaxFacts.IsValidIdentifier(declaration.Name) ||
+                (differsFromConventional || declaration.ConsumerOverride) && string.IsNullOrWhiteSpace(declaration.Reason))
                 InvalidOwner(type, nameKey, "malformed or missing its exceptional reason", declaration.Location);
         }
     }
 
-    private bool IsInvalidConsumerRedefinition(INamedTypeSymbol type, bool local, string? conventional, string nameKey,
-        List<(string Name, string Reason, Location Location, bool ConsumerOverride)> declarations,
-        bool hasDirectAttribute, bool hasProducerDeclaration) =>
-        !local && conventional is not null && !hasDirectAttribute && !hasProducerDeclaration &&
+    private bool IsInvalidConsumerRedefinition(INamedTypeSymbol type, bool local,
+        (string Domain, string Subdomain, bool HasFolderDomain)? conventional, string nameKey,
+        List<DeclaredOwnerEntry> declarations, bool hasDirectAttribute, bool hasProducerDeclaration) =>
+        !local && conventional is { } inferred && !hasDirectAttribute && !hasProducerDeclaration &&
         (_ownership.ContainsKey(nameKey) || _contexts.ContainsKey(nameKey) || _externalOwners.ContainsKey(type)) &&
-        declarations.Any(declaration => declaration.ConsumerOverride && declaration.Name != conventional);
+        declarations.Any(declaration => declaration.ConsumerOverride &&
+            (declaration.Name != inferred.Subdomain || declaration.Domain != inferred.Domain));
 
     internal bool UsesOwnSubdomain(INamedTypeSymbol consumer, INamedTypeSymbol entity)
     {
-        if (Owner(consumer) is not { } owner || Owner(entity) is not { } entityOwner ||
-            owner.Subdomain != entityOwner.Subdomain) return false;
-        if (SymbolEqualityComparer.Default.Equals(consumer.ContainingAssembly, entity.ContainingAssembly)) return true;
+        if (Owner(consumer) is not { } owner || Owner(entity) is not { } entityOwner) return false;
+        if (SymbolEqualityComparer.Default.Equals(consumer.ContainingAssembly, entity.ContainingAssembly))
+            return owner.SameOwner(entityOwner);
+        if (!owner.MatchesAcrossLayers(entityOwner)) return false;
         // A referencing layer can implement a Domain subdomain without sharing its project name.
         // Separate Domain assemblies retain distinct ownership even when subdomain names coincide.
         if (owner.Role is not ("Infra" or "Application" or "Hosted") || entityOwner.Role != "Domain") return false;
@@ -339,15 +544,33 @@ internal sealed partial class ConventionFacts
         return reachable.Contains(entity.ContainingAssembly);
     }
 
-    private static string? InferOwner(INamedTypeSymbol type, string role, string rootNamespace)
+    internal static int OwnerSegmentOffset(string role, string[] parts) =>
+        parts.Length > 0 &&
+        (role == ConventionArchitecture.Hosted && parts[0] is "Controllers" or "Pages" ||
+         role == ConventionArchitecture.Application && parts[0] == "Services")
+            ? 1
+            : 0;
+
+    private (string Domain, string Subdomain, bool HasFolderDomain)? InferOwner(
+        INamedTypeSymbol type, string role, string rootNamespace, ConventionProject project)
     {
         var ns = type.ContainingNamespace.ToDisplayString();
         if (rootNamespace.Length == 0 || !ns.StartsWith(rootNamespace + ".", StringComparison.Ordinal)) return null;
         var parts = ns[(rootNamespace.Length + 1)..].Split('.');
-        var prefix = role == ConventionArchitecture.Hosted && parts[0] is "Controllers" or "Pages" ||
-                     role == ConventionArchitecture.Application && parts[0] == "Services";
-        var index = prefix ? 1 : 0;
-        return index < parts.Length ? parts[index] : null;
+        var index = OwnerSegmentOffset(role, parts);
+        if (project.DomainLayout == ConventionProject.FoldersLayout)
+        {
+            if (index + 1 >= parts.Length) return null;
+            if (role == ConventionArchitecture.Domain && Symbols.IsKnown(type, Symbols.Aggregate, Cancellation) &&
+                index + 2 == parts.Length && parts[index + 1] == ConventionNames.EntityStem(type.Name))
+                return null;
+            return (parts[index], parts[index + 1], true);
+        }
+        if (index >= parts.Length) return null;
+        if (role == ConventionArchitecture.Domain && Symbols.IsKnown(type, Symbols.Aggregate, Cancellation) &&
+            index + 1 == parts.Length && parts[index] == ConventionNames.EntityStem(type.Name))
+            return null;
+        return (project.DefaultDomain, parts[index], false);
     }
 
     internal ConventionProject? ReferenceProject(IAssemblySymbol assembly)
@@ -366,6 +589,8 @@ internal sealed partial class ConventionFacts
             {
                 "DRN.Conventions.ProjectName" => "MSBuildProjectName",
                 "DRN.Conventions.RootNamespace" => "RootNamespace",
+                "DRN.Conventions.DomainLayout" => "DrnDomainLayout",
+                "DRN.Conventions.Domain" => "DrnDomain",
                 _ => null
             };
             if (property is null) continue;
@@ -439,6 +664,9 @@ internal sealed partial class ConventionFacts
 
     internal static string Reason(AttributeData attribute) =>
         attribute.NamedArguments.FirstOrDefault(pair => pair.Key == "Reason").Value.Value as string ?? "";
+
+    internal static string Domain(AttributeData attribute) =>
+        attribute.NamedArguments.FirstOrDefault(pair => pair.Key == "Domain").Value.Value as string ?? "";
 
     internal Location AttributeLocation(AttributeData attribute, INamedTypeSymbol fallback) =>
         attribute.ApplicationSyntaxReference is { } reference && Compilation.ContainsSyntaxTree(reference.SyntaxTree)

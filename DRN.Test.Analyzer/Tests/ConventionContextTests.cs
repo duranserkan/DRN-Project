@@ -722,7 +722,7 @@ public sealed class ConventionContextTests
     {
         var repository = """
             namespace Sample.Infra.QA.Repositories;
-            public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+            public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
             public class OrderRepository(QAContext context, DRN.Framework.Utils.Entity.IEntityUtils utils)
                 : DRN.Framework.EntityFramework.Domain.SourceKnownRepository<QAContext, OrderEntity>(context, utils);
             """;

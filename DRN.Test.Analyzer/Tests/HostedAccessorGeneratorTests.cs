@@ -440,32 +440,27 @@ public class HostedAccessorGeneratorTests
             using DRN.Framework.Hosting.Endpoints;
             using DRN.Framework.Hosting.Controllers;
             using DRN.Framework.SharedKernel.Domain;
-            using DRN.Framework.SharedKernel.Domain.Repository;
             using Microsoft.AspNetCore.Mvc;
             [assembly: AccessorController(typeof(TestProgram), typeof(TagController), "QA.Tag")]
             [assembly: AccessorMember(typeof(TestProgram), "Endpoint.QA.Tag.GetAsync", Name = "Read")]
-            public class Entity : AggregateRoot { }
-            public class Model : Dto { }
+            public class Entity : AggregateRoot { public override Dto ToDto() => new(this); }
+            public class Model { }
             public record CreateModel;
-            public class TagController(ISourceKnownRepository<Entity> repository) : SourceKnownController<Entity, Model, CreateModel>(repository)
+            public class TagController(ISourceKnownService<Entity, Dto, CreateModel> service) : SourceKnownController<Entity, Model, CreateModel>(service)
             {
-                protected override Model ToDto(Entity entity) => new();
-                protected override System.Threading.Tasks.Task<Entity> CreateEntityAsync(CreateModel request, System.Threading.CancellationToken token)
-                    => System.Threading.Tasks.Task.FromResult(new Entity());
+                protected override Model ToResponse(Entity entity) => new();
                 [NonAction] public override System.Threading.Tasks.Task<long> CountAsync(System.Threading.CancellationToken token = default)
                     => base.CountAsync(token);
                 [ApiExplorerSettings(IgnoreApi = true)] public override System.Threading.Tasks.Task<bool> AnyAsync(System.Threading.CancellationToken token = default)
                     => base.AnyAsync(token);
             }
-            public class WriteController(ISourceKnownRepository<Entity> repository) : SourceKnownWriteOnlyController<Entity, Model, CreateModel>(repository)
+            public class WriteController(ISourceKnownService<Entity, Dto, CreateModel> service) : SourceKnownWriteOnlyController<Entity, Model, CreateModel>(service)
             {
-                protected override Model ToDto(Entity entity) => new();
-                protected override System.Threading.Tasks.Task<Entity> CreateEntityAsync(CreateModel request, System.Threading.CancellationToken token)
-                    => System.Threading.Tasks.Task.FromResult(new Entity());
+                protected override Model ToResponse(Entity entity) => new();
             }
-            public class ReadController(ISourceKnownRepository<Entity> repository) : SourceKnownReadOnlyController<Entity, Model>(repository)
+            public class ReadController(ISourceKnownService<Entity> service) : SourceKnownReadOnlyController<Entity, Model>(service)
             {
-                protected override Model ToDto(Entity entity) => new();
+                protected override Model ToResponse(Entity entity) => new();
             }
             """ + ProgramSource;
         var result = Generate(source);

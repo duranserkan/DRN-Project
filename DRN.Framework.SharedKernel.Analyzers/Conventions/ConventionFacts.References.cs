@@ -53,7 +53,7 @@ internal sealed partial class ConventionFacts
         {
             Cancellation.ThrowIfCancellationRequested();
             if (!TryParseMetadataRecord(assembly, key, malformedKeys, out var kind, out var name, out var field)) continue;
-            if (field is not (ConventionInputSyntax.SubdomainField or ConventionInputSyntax.ReasonField or ConventionInputSyntax.KindField) ||
+            if (field is not (ConventionInputSyntax.DomainField or ConventionInputSyntax.SubdomainField or ConventionInputSyntax.ReasonField or ConventionInputSyntax.KindField) ||
                 kind == ConventionInputSyntax.ContextKind && field == ConventionInputSyntax.KindField)
             {
                 invalid.Add(name);
@@ -110,10 +110,11 @@ internal sealed partial class ConventionFacts
         {
             Cancellation.ThrowIfCancellationRequested();
             var type = assembly.GetTypeByMetadataName(name)!;
+            fields.TryGetValue(ConventionInputSyntax.DomainField, out var domain);
             fields.TryGetValue(ConventionInputSyntax.SubdomainField, out var subdomain);
             fields.TryGetValue(ConventionInputSyntax.ReasonField, out var reason);
             fields.TryGetValue(ConventionInputSyntax.KindField, out var classification);
-            if (!IsValidProducerRecord(type, kind, subdomain, reason, classification))
+            if (!IsValidProducerRecord(type, kind, domain, subdomain, reason, classification, out var effectiveDomain))
             {
                 invalid.Add(name);
                 continue;
@@ -123,26 +124,36 @@ internal sealed partial class ConventionFacts
                 owner = new();
                 result.Add(name, owner);
             }
-            if (owner.Declarations.Any(declaration => declaration.Subdomain != subdomain)) invalid.Add(name);
-            owner.Declarations.Add((subdomain!, reason ?? ""));
+            if (owner.Declarations.Any(declaration => declaration.Subdomain != subdomain || declaration.EffectiveDomain != effectiveDomain))
+                invalid.Add(name);
+            owner.Declarations.Add((effectiveDomain, !string.IsNullOrEmpty(domain), subdomain!, reason ?? ""));
             if (kind == ConventionInputSyntax.OwnershipKind) owner.Kind = classification ?? "";
         }
     }
 
-    private bool IsValidProducerRecord(INamedTypeSymbol type, string kind, string? subdomain,
-        string? reason, string? classification)
+    private bool IsValidProducerRecord(INamedTypeSymbol type, string kind, string? domain, string? subdomain,
+        string? reason, string? classification, out string effectiveDomain)
     {
+        effectiveDomain = "";
         if (subdomain is null || !SyntaxFacts.IsValidIdentifier(subdomain) ||
+            !string.IsNullOrEmpty(domain) && !SyntaxFacts.IsValidIdentifier(domain) ||
             classification is not (null or "" or ConventionInputSyntax.EntityField or "Value") ||
             classification == "Value" && Symbols.IsPersistenceType(type, Cancellation) ||
             kind == ConventionInputSyntax.ContextKind && Symbols.Context is not null && !Symbols.IsContext(type, Cancellation))
             return false;
+        var project = ReferenceProject(type.ContainingAssembly);
+        if (project is null) return false;
         var role = Role(type);
-        var conventional = InferOwner(type, role.Role, role.Namespace);
-        if (subdomain != conventional && string.IsNullOrWhiteSpace(reason)) return false;
+        var conventional = InferOwner(type, role.Role, role.Namespace, project);
+        effectiveDomain = !string.IsNullOrEmpty(domain) ? domain :
+            project.DomainLayout == ConventionProject.FoldersLayout ? conventional?.Domain ?? "" : project.DefaultDomain;
+        var differs = conventional is null || subdomain != conventional.Value.Subdomain || effectiveDomain != conventional.Value.Domain;
+        if (differs && string.IsNullOrWhiteSpace(reason)) return false;
+        var resolvedDomain = effectiveDomain;
         return !type.GetAttributes().Any(attribute =>
             ConventionSymbols.Same(attribute.AttributeClass, Symbols.OwnershipAttribute) &&
-            attribute.ConstructorArguments is [{ Value: string attributed }] && attributed != subdomain);
+            attribute.ConstructorArguments is [{ Value: string attributed }] &&
+            (attributed != subdomain || Domain(attribute) is { Length: > 0 } attrDomain && attrDomain != resolvedDomain));
     }
 
     private void InvalidateConflictingOwners(IAssemblySymbol assembly, Dictionary<string, ProducerOwnership> result, HashSet<string> invalid)
@@ -159,7 +170,7 @@ internal sealed partial class ConventionFacts
 
     private sealed class ProducerOwnership
     {
-        internal List<(string Subdomain, string Reason)> Declarations { get; } = [];
+        internal List<(string EffectiveDomain, bool ExplicitDomain, string Subdomain, string Reason)> Declarations { get; } = [];
         internal string Kind { get; set; } = "";
     }
 }

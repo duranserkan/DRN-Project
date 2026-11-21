@@ -46,7 +46,9 @@ public sealed class EntityDtoRefactoringTests
             .And.NotContain("Sample.Domain").And.NotContain("default!");
         var mapper = changed.GetDocument(document.Id)!;
         var mapperText = (await mapper.GetTextAsync()).ToString();
-        mapperText.Should().Contain("ToDto() => new(this)").And.Contain("Name = this.Name").And.Contain("Count = this.Count")
+        mapperText.Should().Contain("public override global::Sample.Contract.QA.Users.UserDto ToDto() => new(this)")
+            .And.NotContain("IMapsToDto")
+            .And.Contain("Name = this.Name").And.Contain("Count = this.Count")
             .And.NotContain("Secret = this.Secret").And.NotContain("Note = this.Note");
         var contractCompilation = (await dto.Project.GetCompilationAsync())!;
         var domainCompilation = (await mapper.Project.GetCompilationAsync())!;
@@ -82,7 +84,7 @@ public sealed class EntityDtoRefactoringTests
         using var workspace = new AdhocWorkspace();
         var source = Source.Replace("public int Count", "public int UserDto", StringComparison.Ordinal);
         var document = Create(workspace, context, source);
-        (await document.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
+        AssertCompilesBeforeMapper((await document.Project.GetCompilationAsync())!);
         (await Actions(document)).Should().BeEmpty();
         workspace.CurrentSolution.Should().BeSameAs(document.Project.Solution);
     }
@@ -202,7 +204,7 @@ public sealed class EntityDtoRefactoringTests
         var source = Source.Replace("private string Secret", $"public object ToDto({parameter}) => this;\n    private string Secret", StringComparison.Ordinal)
             + $"\npublic class Caller {{ public object Map(User user) => user.ToDto({argument}); }}";
         var document = Create(workspace, context, source);
-        (await document.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
+        AssertCompilesBeforeMapper((await document.Project.GetCompilationAsync())!);
         var actions = await Actions(document);
         if (offered) actions.Should().ContainSingle();
         else actions.Should().BeEmpty();
@@ -240,7 +242,7 @@ public sealed class EntityDtoRefactoringTests
         var extensions = project.AddDocument("Extensions.cs", "using Sample.Domain.QA; using DRN.Framework.SharedKernel.Domain;\n" +
             "namespace Mapping; public static class Extensions { public static object " + signature + " => user; }");
         workspace.TryApplyChanges(extensions.Project.Solution).Should().BeTrue();
-        (await workspace.CurrentSolution.GetProject(project.Id)!.GetCompilationAsync())!.AssertNoCompilerErrors();
+        AssertCompilesBeforeMapper((await workspace.CurrentSolution.GetProject(project.Id)!.GetCompilationAsync())!);
         var actions = await Actions(workspace.CurrentSolution.GetDocument(document.Id)!);
         if (offered) actions.Should().ContainSingle();
         else actions.Should().BeEmpty();
@@ -254,7 +256,7 @@ public sealed class EntityDtoRefactoringTests
     {
         using var workspace = new AdhocWorkspace();
         var document = Create(workspace, context, Source.Replace("class User :", "class " + entityName + " :", StringComparison.Ordinal));
-        (await document.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
+        AssertCompilesBeforeMapper((await document.Project.GetCompilationAsync())!);
         (await Actions(document)).Should().BeEmpty();
     }
 
@@ -370,7 +372,7 @@ public sealed class EntityDtoRefactoringTests
         workspace.TryApplyChanges(collision.Project.Solution).Should().BeTrue();
         var current = workspace.CurrentSolution;
         foreach (var candidate in current.Projects)
-            (await candidate.GetCompilationAsync())!.AssertNoCompilerErrors();
+            AssertCompilesBeforeMapper((await candidate.GetCompilationAsync())!);
         (await Actions(current.GetDocument(document.Id)!)).Should().BeEmpty();
         workspace.CurrentSolution.Should().BeSameAs(current);
     }
@@ -454,7 +456,7 @@ public sealed class EntityDtoRefactoringTests
             " { public enum State { Ready } }", filePath: Path.Combine(context.GetTempPath(), "Sample.Contract", "Types", "State.cs"));
         workspace.TryApplyChanges(enumeration.Project.Solution).Should().BeTrue();
         document = workspace.CurrentSolution.GetDocument(document.Id)!;
-        (await document.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
+        AssertCompilesBeforeMapper((await document.Project.GetCompilationAsync())!);
         var actions = await Actions(document);
         if (!offered)
         {
@@ -527,7 +529,7 @@ public sealed class EntityDtoRefactoringTests
             }
             """;
         var interfaceDocument = Create(interfaceWorkspace, context, interfaceSource);
-        (await interfaceDocument.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
+        AssertCompilesBeforeMapper((await interfaceDocument.Project.GetCompilationAsync())!);
         (await Actions(interfaceDocument)).Should().BeEmpty();
 
         using var unresolvedWorkspace = new AdhocWorkspace();
@@ -603,7 +605,10 @@ public sealed class EntityDtoRefactoringTests
             entityPath: "QA/User/UserEntity.cs");
         var sibling = document.Project.AddDocument("BillingMapper.cs", """
             namespace Sample.Domain.Billing.User;
-            public class UserEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+            public class UserEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot
+            {
+                public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this);
+            }
             public static class BillingUserMapper
             {
                 public static object ToDto(this UserEntity entity) => entity;
@@ -750,7 +755,7 @@ public sealed class EntityDtoRefactoringTests
             .WithPreprocessorSymbols(feature ? FeatureSymbols : Array.Empty<string>());
         workspace.TryApplyChanges(document.Project.WithParseOptions(parseOptions).Solution).Should().BeTrue();
         document = workspace.CurrentSolution.GetDocument(document.Id)!;
-        (await document.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
+        AssertCompilesBeforeMapper((await document.Project.GetCompilationAsync())!);
         if (scenario == "inside-if")
         {
             var root = (await document.GetSyntaxRootAsync())!;
@@ -778,7 +783,7 @@ public sealed class EntityDtoRefactoringTests
     {
         using var workspace = new AdhocWorkspace();
         var source = Source.Replace("public class User : DRN.Framework.SharedKernel.Domain.SourceKnownEntity",
-            "public partial class UserBase : DRN.Framework.SharedKernel.Domain.SourceKnownEntity;\npublic partial class User : UserBase",
+            "public abstract partial class UserBase : DRN.Framework.SharedKernel.Domain.SourceKnownEntity;\npublic partial class User : UserBase",
             StringComparison.Ordinal);
         var document = Create(workspace, context, source);
         var part = document.Project.AddDocument("Conditional.cs", $$"""
@@ -790,7 +795,7 @@ public sealed class EntityDtoRefactoringTests
             """);
         workspace.TryApplyChanges(part.Project.Solution).Should().BeTrue();
         document = workspace.CurrentSolution.GetDocument(document.Id)!;
-        (await document.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
+        AssertCompilesBeforeMapper((await document.Project.GetCompilationAsync())!);
         var actions = await Actions(document);
         if (offered) actions.Should().ContainSingle();
         else actions.Should().BeEmpty();
@@ -848,7 +853,7 @@ public sealed class EntityDtoRefactoringTests
         }
         workspace.TryApplyChanges(solution).Should().BeTrue();
         document = workspace.CurrentSolution.GetDocument(document.Id)!;
-        (await document.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
+        AssertCompilesBeforeMapper((await document.Project.GetCompilationAsync())!);
         var actions = await Actions(document);
         if (scenario is "external-project" or "external-metadata" or "domain-shadowing")
         {
@@ -916,7 +921,7 @@ public sealed class EntityDtoRefactoringTests
         var warn = options.WithSpecificDiagnosticOptions(options.SpecificDiagnosticOptions.SetItem("CS1591", ReportDiagnostic.Warn));
         var configured = project.WithParseOptions(parseOptions).WithCompilationOptions(warn);
         workspace.TryApplyChanges(configured.Solution).Should().BeTrue();
-        (await workspace.CurrentSolution.GetProject(project.Id)!.GetCompilationAsync())!.AssertNoCompilerErrors();
+        AssertCompilesBeforeMapper((await workspace.CurrentSolution.GetProject(project.Id)!.GetCompilationAsync())!);
         var action = (await Actions(workspace.CurrentSolution.GetDocument(document.Id)!)).Should().ContainSingle().Which;
         var preview = await action.GetChangedSolutionAsync();
         var previewProject = preview.GetProject(project.Id)!;
@@ -926,8 +931,148 @@ public sealed class EntityDtoRefactoringTests
         var promote = options.WithSpecificDiagnosticOptions(options.SpecificDiagnosticOptions.SetItem("CS1591", ReportDiagnostic.Error));
         var original = workspace.CurrentSolution.WithProjectCompilationOptions(project.Id, promote);
         workspace.TryApplyChanges(original).Should().BeTrue();
-        (await workspace.CurrentSolution.GetProject(project.Id)!.GetCompilationAsync())!.AssertNoCompilerErrors();
+        AssertCompilesBeforeMapper((await workspace.CurrentSolution.GetProject(project.Id)!.GetCompilationAsync())!);
         (await Actions(workspace.CurrentSolution.GetDocument(document.Id)!)).Should().BeEmpty();
+    }
+
+    [Theory, DataInlineUnit]
+    public async Task DomainOnly_Enum_Property_Should_Decline_Dto_Projection(DrnTestContextUnit context)
+    {
+        using var workspace = new AdhocWorkspace();
+        var source = """
+            #nullable enable
+            namespace Sample.Domain.QA.User;
+            [DRN.Framework.SharedKernel.Attributes.DomainOnly]
+            public enum InternalState : byte { Active = 1 }
+            public class UserEntity : DRN.Framework.SharedKernel.Domain.SourceKnownEntity
+            {
+                // select-start
+                public InternalState State { get; private set; }
+                // select-end
+            }
+            """;
+        var document = Create(workspace, context, source, entityPath: "QA/User/UserEntity.cs");
+        AssertCompilesBeforeMapper((await document.Project.GetCompilationAsync())!);
+        (await Actions(document)).Should().BeEmpty();
+    }
+
+    [Theory, DataInlineUnit]
+    public async Task Folders_Layout_Domain_Should_Place_Dto_Under_Domain_And_Subdomain_Folder(DrnTestContextUnit context)
+    {
+        using var workspace = new AdhocWorkspace();
+        var source = """
+            #nullable enable
+            namespace Sample.Domain.QA.Ecommerce.Order;
+            public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot
+            {
+                // select-start
+                public string Reference { get; private set; } = "";
+                // select-end
+            }
+            """;
+        var document = Create(workspace, context, source, entityPath: "QA/Ecommerce/Order/OrderEntity.cs");
+        workspace.TryApplyChanges(document.Project.Solution.WithFoldersLayout()).Should().BeTrue();
+        document = workspace.CurrentSolution.GetDocument(document.Id)!;
+        var action = (await Actions(document)).Should().ContainSingle().Which;
+        action.Title.Should().Contain("Sample.Contract").And.Contain("QA/Ecommerce/Orders/OrderDto.cs");
+        var changed = await action.GetChangedSolutionAsync();
+        var contract = changed.Projects.Single(project => project.Name == "Sample.Contract");
+        var dto = contract.Documents.Single(item => item.Name == "OrderDto.cs");
+        (await dto.GetTextAsync()).ToString().Should().Contain("namespace Sample.Contract.QA.Ecommerce.Orders;");
+        var entityText = (await changed.GetDocument(document.Id)!.GetTextAsync()).ToString();
+        entityText.Should().Contain("public override global::Sample.Contract.QA.Ecommerce.Orders.OrderDto ToDto() => new(this)")
+            .And.NotContain("IMapsToDto");
+        (await contract.GetCompilationAsync())!.AssertNoCompilerErrors();
+        (await changed.GetProject(document.Project.Id)!.GetCompilationAsync())!.AssertNoCompilerErrors();
+    }
+
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public async Task Existing_Override_ToDto_Direct_Or_Partial_Should_Decline_And_Partial_Entity_Should_Preserve_Base_List(
+        DrnTestContextUnit context, bool alreadyOverrides)
+    {
+        using var workspace = new AdhocWorkspace();
+        var source = Source.Replace("public class User :", "public partial class User :", StringComparison.Ordinal);
+        var document = Create(workspace, context, source);
+        var partialPath = Path.Combine(Path.GetDirectoryName(document.FilePath!)!, "User.Mapping.cs");
+        var partialSource = alreadyOverrides
+            ? """
+              #nullable enable
+              namespace Sample.Domain.QA;
+              public partial class User
+              {
+                  public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this);
+              }
+              """
+            : """
+              #nullable enable
+              namespace Sample.Domain.QA;
+              public partial class User;
+              """;
+        File.WriteAllText(partialPath, partialSource);
+        var added = document.Project.AddDocument("User.Mapping.cs", partialSource, filePath: partialPath);
+        workspace.TryApplyChanges(added.Project.Solution).Should().BeTrue();
+        document = workspace.CurrentSolution.GetDocument(document.Id)!;
+
+        var actions = await Actions(document);
+        if (alreadyOverrides)
+        {
+            actions.Should().BeEmpty();
+            return;
+        }
+        var changed = await actions.Should().ContainSingle().Which.GetChangedSolutionAsync();
+        var updatedText = (await changed.GetDocument(document.Id)!.GetTextAsync()).ToString();
+        updatedText.Should().Contain("public override global::Sample.Contract.QA.Users.UserDto ToDto() => new(this)")
+            .And.Contain("public partial class User : DRN.Framework.SharedKernel.Domain.SourceKnownEntity")
+            .And.NotContain("IMapsToDto");
+        foreach (var project in changed.Projects)
+            (await project.GetCompilationAsync())!.AssertNoCompilerErrors();
+    }
+
+    [Theory]
+    [DataInlineUnit("Sample", true)]
+    [DataInlineUnit("Other", false)]
+    public async Task Ownership_Input_Domain_Should_Be_Validated_Before_Dto_Generation(
+        DrnTestContextUnit context, string domain, bool offered)
+    {
+        using var workspace = new AdhocWorkspace();
+        var document = Create(workspace, context);
+        var input = document.Project.AddAdditionalDocument("DrnConventionInputs.g.cs", $$"""
+            [assembly: DRN.Conventions.Version("1")]
+            [assembly: DRN.Conventions.Ownership("Sample.Domain.QA.User", Domain = "{{domain}}", Subdomain = "QA")]
+            """);
+        workspace.TryApplyChanges(input.Project.Solution).Should().BeTrue();
+        var actions = await Actions(workspace.CurrentSolution.GetDocument(document.Id)!);
+        if (offered) actions.Should().ContainSingle();
+        else actions.Should().BeEmpty();
+    }
+
+    [Theory]
+    [DataInlineUnit(false, "Sample.Domain.Order", "Order/OrderEntity.cs")]
+    [DataInlineUnit(true, "Sample.Domain.QA.Order", "QA/Order/OrderEntity.cs")]
+    public async Task Missing_Subdomain_Aggregate_Should_Decline_Dto_Generation_In_Project_And_Folders_Layouts(
+        DrnTestContextUnit context, bool foldersLayout, string ns, string path)
+    {
+        using var workspace = new AdhocWorkspace();
+        var source = $$"""
+            #nullable enable
+            namespace {{ns}};
+            public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot
+            {
+                // select-start
+                public string Reference { get; private set; } = "";
+                // select-end
+            }
+            """;
+        var document = Create(workspace, context, source, entityPath: path);
+        if (foldersLayout)
+        {
+            workspace.TryApplyChanges(document.Project.Solution.WithFoldersLayout()).Should().BeTrue();
+            document = workspace.CurrentSolution.GetDocument(document.Id)!;
+        }
+        AssertCompilesBeforeMapper((await document.Project.GetCompilationAsync())!);
+        (await Actions(document)).Should().BeEmpty();
     }
 
     private static Document Create(AdhocWorkspace workspace, DrnTestContextUnit context, string source = Source, bool reference = true,
@@ -952,6 +1097,10 @@ public sealed class EntityDtoRefactoringTests
         workspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
         return workspace.CurrentSolution.GetDocument(document.Id)!;
     }
+
+    private static void AssertCompilesBeforeMapper(Compilation compilation) =>
+        compilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Id != "CS0534")
+            .Should().BeEmpty();
 
     private static async Task<List<CodeAction>> Actions(Document document)
     {

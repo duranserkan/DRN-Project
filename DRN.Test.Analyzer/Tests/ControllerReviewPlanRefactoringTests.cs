@@ -20,17 +20,16 @@ public sealed class ControllerReviewPlanRefactoringTests
             .AddMetadataReference(AnalyzerTestCompilation.HostingReference);
         var source = """
             using DRN.Framework.SharedKernel.Domain;
-            using DRN.Framework.SharedKernel.Domain.Repository;
             using DRN.Framework.Hosting.Controllers;
             using Microsoft.AspNetCore.Authorization;
             namespace Sample.Hosted.QA;
-            public class Order : AggregateRoot;
-            public class OrderDto : Dto;
+            public class Order : AggregateRoot { public override Dto ToDto() => new(this); }
+            public class OrderResponse;
             public class Request;
             [Authorize("Readers")]
-            public abstract class OrdersController : SourceKnownWriteOnlyController<Order, OrderDto, Request>
+            public abstract class OrdersController : SourceKnownWriteOnlyController<Order, OrderResponse, Request>
             {
-                protected OrdersController(ISourceKnownRepository<Order> repository) : base(repository) { }
+                protected OrdersController(ISourceKnownService<Order, Dto, Request> service) : base(service) { }
             }
             """;
         var document = project.AddDocument("OrdersController.cs", source, filePath: "/source/Sample.Hosted/QA/OrdersController.cs");

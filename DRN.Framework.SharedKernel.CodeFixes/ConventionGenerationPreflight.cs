@@ -7,6 +7,64 @@ internal static class ConventionGenerationPreflight
     internal static StringComparison RootComparison =>
         OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 
+    internal sealed record ProjectLayout(string DomainLayout, string DefaultDomain, bool HasExplicitDomain, bool Valid)
+    {
+        internal bool IsFoldersLayout => DomainLayout == ConventionNames.FoldersLayout;
+
+        internal bool Matches(ProjectLayout other) =>
+            Valid && other.Valid && IsFoldersLayout == other.IsFoldersLayout &&
+            (IsFoldersLayout || !HasExplicitDomain && !other.HasExplicitDomain ||
+             string.Equals(DefaultDomain, other.DefaultDomain, StringComparison.Ordinal));
+
+        internal bool Matches(CodeFixSymbolFacts.OwnerKey owner) =>
+            Valid && IsFoldersLayout == owner.HasFolderDomain &&
+            (IsFoldersLayout || !HasExplicitDomain && !owner.HasExplicitDomain ||
+             string.Equals(DefaultDomain, owner.Domain, StringComparison.Ordinal));
+    }
+
+    internal static ProjectLayout Layout(Project project)
+    {
+        var global = project.AnalyzerOptions.AnalyzerConfigOptionsProvider.GlobalOptions;
+        global.TryGetValue("build_property.MSBuildProjectName", out var msbuildName);
+        var projectName = string.IsNullOrWhiteSpace(msbuildName) ? project.Name : msbuildName;
+        global.TryGetValue("build_property.DrnDomainLayout", out var rawLayout);
+        global.TryGetValue("build_property.DrnDomain", out var rawDomain);
+        return ParseLayout(projectName, rawLayout ?? "", rawDomain ?? "");
+    }
+
+    internal static (ProjectLayout Layout, string RootNamespace, bool HasExplicitRootNamespace) MetadataFromAssembly(IAssemblySymbol assembly)
+    {
+        var projectName = assembly.Name;
+        string? rootNamespace = null;
+        var rawLayout = "";
+        var rawDomain = "";
+        foreach (var attribute in assembly.GetAttributes())
+        {
+            if (attribute.AttributeClass is null ||
+                MetadataName(attribute.AttributeClass) != "System.Reflection.AssemblyMetadataAttribute" ||
+                attribute.ConstructorArguments is not [{ Value: string key }, { Value: string value }]) continue;
+            switch (key)
+            {
+                case "DRN.Conventions.ProjectName": projectName = value; break;
+                case "DRN.Conventions.RootNamespace": rootNamespace = value; break;
+                case "DRN.Conventions.DomainLayout": rawLayout = value; break;
+                case "DRN.Conventions.Domain": rawDomain = value; break;
+            }
+        }
+        var hasExplicitRoot = !string.IsNullOrWhiteSpace(rootNamespace);
+        return (ParseLayout(projectName, rawLayout, rawDomain), hasExplicitRoot ? rootNamespace! : projectName, hasExplicitRoot);
+    }
+
+    private static ProjectLayout ParseLayout(string projectName, string rawLayout, string rawDomain)
+    {
+        var (role, _) = ConventionNames.Read(projectName);
+        var (layout, domain, explicitDomain, errorKey, _, _) =
+            ConventionNames.ParseDomainLayout(projectName, role, rawLayout, rawDomain);
+        if (errorKey.Length > 0 && layout == ConventionNames.FoldersLayout)
+            return new("", "", false, false);
+        return new(layout, domain, explicitDomain, errorKey.Length == 0);
+    }
+
     internal static (string Role, string Namespace) Identity(Project project)
     {
         var global = project.AnalyzerOptions.AnalyzerConfigOptionsProvider.GlobalOptions;
@@ -27,8 +85,7 @@ internal static class ConventionGenerationPreflight
     internal static bool IsUnderDirectory(string path, string directory) =>
         path.StartsWith(DirectoryPrefix(directory), RootComparison);
 
-    internal static string EntityStem(string name) =>
-        name.Length > "Entity".Length && name.EndsWith("Entity", StringComparison.Ordinal) ? name[..^"Entity".Length] : name;
+    internal static string EntityStem(string name) => ConventionNames.EntityStem(name);
 
     internal static bool ValidNamespaceSegment(string segment) =>
         SyntaxFacts.IsValidIdentifier(segment) && !segment.StartsWith('@') && SyntaxFacts.GetKeywordKind(segment) == SyntaxKind.None;

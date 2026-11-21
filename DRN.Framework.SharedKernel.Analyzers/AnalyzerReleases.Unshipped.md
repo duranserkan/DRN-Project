@@ -33,6 +33,9 @@
 | DRNDTO002 | DRN.Conventions.Structure | Warning | Require DTO subdomain and entity folders |
 | DRNDTO003 | DRN.Conventions.Contract | Warning | Preserve projected property classifications |
 | DRNDTO004 | DRN.Conventions.Structure | Warning | Place entity-prefixed requests and responses beside their DTO |
+| DRNDTO005 | DRN.Conventions.Contract | Warning | Do not expose DTOs through public requests, responses, or controller endpoints |
+| DRNDTO006 | DRN.Conventions.Contract | Warning | Use explicit Contract Request and Response types on public endpoints |
+| DRNDTO007 | DRN.Conventions.Contract | Warning | Align inherited SourceKnownService DTO projection with entity ToDto() return type |
 | DRNENTITY001 | DRN.Domain | Error    | https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/README.md#compile-time-roslyn-analyzers |
 | DRNENTITY002 | DRN.Domain | Error    | https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/README.md#compile-time-roslyn-analyzers |
 | DRNENTITY003 | DRN.Domain | Error    | https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/README.md#compile-time-roslyn-analyzers |
@@ -47,9 +50,15 @@
 | DRNENTITY012 | DRN.Domain | Warning  | Concrete generic entities share identity across constructed types |
 | DRNENTITY013 | DRN.Domain | Error    | Use a concrete entity type for Source-Known repository bindings and metadata APIs |
 | DRNENTITY014 | DRN.Domain | Error    | Entity ID operations are not initialized on a provably fresh receiver |
+| DRNENUM001 | DRN.Conventions.Contract | Warning | Declare application enums in Contract or mark Domain-only enums with [DomainOnly] |
+| DRNENUM002 | DRN.Conventions.Contract | Warning | Restrict [DomainOnly] to enums declared in Domain projects |
+| DRNENUM003 | DRN.Conventions.Contract | Warning | Do not expose [DomainOnly] enums through public contracts or endpoints |
+| DRNENUM004 | DRN.Conventions.Contract | Warning | Require [AllowZero] on Contract or Domain enums that define a zero member |
+| DRNENUM005 | DRN.Conventions.Contract | Warning | Require a named zero member on enums marked with [AllowZero] |
 | DRNOWNERSHIP001 | DRN.Conventions.Ownership | Warning | Declare unambiguous subdomain ownership |
 | DRNOWNERSHIP002 | DRN.Conventions.Ownership | Warning | Justify cross-subdomain entity use |
 | DRNOWNERSHIP003 | DRN.Conventions.Architecture | Warning | Require populated Domain subdomains for infrastructure |
+| DRNOWNERSHIP004 | DRN.Conventions.Ownership | Warning | Require at least one populated subdomain folder in every Domain project |
 | DRNPERSISTENCE001 | DRN.Conventions.Context | Warning | Provide supported context construction |
 | DRNPERSISTENCE002 | DRN.Conventions.Context | Warning | Establish effective Npgsql setup on the selected path |
 | DRNPERSISTENCE003 | DRN.Conventions.Context | Warning | Preserve required base model configuration |
@@ -70,3 +79,4 @@
 | DRNSTRUCTURE005 | DRN.Conventions.Structure | Warning | Match aggregate namespace and directory to its name without Entity |
 | DRNSTRUCTURE006 | DRN.Conventions.Structure | Warning | Require dedicated Repositories, Configurations and Migrations folders |
 | DRNSTRUCTURE007 | DRN.Conventions.Context | Warning | Require context-prefixed custom options names ending in Options |
+| DRNSTRUCTURE008 | DRN.Conventions.Structure | Warning | Keep Domain grouping folders folders-only and restrict _Shared to subdomain value objects |

@@ -14,7 +14,7 @@ public sealed class ConventionOwnershipTests
         var compilation = Compilation($$"""
             namespace {{ns}};
             {{attribute}}
-            public class Category : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+            public class Category : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
             """, "/outside/Category.cs");
         compilation.AssertNoCompilerErrors();
         var input = new ConventionInput("Path", "/outside/Category.cs", ImmutableDictionary<string, string>.Empty
@@ -179,7 +179,7 @@ public sealed class ConventionOwnershipTests
         var facts = Facts("""
             namespace Sample.Domain.QA;
             public class Thing;
-            public class AddedAggregate : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+            public class AddedAggregate : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
             """, "Wrong/Thing.cs",
             new ConventionInput("Exception", "DRNSTRUCTURE001", ImmutableDictionary<string, string>.Empty
                 .Add("Target", "T:Sample.Domain.QA.Thing").Add("Reason", "Reviewed linked declaration only.")
@@ -199,6 +199,7 @@ public sealed class ConventionOwnershipTests
     [DataInlineUnit("type", "~T:Sample.Domain.QA.Thing", false)]
     [DataInlineUnit("Type", "~T:Sample.Domain.QA.Thing", false)]
     [DataInlineUnit("Member", "~P:Sample.Domain.QA.Thing.Value", false)]
+    [DataInlineUnit("Member", "~P:Sample.Domain.QA.Thing.Item", true)]
     public void Assembly_Suppression_Should_Require_An_Exact_Type_Or_Member(string scope, string target, bool invalid)
     {
         var facts = Facts($$"""
@@ -208,6 +209,7 @@ public sealed class ConventionOwnershipTests
             public class Thing
             {
                 public int Value { get; }
+                public int Item { get; }
             }
             """, "QA/Thing.cs");
         _ = new ConventionExceptions(facts, new DateOnly(2026, 11, 15));
@@ -276,7 +278,7 @@ public sealed class ConventionOwnershipTests
             }
             """, "Service.cs").AddSyntaxTrees(CSharpSyntaxTree.ParseText("""
             namespace Sample.Domain.QA;
-            public class Category : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+            public class Category : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
             public interface ICategoryRepository : DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<Category>;
             """, path: "Category.cs"));
         compilation.AssertNoCompilerErrors();

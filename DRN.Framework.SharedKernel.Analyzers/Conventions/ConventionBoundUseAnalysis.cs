@@ -328,8 +328,8 @@ internal static class ConventionBoundUseAnalysis
                 var additional = OrderLocations(facts, locations.UserUses.Concat(locations.Evidence).Distinct())
                     .Where(location => !location.Equals(primary));
                 facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.CrossSubdomain, primary,
-                    additional, ConventionBoundaryAnalysis.Properties(consumer, entity), consumer.ToDisplayString(), owner.Subdomain,
-                    entity.ToDisplayString(), entityOwner.Subdomain));
+                    additional, ConventionBoundaryAnalysis.Properties(consumer, entity), consumer.ToDisplayString(), owner.DisplayName,
+                    entity.ToDisplayString(), entityOwner.DisplayName));
             }
         }
     }

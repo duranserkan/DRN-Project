@@ -89,8 +89,10 @@ internal sealed partial class ConventionFacts
     private void ProcessOwnershipInput(ConventionInput input)
     {
         var type = Compilation.GetTypeByMetadataName(input.Identity);
+        var domain = input.Get(ConventionInputSyntax.DomainField);
         var kind = input.Get(ConventionInputSyntax.KindField);
-        if (type is null || !SyntaxFacts.IsValidIdentifier(input.Get(ConventionInputSyntax.SubdomainField)) ||
+        if (type is null || (domain.Length > 0 && !SyntaxFacts.IsValidIdentifier(domain)) ||
+            !SyntaxFacts.IsValidIdentifier(input.Get(ConventionInputSyntax.SubdomainField)) ||
             kind is not ("" or ConventionInputSyntax.EntityField or "Value") ||
             kind == "Value" && Symbols.IsPersistenceType(type, Cancellation))
         {
@@ -110,6 +112,14 @@ internal sealed partial class ConventionFacts
             _invalidContextNames.Add(input.Identity);
             return;
         }
+        var domain = input.Get(ConventionInputSyntax.DomainField);
+        var subdomain = input.Get(ConventionInputSyntax.SubdomainField);
+        if (domain.Length > 0 && (subdomain.Length == 0 || !SyntaxFacts.IsValidIdentifier(domain)))
+        {
+            InvalidInput(input, "declared with a Domain without a valid Subdomain", "valid Subdomain alongside Domain");
+            _invalidContextNames.Add(input.Identity);
+            return;
+        }
         AddUnique(_contexts, _invalidContextNames, input.Identity, input);
     }
 
@@ -122,12 +132,14 @@ internal sealed partial class ConventionFacts
             if (attribute.AttributeConstructor is null || attribute.ConstructorArguments.Any(argument => argument.Kind == TypedConstantKind.Error)) continue;
             var location = attribute.ApplicationSyntaxReference?.GetSyntax(Cancellation).GetLocation() ?? Microsoft.CodeAnalysis.Location.None;
             if (attribute.ConstructorArguments is not [{ Value: INamedTypeSymbol external }, { Value: string owner }] ||
-                IsLocal(external) || !SyntaxFacts.IsValidIdentifier(owner) || string.IsNullOrWhiteSpace(Reason(attribute)))
+                IsLocal(external) || !SyntaxFacts.IsValidIdentifier(owner) || string.IsNullOrWhiteSpace(Reason(attribute)) ||
+                Domain(attribute) is { Length: > 0 } externalDomain && !SyntaxFacts.IsValidIdentifier(externalDomain))
             {
                 Diagnostics.Add(ConventionProject.InputIssue("assembly ownership", "malformed", "reasoned exact external type owner", location));
                 continue;
             }
-            if (_externalOwners.TryGetValue(external.OriginalDefinition, out var previous) && previous.ConstructorArguments[1].Value as string != owner)
+            if (_externalOwners.TryGetValue(external.OriginalDefinition, out var previous) &&
+                (previous.ConstructorArguments[1].Value as string != owner || Domain(previous) != Domain(attribute)))
             {
                 InvalidOwner(external, ConventionSymbols.MetadataName(external), "contradictory external ownership", location);
                 continue;

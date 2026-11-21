@@ -9,7 +9,7 @@ namespace DRN.Test.Analyzer.Tests;
 [SuppressMessage("ReSharper", "AccessToDisposedClosure")]
 public sealed class AggregateReviewPlanRefactoringTests
 {
-    private const string Source = "namespace Sample.Domain.Sales; public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot;";
+    private const string Source = "namespace Sample.Domain.Sales; public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }";
 
     [Fact]
     public async Task Missing_Context_Should_Offer_Explicit_Proposed_Context_And_Tracked_Destinations_Only()
@@ -324,6 +324,47 @@ public sealed class AggregateReviewPlanRefactoringTests
     {
         using var workspace = new AdhocWorkspace();
         (await Actions(Create(workspace, reference: false))).Should().BeEmpty();
+    }
+
+    [Theory]
+    [DataInline("Sample", true)]
+    [DataInline("Other", false)]
+    public async Task Context_Attribute_Domain_Should_Be_Validated_Before_Offering_Plan(string domain, bool offered)
+    {
+        using var workspace = new AdhocWorkspace();
+        var document = Create(workspace, $$"""
+            namespace Sample.Infra.Sales;
+            [DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomain("Sales", Domain = "{{domain}}", Reason = "CQRS read context")]
+            public class ReadContext : DRN.Framework.EntityFramework.Context.DrnContext<ReadContext>
+            { public ReadContext() : base(null) { } }
+            """);
+        var actions = await Actions(document);
+        if (offered) actions.Should().ContainSingle().Which.Title.Should().Contain("Sample.Infra.Sales.ReadContext");
+        else actions.Should().BeEmpty();
+    }
+
+    [Theory]
+    [DataInline("Domain = \"Sample\", Subdomain = \"Sales\", Reason = \"CQRS read context\"", true)]
+    [DataInline("Domain = \"Other\", Subdomain = \"Sales\", Reason = \"Other domain\"", false)]
+    [DataInline("Domain = \"Sample\", Reason = \"Missing subdomain\"", false)]
+    public async Task Context_Input_Domain_Should_Be_Validated_Before_Offering_Plan(string fields, bool offered)
+    {
+        using var workspace = new AdhocWorkspace();
+        var document = Create(workspace, """
+            namespace Sample.Infra.Sales;
+            public class ReadContext : DRN.Framework.EntityFramework.Context.DrnContext<ReadContext>
+            { public ReadContext() : base(null) { } }
+            """);
+        var infra = workspace.CurrentSolution.Projects.Single(project => project.Name == "Sample.Infra");
+        var changed = workspace.CurrentSolution.AddAdditionalDocument(DocumentId.CreateNewId(infra.Id), "DrnConventionInputs.g.cs",
+            SourceText.From($$"""
+                [assembly: DRN.Conventions.Version("1")]
+                [assembly: DRN.Conventions.Context("Sample.Infra.Sales.ReadContext", {{fields}})]
+                """));
+        workspace.TryApplyChanges(changed).Should().BeTrue();
+        var actions = await Actions(workspace.CurrentSolution.GetDocument(document.Id)!);
+        if (offered) actions.Should().ContainSingle().Which.Title.Should().Contain("Sample.Infra.Sales.ReadContext");
+        else actions.Should().BeEmpty();
     }
 
     private static Document Create(AdhocWorkspace workspace, string contexts = "", string infraName = "Sample.Infra", bool reference = true)
