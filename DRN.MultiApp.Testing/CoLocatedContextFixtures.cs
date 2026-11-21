@@ -22,6 +22,7 @@ public enum CoLocatedEntityTypes : byte
     NonModelEntity = 2
 }
 
+[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 public sealed class CoLocatedEntityTypeAttribute<TApp>(CoLocatedEntityTypes entityType)
     : EntityTypeAttribute<TApp>((byte)entityType) where TApp : IAppId;
 

@@ -16,6 +16,8 @@ Targets .NET 11.
 
 *   **Target framework**: Requires .NET 11.
 
+*   **Unique context options**: `NpgsqlDbContextOptionsAttribute`, `NpgsqlPerformanceSettingsAttribute`, `DrnContextDefaultsAttribute` and `DrnContextPerformanceDefaultsAttribute` now use `AllowMultiple = false`. A context can still combine different options attribute types, but repeating the same type fails compilation. A derived context's attribute now replaces an inherited one of the same type instead of running both. For example, `[DrnContextPerformanceDefaults(maxPoolSize: 50)]` on a context now replaces the `DrnContext` default. Startup throws `ConfigurationException` when a custom type that opts back into `AllowMultiple = true` repeats on a context.
+
 SharedKernel classification analyzers apply transitively. Review application model properties and add required classification annotations when upgrading.
 
 SharedKernel application conventions infer roles from project-name tokens without custom properties or an application-root identity. Infra requires at least one direct Domain reference and populated subdomains matching its concrete contexts and repositories. Subdomain evidence is collected across referenced Domain projects. Multiple Domain references and shared Infra are valid regardless of naming prefix. Concrete EF contexts must implement `IDrnContext` or carry a narrow justified exception. New warnings can fail warnings-as-errors builds. Standard diagnostic severity settings remain available independently of classification and identity rules.

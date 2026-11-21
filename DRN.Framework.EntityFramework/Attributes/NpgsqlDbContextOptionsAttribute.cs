@@ -5,7 +5,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 
 namespace DRN.Framework.EntityFramework.Attributes;
 
-[AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
+/// <summary>
+/// Base options attribute for DRN contexts. A context can combine different options attribute types,
+/// but each type can apply only once. A derived context's attribute replaces an inherited one of the same type.
+/// </summary>
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public abstract class NpgsqlDbContextOptionsAttribute : Attribute
 {
     internal bool FrameworkDefined = false;

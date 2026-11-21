@@ -52,6 +52,7 @@ using DRN.Framework.SharedKernel.Domain;
 
 public enum UserEntityTypes : byte { User = 1 }
 
+[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 public sealed class UserEntityTypeAttribute(UserEntityTypes kind)
     : EntityTypeAttribute<DefaultApp>((byte)kind);
 
@@ -243,6 +244,7 @@ using DRN.Framework.SharedKernel.Domain;
 
 public enum DomainEntityTypes : byte { Order = 2 }
 
+[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 public sealed class DomainEntityTypeAttribute(DomainEntityTypes kind)
     : EntityTypeAttribute<DefaultApp>((byte)kind);
 ```

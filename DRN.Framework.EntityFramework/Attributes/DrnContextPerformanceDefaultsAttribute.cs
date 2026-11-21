@@ -3,9 +3,9 @@ using DRN.Framework.EntityFramework.Context;
 namespace DRN.Framework.EntityFramework.Attributes;
 
 /// <summary>
-/// Provides <a href="https://www.npgsql.org/doc/connection-string-parameters.html">performance</a> defaults for <see cref="DrnContext{TContext}"/>. To override use a new attribute inherits from <see cref="NpgsqlPerformanceSettingsAttribute"/>.
+/// Provides <a href="https://www.npgsql.org/doc/connection-string-parameters.html">performance</a> defaults for <see cref="DrnContext{TContext}"/>. Reapply on a derived context to replace the inherited defaults, or derive from <see cref="NpgsqlPerformanceSettingsAttribute"/> to overlay selected settings.
 /// </summary>
-[AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class DrnContextPerformanceDefaultsAttribute : NpgsqlPerformanceSettingsAttribute
 {
     public DrnContextPerformanceDefaultsAttribute(int maxAutoPrepare = 200,

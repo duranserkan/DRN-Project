@@ -66,6 +66,7 @@ public readonly struct MyApp : IAppId
 
 public enum DomainEntityTypes : byte { User = 1, Question = 2 }
 
+[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 public sealed class DomainEntityTypeAttribute(DomainEntityTypes kind)
     : EntityTypeAttribute<MyApp>((byte)kind);
 
@@ -77,7 +78,11 @@ public class UserEntity : AggregateRoot
 }
 
 // 2. Create your context inheriting from DrnContext
-public sealed class AppContextNpgsqlDbContextOptionsAttribute : NpgsqlDbContextOptionsAttribute;
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
+public sealed class AppContextNpgsqlDbContextOptionsAttribute : NpgsqlDbContextOptionsAttribute
+{
+    // Empty keeps framework defaults. Override hooks such as ConfigureNpgsqlOptions, ConfigureDbContextOptions or SeedAsync to customize this context.
+}
 
 [AppContextNpgsqlDbContextOptions]
 public class AppContext : DrnContext<AppContext>
@@ -615,7 +620,7 @@ Registers discovered contexts when their assembly is scanned and participates in
 
 ### DrnContextPerformanceDefaultsAttribute
 
-`DrnContext` inherits these Npgsql connection settings. To override them, derive a custom attribute from [NpgsqlPerformanceSettingsAttribute](#npgsqlperformancesettingsattribute).
+`DrnContext` inherits these Npgsql connection settings. Reapply `[DrnContextPerformanceDefaults(...)]` on a context to replace the inherited default attribute, or derive a custom attribute from [NpgsqlPerformanceSettingsAttribute](#npgsqlperformancesettingsattribute) to overlay selected settings on top of the inherited defaults.
 
 | Constructor parameter | Default |
 |---|---|
@@ -631,10 +636,13 @@ Registers discovered contexts when their assembly is scanned and participates in
 
 Derive an attribute to configure provider options, data-source options, general EF options, or seeding. Framework-defined attributes run before custom attributes. Options hooks must handle a null service provider at design time.
 
+A context can combine different options attribute types, but each type can apply only once. A derived context's attribute replaces an inherited one of the same type. Startup fails with `ConfigurationException` if a type that opts back into `AllowMultiple = true` repeats on a context.
+
 ```csharp
 using Npgsql;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class MyDbContextOptions : NpgsqlDbContextOptionsAttribute
 {
     public override void ConfigureNpgsqlOptions<TContext>(
@@ -694,6 +702,7 @@ The seed inserts an application record, not an authenticated account. See [Seedi
 Create a custom performance attribute and apply `[MyDbContextHighThroughputOptions]` to your context. These example values are overrides, not workload recommendations:
 
 ```csharp
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class MyDbContextHighThroughputOptions : NpgsqlPerformanceSettingsAttribute
 {
     public MyDbContextHighThroughputOptions() : base(

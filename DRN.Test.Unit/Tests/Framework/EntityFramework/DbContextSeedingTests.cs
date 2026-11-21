@@ -249,6 +249,7 @@ public class DbContextSeedingTests
         public bool Fail { get; set; }
     }
 
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
     private sealed class SeedOptionsAttribute : NpgsqlDbContextOptionsAttribute
     {
         public override Task SeedAsync(IServiceProvider serviceProvider, IAppSettings appSettings)

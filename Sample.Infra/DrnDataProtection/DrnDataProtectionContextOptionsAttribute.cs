@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Sample.Infra.DrnDataProtection;
 
-[AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class DrnDataProtectionContextOptionsAttribute() : NpgsqlPerformanceSettingsAttribute()
 {
     public override bool UsePrototypeMode { get; set; } = false;

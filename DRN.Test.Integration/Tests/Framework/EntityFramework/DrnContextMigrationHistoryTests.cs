@@ -123,7 +123,7 @@ public class DrnContextMigrationHistoryTests
         public string Value { get; init; } = null!;
     }
 
-    [AttributeUsage(AttributeTargets.Class)]
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
     private sealed class MigrationHistoryGuardContextOptionsAttribute : NpgsqlDbContextOptionsAttribute
     {
         public override bool UsePrototypeMode { get; set; } = true;

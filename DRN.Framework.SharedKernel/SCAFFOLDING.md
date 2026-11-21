@@ -51,7 +51,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Shop.Infra.Sales;
 
-public class SalesContextNpgsqlDbContextOptionsAttribute : NpgsqlDbContextOptionsAttribute;
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
+public class SalesContextNpgsqlDbContextOptionsAttribute : NpgsqlDbContextOptionsAttribute
+{
+    // Empty keeps framework defaults. Override hooks such as ConfigureNpgsqlOptions, ConfigureDbContextOptions or SeedAsync to customize this context.
+}
 
 [SalesContextNpgsqlDbContextOptions]
 public class SalesContext : DrnContext<SalesContext>

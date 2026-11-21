@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using DRN.Framework.EntityFramework.Attributes;
+using DRN.Framework.SharedKernel;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Npgsql;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
@@ -146,9 +147,22 @@ public static class DbContextConventions
         if (AttributeCache.TryGetValue(contextType, out var attributes))
             return attributes;
 
-        attributes = AttributeCache.GetOrAdd(contextType, type => type
+        attributes = AttributeCache.GetOrAdd(contextType, ReadContextAttributes);
+
+        return attributes;
+    }
+
+    private static NpgsqlDbContextOptionsAttribute[] ReadContextAttributes(Type contextType)
+    {
+        var attributes = contextType
             .GetCustomAttributes<NpgsqlDbContextOptionsAttribute>()
-            .OrderByDescending(attribute => attribute.FrameworkDefined).ToArray());
+            .OrderByDescending(attribute => attribute.FrameworkDefined).ToArray();
+
+        // The base AttributeUsage already prevents duplicates. This also rejects derived types that opt back into AllowMultiple.
+        var duplicate = attributes.GroupBy(attribute => attribute.GetType()).FirstOrDefault(group => group.Count() > 1);
+        if (duplicate is not null)
+            throw new ConfigurationException(
+                $"{contextType.FullName} applies {duplicate.Key.FullName} more than once. Apply each NpgsqlDbContextOptionsAttribute type at most once per context.");
 
         return attributes;
     }

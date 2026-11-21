@@ -11,12 +11,7 @@ internal static class ConventionDtoAnalysis
 
     internal static void Analyze(ConventionFacts facts)
     {
-        var classifications = new Lazy<ClassificationContract?>(() =>
-        {
-            var sensitive = facts.Compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.SensitiveAttribute");
-            var personal = facts.Compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.PersonalAttribute");
-            return sensitive is null || personal is null ? null : new ClassificationContract(sensitive, personal, facts.Compilation);
-        }, isThreadSafe: false);
+        var classifications = new Lazy<ClassificationContract?>(() => CreateClassifications(facts.Compilation), isThreadSafe: false);
         var dtoStems = new Dictionary<(string Root, string Subdomain, string Stem), DtoPlacement?>();
         var messages = new List<INamedTypeSymbol>();
         foreach (var type in facts.Types)
@@ -36,6 +31,13 @@ internal static class ConventionDtoAnalysis
         }
         foreach (var message in messages)
             CheckMessagePlacement(facts, message, dtoStems);
+    }
+
+    private static ClassificationContract? CreateClassifications(Compilation compilation)
+    {
+        var sensitive = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.SensitiveAttribute");
+        var personal = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.PersonalAttribute");
+        return sensitive is null || personal is null ? null : new ClassificationContract(sensitive, personal, compilation);
     }
 
     private static void CheckDtoPlacement(ConventionFacts facts, INamedTypeSymbol dto, string root,

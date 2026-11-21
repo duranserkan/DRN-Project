@@ -58,8 +58,33 @@ public class DbContextExtensionsTests
         csBuilder.ApplicationName.Should().Be("CustomApp");
         csBuilder.CommandTimeout.Should().Be(42);
     }
+
+    [Fact]
+    public void ConfigureNpgsqlDataSourceBuilder_Should_Override_Inherited_Performance_Defaults_And_Apply_Custom_Options()
+    {
+        var builder = new NpgsqlDataSourceBuilder("Host=localhost;Database=test");
+        builder.ConfigureNpgsqlDataSourceBuilder<DerivedOptionsContext>();
+
+        DbContextConventions.GetContextAttributes<DerivedOptionsContext>()
+            .OfType<DrnContextPerformanceDefaultsAttribute>().Should().ContainSingle();
+        builder.ConnectionStringBuilder.MaxPoolSize.Should().Be(50);
+        builder.ConnectionStringBuilder.ApplicationName.Should().Be("CustomApp");
+        builder.ConnectionStringBuilder.CommandTimeout.Should().Be(42);
+    }
+
+    [Fact]
+    public void GetContextAttributes_Should_Reject_Repeated_Options_Type()
+    {
+        var genericAct = () => DbContextConventions.GetContextAttributes<RepeatedOptionsContext>();
+        var inheritedAct = () => DbContextConventions.GetContextAttributes(typeof(DerivedRepeatableOptionsContext));
+
+        genericAct.Should().Throw<ConfigurationException>().WithMessage($"*{nameof(RepeatableOptionsAttribute)}*");
+        genericAct.Should().Throw<ConfigurationException>().WithMessage($"*{nameof(RepeatableOptionsAttribute)}*");
+        inheritedAct.Should().Throw<ConfigurationException>().WithMessage($"*{nameof(RepeatableOptionsAttribute)}*");
+    }
 }
 
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class CustomDataSourceAttribute : NpgsqlDbContextOptionsAttribute
 {
     public override void ConfigureNpgsqlDataSource<TContext>(NpgsqlDataSourceBuilder builder, IServiceProvider? serviceProvider)
@@ -84,3 +109,21 @@ public class TestContextWithDefaults : DbContext
     {
     }
 }
+
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
+public class RepeatableOptionsAttribute : NpgsqlDbContextOptionsAttribute;
+
+[DrnContextPerformanceDefaults, CustomDataSource]
+public class BaseOptionsContext(DbContextOptions options) : DbContext(options);
+
+[DrnContextPerformanceDefaults(maxPoolSize: 50)]
+public class DerivedOptionsContext(DbContextOptions options) : BaseOptionsContext(options);
+
+[RepeatableOptions, RepeatableOptions]
+public class RepeatedOptionsContext(DbContextOptions options) : DbContext(options);
+
+[RepeatableOptions]
+public class BaseRepeatableOptionsContext(DbContextOptions options) : DbContext(options);
+
+[RepeatableOptions]
+public class DerivedRepeatableOptionsContext(DbContextOptions options) : BaseRepeatableOptionsContext(options);

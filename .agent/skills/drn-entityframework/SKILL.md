@@ -26,7 +26,11 @@ Application conventions require concrete application-owned EF contexts to implem
 DRN design-time factories require an exact public `DbContextOptions<TContext>`-only constructor. For observed EF registrations of non-DRN contexts, DRNPERSISTENCE001 also accepts non-generic `DbContextOptions` and additional injected dependencies. A model override that only forwards to the framework base retains its namespace-filtered configuration scan evidence.
 
 ```csharp
-public class OrdersContextNpgsqlDbContextOptionsAttribute : NpgsqlDbContextOptionsAttribute;
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
+public class OrdersContextNpgsqlDbContextOptionsAttribute : NpgsqlDbContextOptionsAttribute
+{
+    // Empty keeps framework defaults. Override hooks such as ConfigureNpgsqlOptions, ConfigureDbContextOptions or SeedAsync to customize this context.
+}
 
 [OrdersContextNpgsqlDbContextOptions]
 public class OrdersContext : DrnContext<OrdersContext>

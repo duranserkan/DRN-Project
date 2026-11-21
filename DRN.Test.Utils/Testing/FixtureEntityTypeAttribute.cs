@@ -2,6 +2,7 @@ using DRN.Framework.SharedKernel.Domain;
 
 namespace DRN.Test.Utils.Testing;
 
+[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 public sealed class FixtureEntityTypeAttribute<TApp>(FixtureEntityTypes entityType)
     : EntityTypeAttribute<TApp>((byte)entityType) where TApp : IAppId;
 
