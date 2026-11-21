@@ -1,8 +1,10 @@
 using System.Globalization;
 using System.Text.Json;
 using DRN.Framework.Hosting.DrnProgram;
+using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.SharedKernel.Json;
 using Microsoft.OpenApi;
+using Sample.Contract.QA.Tags;
 using Swashbuckle.AspNetCore.Swagger;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using Swashbuckle.AspNetCore.SwaggerUI;
@@ -48,6 +50,26 @@ public class DrnProgramSwaggerOptionsTests
 
         JsonSerializer.SerializeToElement(new Int64Response(value, null), JsonConventions.DefaultOptions)
             .GetProperty("optionalValue").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public void Swagger_Enum_Schemas_Should_Emit_String_Values_With_JsonStringEnumConverter()
+    {
+        var options = new SwaggerGenOptions();
+        new DrnProgramSwaggerOptions().ConfigureSwaggerGenOptions(options);
+        var generator = new SchemaGenerator(options.SchemaGeneratorOptions, new JsonSerializerDataContractResolver(JsonConventions.DefaultOptions));
+        var repository = new SchemaRepository();
+
+        generator.GenerateSchema(typeof(PageSortDirection), repository);
+        generator.GenerateSchema(typeof(TagType), repository);
+
+        var directionSchema = repository.Schemas[nameof(PageSortDirection)];
+        directionSchema.Type.Should().Be(JsonSchemaType.String);
+        directionSchema.Enum!.Select(node => node!.ToString()).Should().BeEquivalentTo("Ascending", "Descending", "None");
+
+        var tagTypeSchema = repository.Schemas[nameof(TagType)];
+        tagTypeSchema.Type.Should().Be(JsonSchemaType.String);
+        tagTypeSchema.Enum!.Select(node => node!.ToString()).Should().BeEquivalentTo("System", "User");
     }
 
     [Theory]

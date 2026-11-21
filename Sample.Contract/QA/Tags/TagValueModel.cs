@@ -1,3 +1,5 @@
+using DRN.Framework.SharedKernel.Attributes;
+
 namespace Sample.Contract.QA.Tags;
 
 public class TagValueModel
@@ -12,6 +14,7 @@ public class TagValueModel
     public TagType Type { get; set; }
 }
 
+[AllowZero]
 public enum TagType
 {
     System = 0,

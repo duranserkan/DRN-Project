@@ -2,6 +2,8 @@
   <ItemGroup>
     <CompilerVisibleProperty Include="MSBuildProjectName" />
     <CompilerVisibleProperty Include="RootNamespace" />
+    <CompilerVisibleProperty Include="DrnDomainLayout" />
+    <CompilerVisibleProperty Include="DrnDomain" />
   </ItemGroup>
 
   <Target Name="_CaptureDrnDirectProjectReferences"
@@ -65,6 +67,8 @@
       <_DrnConventionInput Include="DRN.Conventions.Context" Condition="'%(DrnConventionContext.Identity)' != ''">
         <_Parameter1>%(DrnConventionContext.Identity)</_Parameter1>
         <_Parameter1_TypeName>System.String</_Parameter1_TypeName>
+        <Domain Condition="'%(DrnConventionContext.Domain)' != ''">%(DrnConventionContext.Domain)</Domain>
+        <Domain_TypeName Condition="'%(DrnConventionContext.Domain)' != ''">System.String</Domain_TypeName>
         <Subdomain>%(DrnConventionContext.Subdomain)</Subdomain>
         <Subdomain_TypeName>System.String</Subdomain_TypeName>
         <Repositories>%(DrnConventionContext.Repositories)</Repositories>
@@ -83,6 +87,8 @@
       <_DrnConventionInput Include="DRN.Conventions.Ownership" Condition="'%(DrnConventionOwnership.Identity)' != ''">
         <_Parameter1>%(DrnConventionOwnership.Identity)</_Parameter1>
         <_Parameter1_TypeName>System.String</_Parameter1_TypeName>
+        <Domain Condition="'%(DrnConventionOwnership.Domain)' != ''">%(DrnConventionOwnership.Domain)</Domain>
+        <Domain_TypeName Condition="'%(DrnConventionOwnership.Domain)' != ''">System.String</Domain_TypeName>
         <Subdomain>%(DrnConventionOwnership.Subdomain)</Subdomain>
         <Subdomain_TypeName>System.String</Subdomain_TypeName>
         <Kind>%(DrnConventionOwnership.Kind)</Kind>
@@ -166,9 +172,24 @@
         <_Parameter2>$(RootNamespace)</_Parameter2>
       </_DrnConventionProject>
       <_DrnConventionProject Include="System.Reflection.AssemblyMetadataAttribute"
+                             Condition="'$(DrnDomainLayout)' != ''">
+        <_Parameter1>DRN.Conventions.DomainLayout</_Parameter1>
+        <_Parameter2>$(DrnDomainLayout)</_Parameter2>
+      </_DrnConventionProject>
+      <_DrnConventionProject Include="System.Reflection.AssemblyMetadataAttribute"
+                             Condition="'$(DrnDomain)' != ''">
+        <_Parameter1>DRN.Conventions.Domain</_Parameter1>
+        <_Parameter2>$(DrnDomain)</_Parameter2>
+      </_DrnConventionProject>
+      <_DrnConventionProject Include="System.Reflection.AssemblyMetadataAttribute"
                              Condition="'%(DrnConventionRole.Identity)' != ''">
         <_Parameter1>DRN.Conventions.Role.%(DrnConventionRole.Identity)</_Parameter1>
         <_Parameter2>%(DrnConventionRole.NamespacePrefix)</_Parameter2>
+      </_DrnConventionProject>
+      <_DrnConventionProject Include="System.Reflection.AssemblyMetadataAttribute"
+                             Condition="'%(DrnConventionOwnership.Identity)' != '' and '%(DrnConventionOwnership.Domain)' != ''">
+        <_Parameter1>DRN.Conventions.Ownership.%(DrnConventionOwnership.Identity).Domain</_Parameter1>
+        <_Parameter2>%(DrnConventionOwnership.Domain)</_Parameter2>
       </_DrnConventionProject>
       <_DrnConventionProject Include="System.Reflection.AssemblyMetadataAttribute"
                              Condition="'%(DrnConventionOwnership.Identity)' != ''">
@@ -184,6 +205,11 @@
                              Condition="'%(DrnConventionOwnership.Identity)' != ''">
         <_Parameter1>DRN.Conventions.Ownership.%(DrnConventionOwnership.Identity).Kind</_Parameter1>
         <_Parameter2>%(DrnConventionOwnership.Kind)</_Parameter2>
+      </_DrnConventionProject>
+      <_DrnConventionProject Include="System.Reflection.AssemblyMetadataAttribute"
+                             Condition="'%(DrnConventionContext.Identity)' != '' and '%(DrnConventionContext.Domain)' != '' and '%(DrnConventionContext.Subdomain)' != ''">
+        <_Parameter1>DRN.Conventions.Context.%(DrnConventionContext.Identity).Domain</_Parameter1>
+        <_Parameter2>%(DrnConventionContext.Domain)</_Parameter2>
       </_DrnConventionProject>
       <_DrnConventionProject Include="System.Reflection.AssemblyMetadataAttribute"
                              Condition="'%(DrnConventionContext.Identity)' != '' and '%(DrnConventionContext.Subdomain)' != ''">
