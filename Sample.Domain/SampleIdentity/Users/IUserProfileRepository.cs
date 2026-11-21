@@ -2,7 +2,7 @@ using System.Security.Claims;
 using DRN.Framework.SharedKernel.Attributes;
 using Microsoft.AspNetCore.Identity;
 
-namespace Sample.Domain.SampleIdentity;
+namespace Sample.Domain.SampleIdentity.Users;
 
 public interface IUserProfileRepository
 {

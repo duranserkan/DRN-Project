@@ -2,7 +2,7 @@ using DRN.Framework.Utils.Settings;
 using DRN.Framework.Hosting.Identity;
 using DRN.Framework.Hosting.Middlewares.ApiErrors;
 using DRN.Nexus.Application;
-using DRN.Nexus.Domain.NexusIdentity;
+using DRN.Nexus.Domain.NexusIdentity.Users;
 using DRN.Nexus.Hosted.Settings;
 using DRN.Nexus.Infra;
 using Microsoft.AspNetCore.Http.Features;

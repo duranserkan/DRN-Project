@@ -1,7 +1,7 @@
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Hosting.Identity.Controllers;
-using DRN.Nexus.Domain.NexusIdentity;
+using DRN.Nexus.Domain.NexusIdentity.Users;
 
 namespace DRN.Nexus.Hosted.Controllers.NexusIdentity;
 

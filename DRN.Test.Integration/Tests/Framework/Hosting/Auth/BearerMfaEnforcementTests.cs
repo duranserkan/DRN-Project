@@ -15,7 +15,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
+using SampleUser = Sample.Domain.SampleIdentity.Users.SampleUser;
 using Sample.Hosted.Pages.User.Management;
 
 namespace DRN.Test.Integration.Tests.Framework.Hosting.Auth;

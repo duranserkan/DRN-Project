@@ -1,5 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
-using Sample.Domain.SampleIdentity;
+using Sample.Domain.SampleIdentity.Users;
 
 namespace Sample.Hosted.Helpers;
 

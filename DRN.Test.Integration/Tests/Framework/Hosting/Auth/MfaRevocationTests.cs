@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.Extensions.Options;
-using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
+using SampleUser = Sample.Domain.SampleIdentity.Users.SampleUser;
 
 namespace DRN.Test.Integration.Tests.Framework.Hosting.Auth;
 

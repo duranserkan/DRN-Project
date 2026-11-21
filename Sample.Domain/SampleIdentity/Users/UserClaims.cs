@@ -1,4 +1,4 @@
-namespace Sample.Domain.SampleIdentity;
+namespace Sample.Domain.SampleIdentity.Users;
 
 public abstract class UserClaims
 {

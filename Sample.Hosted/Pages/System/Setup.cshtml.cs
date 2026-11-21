@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Identity;
-using Sample.Domain.SampleIdentity;
-using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
+using Sample.Domain.SampleIdentity.Users;
+using SampleUser = Sample.Domain.SampleIdentity.Users.SampleUser;
 using Sample.Hosted.Extensions;
 using Sample.Hosted.Pages.User;
 

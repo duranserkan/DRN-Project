@@ -1,5 +1,5 @@
 using DRN.Framework.Hosting.Endpoints;
-using Sample.Domain.SampleIdentity;
+using Sample.Domain.SampleIdentity.Users;
 using Sample.Hosted.Pages.Shared.Models;
 using Sample.Hosted.Settings;
 

@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Identity;
-using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
+using SampleUser = Sample.Domain.SampleIdentity.Users.SampleUser;
 
 namespace Sample.Hosted.Pages.User;
 

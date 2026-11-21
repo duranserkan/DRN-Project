@@ -1,4 +1,4 @@
-using DRN.Nexus.Domain.NexusIdentity;
+using DRN.Nexus.Domain.NexusIdentity.Users;
 using DRN.Nexus.Infra.NexusIdentity;
 using DRN.Nexus.Utils;
 using Microsoft.AspNetCore.Identity;

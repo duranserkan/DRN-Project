@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Sample.Application.Services.SampleIdentity;
-using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
+using SampleUser = Sample.Domain.SampleIdentity.Users.SampleUser;
 using Sample.Hosted.Extensions;
 using Sample.Hosted.Pages.User.Management;
 using Sample.Hosted.Pages.User.Profile;

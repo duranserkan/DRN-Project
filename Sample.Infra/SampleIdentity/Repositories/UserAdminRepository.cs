@@ -1,8 +1,8 @@
 using DRN.Framework.Utils.DependencyInjection.Attributes;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Caching.Memory;
-using Sample.Domain.SampleIdentity;
-using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
+using Sample.Domain.SampleIdentity.Users;
+using SampleUser = Sample.Domain.SampleIdentity.Users.SampleUser;
 
 namespace Sample.Infra.SampleIdentity.Repositories;
 

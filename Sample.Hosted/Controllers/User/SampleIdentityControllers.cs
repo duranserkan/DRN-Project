@@ -1,7 +1,7 @@
 using DRN.Framework.Hosting.Endpoints;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Hosting.Identity.Controllers;
-using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
+using SampleUser = Sample.Domain.SampleIdentity.Users.SampleUser;
 
 namespace Sample.Hosted.Controllers.User;
 

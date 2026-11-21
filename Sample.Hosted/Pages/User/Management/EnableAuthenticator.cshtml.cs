@@ -7,7 +7,7 @@ using Flurl;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using QRCoder;
-using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
+using SampleUser = Sample.Domain.SampleIdentity.Users.SampleUser;
 using Sample.Hosted.Extensions;
 
 namespace Sample.Hosted.Pages.User.Management;

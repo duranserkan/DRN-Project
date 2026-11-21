@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Identity;
 using Sample.Application.Services.SampleIdentity;
-using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
+using SampleUser = Sample.Domain.SampleIdentity.Users.SampleUser;
 using ValidationException = DRN.Framework.SharedKernel.ValidationException;
 
 namespace Sample.Hosted.Pages.User.Profile;

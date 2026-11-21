@@ -1,6 +1,6 @@
 using Sample.Application.Services.SampleIdentity;
 using Sample.Domain.SampleIdentity.ProfilePictures;
-using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
+using SampleUser = Sample.Domain.SampleIdentity.Users.SampleUser;
 
 namespace DRN.Test.Unit.Tests.Sample.Application;
 

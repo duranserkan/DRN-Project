@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.Utils.Auth.MFA;
 using Microsoft.AspNetCore.Identity;
-using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
+using SampleUser = Sample.Domain.SampleIdentity.Users.SampleUser;
 using Sample.Hosted.Extensions;
 using Sample.Hosted.Settings;
 

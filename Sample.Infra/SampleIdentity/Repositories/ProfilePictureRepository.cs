@@ -1,8 +1,8 @@
 using DRN.Framework.SharedKernel;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
-using Sample.Domain.SampleIdentity;
+using Sample.Domain.SampleIdentity.Users;
 using Sample.Domain.SampleIdentity.ProfilePictures;
-using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
+using SampleUser = Sample.Domain.SampleIdentity.Users.SampleUser;
 
 namespace Sample.Infra.SampleIdentity.Repositories;
 

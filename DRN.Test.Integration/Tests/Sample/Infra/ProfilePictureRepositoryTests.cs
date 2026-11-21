@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Sample.Domain.SampleIdentity;
+using Sample.Domain.SampleIdentity.Users;
 using Sample.Domain.SampleIdentity.ProfilePictures;
-using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
+using SampleUser = Sample.Domain.SampleIdentity.Users.SampleUser;
 using Sample.Infra;
 using Sample.Infra.SampleIdentity;
 

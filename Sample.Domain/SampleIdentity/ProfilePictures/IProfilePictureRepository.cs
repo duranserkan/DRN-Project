@@ -1,4 +1,6 @@
 
+using Sample.Domain.SampleIdentity.Users;
+
 namespace Sample.Domain.SampleIdentity.ProfilePictures;
 
 public interface IProfilePictureRepository
