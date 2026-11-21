@@ -15,7 +15,10 @@ public readonly struct CustomUtilsTestApp : IAppId
 }
 
 [FixtureEntityType<CustomUtilsTestApp>(FixtureEntityTypes.SingleEntity)]
-public class CustomTestEntityForUtils : SourceKnownEntity;
+public class CustomTestEntityForUtils : SourceKnownEntity
+{
+    public override Dto ToDto() => new(this);
+}
 
 [SuppressMessage("ReSharper", "RedundantCast")]
 public class SourceKnownIdUtilsTests

@@ -1258,11 +1258,21 @@ public class SourceKnownEntityIdUtilsTests
     }
 
     [FixtureEntityType<SampleApp5>(FixtureEntityTypes.X)]
-    internal class XEntity(long id) : SourceKnownEntity(id);
+    internal class XEntity(long id) : SourceKnownEntity(id)
+    {
+        public override Dto ToDto() => new(this);
+    }
+
     [FixtureEntityType<SampleApp5>(FixtureEntityTypes.Y)]
-    internal class YEntity(long id) : SourceKnownEntity(id);
+    internal class YEntity(long id) : SourceKnownEntity(id)
+    {
+        public override Dto ToDto() => new(this);
+    }
 
     [FixtureEntityType<SampleApp6>(FixtureEntityTypes.X)]
     [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
-    internal class XEntityInApp6(long id) : SourceKnownEntity(id);
+    internal class XEntityInApp6(long id) : SourceKnownEntity(id)
+    {
+        public override Dto ToDto() => new(this);
+    }
 }

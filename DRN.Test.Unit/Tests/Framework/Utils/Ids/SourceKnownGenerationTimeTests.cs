@@ -323,7 +323,10 @@ public class SourceKnownGenerationTimeTests
         ids.Distinct().Count().Should().Be(ids.Count);
     }
 
-    private sealed class OriginSwitchEntity : SourceKnownEntity;
+    private sealed class OriginSwitchEntity : SourceKnownEntity
+    {
+        public override Dto ToDto() => new(this);
+    }
 
     [Fact]
     public void Configured_Epoch_Requires_Minimum_And_Freezes_With_It()

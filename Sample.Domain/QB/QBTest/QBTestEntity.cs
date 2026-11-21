@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using DRN.Framework.SharedKernel.Attributes;
 using Sample.Contract.QB.QBTests;
 
 namespace Sample.Domain.QB.QBTest;
@@ -7,6 +8,7 @@ namespace Sample.Domain.QB.QBTest;
 public sealed class QBEntityTypeAttribute(QBEntityTypes entityType)
     : EntityTypeAttribute<TestApp>((byte)entityType);
 
+[DomainOnly]
 public enum QBEntityTypes : byte
 {
     QBTestEntity = 255
@@ -20,7 +22,7 @@ public class QBTestEntity : AggregateRoot
     [MaxLength(100)]
     public string TestValueString { get; init; } = string.Empty;
 
-    public QBTestDto ToDto() => new(this)
+    public override QBTestDto ToDto() => new(this)
     {
         TestValue = TestValue,
         TestValueString = TestValueString

@@ -36,7 +36,7 @@ public class QuestionEntity : AggregateRoot
     public List<AnswerEntity> Answers { get; private set; } = [];
     public List<QuestionCommentEntity> Comments { get; private set; } = [];
 
-    public QuestionDto ToDto() => new(this)
+    public override QuestionDto ToDto() => new(this)
     {
         Title = Title,
         Body = Body

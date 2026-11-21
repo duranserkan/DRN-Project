@@ -3,13 +3,16 @@ using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.SharedKernel.Domain.Repository;
+using DRN.Test.Utils.Hosting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Sample.Contract.QA.Categories;
 using Sample.Contract.QA.Tags;
+using Sample.Domain.QA.Category;
 using Tag = Sample.Domain.QA.Tag.TagEntity;
 
 namespace DRN.Test.Unit.Tests.Framework.Hosting.Controllers;
@@ -82,10 +85,11 @@ public class SourceKnownControllerTests
     }
 
     [Fact]
-    public async Task Reads_Should_Map_Dtos_Preserve_Default_Format_And_Link_Cancellation()
+    public async Task Reads_Should_Map_Responses_Preserve_Default_Format_And_Link_Cancellation()
     {
         var repository = Substitute.For<ISourceKnownRepository<Tag>>();
-        var controller = new ReadProbeController(repository);
+        var service = CreateTagService(repository);
+        var controller = new ReadProbeController(service);
         var tag = new Tag("Visible tag") { Model = new() };
         var id = Guid.NewGuid();
         Guid[] ids = [id];
@@ -95,9 +99,10 @@ public class SourceKnownControllerTests
         repository.CountAsync().Returns(17L);
         using var cancellation = new CancellationTokenSource();
 
+        controller.Should().NotBeAssignableTo<ISourceKnownService<Tag>>();
         controller.Repository.Should().BeSameAs(repository);
         (await controller.GetAsync(id, cancellation.Token)).Name.Should().Be(tag.Name);
-        (await controller.GetManyAsync(ids, cancellation.Token)).Select(dto => dto.Name).Should().Equal(tag.Name);
+        (await controller.GetManyAsync(ids, cancellation.Token)).Select(response => response.Name).Should().Equal(tag.Name);
         (await controller.AnyAsync(cancellation.Token)).Should().BeTrue();
         (await controller.CountAsync(cancellation.Token)).Should().Be(17);
         repository.Received(4).CancelWhen(cancellation.Token);
@@ -116,7 +121,7 @@ public class SourceKnownControllerTests
     public async Task Invalid_Batches_Should_Be_Rejected_Before_Repository_Work(int count)
     {
         var repository = Substitute.For<ISourceKnownRepository<Tag>>();
-        var controller = new ReadProbeController(repository);
+        var controller = new ReadProbeController(CreateTagService(repository));
         Func<Task> lookup = () => controller.GetManyAsync(new Guid[count]);
         await lookup.Should().ThrowAsync<ValidationException>();
         repository.ReceivedCalls().Should().BeEmpty();
@@ -131,7 +136,7 @@ public class SourceKnownControllerTests
         bool firstRequest, long cursorPage, long requestedPage, long expectedPage)
     {
         var repository = Substitute.For<ISourceKnownRepository<Tag>>();
-        var controller = new ReadProbeController(repository);
+        var controller = new ReadProbeController(CreateTagService(repository));
         var tag = new Tag("Page item") { Model = new() };
         PaginationRequest? actualRequest = null;
         repository.PaginateAsync(Arg.Any<PaginationRequest>(), null).Returns(call =>
@@ -153,7 +158,7 @@ public class SourceKnownControllerTests
         actualRequest.TotalCount.Should().Be(-1);
         actualRequest.UpdateTotalCount.Should().BeTrue();
         actualRequest.MarkAsHasNextOnRefresh.Should().BeFalse();
-        result.Items.Select(dto => dto.Name).Should().Equal(tag.Name);
+        result.Items.Select(response => response.Name).Should().Equal(tag.Name);
         result.Info.Request.Should().BeSameAs(actualRequest);
     }
 
@@ -168,7 +173,7 @@ public class SourceKnownControllerTests
         PageSortDirection direction, int itemCount, bool clientHasNext, bool expectedHasNext)
     {
         var repository = Substitute.For<ISourceKnownRepository<Tag>>();
-        var controller = new ReadProbeController(repository);
+        var controller = new ReadProbeController(CreateTagService(repository));
         Tag[] availableItems = [new("First") { Model = new() }, new("Second") { Model = new() }, new("Third") { Model = new() }];
         var items = availableItems.Take(itemCount).ToArray();
         repository.PaginateAsync(Arg.Any<PaginationRequest>(), null).Returns(call =>
@@ -184,14 +189,14 @@ public class SourceKnownControllerTests
         result.Info.Request.TotalCount.Should().Be(-1);
         result.Info.HasNext.Should().Be(expectedHasNext);
         result.Info.Total.CountSpecified.Should().BeFalse();
-        result.Items.Select(dto => dto.Name).Should().Equal(items.Take(2).Select(item => item.Name));
+        result.Items.Select(response => response.Name).Should().Equal(items.Take(2).Select(item => item.Name));
     }
 
     [Fact]
     public async Task All_Pagination_Forms_Should_Use_The_Server_Ceiling()
     {
         var repository = Substitute.For<ISourceKnownRepository<Tag>>();
-        var controller = new ReadProbeController(repository);
+        var controller = new ReadProbeController(CreateTagService(repository));
         var requests = new List<PaginationRequest>();
         repository.PaginateAsync(Arg.Any<PaginationRequest>(), null).Returns(call =>
         {
@@ -210,10 +215,11 @@ public class SourceKnownControllerTests
     }
 
     [Fact]
-    public async Task Application_Overrides_Should_Reject_Writes_Before_Mapping_And_Mutation()
+    public async Task Application_Overrides_Should_Reject_Writes_Before_Service_Mapping_And_Mutation()
     {
         var repository = Substitute.For<ISourceKnownRepository<Tag>>();
-        var controller = new WriteProbeController(repository);
+        var service = CreateTagService(repository);
+        var controller = new WriteProbeController(service);
         var request = new CreateProbeRequest("Created tag");
         var id = Guid.NewGuid();
         Func<Task> create = () => controller.PostAsync(request);
@@ -221,7 +227,7 @@ public class SourceKnownControllerTests
 
         await create.Should().ThrowAsync<ForbiddenException>();
         await delete.Should().ThrowAsync<ForbiddenException>();
-        controller.MappingCalls.Should().Be(0);
+        service.CreateCalls.Should().Be(0);
         await repository.DidNotReceive().CreateAsync(Arg.Any<IReadOnlyCollection<Tag>>());
         await repository.DidNotReceive().DeleteAsync(Arg.Any<IReadOnlyCollection<Guid>>());
 
@@ -229,8 +235,8 @@ public class SourceKnownControllerTests
         var response = await controller.PostAsync(request);
         var created = response.Result.Should().BeOfType<ObjectResult>().Subject;
         created.StatusCode.Should().Be(201);
-        created.Value.Should().BeOfType<TagDto>().Which.Name.Should().Be(request.Name);
-        controller.MappingCalls.Should().Be(1);
+        created.Value.Should().BeOfType<TagProbeResponse>().Which.Name.Should().Be(request.Name);
+        service.CreateCalls.Should().Be(1);
         await repository.Received(1).CreateAsync(Arg.Is<IReadOnlyCollection<Tag>>(entities => entities.Single().Name == request.Name));
         (await controller.DeleteAsync(id)).StatusCode.Should().Be(204);
         await repository.Received(1).DeleteAsync(Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.Single() == id));
@@ -249,16 +255,110 @@ public class SourceKnownControllerTests
     public async Task Cancellation_During_Mapping_Should_Prevent_Persistence()
     {
         var repository = Substitute.For<ISourceKnownRepository<Tag>>();
+        var service = CreateTagService(repository);
         using var cancellation = new CancellationTokenSource();
-        var controller = new CancelMappingProbeController(repository, cancellation) { AllowWrite = true };
+        var controller = new CancelMappingProbeController(service, cancellation) { AllowWrite = true };
         Func<Task> create = () => controller.PostAsync(new CreateProbeRequest("Canceled tag"), cancellation.Token);
 
         await create.Should().ThrowAsync<OperationCanceledException>();
 
         repository.Received(1).CancelWhen(cancellation.Token);
-        controller.MappingCalls.Should().Be(1);
+        service.CreateCalls.Should().Be(1);
         await repository.DidNotReceive().CreateAsync(Arg.Any<IReadOnlyCollection<Tag>>());
     }
+
+    [Fact]
+    public async Task Strict_Response_And_Routing_Controllers_Should_Map_Explicit_Responses()
+    {
+        var categoryRepo = Substitute.For<ISourceKnownRepository<CategoryEntity>>();
+        var categoryService = Substitute.For<ISourceKnownService<CategoryEntity>>();
+        categoryService.Repository.Returns(categoryRepo);
+        var category = new CategoryEntity("Strict category");
+        var categoryId = Guid.NewGuid();
+        category.EntityIdSource = new SourceKnownEntityId(new SourceKnownId(11, DateTimeOffset.UnixEpoch, 0, 0, 0), categoryId, 3, true, false);
+        categoryRepo.GetAsync(categoryId, SourceKnownEntityIdFormat.ConfiguredDefault).Returns(category);
+
+        var strictController = new StrictCategoryProbeController(categoryService);
+        var response = await strictController.GetAsync(categoryId);
+        response.Should().BeOfType<CategoryResponse>();
+        response.Id.Should().Be(categoryId);
+        response.Name.Should().Be("Strict category");
+
+        var routingRepo = Substitute.For<ISourceKnownRepository<SourceKnownRoutingEntity>>();
+        var routingService = new SourceKnownRoutingService(routingRepo);
+        var routingEntity = new SourceKnownRoutingEntity { Label = "Routed" };
+        var routingId = Guid.NewGuid();
+        routingEntity.EntityIdSource = new SourceKnownEntityId(new SourceKnownId(12, DateTimeOffset.UnixEpoch, 0, 127, 0), routingId, 1, true, false);
+        routingRepo.GetAsync(routingId, SourceKnownEntityIdFormat.ConfiguredDefault).Returns(routingEntity);
+
+        var routingController = new SourceKnownRoutingController(routingService);
+        var writableRoutingController = new SourceKnownWritableRoutingController(routingService);
+        (await routingController.GetAsync(routingId)).Should().BeOfType<SourceKnownRoutingResponse>()
+            .Which.Id.Should().Be(routingId);
+        (await writableRoutingController.GetAsync(routingId)).Should().BeOfType<SourceKnownRoutingResponse>()
+            .Which.Label.Should().Be("Routed");
+    }
+
+    [Fact]
+    public void ControllerBase_Should_Reject_Dto_Response_Types_And_Null_Service_On_Construction()
+    {
+        var service = CreateTagService(Substitute.For<ISourceKnownRepository<Tag>>());
+        Action createBaseDto = () => _ = new DisallowedBaseDtoController(service);
+        Action createDerivedDto = () => _ = new DisallowedTagDtoController(service);
+        Action createNullService = () => _ = new FoundationProbeController(null!);
+
+        createBaseDto.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Dto*");
+        createDerivedDto.Should().Throw<InvalidOperationException>()
+            .WithMessage("*TagDto*Dto*");
+        createNullService.Should().Throw<ArgumentNullException>()
+            .WithParameterName("service");
+    }
+
+    [Fact]
+    public async Task SourceKnownService_Should_Support_Default_Custom_Mismatch_And_CreateEntityAsync()
+    {
+        var repository = Substitute.For<ISourceKnownRepository<Tag>>();
+        var entity = new Tag("Canonical tag")
+        {
+            Model = new TagValueModel { StringValue = "Source", Type = TagType.User }
+        };
+        var entityId = Guid.NewGuid();
+        var createdAt = new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero);
+        entity.EntityIdSource = new SourceKnownEntityId(new SourceKnownId(10, createdAt, 0, 0, 0), entityId, 6, true, false);
+        entity.ModifiedAt = createdAt.AddMinutes(5);
+
+        var defaultService = new TagProbeService(repository);
+        defaultService.Repository.Should().BeSameAs(repository);
+        var dto = defaultService.ToDto(entity);
+        dto.Id.Should().Be(entityId);
+        dto.CreatedAt.Should().Be(createdAt);
+        dto.ModifiedAt.Should().Be(createdAt.AddMinutes(5));
+        dto.Name.Should().Be("Canonical tag");
+
+        // Covariant assignment to ISourceKnownService<Tag, Dto, CreateProbeRequest>.
+        ISourceKnownService<Tag, Dto, CreateProbeRequest> covariant = defaultService;
+        covariant.ToDto(entity).Should().BeOfType<TagDto>().Which.Name.Should().Be("Canonical tag");
+        var created = await covariant.CreateEntityAsync(new CreateProbeRequest("Created via service"));
+        created.Name.Should().Be("Created via service");
+
+        Action nullDefault = () => defaultService.ToDto(null!);
+        nullDefault.Should().Throw<ArgumentNullException>();
+
+        var customService = new CustomTagDtoService(repository);
+        customService.ToDto(entity).Name.Should().Be("custom:Canonical tag");
+
+        var mismatchService = new MismatchedTagDtoService(repository);
+        Action mismatch = () => mismatchService.ToDto(entity);
+        mismatch.Should().Throw<InvalidOperationException>()
+            .WithMessage("*TagEntity.ToDto()*TagDto*CategoryDto*");
+
+        Action nullResult = () => defaultService.ToDto(new NullToDtoProbeEntity());
+        nullResult.Should().Throw<InvalidOperationException>()
+            .WithMessage("*NullToDtoProbeEntity.ToDto()*null*TagDto*");
+    }
+
+    private static TagProbeService CreateTagService(ISourceKnownRepository<Tag> repository) => new(repository);
 
     private sealed class ProbeFeatureProvider : IApplicationFeatureProvider<ControllerFeature>
     {
@@ -273,24 +373,76 @@ public class SourceKnownControllerTests
         }
     }
 
+    public sealed record CreateProbeRequest(string Name);
+
+    public sealed class TagProbeResponse
+    {
+        public Guid Id { get; init; }
+        public DateTimeOffset CreatedAt { get; init; }
+        public DateTimeOffset ModifiedAt { get; init; }
+        public string Name { get; init; } = string.Empty;
+    }
+
+    private sealed class TagProbeService(ISourceKnownRepository<Tag> repository)
+        : SourceKnownService<Tag, TagDto, CreateProbeRequest>(repository)
+    {
+        public int CreateCalls { get; private set; }
+
+        public override Task<Tag> CreateEntityAsync(CreateProbeRequest request, CancellationToken cancellationToken = default)
+        {
+            CreateCalls++;
+            return Task.FromResult(new Tag(request.Name) { Model = new() });
+        }
+    }
+
+    private sealed class CustomTagDtoService(ISourceKnownRepository<Tag> repository)
+        : SourceKnownService<Tag, TagDto>(repository)
+    {
+        public override TagDto ToDto(Tag entity) => new(entity)
+        {
+            Name = "custom:" + entity.Name,
+            Model = entity.Model
+        };
+    }
+
+    private sealed class MismatchedTagDtoService(ISourceKnownRepository<Tag> repository)
+        : SourceKnownService<Tag, CategoryDto>(repository);
+
+    private sealed class NullToDtoProbeEntity() : Tag("Null mapping")
+    {
+        public override TagDto ToDto() => null!;
+    }
+
+    private sealed class DisallowedBaseDtoController(ISourceKnownService<Tag> service)
+        : SourceKnownControllerBase<Tag, Dto>(service)
+    {
+        protected override Dto ToResponse(Tag entity) => entity.ToDto();
+    }
+
+    private sealed class DisallowedTagDtoController(ISourceKnownService<Tag> service)
+        : SourceKnownControllerBase<Tag, TagDto>(service)
+    {
+        protected override TagDto ToResponse(Tag entity) => entity.ToDto();
+    }
+
     [Route("source-known-foundation")]
     [Authorize(Policy = "SourceKnown.Probe")]
-    public sealed class FoundationProbeController(ISourceKnownRepository<Tag> repository)
-        : SourceKnownControllerBase<Tag, TagDto>(repository)
+    public sealed class FoundationProbeController(ISourceKnownService<Tag> service)
+        : SourceKnownControllerBase<Tag, TagProbeResponse>(service)
     {
-        protected override TagDto ToDto(Tag entity) => new() { Name = entity.Name, Model = entity.Model };
+        protected override TagProbeResponse ToResponse(Tag entity) => ToProbeResponse(entity);
     }
 
     [Route("source-known-read")]
     [Authorize(Policy = "SourceKnown.Probe")]
-    public class ReadProbeController(ISourceKnownRepository<Tag> repository)
-        : SourceKnownReadOnlyController<Tag, TagDto>(repository)
+    public class ReadProbeController(ISourceKnownService<Tag> service)
+        : SourceKnownReadOnlyController<Tag, TagProbeResponse>(service)
     {
-        protected override TagDto ToDto(Tag entity) => new() { Name = entity.Name, Model = entity.Model };
+        protected override TagProbeResponse ToResponse(Tag entity) => ToProbeResponse(entity);
     }
 
     [Route("source-known-disabled")]
-    public sealed class DisabledProbeController(ISourceKnownRepository<Tag> repository) : ReadProbeController(repository)
+    public sealed class DisabledProbeController(ISourceKnownService<Tag> service) : ReadProbeController(service)
     {
         [NonAction]
         public override Task<long> CountAsync(CancellationToken cancellationToken = default) => base.CountAsync(cancellationToken);
@@ -299,20 +451,18 @@ public class SourceKnownControllerTests
         public override Task<bool> AnyAsync(CancellationToken cancellationToken = default) => base.AnyAsync(cancellationToken);
     }
 
-    public sealed record CreateProbeRequest(string Name);
-
     [Route("source-known-write")]
     [Authorize(Policy = "SourceKnown.Probe")]
-    public class WriteProbeController(ISourceKnownRepository<Tag> repository)
-        : SourceKnownController<Tag, TagDto, CreateProbeRequest>(repository)
+    public class WriteProbeController(ISourceKnownService<Tag, Dto, CreateProbeRequest> service)
+        : SourceKnownController<Tag, TagProbeResponse, CreateProbeRequest>(service)
     {
         public bool AllowWrite { get; set; }
-        public int MappingCalls { get; private set; }
         [Sensitive(false, Justification = "Test invocation count. Contains no authorization data or credentials.")]
         public int AuthorizationCalls { get; private set; }
-        protected override TagDto ToDto(Tag entity) => new() { Name = entity.Name, Model = entity.Model };
 
-        public override Task<ActionResult<TagDto>> PostAsync(CreateProbeRequest request, CancellationToken cancellationToken = default)
+        protected override TagProbeResponse ToResponse(Tag entity) => ToProbeResponse(entity);
+
+        public override Task<ActionResult<TagProbeResponse>> PostAsync(CreateProbeRequest request, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             EnsureWriteAllowed();
@@ -326,12 +476,6 @@ public class SourceKnownControllerTests
             return base.DeleteAsync(id, cancellationToken);
         }
 
-        protected override Task<Tag> CreateEntityAsync(CreateProbeRequest request, CancellationToken cancellationToken)
-        {
-            MappingCalls++;
-            return Task.FromResult(new Tag(request.Name) { Model = new() });
-        }
-
         private void EnsureWriteAllowed()
         {
             AuthorizationCalls++;
@@ -340,16 +484,30 @@ public class SourceKnownControllerTests
         }
     }
 
+    [Route("source-known-strict")]
+    [Authorize(Policy = "SourceKnown.Probe")]
+    private sealed class StrictCategoryProbeController(ISourceKnownService<CategoryEntity> service)
+        : SourceKnownReadOnlyController<CategoryEntity, CategoryResponse>(service)
+    {
+        protected override CategoryResponse ToResponse(CategoryEntity entity) => new()
+        {
+            Id = entity.EntityId,
+            CreatedAt = entity.CreatedAt,
+            ModifiedAt = entity.ModifiedAt,
+            Name = entity.Name
+        };
+    }
+
     [Route("source-known-disabled-write")]
-    public sealed class DisabledWriteProbeController(ISourceKnownRepository<Tag> repository) : WriteProbeController(repository)
+    public sealed class DisabledWriteProbeController(ISourceKnownService<Tag, Dto, CreateProbeRequest> service) : WriteProbeController(service)
     {
         [NonAction]
         public override Task<NoContentResult> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
             => base.DeleteAsync(id, cancellationToken);
     }
 
-    private sealed class CancelMappingProbeController(ISourceKnownRepository<Tag> repository, CancellationTokenSource cancellation)
-        : WriteProbeController(repository)
+    private sealed class CancelMappingProbeController(ISourceKnownService<Tag, Dto, CreateProbeRequest> service, CancellationTokenSource cancellation)
+        : WriteProbeController(service)
     {
         protected override async Task<Tag> CreateEntityAsync(CreateProbeRequest request, CancellationToken cancellationToken)
         {
@@ -361,12 +519,20 @@ public class SourceKnownControllerTests
 
     [Route("source-known-write-only")]
     [Authorize(Policy = "SourceKnown.Probe")]
-    public sealed class WriteOnlyProbeController(ISourceKnownRepository<Tag> repository)
-        : SourceKnownWriteOnlyController<Tag, TagDto, CreateProbeRequest>(repository)
+    public sealed class WriteOnlyProbeController(ISourceKnownService<Tag, Dto, CreateProbeRequest> service)
+        : SourceKnownWriteOnlyController<Tag, TagProbeResponse, CreateProbeRequest>(service)
     {
-        protected override TagDto ToDto(Tag entity) => new() { Name = entity.Name, Model = entity.Model };
+        protected override TagProbeResponse ToResponse(Tag entity) => ToProbeResponse(entity);
 
         protected override Task<Tag> CreateEntityAsync(CreateProbeRequest request, CancellationToken cancellationToken)
             => throw new NotSupportedException("Discovery fixture does not allow writes.");
     }
+
+    private static TagProbeResponse ToProbeResponse(Tag entity) => new()
+    {
+        Id = entity.EntityId,
+        CreatedAt = entity.CreatedAt,
+        ModifiedAt = entity.ModifiedAt,
+        Name = entity.Name
+    };
 }

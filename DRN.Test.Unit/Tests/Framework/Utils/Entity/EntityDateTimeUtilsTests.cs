@@ -134,5 +134,8 @@ public class EntityDateTimeUtilsTests
     private static long ConvertToTickMin(DateTimeOffset date) =>
         EpochTimeUtils.ConvertToSourceKnownIdTimeStamp(date, EpochTimeUtils.DefaultEpoch);
 
-    private sealed class TestEntity(long id) : SourceKnownEntity(id);
+    private sealed class TestEntity(long id) : SourceKnownEntity(id)
+    {
+        public override Dto ToDto() => new(this);
+    }
 }

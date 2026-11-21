@@ -5,21 +5,35 @@ using Microsoft.AspNetCore.Mvc;
 namespace DRN.Framework.Hosting.Controllers;
 
 /// <summary>
-/// Provides repository access and DTO mapping without exposing HTTP actions.
+/// Provides service and repository access plus explicit response mapping without exposing HTTP actions.
 /// Concrete controllers own routing, named authorization policies and resource authorization.
 /// </summary>
 [ApiController]
 [Authorize]
-public abstract class SourceKnownControllerBase<TEntity, TDto>(ISourceKnownRepository<TEntity> repository)
-    : ControllerBase, ISourceKnownService<TEntity>
+public abstract class SourceKnownControllerBase<TEntity, TResponse>
+    : ControllerBase
     where TEntity : AggregateRoot
-    where TDto : Dto
+    where TResponse : class
 {
-    /// <inheritdoc />
-    public ISourceKnownRepository<TEntity> Repository { get; } = repository;
+    /// <summary>Initializes the controller with its backing application service.</summary>
+    protected SourceKnownControllerBase(ISourceKnownService<TEntity> service)
+    {
+        if (typeof(Dto).IsAssignableFrom(typeof(TResponse)))
+            throw new InvalidOperationException(
+                $"{nameof(SourceKnownControllerBase<TEntity, TResponse>)} response type '{typeof(TResponse).Name}' cannot derive from {nameof(Dto)}. Use an explicit Contract response model.");
 
-    /// <summary>Maps an entity to its public representation.</summary>
-    protected abstract TDto ToDto(TEntity entity);
+        ArgumentNullException.ThrowIfNull(service);
+        Service = service;
+    }
+
+    /// <summary>Application service backing this controller.</summary>
+    protected ISourceKnownService<TEntity> Service { get; }
+
+    /// <summary>Repository exposed through <see cref="Service"/>.</summary>
+    public ISourceKnownRepository<TEntity> Repository => Service.Repository;
+
+    /// <summary>Projects an entity to its public response representation.</summary>
+    protected abstract TResponse ToResponse(TEntity entity);
 
     /// <summary>Links request cancellation to the scoped repository before starting work.</summary>
     protected void PrepareRepository(CancellationToken cancellationToken)

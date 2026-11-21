@@ -27,6 +27,7 @@ public class SourceKnownControllerRoutingTests
         var repository = Substitute.For<ISourceKnownRepository<SourceKnownRoutingEntity>>();
         repository.AnyAsync().Returns(true);
         context.ServiceCollection.AddSingleton(repository);
+        context.ServiceCollection.AddSingleton<ISourceKnownRoutingService>(new SourceKnownRoutingService(repository));
         var application = context.ApplicationContext.CreateApplication<ApiErrorTestProgram>();
         using var client = application.CreateClient(new() { AllowAutoRedirect = false });
 
@@ -73,6 +74,7 @@ public class SourceKnownControllerRoutingTests
         context.AddToConfiguration("AllowedHosts", "localhost");
         var repository = Substitute.For<ISourceKnownRepository<SourceKnownRoutingEntity>>();
         context.ServiceCollection.AddSingleton(repository);
+        context.ServiceCollection.AddSingleton<ISourceKnownRoutingService>(new SourceKnownRoutingService(repository));
         var application = context.ApplicationContext.CreateApplication<ApiErrorTestProgram>();
         using var client = application.CreateClient(new() { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false });
         await AuthenticateAsync(client);
@@ -116,6 +118,7 @@ public class SourceKnownControllerRoutingTests
         context.AddToConfiguration("AllowedHosts", "localhost");
         var repository = Substitute.For<ISourceKnownRepository<SourceKnownRoutingEntity>>();
         context.ServiceCollection.AddSingleton(repository);
+        context.ServiceCollection.AddSingleton<ISourceKnownRoutingService>(new SourceKnownRoutingService(repository));
         context.ServiceCollection.PostConfigure<AuthenticationOptions>(options =>
         {
             options.DefaultScheme = "Browser";
@@ -160,6 +163,7 @@ public class SourceKnownControllerRoutingTests
             return new PaginationResult<SourceKnownRoutingEntity>(items, request).ToModel();
         });
         context.ServiceCollection.AddSingleton(repository);
+        context.ServiceCollection.AddSingleton<ISourceKnownRoutingService>(new SourceKnownRoutingService(repository));
         var application = context.ApplicationContext.CreateApplication<ApiErrorTestProgram>();
         using var client = application.CreateClient(new() { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false });
         await AuthenticateAsync(client);

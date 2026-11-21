@@ -119,7 +119,10 @@ public class InheritanceModelTests
             .WithMessage($"*{nameof(MissingMetadataEntity)}*");
     }
 
-    public abstract class InheritanceRoot : SourceKnownEntity;
+    public abstract class InheritanceRoot : SourceKnownEntity
+    {
+        public override Dto ToDto() => new(this);
+    }
 
     [FixtureEntityType<TestApp>(FixtureEntityTypes.InheritanceBranch)]
     public class InheritanceBranch : InheritanceRoot;
@@ -131,17 +134,29 @@ public class InheritanceModelTests
     }
 
     [FixtureEntityType<TestApp>(FixtureEntityTypes.Standalone)]
-    public sealed class StandaloneEntity : SourceKnownEntity;
+    public sealed class StandaloneEntity : SourceKnownEntity
+    {
+        public override Dto ToDto() => new(this);
+    }
 
-    private sealed class PrivateHelperEntity : SourceKnownEntity;
+    private sealed class PrivateHelperEntity : SourceKnownEntity
+    {
+        public override Dto ToDto() => new(this);
+    }
 
     private static class PrivateContainer
     {
-        public sealed class NestedEntity : SourceKnownEntity;
+        public sealed class NestedEntity : SourceKnownEntity
+        {
+            public override Dto ToDto() => new(this);
+        }
 
         public static class PublicContainer
         {
-            public sealed class DeeplyNestedEntity : SourceKnownEntity;
+            public sealed class DeeplyNestedEntity : SourceKnownEntity
+            {
+                public override Dto ToDto() => new(this);
+            }
         }
     }
 

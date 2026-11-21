@@ -26,7 +26,7 @@ public class UserEntity : AggregateRoot
     public ContactDetail Contact { get; private set; } = null!;
     public Address Address { get; private set; } = null!;
 
-    public UserDto ToDto() => new(this);
+    public override UserDto ToDto() => new(this);
 }
 
 [Owned]

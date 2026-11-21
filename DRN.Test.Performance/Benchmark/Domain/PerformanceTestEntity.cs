@@ -13,4 +13,7 @@ public sealed class PerformanceTestEntityTypeAttribute(PerformanceTestEntityType
     : EntityTypeAttribute<TestApp>((byte)entityType);
 
 [PerformanceTestEntityType(PerformanceTestEntityTypes.TestEntity)]
-public class PerformanceTestEntity(long id) : SourceKnownEntity(id);
+public class PerformanceTestEntity(long id) : SourceKnownEntity(id)
+{
+    public override Dto ToDto() => new(this);
+}

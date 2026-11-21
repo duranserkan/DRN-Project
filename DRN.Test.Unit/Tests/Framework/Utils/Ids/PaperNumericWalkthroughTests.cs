@@ -329,5 +329,8 @@ public class PaperNumericWalkthroughTests
     }
 
     [FixtureEntityType<WalkthroughApp>(FixtureEntityTypes.Walkthrough)]
-    internal class WalkthroughEntity(long id) : SourceKnownEntity(id);
+    internal class WalkthroughEntity(long id) : SourceKnownEntity(id)
+    {
+        public override Dto ToDto() => new(this);
+    }
 }

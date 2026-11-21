@@ -299,5 +299,8 @@ public class IetfDraftTestVectorTests(ITestOutputHelper output)
     }
 
     [FixtureEntityType<IetfTestApp>(FixtureEntityTypes.SingleEntity)]
-    internal class TestVectorEntity(long id) : SourceKnownEntity(id);
+    internal class TestVectorEntity(long id) : SourceKnownEntity(id)
+    {
+        public override Dto ToDto() => new(this);
+    }
 }

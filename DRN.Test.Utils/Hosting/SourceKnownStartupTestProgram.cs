@@ -168,5 +168,8 @@ public sealed class SourceKnownStartupTestProgram : DrnProgramBase<SourceKnownSt
 
     protected override Task ValidateServicesAsync(WebApplication application, IScopedLog scopeLog) => Task.CompletedTask;
 
-    private sealed class ProbeEntity(long id = 0) : SourceKnownEntity(id);
+    private sealed class ProbeEntity(long id = 0) : SourceKnownEntity(id)
+    {
+        public override Dto ToDto() => new(this);
+    }
 }

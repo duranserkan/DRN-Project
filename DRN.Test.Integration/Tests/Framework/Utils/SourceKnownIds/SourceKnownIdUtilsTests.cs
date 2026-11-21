@@ -14,7 +14,10 @@ public readonly struct CustomIntegrationTestApp : IAppId
 
 [FixtureEntityType<CustomIntegrationTestApp>(FixtureEntityTypes.SingleEntity)]
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
-public class CustomIntegrationTestEntity : SourceKnownEntity;
+public class CustomIntegrationTestEntity : SourceKnownEntity
+{
+    public override Dto ToDto() => new(this);
+}
 
 public class SourceKnownIdUtilsTests
 {

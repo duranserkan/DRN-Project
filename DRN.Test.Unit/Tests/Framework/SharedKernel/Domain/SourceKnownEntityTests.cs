@@ -12,10 +12,16 @@ public readonly struct CustomTestApp : IAppId
 }
 
 [FixtureEntityType<CustomTestApp>(FixtureEntityTypes.CustomPartition)]
-public class CustomTestEntity : SourceKnownEntity;
+public class CustomTestEntity : SourceKnownEntity
+{
+    public override Dto ToDto() => new(this);
+}
 
 [FixtureEntityType<DefaultApp>(FixtureEntityTypes.DefaultPartition)]
-public class DefaultAppTestEntity : SourceKnownEntity;
+public class DefaultAppTestEntity : SourceKnownEntity
+{
+    public override Dto ToDto() => new(this);
+}
 
 public class SourceKnownEntityTests
 {
