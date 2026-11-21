@@ -21,7 +21,7 @@ public class ScopedLogReadRedactionTests
     public void Detached_Capture_Reads_And_Copies_Should_Enforce_Destination_Depth(bool copy)
     {
         var capture = Policy().Capture("Items", new object[] { new object[] { "deep-probe" } });
-        var destination = new DiagnosticSanitizer(new DiagnosticLogOptions { MaxDepth = 1, MaxProcessingMilliseconds = 100 });
+        var destination = Sanitizer(new DiagnosticLogOptions { MaxDepth = 1 });
 
         var result = copy ? destination.CopyCapture(capture).Value
             : destination.MaterializeSnapshot(new Dictionary<string, object> { ["Items"] = capture.Value! }, true)["Items"];
@@ -50,7 +50,7 @@ public class ScopedLogReadRedactionTests
     public void Deferred_Urls_Should_Keep_Interleaved_Source_Key_Limits_Separate()
     {
         var text = "https://user:credential@example.test/?" + new string('x', 40) + "=one";
-        var first = new DiagnosticSanitizer(new DiagnosticLogOptions { MaxKeyBytes = 32, MaxProcessingMilliseconds = 100 })
+        var first = Sanitizer(new DiagnosticLogOptions { MaxKeyBytes = 32 })
             .Capture("Target", new Uri(text), deferRedaction: true);
         var second = Policy().Capture("Target", new Uri(text), deferRedaction: true);
         var snapshot = new Dictionary<string, object>
@@ -73,9 +73,9 @@ public class ScopedLogReadRedactionTests
     [Fact]
     public void Source_Worker_Should_Reset_Only_Its_Per_Value_State()
     {
-        var source = new DiagnosticSanitizer(new DiagnosticLogOptions
+        var source = Sanitizer(new DiagnosticLogOptions
         {
-            MaxNodes = 16, MaxFieldBytes = 1024, MaxInputBytes = 1024, MaxProcessingMilliseconds = 100,
+            MaxNodes = 16, MaxFieldBytes = 1024, MaxInputBytes = 1024,
             SensitiveFields = ["first"]
         });
         source.SanitizeText(new string('x', 1024)).Should().HaveLength(1024);
@@ -100,11 +100,11 @@ public class ScopedLogReadRedactionTests
     {
         var options = new DiagnosticLogOptions
         {
-            MaxKeyBytes = 32, MaxCollectionEntries = 1, MaxProcessingMilliseconds = 100
+            MaxKeyBytes = 32, MaxCollectionEntries = 1
         };
         var captured = new DiagnosticCapturedValue("https://example.test/?" + new string('x', 33) + "=one&second=two",
             DiagnosticRedactionKind.Url, options);
-        var source = new DiagnosticSanitizer(options);
+        var source = Sanitizer(options);
         var first = source.RedactCapturedUrlWithFreshBudget((string)captured.Value!);
         source.RedactCapturedUrlWithFreshBudget((string)captured.Value!).Should().Be(first);
         var output = Policy().MaterializeSnapshot(new Dictionary<string, object>
@@ -130,9 +130,9 @@ public class ScopedLogReadRedactionTests
     {
         var text = "https://example.test/?first=" + new string('x', 600);
         var capture = Policy().Capture("Target", new Uri(text), deferRedaction: true).Value!;
-        var destination = new DiagnosticSanitizer(new DiagnosticLogOptions
+        var destination = Sanitizer(new DiagnosticLogOptions
         {
-            MaxNodes = 16, MaxFieldBytes = 1024, MaxInputBytes = nodeLimit ? 4096 : 1024, MaxProcessingMilliseconds = 100
+            MaxNodes = 16, MaxFieldBytes = 1024, MaxInputBytes = nodeLimit ? 4096 : 1024
         });
         if (nodeLimit)
             for (var index = 0; index < 14; index++) destination.SanitizeValue("Count", index).Should().Be(index);
@@ -197,7 +197,7 @@ public class ScopedLogReadRedactionTests
     public void Native_Copies_Should_Share_The_Destination_Capture_Budget()
     {
         var source = Policy().Capture("Items", CaptureItems);
-        var sanitizer = new DiagnosticSanitizer(new DiagnosticLogOptions { MaxNodes = 16, MaxProcessingMilliseconds = 100 });
+        var sanitizer = Sanitizer(new DiagnosticLogOptions { MaxNodes = 16 });
         for (var index = 0; index < 15; index++) sanitizer.SanitizeValue("Count", index).Should().Be(index);
 
         var copy = sanitizer.CopyCapture(source);
@@ -343,9 +343,9 @@ public class ScopedLogReadRedactionTests
     public void Copies_Should_Preserve_Classification_Without_Classifying_Url_Names()
     {
         using var settings = SettingsProvider.Development();
-        var source = new ScopedLog(settings, new DiagnosticSanitizer(new DiagnosticLogOptions
+        var source = new ScopedLog(settings, Sanitizer(new DiagnosticLogOptions
         {
-            SensitiveFields = ["opaque"], SensitivePathSegments = ["handoff"], MaxProcessingMilliseconds = 100
+            SensitiveFields = ["opaque"], SensitivePathSegments = ["handoff"]
         }));
         source.Add("Model", new CountedModel());
         source.Add("TargetUrl", "/handoff/path-probe?opaque=query-probe");
@@ -359,9 +359,9 @@ public class ScopedLogReadRedactionTests
     public void Both_Views_Should_Keep_Capture_Limits_And_IgnoreLog()
     {
         using var settings = SettingsProvider.Development();
-        var log = new ScopedLog(settings, new DiagnosticSanitizer(new DiagnosticLogOptions
+        var log = new ScopedLog(settings, Sanitizer(new DiagnosticLogOptions
         {
-            MaxFieldBytes = 1024, MaxCollectionEntries = 2, MaxProcessingMilliseconds = 100
+            MaxFieldBytes = 1024, MaxCollectionEntries = 2
         }));
         // DiagnosticNameExemption: Password | Verify capture limits remain enforced for sensitive values.
         log.Add("Password", new string('x', 1025));
@@ -419,9 +419,9 @@ public class ScopedLogReadRedactionTests
     public void Rejected_Replacement_Should_Remove_Previous_Capture_And_Release_Its_Budget()
     {
         using var settings = SettingsProvider.Development();
-        var log = new ScopedLog(settings, new DiagnosticSanitizer(new DiagnosticLogOptions
+        var log = new ScopedLog(settings, Sanitizer(new DiagnosticLogOptions
         {
-            MaxScopeBytes = 8192, MaxProcessingMilliseconds = 100
+            MaxScopeBytes = 8192
         }));
         var value = new string('x', 2500);
         log.Add("First", value);

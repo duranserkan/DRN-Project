@@ -164,10 +164,9 @@ public class ProjectDiagnosticRulesTests
     [Fact]
     public void Runtime_Should_Not_Apply_Embedded_Catalog_Names()
     {
-        var sanitizer = new DiagnosticSanitizer(new DiagnosticLogOptions
+        var sanitizer = Sanitizer(new DiagnosticLogOptions
         {
-            RuleAssemblyName = typeof(ProjectDiagnosticRulesTests).Assembly.GetName().Name,
-            MaxProcessingMilliseconds = 100
+            RuleAssemblyName = typeof(ProjectDiagnosticRulesTests).Assembly.GetName().Name
         });
         // These names come only from the referenced test-support project's embedded catalog.
         foreach (var field in new[] { "FixtureMemberReference", "Fixture3BReference" })
@@ -183,7 +182,7 @@ public class ProjectDiagnosticRulesTests
     [Fact]
     public void Project_File_Should_Not_Cause_Runtime_Name_Redaction()
     {
-        var sanitizer = new DiagnosticSanitizer(Options());
+        var sanitizer = Sanitizer(Options());
         foreach (var name in new[] { "Challenge_Response", "MEMBERSHIP_NUMBER", "Payload.PrivateValue", "Password" })
             sanitizer.SanitizeValue(name, "probe").Should().Be("probe");
         sanitizer.SanitizeValue("FileName", "report.txt").Should().Be("report.txt");
@@ -224,10 +223,10 @@ public class ProjectDiagnosticRulesTests
     [Fact]
     public void Project_Rules_Should_Preserve_Reviewed_Values_Without_Runtime_Matching()
     {
-        var sanitizer = new DiagnosticSanitizer(Options());
+        var sanitizer = Sanitizer(Options());
         var value = (IReadOnlyDictionary<string, object>)sanitizer.SanitizeValue("Model", new ReviewedModel())!;
         value["MembershipNumber"].Should().Be("public-reference");
-        var configured = new DiagnosticSanitizer(Options() with { SensitiveFields = ["membershipnumber"] });
+        var configured = Sanitizer(Options() with { SensitiveFields = ["membershipnumber"] });
         var protectedValue = (IReadOnlyDictionary<string, object>)configured.SanitizeValue("Model", new ReviewedModel())!;
         protectedValue["MembershipNumber"].Should().Be("public-reference");
     }
@@ -242,7 +241,7 @@ public class ProjectDiagnosticRulesTests
     [Fact]
     public void Project_Field_Paths_Should_Not_Redact_Typed_Models_At_Runtime()
     {
-        var sanitizer = new DiagnosticSanitizer(Options());
+        var sanitizer = Sanitizer(Options());
         var value = (IReadOnlyDictionary<string, object>)sanitizer.SanitizeValue("Payload", new PathModel())!;
         value["PrivateValue"].Should().Be("probe");
         var other = (IReadOnlyDictionary<string, object>)sanitizer.SanitizeValue("Other", new PathModel())!;
@@ -265,18 +264,18 @@ public class ProjectDiagnosticRulesTests
             File.WriteAllText(path, "{\"personalFields\":[\"membershipNumber\"]}");
             var options = Options() with { RuleFile = path };
             using var settings = SettingsProvider.Development();
-            var log = new ScopedLog(settings, new DiagnosticSanitizer(options));
+            var log = new ScopedLog(settings, Sanitizer(options));
             log.Add("MembershipNumber", "member");
             File.WriteAllText(path, "{\"personalFields\":null}");
-            new DiagnosticSanitizer(options).SanitizeValue("MembershipNumber", "member").Should().Be("member");
-            Action invalid = () => _ = new DiagnosticSanitizer(options with { });
+            Sanitizer(options).SanitizeValue("MembershipNumber", "member").Should().Be("member");
+            Action invalid = () => _ = Sanitizer(options with { });
             invalid.Should().Throw<FormatException>();
             File.Delete(path);
             log.GetLogs()["MembershipNumber"].Should().Be("member");
             var copy = new ScopedLog(settings, Policy());
             copy.CopyFrom(log);
             copy.GetLogs()["MembershipNumber"].Should().Be("member");
-            Action missing = () => _ = new DiagnosticSanitizer(options with { });
+            Action missing = () => _ = Sanitizer(options with { });
             missing.Should().Throw<FileNotFoundException>();
         }
         finally { File.Delete(path); }
@@ -289,8 +288,8 @@ public class ProjectDiagnosticRulesTests
         try
         {
             File.WriteAllText(path, "{\"personalFields\":null}");
-            var original = new DiagnosticSanitizer(Options());
-            Action changed = () => _ = new DiagnosticSanitizer(original.Options with { RuleFile = path });
+            var original = Sanitizer(Options());
+            Action changed = () => _ = Sanitizer(original.Options with { RuleFile = path });
             changed.Should().Throw<FormatException>();
             original.SanitizeValue("MembershipNumber", "member").Should().Be("member");
         }
@@ -301,7 +300,7 @@ public class ProjectDiagnosticRulesTests
     public void Copies_Should_Preserve_Urls_Without_Applying_Project_Name_Rules()
     {
         using var settings = SettingsProvider.Development();
-        var source = new ScopedLog(settings, new DiagnosticSanitizer(Options()));
+        var source = new ScopedLog(settings, Sanitizer(Options()));
         source.Add("TargetUrl", "/handoff/private?membershipNumber=member");
         var destination = new ScopedLog(settings, Policy());
         destination.CopyFrom(source);
@@ -312,11 +311,11 @@ public class ProjectDiagnosticRulesTests
     public void Identically_Configured_Copies_Should_Preserve_Metrics_And_Url_Values()
     {
         using var settings = SettingsProvider.Development();
-        var source = new ScopedLog(settings, new DiagnosticSanitizer(Options()));
+        var source = new ScopedLog(settings, Sanitizer(Options()));
         source.Increase("Completed", 3);
         source.IncreaseTimeSpentOn("Work", TimeSpan.FromSeconds(2));
         source.Add("TargetUrl", "/handoff/private");
-        var destination = new ScopedLog(settings, new DiagnosticSanitizer(Options()));
+        var destination = new ScopedLog(settings, Sanitizer(Options()));
 
         destination.CopyFrom(source);
 
@@ -339,10 +338,10 @@ public class ProjectDiagnosticRulesTests
             foreach (var json in InvalidDiagnosticRuleCases.Create())
             {
                 File.WriteAllText(path, json);
-                Action create = () => _ = new DiagnosticSanitizer(Options() with { RuleFile = path });
+                Action create = () => _ = Sanitizer(Options() with { RuleFile = path });
                 create.Should().Throw<FormatException>();
             }
-            Action blank = () => _ = new DiagnosticSanitizer(Options() with { RuleFile = " " });
+            Action blank = () => _ = Sanitizer(Options() with { RuleFile = " " });
             blank.Should().Throw<ValidationException>();
         }
         finally { File.Delete(path); }

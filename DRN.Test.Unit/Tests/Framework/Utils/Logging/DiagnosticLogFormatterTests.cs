@@ -50,7 +50,7 @@ public class DiagnosticLogFormatterTests
     [Fact]
     public void Structural_Redaction_Should_Precede_Fragmentation_While_Text_Is_Preserved()
     {
-        var policy = new DiagnosticSanitizer(new DiagnosticLogOptions(), new FrozenTimeProvider());
+        var policy = DiagnosticTestSupport.Sanitizer();
         var safe = policy.SanitizeText(new string('a', 4000) + " password=split-secret-probe; " + new string('z', 4000));
         var classified = policy.SanitizeDictionary("Fields", new Dictionary<string, string> { ["Password"] = "field-secret-probe" },
             new DiagnosticKeyClassification("Password", DiagnosticDataKind.Sensitive));
@@ -119,9 +119,4 @@ public class DiagnosticLogFormatterTests
 
     private static JsonDocument Reconstruct(IEnumerable<Dictionary<string, object>> fragments) =>
         JsonDocument.Parse(string.Concat(fragments.Select(fragment => (string)fragment["PayloadFragment"])));
-
-    private sealed class FrozenTimeProvider : TimeProvider
-    {
-        public override long GetTimestamp() => 0;
-    }
 }

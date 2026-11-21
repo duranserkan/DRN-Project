@@ -123,7 +123,7 @@ public sealed class DiagnosticDictionaryTests
         var rule = new DiagnosticKeyClassification("StatusCode", DiagnosticDataKind.NonSensitive, "HTTP status.");
         JsonSerializer.SerializeToElement(Policy("Response.StatusCode").SanitizeDictionary("Response", values, rule))
             .GetProperty("StatusCode").GetInt32().Should().Be(200);
-        var bounded = new DiagnosticSanitizer(new DiagnosticLogOptions { MaxCollectionEntries = 1, MaxProcessingMilliseconds = 100 });
+        var bounded = Sanitizer(new DiagnosticLogOptions { MaxCollectionEntries = 1 });
         JsonSerializer.SerializeToElement(bounded.SanitizeDictionary("Response", values, rule))
             .GetProperty("_diagnostic_limit").GetString().Should().Be(DiagnosticSanitizer.Limited);
     }

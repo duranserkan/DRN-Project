@@ -1,6 +1,7 @@
 using System.Text;
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging.Diagnostics;
+using DRN.Test.Unit.Tests.Framework.Utils.Logging;
 using Flurl.Http;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Http;
@@ -11,7 +12,7 @@ public class FlurlDiagnosticCaptureTests
     public async Task Error_Response_Capture_Should_Stop_At_The_Limit_Without_Disposing_The_Response()
     {
         using var settings = SettingsProvider.Development();
-        var policy = new DiagnosticSanitizer(new DiagnosticLogOptions { MaxFieldBytes = 1024, MaxProcessingMilliseconds = 100 });
+        var policy = DiagnosticTestSupport.Sanitizer(new DiagnosticLogOptions { MaxFieldBytes = 1024 });
         var log = new ScopedLog(settings, policy);
         using var request = new HttpRequestMessage(HttpMethod.Get, "https://example.test/?token=request-probe");
         using var stream = new TrackingStream(new byte[10000]);
@@ -41,7 +42,7 @@ public class FlurlDiagnosticCaptureTests
         string charset, bool malformedUtf8, bool failRead, string expected)
     {
         using var settings = SettingsProvider.Development();
-        var policy = new DiagnosticSanitizer(new DiagnosticLogOptions { MaxProcessingMilliseconds = 100 });
+        var policy = DiagnosticTestSupport.Sanitizer();
         var log = new ScopedLog(settings, policy);
         using var request = new HttpRequestMessage(HttpMethod.Get, "https://example.test/");
         using var stream = new TrackingStream(malformedUtf8 ? [0, 0xff] : Encoding.UTF8.GetBytes("xprobe"),

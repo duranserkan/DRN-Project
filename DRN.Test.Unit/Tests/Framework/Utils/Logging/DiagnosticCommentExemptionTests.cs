@@ -11,10 +11,9 @@ public class DiagnosticCommentExemptionTests
     public void Dictionary_Comments_And_Configured_Paths_Should_Not_Redact_Unclassified_Values(bool configured)
     {
         using var settings = SettingsProvider.Development();
-        var sanitizer = new DiagnosticSanitizer(new DiagnosticLogOptions
+        var sanitizer = DiagnosticTestSupport.Sanitizer(new DiagnosticLogOptions
         {
-            SensitiveFieldPaths = configured ? ["Data.Public"] : [],
-            MaxProcessingMilliseconds = 100
+            SensitiveFieldPaths = configured ? ["Data.Public"] : []
         });
         var log = new ScopedLog(settings, sanitizer);
         var data = new Dictionary<string, object> { ["Password"] = "credential-probe", ["Public"] = "public-probe" };

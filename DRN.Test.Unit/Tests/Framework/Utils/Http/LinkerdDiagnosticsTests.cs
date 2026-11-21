@@ -1,5 +1,6 @@
 using DRN.Framework.Utils.Extensions;
 using DRN.Framework.Utils.Logging.Diagnostics;
+using DRN.Test.Unit.Tests.Framework.Utils.Logging;
 using Flurl.Http;
 
 namespace DRN.Test.Unit.Tests.Framework.Utils.Http;
@@ -19,9 +20,9 @@ public class LinkerdDiagnosticsTests
         string header, int count, string expected)
     {
         using var settings = SettingsProvider.Development();
-        var log = new ScopedLog(settings, new DiagnosticSanitizer(new DiagnosticLogOptions
+        var log = new ScopedLog(settings, DiagnosticTestSupport.Sanitizer(new DiagnosticLogOptions
         {
-            MaxCollectionEntries = 2, MaxProcessingMilliseconds = 100
+            MaxCollectionEntries = 2
         }));
         using var message = new HttpResponseMessage(System.Net.HttpStatusCode.BadGateway);
         message.Headers.Add(header, HeaderValues.Take(count));

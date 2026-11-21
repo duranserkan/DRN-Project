@@ -2,6 +2,7 @@ using DRN.Framework.Hosting.Middlewares;
 using DRN.Framework.Hosting.Middlewares.ExceptionHandler;
 using DRN.Framework.Utils.Auth;
 using DRN.Framework.Utils.Logging.Diagnostics;
+using DRN.Test.Unit.Tests.Framework.Utils.Logging;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Logging;
 
@@ -23,10 +24,9 @@ public class HttpScopeMiddlewareTests
         context.Request.Headers["l5d-client-id"] = "client-identity-probe";
         context.Connection.RemoteIpAddress = ipAddress == null ? null : System.Net.IPAddress.Parse(ipAddress);
         var settings = services.GetRequiredService<IAppSettings>();
-        var log = new ScopedLog(settings, new DiagnosticSanitizer(new DiagnosticLogOptions
+        var log = new ScopedLog(settings, DiagnosticTestSupport.Sanitizer(new DiagnosticLogOptions
         {
-            SensitiveFields = redactIp ? ["ipadd"] : [],
-            MaxProcessingMilliseconds = 100
+            SensitiveFields = redactIp ? ["ipadd"] : []
         }));
         var middleware = new HttpScopeMiddleware(_ => Task.CompletedTask);
 
@@ -52,10 +52,9 @@ public class HttpScopeMiddlewareTests
         var context = new DefaultHttpContext();
         if (clientId != null) context.Request.Headers["l5d-client-id"] = clientId;
         var settings = services.GetRequiredService<IAppSettings>();
-        var log = new ScopedLog(settings, new DiagnosticSanitizer(new DiagnosticLogOptions
+        var log = new ScopedLog(settings, DiagnosticTestSupport.Sanitizer(new DiagnosticLogOptions
         {
-            SensitiveFieldPaths = ["Request_l5d-client-id"],
-            MaxProcessingMilliseconds = 100
+            SensitiveFieldPaths = ["Request_l5d-client-id"]
         }));
         var middleware = new HttpScopeMiddleware(_ => Task.CompletedTask);
 
@@ -84,7 +83,7 @@ public class HttpScopeMiddlewareTests
         http.Request.Protocol = "HTTP/1.1";
         http.Request.Path = "/redirect";
         var settings = services.GetRequiredService<IAppSettings>();
-        var log = new ScopedLog(settings);
+        var log = new ScopedLog(settings, DiagnosticTestSupport.Sanitizer());
         var logger = Substitute.For<ILogger<HttpScopeMiddleware>>();
         logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
         var middleware = new HttpScopeMiddleware(async context =>
@@ -131,7 +130,7 @@ public class HttpScopeMiddlewareTests
         http.Request.Protocol = "HTTP/1.1";
         http.Request.Path = "/aborted";
         var settings = services.GetRequiredService<IAppSettings>();
-        var log = new ScopedLog(settings);
+        var log = new ScopedLog(settings, DiagnosticTestSupport.Sanitizer());
         var logger = Substitute.For<ILogger<HttpScopeMiddleware>>();
         logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
         var middleware = new HttpScopeMiddleware(context =>
@@ -161,7 +160,7 @@ public class HttpScopeMiddlewareTests
         http.Request.Protocol = "HTTP/1.1";
         http.Request.Path = "/started";
         var settings = services.GetRequiredService<IAppSettings>();
-        var log = new ScopedLog(settings);
+        var log = new ScopedLog(settings, DiagnosticTestSupport.Sanitizer());
         var exceptionHandler = Substitute.For<IDrnExceptionHandler>();
         var original = new InvalidOperationException("Original streaming failure");
         var middleware = new HttpScopeMiddleware(async context =>

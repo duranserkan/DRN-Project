@@ -167,8 +167,8 @@ public class ExceptionUtils(
     private IDiagnosticSanitizer Sanitizer(HttpContext context, bool forDevelopmentDisplay = false)
     {
         var sanitizer = (context.RequestServices.GetService<IScopedLog>() as ScopedLog)?.Sanitizer ?? DiagnosticSanitizer.FromSettings(appSettings);
-        return forDevelopmentDisplay && appSettings.IsDevelopmentEnvironment && sanitizer is DiagnosticSanitizer
-            ? DiagnosticSanitizer.ForDevelopmentDisplay(appSettings, sanitizer.Options) : sanitizer;
+        return forDevelopmentDisplay && appSettings.IsDevelopmentEnvironment && sanitizer is DiagnosticSanitizer native
+            ? DiagnosticSanitizer.ForDevelopmentDisplay(appSettings, native.Options, native.TimeProvider) : sanitizer;
     }
 
     private static Dictionary<string, object?> SafeRoutes(HttpContext context, IDiagnosticSanitizer sanitizer) =>

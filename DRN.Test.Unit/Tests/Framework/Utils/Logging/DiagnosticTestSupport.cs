@@ -14,9 +14,13 @@ internal static class DiagnosticTestSupport
         PropertyNamingPolicy = null
     };
 
-    internal static DiagnosticSanitizer Policy(params string[] fields) => new(new DiagnosticLogOptions
+    internal static readonly TimeProvider FrozenTime = new FrozenTimeProvider();
+
+    internal static DiagnosticSanitizer Sanitizer(DiagnosticLogOptions? options = null) =>
+        new(options ?? new DiagnosticLogOptions(), FrozenTime);
+
+    internal static DiagnosticSanitizer Policy(params string[] fields) => Sanitizer(new DiagnosticLogOptions
     {
-        MaxProcessingMilliseconds = 100,
         SensitiveFields = fields
     });
 
@@ -31,5 +35,10 @@ internal static class DiagnosticTestSupport
                 SeedKey = "Diagnostic fixture seed for isolated tests only! Version (2026)"
             }
         });
+    }
+
+    private sealed class FrozenTimeProvider : TimeProvider
+    {
+        public override long GetTimestamp() => 0;
     }
 }

@@ -26,9 +26,9 @@ public class DiagnosticModelProjectionTests
     public void Endpoint_Metadata_Should_Preserve_Captured_Rows_And_Report_Omissions(
         int count, int consumedNodes, int expectedRows, bool omitted)
     {
-        var sanitizer = new DiagnosticSanitizer(new DiagnosticLogOptions
+        var sanitizer = DiagnosticTestSupport.Sanitizer(new DiagnosticLogOptions
         {
-            MaxNodes = 16, MaxCollectionEntries = 2, MaxProcessingMilliseconds = 100
+            MaxNodes = 16, MaxCollectionEntries = 2
         });
         for (var index = 0; index < consumedNodes; index++)
             sanitizer.SanitizeValue("Previous", index);
@@ -45,7 +45,7 @@ public class DiagnosticModelProjectionTests
     public async Task Request_Heading_And_Body_Should_Survive_Metadata_Exhausting_The_Node_Budget()
     {
         using var settings = DiagnosticTestSupport.Settings("Development");
-        var sanitizer = new DiagnosticSanitizer(new DiagnosticLogOptions { MaxNodes = 16, MaxProcessingMilliseconds = 100 });
+        var sanitizer = DiagnosticTestSupport.Sanitizer(new DiagnosticLogOptions { MaxNodes = 16 });
         var log = new ScopedLog(settings, sanitizer);
         using var services = new ServiceCollection().AddSingleton<IScopedLog>(log).BuildServiceProvider();
         var context = new DefaultHttpContext { RequestServices = services };
@@ -80,9 +80,9 @@ public class DiagnosticModelProjectionTests
     [DataInlineUnit(4, true)]
     public void Header_Value_Limits_Should_Report_Only_Omitted_Values(int count, bool limited)
     {
-        var projection = new DiagnosticModelProjection(new DiagnosticSanitizer(new DiagnosticLogOptions
+        var projection = new DiagnosticModelProjection(DiagnosticTestSupport.Sanitizer(new DiagnosticLogOptions
         {
-            MaxCollectionEntries = 2, MaxProcessingMilliseconds = 100
+            MaxCollectionEntries = 2
         }));
         var values = Enumerable.Range(1, count).Select(value => value.ToString()).ToArray();
         var headers = new HeaderDictionary { ["Accept"] = new Microsoft.Extensions.Primitives.StringValues(values) };
@@ -103,9 +103,9 @@ public class DiagnosticModelProjectionTests
     public void Frame_Limits_Should_Report_Only_Omitted_Frames(int firstCount, int secondCount,
         int firstCaptured, bool firstLimited, int secondCaptured, bool secondLimited)
     {
-        var projection = new DiagnosticModelProjection(new DiagnosticSanitizer(new DiagnosticLogOptions
+        var projection = new DiagnosticModelProjection(DiagnosticTestSupport.Sanitizer(new DiagnosticLogOptions
         {
-            MaxCollectionEntries = 2, MaxProcessingMilliseconds = 100
+            MaxCollectionEntries = 2
         }));
 
         AssertFrames(firstCount, firstCaptured, firstLimited);
@@ -138,10 +138,10 @@ public class DiagnosticModelProjectionTests
         JsonSerializer.Serialize("warm-up", JsonConventions.DefaultOptions);
         JsonConventions.DefaultOptions.IsReadOnly.Should().BeTrue();
         using var settings = DiagnosticTestSupport.Settings(environment);
-        var log = new ScopedLog(settings, new DiagnosticSanitizer(new DiagnosticLogOptions
+        var log = new ScopedLog(settings, DiagnosticTestSupport.Sanitizer(new DiagnosticLogOptions
         {
             // Legacy URL name rules do not classify request details.
-            SensitivePathSegments = ["handoff"], MaxProcessingMilliseconds = 100
+            SensitivePathSegments = ["handoff"]
         }));
         log.AddDictionary("Fields", new Dictionary<string, string> { ["Password"] = "page-probe" },
             new DiagnosticKeyClassification("Password", DiagnosticDataKind.Sensitive));
@@ -200,8 +200,8 @@ public class DiagnosticModelProjectionTests
         using var settings = SettingsProvider.Development();
         var sanitizer = DiagnosticSanitizer.ForDevelopmentDisplay(settings, new DiagnosticLogOptions
         {
-            MaxFieldBytes = 1024, MaxCollectionEntries = 2, MaxProcessingMilliseconds = 100
-        });
+            MaxFieldBytes = 1024, MaxCollectionEntries = 2
+        }, DiagnosticTestSupport.FrozenTime);
         sanitizer.SanitizeBody(new string('x', 1025), "text/plain").Should().Be(DiagnosticSanitizer.Limited);
         sanitizer.SanitizeBody("token=form-probe", "application/x-www-form-urlencoded").Should().Contain("form-probe");
         sanitizer.SanitizeUrl("/?token=first&token=second&token=third").Should().Contain("first")
@@ -224,7 +224,7 @@ public class DiagnosticModelProjectionTests
             Function = "Service.Save", File = "Service.cs", Line = 42,
             ContextCode = ["var password = \"source-probe\";"]
         }]);
-        var projection = new DiagnosticModelProjection(new DiagnosticSanitizer(new DiagnosticLogOptions()));
+        var projection = new DiagnosticModelProjection(DiagnosticTestSupport.Sanitizer());
         var safe = projection.Exception(source);
 
         safe.Error.Should().BeSameAs(original);
@@ -240,7 +240,7 @@ public class DiagnosticModelProjectionTests
     public void Header_Copies_Should_Preserve_Values_While_Classified_Cookies_Are_Redacted()
     {
         var source = new Dictionary<string, string?[]> { ["Authorization"] = ["Basic header-probe"], ["Accept"] = ["application/json"] };
-        var projection = new DiagnosticModelProjection(new DiagnosticSanitizer(new DiagnosticLogOptions()));
+        var projection = new DiagnosticModelProjection(DiagnosticTestSupport.Sanitizer());
         var safe = projection.Strings(source);
         safe["Authorization"].Should().Equal("Basic header-probe");
         safe["Accept"].Should().Equal("application/json");

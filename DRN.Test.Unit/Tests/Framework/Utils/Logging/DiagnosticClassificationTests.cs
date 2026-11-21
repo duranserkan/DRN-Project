@@ -205,10 +205,10 @@ public sealed class DiagnosticClassificationTests
     public void Native_List_Copies_Should_Preserve_Values_And_Detach_Later_Appends()
     {
         using var settings = SettingsProvider.Development();
-        var options = new DiagnosticLogOptions { SensitivePathSegments = ["handoff"], MaxProcessingMilliseconds = 100 };
-        var source = new ScopedLog(settings, new DiagnosticSanitizer(options));
+        var options = new DiagnosticLogOptions { SensitivePathSegments = ["handoff"] };
+        var source = new ScopedLog(settings, Sanitizer(options));
         source.AddToList("Responses", new CapturedResponse(503, "/handoff/private?opaque=visible&token=private"));
-        var first = new ScopedLog(settings, new DiagnosticSanitizer(options));
+        var first = new ScopedLog(settings, Sanitizer(options));
         first.CopyFrom(source);
         var firstItems = JsonSerializer.SerializeToElement(first.GetLogs()["Responses"]);
         firstItems.GetArrayLength().Should().Be(1);
@@ -216,7 +216,7 @@ public sealed class DiagnosticClassificationTests
         firstItems[0].GetProperty("CallbackUrl").GetString().Should().Be("/handoff/private?opaque=visible&token=private");
 
         source.AddToList("Responses", new CapturedResponse(504, "/?opaque=second"));
-        var appended = new ScopedLog(settings, new DiagnosticSanitizer(options));
+        var appended = new ScopedLog(settings, Sanitizer(options));
         appended.CopyFrom(source);
         var items = JsonSerializer.SerializeToElement(appended.GetLogs()["Responses"]);
         items.GetArrayLength().Should().Be(2);
@@ -231,9 +231,9 @@ public sealed class DiagnosticClassificationTests
             JsonSerializer.SerializeToElement(stricter.GetLogs()["Responses"])[0].GetProperty("StatusCode").GetInt32().Should().Be(503);
         }
 
-        var urlRules = new DiagnosticSanitizer(new DiagnosticLogOptions
+        var urlRules = Sanitizer(new DiagnosticLogOptions
         {
-            SensitivePathSegments = ["handoff", "exchange"], MaxProcessingMilliseconds = 100
+            SensitivePathSegments = ["handoff", "exchange"]
         });
         var stricterUrls = new ScopedLog(settings, urlRules);
         stricterUrls.CopyFrom(appended);
@@ -293,11 +293,11 @@ public sealed class DiagnosticClassificationTests
 
             foreach (var options in new[]
                      {
-                         new DiagnosticLogOptions { SensitiveFields = ["opaque"], MaxProcessingMilliseconds = 100 },
-                         new DiagnosticLogOptions { SensitiveFieldPaths = ["opaque"], MaxProcessingMilliseconds = 100 }
+                         new DiagnosticLogOptions { SensitiveFields = ["opaque"] },
+                         new DiagnosticLogOptions { SensitiveFieldPaths = ["opaque"] }
                      })
             {
-                var stricter = new ScopedLog(settings, new DiagnosticSanitizer(options));
+                var stricter = new ScopedLog(settings, Sanitizer(options));
                 stricter.CopyFrom(same);
                 JsonSerializer.Serialize(stricter.GetLogs()[key]).Should().Contain("private");
             }
@@ -397,10 +397,9 @@ public sealed class DiagnosticClassificationTests
         same.CopyFrom(source);
         same.GetLogs()["Report"].Should().Be(original);
 
-        var sanitizer = new DiagnosticSanitizer(new DiagnosticLogOptions
+        var sanitizer = Sanitizer(new DiagnosticLogOptions
         {
-            MaxFieldBytes = 1024,
-            MaxProcessingMilliseconds = 100
+            MaxFieldBytes = 1024
         });
         var destination = new ScopedLog(settings, sanitizer);
         destination.CopyFrom(source);
@@ -418,11 +417,10 @@ public sealed class DiagnosticClassificationTests
         var original = new ScopeEvent(new EventId(42, text), text, text);
         var source = new ScopedLog(settings, Policy());
         source.Add("Report", original);
-        var sanitizer = new DiagnosticSanitizer(new DiagnosticLogOptions
+        var sanitizer = Sanitizer(new DiagnosticLogOptions
         {
             MaxFieldBytes = 1024,
-            MaxInputBytes = 1024,
-            MaxProcessingMilliseconds = 100
+            MaxInputBytes = 1024
         });
         var destination = new ScopedLog(settings, sanitizer);
         destination.CopyFrom(source);
@@ -479,14 +477,13 @@ public sealed class DiagnosticClassificationTests
 
         var options = new DiagnosticLogOptions
         {
-            SensitiveFieldPaths = ["ClientError.Keyboard", "ClientReport.Keyboard"],
-            MaxProcessingMilliseconds = 100
+            SensitiveFieldPaths = ["ClientError.Keyboard", "ClientReport.Keyboard"]
         };
-        var stricter = new ScopedLog(settings, new DiagnosticSanitizer(options));
+        var stricter = new ScopedLog(settings, Sanitizer(options));
         stricter.CopyFrom(source);
         stricter.GetLogs()["ClientError.Keyboard"].Should().Be("layout");
         JsonSerializer.SerializeToElement(stricter.GetLogs()["ClientReport"]).GetProperty("Keyboard").GetString().Should().Be("layout");
-        var direct = JsonSerializer.SerializeToElement(new DiagnosticSanitizer(options).SanitizeValue("ClientReport", new Model()));
+        var direct = JsonSerializer.SerializeToElement(Sanitizer(options).SanitizeValue("ClientReport", new Model()));
         direct.GetProperty("Keyboard").GetString().Should().Be("layout");
         JsonSerializer.SerializeToElement(Policy("ClientReport").SanitizeValue("ClientReport", new Model()))
             .GetProperty("Keyboard").GetString().Should().Be("layout");
@@ -545,7 +542,7 @@ public sealed class DiagnosticClassificationTests
         Policy().SanitizeValue("Target", new ClassifiedUri(), "Reviewed entry.").Should().Be(DiagnosticSanitizer.Redacted);
         Policy().SanitizeValue("CallbackUrl", "/?token=private", "Callback URL.").Should().Be("/?token=private");
         Policy().SanitizeValue("StatusCode", 503, " ").Should().Be("[diagnostic field unavailable]");
-        var bounded = new DiagnosticSanitizer(new DiagnosticLogOptions { MaxFieldBytes = 1024, MaxProcessingMilliseconds = 100 });
+        var bounded = Sanitizer(new DiagnosticLogOptions { MaxFieldBytes = 1024 });
         bounded.SanitizeValue("StatusCode", new string('x', 2048), "Reviewed entry.").Should().Be(DiagnosticSanitizer.Limited);
 
         var foreign = Substitute.For<IScopedLog>();
@@ -624,7 +621,7 @@ public sealed class DiagnosticClassificationTests
         var stricter = new ScopedLog(settings, Policy("opaque"));
         stricter.CopyFrom(source);
         stricter.GetLogs()["SecretTarget"].Should().Be(expected);
-        var bounded = new DiagnosticSanitizer(new DiagnosticLogOptions { MaxFieldBytes = 1024, MaxProcessingMilliseconds = 100 });
+        var bounded = Sanitizer(new DiagnosticLogOptions { MaxFieldBytes = 1024 });
         bounded.SanitizeValue("Target", new Uri("https://example.test/" + new string('x', 2048)), "Reviewed target.")
             .Should().Be(DiagnosticSanitizer.Limited);
     }

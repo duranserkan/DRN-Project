@@ -195,7 +195,7 @@ public class ScopedLog : IScopedLog
         if (!redact && !_isDevelopment)
             throw new InvalidOperationException("Unredacted diagnostic snapshots are only available in Development.");
         var status = Sanitizer.GetStatus();
-        var reader = Sanitizer is DiagnosticSanitizer ? new DiagnosticSanitizer(Sanitizer.Options) : null;
+        var reader = Sanitizer is DiagnosticSanitizer native ? native.CreateWorker(native.Options) : null;
         IReadOnlyDictionary<string, object> output;
         lock (_sync)
         {

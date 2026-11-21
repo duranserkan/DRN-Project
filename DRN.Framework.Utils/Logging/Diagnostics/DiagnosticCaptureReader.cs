@@ -91,7 +91,7 @@ internal sealed class DiagnosticCaptureReader(DiagnosticSanitizer owner)
     {
         if (_firstSource == null)
         {
-            _firstSource = new DiagnosticSanitizer(options);
+            _firstSource = owner.CreateWorker(options);
             _firstSourceOptions = options;
             return _firstSource;
         }
@@ -99,7 +99,7 @@ internal sealed class DiagnosticCaptureReader(DiagnosticSanitizer owner)
         _sources ??= new(ReferenceEqualityComparer.Instance);
         if (!_sources.TryGetValue(options, out var source))
         {
-            source = new DiagnosticSanitizer(options);
+            source = owner.CreateWorker(options);
             _sources.Add(options, source);
         }
         return source;

@@ -17,7 +17,7 @@ public class ScopedLogTests
     public void Metric_Identifiers_Should_Ignore_Runtime_Name_Rules(string rule)
     {
         using var settings = SettingsProvider.Development();
-        var log = new ScopedLog(settings, new DiagnosticSanitizer(MetricOptions(rule)));
+        var log = new ScopedLog(settings, DiagnosticTestSupport.Sanitizer(MetricOptions(rule)));
         log.Increase("TokenWork").Should().Be(1);
         log.IncreaseTimeSpentOn("TokenWork", TimeSpan.FromSeconds(2))
             .Should().Be(TimeSpan.FromSeconds(2));
@@ -51,17 +51,17 @@ public class ScopedLogTests
     {
         using var settings = SettingsProvider.Development();
         var options = MetricOptions("none");
-        var source = new ScopedLog(settings, new DiagnosticSanitizer(options));
+        var source = new ScopedLog(settings, DiagnosticTestSupport.Sanitizer(options));
         source.Increase("TokenWork", 4);
         source.Increase("TokenWork", 0);
         source.IncreaseTimeSpentOn("TokenWork", TimeSpan.FromSeconds(2));
         source.IncreaseTimeSpentOn("TokenWork", TimeSpan.Zero);
-        var first = new ScopedLog(settings, new DiagnosticSanitizer(options));
+        var first = new ScopedLog(settings, DiagnosticTestSupport.Sanitizer(options));
         first.CopyFrom(source);
         first.Increase("TokenWork").Should().Be(5);
         first.IncreaseTimeSpentOn("TokenWork", TimeSpan.FromSeconds(1)).Should().Be(TimeSpan.FromSeconds(3));
 
-        var destination = new ScopedLog(settings, new DiagnosticSanitizer(MetricOptions(rule)));
+        var destination = new ScopedLog(settings, DiagnosticTestSupport.Sanitizer(MetricOptions(rule)));
         destination.CopyFrom(first);
         var snapshot = destination.GetLogs();
         var counterKey = ScopedLogConventions.TimeSpentOnCounter("TokenWork");
@@ -283,9 +283,9 @@ public class ScopedLogTests
         var options = new DiagnosticLogOptions
         {
             MaxFieldBytes = 1024, MaxInputBytes = 1024, MaxScopeBytes = 4096,
-            MaxNodes = 16, MaxCollectionEntries = 1, MaxProcessingMilliseconds = 100
+            MaxNodes = 16, MaxCollectionEntries = 1
         };
-        var sanitizer = new DiagnosticSanitizer(options);
+        var sanitizer = DiagnosticTestSupport.Sanitizer(options);
         var source = new ScopedLog(settings, sanitizer);
         sanitizer.SanitizeText(new string('x', 1024));
         sanitizer.SanitizeText("overflow").Should().Be(DiagnosticSanitizer.Limited);
@@ -302,7 +302,7 @@ public class ScopedLogTests
         snapshot["EventReason"].Should().Be(text);
         ((List<object>)snapshot["AdditionalEvents"]).Should().Equal(second, third);
 
-        var destination = new ScopedLog(settings, new DiagnosticSanitizer(options));
+        var destination = new ScopedLog(settings, DiagnosticTestSupport.Sanitizer(options));
         var destinationEvent = new ScopeEvent(new EventId(1, "Destination"));
         destination.WithEvent(destinationEvent);
         destination.CopyFrom(source);
@@ -369,9 +369,9 @@ public class ScopedLogTests
         });
         var logger = Substitute.For<ILogger>();
         logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
-        logger.LogScoped(source, LogLevel.Information, new DiagnosticSanitizer(new DiagnosticLogOptions
+        logger.LogScoped(source, LogLevel.Information, DiagnosticTestSupport.Sanitizer(new DiagnosticLogOptions
         {
-            MaxScopeBytes = 4096, MaxRecordBytes = 4096, MaxProcessingMilliseconds = 100
+            MaxScopeBytes = 4096, MaxRecordBytes = 4096
         }));
         var call = logger.ReceivedCalls().Single(item => item.GetMethodInfo().Name == "Log").GetArguments();
         var state = (IReadOnlyList<KeyValuePair<string, object?>>)call[2]!;
@@ -400,10 +400,7 @@ public class ScopedLogTests
         });
         var logger = Substitute.For<ILogger>();
         logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
-        logger.LogScoped(source, LogLevel.Information, new DiagnosticSanitizer(new DiagnosticLogOptions
-        {
-            MaxProcessingMilliseconds = 100
-        }));
+        logger.LogScoped(source, LogLevel.Information, DiagnosticTestSupport.Sanitizer());
         var call = logger.ReceivedCalls().Single(item => item.GetMethodInfo().Name == "Log").GetArguments();
         call[2]!.ToString().Should().Contain("private-probe");
     }
@@ -624,7 +621,7 @@ public class ScopedLogTests
         log.IncreaseTimeSpentOn("Work", TimeSpan.FromSeconds(1)).Should().Be(TimeSpan.Zero);
         log.GetLogs().Should().NotContainKey(counterKey).And.NotContainKey(durationKey);
         using var settings = SettingsProvider.Development();
-        var copy = new ScopedLog(settings, new DiagnosticSanitizer(new DiagnosticLogOptions { MaxProcessingMilliseconds = 100 }));
+        var copy = new ScopedLog(settings, DiagnosticTestSupport.Sanitizer());
         copy.CopyFrom(log);
         copy.GetLogs().Should().NotContainKey(counterKey).And.NotContainKey(durationKey);
 
@@ -723,5 +720,5 @@ public class ScopedLogTests
         [IgnoreLog] public string Secret => throw new InvalidOperationException("Ignored getters must not execute.");
     }
 
-    private static ScopedLog CreateLog() => new(SettingsProvider.Development());
+    private static ScopedLog CreateLog() => new(SettingsProvider.Development(), DiagnosticTestSupport.Sanitizer());
 }

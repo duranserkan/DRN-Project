@@ -17,7 +17,7 @@ public class DiagnosticSanitizerTests
     private static readonly string[] ScopeWorkLimitWarnings = ["ScopeWorkLimit"];
     private static readonly string[] SanitizationFailedWarnings = ["SanitizationFailed"];
 
-    private static DiagnosticSanitizer Policy(DiagnosticLogOptions? options = null) => new(options ?? new DiagnosticLogOptions());
+    private static DiagnosticSanitizer Policy(DiagnosticLogOptions? options = null) => DiagnosticTestSupport.Sanitizer(options);
 
     [Fact]
     public void Keys_Should_Not_Consume_Or_Depend_On_Input_Budget()
@@ -678,6 +678,69 @@ public class DiagnosticSanitizerTests
             ? DiagnosticSanitizer.Limited
             : "https://example.test/?first=one&_diagnostic=" + DiagnosticSanitizer.Limited);
         policy.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(ScopeWorkLimitWarnings);
+    }
+
+    [Fact]
+    public void Processing_Time_Budget_Should_Bound_Model_Capture_And_Propagate_TimeProvider_To_Snapshot_Workers()
+    {
+        var time = new StepTimeProvider();
+        var sanitizer = new DiagnosticSanitizer(new DiagnosticLogOptions { MaxProcessingMilliseconds = 10 }, time);
+        var model = new SlowCaptureModel(() => time.AdvanceMilliseconds(11));
+
+        var projected = (IReadOnlyDictionary<string, object?>)sanitizer.SanitizeValue("Payload", model)!;
+
+        projected.Should().HaveCount(2);
+        projected["_diagnostic_limit"].Should().Be(DiagnosticSanitizer.Limited);
+        projected.Values.Should().OnlyContain(value => Equals(value, DiagnosticSanitizer.Limited));
+        sanitizer.SanitizeValue("Next", "visible").Should().Be(DiagnosticSanitizer.Limited);
+        sanitizer.GetStatus()["DiagnosticCaptureWarnings"].Should().BeEquivalentTo(ScopeWorkLimitWarnings);
+
+        using var settings = SettingsProvider.Development();
+        var snapshotTime = new StepTimeProvider();
+        var log = new ScopedLog(settings, new DiagnosticSanitizer(new DiagnosticLogOptions(), snapshotTime));
+        log.Add("Target", new Uri("https://example.test/?item=visible"));
+        var callsBeforeRead = snapshotTime.TimestampCalls;
+
+        var snapshot = log.GetLogs();
+
+        snapshot["Target"].Should().Be("https://example.test/?item=visible");
+        snapshotTime.TimestampCalls.Should().BeGreaterThan(callsBeforeRead);
+    }
+
+    private sealed class SlowCaptureModel(Action onRead)
+    {
+        public string Label
+        {
+            get
+            {
+                onRead();
+                return "first";
+            }
+        }
+
+        public string Summary
+        {
+            get
+            {
+                onRead();
+                return "second";
+            }
+        }
+    }
+
+    private sealed class StepTimeProvider : TimeProvider
+    {
+        private long _timestamp;
+        public int TimestampCalls { get; private set; }
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
+        public override long GetTimestamp()
+        {
+            TimestampCalls++;
+            return _timestamp;
+        }
+
+        public void AdvanceMilliseconds(long milliseconds) => _timestamp += milliseconds * TimeSpan.TicksPerMillisecond;
     }
 
     [Fact]

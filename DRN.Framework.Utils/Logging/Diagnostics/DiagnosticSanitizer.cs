@@ -42,6 +42,7 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
 
     public DiagnosticLogOptions Options { get; }
     internal bool RedactionEnabled { get; }
+    internal TimeProvider TimeProvider => _timeProvider;
 
     // Accessed only inside Guard. Snapshot-only sanitizers do not need a projector.
     private DiagnosticValueProjector Projector => field ??= new DiagnosticValueProjector(this);
@@ -72,8 +73,10 @@ public sealed class DiagnosticSanitizer : IDiagnosticSanitizer
     public static DiagnosticSanitizer FromSettings(IAppSettings settings) =>
         new(settings.Get<DiagnosticLogOptions>("DiagnosticLogging") ?? new DiagnosticLogOptions());
 
-    internal static DiagnosticSanitizer ForDevelopmentDisplay(IAppSettings settings, DiagnosticLogOptions options) =>
-        new(options, TimeProvider.System, redact: !settings.IsDevelopmentEnvironment);
+    internal DiagnosticSanitizer CreateWorker(DiagnosticLogOptions options) => new(options, _timeProvider);
+
+    internal static DiagnosticSanitizer ForDevelopmentDisplay(IAppSettings settings, DiagnosticLogOptions options, TimeProvider? timeProvider = null) =>
+        new(options, timeProvider ?? TimeProvider.System, redact: !settings.IsDevelopmentEnvironment);
 
     // TODO: Evaluate diagnostic redaction support for ASP.NET Core Identity's [PersonalData] and [ProtectedPersonalData], including inherited attributes and getter suppression.
     internal static bool IsClassified(MemberInfo member) => DiagnosticTypeMetadata.IsClassified(member);
