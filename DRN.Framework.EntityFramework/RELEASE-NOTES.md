@@ -16,7 +16,9 @@ Targets .NET 11.
 
 *   **Target framework**: Requires .NET 11.
 
-*   **Unique context options**: `NpgsqlDbContextOptionsAttribute`, `NpgsqlPerformanceSettingsAttribute`, `DrnContextDefaultsAttribute` and `DrnContextPerformanceDefaultsAttribute` now use `AllowMultiple = false`. A context can still combine different options attribute types, but repeating the same type fails compilation. A derived context's attribute now replaces an inherited one of the same type instead of running both. For example, `[DrnContextPerformanceDefaults(maxPoolSize: 50)]` on a context now replaces the `DrnContext` default. Startup throws `ConfigurationException` when a custom type that opts back into `AllowMultiple = true` repeats on a context.
+*   **Unique context options**: `NpgsqlDbContextOptionsAttribute`, `NpgsqlPerformanceSettingsAttribute`, `DrnContextDefaultsAttribute` and `DrnContextPerformanceDefaultsAttribute` now use `AllowMultiple = false`. A context can still combine different options attribute types. For a type with `AllowMultiple = false`, repeated declarations on one context fail compilation and a declaration on a derived context replaces the inherited attribute of the same type. For example, `[DrnContextPerformanceDefaults(maxPoolSize: 50)]` on a context now replaces the `DrnContext` default. Options discovery throws `ConfigurationException` if it finds multiple instances of the same type. For custom types with `AllowMultiple = true`, duplicates can come from repeated declarations on one context or from declarations across its inheritance chain.
+
+*   **Sealed defaults attributes**: `DrnContextDefaultsAttribute` and `DrnContextPerformanceDefaultsAttribute` are now sealed because inherited framework defaults would overwrite a subclass's values. Derive from `NpgsqlDbContextOptionsAttribute` or `NpgsqlPerformanceSettingsAttribute` instead.
 
 SharedKernel classification analyzers apply transitively. Review application model properties and add required classification annotations when upgrading.
 

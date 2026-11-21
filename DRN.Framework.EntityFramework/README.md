@@ -606,6 +606,8 @@ Registers discovered contexts when their assembly is scanned and participates in
 
 ### DrnContextDefaultsAttribute
 
+`DrnContext` inherits these conventions. The attribute is sealed. Derive a custom attribute from [NpgsqlDbContextOptionsAttribute](#npgsqldbcontextoptionsattribute) to add conventions. Custom attributes run after framework defaults.
+
 | Setting | Default |
 |---|---|
 | Query splitting | `SplitQuery` |
@@ -620,7 +622,7 @@ Registers discovered contexts when their assembly is scanned and participates in
 
 ### DrnContextPerformanceDefaultsAttribute
 
-`DrnContext` inherits these Npgsql connection settings. Reapply `[DrnContextPerformanceDefaults(...)]` on a context to replace the inherited default attribute, or derive a custom attribute from [NpgsqlPerformanceSettingsAttribute](#npgsqlperformancesettingsattribute) to overlay selected settings on top of the inherited defaults.
+`DrnContext` inherits these Npgsql connection settings. Reapply `[DrnContextPerformanceDefaults(...)]` on a context to replace the inherited default attribute, or derive a custom attribute from [NpgsqlPerformanceSettingsAttribute](#npgsqlperformancesettingsattribute) to overlay selected settings on top of the inherited defaults. The attribute is sealed.
 
 | Constructor parameter | Default |
 |---|---|
@@ -636,7 +638,7 @@ Registers discovered contexts when their assembly is scanned and participates in
 
 Derive an attribute to configure provider options, data-source options, general EF options, or seeding. Framework-defined attributes run before custom attributes. Options hooks must handle a null service provider at design time.
 
-A context can combine different options attribute types, but each type can apply only once. A derived context's attribute replaces an inherited one of the same type. Startup fails with `ConfigurationException` if a type that opts back into `AllowMultiple = true` repeats on a context.
+A context can combine different options attribute types. When an attribute type uses `AllowMultiple = false`, a declaration on a derived context replaces the inherited attribute of the same type. Options discovery throws `ConfigurationException` if it finds multiple instances of the same type. For custom types with `AllowMultiple = true`, duplicates can come from repeated declarations on one context or from declarations across its inheritance chain.
 
 ```csharp
 using Npgsql;

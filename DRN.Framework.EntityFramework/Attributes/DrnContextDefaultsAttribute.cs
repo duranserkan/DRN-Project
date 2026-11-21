@@ -9,7 +9,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 namespace DRN.Framework.EntityFramework.Attributes;
 
 [AttributeUsage(AttributeTargets.Class, Inherited = true, AllowMultiple = false)]
-public class DrnContextDefaultsAttribute : NpgsqlDbContextOptionsAttribute
+public sealed class DrnContextDefaultsAttribute : NpgsqlDbContextOptionsAttribute
 {
     public DrnContextDefaultsAttribute() => FrameworkDefined = true;
 

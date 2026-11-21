@@ -6,8 +6,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 namespace DRN.Framework.EntityFramework.Attributes;
 
 /// <summary>
-/// Base options attribute for DRN contexts. A context can combine different options attribute types,
-/// but each type can apply only once. A derived context's attribute replaces an inherited one of the same type.
+/// Base options attribute for DRN contexts. A context can combine different options attribute types.
+/// For an attribute type with <c>AllowMultiple = false</c>, a declaration on a derived context replaces
+/// the inherited attribute of the same type. Options discovery throws <see cref="DRN.Framework.SharedKernel.ConfigurationException"/>
+/// if it finds multiple instances of the same type, including when <c>AllowMultiple = true</c>
+/// allows repeated declarations on one context or across its inheritance chain.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public abstract class NpgsqlDbContextOptionsAttribute : Attribute

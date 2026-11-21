@@ -76,10 +76,11 @@ public class DbContextExtensionsTests
     public void GetContextAttributes_Should_Reject_Repeated_Options_Type()
     {
         var genericAct = () => DbContextConventions.GetContextAttributes<RepeatedOptionsContext>();
+        var typeAct = () => DbContextConventions.GetContextAttributes(typeof(RepeatedOptionsContext));
         var inheritedAct = () => DbContextConventions.GetContextAttributes(typeof(DerivedRepeatableOptionsContext));
 
         genericAct.Should().Throw<ConfigurationException>().WithMessage($"*{nameof(RepeatableOptionsAttribute)}*");
-        genericAct.Should().Throw<ConfigurationException>().WithMessage($"*{nameof(RepeatableOptionsAttribute)}*");
+        typeAct.Should().Throw<ConfigurationException>().WithMessage($"*{nameof(RepeatableOptionsAttribute)}*");
         inheritedAct.Should().Throw<ConfigurationException>().WithMessage($"*{nameof(RepeatableOptionsAttribute)}*");
     }
 }

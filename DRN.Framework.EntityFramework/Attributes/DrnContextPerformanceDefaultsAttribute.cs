@@ -6,7 +6,7 @@ namespace DRN.Framework.EntityFramework.Attributes;
 /// Provides <a href="https://www.npgsql.org/doc/connection-string-parameters.html">performance</a> defaults for <see cref="DrnContext{TContext}"/>. Reapply on a derived context to replace the inherited defaults, or derive from <see cref="NpgsqlPerformanceSettingsAttribute"/> to overlay selected settings.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
-public class DrnContextPerformanceDefaultsAttribute : NpgsqlPerformanceSettingsAttribute
+public sealed class DrnContextPerformanceDefaultsAttribute : NpgsqlPerformanceSettingsAttribute
 {
     public DrnContextPerformanceDefaultsAttribute(int maxAutoPrepare = 200,
         int autoPrepareMinUsages = 5,
