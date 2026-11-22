@@ -117,15 +117,22 @@ public class SourceKnownControllerTests
         repository.ReceivedCalls().Should().BeEmpty();
     }
 
+    public static IEnumerable<object?[]> InvalidLookupBatches()
+    {
+        yield return [null];
+        yield return [Array.Empty<Guid>()];
+        yield return [new Guid[101]];
+    }
+
     [Theory]
-    [DataInlineUnit(0)]
-    [DataInlineUnit(101)]
-    public async Task Invalid_Batches_Should_Be_Rejected_Before_Repository_Work(int count)
+    [DataMemberUnit(nameof(InvalidLookupBatches))]
+    public async Task Invalid_Batches_Should_Be_Rejected_Before_Repository_Work(Guid[]? ids)
     {
         var repository = Substitute.For<ISourceKnownRepository<Tag>>();
         var controller = new ReadProbeController(CreateTagService(repository));
-        Func<Task> lookup = () => controller.GetManyAsync(new Guid[count]);
-        await lookup.Should().ThrowAsync<ValidationException>();
+        Func<Task> lookup = () => controller.GetManyAsync(ids!);
+        await lookup.Should().ThrowAsync<ValidationException>()
+            .WithMessage("Provide a nonempty ID batch within the server's batch limit.");
         repository.ReceivedCalls().Should().BeEmpty();
     }
 

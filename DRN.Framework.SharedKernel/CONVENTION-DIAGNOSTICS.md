@@ -53,6 +53,8 @@ For DRNDTO003, copy each positive source property annotation to the mapped DTO p
 | DRNDTO005 | `Public contract or endpoint '{0}' exposes DTO type '{1}'; use an explicit Contract Request or Response without inheriting or nesting a DTO.` | Public member, message type, or controller |
 | DRNDTO006 | `Public endpoint '{0}' must use an explicit Contract {1} type instead of '{2}'.` | Action method or controller |
 
+When a local public interface exposes a DTO as a generic interface argument, DRNDTO005 reports on the handwritten interface declaration. If the interface is entirely generated, the warning appears on the handwritten contract that implements it.
+
 For inherited application actions, DRNDTO006 reports on the concrete controller and names each affected action. Inherited standard SourceKnown actions that share an invalid request or response type produce one warning per type and direction on that controller.
 
 ## Enum conventions

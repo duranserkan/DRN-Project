@@ -35,7 +35,7 @@ public abstract class SourceKnownReadOnlyController<TEntity, TResponse>(ISourceK
     [HttpPost("Lookup")]
     public virtual async Task<TResponse[]> GetManyAsync([FromBody] Guid[] ids, CancellationToken cancellationToken = default)
     {
-        if (ids.Length == 0 || ids.Length > Math.Clamp(MaxBatchSize, 1, PageSize.MaxSizeThreshold))
+        if (ids is null || ids.Length == 0 || ids.Length > Math.Clamp(MaxBatchSize, 1, PageSize.MaxSizeThreshold))
             throw ExceptionFor.Validation("Provide a nonempty ID batch within the server's batch limit.");
 
         PrepareRepository(cancellationToken);

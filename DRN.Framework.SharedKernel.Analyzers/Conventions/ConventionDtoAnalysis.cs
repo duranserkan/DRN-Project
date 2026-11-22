@@ -527,10 +527,9 @@ internal static class ConventionDtoAnalysis
             {
                 IPropertyReferenceOperation parentProperty => parentProperty.Instance,
                 IFieldReferenceOperation parentField => parentField.Instance,
-                IInvocationOperation parentInvocation => parentInvocation.Instance ??
-                    (parentInvocation.TargetMethod.IsExtensionMethod && !parentInvocation.Arguments.IsEmpty
-                        ? parentInvocation.Arguments[0].Value
-                        : null),
+                IInvocationOperation { Instance: { } receiver } => receiver,
+                IInvocationOperation { TargetMethod.IsExtensionMethod: true } extensionCall =>
+                    extensionCall.Arguments.FirstOrDefault(argument => argument.Parameter?.Ordinal == 0)?.Value,
                 IArrayElementReferenceOperation arrayElement => arrayElement.ArrayReference,
                 _ => null
             };

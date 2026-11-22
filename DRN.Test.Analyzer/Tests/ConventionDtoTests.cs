@@ -1043,6 +1043,30 @@ public sealed class ConventionDtoTests
             "Projected property 'Token' requires [Sensitive] from mapped property 'Token'.");
     }
 
+    [Theory]
+    [DataInline("IOrderEnvelope.g.cs", "OrderResponse")]
+    [DataInline("IOrderEnvelope.cs", "IOrderEnvelope")]
+    public void Dto_Exposure_Through_A_Local_Interface_Should_Report_Once_On_The_Handwritten_Declaration(
+        string interfaceFile, string expectedTarget)
+    {
+        var contract = Compilation("""
+            using DRN.Framework.SharedKernel.Domain;
+            namespace Sample.Contract.QA.Orders;
+            public class OrderDto : Dto;
+            public interface IMarker<T>;
+            public sealed class OrderResponse : IOrderEnvelope;
+            """, "OrderResponse.cs").WithAssemblyName("Sample.Contract").AddSyntaxTrees(CSharpSyntaxTree.ParseText("""
+            namespace Sample.Contract.QA.Orders;
+            public interface IOrderEnvelope : IMarker<OrderDto>;
+            """, path: interfaceFile));
+        contract.AssertNoCompilerErrors();
+
+        var diagnostic = Analyze(contract, "Contract").Should().ContainSingle(d => d.Id == "DRNDTO005").Which;
+        diagnostic.Properties["Entity"].Should().Be("Sample.Contract.QA.Orders.OrderDto");
+        diagnostic.Location.SourceTree!.FilePath.Should().Be(expectedTarget + ".cs");
+        AnalyzerTestCompilation.LocationText(diagnostic).Should().Be(expectedTarget);
+    }
+
     [Fact]
     public void Dto_Exposure_Should_Check_Inherited_Bases_And_ProducesResponseType_Attributes()
     {
@@ -1969,15 +1993,19 @@ public sealed class ConventionDtoTests
             "Public endpoint 'Sample.Hosted.Controllers.QA.OrderOperations.Submit(object)' must use an explicit Contract Response type instead of 'object'.");
     }
 
-    [Fact]
-    public void Response_Projections_In_Infra_And_Through_Linq_Extension_Chains_Should_Report_DRNDTO003()
+    [Theory]
+    [DataInline("", true)]
+    [DataInline("[Personal]", false)]
+    public void Response_Projections_In_Infra_Should_Preserve_Classification_Through_Linq_Extension_Chains(
+        string destinationAnnotation, bool missing)
     {
-        var contract = Compilation("""
+        var contract = Compilation($$"""
+            using DRN.Framework.SharedKernel.Attributes;
             using DRN.Framework.SharedKernel.Domain;
             namespace Sample.Contract.QA.Users
             {
                 public class UserDto(SourceKnownEntity? e = null) : Dto(e);
-                public class UserResponse { public string Email { get; init; } = ""; }
+                public class UserResponse { {{destinationAnnotation}} public string Email { get; init; } = ""; }
             }
             """).WithAssemblyName("Sample.Contract");
         contract.AssertNoCompilerErrors();
@@ -2012,14 +2040,25 @@ public sealed class ConventionDtoTests
                 {
                     public UserResponse Direct(UserEntity entity) => new() { Email = entity.Email };
                     public UserResponse FirstContact(UserEntity entity) => new() { Email = entity.Contacts.First().Email };
+                    public UserResponse WithPredicate(UserEntity entity) =>
+                        new() { Email = entity.Contacts.First(c => true).Email };
+                    public UserResponse WithNamedArguments(UserEntity entity) =>
+                        new() { Email = Enumerable.First(predicate: c => true, source: entity.Contacts).Email };
                 }
             }
             """).WithAssemblyName("Sample.Infra").AddReferences(contractRef, domainRef);
         infra.AssertNoCompilerErrors();
         var diagnostics = Analyze(infra, "Infra").Where(d => d.Id == "DRNDTO003").ToArray();
+        if (!missing)
+        {
+            diagnostics.Should().BeEmpty();
+            return;
+        }
         diagnostics.Select(d => AnalyzerTestCompilation.LocationText(d)).Should().BeEquivalentTo(
             "Email = entity.Email",
-            "Email = entity.Contacts.First().Email");
+            "Email = entity.Contacts.First().Email",
+            "Email = entity.Contacts.First(c => true).Email",
+            "Email = Enumerable.First(predicate: c => true, source: entity.Contacts).Email");
     }
 
     private static List<Diagnostic> Project(string contractTypes, string domainTypes, string area = "QA.Users")

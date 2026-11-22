@@ -263,7 +263,8 @@ internal static class ConventionBoundaryAnalysis
         facts.IsLocal(candidate) &&
         facts.Role(candidate).Role == ConventionArchitecture.Contract &&
         IsPublic(candidate) &&
-        SymbolEqualityComparer.Default.Equals(candidate, candidate.OriginalDefinition);
+        SymbolEqualityComparer.Default.Equals(candidate, candidate.OriginalDefinition) &&
+        facts.Location(candidate) != Location.None;
 
     internal static bool TryGetReportingTarget(ConventionFacts facts, INamedTypeSymbol type, ISymbol member,
         out ISymbol reportingSymbol, out Location location)
