@@ -24,7 +24,7 @@ internal sealed partial class ConventionFacts
 
     private ProducerOwnership? ReferenceOwnership(INamedTypeSymbol type)
     {
-        var assembly = type.ContainingAssembly;
+        if (type.TypeKind == TypeKind.Error || type.ContainingAssembly is not { } assembly) return null;
         if (!_referenceOwnership.TryGetValue(assembly, out var owners))
         {
             owners = ReadReferenceOwnership(assembly);
@@ -141,6 +141,8 @@ internal sealed partial class ConventionFacts
         var role = Role(type);
         var conventional = InferOwner(type, role.Role, role.Namespace, project);
         effectiveDomain = ResolveProducerDomain(domain, project, conventional?.Domain);
+        if (project.DomainLayout == ConventionProject.FoldersLayout && effectiveDomain.Length == 0)
+            return false;
         var differs = conventional is null || subdomain != conventional.Value.Subdomain || effectiveDomain != conventional.Value.Domain;
         if (differs && string.IsNullOrWhiteSpace(reason)) return false;
         return !HasConflictingOwnershipAttribute(type, subdomain!, effectiveDomain);
