@@ -133,27 +133,21 @@ internal static class ConventionDependencyAnalysis
         (IAssemblySymbol Assembly, ConventionProject Project)[] domains)
     {
         var subdomains = new HashSet<ConventionOwner>();
-        foreach (var (assembly, project) in domains)
+        foreach (var (assembly, _) in domains)
         {
-            var pending = new Stack<INamespaceSymbol>();
+            var pending = new Stack<INamespaceOrTypeSymbol>();
             pending.Push(assembly.GlobalNamespace);
-            while (pending.TryPop(out var ns))
+            while (pending.TryPop(out var container))
             {
                 facts.Cancellation.ThrowIfCancellationRequested();
-                foreach (var child in ns.GetNamespaceMembers()) pending.Push(child);
-                var name = ns.ToDisplayString();
-                if (ns.GetTypeMembers().Length == 0 || !name.StartsWith(project.RootNamespace + ".", StringComparison.Ordinal)) continue;
-                var parts = name[(project.RootNamespace.Length + 1)..].Split('.');
-                if (project.DomainLayout == ConventionProject.FoldersLayout)
+                foreach (var member in container.GetMembers())
                 {
-                    if (parts.Length >= 2)
-                        subdomains.Add(new(assembly.Name, parts[0], parts[1], ConventionArchitecture.Domain, project.RootNamespace,
-                            HasFolderDomain: true, HasExplicitDomain: false));
-                }
-                else
-                {
-                    subdomains.Add(new(assembly.Name, project.DefaultDomain, parts[0], ConventionArchitecture.Domain, project.RootNamespace,
-                        HasFolderDomain: false, HasExplicitDomain: project.HasExplicitDomain));
+                    if (member is INamespaceSymbol ns) pending.Push(ns);
+                    if (member is not INamedTypeSymbol type) continue;
+                    pending.Push(type);
+                    if (type.IsImplicitlyDeclared || !type.CanBeReferencedByName) continue;
+                    if (facts.Owner(type) is { Role: ConventionArchitecture.Domain } owner)
+                        subdomains.Add(owner);
                 }
             }
         }

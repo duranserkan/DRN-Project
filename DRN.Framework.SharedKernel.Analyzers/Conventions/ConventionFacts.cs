@@ -7,7 +7,7 @@ namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 internal sealed record ConventionOwner(string AssemblyName, string Domain, string Subdomain, string Role, string RoleNamespace,
     bool HasFolderDomain = false, bool HasExplicitDomain = false)
 {
-    internal string NamespacePrefix => HasFolderDomain ? Domain + "." + Subdomain : Subdomain;
+    internal string NamespacePrefix => ConventionNames.OwnerNamespacePrefix(Domain, Subdomain, HasFolderDomain);
     internal string DisplayName => HasFolderDomain ? Domain + "/" + Subdomain : Subdomain;
 
     internal bool SameOwner(ConventionOwner other) =>
@@ -54,6 +54,8 @@ internal sealed partial class ConventionFacts
     ];
     private bool? _hasGlobalResponseAlias;
     private readonly Dictionary<SyntaxTree, bool> _treeHasResponseAlias = [];
+    private bool _hasIncompleteInventory;
+    private bool _hasInvalidFolderInput;
 
     internal ConventionFacts(Compilation compilation, ConventionProject project, ConventionInputs inputs,
         AnalyzerConfigOptionsProvider options, CancellationToken cancellation)
@@ -87,6 +89,16 @@ internal sealed partial class ConventionFacts
 
     internal bool HasDomainRole() => Project.Role == ConventionArchitecture.Domain ||
         _roles.Any(role => role.Identity == ConventionArchitecture.Domain);
+
+    internal void MarkIncompleteInventory() => _hasIncompleteInventory = true;
+
+    internal bool HasInvalidFolderStructureInputs() =>
+        _hasIncompleteInventory ||
+        _hasInvalidFolderInput ||
+        _invalidRoles.Count > 0 ||
+        _invalidPaths.Count > 0 ||
+        Project.Diagnostics.Any(diagnostic => diagnostic.Descriptor == ConventionDiagnosticDescriptors.InvalidInput) ||
+        Inputs.Diagnostics.Any(diagnostic => diagnostic.Descriptor == ConventionDiagnosticDescriptors.InvalidInput);
 
     internal bool TryGetDomainRelativeDirectory(string directory, out string relativeDirectory)
     {
@@ -558,58 +570,35 @@ internal sealed partial class ConventionFacts
         if (rootNamespace.Length == 0 || !ns.StartsWith(rootNamespace + ".", StringComparison.Ordinal)) return null;
         var parts = ns[(rootNamespace.Length + 1)..].Split('.');
         var index = OwnerSegmentOffset(role, parts);
-        if (project.DomainLayout == ConventionProject.FoldersLayout)
-        {
-            if (index + 1 >= parts.Length) return null;
-            if (role == ConventionArchitecture.Domain && Symbols.IsKnown(type, Symbols.Aggregate, Cancellation) &&
-                index + 2 == parts.Length && parts[index + 1] == ConventionNames.EntityStem(type.Name))
-                return null;
-            return (parts[index], parts[index + 1], true);
-        }
-        if (index >= parts.Length) return null;
-        if (role == ConventionArchitecture.Domain && Symbols.IsKnown(type, Symbols.Aggregate, Cancellation) &&
-            index + 1 == parts.Length && parts[index] == ConventionNames.EntityStem(type.Name))
+        var isFoldersLayout = project.DomainLayout == ConventionProject.FoldersLayout;
+        if (ConventionNames.InferNamespaceOwner(parts, index, isFoldersLayout, project.DefaultDomain) is not { } inferred)
             return null;
-        return (project.DefaultDomain, parts[index], false);
+        if (role == ConventionArchitecture.Domain &&
+            ConventionNames.IsMissingAggregateSubdomain(parts, index, isFoldersLayout, type.Name) &&
+            Symbols.IsKnown(type, Symbols.Aggregate, Cancellation))
+            return null;
+        return inferred;
     }
 
     internal ConventionProject? ReferenceProject(IAssemblySymbol assembly)
     {
         if (_referenceProjects.TryGetValue(assembly, out var existing)) return existing;
         var metadata = AssemblyMetadata(assembly);
+        var parsed = ConventionNames.ParseReferenceMetadata(assembly.Name, metadata);
+        if (!parsed.Valid)
+        {
+            Diagnostics.Add(ConventionProject.InputIssue(assembly.Name + ":" + parsed.ErrorProperty,
+                parsed.ErrorProblem, parsed.ErrorRemedy));
+            _referenceProjects.Add(assembly, null);
+            return null;
+        }
         var values = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["build_property.MSBuildProjectName"] = assembly.Name,
-            ["build_property.RootNamespace"] = assembly.Name
+            ["build_property.MSBuildProjectName"] = parsed.ProjectName,
+            ["build_property.RootNamespace"] = parsed.RootNamespace
         };
-        var declared = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var (key, value) in metadata)
-        {
-            var property = key switch
-            {
-                "DRN.Conventions.ProjectName" => "MSBuildProjectName",
-                "DRN.Conventions.RootNamespace" => "RootNamespace",
-                "DRN.Conventions.DomainLayout" => "DrnDomainLayout",
-                "DRN.Conventions.Domain" => "DrnDomain",
-                _ => null
-            };
-            if (property is null) continue;
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                Diagnostics.Add(ConventionProject.InputIssue(assembly.Name + ":" + property, "incomplete", "reference-visible project identity"));
-                _referenceProjects.Add(assembly, null);
-                return null;
-            }
-            if (!declared.Add(property) && values["build_property." + property] != value)
-            {
-                Diagnostics.Add(ConventionProject.InputIssue(assembly.Name + ":" + property, "contradictory", "reference-visible ownership fact"));
-                _referenceProjects.Add(assembly, null);
-                return null;
-            }
-            values["build_property." + property] = value;
-        }
-        if (!declared.Contains("RootNamespace"))
-            values["build_property.RootNamespace"] = values["build_property.MSBuildProjectName"];
+        if (parsed.DomainLayout.Length > 0) values["build_property.DrnDomainLayout"] = parsed.DomainLayout;
+        if (parsed.Domain.Length > 0) values["build_property.DrnDomain"] = parsed.Domain;
         ConventionProject? project = ConventionProject.Read(Compilation, new MetadataOptions(values)) with { AssemblyName = assembly.Name };
         if (!project.Diagnostics.IsEmpty || !ValidReferenceRoles(metadata))
         {
@@ -653,8 +642,7 @@ internal sealed partial class ConventionFacts
         {
             Cancellation.ThrowIfCancellationRequested();
             if (ConventionSymbols.Same(attribute.AttributeClass, Symbols.AssemblyMetadataAttribute) &&
-                attribute.ConstructorArguments is [{ Value: string key }, var value] && value.Kind != TypedConstantKind.Error &&
-                (value.Value is string || value.IsNull)) metadata.Add(new(key, value.Value as string ?? ""));
+                ConventionNames.TryReadAssemblyMetadata(attribute, out var entry)) metadata.Add(entry);
         }
         var result = metadata.ToImmutable();
         Cancellation.ThrowIfCancellationRequested();

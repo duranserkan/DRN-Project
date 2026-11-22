@@ -163,7 +163,7 @@ internal static class CodeFixSymbolFacts
 
     internal sealed record OwnerKey(string Domain, string Subdomain, bool HasFolderDomain, bool HasExplicitDomain)
     {
-        internal string NamespacePrefix => HasFolderDomain ? Domain + "." + Subdomain : Subdomain;
+        internal string NamespacePrefix => ConventionNames.OwnerNamespacePrefix(Domain, Subdomain, HasFolderDomain);
         internal string? DomainFilter => Domain.Length > 0 ? Domain : null;
 
         internal bool SameOwner(OwnerKey other) =>
@@ -203,39 +203,27 @@ internal static class CodeFixSymbolFacts
     internal static OwnerKey? ResolveNamespaceOwnerKey(INamedTypeSymbol type, string rootNamespace,
         ConventionGenerationPreflight.ProjectLayout layout)
     {
-        if (!layout.Valid || type.ContainingNamespace.IsGlobalNamespace) return null;
+        if (!layout.Valid || type.ContainingNamespace.IsGlobalNamespace || rootNamespace.Length == 0) return null;
         var ns = type.ContainingNamespace.ToDisplayString();
         if (!ns.StartsWith(rootNamespace + ".", StringComparison.Ordinal)) return null;
-        var suffix = ns[(rootNamespace.Length + 1)..];
-        if (IsMissingAggregateSubdomain(type, suffix, layout)) return null;
-        return ResolveSuffixOwnerKey(suffix, layout);
+        var parts = ns[(rootNamespace.Length + 1)..].Split('.');
+        if (ConventionNames.IsMissingAggregateSubdomain(parts, 0, layout.IsFoldersLayout, type.Name) &&
+            Bases(type).Any(current => MetadataName(current) == "DRN.Framework.SharedKernel.Domain.AggregateRoot"))
+            return null;
+        return ResolveOwnerKey(parts, layout);
     }
 
-    private static bool IsMissingAggregateSubdomain(INamedTypeSymbol type, string suffix,
-        ConventionGenerationPreflight.ProjectLayout layout)
-    {
-        if (!Bases(type).Any(current => MetadataName(current) == "DRN.Framework.SharedKernel.Domain.AggregateRoot"))
-            return false;
-        var parts = suffix.Split('.');
-        var stem = ConventionNames.EntityStem(type.Name);
-        return layout.IsFoldersLayout
-            ? parts.Length == 2 && parts[1] == stem
-            : parts.Length == 1 && parts[0] == stem;
-    }
+    internal static OwnerKey? ResolveSuffixOwnerKey(string suffix, ConventionGenerationPreflight.ProjectLayout layout) =>
+        layout.Valid ? ResolveOwnerKey(suffix.Split('.'), layout) : null;
 
-    internal static OwnerKey? ResolveSuffixOwnerKey(string suffix, ConventionGenerationPreflight.ProjectLayout layout)
+    private static OwnerKey? ResolveOwnerKey(string[] parts, ConventionGenerationPreflight.ProjectLayout layout)
     {
-        if (!layout.Valid) return null;
-        var parts = suffix.Split('.');
-        if (layout.IsFoldersLayout)
-        {
-            if (parts.Length < 2 || !ConventionGenerationPreflight.ValidNamespaceSegment(parts[0]) ||
-                !ConventionGenerationPreflight.ValidNamespaceSegment(parts[1])) return null;
-            return new(parts[0], parts[1], true, false);
-        }
-        return parts.Length >= 1 && ConventionGenerationPreflight.ValidNamespaceSegment(parts[0])
-            ? new(layout.DefaultDomain, parts[0], false, layout.HasExplicitDomain)
-            : null;
+        if (ConventionNames.InferNamespaceOwner(parts, 0, layout.IsFoldersLayout, layout.DefaultDomain) is not { } owner)
+            return null;
+        if (!ConventionGenerationPreflight.ValidNamespaceSegment(owner.Subdomain) ||
+            owner.HasFolderDomain && !ConventionGenerationPreflight.ValidNamespaceSegment(owner.Domain))
+            return null;
+        return new(owner.Domain, owner.Subdomain, owner.HasFolderDomain, layout.HasExplicitDomain);
     }
 
     internal static string? AttributeStringArgument(AttributeData attribute, string name) =>

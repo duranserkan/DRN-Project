@@ -31,7 +31,9 @@ internal static class ConventionBoundaryAnalysis
 
     internal static bool IsExposedController(ConventionFacts facts, INamedTypeSymbol type) =>
         !type.IsAbstract &&
+        type.ContainingType is null &&
         IsPublic(type) &&
+        !facts.Symbols.IsOpen(type, facts.Cancellation) &&
         facts.Symbols.IsKnown(type, facts.Symbols.Controller, facts.Cancellation) &&
         !IsNonController(type, facts.Symbols.NonControllerAttribute);
 
@@ -133,7 +135,7 @@ internal static class ConventionBoundaryAnalysis
     private static INamedTypeSymbol? FindExposedPersistenceType(ConventionFacts facts, INamedTypeSymbol ownerType,
         ISymbol member, bool transport, out bool exhausted) =>
         FindExposedType(facts, PublicShapeRule.Persistence, PublicSignatureTypes(facts, ownerType, member, transport),
-            IsPersistenceTarget, ShouldExpandPersistenceModel, HasPublicGetter, out exhausted);
+            IsPersistenceTarget, ShouldExpandPersistenceModel, HasPublicAccessor, out exhausted);
 
     private static bool IsPersistenceTarget(ConventionFacts facts, INamedTypeSymbol named) =>
         facts.IsEntity(named) || facts.Symbols.IsPersistenceType(named, facts.Cancellation);
@@ -141,9 +143,6 @@ internal static class ConventionBoundaryAnalysis
     private static bool ShouldExpandPersistenceModel(ConventionFacts facts, INamedTypeSymbol named) =>
         facts.IsLocal(named) || ConventionSymbols.Is(named, facts.Symbols.Dto, facts.Cancellation) ||
         facts.IsNeutralValue(named) || facts.ReferenceProject(named.ContainingAssembly)?.Role == ConventionArchitecture.Contract;
-
-    internal static bool HasPublicGetter(IPropertySymbol property) =>
-        property.GetMethod?.DeclaredAccessibility == Accessibility.Public;
 
     internal static bool HasPublicAccessor(IPropertySymbol property) =>
         property.GetMethod?.DeclaredAccessibility == Accessibility.Public ||

@@ -10,12 +10,13 @@ Roles come from recognized project-name tokens. References need no matching pref
 |---|---|
 | Required references | DRNARCHITECTURE006 requires Hosted → Application and Infra, Infra → Domain, and Domain → Contract. At least one direct project per required role suffices. Shared and multiple dependencies are allowed. |
 | Dependency direction | DRNARCHITECTURE003 reports forbidden direct references. DRNARCHITECTURE005 reports bound uses of forbidden APIs, such as a Domain class using DbContext. |
-| Domain subdomains | DRNOWNERSHIP003 checks populated namespaces across directly referenced Domains and matches recognized concrete, closed Infra contexts/repositories by subdomain name. |
-| Ownership and placement | DRNCONVENTIONINPUT001 validates generated convention inputs. DRNOWNERSHIP001, DRNSTRUCTURE001, DRNARCHITECTURE004, DRNOWNERSHIP002, DRNSTRUCTURE004, DRNSTRUCTURE005, and DRNSTRUCTURE006 check semantic naming, dedicated directories, domain/infrastructure placement, and cross-subdomain entity uses. |
-| Entity DTOs | DRNDTO001 through DRNDTO003 check the entity-owned mapper, Contract DTO placement and classifications on projected properties. Metadata-only and partial projections are valid. DRNDTO004 checks that entity-prefixed requests and responses live beside the matching DTO. |
+| Domain subdomains | DRNOWNERSHIP003 matches recognized concrete, closed Infra contexts and repositories against directly referenced Domain `(Domain, Subdomain)` pairs. DRNOWNERSHIP004 requires every project carrying the Domain role to contain at least one populated subdomain folder. |
+| Ownership and placement | DRNCONVENTIONINPUT001 validates generated convention inputs and `DrnDomainLayout`/`DrnDomain` metadata. DRNOWNERSHIP001, DRNSTRUCTURE001, DRNARCHITECTURE004, DRNOWNERSHIP002, DRNSTRUCTURE004, DRNSTRUCTURE005, DRNSTRUCTURE006, and DRNSTRUCTURE008 check semantic naming, folders-only Domain grouping folders, `_Shared` value-object boundaries, dedicated directories, and cross-subdomain entity uses. |
+| Entity DTOs and public contracts | DRNDTO001 through DRNDTO007 check entity-owned `override ToDto()`, Contract DTO placement, mapped classifications on DTOs and Contract `*Response` projections, entity-prefixed message placement, prohibition of DTO exposure on public contracts/endpoints, explicit Contract `*Request`/`*Response` endpoint boundaries, and `SourceKnownService<TEntity, TDto>` default `ToDto` alignment. |
+| Enum conventions | DRNENUM001 through DRNENUM005 enforce single-definition Contract enums, `[DomainOnly]` opt-in for internal Domain enums, prohibition of `[DomainOnly]` enum exposure on public shapes, and `[AllowZero]` opt-in for zero-valued enum members at compile time. |
 | Public contracts and transport | DRNARCHITECTURE001 names a member whose public model exceeded the inspection limit. DRNARCHITECTURE002 reports a recognized entity or persistence type exposed by the contract. |
 
-See [architecture conventions](../DRN.Framework.SharedKernel/CONVENTIONS.md) for allowed directions, exception targets, and DRNCONVENTIONEXCEPTION001 review-expiry rules.
+See [architecture conventions](../DRN.Framework.SharedKernel/CONVENTIONS.md) (including [terminology](../DRN.Framework.SharedKernel/CONVENTIONS.md#terminology)) for allowed directions, exception targets, and DRNCONVENTIONEXCEPTION001 review-expiry rules.
 
 ## Code level
 

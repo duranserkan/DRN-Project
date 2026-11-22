@@ -103,7 +103,10 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
     {
         var call = name.FirstAncestorOrSelf<InvocationExpressionSyntax>();
         var site = call is not null && call.Expression.Span.End == name.Span.End ? call : name;
-        return model.GetSymbolInfo(site, token).Symbol is IMethodSymbol;
+        if (model.GetSymbolInfo(site, token).Symbol is not IMethodSymbol method) return false;
+        var entityBase = model.Compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity");
+        return !(method is { MethodKind: MethodKind.Ordinary, IsAbstract: true, IsStatic: false, Name: "ToDto", Arity: 0, Parameters.IsEmpty: true } &&
+            Same(method.ContainingType, entityBase));
     }
 
     private static async Task<bool> IntroducesBlockingDiagnosticsAsync(Document document, Solution proposed,

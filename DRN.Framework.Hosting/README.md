@@ -749,17 +749,20 @@ protected override void ConfigurePostAuthRateLimiterOptions(
 
 ## Source-Known Controllers
 
-Use `DRN.Framework.Hosting.Controllers` to expose a filtered `ISourceKnownRepository<TEntity>` through DTOs. Choose one of three abstract controller variants:
+Use `DRN.Framework.Hosting.Controllers` to expose a service-backed `ISourceKnownRepository<TEntity>` through explicit Contract `*Response` types. See [conventions terminology](../DRN.Framework.SharedKernel/CONVENTIONS.md#terminology) for Domain, Subdomain, project stem, and role stem definitions.
 
 | Base | Behavior |
 |---|---|
-| `SourceKnownController<TEntity, TDto, TCreateRequest>` | Combines **all read actions** with create/delete actions. |
-| `SourceKnownReadOnlyController<TEntity, TDto>` | Exposes only bounded read actions. |
-| `SourceKnownWriteOnlyController<TEntity, TDto, TCreateRequest>` | Exposes only create/delete HTTP actions. |
+| `SourceKnownControllerBase<TEntity, TResponse>` | Foundation base without HTTP actions. Composes `ISourceKnownService<TEntity>`. |
+| `SourceKnownReadOnlyController<TEntity, TResponse>` | Exposes only bounded read actions using `ISourceKnownService<TEntity>`. |
+| `SourceKnownController<TEntity, TResponse, TCreateRequest>` | Combines **all read actions** with create/delete actions using `ISourceKnownService<TEntity, Dto, TCreateRequest>`. |
+| `SourceKnownWriteOnlyController<TEntity, TResponse, TCreateRequest>` | Exposes only create/delete HTTP actions using `ISourceKnownService<TEntity, Dto, TCreateRequest>`. |
 
-All variants share `SourceKnownControllerBase<TEntity, TDto>`, which implements `ISourceKnownService<TEntity>` and provides repository access, protected DTO mapping and cancellation helpers without HTTP actions. The combined controller inherits the read-only controller and adds writes. The write-only controller inherits the combined controller and seals `[NonAction]` overrides for all reads. Those methods remain callable from C#, but are excluded from HTTP routing and API discovery.
+All variants derive from `SourceKnownControllerBase<TEntity, TResponse>`, which composes `protected ISourceKnownService<TEntity> Service` and exposes `public ISourceKnownRepository<TEntity> Repository => Service.Repository;` without implementing `ISourceKnownService<TEntity>` (so service methods can never become MVC actions). It provides protected `abstract TResponse ToResponse(TEntity entity)` mapping and cancellation helpers without HTTP actions. `TEntity` derives from `AggregateRoot`, `TResponse` is a public Contract response class (`where TResponse : class`), and `TCreateRequest` is an explicit Contract request class. A constructor guard throws `InvalidOperationException` if `TResponse` derives from `Dto` (and `ArgumentNullException` if `service` is `null`), enforcing DRNDTO005 at runtime even when analyzers are disabled. Keeping `TResponse` separate from internal `Dto` types satisfies DRNDTO005 and DRNDTO006 and prevents future DTO fields from leaking into public APIs.
 
-`TEntity` derives from `AggregateRoot`, `TDto` derives from `Dto`, and the create request is an application-owned class. Pass the repository to the constructor and implement `ToDto`. Concrete controllers supply `[Route]` and explicit named authorization policies. DRNAUTHORIZATION001 rejects exposed actions without a nonblank `[Authorize(Policy = "...")]` on the controller or action, including inherited policies. Bare `[Authorize]` and roles alone do not satisfy this rule. `[AllowAnonymous]` is rejected. DRN host MFA and rate-limiting policies still apply.
+The combined controller inherits the read-only controller and adds writes, leveraging `out TDto` covariance on `ISourceKnownService<TEntity, out TDto, in TCreateRequest>` so controllers remain at 3 generic parameters. The write-only controller inherits the combined controller and seals `[NonAction]` overrides for all reads. Those methods remain callable from C#, but are excluded from HTTP routing and API discovery.
+
+Concrete controllers supply `[Route]` and explicit named authorization policies. DRNAUTHORIZATION001 rejects exposed actions without a nonblank `[Authorize(Policy = "...")]` on the controller or action, including inherited policies. Bare `[Authorize]` and roles alone do not satisfy this rule. `[AllowAnonymous]` is rejected. DRN host MFA and rate-limiting policies still apply.
 
 Register each named policy with ASP.NET Core authorization. Roslyn checks declarations, while ASP.NET Core enforces policies for HTTP requests. The analyzer cannot verify policy registration or resource permissions. Direct C# action calls do not execute MVC authorization. Applications must enforce tenant/resource visibility through repository filters and application code, including for counts and existence checks.
 
@@ -771,8 +774,8 @@ Routes below are relative to the concrete controller route.
 
 | Method | Route | Action | Result |
 |---|---|---|---|
-| GET | `{id:guid}` | `GetAsync` | One DTO. Missing records follow repository not-found behavior. |
-| POST | `Lookup` | `GetManyAsync` | DTO array for a nonempty JSON GUID array. Missing IDs and ordering follow repository behavior. |
+| GET | `{id:guid}` | `GetAsync` | One `TResponse`. Missing records follow repository not-found behavior. |
+| POST | `Lookup` | `GetManyAsync` | `TResponse` array for a nonempty JSON GUID array. Missing IDs and ordering follow repository behavior. |
 | GET | `Any` | `AnyAsync` | Whether any visible entity exists. |
 | GET | `Count` | `CountAsync` | Number of visible entities. |
 | GET | root | `PaginateAsync` | Page from query-bound `PaginationRequest`. Omit it for the first page. |
@@ -791,15 +794,23 @@ Every exposed action is virtual. Override it with MVC `[NonAction]` to remove it
 using DRN.Framework.Hosting.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Sample.Application.Services.QA.Tags;
 using Sample.Contract.QA.Tags;
 using Sample.Domain.QA.Tag;
 
 [Route("api/tags")]
 [Authorize(Policy = "Tags.Read")]
-public class ReadOnlyTagController(ITagRepository repository)
-    : SourceKnownReadOnlyController<TagEntity, TagDto>(repository)
+public class ReadOnlyTagController(ITagService service)
+    : SourceKnownReadOnlyController<TagEntity, TagResponse>(service)
 {
-    protected override TagDto ToDto(TagEntity entity) => entity.ToDto();
+    protected override TagResponse ToResponse(TagEntity entity) => new()
+    {
+        Id = entity.EntityId,
+        CreatedAt = entity.CreatedAt,
+        ModifiedAt = entity.ModifiedAt,
+        Name = entity.Name,
+        Model = new TagModelResponse { Type = entity.Model.Type }
+    };
 
     [NonAction]
     public override Task<long> CountAsync(CancellationToken cancellationToken = default)
@@ -811,11 +822,11 @@ public class ReadOnlyTagController(ITagRepository repository)
 
 ### Opt in to writes
 
-Derive from `SourceKnownController<TEntity, TDto, TCreateRequest>` to combine reads and writes, or `SourceKnownWriteOnlyController<TEntity, TDto, TCreateRequest>` for mutation endpoints alone. Implement protected `CreateEntityAsync(request, cancellationToken)` to construct the entity through application domain operations without saving it.
+Derive from `SourceKnownController<TEntity, TResponse, TCreateRequest>` to combine reads and writes, or `SourceKnownWriteOnlyController<TEntity, TResponse, TCreateRequest>` for mutation endpoints alone. Both accept `ISourceKnownService<TEntity, Dto, TCreateRequest>` and provide a virtual `CreateEntityAsync(request, cancellationToken)` method that delegates to `Service.CreateEntityAsync`. Implement entity creation and domain validation in the service (and override `CreateEntityAsync` on the controller only when transport-specific orchestration is required).
 
 Use controller policies for common permissions and action policies for additional write permissions. Inherited controller and action policies combine. For resource-specific checks, override the action and call an application authorization service before calling the base action. Pass the request cancellation token to that service. Reject forbidden access with `Forbid()` where the result type permits, or `ExceptionFor.Forbidden(...)`. Request-dependent creation checks may also live in application mapping/domain services. The framework does not supply mandatory authorization hooks.
 
-`PostAsync` calls the repository's `CreateAsync` and returns HTTP 201 with the DTO. It does not generate a Location header, so disabling `GetAsync` does not break creation. `DeleteAsync` calls the GUID delete overload and returns HTTP 204 even when no matching record exists. The default EF repository performs a direct delete with repository filters and does not invoke entity deletion lifecycle hooks.
+`PostAsync` calls `CreateEntityAsync`, persists via the repository's `CreateAsync`, and returns HTTP 201 with the mapped `TResponse`. It does not generate a Location header, so disabling `GetAsync` does not break creation. `DeleteAsync` calls the GUID delete overload and returns HTTP 204 even when no matching record exists. The default EF repository performs a direct delete with repository filters and does not invoke entity deletion lifecycle hooks.
 
 The base API actions do not require antiforgery tokens. For SPA APIs, explicitly select the application's registered bearer scheme in the named policies and require authentication. Do not add cookie or cookie/bearer composite schemes to their combined policies. The framework does not choose a handler name, and DRNAUTHORIZATION001 does not verify policy registration. For example, when using ASP.NET Core Identity bearer tokens:
 

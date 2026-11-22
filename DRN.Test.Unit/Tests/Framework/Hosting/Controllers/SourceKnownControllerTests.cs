@@ -345,6 +345,10 @@ public class SourceKnownControllerTests
         Action nullDefault = () => defaultService.ToDto(null!);
         nullDefault.Should().Throw<ArgumentNullException>();
 
+        Action nullRepository = () => _ = new TagProbeService(null!);
+        nullRepository.Should().Throw<ArgumentNullException>()
+            .WithParameterName("repository");
+
         var customService = new CustomTagDtoService(repository);
         customService.ToDto(entity).Name.Should().Be("custom:Canonical tag");
 

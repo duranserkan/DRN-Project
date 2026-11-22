@@ -94,8 +94,8 @@ public sealed class AggregateReviewPlanRefactoringTests
     }
 
     [Theory]
-    [DataInline("namespace Sample.Infra.Sales.SalesContext { public class Detail; }")]
-    [DataInline("namespace Sample.Infra { public class Sales; }")]
+    [DataInlineUnit("namespace Sample.Infra.Sales.SalesContext { public class Detail; }")]
+    [DataInlineUnit("namespace Sample.Infra { public class Sales; }")]
     public async Task Proposed_Context_Symbol_Collision_Should_Block_Markdown_Plan(string collision)
     {
         using var workspace = new AdhocWorkspace();
@@ -196,8 +196,8 @@ public sealed class AggregateReviewPlanRefactoringTests
     }
 
     [Theory]
-    [DataInline("Sample.Domain")]
-    [DataInline("Sample.Infra")]
+    [DataInlineUnit("Sample.Domain")]
+    [DataInlineUnit("Sample.Infra")]
     public async Task Large_Valid_Inventory_Should_Produce_A_Compact_Fingerprinted_Plan(string projectName)
     {
         using var workspace = new AdhocWorkspace();
@@ -220,8 +220,8 @@ public sealed class AggregateReviewPlanRefactoringTests
     }
 
     [Theory]
-    [DataInline(true)]
-    [DataInline(false)]
+    [DataInlineUnit(true)]
+    [DataInlineUnit(false)]
     public async Task Inventory_Exceeding_Analyzer_Size_Or_Record_Bound_Should_Decline_Plan(bool exceedCharacters)
     {
         using var workspace = new AdhocWorkspace();
@@ -261,8 +261,8 @@ public sealed class AggregateReviewPlanRefactoringTests
     }
 
     [Theory]
-    [DataInline("Storage.Infra")]
-    [DataInline("Infra")]
+    [DataInlineUnit("Storage.Infra")]
+    [DataInlineUnit("Infra")]
     public async Task Referencing_Infrastructure_Should_Use_Its_Own_Namespace_For_Proposed_Context(string infraName)
     {
         using var workspace = new AdhocWorkspace();
@@ -327,8 +327,8 @@ public sealed class AggregateReviewPlanRefactoringTests
     }
 
     [Theory]
-    [DataInline("Sample", true)]
-    [DataInline("Other", false)]
+    [DataInlineUnit("Sample", true)]
+    [DataInlineUnit("Other", false)]
     public async Task Context_Attribute_Domain_Should_Be_Validated_Before_Offering_Plan(string domain, bool offered)
     {
         using var workspace = new AdhocWorkspace();
@@ -344,9 +344,9 @@ public sealed class AggregateReviewPlanRefactoringTests
     }
 
     [Theory]
-    [DataInline("Domain = \"Sample\", Subdomain = \"Sales\", Reason = \"CQRS read context\"", true)]
-    [DataInline("Domain = \"Other\", Subdomain = \"Sales\", Reason = \"Other domain\"", false)]
-    [DataInline("Domain = \"Sample\", Reason = \"Missing subdomain\"", false)]
+    [DataInlineUnit("Domain = \"Sample\", Subdomain = \"Sales\", Reason = \"CQRS read context\"", true)]
+    [DataInlineUnit("Domain = \"Other\", Subdomain = \"Sales\", Reason = \"Other domain\"", false)]
+    [DataInlineUnit("Domain = \"Sample\", Reason = \"Missing subdomain\"", false)]
     public async Task Context_Input_Domain_Should_Be_Validated_Before_Offering_Plan(string fields, bool offered)
     {
         using var workspace = new AdhocWorkspace();
@@ -362,6 +362,40 @@ public sealed class AggregateReviewPlanRefactoringTests
                 [assembly: DRN.Conventions.Context("Sample.Infra.Sales.ReadContext", {{fields}})]
                 """));
         workspace.TryApplyChanges(changed).Should().BeTrue();
+        var actions = await Actions(workspace.CurrentSolution.GetDocument(document.Id)!);
+        if (offered) actions.Should().ContainSingle().Which.Title.Should().Contain("Sample.Infra.Sales.ReadContext");
+        else actions.Should().BeEmpty();
+    }
+
+    [Theory]
+    [DataInlineUnit("", "Domain = \"Sample\", ", true)]
+    [DataInlineUnit("Domain = \"Sample\", ", "", true)]
+    [DataInlineUnit("", "Domain = \"Other\", ", false)]
+    [DataInlineUnit("Domain = \"Other\", ", "", false)]
+    [DataInlineUnit("Domain = \"Sample\", ", "Domain = \"Other\", ", false)]
+    public async Task Context_Input_Merge_Should_Resolve_Omitted_Domain_From_Owner_And_Reject_Mismatches(
+        string domainPrefix, string infraPrefix, bool offered)
+    {
+        using var workspace = new AdhocWorkspace();
+        var document = Create(workspace, """
+            namespace Sample.Infra.Sales;
+            public class ReadContext : DRN.Framework.EntityFramework.Context.DrnContext<ReadContext>
+            { public ReadContext() : base(null) { } }
+            """);
+        var domain = workspace.CurrentSolution.Projects.Single(project => project.Name == "Sample.Domain");
+        var infra = workspace.CurrentSolution.Projects.Single(project => project.Name == "Sample.Infra");
+        var solution = workspace.CurrentSolution
+            .AddAdditionalDocument(DocumentId.CreateNewId(domain.Id), "DrnConventionInputs.g.cs",
+                SourceText.From($$"""
+                    [assembly: DRN.Conventions.Version("1")]
+                    [assembly: DRN.Conventions.Context("Sample.Infra.Sales.ReadContext", {{domainPrefix}}Subdomain = "Sales", Reason = "CQRS read context")]
+                    """))
+            .AddAdditionalDocument(DocumentId.CreateNewId(infra.Id), "DrnConventionInputs.g.cs",
+                SourceText.From($$"""
+                    [assembly: DRN.Conventions.Version("1")]
+                    [assembly: DRN.Conventions.Context("Sample.Infra.Sales.ReadContext", {{infraPrefix}}Subdomain = "Sales", Reason = "CQRS read context")]
+                    """));
+        workspace.TryApplyChanges(solution).Should().BeTrue();
         var actions = await Actions(workspace.CurrentSolution.GetDocument(document.Id)!);
         if (offered) actions.Should().ContainSingle().Which.Title.Should().Contain("Sample.Infra.Sales.ReadContext");
         else actions.Should().BeEmpty();

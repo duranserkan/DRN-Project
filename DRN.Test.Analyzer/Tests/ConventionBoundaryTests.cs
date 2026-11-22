@@ -442,6 +442,32 @@ public sealed class ConventionBoundaryTests
     }
 
     [Fact]
+    public void Transport_Contract_Check_Should_Exclude_Open_Generic_And_Nested_Controllers_While_Checking_Closed_Descendants()
+    {
+        var facts = Facts("""
+            using Microsoft.AspNetCore.Mvc;
+            namespace Sample.Hosted.QA;
+            public class User : DRN.Framework.SharedKernel.Domain.SourceKnownEntity { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
+            public class GenericEntityController<T> : ControllerBase where T : User
+            {
+                public T Read() => default!;
+            }
+            public class ControllerHost
+            {
+                public class NestedEntityController : ControllerBase
+                {
+                    public User Read() => new();
+                }
+            }
+            public class ClosedEntityController : GenericEntityController<User>;
+            """, "Hosted");
+        ConventionBoundaryAnalysis.Analyze(facts);
+        facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002")
+            .Select(item => item.Properties["Target"]).Should().BeEquivalentTo(
+                "T:Sample.Hosted.QA.ClosedEntityController");
+    }
+
+    [Fact]
     public void Dto_Mapping_Constructor_And_Private_State_Should_Not_Expose_An_Entity()
     {
         var facts = ContractFacts("""
@@ -949,6 +975,48 @@ public sealed class ConventionBoundaryTests
         ConventionBoundaryAnalysis.Analyze(facts);
         // Absence of a statically bound entity is not serializer or runtime safety certification.
         facts.Diagnostics.Should().NotContain(item => item.Id == "DRNARCHITECTURE002");
+    }
+
+    [Fact]
+    public void Public_Contract_And_Transport_Shapes_Should_Inspect_WriteOnly_Persistence_Properties()
+    {
+        var contractFacts = ContractFacts("""
+            namespace Sample.Contract.QA;
+            public class NestedInput
+            {
+                public Order Entity { set { _ = value; } }
+                internal Order InternalOnly { set { _ = value; } }
+            }
+            public class OrderRequest
+            {
+                public NestedInput Input { get; init; } = new();
+            }
+            """);
+        ConventionBoundaryAnalysis.Analyze(contractFacts);
+        contractFacts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002")
+            .Select(item => item.Properties["Target"]).Should().BeEquivalentTo(
+                "P:Sample.Contract.QA.NestedInput.Entity",
+                "P:Sample.Contract.QA.OrderRequest.Input");
+
+        var hostedFacts = Facts("""
+            using Microsoft.AspNetCore.Mvc;
+            namespace Sample.Hosted.QA;
+            public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
+            public class LocalInput
+            {
+                public Order Entity { set { _ = value; } }
+                internal Order InternalOnly { set { _ = value; } }
+            }
+            public class OrdersController : ControllerBase
+            {
+                [HttpPost]
+                public IActionResult Create(LocalInput input) => Ok();
+            }
+            """, "Hosted");
+        ConventionBoundaryAnalysis.Analyze(hostedFacts);
+        hostedFacts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002")
+            .Select(item => item.Properties["Target"]).Should().BeEquivalentTo(
+                "M:Sample.Hosted.QA.OrdersController.Create(Sample.Hosted.QA.LocalInput)");
     }
 
     private static Compilation GeneratedCompilation(string source, string generated)

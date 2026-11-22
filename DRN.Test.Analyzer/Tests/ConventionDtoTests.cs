@@ -76,12 +76,12 @@ public sealed class ConventionDtoTests
     }
 
     [Theory]
-    [DataInline("public static new UserDto ToDto() => new();")]
-    [DataInline("private new UserDto ToDto() => new(this);")]
-    [DataInline("public UserDto ToDto(int unused = 0) => new(this);")]
-    [DataInline("public UserDto ToDto<T>() => new(this);")]
-    [DataInline("public override Dto ToDto() => new(this);")]
-    [DataInline("public new UserDto ToDto() => new(this);")]
+    [DataInlineUnit("public static new UserDto ToDto() => new();")]
+    [DataInlineUnit("private new UserDto ToDto() => new(this);")]
+    [DataInlineUnit("public UserDto ToDto(int unused = 0) => new(this);")]
+    [DataInlineUnit("public UserDto ToDto<T>() => new(this);")]
+    [DataInlineUnit("public override Dto ToDto() => new(this);")]
+    [DataInlineUnit("public new UserDto ToDto() => new(this);")]
     public void Mapper_Should_Be_A_Public_Parameterless_Typed_Instance_Override(string method)
     {
         var contract = Compilation("""
@@ -1710,6 +1710,79 @@ public sealed class ConventionDtoTests
             "P:Sample.Contract.QA.Orders.MixedContainer.LeakedItems");
         diagnostics.Where(d => d.Id == "DRNARCHITECTURE001").Select(d => d.Properties["Target"]).Should().BeEquivalentTo(
             "P:Sample.Contract.QA.Orders.MixedContainer.Overflow");
+    }
+
+    [Fact]
+    public void Response_With_Expressions_Should_Preserve_Classifications_Without_Duplicate_Diagnostics()
+    {
+        var contract = Compilation("""
+            #nullable enable
+            using DRN.Framework.SharedKernel.Attributes;
+            using DRN.Framework.SharedKernel.Domain;
+            namespace Sample.Contract.QA.Users
+            {
+                public class UserDto(SourceKnownEntity? e = null) : Dto(e)
+                {
+                    [Sensitive] public string Token { get; init; } = "";
+                }
+                public sealed record UserResponse
+                {
+                    public string Email { get; init; } = "";
+                    [Personal] public string ClassifiedEmail { get; init; } = "";
+                    public string Token { get; init; } = "";
+                }
+                public sealed record WrapperResponse
+                {
+                    public UserResponse Inner { get; init; } = new();
+                }
+            }
+            """).WithAssemblyName("Sample.Contract");
+        contract.AssertNoCompilerErrors();
+
+        var domain = Compilation("""
+            #nullable enable
+            using DRN.Framework.SharedKernel.Attributes;
+            using DRN.Framework.SharedKernel.Domain;
+            using Sample.Contract.QA.Users;
+            namespace Sample.Domain.QA.User
+            {
+                public class UserEntity : AggregateRoot
+                {
+                    [Personal] public string Email { get; init; } = "";
+                    public override UserDto ToDto() => new(this);
+                }
+            }
+            """).WithAssemblyName("Sample.Domain").AddReferences(contract.ToMetadataReference());
+        domain.AssertNoCompilerErrors();
+
+        var hosted = Compilation("""
+            #nullable enable
+            using Sample.Contract.QA.Users;
+            using Sample.Domain.QA.User;
+            namespace Sample.Hosted.Controllers.QA
+            {
+                public class WithMapper
+                {
+                    public UserResponse Unclassified(UserResponse existing, UserEntity entity) => existing with { Email = entity.Email };
+                    public UserResponse Classified(UserResponse existing, UserEntity entity) => existing with { ClassifiedEmail = entity.Email };
+                    public UserResponse FromDto(UserResponse existing, UserDto dto) => existing with { Token = dto.Token };
+                    public UserResponse Chained(UserResponse existing, UserEntity entity, UserDto dto) =>
+                        existing with { Email = entity.Email } with { Token = dto.Token };
+                    public WrapperResponse Nested(UserResponse existing, UserEntity entity) =>
+                        new WrapperResponse { Inner = existing with { Email = entity.Email } };
+                    public UserResponse Empty(UserResponse existing) => existing with { };
+                }
+            }
+            """).WithAssemblyName("Sample.Hosted").AddReferences(contract.ToMetadataReference(), domain.ToMetadataReference());
+        hosted.AssertNoCompilerErrors();
+
+        var diagnostics = Analyze(hosted, "Hosted").Where(d => d.Id == "DRNDTO003").ToArray();
+        diagnostics.Select(d => d.GetMessage()).Should().BeEquivalentTo(
+            "Projected property 'Email' requires [Personal] from mapped property 'Email'.",
+            "Projected property 'Token' requires [Sensitive] from mapped property 'Token'.",
+            "Projected property 'Email' requires [Personal] from mapped property 'Email'.",
+            "Projected property 'Token' requires [Sensitive] from mapped property 'Token'.",
+            "Projected property 'Email' requires [Personal] from mapped property 'Email'.");
     }
 
     private static List<Diagnostic> Project(string contractTypes, string domainTypes, string area = "QA.Users")

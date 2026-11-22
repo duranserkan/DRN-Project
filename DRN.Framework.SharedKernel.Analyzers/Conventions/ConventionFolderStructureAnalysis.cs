@@ -28,8 +28,7 @@ internal static class ConventionFolderStructureAnalysis
         if (populatedSubdomains.Count == 0 && (!hasAnyLogicalPaths && HasFallbackPopulatedSubdomain(facts, rootIdentityEnums)))
             return;
 
-        if (populatedSubdomains.Count == 0 &&
-            !facts.Project.Diagnostics.Any(diagnostic => diagnostic.Descriptor == ConventionDiagnosticDescriptors.InvalidInput))
+        if (populatedSubdomains.Count == 0 && !facts.HasInvalidFolderStructureInputs())
         {
             var anchor = facts.Records.FirstOrDefault(record =>
                 record.Kind == ConventionInputSyntax.ReferenceKind &&

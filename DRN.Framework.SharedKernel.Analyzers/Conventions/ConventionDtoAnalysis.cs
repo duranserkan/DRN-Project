@@ -412,21 +412,34 @@ internal static class ConventionDtoAnalysis
                          ReferenceEquals(child, syntax) || child is not BaseTypeDeclarationSyntax))
             {
                 facts.Cancellation.ThrowIfCancellationRequested();
-                if (node is not BaseObjectCreationExpressionSyntax creationSyntax ||
-                    !MayProjectContractResponse(facts, tree, creationSyntax, ref hasResponseAlias) ||
-                    walkedCreations?.Contains(node) == true)
-                    continue;
+                if (walkedCreations?.Contains(node) == true) continue;
+                var isCreation = node is BaseObjectCreationExpressionSyntax creationSyntax &&
+                    MayProjectContractResponse(facts, tree, creationSyntax, ref hasResponseAlias);
+                var isWith = !isCreation && node is WithExpressionSyntax { Initializer.Expressions.Count: > 0 };
+                if (!isCreation && !isWith) continue;
                 model ??= facts.SemanticModel(tree);
-                if (model.GetOperation(node, facts.Cancellation) is not IObjectCreationOperation creation)
-                    continue;
-                if (creation.Type is not INamedTypeSymbol responseType ||
-                    !IsContractResponseType(facts, responseType))
-                    continue;
+                var projectionRoot = ResolveResponseProjectionRoot(facts, model, node, isWith);
+                if (projectionRoot is null) continue;
                 if (classifications.Value is not { } contract) return;
                 walkedCreations ??= [];
-                CheckResponseProjectionReads(facts, type, creation, contract, walkedCreations);
+                CheckResponseProjectionReads(facts, type, projectionRoot, contract, walkedCreations);
             }
         }
+    }
+
+    private static IOperation? ResolveResponseProjectionRoot(ConventionFacts facts, SemanticModel model,
+        SyntaxNode node, bool isWith)
+    {
+        var operation = model.GetOperation(node, facts.Cancellation);
+        if (isWith)
+            return operation is IWithOperation { Type: INamedTypeSymbol withType } withOperation &&
+                   IsContractResponseType(facts, withType)
+                ? withOperation.Initializer
+                : null;
+        return operation is IObjectCreationOperation { Type: INamedTypeSymbol responseType } creation &&
+               IsContractResponseType(facts, responseType)
+            ? creation
+            : null;
     }
 
     private static bool MayProjectContractResponse(ConventionFacts facts, SyntaxTree tree,
@@ -451,10 +464,10 @@ internal static class ConventionDtoAnalysis
         !facts.Symbols.IsKnown(type, facts.Symbols.Dto, facts.Cancellation);
 
     private static void CheckResponseProjectionReads(ConventionFacts facts, INamedTypeSymbol ownerType,
-        IObjectCreationOperation creation, ClassificationContract classifications, HashSet<SyntaxNode> walkedCreations)
+        IOperation projectionRoot, ClassificationContract classifications, HashSet<SyntaxNode> walkedCreations)
     {
         var reported = new Dictionary<IPropertySymbol, PropertyClassifications>(SymbolEqualityComparer.Default);
-        foreach (var (source, target) in MappedReadsCore(creation, facts, walkedCreations, matchConstructorArguments: true))
+        foreach (var (source, target) in MappedReadsCore(projectionRoot, facts, walkedCreations, matchConstructorArguments: true))
         {
             facts.Cancellation.ThrowIfCancellationRequested();
             if (!HasEntityOrDtoOrigin(source, facts)) continue;
@@ -583,6 +596,8 @@ internal static class ConventionDtoAnalysis
             PushCreationChildren(creation, target, facts, pending);
             return;
         }
+        if (!isInput && operation is IWithOperation)
+            walkedCreations?.Add(operation.Syntax);
         if (operation is ICollectionExpressionOperation collection)
         {
             PushCollection(collection, target, isInput, facts, pending);

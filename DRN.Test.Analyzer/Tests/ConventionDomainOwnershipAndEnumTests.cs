@@ -73,9 +73,9 @@ public sealed class ConventionDomainOwnershipAndEnumTests
     }
 
     [Theory]
-    [DataInline("Sample.Domain", "Invalid", "")]
-    [DataInline("Sample.Domain", "Folders", "QA")]
-    [DataInline("Domain", "", "")]
+    [DataInlineUnit("Sample.Domain", "Invalid", "")]
+    [DataInlineUnit("Sample.Domain", "Folders", "QA")]
+    [DataInlineUnit("Domain", "", "")]
     public void Ambiguous_Or_Invalid_Domain_Layout_Configuration_Should_Report_DRNCONVENTIONINPUT001(
         string projectName, string layout, string domain)
     {
@@ -199,6 +199,71 @@ public sealed class ConventionDomainOwnershipAndEnumTests
     }
 
     [Fact]
+    public void Invalid_Folder_Inputs_Paths_And_Roles_Should_Suppress_DRNOWNERSHIP004()
+    {
+        var compilation = Compilation("""
+            using DRN.Framework.SharedKernel.Attributes;
+            using DRN.Framework.SharedKernel.Domain;
+            namespace Sample.Domain;
+            public readonly struct SampleApp : IAppId { public static byte AppId => 1; }
+            [DomainOnly] public enum SampleKinds : byte { Order = 1 }
+            public sealed class SampleTypeAttribute(SampleKinds kind) : EntityTypeAttribute<SampleApp>((byte)kind);
+            """, "SampleEntityTypes.cs")
+            .AddSyntaxTrees(CSharpSyntaxTree.ParseText("""
+                namespace Sample.Domain.QA.Order;
+                public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
+                """, path: "QA/Order/OrderEntity.cs"))
+            .WithAssemblyName("Sample.Domain");
+        compilation.AssertNoCompilerErrors();
+
+        var options = Options("Sample.Domain");
+        var project = ConventionProject.Read(compilation, options.GlobalOptions);
+
+        var rootOnly = Compilation("""
+            namespace Sample.Domain;
+            public readonly struct SampleApp : DRN.Framework.SharedKernel.Domain.IAppId { public static byte AppId => 1; }
+            """, "SampleEntityTypes.cs").WithAssemblyName("Sample.Domain");
+        rootOnly.AssertNoCompilerErrors();
+        var corruptInputs = new ConventionInputs([],
+            [ConventionProject.InputIssue(ConventionInputs.FileName, "malformed", "build-generated convention input")]);
+        var corruptFacts = new ConventionFacts(rootOnly, ConventionProject.Read(rootOnly, options.GlobalOptions),
+            corruptInputs, options, CancellationToken.None);
+        ConventionFolderStructureAnalysis.Analyze(corruptFacts);
+        corruptFacts.Diagnostics.Should().Contain(d => d.Id == "DRNCONVENTIONINPUT001");
+        corruptFacts.Diagnostics.Should().NotContain(d => d.Id == "DRNOWNERSHIP004");
+
+        var invalidPathFacts = new ConventionFacts(compilation, project,
+            new([PathInput("SampleEntityTypes.cs", "SampleEntityTypes.cs"), PathInput("QA/Order/OrderEntity.cs", "/abs/QA/Order/OrderEntity.cs")], []),
+            options, CancellationToken.None);
+        ConventionFolderStructureAnalysis.Analyze(invalidPathFacts);
+        invalidPathFacts.Diagnostics.Should().Contain(d => d.Id == "DRNCONVENTIONINPUT001");
+        invalidPathFacts.Diagnostics.Should().NotContain(d => d.Id == "DRNOWNERSHIP004");
+
+        var invalidRole = new ConventionInput("Role", "Domain", ImmutableDictionary<string, string>.Empty
+            .Add("NamespacePrefix", "Sample.Domain.QA")
+            .Add("LogicalPathPrefix", "/invalid"), Location.None);
+        var invalidRoleFacts = new ConventionFacts(compilation, project,
+            new([PathInput("SampleEntityTypes.cs", "SampleEntityTypes.cs"), PathInput("QA/Order/OrderEntity.cs", "QA/Order/OrderEntity.cs"), invalidRole], []),
+            options, CancellationToken.None);
+        ConventionFolderStructureAnalysis.Analyze(invalidRoleFacts);
+        invalidRoleFacts.Diagnostics.Should().Contain(d => d.Id == "DRNCONVENTIONINPUT001");
+        invalidRoleFacts.Diagnostics.Should().NotContain(d => d.Id == "DRNOWNERSHIP004");
+
+        var firstRole = new ConventionInput("Role", "Domain", ImmutableDictionary<string, string>.Empty
+            .Add("NamespacePrefix", "Sample.Domain.QA")
+            .Add("LogicalPathPrefix", "QA"), Location.None);
+        var secondRole = new ConventionInput("Role", "Contract", ImmutableDictionary<string, string>.Empty
+            .Add("NamespacePrefix", "Sample.Domain.QA.Order")
+            .Add("LogicalPathPrefix", "QA/Order"), Location.None);
+        var overlapFacts = new ConventionFacts(compilation, project,
+            new([PathInput("SampleEntityTypes.cs", "SampleEntityTypes.cs"), PathInput("QA/Order/OrderEntity.cs", "QA/Order/OrderEntity.cs"), firstRole, secondRole], []),
+            options, CancellationToken.None);
+        ConventionFolderStructureAnalysis.Analyze(overlapFacts);
+        overlapFacts.Diagnostics.Should().Contain(d => d.Id == "DRNCONVENTIONINPUT001");
+        overlapFacts.Diagnostics.Should().NotContain(d => d.Id == "DRNOWNERSHIP004");
+    }
+
+    [Fact]
     public void Folders_Layout_Reference_Assembly_Should_Distinguish_Domain_Subdomain_Pairs_In_Infra()
     {
         var domain = Compilation("""
@@ -272,16 +337,16 @@ public sealed class ConventionDomainOwnershipAndEnumTests
     }
 
     [Theory]
-    [DataInline("public enum ImplicitZero { First, Second }", "DRNENUM004")]
-    [DataInline("public enum ExplicitZero { None = 0, Active = 1 }", "DRNENUM004")]
-    [DataInline("public enum ComputedZero { One = 1, Zero = One - 1 }", "DRNENUM004")]
-    [DataInline("public enum AliasedZero { Zero = 0, Alias = Zero, One = 1 }", "DRNENUM004")]
-    [DataInline("public enum LaterZero { Negative = -1, Zero }", "DRNENUM004")]
-    [DataInline("[System.Flags] public enum FlagsZero { None = 0, Read = 1 }", "DRNENUM004")]
-    [DataInline("[DRN.Framework.SharedKernel.Attributes.AllowZero] public enum MissingZero { Active = 1 }", "DRNENUM005")]
-    [DataInline("[DRN.Framework.SharedKernel.Attributes.AllowZero] public enum OptedInZero { System = 0, User = 1 }", "")]
-    [DataInline("[System.Flags, DRN.Framework.SharedKernel.Attributes.AllowZero] public enum OptedInFlags { None = 0, Read = 1 }", "")]
-    [DataInline("public enum NonZeroOnly { Active = 1, Archived = 2 }", "")]
+    [DataInlineUnit("public enum ImplicitZero { First, Second }", "DRNENUM004")]
+    [DataInlineUnit("public enum ExplicitZero { None = 0, Active = 1 }", "DRNENUM004")]
+    [DataInlineUnit("public enum ComputedZero { One = 1, Zero = One - 1 }", "DRNENUM004")]
+    [DataInlineUnit("public enum AliasedZero { Zero = 0, Alias = Zero, One = 1 }", "DRNENUM004")]
+    [DataInlineUnit("public enum LaterZero { Negative = -1, Zero }", "DRNENUM004")]
+    [DataInlineUnit("[System.Flags] public enum FlagsZero { None = 0, Read = 1 }", "DRNENUM004")]
+    [DataInlineUnit("[DRN.Framework.SharedKernel.Attributes.AllowZero] public enum MissingZero { Active = 1 }", "DRNENUM005")]
+    [DataInlineUnit("[DRN.Framework.SharedKernel.Attributes.AllowZero] public enum OptedInZero { System = 0, User = 1 }", "")]
+    [DataInlineUnit("[System.Flags, DRN.Framework.SharedKernel.Attributes.AllowZero] public enum OptedInFlags { None = 0, Read = 1 }", "")]
+    [DataInlineUnit("public enum NonZeroOnly { Active = 1, Archived = 2 }", "")]
     public void Enum_Zero_Rules_Should_Check_All_Resolved_Member_Values(string declaration, string expectedId)
     {
         var contract = Compilation($"namespace Sample.Contract.QA.Tags; {declaration}").WithAssemblyName("Sample.Contract");
@@ -472,6 +537,72 @@ public sealed class ConventionDomainOwnershipAndEnumTests
         var missing = salesFacts.Diagnostics.Should().ContainSingle().Which;
         missing.Id.Should().Be("DRNOWNERSHIP003");
         missing.GetMessage().Should().Contain("CommonContext");
+    }
+
+    [Fact]
+    public void Dependency_Analysis_Should_Use_Validated_Producer_Owners_And_Exclude_Unresolved_Or_Invalid_Placements()
+    {
+        var domain = Compilation("""
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "QA.Domain")]
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "QA.Domain")]
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.QA.Domain.Legacy.BillingItem.Domain", "Billing")]
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.QA.Domain.Legacy.BillingItem.Subdomain", "QA")]
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.QA.Domain.Legacy.BillingItem.Reason", "Explicit billing owner.")]
+            namespace QA.Domain.Legacy { public class BillingItem; }
+            namespace QA.Domain.Order { public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); } }
+            """).WithAssemblyName("QA.Domain");
+        domain.AssertNoCompilerErrors();
+        var domainPath = "/producer-owners/QA.Domain.dll";
+        var domainRef = AnalyzerTestCompilation.EmitReference(domain, domainPath);
+        var records = DomainReferenceRecords("/producer-owners/QA.Domain.csproj", domainPath);
+
+        var billingInfra = Compilation("""
+            namespace Billing.Infra.QA { public class QAContext : Microsoft.EntityFrameworkCore.DbContext; }
+            """).WithAssemblyName("Billing.Infra")
+            .AddReferences(AnalyzerTestCompilation.EntityFrameworkReference, domainRef);
+        billingInfra.AssertNoCompilerErrors();
+        var billingOptions = Options("Billing.Infra");
+        var billingFacts = new ConventionFacts(billingInfra, ConventionProject.Read(billingInfra, billingOptions.GlobalOptions),
+            new([.. records], []), billingOptions, CancellationToken.None);
+        ConventionDependencyAnalysis.Analyze(billingFacts);
+        billingFacts.Diagnostics.Should().BeEmpty();
+
+        var qaInfra = Compilation("""
+            namespace QA.Infra.Order { public class OrderContext : Microsoft.EntityFrameworkCore.DbContext; }
+            """).WithAssemblyName("QA.Infra")
+            .AddReferences(AnalyzerTestCompilation.EntityFrameworkReference, domainRef);
+        qaInfra.AssertNoCompilerErrors();
+        var qaOptions = Options("QA.Infra");
+        var qaFacts = new ConventionFacts(qaInfra, ConventionProject.Read(qaInfra, qaOptions.GlobalOptions),
+            new([.. records], []), qaOptions, CancellationToken.None);
+        ConventionDependencyAnalysis.Analyze(qaFacts);
+        qaFacts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNOWNERSHIP003");
+
+        var invalidDomain = Compilation("""
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Broken.Domain")]
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Broken.Domain")]
+            namespace Broken.Domain.Legacy
+            {
+                [DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomain("Broken")]
+                public class InvalidItem;
+            }
+            """).WithAssemblyName("Broken.Domain");
+        invalidDomain.AssertNoCompilerErrors();
+        var invalidDomainPath = "/producer-owners/Broken.Domain.dll";
+        var invalidDomainRef = AnalyzerTestCompilation.EmitReference(invalidDomain, invalidDomainPath);
+        var invalidRecords = DomainReferenceRecords("/producer-owners/Broken.Domain.csproj", invalidDomainPath);
+
+        var brokenInfra = Compilation("""
+            namespace Broken.Infra.Broken { public class BrokenContext : Microsoft.EntityFrameworkCore.DbContext; }
+            """).WithAssemblyName("Broken.Infra")
+            .AddReferences(AnalyzerTestCompilation.EntityFrameworkReference, invalidDomainRef);
+        brokenInfra.AssertNoCompilerErrors();
+        var brokenOptions = Options("Broken.Infra");
+        var brokenFacts = new ConventionFacts(brokenInfra, ConventionProject.Read(brokenInfra, brokenOptions.GlobalOptions),
+            new([.. invalidRecords], []), brokenOptions, CancellationToken.None);
+        ConventionDependencyAnalysis.Analyze(brokenFacts);
+        brokenFacts.Diagnostics.Should().Contain(d => d.Id == "DRNCONVENTIONINPUT001");
+        brokenFacts.Diagnostics.Should().Contain(d => d.Id == "DRNOWNERSHIP003");
     }
 
     [Fact]

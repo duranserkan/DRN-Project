@@ -1,7 +1,7 @@
 ---
 name: drn-domain-design
 description: "Model DRN aggregates, repository boundaries, contract DTOs, mapping, and paginated APIs."
-last-updated: 2026-11-20
+last-updated: 2026-11-21
 difficulty: advanced
 ---
 
@@ -39,26 +39,26 @@ Validate external GUIDs against the entity type and application partition at the
 
 ## Contract Layer
 
-Keep `*.Contract` dependent only on SharedKernel. Put DTOs, value models, shared constants and enums consumed by both entities and DTOs there. Keep entities, repository interfaces, domain services and internal entity-type enums in Domain. Review exposure and validation requirements before sharing an enum across that boundary.
+Keep `*.Contract` dependent only on SharedKernel. Put DTOs, value models, explicit public `*Request`/`*Response` messages, shared constants, and shared application enums there. Keep entities, repository interfaces, domain services, and `[DomainOnly]` enums in Domain. Follow `CONVENTIONS.md` for folders-only Domain grouping, subdomain `_Shared` value objects, and `[AllowZero]` enum rules. See `CONVENTIONS.md#terminology` for canonical Domain, Subdomain, project stem, and role stem definitions.
 
 ## DTO Mapping Rules
 
-Expose GUIDs and DTOs at API boundaries. Derive from `Dto` and pass the optional entity to its constructor to map public identity and timestamps. Use `required` init properties with defaults for entity-specific data. Keep paging metadata on the result.
+Keep internal `Dto` types derived from `Dto` in the owning Contract `(Domain, Subdomain)` plural entity folder, passing the optional entity to populate GUID identity and timestamps. Use `required` init properties for entity-specific data.
 
 ```csharp
 // Contract
 public class CategoryDto(SourceKnownEntity? entity = null) : Dto(entity)
 {
-    public required string Name { get; init; } = string.Empty;
+    public required string Name { get; init; }
 }
 ```
 
-In Domain, map out with `CategoryDto ToDto() => new(this) { Name = Name };` on the entity. Place each DTO in the Contract subdomain and plural entity folder. Select only fields needed by consumers. Preserve each mapped property's Personal and Sensitive classifications, including when renaming it. A metadata-only mapper can simply return `new(this)`. Map back through a Domain extension that calls the entity's constructor, such as `new CategoryEntity(dto.Name)`, so validation runs on every path.
+In Domain, override `SourceKnownEntity.ToDto()` covariantly with `public override CategoryDto ToDto() => new(this) { Name = Name };`. Application services deriving from `SourceKnownService<TEntity, TDto>` or `SourceKnownService<TEntity, TDto, TCreateRequest>` inherit virtual `ToDto(TEntity)` delegating to `entity.ToDto()` (checked by `DRNDTO007`) and implement `CreateEntityAsync`. Select only fields needed by consumers. Preserve each mapped property's Personal and Sensitive classifications on both DTOs and Contract `*Response` projections, including when renaming fields. A metadata-only mapper can return `new(this)`. Map writable request fields through domain constructors or operations so invariants run on every path.
 
 ## API Integration
 
-Keep entity-prefixed public requests and responses beside the matching DTO. DRNDTO004 uses the longest entity stem at a PascalCase word boundary within the same Contract subdomain.
+Use explicit Contract `*Request` and `*Response` types on public endpoints instead of returning, accepting, inheriting from, or nesting a `Dto` (DRNDTO005 and DRNDTO006). Route-only GETs need no empty request body, and 204 responses need no response body. Apply `[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]` on strict Request types to reject unexpected caller fields, and use nullable properties where presence must be tracked. Keep entity-prefixed public requests and responses beside the matching DTO (DRNDTO004).
 
-Use paged collection endpoints by default. Accept `PaginationRequest` from the query for the initial GET and `PaginationResultInfo` for subsequent GET-query or POST-body navigation. For an individual item accept a GUID and map the entity to its DTO. Map page items with `result.ToModel(entity => entity.ToDto())`. Enumerate the full dataset only when explicitly requested.
+Use paged collection endpoints by default. Accept `PaginationRequest` from the query for the initial GET and `PaginationResultInfo` for subsequent GET-query or POST-body navigation. For an individual item accept a GUID and map the entity to its explicit `*Response` in a service-backed `SourceKnown*Controller`. Map page items with `result.ToModel(...)`. Enumerate the full dataset only when explicitly requested.
 
 Use `EntityCreatedFilter.After`, `Before`, `Between` or `Outside` for creation dates. Boundaries default to inclusive. Keep date logic in the shared filter to preserve ID tick precision. Once mapping and registration are in place, follow the repository's migration and execution gates.

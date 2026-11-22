@@ -120,7 +120,7 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         var compilation = await infra.GetCompilationAsync(token);
         var contract = compilation?.GetTypeByMetadataName("DRN.Framework.EntityFramework.Context.IDrnContext");
         if (compilation is null || contract is null) return;
-        var contextOwners = TryMergeContextOwners(target.DomainInputs.Contexts, infraInputs.Contexts);
+        var contextOwners = TryMergeContextOwners(target.DomainInputs.Contexts, infraInputs.Contexts, target.Owner.Domain);
         if (contextOwners is null) return;
         var evidence = entityEvidence + target.DomainInputs.Evidence + infraInputs.Evidence;
         var types = Types(compilation.Assembly.GlobalNamespace, token).ToArray();
@@ -140,14 +140,23 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
 
     private static Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)>? TryMergeContextOwners(
         Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)> domainContexts,
-        Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)> infraContexts)
+        Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)> infraContexts,
+        string defaultDomain)
     {
         var merged = new Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)>(domainContexts, StringComparer.Ordinal);
         foreach (var entry in infraContexts)
         {
-            if (merged.TryGetValue(entry.Key, out var previous) &&
-                (previous.Domain != entry.Value.Domain || previous.Owner != entry.Value.Owner || previous.Reason != entry.Value.Reason))
-                return null;
+            if (merged.TryGetValue(entry.Key, out var previous))
+            {
+                var previousDomain = previous.Domain.Length > 0 ? previous.Domain : defaultDomain;
+                var currentDomain = entry.Value.Domain.Length > 0 ? entry.Value.Domain : defaultDomain;
+                if (previousDomain != currentDomain || previous.Owner != entry.Value.Owner || previous.Reason != entry.Value.Reason)
+                    return null;
+                merged[entry.Key] = entry.Value.Domain.Length > 0
+                    ? entry.Value
+                    : (previous.Domain, entry.Value.Owner, entry.Value.Reason, entry.Value.Declaration);
+                continue;
+            }
             merged[entry.Key] = entry.Value;
         }
         return merged;

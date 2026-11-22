@@ -13,6 +13,8 @@ internal sealed partial class ConventionFacts
             if (input.Fields.Keys.Any(field => !ConventionInputSyntax.IsField(input.Kind, field)))
             {
                 InvalidInput(input, "declared with unknown fields", "record using documented fields for " + input.Kind);
+                if (input.Kind is ConventionInputSyntax.PathKind or ConventionInputSyntax.RoleKind)
+                    _hasInvalidFolderInput = true;
                 continue;
             }
             Records.Add(input);

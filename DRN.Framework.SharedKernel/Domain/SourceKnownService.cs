@@ -6,11 +6,18 @@ namespace DRN.Framework.SharedKernel.Domain;
 /// <summary>
 /// Provides a base service backed by a repository for entities of type <typeparamref name="TEntity"/>.
 /// </summary>
-public abstract class SourceKnownService<TEntity>(ISourceKnownRepository<TEntity> repository) : ISourceKnownService<TEntity>
+public abstract class SourceKnownService<TEntity> : ISourceKnownService<TEntity>
     where TEntity : AggregateRoot
 {
+    /// <summary>Initializes the service with its backing repository.</summary>
+    protected SourceKnownService(ISourceKnownRepository<TEntity> repository)
+    {
+        ArgumentNullException.ThrowIfNull(repository);
+        Repository = repository;
+    }
+
     /// <inheritdoc />
-    public ISourceKnownRepository<TEntity> Repository { get; } = repository;
+    public ISourceKnownRepository<TEntity> Repository { get; }
 }
 
 /// <summary>

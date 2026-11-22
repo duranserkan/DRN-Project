@@ -26,8 +26,11 @@ public sealed class SourceKnownConventionAnalyzer : DiagnosticAnalyzer
             context.Options.AnalyzerConfigOptionsProvider, context.CancellationToken);
         if (inputs.Diagnostics.IsEmpty && facts.Records.Count(record =>
                 record.Kind == "Reference" && record.Identity == "Inventory" && record.Get("Stage") == "Complete") != 1)
+        {
+            facts.MarkIncompleteInventory();
             facts.Diagnostics.Add(ConventionProject.InputIssue("direct references", "missing or duplicated inventory provenance",
                 "complete build-supplied reference inventory"));
+        }
         var exceptions = new ConventionExceptions(facts);
         ConventionOwnershipAnalysis.Analyze(facts);
         ConventionFolderStructureAnalysis.Analyze(facts);

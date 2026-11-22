@@ -595,10 +595,10 @@ public sealed class EntityConfigurationRefactoringTests
     }
 
     [Theory]
-    [DataInline(false, "Domain = \"Sample\"", true)]
-    [DataInline(false, "Domain = \"Other\", Reason = \"Other domain\"", false)]
-    [DataInline(true, "", true)]
-    [DataInline(true, "Domain = \"Billing\", Reason = \"Other domain\"", false)]
+    [DataInlineUnit(false, "Domain = \"Sample\"", true)]
+    [DataInlineUnit(false, "Domain = \"Other\", Reason = \"Other domain\"", false)]
+    [DataInlineUnit(true, "", true)]
+    [DataInlineUnit(true, "Domain = \"Billing\", Reason = \"Other domain\"", false)]
     public async Task Domain_Subdomain_Attribute_Parity_Should_Support_Project_And_Folders_Layouts(
         bool foldersLayout, string extraArgs, bool offered)
     {
@@ -646,9 +646,9 @@ public sealed class EntityConfigurationRefactoringTests
     }
 
     [Theory]
-    [DataInline("Domain = \"Sample\", Subdomain = \"QA\"", true)]
-    [DataInline("Domain = \"Other\", Subdomain = \"QA\", Reason = \"Other domain\"", false)]
-    [DataInline("Domain = \"Sample\"", false)]
+    [DataInlineUnit("Domain = \"Sample\", Subdomain = \"QA\"", true)]
+    [DataInlineUnit("Domain = \"Other\", Subdomain = \"QA\", Reason = \"Other domain\"", false)]
+    [DataInlineUnit("Domain = \"Sample\"", false)]
     public async Task Context_Input_Domain_Should_Be_Validated_For_Configuration_Offer(string fields, bool offered)
     {
         using var workspace = new AdhocWorkspace();
@@ -704,6 +704,59 @@ public sealed class EntityConfigurationRefactoringTests
         action.Title.Should().Contain("Sample.Infra.QA.QAContext").And.Contain("QA/Configurations/UserConfig.cs");
         var changed = await action.GetChangedSolutionAsync();
         (await changed.GetProject(current.Project.Id)!.GetCompilationAsync())!.AssertNoCompilerErrors();
+    }
+
+    [Theory]
+    [DataInlineUnit("""[assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Domain", "")]""", false)]
+    [DataInlineUnit("""[assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Domain", "   ")]""", false)]
+    [DataInlineUnit("""[assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Domain", null)]""", false)]
+    [DataInlineUnit("""
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Domain", "Other")]
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Domain", "Sample")]
+        """, false)]
+    [DataInlineUnit("""
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Domain", "Sample")]
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Domain", "Sample")]
+        """, true)]
+    public async Task Metadata_Only_Entity_Assembly_Should_Validate_Blank_And_Duplicate_Convention_Metadata(
+        string metadataAttributes, bool offered)
+    {
+        var metadataDomain = ClassificationTestFixture.Compilation($$"""
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Sample.Domain")]
+            {{metadataAttributes}}
+            namespace Sample.Domain.QA;
+            public class User : DRN.Framework.SharedKernel.Domain.SourceKnownEntity { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
+            """).WithAssemblyName("Sample.Domain");
+        metadataDomain.AssertNoCompilerErrors();
+        var metadataRef = AnalyzerTestCompilation.EmitReference(metadataDomain, "/source/Sample.Domain/Sample.Domain.dll");
+
+        using var workspace = new AdhocWorkspace();
+        var infra = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                "Sample.Infra", "Sample.Infra", LanguageNames.CSharp, filePath: "/source/Sample.Infra/Sample.Infra.csproj"))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(ClassificationTestFixture.References)
+            .AddMetadataReference(AnalyzerTestCompilation.EntityFrameworkReference)
+            .AddMetadataReference(AnalyzerTestCompilation.UtilsReference)
+            .AddMetadataReference(metadataRef);
+        const string contextSource = """
+            namespace Sample.Infra.QA;
+            public class QAContext : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>
+            {
+                public QAContext() : base(null) { }
+                public Microsoft.EntityFrameworkCore.DbSet<Sample.Domain.QA.User> Users { get; set; }
+            }
+            """;
+        var contextDoc = infra.AddDocument("QAContext.cs", contextSource, filePath: "/source/Sample.Infra/QA/QAContext.cs");
+        workspace.TryApplyChanges(contextDoc.Project.Solution).Should().BeTrue();
+
+        var current = workspace.CurrentSolution.GetDocument(contextDoc.Id)!;
+        (await current.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
+        var actions = new List<CodeAction>();
+        await new EntityConfigurationRefactoringProvider().ComputeRefactoringsAsync(new CodeRefactoringContext(current,
+            new TextSpan(contextSource.IndexOf("Sample.Domain.QA.User", StringComparison.Ordinal) + "Sample.Domain.QA.".Length, 0),
+            actions.Add, CancellationToken.None));
+        if (offered) actions.Should().ContainSingle();
+        else actions.Should().BeEmpty();
     }
 
     private static Document CreateDocuments(AdhocWorkspace workspace, string? extraSource = null, string contextMembers = "")

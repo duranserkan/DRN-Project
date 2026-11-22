@@ -34,30 +34,25 @@ internal static class ConventionGenerationPreflight
 
     internal static (ProjectLayout Layout, string RootNamespace, bool HasExplicitRootNamespace) MetadataFromAssembly(IAssemblySymbol assembly)
     {
-        var projectName = assembly.Name;
-        string? rootNamespace = null;
-        var rawLayout = "";
-        var rawDomain = "";
+        var metadata = new List<KeyValuePair<string, string>>();
         foreach (var attribute in assembly.GetAttributes())
         {
-            if (attribute.AttributeClass is null ||
-                MetadataName(attribute.AttributeClass) != "System.Reflection.AssemblyMetadataAttribute" ||
-                attribute.ConstructorArguments is not [{ Value: string key }, { Value: string value }]) continue;
-            switch (key)
-            {
-                case "DRN.Conventions.ProjectName": projectName = value; break;
-                case "DRN.Conventions.RootNamespace": rootNamespace = value; break;
-                case "DRN.Conventions.DomainLayout": rawLayout = value; break;
-                case "DRN.Conventions.Domain": rawDomain = value; break;
-            }
+            if (attribute.AttributeClass is not null &&
+                MetadataName(attribute.AttributeClass) == "System.Reflection.AssemblyMetadataAttribute" &&
+                ConventionNames.TryReadAssemblyMetadata(attribute, out var entry))
+                metadata.Add(entry);
         }
-        var hasExplicitRoot = !string.IsNullOrWhiteSpace(rootNamespace);
-        return (ParseLayout(projectName, rawLayout, rawDomain), hasExplicitRoot ? rootNamespace! : projectName, hasExplicitRoot);
+        var parsed = ConventionNames.ParseReferenceMetadata(assembly.Name, metadata);
+        if (!parsed.Valid || parsed.HasExplicitRootNamespace && !CodeFixSymbolFacts.ValidNamespace(parsed.RootNamespace))
+            return (new("", "", false, false), "", false);
+        return (ParseLayout(parsed.ProjectName, parsed.DomainLayout, parsed.Domain),
+            parsed.RootNamespace, parsed.HasExplicitRootNamespace);
     }
 
     private static ProjectLayout ParseLayout(string projectName, string rawLayout, string rawDomain)
     {
-        var (role, _) = ConventionNames.Read(projectName);
+        var (role, problem) = ConventionNames.Read(projectName);
+        if (problem.Length > 0) return new("", "", false, false);
         var (layout, domain, explicitDomain, errorKey, _, _) =
             ConventionNames.ParseDomainLayout(projectName, role, rawLayout, rawDomain);
         if (errorKey.Length > 0 && layout == ConventionNames.FoldersLayout)

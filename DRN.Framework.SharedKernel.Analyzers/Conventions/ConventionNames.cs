@@ -8,6 +8,108 @@ internal static class ConventionNames
     internal const string ProjectLayout = "Project";
     internal const string FoldersLayout = "Folders";
 
+    internal readonly record struct ReferenceAssemblyMetadata(
+        string ProjectName,
+        string RootNamespace,
+        bool HasExplicitRootNamespace,
+        string DomainLayout,
+        string Domain,
+        string ErrorProperty,
+        string ErrorProblem,
+        string ErrorRemedy)
+    {
+        internal bool Valid => ErrorProperty.Length == 0;
+    }
+
+    internal static string OwnerNamespacePrefix(string domain, string subdomain, bool hasFolderDomain) =>
+        hasFolderDomain ? domain + "." + subdomain : subdomain;
+
+    internal static bool IsMissingAggregateSubdomain(string[] parts, int offset, bool isFoldersLayout, string typeName) =>
+        isFoldersLayout
+            ? parts.Length == offset + 2 && parts[offset + 1] == EntityStem(typeName)
+            : parts.Length == offset + 1 && parts[offset] == EntityStem(typeName);
+
+    internal static (string Domain, string Subdomain, bool HasFolderDomain)? InferNamespaceOwner(
+        string[] parts, int offset, bool isFoldersLayout, string defaultDomain)
+    {
+        if (isFoldersLayout)
+            return offset + 1 < parts.Length ? (parts[offset], parts[offset + 1], true) : null;
+        return offset < parts.Length ? (defaultDomain, parts[offset], false) : null;
+    }
+
+    internal static bool TryReadAssemblyMetadata(AttributeData attribute, out KeyValuePair<string, string> entry)
+    {
+        if (attribute.ConstructorArguments is [{ Value: string key }, var value] &&
+            value.Kind != TypedConstantKind.Error &&
+            (value.Value is string || value.IsNull))
+        {
+            entry = new(key, value.Value as string ?? "");
+            return true;
+        }
+        entry = default;
+        return false;
+    }
+
+    internal static ReferenceAssemblyMetadata ParseReferenceMetadata(
+        string assemblyName, IEnumerable<KeyValuePair<string, string>> metadata)
+    {
+        var projectName = assemblyName;
+        var rootNamespace = assemblyName;
+        var domainLayout = "";
+        var domain = "";
+        var hasProjectName = false;
+        var hasRootNamespace = false;
+        var hasDomainLayout = false;
+        var hasDomain = false;
+        foreach (var (key, value) in metadata)
+        {
+            var property = key switch
+            {
+                "DRN.Conventions.ProjectName" => "MSBuildProjectName",
+                "DRN.Conventions.RootNamespace" => "RootNamespace",
+                "DRN.Conventions.DomainLayout" => "DrnDomainLayout",
+                "DRN.Conventions.Domain" => "DrnDomain",
+                _ => null
+            };
+            if (property is null) continue;
+            if (string.IsNullOrWhiteSpace(value))
+                return new("", "", false, "", "", property, "incomplete", "reference-visible project identity");
+
+            var conflict = property switch
+            {
+                "MSBuildProjectName" => hasProjectName && projectName != value,
+                "RootNamespace" => hasRootNamespace && rootNamespace != value,
+                "DrnDomainLayout" => hasDomainLayout && domainLayout != value,
+                "DrnDomain" => hasDomain && domain != value,
+                _ => false
+            };
+            if (conflict)
+                return new("", "", false, "", "", property, "contradictory", "reference-visible ownership fact");
+
+            switch (property)
+            {
+                case "MSBuildProjectName":
+                    hasProjectName = true;
+                    projectName = value;
+                    break;
+                case "RootNamespace":
+                    hasRootNamespace = true;
+                    rootNamespace = value;
+                    break;
+                case "DrnDomainLayout":
+                    hasDomainLayout = true;
+                    domainLayout = value;
+                    break;
+                case "DrnDomain":
+                    hasDomain = true;
+                    domain = value;
+                    break;
+            }
+        }
+        if (!hasRootNamespace) rootNamespace = projectName;
+        return new(projectName, rootNamespace, hasRootNamespace, domainLayout, domain, "", "", "");
+    }
+
     internal static string DtoFolder(string stem)
     {
         if (stem.Length > 1 && stem.EndsWith('y') && !"aeiouAEIOU".Contains(stem[^2]))

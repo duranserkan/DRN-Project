@@ -211,11 +211,11 @@ public sealed class EntityDtoRefactoringTests
     }
 
     [Theory]
-    [DataInlineUnit("ToDto(this User user)", "Map(User user) => user.ToDto()", false, false)]
-    [DataInlineUnit("ToDto(this SourceKnownEntity user)", "Map(User user) => user.ToDto()", true, false)]
-    [DataInlineUnit("ToDto(this IProfile user, int mode = 0)", "Map(User user) => user?.ToDto()", true, false)]
-    [DataInlineUnit("ToDto<T>(this T user) where T : IProfile", "Map(User user) => user.ToDto()", true, false)]
-    [DataInlineUnit("ToDto<T>(this T user) where T : IProfile", "Map<T>(T user) where T : User => user.ToDto()", true, false)]
+    [DataInlineUnit("ToDto(this User user)", "Map(User user) => user.ToDto()", false, true)]
+    [DataInlineUnit("ToDto(this SourceKnownEntity user)", "Map(User user) => user.ToDto()", true, true)]
+    [DataInlineUnit("ToDto(this IProfile user, int mode = 0)", "Map(User user) => user?.ToDto()", true, true)]
+    [DataInlineUnit("ToDto<T>(this T user) where T : IProfile", "Map(User user) => user.ToDto()", true, true)]
+    [DataInlineUnit("ToDto<T>(this T user) where T : IProfile", "Map<T>(T user) where T : User => user.ToDto()", true, true)]
     [DataInlineUnit("ToDto(this IProfile user)", "Map(User user) => ((IProfile)user).ToDto()", true, true)]
     [DataInlineUnit("ToDto(this User user)", "Map(User user) => Extensions.ToDto(user)", true, true)]
     [DataInlineUnit("ToDto<T>(this T user) where T : struct", "Map(int value) => value.ToDto()", true, true)]
@@ -244,7 +244,32 @@ public sealed class EntityDtoRefactoringTests
         workspace.TryApplyChanges(extensions.Project.Solution).Should().BeTrue();
         AssertCompilesBeforeMapper((await workspace.CurrentSolution.GetProject(project.Id)!.GetCompilationAsync())!);
         var actions = await Actions(workspace.CurrentSolution.GetDocument(document.Id)!);
-        if (offered) actions.Should().ContainSingle();
+        if (offered)
+        {
+            var changed = await actions.Should().ContainSingle().Which.GetChangedSolutionAsync();
+            foreach (var candidate in changed.Projects)
+                (await candidate.GetCompilationAsync())!.AssertNoCompilerErrors();
+        }
+        else actions.Should().BeEmpty();
+    }
+
+    [Theory]
+    [DataInlineUnit("public DRN.Framework.SharedKernel.Domain.Dto Map(User user) => user.ToDto();", true)]
+    [DataInlineUnit("public void Narrowed(User user) { var dto = user.ToDto(); dto = new DRN.Framework.SharedKernel.Domain.Dto(); }", false)]
+    public async Task Existing_Abstract_ToDto_Call_Should_Be_Allowed_Unless_Covariant_Return_Introduces_An_Error(
+        DrnTestContextUnit context, string callerMember, bool offered)
+    {
+        using var workspace = new AdhocWorkspace();
+        var source = Source + "\npublic class Caller { " + callerMember + " }";
+        var document = Create(workspace, context, source);
+        AssertCompilesBeforeMapper((await document.Project.GetCompilationAsync())!);
+        var actions = await Actions(document);
+        if (offered)
+        {
+            var changed = await actions.Should().ContainSingle().Which.GetChangedSolutionAsync();
+            foreach (var project in changed.Projects)
+                (await project.GetCompilationAsync())!.AssertNoCompilerErrors();
+        }
         else actions.Should().BeEmpty();
     }
 

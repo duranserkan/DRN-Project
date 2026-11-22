@@ -23,7 +23,7 @@
 - **Shared extensions** - Casing and safe path helpers for lower-layer packages
 - **Source Known IDs** - Internal `long` keys and external `Guid` identifiers with type and partition validation
 
-[SourceKnown development conventions](CONVENTIONS.md) infer roles from project-name tokens without custom properties or an application-root identity. Rules apply progressively: Hosted requires at least one direct Application and Infra reference, Infra requires Domain with corresponding subdomains, and Domain requires Contract. Shared dependencies and multiple references are valid regardless of naming prefix. SharedKernel is a foundation role. These warnings are separate from existing identity, classification and authorization rules. See the [diagnostic reference](CONVENTION-DIAGNOSTICS.md) for exact messages and standard exception channels, and [editable assistance](SCAFFOLDING.md) for guarded refactorings and review plans. The guides describe supported evidence and static-analysis limits.
+[SourceKnown development conventions](CONVENTIONS.md) (see [terminology](CONVENTIONS.md#terminology)) infer roles from project-name tokens without custom properties or an application-root identity. Rules apply progressively: Hosted requires at least one direct Application and Infra reference, Infra requires Domain with corresponding subdomains, and Domain requires Contract. Shared dependencies and multiple references are valid regardless of naming prefix. SharedKernel is a foundation role. These warnings are separate from existing identity, classification and authorization rules. See the [diagnostic reference](CONVENTION-DIAGNOSTICS.md) for exact messages and standard exception channels, and [editable assistance](SCAFFOLDING.md) for guarded refactorings and review plans. The guides describe supported evidence and static-analysis limits.
 
 ## Table of Contents
 
@@ -50,6 +50,7 @@ Define an entity and collect a domain event. SharedKernel supplies the domain ty
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Domain;
 
+[DomainOnly]
 public enum UserEntityTypes : byte { User = 1 }
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
@@ -62,7 +63,7 @@ public class UserEntity : AggregateRoot
     [Personal]
     public string Name { get; private set; }
 
-    public UserDto ToDto() => new(this);
+    public override UserDto ToDto() => new(this);
 
     public UserEntity(string name)
     {
@@ -136,6 +137,7 @@ Entity and aggregate base constructors accept an optional internal `long id = 0`
 | `DateTimeOffset CreatedAt` | Derived from the encoded ID timestamp |
 | `DateTimeOffset ModifiedAt` | Protected internal setter; concurrency check; `ModifiedAtColumnOrder = 1` |
 | `SourceKnownEntityId EntityIdSource` | Internal setter; ignored by JSON |
+| `abstract Dto ToDto()` | Concrete entities override this covariantly to return their Contract DTO via `new(this)` |
 
 `SourceKnownEntity` implements `IHasEntityId`, `IEquatable<SourceKnownEntity>`, and `IComparable<SourceKnownEntity>`. See [SourceKnownEntity.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/SourceKnownEntity.cs) and [AggregateRoot.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/AggregateRoot.cs).
 
@@ -240,8 +242,10 @@ var customerId = ids.Validate<CustomerEntity>(customerGuid);
 Derived entity attributes use a pass-through constructor:
 
 ```csharp
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Domain;
 
+[DomainOnly]
 public enum DomainEntityTypes : byte { Order = 2 }
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
@@ -267,7 +271,7 @@ See [SourceKnownEntityTypeAnalyzer.cs](https://github.com/duranserkan/DRN-Projec
 >
 > **DTO Mapping Rule**: DTOs should implement a primary constructor accepting a `SourceKnownEntity?` to automatically map `Id`, `CreatedAt`, and `ModifiedAt`. Avoid manual mapping of these fields.
 >
-> **Entity Exposure Prohibition**: Entities must never be exposed via public APIs. Always map to DTOs or Response Models. Entities are only permitted in Razor Pages (Internal UI).
+> **Entity and DTO Exposure Prohibition**: Never expose entities or internal `Dto` types through public APIs or Contract messages. Map to explicit Contract `*Request` and `*Response` models instead. Entities are only permitted in Razor Pages (Internal UI).
 
 The advanced quickstart defines `UserDto` once and uses its base constructor for identity and timestamp mapping. `Dto.AdditionalData` stores JSON extension data. See [Dto.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/Dto.cs).
 
@@ -406,9 +410,13 @@ var plainFromUtility = sourceKnownEntityIdUtils.ToPlain(secureFromUtility);
 
 `ISourceKnownRepository<TEntity>` defines queries, mutations, identity conversion and pagination for `AggregateRoot` entities. EntityFramework supplies the default implementation. Subclasses own entity updates, additional filters and query includes.
 
-`ISourceKnownService<TEntity>` in `DRN.Framework.SharedKernel.Domain` exposes a read-only `ISourceKnownRepository<TEntity> Repository` property. Its entity type must derive from `AggregateRoot`.
+`ISourceKnownService` contracts in `DRN.Framework.SharedKernel.Domain` provide progressive service abstractions for `AggregateRoot` entities:
 
-Derive from the abstract `SourceKnownService<TEntity>` base class to implement this contract with a repository supplied through its constructor.
+- `ISourceKnownService<TEntity>` exposes read-only `ISourceKnownRepository<TEntity> Repository`.
+- `ISourceKnownService<TEntity, out TDto>` extends `ISourceKnownService<TEntity>` with covariant `TDto ToDto(TEntity entity)`.
+- `ISourceKnownService<TEntity, out TDto, in TCreateRequest>` extends `ISourceKnownService<TEntity, TDto>` with `Task<TEntity> CreateEntityAsync(TCreateRequest request, CancellationToken cancellationToken = default)`.
+
+Derive from `SourceKnownService<TEntity>`, `SourceKnownService<TEntity, TDto>`, or `SourceKnownService<TEntity, TDto, TCreateRequest>` to implement these contracts with a constructor-supplied repository. `SourceKnownService<TEntity, TDto>` supplies a virtual `ToDto(TEntity)` that delegates to `entity.ToDto()` and verifies assignability to `TDto` at runtime (`DRNDTO007` checks this alignment at compile time unless `ToDto(TEntity)` is overridden). `SourceKnownService<TEntity, TDto, TCreateRequest>` adds abstract `CreateEntityAsync`.
 
 Contract from [SourceKnownRepository.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/Repository/SourceKnownRepository.cs), grouped by operation:
 
@@ -533,23 +541,36 @@ The three-argument `PageSize` constructor can override the maximum threshold for
 
 For flat first-page input, bind `PaginationOptions` from a query or JSON body and convert it with `PaginationRequest.DefaultWith(options)`. Set `updateTotalCount` to request a server-side count. JSON enum values follow the application's serializer configuration. Use the returned metadata for continuation requests.
 
-`PaginationRequest` supports query-string model binding. This controller uses the quickstart's `UserEntity` and `UserDto`:
+`PaginationRequest` supports query-string model binding. This controller uses the quickstart's `UserEntity` and maps to an explicit Contract `UserResponse`:
 
 ```csharp
+using System;
 using System.Threading.Tasks;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.SharedKernel.Domain.Repository;
 using Microsoft.AspNetCore.Mvc;
+
+public sealed class UserResponse
+{
+    public Guid Id { get; init; }
+    public DateTimeOffset CreatedAt { get; init; }
+    public DateTimeOffset ModifiedAt { get; init; }
+}
 
 [ApiController]
 [Route("users")]
 public class UsersController(ISourceKnownRepository<UserEntity> repository) : ControllerBase
 {
     [HttpGet]
-    public async Task<PaginationResultModel<UserDto>> GetAsync([FromQuery] PaginationRequest request)
+    public async Task<PaginationResultModel<UserResponse>> GetAsync([FromQuery] PaginationRequest request)
     {
         var result = await repository.PaginateAsync(request);
-        return result.ToModel(user => user.ToDto());
+        return result.ToModel(user => new UserResponse
+        {
+            Id = user.EntityId,
+            CreatedAt = user.CreatedAt,
+            ModifiedAt = user.ModifiedAt
+        });
     }
 }
 ```
@@ -632,6 +653,8 @@ See [Exceptions.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.F
 
 `Int64ToStringConverter` and `Int64NullableToStringConverter` accept numeric tokens and integer strings. The nullable converter preserves null. `SetJsonDefaults(options)` updates supplied mutable options or creates new options when omitted. `SetHtmlSafeWebJsonDefaults(options)` also sets `JavaScriptEncoder.Default`; Hosting uses it for MVC.
 
+`JsonStringEnumConverter` uses its default `allowIntegerValues: true` behavior and accepts numeric `0` and undefined integer enum values. Operations must validate allowed enum values explicitly.
+
 ```csharp
 using System.Text.Json;
 using DRN.Framework.SharedKernel.Json;
@@ -657,6 +680,14 @@ Marks classes, structs, properties or fields for exclusion by logging code that 
 ### `[SecureKey]`
 
 Validates string properties, fields or parameters. Defaults require 16 to 256 characters, uppercase, lowercase, a digit and a special character. The allowed set contains ASCII and Turkish letters, digits, space, and `!*()-_`; space counts as special. Sequential and repeated-character limits are configurable through `MaxSequentialChars` (4) and `MaxRepeatedChars` (3). Null values fail validation. See [SecureKeyAttribute.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Attributes/SecureKeyAttribute.cs) for the exact character checks.
+
+### `[DomainOnly]`
+
+Marks a Domain-declared enum as domain-internal (`DRNENUM001` through `DRNENUM003`). Root `byte` identity enums referenced by a local `EntityTypeAttribute` subclass remain valid at the Domain root. See [enum conventions](CONVENTIONS.md#enums-and-strict-public-contracts) and [DomainOnlyAttribute.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Attributes/DomainOnlyAttribute.cs).
+
+### `[AllowZero]`
+
+Opts an enum with a named `0` member into zero-value declarations at compile time (`DRNENUM004`, `DRNENUM005`). See [enum conventions](CONVENTIONS.md#enums-and-strict-public-contracts) and [AllowZeroAttribute.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Attributes/AllowZeroAttribute.cs).
 
 ---
 
