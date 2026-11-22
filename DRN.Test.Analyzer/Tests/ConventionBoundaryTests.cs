@@ -1028,6 +1028,13 @@ public sealed class ConventionBoundaryTests
             {
                 public IAsyncEnumerator<Order> GetAsyncEnumerator(CancellationToken cancellationToken = default) => throw new System.NotImplementedException();
             }
+            internal interface IIndirectEntityStream : IAsyncEnumerable<Order>;
+            public class IndirectEntityStream : IIndirectEntityStream
+            {
+                IAsyncEnumerator<Order> IAsyncEnumerable<Order>.GetAsyncEnumerator(CancellationToken cancellationToken) => throw new System.NotImplementedException();
+            }
+            internal interface IInternalOnlyEntityMarker<T>;
+            public class InternalOnlyEntityMarker : IInternalOnlyEntityMarker<Order>;
             public class Envelope<T>
             {
                 public class Metadata { public string Label { get; init; } = ""; }
@@ -1042,7 +1049,34 @@ public sealed class ConventionBoundaryTests
             .Select(item => item.Properties["Target"]).Should().BeEquivalentTo(
                 "T:Sample.Contract.QA.EntityQueue",
                 "T:Sample.Contract.QA.EntityStream",
+                "T:Sample.Contract.QA.IndirectEntityStream",
                 "P:Sample.Contract.QA.NestedWrapper.Meta");
+    }
+
+    [Fact]
+    public void Internal_Interfaces_And_Public_Type_Arguments_Should_Share_The_Contract_Inspection_Limit()
+    {
+        var markers = Enumerable.Range(0, 4094).Select(index => $"IMarker{index}").ToArray();
+        var facts = ContractFacts($$"""
+            namespace Sample.Contract.QA;
+            {{string.Join("\n", markers.Select(name => $"internal interface {name};"))}}
+            internal interface IGroup : {{string.Join(", ", markers)}};
+            internal interface IAtLimit : IGroup;
+            internal interface IOverLimit : IAtLimit;
+            public interface IPayload<T>;
+            public class AtLimit : IAtLimit;
+            public class OverLimit : IOverLimit;
+            public class CombinedLimit : IGroup, IPayload<string>;
+            public class Envelope { public OverLimit Value { get; init; } = new(); }
+            """);
+
+        ConventionBoundaryAnalysis.Analyze(facts);
+
+        facts.Diagnostics.Where(d => d.Id == "DRNARCHITECTURE001").Select(d => d.Properties["Target"])
+            .Should().BeEquivalentTo(
+                "T:Sample.Contract.QA.OverLimit",
+                "T:Sample.Contract.QA.CombinedLimit",
+                "P:Sample.Contract.QA.Envelope.Value");
     }
 
     [Fact]

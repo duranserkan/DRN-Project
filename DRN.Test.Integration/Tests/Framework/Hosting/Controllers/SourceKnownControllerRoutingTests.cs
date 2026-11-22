@@ -22,7 +22,7 @@ public class SourceKnownControllerRoutingTests
         DrnTestContext context)
     {
         using var harness = CreateRoutingHarness(context, configureRepository: repository => repository.AnyAsync().Returns(true));
-        var client = harness.Client;
+        var client = harness.Http;
         var repository = harness.Repository;
 
         using var anonymous = await client.GetAsync("/source-known-routing/Any");
@@ -61,7 +61,7 @@ public class SourceKnownControllerRoutingTests
     public async Task Bearer_Writes_Should_Require_Policy_And_Resource_Authorization_Without_Antiforgery(DrnTestContext context)
     {
         using var harness = CreateRoutingHarness(context, useHttps: true);
-        var client = harness.Client;
+        var client = harness.Http;
         var repository = harness.Repository;
         await AuthenticateAsync(client);
         var id = Guid.NewGuid();
@@ -108,7 +108,7 @@ public class SourceKnownControllerRoutingTests
                 options.DefaultChallengeScheme = "Browser";
             });
         });
-        var client = harness.Client;
+        var client = harness.Http;
         var repository = harness.Repository;
         harness.Services.GetRequiredService<IOptions<AuthenticationOptions>>().Value.DefaultAuthenticateScheme.Should().Be("Browser");
 
@@ -144,7 +144,7 @@ public class SourceKnownControllerRoutingTests
                 return new PaginationResult<SourceKnownRoutingEntity>(items, request).ToModel();
             });
         });
-        var client = harness.Client;
+        var client = harness.Http;
         await AuthenticateAsync(client);
 
         using var query = await client.GetAsync("/source-known-writes?PageSize.Size=1000&PageSize.MaxSize=1000&TotalCount=500");
@@ -218,15 +218,15 @@ public class SourceKnownControllerRoutingTests
         IDisposable testEnvironment,
         ISourceKnownRepository<SourceKnownRoutingEntity> repository,
         IServiceProvider services,
-        HttpClient client) : IDisposable
+        HttpClient http) : IDisposable
     {
         public ISourceKnownRepository<SourceKnownRoutingEntity> Repository { get; } = repository;
         public IServiceProvider Services { get; } = services;
-        public HttpClient Client { get; } = client;
+        public HttpClient Http { get; } = http;
 
         public void Dispose()
         {
-            Client.Dispose();
+            Http.Dispose();
             testEnvironment.Dispose();
         }
     }

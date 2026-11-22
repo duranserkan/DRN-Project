@@ -929,6 +929,13 @@ public sealed class ConventionDomainOwnershipAndEnumTests
                 {
                     public IAsyncEnumerator<InternalKind> GetAsyncEnumerator(CancellationToken cancellationToken = default) => throw new System.NotImplementedException();
                 }
+                internal interface IIndirectKindStream : IAsyncEnumerable<InternalKind>;
+                public class IndirectKindStream : IIndirectKindStream
+                {
+                    IAsyncEnumerator<InternalKind> IAsyncEnumerable<InternalKind>.GetAsyncEnumerator(CancellationToken cancellationToken) => throw new System.NotImplementedException();
+                }
+                internal interface IInternalOnlyKindMarker<T>;
+                public class InternalOnlyKindMarker : IInternalOnlyKindMarker<InternalKind>;
                 public class Envelope<T> { public class Metadata { public string Label { get; init; } = ""; } }
                 public class NestedKindResponse { public Envelope<InternalKind>.Metadata Meta { get; init; } = new(); }
             }
@@ -944,6 +951,7 @@ public sealed class ConventionDomainOwnershipAndEnumTests
             "T:Sample.Contract.QA.Orders.DerivedKindResponse",
             "T:Sample.Contract.QA.Orders.KindQueue",
             "T:Sample.Contract.QA.Orders.KindStream",
+            "T:Sample.Contract.QA.Orders.IndirectKindStream",
             "P:Sample.Contract.QA.Orders.NestedKindResponse.Meta");
 
         var hosted = Compilation("""

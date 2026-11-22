@@ -17,6 +17,8 @@ internal static class ConventionDtoAnalysis
 
     private readonly record struct DtoPlacement(string Namespace, string? Directory);
     private readonly record struct DtoKey(string Root, string Domain, string Subdomain, bool HasFolderDomain, string Stem);
+    private readonly record struct EndpointCheckContext(ConventionFacts Facts, INamedTypeSymbol Controller,
+        IMethodSymbol Method, ISymbol ReportingSymbol, Location Location, bool IsSourceKnown);
     private readonly record struct ProjectionTarget(IPropertySymbol Property, INamedTypeSymbol TargetReceiver, ITypeSymbol? View, Location Location);
     private readonly record struct ProjectionSource(IPropertySymbol Property, INamedTypeSymbol SourceReceiver, ITypeSymbol? View = null);
     private readonly record struct ProjectionCheckContext(ConventionFacts Facts, INamedTypeSymbol OwnerType,
@@ -184,6 +186,8 @@ internal static class ConventionDtoAnalysis
         var nonAction = facts.Symbols.NonActionAttribute;
         var isSourceKnown = facts.Symbols.IsKnown(controller, facts.Symbols.SourceKnownController, facts.Cancellation);
         var reportedTypeDto = false;
+        HashSet<INamedTypeSymbol>? reportedFrameworkResponses = null;
+        HashSet<INamedTypeSymbol>? reportedFrameworkRequests = null;
         foreach (var member in ConventionBoundaryAnalysis.PublicMembers(facts, controller, transport: true))
         {
             facts.Cancellation.ThrowIfCancellationRequested();
@@ -207,23 +211,36 @@ internal static class ConventionDtoAnalysis
                 }
             }
 
-            CheckEndpointExplicitResponse(facts, controller, method, reportingSymbol, location, isSourceKnown);
-            CheckEndpointExplicitRequests(facts, method, reportingSymbol, location, isSourceKnown);
+            var context = new EndpointCheckContext(facts, controller, method, reportingSymbol, location, isSourceKnown);
+            var inheritsStandardAction = isSourceKnown && reportsOnType &&
+                (ConventionSymbols.Same(method.ContainingType, facts.Symbols.SourceKnownReadOnlyController) ||
+                 ConventionSymbols.Same(method.ContainingType, facts.Symbols.SourceKnownCombinedController));
+            if (inheritsStandardAction)
+            {
+                CheckEndpointExplicitResponse(context, ref reportedFrameworkResponses);
+                CheckEndpointExplicitRequests(context, ref reportedFrameworkRequests);
+            }
+            else
+            {
+                HashSet<INamedTypeSymbol>? reportedResponses = null;
+                HashSet<INamedTypeSymbol>? reportedRequests = null;
+                CheckEndpointExplicitResponse(context, ref reportedResponses);
+                CheckEndpointExplicitRequests(context, ref reportedRequests);
+            }
         }
     }
 
-    private static void CheckEndpointExplicitResponse(ConventionFacts facts, INamedTypeSymbol controller, IMethodSymbol method,
-        ISymbol reportingSymbol, Location location, bool isSourceKnown)
+    private static void CheckEndpointExplicitResponse(EndpointCheckContext context, ref HashSet<INamedTypeSymbol>? reported)
     {
-        HashSet<INamedTypeSymbol>? reported = null;
-        CheckExplicitResponseType(facts, method, reportingSymbol, location, isSourceKnown, method.ReturnType, ref reported);
-        foreach (var responseType in ConventionBoundaryAnalysis.ProducesResponseTypes(facts, controller, method))
-            CheckExplicitResponseType(facts, method, reportingSymbol, location, isSourceKnown, responseType, ref reported);
+        CheckExplicitResponseType(context, context.Method.ReturnType, ref reported);
+        foreach (var responseType in ConventionBoundaryAnalysis.ProducesResponseTypes(context.Facts, context.Controller, context.Method))
+            CheckExplicitResponseType(context, responseType, ref reported);
     }
 
-    private static void CheckExplicitResponseType(ConventionFacts facts, IMethodSymbol method, ISymbol reportingSymbol,
-        Location location, bool isSourceKnown, ITypeSymbol responseType, ref HashSet<INamedTypeSymbol>? reported)
+    private static void CheckExplicitResponseType(EndpointCheckContext context, ITypeSymbol responseType,
+        ref HashSet<INamedTypeSymbol>? reported)
     {
+        var facts = context.Facts;
         var payload = UnwrapResponsePayload(facts, responseType);
         if (payload is null || IsExemptResponseType(facts, payload)) return;
         if (facts.Symbols.IsKnown(payload, facts.Symbols.Dto, facts.Cancellation)) return;
@@ -231,21 +248,20 @@ internal static class ConventionDtoAnalysis
             payload.Name.EndsWith(ResponseSuffix, StringComparison.Ordinal) &&
             payload.Name.Length > ResponseSuffix.Length;
         if (isContractResponse) return;
-        if (RequiresExplicitContractMessage(facts, payload, isSourceKnown))
+        if (RequiresExplicitContractMessage(facts, payload, context.IsSourceKnown))
         {
             reported ??= new(SymbolEqualityComparer.Default);
             if (!reported.Add(payload)) return;
-            facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.ExplicitContractMessage, location,
-                ConventionBoundaryAnalysis.Properties(reportingSymbol, payload),
-                method.ToDisplayString(), ResponseSuffix, payload.ToDisplayString()));
+            facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.ExplicitContractMessage, context.Location,
+                ConventionBoundaryAnalysis.Properties(context.ReportingSymbol, payload),
+                context.Method.ToDisplayString(), ResponseSuffix, payload.ToDisplayString()));
         }
     }
 
-    private static void CheckEndpointExplicitRequests(ConventionFacts facts, IMethodSymbol method, ISymbol reportingSymbol,
-        Location location, bool isSourceKnown)
+    private static void CheckEndpointExplicitRequests(EndpointCheckContext context, ref HashSet<INamedTypeSymbol>? reported)
     {
-        HashSet<INamedTypeSymbol>? reported = null;
-        foreach (var parameter in method.Parameters)
+        var facts = context.Facts;
+        foreach (var parameter in context.Method.Parameters)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
             if (IsExemptRequestParameter(facts, parameter)) continue;
@@ -256,13 +272,13 @@ internal static class ConventionDtoAnalysis
                 payload.Name.EndsWith(RequestSuffix, StringComparison.Ordinal) &&
                 payload.Name.Length > RequestSuffix.Length;
             if (isContractRequest) continue;
-            if (RequiresExplicitContractMessage(facts, payload, isSourceKnown))
+            if (RequiresExplicitContractMessage(facts, payload, context.IsSourceKnown))
             {
                 reported ??= new(SymbolEqualityComparer.Default);
                 if (!reported.Add(payload)) continue;
-                facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.ExplicitContractMessage, location,
-                    ConventionBoundaryAnalysis.Properties(reportingSymbol, payload),
-                    method.ToDisplayString(), RequestSuffix, payload.ToDisplayString()));
+                facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.ExplicitContractMessage, context.Location,
+                    ConventionBoundaryAnalysis.Properties(context.ReportingSymbol, payload),
+                    context.Method.ToDisplayString(), RequestSuffix, payload.ToDisplayString()));
             }
         }
     }
@@ -285,6 +301,7 @@ internal static class ConventionDtoAnalysis
         for (var depth = 0; depth < maxDepth; depth++)
         {
             if (current.TypeKind == TypeKind.Error) return null;
+            if (current is IDynamicTypeSymbol) return DynamicAsObject(facts);
             if (current is IArrayTypeSymbol array)
             {
                 current = array.ElementType;
@@ -309,8 +326,16 @@ internal static class ConventionDtoAnalysis
             }
             return named;
         }
-        return current is INamedTypeSymbol { TypeKind: not TypeKind.Error } result ? result : null;
+        return current switch
+        {
+            IDynamicTypeSymbol => DynamicAsObject(facts),
+            INamedTypeSymbol { TypeKind: not TypeKind.Error } result => result,
+            _ => null
+        };
     }
+
+    private static INamedTypeSymbol? DynamicAsObject(ConventionFacts facts) =>
+        facts.Compilation.GetSpecialType(SpecialType.System_Object) is { TypeKind: not TypeKind.Error } obj ? obj : null;
 
     private static bool IsCollectionWrapper(ConventionFacts facts, INamedTypeSymbol named)
     {
@@ -385,9 +410,8 @@ internal static class ConventionDtoAnalysis
 
     private static INamedTypeSymbol? FindExposedDtoType(ConventionFacts facts, INamedTypeSymbol ownerType, ISymbol member,
         bool transport, out bool exhausted) =>
-        ConventionBoundaryAnalysis.FindExposedType(facts, PublicShapeRule.Dto,
-            ConventionBoundaryAnalysis.ExposureRootTypes(facts, ownerType, member, transport),
-            IsDtoType, ShouldExpandForDtoExposure, ConventionBoundaryAnalysis.HasPublicAccessor, out exhausted);
+        ConventionBoundaryAnalysis.FindExposedType(facts, DtoExposurePolicy,
+            ConventionBoundaryAnalysis.ExposureRootTypes(facts, ownerType, member, transport), out exhausted);
 
     private static bool IsDtoType(ConventionFacts facts, INamedTypeSymbol named) =>
         facts.Symbols.IsKnown(named, facts.Symbols.Dto, facts.Cancellation);

@@ -116,7 +116,7 @@ internal static class ConventionGenerationPreflight
             parsed.HasExplicitRootNamespace && !CodeFixSymbolFacts.ValidNamespace(parsed.RootNamespace))
             return new(new("", "", false, false), "", false, hasRoleOverrides, metadata);
         return new(ParseLayout(parsed.ProjectName, parsed.DomainLayout, parsed.Domain),
-            parsed.RootNamespace, parsed.HasExplicitRootNamespace, hasRoleOverrides: false, metadata);
+            parsed.RootNamespace, parsed.HasExplicitRootNamespace, HasRoleOverrides: false, metadata);
     }
 
     private static ProjectLayout ParseLayout(string projectName, string rawLayout, string rawDomain)

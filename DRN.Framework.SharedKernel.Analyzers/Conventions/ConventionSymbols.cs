@@ -31,6 +31,8 @@ internal sealed class ConventionSymbols(Compilation compilation)
     internal INamedTypeSymbol? AppId { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.IAppId");
     internal INamedTypeSymbol? Controller { get; } = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.ControllerBase");
     internal INamedTypeSymbol? SourceKnownController { get; } = compilation.GetTypeByMetadataName("DRN.Framework.Hosting.Controllers.SourceKnownControllerBase`2");
+    internal INamedTypeSymbol? SourceKnownReadOnlyController { get; } = compilation.GetTypeByMetadataName("DRN.Framework.Hosting.Controllers.SourceKnownReadOnlyController`2");
+    internal INamedTypeSymbol? SourceKnownCombinedController { get; } = compilation.GetTypeByMetadataName("DRN.Framework.Hosting.Controllers.SourceKnownController`3");
     internal INamedTypeSymbol? NonActionAttribute { get; } = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.NonActionAttribute");
     internal INamedTypeSymbol? NonControllerAttribute { get; } = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.NonControllerAttribute");
     internal INamedTypeSymbol? ProducesResponseTypeAttribute { get; } = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.ProducesResponseTypeAttribute");

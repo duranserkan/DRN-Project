@@ -811,6 +811,10 @@ public class ReadOnlyTagController(ITagService service)
 
 `[NonAction]` prevents HTTP invocation, not direct C# calls. `[ApiExplorerSettings(IgnoreApi = true)]` only hides documentation and does not disable routing. A public override cannot be changed to `internal`. When using DRN typed endpoint accessors, omit `ApiEndpoint` properties for disabled actions so startup validation does not look for missing routes.
 
+Derive directly from `SourceKnownControllerBase<TEntity, TResponse>` to start with zero inherited HTTP actions. It provides the protected `Repository`, `PrepareRepository`, `CreateResponseAsync`, and `CreateResponsesAsync` members. MVC can discover a public method on your controller even when it has no `[Http*]` attribute. A controller-level `[Route]` can make that method reachable. Keep helpers private or protected, move them to the backing service, or mark public helpers with `[NonAction]`.
+
+When most of the standard actions fit, use a read-only, combined, or write-only controller and disable individual actions with `[NonAction]` overrides, as in the Sample application's `CategoryController`.
+
 ### Opt in to writes
 
 Derive from `SourceKnownController<TEntity, TResponse, TCreateRequest>` to combine reads and writes, or `SourceKnownWriteOnlyController<TEntity, TResponse, TCreateRequest>` for mutation endpoints alone. Both accept `ISourceKnownService<TEntity, TResponse, TCreateRequest>` and provide virtual `CreateEntityAsync`, `CreateResponseAsync`, and `CreateResponsesAsync` hooks delegating to the backing service. Implement entity creation, domain validation, and response projection in the service (override `CreateResponsesAsync` on the service to batch asynchronous enrichment for collections and pagination). Override `CreateEntityAsync`, `CreateResponseAsync`, and `CreateResponsesAsync` on the controller only when transport-specific orchestration or shaping is required (if overriding `CreateResponseAsync` on a controller that exposes collection or pagination reads, override `CreateResponsesAsync` too).

@@ -139,7 +139,16 @@ public class TagControllerTests
         using var scope = context.CreateScope();
         var actions = scope.ServiceProvider.GetRequiredService<IActionDescriptorCollectionProvider>().ActionDescriptors.Items
             .OfType<ControllerActionDescriptor>()
-            .Where(action => action.ControllerTypeInfo.AsType() == typeof(TagController));
-        actions.Should().NotContain(action => action.MethodInfo.Name == nameof(TagController.GetManyAsync));
+            .Where(action => action.ControllerTypeInfo.AsType() == typeof(TagController))
+            .Select(action => action.MethodInfo.Name)
+            .ToArray();
+        actions.Should().BeEquivalentTo(
+            nameof(TagController.GetAsync),
+            nameof(TagController.PaginateAsync),
+            nameof(TagController.PaginateWithOptionsAsync),
+            nameof(TagController.PaginateWithBodyAsync),
+            nameof(TagController.PostAsync),
+            nameof(TagController.DeleteAsync));
+        actions.Should().NotContain([nameof(TagController.GetManyAsync), nameof(TagController.AnyAsync), nameof(TagController.CountAsync)]);
     }
 }
