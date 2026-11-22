@@ -127,6 +127,22 @@ internal static class ConventionNames
     internal static string EntityStem(string name) =>
         name.Length > "Entity".Length && name.EndsWith("Entity", StringComparison.Ordinal) ? name[..^"Entity".Length] : name;
 
+    internal static string MetadataName(INamedTypeSymbol type)
+    {
+        var typeParts = new Stack<string>();
+        INamespaceSymbol? outermostNamespace = null;
+        for (var current = type; current is not null; current = current.ContainingType)
+        {
+            typeParts.Push(current.MetadataName);
+            if (current.ContainingType is null) outermostNamespace = current.ContainingNamespace;
+        }
+        var namespaceParts = new Stack<string>();
+        for (var ns = outermostNamespace; ns is { IsGlobalNamespace: false }; ns = ns.ContainingNamespace)
+            namespaceParts.Push(ns.MetadataName);
+        var qualifiedType = string.Join("+", typeParts);
+        return namespaceParts.Count == 0 ? qualifiedType : string.Join(".", namespaceParts) + "." + qualifiedType;
+    }
+
     internal static bool SameOwner(string leftDomain, string leftSubdomain, string rightDomain, string rightSubdomain) =>
         string.Equals(leftDomain, rightDomain, StringComparison.Ordinal) &&
         string.Equals(leftSubdomain, rightSubdomain, StringComparison.Ordinal);

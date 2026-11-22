@@ -5,6 +5,17 @@ namespace DRN.Test.Analyzer.Tests;
 
 public sealed class ConventionDtoTests
 {
+    private static readonly Lazy<MetadataReference> SharedUserDtoContract = new(() =>
+    {
+        var contract = Compilation("""
+            using DRN.Framework.SharedKernel.Domain;
+            namespace Shared.Contract.QA.Users;
+            public class UserDto(SourceKnownEntity? entity = null) : Dto(entity);
+            """).WithAssemblyName("Shared.Contract");
+        contract.AssertNoCompilerErrors();
+        return AnalyzerTestCompilation.EmitReference(contract, "/shared-dto/Shared.Contract.dll", AnalyzerTestCompilation.ReferenceAssemblyOptions);
+    });
+
     [Theory]
     [DataInline("", "", "=> new(this);", "")]
     [DataInline("[Personal]", "Display", "=> new(this) { Display = Name };", "")]
@@ -84,18 +95,13 @@ public sealed class ConventionDtoTests
     [DataInlineUnit("public new UserDto ToDto() => new(this);")]
     public void Mapper_Should_Be_A_Public_Parameterless_Typed_Instance_Override(string method)
     {
-        var contract = Compilation("""
-            using DRN.Framework.SharedKernel.Domain;
-            namespace Shared.Contract.QA.Users;
-            public class UserDto(SourceKnownEntity? entity = null) : Dto(entity);
-            """).WithAssemblyName("Shared.Contract");
         var domain = Compilation($$"""
             using DRN.Framework.SharedKernel.Domain;
             using Shared.Contract.QA.Users;
             namespace Shop.Domain.QA.User;
             public abstract class UserBase : SourceKnownEntity { public override Dto ToDto() => new(this); }
             public class UserEntity : UserBase { {{method}} }
-            """).WithAssemblyName("Shop.Domain").AddReferences(contract.ToMetadataReference());
+            """).WithAssemblyName("Shop.Domain").AddReferences(SharedUserDtoContract.Value);
         domain.AssertNoCompilerErrors();
         Analyze(domain, "Domain").Should().ContainSingle().Which.Id.Should().Be("DRNDTO001");
     }
@@ -1255,21 +1261,6 @@ public sealed class ConventionDtoTests
     }
 
     [Fact]
-    public void Hiding_ToDto_With_New_Instead_Of_Override_Should_Report_DRNDTO001()
-    {
-        var diagnostics = Project(
-            "public class UserDto(SourceKnownEntity? e = null) : Dto(e);",
-            """
-            public abstract class UserBase : SourceKnownEntity { public override Dto ToDto() => new(this); }
-            public class UserEntity : UserBase
-            {
-                public new UserDto ToDto() => new(this);
-            }
-            """);
-        diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNDTO001");
-    }
-
-    [Fact]
     public void Dto_Exposure_Should_Inspect_WriteOnly_Properties_And_Report_DRNARCHITECTURE001_On_Budget_Overflow()
     {
         var wideTree = AnalyzerTestCompilation.WideModelTree("Sample.Contract.QA.Orders");
@@ -1680,12 +1671,284 @@ public sealed class ConventionDtoTests
         hosted.AssertNoCompilerErrors();
 
         var diagnostics = Analyze(hosted, "Hosted").Where(d => d.Id == "DRNDTO003").ToArray();
-        diagnostics.Select(d => d.GetMessage()).Should().BeEquivalentTo(
-            "Projected property 'Email' requires [Personal] from mapped property 'Email'.",
-            "Projected property 'Token' requires [Sensitive] from mapped property 'Token'.",
-            "Projected property 'Email' requires [Personal] from mapped property 'Email'.",
-            "Projected property 'Token' requires [Sensitive] from mapped property 'Token'.",
-            "Projected property 'Email' requires [Personal] from mapped property 'Email'.");
+        diagnostics.Select(d => (
+            Line: d.Location.SourceTree!.GetText().Lines[d.Location.GetLineSpan().StartLinePosition.Line].ToString().Trim(),
+            Span: AnalyzerTestCompilation.LocationText(d),
+            Message: d.GetMessage())).Should().BeEquivalentTo(new[]
+        {
+            ("public UserResponse Unclassified(UserResponse existing, UserEntity entity) => existing with { Email = entity.Email };",
+                "Email = entity.Email",
+                "Projected property 'Email' requires [Personal] from mapped property 'Email'."),
+            ("public UserResponse FromDto(UserResponse existing, UserDto dto) => existing with { Token = dto.Token };",
+                "Token = dto.Token",
+                "Projected property 'Token' requires [Sensitive] from mapped property 'Token'."),
+            ("existing with { Email = entity.Email } with { Token = dto.Token };",
+                "Email = entity.Email",
+                "Projected property 'Email' requires [Personal] from mapped property 'Email'."),
+            ("existing with { Email = entity.Email } with { Token = dto.Token };",
+                "Token = dto.Token",
+                "Projected property 'Token' requires [Sensitive] from mapped property 'Token'."),
+            ("new WrapperResponse { Inner = existing with { Email = entity.Email } };",
+                "Email = entity.Email",
+                "Projected property 'Email' requires [Personal] from mapped property 'Email'.")
+        });
+    }
+
+    [Fact]
+    public void Folders_Layout_Should_Enforce_DRNDTO001_DRNDTO002_And_DRNDTO004()
+    {
+        var contract = Compilation("""
+            using DRN.Framework.SharedKernel.Domain;
+            namespace Sample.Contract.QA.Common.Orders
+            {
+                public class OrderDto(SourceKnownEntity? entity = null) : Dto(entity);
+                public record OrderResponse;
+            }
+            """, "QA/Common/Orders/OrderDto.cs")
+            .AddSyntaxTrees(
+                CSharpSyntaxTree.ParseText("using DRN.Framework.SharedKernel.Domain; namespace Sample.Contract.QA.Orders; public class MissingSubdomainDto(SourceKnownEntity? entity = null) : Dto(entity);", path: "QA/Orders/MissingSubdomainDto.cs"),
+                CSharpSyntaxTree.ParseText("namespace Sample.Contract.QA.Common; public record OrderRequest;", path: "QA/Common/OrderRequest.cs"))
+            .WithAssemblyName("Sample.Contract");
+        contract.AssertNoCompilerErrors();
+        var contractDiagnostics = AnalyzeFolders(contract, "Contract",
+            PathInput("QA/Common/Orders/OrderDto.cs", "QA/Common/Orders/OrderDto.cs"),
+            PathInput("QA/Orders/MissingSubdomainDto.cs", "QA/Orders/MissingSubdomainDto.cs"),
+            PathInput("QA/Common/OrderRequest.cs", "QA/Common/OrderRequest.cs"));
+        contractDiagnostics.Select(d => (d.Id, d.Properties["Target"])).Should().BeEquivalentTo(new (string, string?)[]
+        {
+            ("DRNDTO002", "T:Sample.Contract.QA.Orders.MissingSubdomainDto"),
+            ("DRNDTO004", "T:Sample.Contract.QA.Common.OrderRequest")
+        });
+
+        var contractRef = AnalyzerTestCompilation.EmitReference(contract, "/folders-dto/Sample.Contract.dll", AnalyzerTestCompilation.ReferenceAssemblyOptions);
+        var domain = Compilation("""
+            using DRN.Framework.SharedKernel.Domain;
+            using Sample.Contract.QA.Common.Orders;
+            namespace Sample.Domain.QA.Common.Order
+            {
+                public class OrderEntity : AggregateRoot { public override OrderDto ToDto() => new(this); }
+            }
+            namespace Sample.Domain.Billing.Common.Order
+            {
+                public class OrderEntity : AggregateRoot { public override OrderDto ToDto() => new(this); }
+            }
+            """).WithAssemblyName("Sample.Domain").AddReferences(contractRef);
+        domain.AssertNoCompilerErrors();
+        var domainDiagnostics = AnalyzeFolders(domain, "Domain");
+        domainDiagnostics.Where(d => d.Id == "DRNDTO001").Should().ContainSingle()
+            .Which.Properties["Target"].Should().Be("T:Sample.Domain.Billing.Common.Order.OrderEntity");
+    }
+
+    [Fact]
+    public void Unresolved_Error_Types_Should_Degrade_Cleanly_Without_Crashes_Or_False_DRNDTO006()
+    {
+        var hosted = Compilation("""
+            using System.Threading.Tasks;
+            using Microsoft.AspNetCore.Mvc;
+            namespace Sample.Hosted.Controllers.QA
+            {
+                public class BrokenController : ControllerBase
+                {
+                    [HttpGet("missing-return")] public Task<MissingResponse> GetMissing() => default!;
+                    [HttpGet("missing-meta"), ProducesResponseType(typeof(MissingResponse), 200)] public IActionResult GetMeta() => Ok();
+                    [HttpPost("missing-param")] public IActionResult Create([FromBody] MissingRequest request) => Ok();
+                    public MissingResponse MapMissing(MissingEntity entity) => new() { Name = entity.Name };
+                }
+            }
+            """).WithAssemblyName("Sample.Hosted");
+        var options = AnalyzerTestCompilation.ConventionOptionsProvider("Sample.Hosted");
+        var facts = new ConventionFacts(hosted, new(true, "Sample.Hosted", "Hosted", "Sample.Hosted", "Sample.Hosted", []),
+            new([], []), options, CancellationToken.None);
+        ConventionBoundaryAnalysis.Analyze(facts);
+        ConventionDtoAnalysis.Analyze(facts);
+        ConventionEnumAnalysis.Analyze(facts);
+        facts.Diagnostics.Should().NotContain(d => d.Id == "DRNDTO006" || d.Id == "AD0001");
+    }
+
+    [Fact]
+    public void Dto_Exposure_Should_Cover_Generics_Request_Params_Domain_Infra_Wrappers_And_Allow_Nested_Dto()
+    {
+        var contractRef = EmitProjectReference("Sample.Contract", "/dto-m1-m3/Sample.Contract.dll", """
+            using System.Collections.Generic;
+            using System.Threading;
+            using DRN.Framework.SharedKernel.Domain;
+            namespace Sample.Contract.QA.Orders
+            {
+                public class ChildDto(SourceKnownEntity? entity = null) : Dto(entity);
+                public class OrderDto(SourceKnownEntity? entity = null) : Dto(entity)
+                {
+                    public ChildDto Child { get; init; } = new();
+                }
+                public class OrderQueue : Queue<OrderDto>;
+                public class OrderStream : IAsyncEnumerable<OrderDto>
+                {
+                    public IAsyncEnumerator<OrderDto> GetAsyncEnumerator(CancellationToken cancellationToken = default) => throw new System.NotImplementedException();
+                }
+                public class Envelope<T> { public class Metadata { public string Label { get; init; } = ""; } }
+                public class NestedDtoResponse { public Envelope<OrderDto>.Metadata Meta { get; init; } = new(); }
+                public class OrderResponse { public string Name { get; init; } = ""; }
+            }
+            """);
+        var contract = Compilation("""
+            using System.Collections.Generic;
+            using System.Threading;
+            using DRN.Framework.SharedKernel.Domain;
+            namespace Sample.Contract.QA.Orders
+            {
+                public class ChildDto(SourceKnownEntity? entity = null) : Dto(entity);
+                public class OrderDto(SourceKnownEntity? entity = null) : Dto(entity)
+                {
+                    public ChildDto Child { get; init; } = new();
+                }
+                public class OrderQueue : Queue<OrderDto>;
+                public class OrderStream : IAsyncEnumerable<OrderDto>
+                {
+                    public IAsyncEnumerator<OrderDto> GetAsyncEnumerator(CancellationToken cancellationToken = default) => throw new System.NotImplementedException();
+                }
+                public class Envelope<T> { public class Metadata { public string Label { get; init; } = ""; } }
+                public class NestedDtoResponse { public Envelope<OrderDto>.Metadata Meta { get; init; } = new(); }
+            }
+            """).WithAssemblyName("Sample.Contract");
+        contract.AssertNoCompilerErrors();
+        Analyze(contract, "Contract").Where(d => d.Id == "DRNDTO005").Select(d => d.Properties["Target"]).Should().BeEquivalentTo(
+            "T:Sample.Contract.QA.Orders.OrderQueue",
+            "T:Sample.Contract.QA.Orders.OrderStream",
+            "P:Sample.Contract.QA.Orders.NestedDtoResponse.Meta");
+
+        var domainRef = EmitProjectReference("Sample.Domain", "/dto-m1-m3/Sample.Domain.dll", """
+            using Sample.Contract.QA.Orders;
+            namespace Sample.Domain.QA.Order
+            {
+                public class DomainDtoWrapper { public OrderDto Item { get; init; } = new(); }
+            }
+            """, contractRef);
+        var infraRef = EmitProjectReference("Sample.Infra", "/dto-m1-m3/Sample.Infra.dll", """
+            using Sample.Contract.QA.Orders;
+            namespace Sample.Infra.QA
+            {
+                public class InfraDtoWrapper { public OrderDto Item { get; init; } = new(); }
+            }
+            """, contractRef);
+        var hosted = Compilation("""
+            using Microsoft.AspNetCore.Mvc;
+            using Sample.Contract.QA.Orders;
+            using Sample.Domain.QA.Order;
+            using Sample.Infra.QA;
+            namespace Sample.Hosted.Controllers.QA
+            {
+                public class OrdersController : ControllerBase
+                {
+                    [HttpPost("param")] public OrderResponse FromDtoParam([FromBody] OrderDto dto) => new();
+                    [HttpGet("domain-wrap")] public DomainDtoWrapper FromDomainWrap() => new();
+                    [HttpGet("infra-wrap")] public InfraDtoWrapper FromInfraWrap() => new();
+                }
+            }
+            """).WithAssemblyName("Sample.Hosted").AddReferences(contractRef, domainRef, infraRef);
+        hosted.AssertNoCompilerErrors();
+        Analyze(hosted, "Hosted").Where(d => d.Id == "DRNDTO005").Select(d => d.Properties["Target"]).Should().BeEquivalentTo(
+            "M:Sample.Hosted.Controllers.QA.OrdersController.FromDtoParam(Sample.Contract.QA.Orders.OrderDto)",
+            "M:Sample.Hosted.Controllers.QA.OrdersController.FromDomainWrap",
+            "M:Sample.Hosted.Controllers.QA.OrdersController.FromInfraWrap");
+    }
+
+    [Fact]
+    public void Explicit_Contract_Messages_Should_Unwrap_Collections_And_Reject_Object_And_Wrapped_NonResponses()
+    {
+        var contractRef = EmitProjectReference("Sample.Contract", "/dto-m2/Sample.Contract.dll", """
+            namespace Sample.Contract.QA.Orders
+            {
+                public class OrderResponse { public string Name { get; init; } = ""; }
+                public class OrderView { public string Name { get; init; } = ""; }
+            }
+            """);
+        var hosted = Compilation("""
+            using System.Collections.Generic;
+            using System.Collections.Immutable;
+            using System.Collections.ObjectModel;
+            using System.Threading.Tasks;
+            using Microsoft.AspNetCore.Mvc;
+            using Sample.Contract.QA.Orders;
+            namespace Sample.Hosted.Controllers.QA
+            {
+                public class OrdersController : ControllerBase
+                {
+                    [HttpGet("async")] public IAsyncEnumerable<OrderResponse> StreamOk() => null!;
+                    [HttpGet("imm-array")] public ImmutableArray<OrderResponse> ImmutableArrayOk() => default;
+                    [HttpGet("imm-list")] public ImmutableList<OrderResponse> ImmutableListOk() => null!;
+                    [HttpGet("set")] public ISet<OrderResponse> SetOk() => null!;
+                    [HttpGet("ro-set")] public IReadOnlySet<OrderResponse> ReadOnlySetOk() => null!;
+                    [HttpGet("hashset")] public HashSet<OrderResponse> HashSetOk() => null!;
+                    [HttpGet("collection")] public Collection<OrderResponse> CollectionOk() => null!;
+                    [HttpGet("ro-collection")] public ReadOnlyCollection<OrderResponse> ReadOnlyCollectionOk() => null!;
+                    [HttpGet("bad-object")] public ActionResult<object> BadObjectReturn() => null!;
+                    [HttpPost("bad-object-body")] public OrderResponse BadObjectBody([FromBody] object payload) => new();
+                    [HttpGet("bad-stream")] public IAsyncEnumerable<OrderView> BadStream() => null!;
+                    [HttpGet("bad-list")] public List<OrderView> BadList() => null!;
+                    [HttpGet("bad-array")] public OrderView[] BadArray() => [];
+                }
+            }
+            """).WithAssemblyName("Sample.Hosted").AddReferences(contractRef);
+        hosted.AssertNoCompilerErrors();
+        var diagnostics = Analyze(hosted, "Hosted").Where(d => d.Id == "DRNDTO006").ToArray();
+        diagnostics.Select(d => d.Properties["Target"]).Should().BeEquivalentTo(
+            "M:Sample.Hosted.Controllers.QA.OrdersController.BadObjectReturn",
+            "M:Sample.Hosted.Controllers.QA.OrdersController.BadObjectBody(System.Object)",
+            "M:Sample.Hosted.Controllers.QA.OrdersController.BadStream",
+            "M:Sample.Hosted.Controllers.QA.OrdersController.BadList",
+            "M:Sample.Hosted.Controllers.QA.OrdersController.BadArray");
+    }
+
+    [Fact]
+    public void Response_Projections_In_Infra_And_Through_Linq_Extension_Chains_Should_Report_DRNDTO003()
+    {
+        var contract = Compilation("""
+            using DRN.Framework.SharedKernel.Domain;
+            namespace Sample.Contract.QA.Users
+            {
+                public class UserDto(SourceKnownEntity? e = null) : Dto(e);
+                public class UserResponse { public string Email { get; init; } = ""; }
+            }
+            """).WithAssemblyName("Sample.Contract");
+        contract.AssertNoCompilerErrors();
+        var contractRef = AnalyzerTestCompilation.EmitReference(contract, "/dto-m4/Sample.Contract.dll", AnalyzerTestCompilation.ReferenceAssemblyOptions);
+
+        var domain = Compilation("""
+            using System.Collections.Generic;
+            using DRN.Framework.SharedKernel.Attributes;
+            using DRN.Framework.SharedKernel.Domain;
+            using Sample.Contract.QA.Users;
+            namespace Sample.Domain.QA.User
+            {
+                public class ContactModel { [Personal] public string Email { get; init; } = ""; }
+                public class UserEntity : AggregateRoot
+                {
+                    [Personal] public string Email { get; init; } = "";
+                    public List<ContactModel> Contacts { get; init; } = [];
+                    public override UserDto ToDto() => new(this);
+                }
+            }
+            """).WithAssemblyName("Sample.Domain").AddReferences(contractRef);
+        domain.AssertNoCompilerErrors();
+        var domainRef = AnalyzerTestCompilation.EmitReference(domain, "/dto-m4/Sample.Domain.dll", AnalyzerTestCompilation.ReferenceAssemblyOptions);
+
+        var infra = Compilation("""
+            using System.Linq;
+            using Sample.Contract.QA.Users;
+            using Sample.Domain.QA.User;
+            namespace Sample.Infra.QA
+            {
+                public class UserProjection
+                {
+                    public UserResponse Direct(UserEntity entity) => new() { Email = entity.Email };
+                    public UserResponse FirstContact(UserEntity entity) => new() { Email = entity.Contacts.First().Email };
+                }
+            }
+            """).WithAssemblyName("Sample.Infra").AddReferences(contractRef, domainRef);
+        infra.AssertNoCompilerErrors();
+        var diagnostics = Analyze(infra, "Infra").Where(d => d.Id == "DRNDTO003").ToArray();
+        diagnostics.Select(d => AnalyzerTestCompilation.LocationText(d)).Should().BeEquivalentTo(
+            "Email = entity.Email",
+            "Email = entity.Contacts.First().Email");
     }
 
     private static List<Diagnostic> Project(string contractTypes, string domainTypes, string area = "QA.Users")
@@ -1719,7 +1982,7 @@ public sealed class ConventionDtoTests
         var compilation = Compilation(source).AddSyntaxTrees(metadata)
             .WithAssemblyName(assemblyName).AddReferences(extraReferences);
         compilation.AssertNoCompilerErrors();
-        return AnalyzerTestCompilation.EmitReference(compilation, path);
+        return AnalyzerTestCompilation.EmitReference(compilation, path, AnalyzerTestCompilation.ReferenceAssemblyOptions);
     }
 
     private static ConventionInput PathInput(string source, string logical) => new("Path", source,
@@ -1731,6 +1994,16 @@ public sealed class ConventionDtoTests
         var options = AnalyzerTestCompilation.ConventionOptionsProvider(name);
         var facts = new ConventionFacts(compilation, new(true, name, role, name, name, []),
             new([.. inputs], []), options, CancellationToken.None);
+        ConventionDtoAnalysis.Analyze(facts);
+        return facts.Diagnostics;
+    }
+
+    private static List<Diagnostic> AnalyzeFolders(Compilation compilation, string role, params ConventionInput[] inputs)
+    {
+        var name = compilation.AssemblyName!;
+        var options = AnalyzerTestCompilation.ConventionOptionsWithProperties(name, ("DrnDomainLayout", "Folders"));
+        var project = ConventionProject.Read(compilation, options.GlobalOptions);
+        var facts = new ConventionFacts(compilation, project, new([.. inputs], []), options, CancellationToken.None);
         ConventionDtoAnalysis.Analyze(facts);
         return facts.Diagnostics;
     }

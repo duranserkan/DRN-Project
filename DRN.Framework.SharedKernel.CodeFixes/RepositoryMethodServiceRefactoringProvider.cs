@@ -1,3 +1,4 @@
+using DRN.Framework.SharedKernel.Analyzers.Conventions;
 using Microsoft.CodeAnalysis.CodeRefactorings;
 using static DRN.Framework.SharedKernel.CodeFixes.CodeFixDestinationGuard;
 using static DRN.Framework.SharedKernel.CodeFixes.CodeFixSymbolFacts;
@@ -17,16 +18,22 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
     public override async Task ComputeRefactoringsAsync(CodeRefactoringContext context)
     {
         var snapshot = context.Document.Project.Solution;
-        if (context.Span.IsEmpty || !snapshot.Workspace.CanApplyChange(ApplyChangesKind.AddDocument) ||
-            ConventionGenerationPreflight.Identity(context.Document.Project).Role != "Domain") return;
+        if (context.Span.IsEmpty || !snapshot.Workspace.CanApplyChange(ApplyChangesKind.AddDocument)) return;
+        var domainInfo = ConventionGenerationPreflight.ReadProject(context.Document.Project);
+        if (domainInfo.Role != "Domain" || !domainInfo.Layout.Valid) return;
         var selected = await Select(context.Document, context.Span, context.CancellationToken);
         if (selected is null) return;
+        var domainPreflight = await ResolveDomainPreflightAsync(context.Document.Project, domainInfo, selected, context.CancellationToken);
+        if (domainPreflight is null) return;
         foreach (var target in snapshot.Projects)
         {
+            context.CancellationToken.ThrowIfCancellationRequested();
+            var targetBase = await ResolveTargetPlanBaseAsync(domainPreflight, selected, target, context.CancellationToken);
+            if (targetBase is null) continue;
             foreach (var scoped in ScopedOptions)
             {
-                var plan = await Plan(context.Document.Project, selected, target, scoped, context.CancellationToken);
-                if (plan is null) continue;
+                if (scoped && !targetBase.SupportsScoped) continue;
+                var plan = RenderForwardingService(selected, targetBase, scoped);
                 if (!ReferenceEquals(snapshot.Workspace.CurrentSolution, snapshot)) return;
                 context.RegisterRefactoring(CodeAction.Create(
                     "Add " + (scoped ? "scoped" : "unregistered") + " forwarding service: " + target.Name + " / " + plan.RelativePath +
@@ -45,8 +52,12 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
         var target = snapshot.GetProject(targetId);
         var selected = await Select(document, span, token);
         if (target is null || selected is null) return snapshot.Workspace.CurrentSolution;
-        var plan = await Plan(document.Project, selected, target, scoped, token);
-        if (plan is null || plan != expected) return snapshot.Workspace.CurrentSolution;
+        var domainInfo = ConventionGenerationPreflight.ReadProject(document.Project);
+        var domainPreflight = await ResolveDomainPreflightAsync(document.Project, domainInfo, selected, token);
+        var targetBase = domainPreflight is null ? null : await ResolveTargetPlanBaseAsync(domainPreflight, selected, target, token);
+        if (targetBase is null || scoped && !targetBase.SupportsScoped) return snapshot.Workspace.CurrentSolution;
+        var plan = RenderForwardingService(selected, targetBase, scoped);
+        if (plan != expected) return snapshot.Workspace.CurrentSolution;
         token.ThrowIfCancellationRequested();
         if (!ReferenceEquals(snapshot.Workspace.CurrentSolution, snapshot)) return snapshot.Workspace.CurrentSolution;
         return snapshot.AddDocument(DocumentId.CreateNewId(targetId), plan.Name + ".cs", SourceText.From(plan.Source),
@@ -81,7 +92,6 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
             .Where(method => span.Contains(method.Span)).Take(2).ToArray();
         if (declarations is not [var declaration] || declaration.Body is not null || declaration.ExpressionBody is not null ||
             declaration.ContainsDirectives || declaration.Parent is not InterfaceDeclarationSyntax) return null;
-        if (await HasRoleOverrides(document.Project, token)) return null;
         var root = await ClassificationEdit.FindEditableRoot(document, span.Start, token);
         var model = await document.GetSemanticModelAsync(token);
         if (root is null || model is null || model.GetDeclaredSymbol(declaration, token) is not IMethodSymbol method) return null;
@@ -141,129 +151,121 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
         return !asyncReturn || method.Parameters.Any(parameter => Same(parameter.Type as INamedTypeSymbol, cancellation));
     }
 
-    private static async Task<ServicePlan?> Plan(Project domain, Selection selected, Project application, bool scoped, CancellationToken token)
+    private static async Task<DomainServicePreflight?> ResolveDomainPreflightAsync(Project domain,
+        ConventionGenerationPreflight.ProjectMetadata domainInfo, Selection selected, CancellationToken token)
     {
-        var context = await ResolveServiceContextAsync(domain, application, selected, token);
-        if (context is null) return null;
-        if (!HasMatchingConventionalOwnership(selected, context, token)) return null;
-        var ns = context.ApplicationNamespace + ".Services." + context.Area;
-        if (!ValidNamespace(ns)) return null;
+        if (domainInfo.Role != "Domain" || !domainInfo.Layout.Valid || !ValidNamespace(domainInfo.Namespace)) return null;
+        var domainInputs = await ReadInputsWithoutRoleOverrideAsync(domain, required: false, token);
+        if (domainInputs is null) return null;
+        var source = await domain.GetCompilationAsync(token);
+        if (source is null || !SymbolEqualityComparer.Default.Equals(selected.Method.ContainingType.ContainingAssembly, source.Assembly) ||
+            source.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownService`1") is not { } sourceService)
+            return null;
+        var sourceNamespace = selected.Method.ContainingType.ContainingNamespace.ToDisplayString();
+        if (!ValidNamespace(sourceNamespace) || !sourceNamespace.StartsWith(domainInfo.Namespace + ".", StringComparison.Ordinal))
+            return null;
+        var repoOwner = ResolveNamespaceOwnerKey(selected.Method.ContainingType, domainInfo.Namespace, domainInfo.Layout);
+        var entityOwner = ResolveNamespaceOwnerKey(selected.Entity, domainInfo.Namespace, domainInfo.Layout);
+        if (repoOwner is null || entityOwner is null || !entityOwner.SameOwner(repoOwner)) return null;
+        var entityName = MetadataName(selected.Entity);
+        var repositoryName = MetadataName(selected.Method.ContainingType);
+        if (!AttributesPreserveOwner(selected.Method.ContainingType, repoOwner, source, out var repoAttrExplicit) ||
+            !AttributesPreserveOwner(selected.Entity, entityOwner, source, out var entityAttrExplicit) ||
+            !OwnershipCompatible(domainInputs, entityName, repoOwner.Subdomain, token, out var entityInputExplicit, repoOwner.DomainFilter) ||
+            !OwnershipCompatible(domainInputs, repositoryName, repoOwner.Subdomain, token, out var repoInputExplicit, repoOwner.DomainFilter))
+            return null;
+        var effectiveOwner = repoOwner.WithExplicitDomain(repoAttrExplicit || entityAttrExplicit || entityInputExplicit || repoInputExplicit);
+        var sourceSuffix = sourceNamespace[(domainInfo.Namespace.Length + 1)..];
+        var ownerPrefix = repoOwner.NamespacePrefix;
+        var namespaceTail = sourceSuffix.Length == ownerPrefix.Length ? "" : sourceSuffix[ownerPrefix.Length..];
         var operation = selected.Method.Name.EndsWith("Async", StringComparison.Ordinal) ? selected.Method.Name[..^5] : selected.Method.Name;
-        var name = ConventionGenerationPreflight.EntityStem(context.Entity.Name) + operation + "Service";
-        if (!SyntaxFacts.IsValidIdentifier(name) || name == selected.Method.Name || selected.Method.Name == "_repository" ||
-            ConventionGenerationPreflight.SymbolCollision(context.Compilation, ns, name, token)) return null;
-        var constructed = context.Service.Construct(context.Entity);
-        if (!CanConstructForwardingService(constructed, context.Repository, context.Compilation, selected, scoped, token))
+        var serviceName = ConventionGenerationPreflight.EntityStem(selected.Entity.Name) + operation + "Service";
+        if (!SyntaxFacts.IsValidIdentifier(serviceName) || serviceName == selected.Method.Name || selected.Method.Name == "_repository")
             return null;
-        var root = Path.GetDirectoryName(context.ProjectPath)!;
-        var relative = "Services/" + context.Area.Replace('.', '/') + "/" + name + ".cs";
-        var path = Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar));
-        if (!SafeDocumentDestination(application, root, path, token))
-            return null;
-        return RenderForwardingService(selected, context.Repository, constructed, ns, name, (relative, path), scoped);
+        return new(domain, sourceService, effectiveOwner, entityName, repositoryName, namespaceTail, serviceName);
     }
 
-    private static async Task<ServiceContext?> ResolveServiceContextAsync(Project domain, Project application,
-        Selection selected, CancellationToken token)
+    private static async Task<TargetPlanBase?> ResolveTargetPlanBaseAsync(DomainServicePreflight domain, Selection selected,
+        Project application, CancellationToken token)
     {
-        var domainIdentity = ConventionGenerationPreflight.Identity(domain);
-        var applicationIdentity = ConventionGenerationPreflight.Identity(application);
-        var domainLayout = ConventionGenerationPreflight.Layout(domain);
-        var applicationLayout = ConventionGenerationPreflight.Layout(application);
-        if (domainIdentity.Role != "Domain" || applicationIdentity.Role != "Application" || application.Language != LanguageNames.CSharp ||
-            !domainLayout.Matches(applicationLayout) ||
-            !ValidNamespace(domainIdentity.Namespace) || !ValidNamespace(applicationIdentity.Namespace) ||
-            !application.ProjectReferences.Any(reference => reference.ProjectId == domain.Id &&
+        if (application.Language != LanguageNames.CSharp) return null;
+        var applicationInfo = ConventionGenerationPreflight.ReadProject(application);
+        if (applicationInfo.Role != "Application" || !applicationInfo.Layout.Valid || !ValidNamespace(applicationInfo.Namespace) ||
+            !application.ProjectReferences.Any(reference => reference.ProjectId == domain.Project.Id &&
                 (reference.Aliases.IsEmpty || reference.Aliases.Contains("global", StringComparer.Ordinal))) ||
             application.FilePath is null || !TryFullPath(application.FilePath, out var projectPath)) return null;
-        var domainInputs = await ReadInputsWithoutRoleOverrideAsync(domain, required: false, token);
         var applicationInputs = await ReadInputsWithoutRoleOverrideAsync(application, required: false, token);
-        if (domainInputs is null || applicationInputs is null)
+        if (applicationInputs is null) return null;
+        if (!OwnershipCompatible(applicationInputs, domain.EntityName, domain.Owner.Subdomain, token, out var appEntityExplicit, domain.Owner.DomainFilter) ||
+            !OwnershipCompatible(applicationInputs, domain.RepositoryName, domain.Owner.Subdomain, token, out var appRepoExplicit, domain.Owner.DomainFilter))
             return null;
-        return await ResolveServiceSymbolsAsync((domain, domainIdentity.Namespace, domainLayout, domainInputs),
-            (application, applicationIdentity.Namespace, applicationInputs), selected, projectPath, token);
-    }
-
-    private static async Task<ServiceContext?> ResolveServiceSymbolsAsync(
-        (Project Project, string Namespace, ConventionGenerationPreflight.ProjectLayout Layout, CompilationUnitSyntax Inputs) domain,
-        (Project Project, string Namespace, CompilationUnitSyntax Inputs) application, Selection selected, string projectPath, CancellationToken token)
-    {
-        var compilation = await application.Project.GetCompilationAsync(token);
-        var repository = compilation?.GetTypeByMetadataName(MetadataName(selected.Method.ContainingType));
-        var entity = compilation?.GetTypeByMetadataName(MetadataName(selected.Entity));
+        var effectiveOwner = domain.Owner.WithExplicitDomain(appEntityExplicit || appRepoExplicit);
+        if (!applicationInfo.Layout.TryResolveTargetOwner(effectiveOwner, out var targetOwner)) return null;
+        var area = targetOwner.NamespacePrefix + domain.NamespaceTail;
+        var ns = applicationInfo.Namespace + ".Services." + area;
+        if (!ValidNamespace(ns)) return null;
+        var compilation = await application.GetCompilationAsync(token);
+        var repository = compilation?.GetTypeByMetadataName(domain.RepositoryName);
+        var entity = compilation?.GetTypeByMetadataName(domain.EntityName);
         var service = compilation?.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownService`1");
         if (compilation is null || repository is null || entity is null || service is null ||
             !repository.ContainingAssembly.Identity.Equals(selected.Method.ContainingType.ContainingAssembly.Identity) ||
             !entity.ContainingAssembly.Identity.Equals(selected.Entity.ContainingAssembly.Identity) ||
+            !domain.SourceService.ContainingAssembly.Identity.Equals(service.ContainingAssembly.Identity) ||
             !Bases(entity).Any(type => Same(type, compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.AggregateRoot"))) ||
             !compilation.IsSymbolAccessibleWithin(repository, compilation.Assembly) ||
-            !compilation.IsSymbolAccessibleWithin(entity, compilation.Assembly)) return null;
-        var source = await domain.Project.GetCompilationAsync(token);
-        if (source is null || !SymbolEqualityComparer.Default.Equals(selected.Method.ContainingType.ContainingAssembly, source.Assembly) ||
-            source.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownService`1") is not { } sourceService ||
-            !sourceService.ContainingAssembly.Identity.Equals(service.ContainingAssembly.Identity)) return null;
-        var sourceNamespace = selected.Method.ContainingType.ContainingNamespace.ToDisplayString();
-        if (!ValidNamespace(sourceNamespace) || !sourceNamespace.StartsWith(domain.Namespace + ".", StringComparison.Ordinal))
+            !compilation.IsSymbolAccessibleWithin(entity, compilation.Assembly) ||
+            ConventionGenerationPreflight.SymbolCollision(compilation, ns, domain.ServiceName, token)) return null;
+        var constructed = service.Construct(entity);
+        if (!CanConstructForwardingServiceBase(constructed, repository, compilation, selected, token))
             return null;
-        var owner = ResolveNamespaceOwnerKey(selected.Method.ContainingType, domain.Namespace, domain.Layout);
-        if (owner is null) return null;
-        var area = sourceNamespace[(domain.Namespace.Length + 1)..];
-        return new(compilation, source, repository, entity, service, domain.Inputs, application.Inputs,
-            domain.Namespace, domain.Layout, application.Namespace, projectPath, area, owner);
+        var root = Path.GetDirectoryName(projectPath)!;
+        var relative = "Services/" + area.Replace('.', '/') + "/" + domain.ServiceName + ".cs";
+        var path = Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar));
+        if (!SafeDocumentDestination(application, root, path, token))
+            return null;
+        var supportsScoped = SupportsScopedRegistration(compilation);
+        return new(repository, constructed, ns, domain.ServiceName, relative, path, supportsScoped);
     }
 
-    private static bool HasMatchingConventionalOwnership(Selection selected, ServiceContext context, CancellationToken token)
-    {
-        var entityName = MetadataName(selected.Entity);
-        var repositoryName = MetadataName(selected.Method.ContainingType);
-        var entityOwner = ResolveNamespaceOwnerKey(selected.Entity, context.DomainNamespace, context.DomainLayout);
-        var domainFilter = context.Owner.DomainFilter;
-        return entityOwner is not null && entityOwner.NamespacePrefix == context.Owner.NamespacePrefix &&
-               ConventionalOwner(selected.Method.ContainingType, context.DomainNamespace, context.DomainLayout, context.SourceCompilation) &&
-               ConventionalOwner(selected.Entity, context.DomainNamespace, context.DomainLayout, context.SourceCompilation) &&
-               OwnershipCompatible(context.DomainInputs, entityName, context.Owner.Subdomain, token, domainFilter) &&
-               OwnershipCompatible(context.DomainInputs, repositoryName, context.Owner.Subdomain, token, domainFilter) &&
-               OwnershipCompatible(context.ApplicationInputs, entityName, context.Owner.Subdomain, token, domainFilter) &&
-               OwnershipCompatible(context.ApplicationInputs, repositoryName, context.Owner.Subdomain, token, domainFilter);
-    }
-
-    private static bool CanConstructForwardingService(INamedTypeSymbol constructed, INamedTypeSymbol repository,
-        Compilation compilation, Selection selected, bool scoped, CancellationToken token)
+    private static bool CanConstructForwardingServiceBase(INamedTypeSymbol constructed, INamedTypeSymbol repository,
+        Compilation compilation, Selection selected, CancellationToken token)
     {
         if (Bases(constructed).Any(type => type.GetMembers(selected.Method.Name).Length != 0) ||
             !constructed.InstanceConstructors.Any(constructor => constructor.Parameters is [{ Type: { } parameter }] &&
                 compilation.ClassifyCommonConversion(repository, parameter).IsImplicit &&
                 constructor.DeclaredAccessibility is Accessibility.Public or Accessibility.Protected or Accessibility.ProtectedOrInternal))
             return false;
-        if (!Available(selected.Method.ReturnType, compilation, token) ||
-            selected.Method.Parameters.Any(parameter => !Available(parameter.Type, compilation, token)))
-            return false;
-        if (!scoped) return true;
+        return Available(selected.Method.ReturnType, compilation, token) &&
+               selected.Method.Parameters.All(parameter => Available(parameter.Type, compilation, token));
+    }
+
+    private static bool SupportsScopedRegistration(Compilation compilation)
+    {
         var attribute = compilation.GetTypeByMetadataName("DRN.Framework.Utils.DependencyInjection.Attributes.ScopedAttribute`1");
         return attribute is not null && compilation.IsSymbolAccessibleWithin(attribute, compilation.Assembly) &&
                attribute.InstanceConstructors.Any(constructor => constructor.DeclaredAccessibility == Accessibility.Public &&
                    constructor.Parameters.All(parameter => parameter.IsOptional));
     }
 
-    private static ServicePlan RenderForwardingService(Selection selected, INamedTypeSymbol repository,
-        INamedTypeSymbol constructed, string ns, string name, (string Relative, string Full) path, bool scoped)
+    private static ServicePlan RenderForwardingService(Selection selected, TargetPlanBase target, bool scoped)
     {
         var format = SymbolDisplayFormat.FullyQualifiedFormat.WithMiscellaneousOptions(
             SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier | SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers);
         var parameters = string.Join(", ", selected.Method.Parameters.Select(parameter => parameter.Type.ToDisplayString(format) + " " + EscapeIdentifier(parameter.Name) +
             (selected.Syntax.ParameterList.Parameters[parameter.Ordinal].Default is null ? "" : " = default")));
         var arguments = string.Join(", ", selected.Method.Parameters.Select(parameter => EscapeIdentifier(parameter.Name)));
-        var registration = scoped ? "[global::DRN.Framework.Utils.DependencyInjection.Attributes.Scoped<" + name + ">]\n" : "";
-        var repositoryType = repository.ToDisplayString(format);
+        var registration = scoped ? "[global::DRN.Framework.Utils.DependencyInjection.Attributes.Scoped<" + target.Name + ">]\n" : "";
+        var repositoryType = target.Repository.ToDisplayString(format);
         var code = $$"""
             #nullable enable
-            namespace {{ns}};
+            namespace {{target.Namespace}};
 
-            {{registration}}public sealed class {{name}} : {{constructed.ToDisplayString(format)}}
+            {{registration}}public sealed class {{target.Name}} : {{target.Constructed.ToDisplayString(format)}}
             {
                 private readonly {{repositoryType}} _repository;
 
-                public {{name}}({{repositoryType}} repository) : base(repository)
+                public {{target.Name}}({{repositoryType}} repository) : base(repository)
                 {
                     _repository = repository;
                 }
@@ -273,7 +275,7 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
             }
 
             """;
-        return new(name, path.Relative, path.Full, code);
+        return new(target.Name, target.RelativePath, target.FullPath, code);
     }
 
     private static bool Available(ITypeSymbol type, Compilation compilation, CancellationToken token)
@@ -307,17 +309,10 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
                    assembly.Identity.Equals(available.ContainingAssembly.Identity));
     }
 
-    private sealed record ServiceContext(Compilation Compilation, Compilation SourceCompilation, INamedTypeSymbol Repository,
-        INamedTypeSymbol Entity, INamedTypeSymbol Service, CompilationUnitSyntax DomainInputs,
-        CompilationUnitSyntax ApplicationInputs, string DomainNamespace,
-        ConventionGenerationPreflight.ProjectLayout DomainLayout, string ApplicationNamespace,
-        string ProjectPath, string Area, OwnerKey Owner);
-
-    private static bool ConventionalOwner(INamedTypeSymbol type, string root,
-        ConventionGenerationPreflight.ProjectLayout layout, Compilation compilation) =>
-        ResolveNamespaceOwnerKey(type, root, layout) is { } owner &&
-        AttributesPreserveOwner(type, owner, compilation);
-
+    private sealed record DomainServicePreflight(Project Project, INamedTypeSymbol SourceService, OwnerKey Owner,
+        string EntityName, string RepositoryName, string NamespaceTail, string ServiceName);
+    private sealed record TargetPlanBase(INamedTypeSymbol Repository, INamedTypeSymbol Constructed,
+        string Namespace, string Name, string RelativePath, string FullPath, bool SupportsScoped);
     private sealed record Selection(IMethodSymbol Method, INamedTypeSymbol Entity, MethodDeclarationSyntax Syntax);
     private sealed record ServicePlan(string Name, string RelativePath, string FullPath, string Source);
 }

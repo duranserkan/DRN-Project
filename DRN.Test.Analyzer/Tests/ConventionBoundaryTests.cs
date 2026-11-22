@@ -43,11 +43,11 @@ public sealed class ConventionBoundaryTests
             namespace Sample.Hosted.QA
             {
                 public class User : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
-                public class UserDto : DRN.Framework.SharedKernel.Domain.Dto;
+                public class UserResponse;
             }
             namespace Sample.Hosted.Controllers.Billing
             {
-                public class UsersController() : DRN.Framework.Hosting.Controllers.SourceKnownControllerBase<Sample.Hosted.QA.User, Sample.Hosted.QA.UserDto>(null!);
+                public class UsersController() : DRN.Framework.Hosting.Controllers.SourceKnownControllerBase<Sample.Hosted.QA.User, Sample.Hosted.QA.UserResponse>(null!);
             }
             """).AddReferences(AnalyzerTestCompilation.HostingReference);
         compilation.AssertNoCompilerErrors();
@@ -288,7 +288,7 @@ public sealed class ConventionBoundaryTests
         var consumer = Compilation($$"""
             namespace Sample.Domain.Billing;
             public {{kind}} Reader : Sample.Domain.QA.Closed;
-            """).AddReferences(AnalyzerTestCompilation.EmitReference(producer));
+            """).AddReferences(AnalyzerTestCompilation.EmitReference(producer, options: AnalyzerTestCompilation.ReferenceAssemblyOptions));
         consumer.AssertNoCompilerErrors();
         var facts = CreateFacts(consumer, "Domain");
         ConventionBoundaryAnalysis.Analyze(facts);
@@ -579,7 +579,7 @@ public sealed class ConventionBoundaryTests
             [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Sample.{{to}}")]
             public class Marker;
             """).WithAssemblyName("PublishedDependency");
-        var reference = AnalyzerTestCompilation.EmitReference(dependency, "/references/dependency.dll");
+        var reference = AnalyzerTestCompilation.EmitReference(dependency, "/references/dependency.dll", AnalyzerTestCompilation.ReferenceAssemblyOptions);
         var compilation = Compilation("public class Consumer;").AddReferences(reference);
         var records = new List<ConventionInput>
         {
@@ -1014,6 +1014,72 @@ public sealed class ConventionBoundaryTests
         hostedFacts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002")
             .Select(item => item.Properties["Target"]).Should().BeEquivalentTo(
                 "M:Sample.Hosted.QA.OrdersController.Create(Sample.Hosted.QA.LocalInput)");
+    }
+
+    [Fact]
+    public void Closed_Generic_Base_Implemented_Interface_And_Generic_Containing_Type_Should_Report_DRNARCHITECTURE002()
+    {
+        var facts = ContractFacts("""
+            using System.Collections.Generic;
+            using System.Threading;
+            namespace Sample.Contract.QA;
+            public class EntityQueue : Queue<Order>;
+            public class EntityStream : IAsyncEnumerable<Order>
+            {
+                public IAsyncEnumerator<Order> GetAsyncEnumerator(CancellationToken cancellationToken = default) => throw new System.NotImplementedException();
+            }
+            public class Envelope<T>
+            {
+                public class Metadata { public string Label { get; init; } = ""; }
+            }
+            public class NestedWrapper
+            {
+                public Envelope<Order>.Metadata Meta { get; init; } = new();
+            }
+            """);
+        ConventionBoundaryAnalysis.Analyze(facts);
+        facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002")
+            .Select(item => item.Properties["Target"]).Should().BeEquivalentTo(
+                "T:Sample.Contract.QA.EntityQueue",
+                "T:Sample.Contract.QA.EntityStream",
+                "P:Sample.Contract.QA.NestedWrapper.Meta");
+    }
+
+    [Fact]
+    public void Referenced_Application_Wrapper_Holding_Entity_Should_Report_DRNARCHITECTURE002()
+    {
+        var domain = Compilation("""
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Sample.Domain")]
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Sample.Domain")]
+            namespace Sample.Domain.QA.Order;
+            public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
+            """).WithAssemblyName("Sample.Domain");
+        domain.AssertNoCompilerErrors();
+        var domainRef = AnalyzerTestCompilation.EmitReference(domain, "/app-wrapper/Sample.Domain.dll", AnalyzerTestCompilation.ReferenceAssemblyOptions);
+
+        var application = Compilation("""
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Sample.Application")]
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Sample.Application")]
+            namespace Sample.Application.QA;
+            public class OrderSummary { public Sample.Domain.QA.Order.OrderEntity Entity { get; init; } = new(); }
+            """).WithAssemblyName("Sample.Application").AddReferences(domainRef);
+        application.AssertNoCompilerErrors();
+        var appRef = AnalyzerTestCompilation.EmitReference(application, "/app-wrapper/Sample.Application.dll", AnalyzerTestCompilation.ReferenceAssemblyOptions);
+
+        var hosted = Compilation("""
+            using Microsoft.AspNetCore.Mvc;
+            namespace Sample.Hosted.Controllers.QA;
+            public class OrdersController : ControllerBase
+            {
+                [HttpGet] public Sample.Application.QA.OrderSummary Read() => new();
+            }
+            """).WithAssemblyName("Sample.Hosted").AddReferences(domainRef, appRef);
+        hosted.AssertNoCompilerErrors();
+        var facts = CreateFacts(hosted, "Hosted");
+        ConventionBoundaryAnalysis.Analyze(facts);
+        facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002")
+            .Select(item => item.Properties["Target"]).Should().BeEquivalentTo(
+                "M:Sample.Hosted.Controllers.QA.OrdersController.Read");
     }
 
     private static Compilation GeneratedCompilation(string source, string generated)

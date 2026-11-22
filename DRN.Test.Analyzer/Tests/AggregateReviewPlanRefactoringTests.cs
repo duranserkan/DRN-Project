@@ -401,6 +401,124 @@ public sealed class AggregateReviewPlanRefactoringTests
         else actions.Should().BeEmpty();
     }
 
+    [Theory]
+    [DataInlineUnit("Sample.Infra", true)]
+    [DataInlineUnit("Other.Infra", false)]
+    public async Task Explicit_Domain_Attribute_On_Entity_Should_Enforce_Cross_Layer_Domain_Match(string infraName, bool offered)
+    {
+        using var workspace = new AdhocWorkspace();
+        var document = Create(workspace, infraName: infraName);
+        var source = Source.Replace("public class Order",
+            "[DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomain(\"Sales\", Domain = \"Sample\")]\npublic class Order",
+            StringComparison.Ordinal);
+        workspace.TryApplyChanges(document.WithText(SourceText.From(source)).Project.Solution).Should().BeTrue();
+        var actions = await Actions(workspace.CurrentSolution.GetDocument(document.Id)!);
+        if (offered) actions.Should().ContainSingle();
+        else actions.Should().BeEmpty();
+    }
+
+    [Theory]
+    [DataInlineUnit("Billing", true)]
+    [DataInlineUnit("QA", false)]
+    public async Task Multi_Domain_Folders_Context_Merge_Should_Resolve_Omitted_Domain_From_Context_Infra_Namespace(
+        string infraDeclaredDomain, bool offered)
+    {
+        using var workspace = new AdhocWorkspace();
+        var domain = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: "/source/Sample.Domain/Sample.Domain.csproj"))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(ClassificationTestFixture.References);
+        var document = domain.AddDocument("Order.cs", """
+            namespace Sample.Domain.QA.Sales.Orders;
+            public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
+            """, filePath: "/source/Sample.Domain/QA/Sales/Orders/Order.cs");
+        workspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
+
+        var infra = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                "Sample.Infra", "Sample.Infra", LanguageNames.CSharp, filePath: "/source/Sample.Infra/Sample.Infra.csproj"))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(ClassificationTestFixture.References)
+            .AddMetadataReference(AnalyzerTestCompilation.EntityFrameworkReference)
+            .AddProjectReference(new ProjectReference(domain.Id))
+            .AddDocument("Contexts.cs", """
+                namespace Sample.Infra.QA.Sales
+                {
+                    [DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomain("Sales", Reason = "QA sales read context")]
+                    public class ReadContext : DRN.Framework.EntityFramework.Context.DrnContext<ReadContext>
+                    { public ReadContext() : base(null) { } }
+                }
+                namespace Sample.Infra.Billing.Sales
+                {
+                    public class BillingReadContext : DRN.Framework.EntityFramework.Context.DrnContext<BillingReadContext>
+                    { public BillingReadContext() : base(null) { } }
+                }
+                """, filePath: "/source/Sample.Infra/QA/Sales/Contexts.cs").Project;
+        var solution = infra.Solution.WithFoldersLayout()
+            .AddAdditionalDocument(DocumentId.CreateNewId(domain.Id), "DrnConventionInputs.g.cs",
+                SourceText.From("""
+                    [assembly: DRN.Conventions.Version("1")]
+                    [assembly: DRN.Conventions.Context("Sample.Infra.Billing.Sales.BillingReadContext", Subdomain = "Sales", Reason = "Billing read context")]
+                    """))
+            .AddAdditionalDocument(DocumentId.CreateNewId(infra.Id), "DrnConventionInputs.g.cs",
+                SourceText.From($$"""
+                    [assembly: DRN.Conventions.Version("1")]
+                    [assembly: DRN.Conventions.Context("Sample.Infra.Billing.Sales.BillingReadContext", Domain = "{{infraDeclaredDomain}}", Subdomain = "Sales", Reason = "Billing read context")]
+                    """));
+        workspace.TryApplyChanges(solution).Should().BeTrue();
+
+        var actions = await Actions(workspace.CurrentSolution.GetDocument(document.Id)!);
+        if (offered) actions.Should().ContainSingle().Which.Title.Should().Contain("Sample.Infra.QA.Sales.ReadContext");
+        else actions.Should().BeEmpty();
+    }
+
+    [Theory]
+    [DataInlineUnit(true, "Sample.Domain", "Billing.Infra", "Sample.Domain.Billing.Sales.Orders", "Billing/Sales/Orders/Order.cs", true, "Billing.Infra.Sales.SalesContext", "Sales/Repositories")]
+    [DataInlineUnit(true, "Sample.Domain", "Other.Infra", "Sample.Domain.Billing.Sales.Orders", "Billing/Sales/Orders/Order.cs", false, "", "")]
+    [DataInlineUnit(false, "Billing.Domain", "Sample.Infra", "Billing.Domain.Sales.Orders", "Sales/Orders/Order.cs", true, "Sample.Infra.Billing.Sales.SalesContext", "Billing/Sales/Repositories")]
+    public async Task Cross_Layout_Solutions_Should_Propose_Target_Layout_Context_And_Reject_Domain_Mismatch(
+        bool domainFolders, string domainName, string infraName, string entityNamespace, string entityPath,
+        bool offered, string expectedContext, string expectedRepositories)
+    {
+        using var workspace = new AdhocWorkspace();
+        var layoutConfig = SourceText.From("is_global = true\nbuild_property.DrnDomainLayout = Folders\n");
+        var domain = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                domainName, domainName, LanguageNames.CSharp, filePath: "/source/" + domainName + "/" + domainName + ".csproj"))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(ClassificationTestFixture.References);
+        if (domainFolders)
+            domain = domain.AddAnalyzerConfigDocument("layout.globalconfig", layoutConfig,
+                filePath: "/source/" + domainName + "/layout.globalconfig").Project;
+        var document = domain.AddDocument("Order.cs", $$"""
+            namespace {{entityNamespace}};
+            public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
+            """, filePath: "/source/" + domainName + "/" + entityPath);
+        workspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
+
+        var infra = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                infraName, infraName, LanguageNames.CSharp, filePath: "/source/" + infraName + "/" + infraName + ".csproj"))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(ClassificationTestFixture.References)
+            .AddMetadataReference(AnalyzerTestCompilation.EntityFrameworkReference)
+            .AddProjectReference(new ProjectReference(domain.Id));
+        if (!domainFolders)
+            infra = infra.AddAnalyzerConfigDocument("layout.globalconfig", layoutConfig,
+                filePath: "/source/" + infraName + "/layout.globalconfig").Project;
+        workspace.TryApplyChanges(infra.Solution).Should().BeTrue();
+
+        var actions = await Actions(workspace.CurrentSolution.GetDocument(document.Id)!);
+        if (!offered)
+        {
+            actions.Should().BeEmpty();
+            return;
+        }
+        var action = actions.Should().ContainSingle().Which;
+        action.Title.Should().Contain(expectedContext);
+        var changed = await action.GetChangedSolutionAsync();
+        var plan = changed.Projects.Single(project => project.Name == infraName).AdditionalDocuments.Single();
+        var content = (await plan.GetTextAsync()).ToString();
+        content.Should().Contain("Context: " + expectedContext).And.Contain("Proposed Repositories destination: " + expectedRepositories);
+    }
+
     private static Document Create(AdhocWorkspace workspace, string contexts = "", string infraName = "Sample.Infra", bool reference = true)
     {
         var domain = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),

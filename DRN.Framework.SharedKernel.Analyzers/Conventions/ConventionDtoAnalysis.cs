@@ -8,6 +8,12 @@ internal static class ConventionDtoAnalysis
 {
     private const string RequestSuffix = "Request";
     private const string ResponseSuffix = "Response";
+    private static readonly PublicShapePolicy DtoExposurePolicy = new(
+        PublicShapeRule.Dto,
+        ConventionDiagnosticDescriptors.DtoExposure,
+        IsDtoType,
+        ShouldExpandForDtoExposure,
+        IncludeExposedLocations: false);
 
     private readonly record struct DtoPlacement(string Namespace, string? Directory);
     private readonly record struct DtoKey(string Root, string Domain, string Subdomain, bool HasFolderDomain, string Stem);
@@ -54,7 +60,7 @@ internal static class ConventionDtoAnalysis
         if (ConventionBoundaryAnalysis.IsExposedController(facts, type))
             CheckControllerContracts(facts, type);
         if (role is ConventionArchitecture.Hosted or ConventionArchitecture.Application or
-            ConventionArchitecture.Domain or ConventionArchitecture.Contract)
+            ConventionArchitecture.Domain or ConventionArchitecture.Infra or ConventionArchitecture.Contract)
             CheckResponseProjections(facts, type, classifications);
     }
 
@@ -96,7 +102,7 @@ internal static class ConventionDtoAnalysis
         }
         // DRNSTRUCTURE001 independently verifies each declaration's logical folder against its namespace.
         if (location != Location.None && !InDtoNamespace(facts, dto, owner, folder))
-            Report(facts, ConventionDiagnosticDescriptors.DtoFolder, dto, location, dto.Name, folder);
+            ConventionBoundaryAnalysis.Report(facts, ConventionDiagnosticDescriptors.DtoFolder, dto, location, dto.Name, folder);
     }
 
     private static int MessageStemLength(string name)
@@ -153,7 +159,7 @@ internal static class ConventionDtoAnalysis
         if (!overridesEntityToDto || creation?.Type is not INamedTypeSymbol dto || !SymbolEqualityComparer.Default.Equals(dto, returnType) ||
             !ConstructsWithEntity(facts, creation) || dto.Name != stem + "Dto" || !IsPublicDtoType(dto) ||
             !InDtoNamespace(facts, dto, owner, ConventionNames.DtoFolder(stem)))
-            Report(facts, ConventionDiagnosticDescriptors.EntityDto, entity, facts.Location(entity), entity.Name, stem + "Dto");
+            ConventionBoundaryAnalysis.Report(facts, ConventionDiagnosticDescriptors.EntityDto, entity, facts.Location(entity), entity.Name, stem + "Dto");
         if (creation?.Type is INamedTypeSymbol projected && facts.Symbols.IsKnown(projected, facts.Symbols.Dto, facts.Cancellation) &&
             classifications.Value is { } contract)
             CheckProjection(facts, entity, projected, creation, contract);
@@ -165,30 +171,19 @@ internal static class ConventionDtoAnalysis
         if (isDto)
         {
             if (MessageStemLength(type.Name) > 0)
-                Report(facts, ConventionDiagnosticDescriptors.DtoExposure, type, facts.Location(type),
-                    type.ToDisplayString(), type.BaseType?.ToDisplayString() ?? type.ToDisplayString());
+                facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.DtoExposure, facts.Location(type),
+                    ConventionBoundaryAnalysis.Properties(type, type.BaseType ?? type),
+                    type.ToDisplayString(), type.BaseType?.ToDisplayString() ?? type.ToDisplayString()));
             return;
         }
-        foreach (var member in ConventionBoundaryAnalysis.PublicMembers(facts, type, transport: false))
-        {
-            facts.Cancellation.ThrowIfCancellationRequested();
-            if (!ConventionBoundaryAnalysis.IsInspectablePublicMember(facts, type, member, transport: false, nonAction: null) ||
-                !ConventionBoundaryAnalysis.TryGetReportingTarget(facts, type, member, out var reportingSymbol, out var location))
-                continue;
-            var exposedDto = FindExposedDtoType(facts, type, member, transport: false, out var exhausted);
-            if (exhausted)
-                facts.ReportIncompleteContract(reportingSymbol, member, location);
-            if (exposedDto is not null)
-                facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.DtoExposure, location,
-                    ConventionBoundaryAnalysis.Properties(reportingSymbol, exposedDto),
-                    member.ToDisplayString(), exposedDto.ToDisplayString()));
-        }
+        ConventionBoundaryAnalysis.AnalyzeExposedPublicShape(facts, type, transport: false, DtoExposurePolicy);
     }
 
     private static void CheckControllerContracts(ConventionFacts facts, INamedTypeSymbol controller)
     {
         var nonAction = facts.Symbols.NonActionAttribute;
         var isSourceKnown = facts.Symbols.IsKnown(controller, facts.Symbols.SourceKnownController, facts.Cancellation);
+        var reportedTypeDto = false;
         foreach (var member in ConventionBoundaryAnalysis.PublicMembers(facts, controller, transport: true))
         {
             facts.Cancellation.ThrowIfCancellationRequested();
@@ -197,13 +192,20 @@ internal static class ConventionDtoAnalysis
                 !ConventionBoundaryAnalysis.TryGetReportingTarget(facts, controller, method, out var reportingSymbol, out var location))
                 continue;
 
-            var exposedDto = FindExposedDtoType(facts, controller, method, transport: true, out var exhausted);
-            if (exhausted)
-                facts.ReportIncompleteContract(reportingSymbol, method, location);
-            if (exposedDto is not null)
-                facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.DtoExposure, location,
-                    ConventionBoundaryAnalysis.Properties(reportingSymbol, exposedDto),
-                    method.ToDisplayString(), exposedDto.ToDisplayString()));
+            var reportsOnType = SymbolEqualityComparer.Default.Equals(reportingSymbol, controller);
+            if (!reportsOnType || !reportedTypeDto)
+            {
+                var exposedDto = FindExposedDtoType(facts, controller, method, transport: true, out var exhausted);
+                if (exhausted)
+                    facts.ReportIncompleteContract(reportingSymbol, method, location);
+                if (exposedDto is not null)
+                {
+                    facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.DtoExposure, location,
+                        ConventionBoundaryAnalysis.Properties(reportingSymbol, exposedDto),
+                        method.ToDisplayString(), exposedDto.ToDisplayString()));
+                    if (reportsOnType) reportedTypeDto = true;
+                }
+            }
 
             CheckEndpointExplicitResponse(facts, controller, method, reportingSymbol, location, isSourceKnown);
             CheckEndpointExplicitRequests(facts, method, reportingSymbol, location, isSourceKnown);
@@ -229,7 +231,7 @@ internal static class ConventionDtoAnalysis
             payload.Name.EndsWith(ResponseSuffix, StringComparison.Ordinal) &&
             payload.Name.Length > ResponseSuffix.Length;
         if (isContractResponse) return;
-        if (isSourceKnown || facts.Role(payload).Role is ConventionArchitecture.Contract or ConventionArchitecture.Application)
+        if (RequiresExplicitContractMessage(facts, payload, isSourceKnown))
         {
             reported ??= new(SymbolEqualityComparer.Default);
             if (!reported.Add(payload)) return;
@@ -242,6 +244,7 @@ internal static class ConventionDtoAnalysis
     private static void CheckEndpointExplicitRequests(ConventionFacts facts, IMethodSymbol method, ISymbol reportingSymbol,
         Location location, bool isSourceKnown)
     {
+        HashSet<INamedTypeSymbol>? reported = null;
         foreach (var parameter in method.Parameters)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
@@ -253,12 +256,21 @@ internal static class ConventionDtoAnalysis
                 payload.Name.EndsWith(RequestSuffix, StringComparison.Ordinal) &&
                 payload.Name.Length > RequestSuffix.Length;
             if (isContractRequest) continue;
-            if (isSourceKnown || facts.Role(payload).Role is ConventionArchitecture.Contract or ConventionArchitecture.Application)
+            if (RequiresExplicitContractMessage(facts, payload, isSourceKnown))
+            {
+                reported ??= new(SymbolEqualityComparer.Default);
+                if (!reported.Add(payload)) continue;
                 facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.ExplicitContractMessage, location,
                     ConventionBoundaryAnalysis.Properties(reportingSymbol, payload),
                     method.ToDisplayString(), RequestSuffix, payload.ToDisplayString()));
+            }
         }
     }
+
+    private static bool RequiresExplicitContractMessage(ConventionFacts facts, INamedTypeSymbol payload, bool isSourceKnown) =>
+        isSourceKnown ||
+        payload.SpecialType == SpecialType.System_Object ||
+        facts.Role(payload).Role is ConventionArchitecture.Contract or ConventionArchitecture.Application;
 
     private static INamedTypeSymbol? UnwrapResponsePayload(ConventionFacts facts, ITypeSymbol type) =>
         UnwrapPayload(facts, type, unwrapResponseWrappers: true, maxDepth: 8);
@@ -272,6 +284,7 @@ internal static class ConventionDtoAnalysis
         var current = type;
         for (var depth = 0; depth < maxDepth; depth++)
         {
+            if (current.TypeKind == TypeKind.Error) return null;
             if (current is IArrayTypeSymbol array)
             {
                 current = array.ElementType;
@@ -284,7 +297,7 @@ internal static class ConventionDtoAnalysis
                 continue;
             }
             if (named.TypeArguments.Length == 1 &&
-                (IsCollectionWrapper(named) ||
+                (IsCollectionWrapper(facts, named) ||
                  unwrapResponseWrappers &&
                  (ConventionSymbols.Same(named, facts.Symbols.TaskGeneric) ||
                   ConventionSymbols.Same(named, facts.Symbols.ValueTaskGeneric) ||
@@ -296,23 +309,35 @@ internal static class ConventionDtoAnalysis
             }
             return named;
         }
-        return current as INamedTypeSymbol;
+        return current is INamedTypeSymbol { TypeKind: not TypeKind.Error } result ? result : null;
     }
 
-    private static bool IsCollectionWrapper(INamedTypeSymbol named)
+    private static bool IsCollectionWrapper(ConventionFacts facts, INamedTypeSymbol named)
     {
         if (named.TypeArguments.Length != 1) return false;
-        var name = ConventionSymbols.MetadataName(named.OriginalDefinition);
-        return name is "System.Collections.Generic.IEnumerable`1" or
-            "System.Collections.Generic.IReadOnlyList`1" or
-            "System.Collections.Generic.IReadOnlyCollection`1" or
-            "System.Collections.Generic.IList`1" or
-            "System.Collections.Generic.ICollection`1" or
-            "System.Collections.Generic.List`1";
+        var definition = named.OriginalDefinition;
+        if (definition.SpecialType is
+            SpecialType.System_Collections_Generic_IEnumerable_T or
+            SpecialType.System_Collections_Generic_IReadOnlyList_T or
+            SpecialType.System_Collections_Generic_IReadOnlyCollection_T or
+            SpecialType.System_Collections_Generic_IList_T or
+            SpecialType.System_Collections_Generic_ICollection_T)
+            return true;
+        var symbols = facts.Symbols;
+        return ConventionSymbols.Same(definition, symbols.ListGeneric) ||
+               ConventionSymbols.Same(definition, symbols.AsyncEnumerableGeneric) ||
+               ConventionSymbols.Same(definition, symbols.ImmutableArrayGeneric) ||
+               ConventionSymbols.Same(definition, symbols.ImmutableListGeneric) ||
+               ConventionSymbols.Same(definition, symbols.SetGeneric) ||
+               ConventionSymbols.Same(definition, symbols.ReadOnlySetGeneric) ||
+               ConventionSymbols.Same(definition, symbols.HashSetGeneric) ||
+               ConventionSymbols.Same(definition, symbols.CollectionGeneric) ||
+               ConventionSymbols.Same(definition, symbols.ReadOnlyCollectionGeneric);
     }
 
     private static bool IsExemptResponseType(ConventionFacts facts, INamedTypeSymbol type) =>
-        IsExemptScalarType(type) ||
+        type.SpecialType == SpecialType.System_Void ||
+        IsExemptScalarType(facts, type) ||
         ConventionSymbols.Same(type, facts.Symbols.Task) ||
         ConventionSymbols.Same(type, facts.Symbols.ValueTask) ||
         facts.Symbols.IsKnown(type, facts.Symbols.NoContentResult, facts.Cancellation) ||
@@ -330,7 +355,7 @@ internal static class ConventionDtoAnalysis
         ConventionBoundaryAnalysis.HasAttribute(parameter, facts.Symbols.FromHeaderAttribute);
 
     private static bool IsExemptRequestType(ConventionFacts facts, INamedTypeSymbol type) =>
-        IsExemptScalarType(type) ||
+        IsExemptScalarType(facts, type) ||
         facts.Symbols.IsKnown(type, facts.Symbols.FormFile, facts.Cancellation) ||
         facts.Symbols.IsKnown(type, facts.Symbols.FormFileCollection, facts.Cancellation) ||
         facts.Symbols.IsKnown(type, facts.Symbols.PaginationRequest, facts.Cancellation) ||
@@ -338,26 +363,37 @@ internal static class ConventionDtoAnalysis
         facts.Symbols.IsKnown(type, facts.Symbols.PaginationResultInfo, facts.Cancellation) ||
         facts.Symbols.IsKnown(type, facts.Symbols.EntityCreatedFilter, facts.Cancellation);
 
-    private static bool IsExemptScalarType(INamedTypeSymbol type) =>
-        type.SpecialType != SpecialType.None || type.TypeKind == TypeKind.Enum ||
-        ConventionSymbols.MetadataName(type) is "System.Guid" or "System.DateTime" or "System.DateTimeOffset" or
-            "System.DateOnly" or "System.TimeOnly" or "System.TimeSpan";
+    private static bool IsExemptScalarType(ConventionFacts facts, INamedTypeSymbol type)
+    {
+        if (type.TypeKind == TypeKind.Enum) return true;
+        if (type.SpecialType is
+            SpecialType.System_Boolean or SpecialType.System_Char or SpecialType.System_SByte or
+            SpecialType.System_Byte or SpecialType.System_Int16 or SpecialType.System_UInt16 or
+            SpecialType.System_Int32 or SpecialType.System_UInt32 or SpecialType.System_Int64 or
+            SpecialType.System_UInt64 or SpecialType.System_Decimal or SpecialType.System_Single or
+            SpecialType.System_Double or SpecialType.System_String or SpecialType.System_DateTime or
+            SpecialType.System_IntPtr or SpecialType.System_UIntPtr)
+            return true;
+        var symbols = facts.Symbols;
+        return ConventionSymbols.Same(type, symbols.Guid) ||
+               ConventionSymbols.Same(type, symbols.DateTimeOffset) ||
+               ConventionSymbols.Same(type, symbols.DateOnly) ||
+               ConventionSymbols.Same(type, symbols.TimeOnly) ||
+               ConventionSymbols.Same(type, symbols.TimeSpan) ||
+               ConventionSymbols.Same(type, symbols.Uri);
+    }
 
     private static INamedTypeSymbol? FindExposedDtoType(ConventionFacts facts, INamedTypeSymbol ownerType, ISymbol member,
         bool transport, out bool exhausted) =>
         ConventionBoundaryAnalysis.FindExposedType(facts, PublicShapeRule.Dto,
-            ConventionBoundaryAnalysis.ExposureRootTypes(facts, ownerType, member, transport, includeProducesResponseTypes: transport),
+            ConventionBoundaryAnalysis.ExposureRootTypes(facts, ownerType, member, transport),
             IsDtoType, ShouldExpandForDtoExposure, ConventionBoundaryAnalysis.HasPublicAccessor, out exhausted);
 
     private static bool IsDtoType(ConventionFacts facts, INamedTypeSymbol named) =>
         facts.Symbols.IsKnown(named, facts.Symbols.Dto, facts.Cancellation);
 
     private static bool ShouldExpandForDtoExposure(ConventionFacts facts, INamedTypeSymbol named) =>
-        named.TypeKind is not TypeKind.Enum &&
-        (facts.IsLocal(named) ||
-         facts.IsNeutralValue(named) ||
-         facts.ReferenceProject(named.ContainingAssembly)?.Role is ConventionArchitecture.Contract or
-             ConventionArchitecture.Application or ConventionArchitecture.Hosted);
+        ConventionBoundaryAnalysis.ShouldExpandPublicModel(facts, named, includeDto: false);
 
     private static void CheckResponseProjections(ConventionFacts facts, INamedTypeSymbol type,
         Lazy<ClassificationContract?> classifications)
@@ -428,13 +464,14 @@ internal static class ConventionDtoAnalysis
             return true;
         if (explicitCreation.Type is PredefinedTypeSyntax)
             return false;
-        if (hasResponseAlias ??= facts.HasResponseUsingAlias(tree))
+        if (ConventionFacts.RightmostTypeIdentifier(explicitCreation.Type) is { } name &&
+            name.EndsWith(ResponseSuffix, StringComparison.Ordinal))
             return true;
-        return ConventionFacts.RightmostTypeIdentifier(explicitCreation.Type) is { } name &&
-               name.EndsWith(ResponseSuffix, StringComparison.Ordinal);
+        return hasResponseAlias ??= facts.HasResponseUsingAlias(tree);
     }
 
     private static bool IsContractResponseType(ConventionFacts facts, INamedTypeSymbol type) =>
+        type.TypeKind != TypeKind.Error &&
         facts.Role(type).Role == ConventionArchitecture.Contract &&
         type.Name.EndsWith(ResponseSuffix, StringComparison.Ordinal) &&
         !facts.Symbols.IsKnown(type, facts.Symbols.Dto, facts.Cancellation);
@@ -466,7 +503,10 @@ internal static class ConventionDtoAnalysis
             {
                 IPropertyReferenceOperation parentProperty => parentProperty.Instance,
                 IFieldReferenceOperation parentField => parentField.Instance,
-                IInvocationOperation parentInvocation => parentInvocation.Instance,
+                IInvocationOperation parentInvocation => parentInvocation.Instance ??
+                    (parentInvocation.TargetMethod.IsExtensionMethod && !parentInvocation.Arguments.IsEmpty
+                        ? parentInvocation.Arguments[0].Value
+                        : null),
                 IArrayElementReferenceOperation arrayElement => arrayElement.ArrayReference,
                 _ => null
             };
@@ -506,8 +546,9 @@ internal static class ConventionDtoAnalysis
     }
 
     private static bool IsEntityOrDto(ConventionFacts facts, INamedTypeSymbol type) =>
-        facts.Symbols.IsKnown(type, facts.Symbols.Dto, facts.Cancellation) ||
-        facts.IsEntity(type);
+        type.TypeKind != TypeKind.Error &&
+        (facts.Symbols.IsKnown(type, facts.Symbols.Dto, facts.Cancellation) ||
+         facts.IsEntity(type));
 
     private static bool IsPublicDtoType(ITypeSymbol type) => type switch
     {
@@ -603,7 +644,7 @@ internal static class ConventionDtoAnalysis
         if (creation.Initializer is { } initializer)
             pending.Push(new(initializer, outerTarget, false));
         var destinationType = creation.Type as INamedTypeSymbol;
-        var canMatchProperties = destinationType is not null &&
+        var canMatchProperties = destinationType is { TypeKind: not TypeKind.Error } &&
             (facts.Role(destinationType).Role == ConventionArchitecture.Contract || facts.IsLocal(destinationType));
         for (var i = creation.Arguments.Length - 1; i >= 0; i--)
         {
@@ -748,7 +789,7 @@ internal static class ConventionDtoAnalysis
         foreach (var contract in collection.AllInterfaces.Prepend(collection))
         {
             facts.Cancellation.ThrowIfCancellationRequested();
-            if (!IsElementContract(contract, facts.Compilation)) continue;
+            if (!IsElementContract(contract, facts.Symbols)) continue;
             // A derived Add can reimplement the storage contract even when the DTO assembly is metadata-only.
             if (method.ContainingType.BaseType?.AllInterfaces.Contains(contract, SymbolEqualityComparer.Default) == true) continue;
             if (contract.GetMembers("Add").Any(member => SymbolEqualityComparer.Default.Equals(method, member) ||
@@ -758,10 +799,10 @@ internal static class ConventionDtoAnalysis
         return false;
     }
 
-    private static bool IsElementContract(INamedTypeSymbol contract, Compilation compilation) =>
+    private static bool IsElementContract(INamedTypeSymbol contract, ConventionSymbols symbols) =>
         contract.OriginalDefinition.SpecialType == SpecialType.System_Collections_Generic_ICollection_T ||
-        contract.MetadataName == "ISet`1" && ConventionSymbols.Same(contract, compilation.GetTypeByMetadataName("System.Collections.Generic.ISet`1")) ||
-        contract.MetadataName == "IList" && ConventionSymbols.Same(contract, compilation.GetTypeByMetadataName("System.Collections.IList"));
+        ConventionSymbols.Same(contract, symbols.SetGeneric) ||
+        ConventionSymbols.Same(contract, symbols.NonGenericList);
 
     private static void CheckProjection(ConventionFacts facts, INamedTypeSymbol entity, INamedTypeSymbol dto,
         IObjectCreationOperation creation, ClassificationContract classifications)
@@ -800,10 +841,10 @@ internal static class ConventionDtoAnalysis
         if (missing == PropertyClassifications.None) return;
         context.Reported[target.Property] = previous | missing;
         if (missing.HasFlag(PropertyClassifications.Personal))
-            Report(facts, ConventionDiagnosticDescriptors.DtoClassification, context.OwnerType, target.Location,
+            ConventionBoundaryAnalysis.Report(facts, ConventionDiagnosticDescriptors.DtoClassification, context.OwnerType, target.Location,
                 target.Property.Name, "Personal", source.Property.Name);
         if (missing.HasFlag(PropertyClassifications.Sensitive))
-            Report(facts, ConventionDiagnosticDescriptors.DtoClassification, context.OwnerType, target.Location,
+            ConventionBoundaryAnalysis.Report(facts, ConventionDiagnosticDescriptors.DtoClassification, context.OwnerType, target.Location,
                 target.Property.Name, "Sensitive", source.Property.Name);
     }
 
@@ -885,8 +926,4 @@ internal static class ConventionDtoAnalysis
         }
         return null;
     }
-
-    private static void Report(ConventionFacts facts, DiagnosticDescriptor descriptor, INamedTypeSymbol target,
-        Location location, params object[] args) => facts.Diagnostics.Add(Diagnostic.Create(descriptor, location,
-        ImmutableDictionary<string, string?>.Empty.Add(ConventionInputSyntax.TargetField, target.GetDocumentationCommentId()), args));
 }

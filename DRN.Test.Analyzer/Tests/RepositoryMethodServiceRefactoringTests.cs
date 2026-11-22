@@ -253,7 +253,7 @@ public sealed class RepositoryMethodServiceRefactoringTests
         (await service.GetTextAsync()).ToString().Should().Contain("public sealed class OrderCountVisibleService");
         var domainCompilation = (await changed.Projects.Single(project => project.Name == "Sample.Domain").GetCompilationAsync())!;
         domainCompilation.AssertNoCompilerErrors();
-        var domainReference = AnalyzerTestCompilation.EmitReference(domainCompilation, "/source/Sample.Domain/Sample.Domain.dll");
+        var domainReference = AnalyzerTestCompilation.EmitReference(domainCompilation, "/source/Sample.Domain/Sample.Domain.dll", AnalyzerTestCompilation.ReferenceAssemblyOptions);
         var compilation = (await changedApp.GetCompilationAsync())!;
         var appCompilation = compilation.RemoveReferences(compilation.References.OfType<CompilationReference>()).AddReferences(domainReference);
         var inputs = new ProjectDiagnosticRulesTests.RuleFile(Framework.SharedKernel.Analyzers.Conventions.ConventionInputs.FileName, """
@@ -268,6 +268,78 @@ public sealed class RepositoryMethodServiceRefactoringTests
             new Framework.SharedKernel.Analyzers.Conventions.SourceKnownConventionAnalyzer(),
             AnalyzerTestCompilation.ConventionOptions("Sample.Application", files: inputs));
         diagnostics.Should().BeEmpty();
+    }
+
+    [Theory]
+    [DataInlineUnit("Sample.Application", true)]
+    [DataInlineUnit("Other.Application", false)]
+    public async Task Explicit_Domain_Attribute_Should_Enforce_Cross_Layer_Domain_Match(string targetName, bool offered)
+    {
+        using var workspace = new AdhocWorkspace();
+        var document = Create(workspace, targetName: targetName);
+        var source = (await document.GetTextAsync()).ToString().Replace(
+            "public interface IOrderRepository",
+            "[DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomain(\"QA\", Domain = \"Sample\")]\npublic interface IOrderRepository",
+            StringComparison.Ordinal);
+        workspace.TryApplyChanges(document.WithText(SourceText.From(source)).Project.Solution).Should().BeTrue();
+        var actions = await Actions(workspace.CurrentSolution.GetDocument(document.Id)!);
+        if (offered) actions.Should().HaveCount(2);
+        else actions.Should().BeEmpty();
+    }
+
+    [Theory]
+    [DataInlineUnit(true, "Sample.Domain", "Billing.Application", "Sample.Domain.Billing.QA.Order", "Billing/QA/Order/IOrderRepository.cs", true, "Billing.Application.Services.QA.Order", "/source/Billing.Application/Services/QA/Order/OrderCountVisibleService.cs")]
+    [DataInlineUnit(true, "Sample.Domain", "Sales.Application", "Sample.Domain.Billing.QA.Order", "Billing/QA/Order/IOrderRepository.cs", false, "", "")]
+    [DataInlineUnit(false, "Billing.Domain", "Sample.Application", "Billing.Domain.QA.Order", "QA/Order/IOrderRepository.cs", true, "Sample.Application.Services.Billing.QA.Order", "/source/Sample.Application/Services/Billing/QA/Order/OrderCountVisibleService.cs")]
+    public async Task Cross_Layout_Solutions_Should_Emit_Target_Layout_Namespace_And_Reject_Domain_Mismatch(
+        bool domainFolders, string domainName, string appName, string repoNamespace, string repoPath,
+        bool offered, string expectedNamespace, string expectedFilePath)
+    {
+        using var workspace = new AdhocWorkspace();
+        var layoutConfig = SourceText.From("is_global = true\nbuild_property.DrnDomainLayout = Folders\n");
+        var domain = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                domainName, domainName, LanguageNames.CSharp, filePath: "/source/" + domainName + "/" + domainName + ".csproj"))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(ClassificationTestFixture.References);
+        if (domainFolders)
+            domain = domain.AddAnalyzerConfigDocument("layout.globalconfig", layoutConfig,
+                filePath: "/source/" + domainName + "/layout.globalconfig").Project;
+        var document = domain.AddDocument("IOrderRepository.cs", $$"""
+            namespace {{repoNamespace}};
+            public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
+            public interface IOrderRepository : DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<OrderEntity>
+            {
+                // select-start
+                {{Method}}
+                // select-end
+            }
+            """, filePath: "/source/" + domainName + "/" + repoPath);
+        workspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
+
+        var application = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                appName, appName, LanguageNames.CSharp, filePath: "/source/" + appName + "/" + appName + ".csproj"))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(ClassificationTestFixture.References)
+            .AddMetadataReference(AnalyzerTestCompilation.UtilsReference)
+            .AddProjectReference(new ProjectReference(domain.Id));
+        if (!domainFolders)
+            application = application.AddAnalyzerConfigDocument("layout.globalconfig", layoutConfig,
+                filePath: "/source/" + appName + "/layout.globalconfig").Project;
+        workspace.TryApplyChanges(application.Solution).Should().BeTrue();
+
+        var actions = await Actions(workspace.CurrentSolution.GetDocument(document.Id)!);
+        if (!offered)
+        {
+            actions.Should().BeEmpty();
+            return;
+        }
+        var action = actions.Single(item => item.Title.StartsWith("Add scoped", StringComparison.Ordinal));
+        var changed = await action.GetChangedSolutionAsync();
+        var changedApp = changed.Projects.Single(project => project.Name == appName);
+        var service = changedApp.Documents.Single();
+        service.FilePath.Should().Be(expectedFilePath);
+        (await service.GetTextAsync()).ToString().Should().Contain("namespace " + expectedNamespace + ";");
+        (await changedApp.GetCompilationAsync())!.AssertNoCompilerErrors();
     }
 
     private static Document Create(AdhocWorkspace workspace, string method = Method, bool reference = true, string targetName = "Sample.Application")

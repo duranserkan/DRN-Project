@@ -16,17 +16,14 @@ internal static class ConventionFolderStructureAnalysis
         foreach (var type in facts.Types)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
-            var role = facts.Role(type);
-            if (role.Role != ConventionArchitecture.Domain) continue;
-            InspectDomainType(scan, type, role.PathPrefix);
+            var isDomainRole = facts.Role(type).Role == ConventionArchitecture.Domain;
+            InspectType(scan, type, isDomainRole);
         }
 
         InspectGroupingFolderFilesWithoutTypes(facts, scan.MinTypeDepth);
 
-        if (scan.PopulatedSubdomains.Count == 0 && (!scan.HasAnyLogicalPaths && HasFallbackPopulatedSubdomain(facts, rootIdentityEnums)))
-            return;
-
-        if (scan.PopulatedSubdomains.Count == 0 && !facts.HasInvalidFolderStructureInputs())
+        if (scan.PopulatedSubdomains.Count == 0 && !scan.HasFallbackPopulatedSubdomain &&
+            !facts.HasInvalidFolderStructureInputs())
         {
             var anchor = facts.Records.FirstOrDefault(record =>
                 record.Kind == ConventionInputSyntax.ReferenceKind &&
@@ -46,33 +43,41 @@ internal static class ConventionFolderStructureAnalysis
         internal int MinTypeDepth => FoldersLayout ? 3 : 2;
         internal HashSet<INamedTypeSymbol> RootIdentityEnums { get; } = rootIdentityEnums;
         internal HashSet<(string Domain, string Subdomain)> PopulatedSubdomains { get; } = [];
-        internal bool HasAnyLogicalPaths { get; set; }
+        internal bool HasFallbackPopulatedSubdomain { get; set; }
     }
 
-    private static void InspectDomainType(DomainFolderScan scan, INamedTypeSymbol type, string pathPrefix)
+    private static void InspectType(DomainFolderScan scan, INamedTypeSymbol type, bool isDomainRole)
     {
         foreach (var reference in type.DeclaringSyntaxReferences)
         {
             scan.Facts.Cancellation.ThrowIfCancellationRequested();
-            InspectDomainTypePart(scan, type, reference, pathPrefix);
+            InspectTypePart(scan, type, reference, isDomainRole);
         }
     }
 
-    private static void InspectDomainTypePart(DomainFolderScan scan, INamedTypeSymbol type, SyntaxReference reference, string pathPrefix)
+    private static void InspectTypePart(DomainFolderScan scan, INamedTypeSymbol type, SyntaxReference reference, bool isDomainRole)
     {
         var facts = scan.Facts;
         var tree = reference.SyntaxTree;
         if (facts.IsGenerated(tree) || facts.HasInvalidPath(tree)) return;
         var placement = facts.LogicalDirectory(tree);
-        if (placement is null) return;
-        scan.HasAnyLogicalPaths = true;
-        var relativeDirectory = StripPrefix(placement.Value.Directory, pathPrefix);
+        if (placement is null)
+        {
+            if (isDomainRole && !scan.HasFallbackPopulatedSubdomain &&
+                !IsAllowedRootIdentityType(facts, type, scan.RootIdentityEnums) &&
+                facts.Owner(type) is not null)
+                scan.HasFallbackPopulatedSubdomain = true;
+            return;
+        }
+        if (!facts.TryGetDomainRelativeDirectory(placement.Value.Directory, out var relativeDirectory))
+            return;
         var segments = relativeDirectory.Length == 0
             ? Array.Empty<string>()
             : relativeDirectory.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        var partLocation = PartLocation(type, reference, facts.Cancellation);
-        if (ValidateDomainTypeDepth(scan, type, relativeDirectory, segments, partLocation)) return;
+        var partLocation = ConventionBoundaryAnalysis.PartLocation(type, reference, facts.Cancellation);
+        if (ValidateDomainTypeDepth(scan, type, relativeDirectory, segments, partLocation, isDomainRole)) return;
         if (ValidateSharedPlacement(facts, type, segments, scan.FoldersLayout, partLocation)) return;
+        if (!isDomainRole) return;
 
         var domain = scan.FoldersLayout ? segments[0] : facts.Project.DefaultDomain;
         var subdomain = scan.FoldersLayout ? segments[1] : segments[0];
@@ -80,17 +85,19 @@ internal static class ConventionFolderStructureAnalysis
     }
 
     private static bool ValidateDomainTypeDepth(DomainFolderScan scan, INamedTypeSymbol type, string relativeDirectory,
-        string[] segments, Location partLocation)
+        string[] segments, Location partLocation, bool isDomainRole)
     {
         if (segments.Length == 0)
         {
-            if (!IsAllowedRootIdentityType(scan.Facts, type, scan.RootIdentityEnums))
-                Report(scan.Facts, type, partLocation, RootPlacementMessage(scan.FoldersLayout));
+            if (!isDomainRole || !IsAllowedRootIdentityType(scan.Facts, type, scan.RootIdentityEnums))
+                ConventionBoundaryAnalysis.Report(scan.Facts, ConventionDiagnosticDescriptors.DomainFolderStructure,
+                    type, partLocation, type.Name, RootPlacementMessage(scan.FoldersLayout));
             return true;
         }
         if (segments.Length < scan.MinTypeDepth)
         {
-            Report(scan.Facts, type, partLocation, GroupingFolderMessage(scan.FoldersLayout, relativeDirectory));
+            ConventionBoundaryAnalysis.Report(scan.Facts, ConventionDiagnosticDescriptors.DomainFolderStructure,
+                type, partLocation, type.Name, GroupingFolderMessage(scan.FoldersLayout, relativeDirectory));
             return true;
         }
         return false;
@@ -115,9 +122,10 @@ internal static class ConventionFolderStructureAnalysis
                 continue;
             if (index != expectedSharedIndex || !string.Equals(segments[index], SharedFolder, StringComparison.Ordinal))
             {
-                Report(facts, type, location, foldersLayout
-                    ? "'_Shared' is reserved only at subdomain scope '<Domain>/<Subdomain>/_Shared/'"
-                    : "'_Shared' is reserved only at subdomain scope '<Subdomain>/_Shared/'");
+                ConventionBoundaryAnalysis.Report(facts, ConventionDiagnosticDescriptors.DomainFolderStructure,
+                    type, location, type.Name, foldersLayout
+                        ? "'_Shared' is reserved only at subdomain scope '<Domain>/<Subdomain>/_Shared/'"
+                        : "'_Shared' is reserved only at subdomain scope '<Subdomain>/_Shared/'");
                 return true;
             }
             hasShared = true;
@@ -131,7 +139,8 @@ internal static class ConventionFolderStructureAnalysis
             facts.Symbols.IsKnown(type, facts.Symbols.RepositoryContract, facts.Cancellation) ||
             facts.Symbols.IsPersistenceType(type, facts.Cancellation))
         {
-            Report(facts, type, location, "'_Shared' may contain only subdomain-scoped value objects (non-static classes, records, or structs), never entities, repositories, services, enums, interfaces, delegates, static classes, or persistence types");
+            ConventionBoundaryAnalysis.Report(facts, ConventionDiagnosticDescriptors.DomainFolderStructure,
+                type, location, type.Name, "'_Shared' may contain only subdomain-scoped value objects (non-static classes, records, or structs), never entities, repositories, services, enums, interfaces, delegates, static classes, or persistence types");
             return true;
         }
         return false;
@@ -146,11 +155,10 @@ internal static class ConventionFolderStructureAnalysis
             var placement = facts.LogicalDirectory(tree);
             if (placement is null) continue;
             if (!facts.TryGetDomainRelativeDirectory(placement.Value.Directory, out var relativeDirectory) ||
-                relativeDirectory.Length == 0) continue;
+                relativeDirectory.Length == 0 ||
+                DirectoryDepth(relativeDirectory.AsSpan()) >= minTypeDepth) continue;
             if (tree.GetRoot(facts.Cancellation) is not CompilationUnitSyntax root) continue;
             if (HasAnyDeclaredType(root)) continue;
-            var segments = relativeDirectory.Split('/', StringSplitOptions.RemoveEmptyEntries);
-            if (segments.Length >= minTypeDepth) continue;
             var fileName = ConventionProject.NormalizeSeparators(facts.LogicalPath(tree) ?? tree.FilePath);
             facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.DomainFolderStructure,
                 Location.Create(tree, root.Span),
@@ -160,20 +168,28 @@ internal static class ConventionFolderStructureAnalysis
         }
     }
 
+    private static int DirectoryDepth(ReadOnlySpan<char> directory)
+    {
+        var depth = 0;
+        var inSegment = false;
+        foreach (var ch in directory)
+        {
+            if (ch == '/')
+            {
+                inSegment = false;
+            }
+            else if (!inSegment)
+            {
+                inSegment = true;
+                depth++;
+            }
+        }
+        return depth;
+    }
+
     private static bool HasAnyDeclaredType(CompilationUnitSyntax root) =>
         root.DescendantNodes(static node => node is CompilationUnitSyntax or BaseNamespaceDeclarationSyntax)
             .Any(static node => node is BaseTypeDeclarationSyntax or DelegateDeclarationSyntax);
-
-    private static bool HasFallbackPopulatedSubdomain(ConventionFacts facts, HashSet<INamedTypeSymbol> rootIdentityEnums)
-    {
-        foreach (var type in facts.Types)
-        {
-            facts.Cancellation.ThrowIfCancellationRequested();
-            if (facts.Role(type).Role != ConventionArchitecture.Domain || IsAllowedRootIdentityType(facts, type, rootIdentityEnums)) continue;
-            if (facts.Owner(type) is not null) return true;
-        }
-        return false;
-    }
 
     private static HashSet<INamedTypeSymbol> CollectRootIdentityEnums(ConventionFacts facts)
     {
@@ -206,24 +222,6 @@ internal static class ConventionFolderStructureAnalysis
         return type.TypeKind == TypeKind.Enum &&
                type.EnumUnderlyingType?.SpecialType == SpecialType.System_Byte &&
                rootIdentityEnums.Contains(type) &&
-               type.GetAttributes().Any(attribute => ConventionSymbols.Same(attribute.AttributeClass, facts.Symbols.DomainOnlyAttribute));
+               ConventionBoundaryAnalysis.HasAttribute(type, facts.Symbols.DomainOnlyAttribute);
     }
-
-    private static string StripPrefix(string directory, string pathPrefix)
-    {
-        if (pathPrefix.Length == 0) return directory;
-        if (directory == pathPrefix) return "";
-        return directory.StartsWith(pathPrefix + "/", StringComparison.Ordinal)
-            ? directory[(pathPrefix.Length + 1)..]
-            : directory;
-    }
-
-    private static Location PartLocation(INamedTypeSymbol type, SyntaxReference reference, CancellationToken cancellation) =>
-        type.Locations.FirstOrDefault(candidate => candidate.SourceTree == reference.SyntaxTree &&
-            reference.Span.Contains(candidate.SourceSpan)) ?? reference.GetSyntax(cancellation).GetLocation();
-
-    private static void Report(ConventionFacts facts, INamedTypeSymbol type, Location location, string detail) =>
-        facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.DomainFolderStructure, location,
-            ImmutableDictionary<string, string?>.Empty.Add(ConventionInputSyntax.TargetField, type.GetDocumentationCommentId()),
-            type.Name, detail));
 }

@@ -132,9 +132,7 @@ internal static class ConventionOwnershipAnalysis
             }
             var directoryConflict = expectedDirectory is not null && placement.Value.Directory != expectedDirectory;
             if (!directoryConflict && !namespaceConflict) continue;
-            var part = type.Locations.FirstOrDefault(candidate => candidate.SourceTree == reference.SyntaxTree &&
-                reference.Span.Contains(candidate.SourceSpan)) ?? reference.GetSyntax(facts.Cancellation).GetLocation();
-            conflicts.Add(part);
+            conflicts.Add(ConventionBoundaryAnalysis.PartLocation(type, reference, facts.Cancellation));
         }
         return (conflicts, missingPlacement);
     }
