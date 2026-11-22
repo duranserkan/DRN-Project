@@ -74,7 +74,7 @@ public sealed class ConventionDiagnosticContractTests
                 AnonymousClassification, DictionaryClassification, InvalidRuleFile, UnsafeLoggingCapture,
                 InvalidNameExemptionComment, UnusedNameExemptionComment, IncompleteModelAnalysis, IncompleteInterfaceAnalysis],
             ["DRNAUTHORIZATION"] = [SourceKnownControllerPolicyRequired],
-            ["DRNDTO"] = [EntityDto, DtoFolder, DtoClassification, DtoMessagePlacement, DtoExposure, ExplicitContractMessage, ServiceDtoProjection],
+            ["DRNDTO"] = [EntityDto, DtoFolder, DtoClassification, DtoMessagePlacement, DtoExposure, ExplicitContractMessage],
             ["DRNENUM"] = [DomainEnumRequiresMarker, DomainOnlyOutsideDomain, DomainOnlyEnumExposed, EnumZeroRequiresAllowZero, AllowZeroWithoutZeroMember],
             ["DRNHOSTING"] = [accessor, program.Single()],
             ["DRNARCHITECTURE"] = [IncompleteContract, Contract, Reference, ImplementationRole, ForbiddenDependency, RequiredReference],
@@ -233,7 +233,6 @@ public sealed class ConventionDiagnosticContractTests
     [DataInlineUnit("DRNDTO004")]
     [DataInlineUnit("DRNDTO005")]
     [DataInlineUnit("DRNDTO006")]
-    [DataInlineUnit("DRNDTO007")]
     [DataInlineUnit("DRNENUM001")]
     [DataInlineUnit("DRNENUM002")]
     [DataInlineUnit("DRNENUM003")]
@@ -325,7 +324,6 @@ public sealed class ConventionDiagnosticContractTests
     [DataInlineUnit("DRNDTO004")]
     [DataInlineUnit("DRNDTO005")]
     [DataInlineUnit("DRNDTO006")]
-    [DataInlineUnit("DRNDTO007")]
     [DataInlineUnit("DRNENUM001")]
     [DataInlineUnit("DRNENUM002")]
     [DataInlineUnit("DRNENUM003")]
@@ -692,17 +690,6 @@ public sealed class ConventionDiagnosticContractTests
                 """, [], "M:Sample.Hosted.QA.OrdersController.Read", "Read",
                 "Public endpoint 'Sample.Hosted.QA.OrdersController.Read()' must use an explicit Contract Response type instead of 'Shared.Contract.QA.Orders.OrderView'.",
                 ConventionDtoAnalysis.Analyze, ExtraReferences: [OrderViewContract.Value.Reference]),
-            "DRNDTO007" => new("Application", """
-                using DRN.Framework.SharedKernel.Domain;
-                using DRN.Framework.SharedKernel.Domain.Repository;
-                namespace Sample.Application.QA;
-                public class OtherTarget;
-                public class OrderEntity : AggregateRoot { public override Dto ToDto() => new(this); }
-                public class OrderService(ISourceKnownRepository<OrderEntity> repository)
-                    : SourceKnownService<OrderEntity, Shared.Contract.QA.Items.ItemDto>(repository);
-                """, [.. ItemContract.Value.Records], "T:Sample.Application.QA.OrderService", "OrderService",
-                "Service 'OrderService' inherits default ToDto() from SourceKnownService<OrderEntity, ItemDto>, but 'OrderEntity.ToDto()' returns 'Dto', which is not assignable to 'ItemDto'. Override ToDto(OrderEntity) or align the service DTO type.",
-                ConventionDtoAnalysis.Analyze, ExtraReferences: [ItemContract.Value.Reference]),
             "DRNENUM001" => new("Domain", """
                 namespace Sample.Domain.QA { public class OtherTarget; }
                 namespace Sample.Domain.QA.Fixture { public enum Status { Active = 1 } }

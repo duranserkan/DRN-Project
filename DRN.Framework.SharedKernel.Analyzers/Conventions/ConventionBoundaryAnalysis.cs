@@ -431,22 +431,37 @@ internal static class ConventionBoundaryAnalysis
         foreach (var attribute in attributes)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
-            if (attribute.AttributeClass is not { } attributeClass) continue;
-            var isGeneric = ConventionSymbols.Same(attributeClass, generic);
-            if (!isGeneric && !ConventionSymbols.Same(attributeClass, nonGeneric)) continue;
-            ITypeSymbol? type = isGeneric ? attributeClass.TypeArguments[0] : null;
-            int? statusCode = null;
-            foreach (var argument in attribute.ConstructorArguments)
-            {
-                if (argument.Kind == TypedConstantKind.Type) type = argument.Value as ITypeSymbol;
-                if (argument.Kind == TypedConstantKind.Primitive && argument.Value is int code) statusCode = code;
-            }
-            foreach (var argument in attribute.NamedArguments)
-            {
-                if (argument.Key == "Type") type = argument.Value.Value as ITypeSymbol;
-                if (argument.Key == "StatusCode" && argument.Value.Value is int code) statusCode = code;
-            }
-            if (statusCode is int status) yield return (status, type);
+            if (TryReadProducesResponseType(attribute, nonGeneric, generic, out var response))
+                yield return response;
+        }
+    }
+
+    private static bool TryReadProducesResponseType(AttributeData attribute, INamedTypeSymbol? nonGeneric,
+        INamedTypeSymbol? generic, out (int StatusCode, ITypeSymbol? Type) response)
+    {
+        response = default;
+        if (attribute.AttributeClass is not { } attributeClass) return false;
+        var isGeneric = ConventionSymbols.Same(attributeClass, generic);
+        if (!isGeneric && !ConventionSymbols.Same(attributeClass, nonGeneric)) return false;
+        ITypeSymbol? type = isGeneric ? attributeClass.TypeArguments[0] : null;
+        int? statusCode = null;
+        ReadProducesResponseArguments(attribute, ref type, ref statusCode);
+        if (statusCode is not int status) return false;
+        response = (status, type);
+        return true;
+    }
+
+    private static void ReadProducesResponseArguments(AttributeData attribute, ref ITypeSymbol? type, ref int? statusCode)
+    {
+        foreach (var argument in attribute.ConstructorArguments)
+        {
+            if (argument.Kind == TypedConstantKind.Type) type = argument.Value as ITypeSymbol;
+            else if (argument.Kind == TypedConstantKind.Primitive && argument.Value is int code) statusCode = code;
+        }
+        foreach (var argument in attribute.NamedArguments)
+        {
+            if (argument.Key == "Type") type = argument.Value.Value as ITypeSymbol;
+            else if (argument.Key == "StatusCode" && argument.Value.Value is int code) statusCode = code;
         }
     }
 

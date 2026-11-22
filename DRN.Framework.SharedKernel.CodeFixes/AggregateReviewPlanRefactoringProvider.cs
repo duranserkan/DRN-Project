@@ -146,20 +146,35 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         var merged = new Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)>(domainContexts, StringComparer.Ordinal);
         foreach (var entry in infraContexts)
         {
-            if (merged.TryGetValue(entry.Key, out var previous))
+            if (!merged.TryGetValue(entry.Key, out var previous))
             {
-                var previousDomain = previous.Domain.Length > 0 ? previous.Domain : defaultDomain;
-                var currentDomain = entry.Value.Domain.Length > 0 ? entry.Value.Domain : defaultDomain;
-                if (previousDomain != currentDomain || previous.Owner != entry.Value.Owner || previous.Reason != entry.Value.Reason)
-                    return null;
-                merged[entry.Key] = entry.Value.Domain.Length > 0
-                    ? entry.Value
-                    : (previous.Domain, entry.Value.Owner, entry.Value.Reason, entry.Value.Declaration);
+                merged[entry.Key] = entry.Value;
                 continue;
             }
-            merged[entry.Key] = entry.Value;
+            if (!TryMergeContextOwnerEntry(previous, entry.Value, defaultDomain, out var combined))
+                return null;
+            merged[entry.Key] = combined;
         }
         return merged;
+    }
+
+    private static bool TryMergeContextOwnerEntry(
+        (string Domain, string Owner, string Reason, string Declaration) previous,
+        (string Domain, string Owner, string Reason, string Declaration) current,
+        string defaultDomain,
+        out (string Domain, string Owner, string Reason, string Declaration) combined)
+    {
+        var previousDomain = previous.Domain.Length > 0 ? previous.Domain : defaultDomain;
+        var currentDomain = current.Domain.Length > 0 ? current.Domain : defaultDomain;
+        if (previousDomain != currentDomain || previous.Owner != current.Owner || previous.Reason != current.Reason)
+        {
+            combined = default;
+            return false;
+        }
+        combined = current.Domain.Length > 0
+            ? current
+            : (previous.Domain, current.Owner, current.Reason, current.Declaration);
+        return true;
     }
 
     private static async Task<Plan?> TryCreatePlanForContextAsync(AggregateTarget target, InfraPlanProject infra,

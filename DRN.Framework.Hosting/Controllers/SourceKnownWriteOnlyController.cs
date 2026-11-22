@@ -10,7 +10,7 @@ namespace DRN.Framework.Hosting.Controllers;
 /// </summary>
 [SuppressMessage("SonarQube", "S2436", Justification = "The write-only variant preserves the base controller's independent entity, response contract and create request contracts while excluding read actions from MVC routing.")]
 public abstract class SourceKnownWriteOnlyController<TEntity, TResponse, TCreateRequest>(
-    ISourceKnownService<TEntity, Dto, TCreateRequest> service)
+    ISourceKnownService<TEntity, TResponse, TCreateRequest> service)
     : SourceKnownController<TEntity, TResponse, TCreateRequest>(service)
     where TEntity : AggregateRoot
     where TResponse : class
@@ -45,7 +45,7 @@ public abstract class SourceKnownWriteOnlyController<TEntity, TResponse, TCreate
     /// <inheritdoc />
     [NonAction]
     public sealed override Task<PaginationResultModel<TResponse>> PaginateWithOptionsAsync(
-        PaginationOptions options, CancellationToken cancellationToken = default)
+        PaginationOptions? options = null, CancellationToken cancellationToken = default)
         => base.PaginateWithOptionsAsync(options, cancellationToken);
 
     /// <inheritdoc />

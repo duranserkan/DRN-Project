@@ -10,14 +10,6 @@ namespace Sample.Hosted.Controllers.QA;
 public class CategoryController(ICategoryService service)
     : SourceKnownController<CategoryEntity, CategoryResponse, CategoryPostRequest>(service)
 {
-    protected override CategoryResponse ToResponse(CategoryEntity entity) => new()
-    {
-        Id = entity.EntityId,
-        CreatedAt = entity.CreatedAt,
-        ModifiedAt = entity.ModifiedAt,
-        Name = entity.Name
-    };
-
     [NonAction]
     public override Task<NoContentResult> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
         => base.DeleteAsync(id, cancellationToken);

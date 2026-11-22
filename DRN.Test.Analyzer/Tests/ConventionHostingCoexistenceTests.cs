@@ -24,8 +24,7 @@ public sealed class ConventionHostingCoexistenceTests
         public class OrderDto : DRN.Framework.SharedKernel.Domain.Dto;
         public abstract class ControllerParent : DRN.Framework.Hosting.Controllers.SourceKnownControllerBase<Order, OrderDto>
         {
-            protected ControllerParent(DRN.Framework.SharedKernel.Domain.ISourceKnownService<Order> service) : base(service) { }
-            protected override OrderDto ToResponse(Order entity) => new();
+            protected ControllerParent(DRN.Framework.SharedKernel.Domain.ISourceKnownService<Order, OrderDto> service) : base(service) { }
             public void Unnamed() { }
             [Microsoft.AspNetCore.Authorization.AllowAnonymous]
             [Microsoft.AspNetCore.Authorization.Authorize("Readers")]
@@ -35,7 +34,7 @@ public sealed class ConventionHostingCoexistenceTests
         }
         public class OrdersController : ControllerParent
         {
-            public OrdersController(DRN.Framework.SharedKernel.Domain.ISourceKnownService<Order> service) : base(service) { }
+            public OrdersController(DRN.Framework.SharedKernel.Domain.ISourceKnownService<Order, OrderDto> service) : base(service) { }
         }
         """;
 

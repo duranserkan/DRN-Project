@@ -145,8 +145,7 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
     {
         var context = await ResolveServiceContextAsync(domain, application, selected, token);
         if (context is null) return null;
-        if (!HasMatchingConventionalOwnership(selected, context.DomainNamespace, context.DomainLayout, context.SourceCompilation,
-                context.DomainInputs, context.ApplicationInputs, context.Owner, token)) return null;
+        if (!HasMatchingConventionalOwnership(selected, context, token)) return null;
         var ns = context.ApplicationNamespace + ".Services." + context.Area;
         if (!ValidNamespace(ns)) return null;
         var operation = selected.Method.Name.EndsWith("Async", StringComparison.Ordinal) ? selected.Method.Name[..^5] : selected.Method.Name;
@@ -213,21 +212,19 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
             domain.Namespace, domain.Layout, application.Namespace, projectPath, area, owner);
     }
 
-    private static bool HasMatchingConventionalOwnership(Selection selected, string domainNamespace,
-        ConventionGenerationPreflight.ProjectLayout domainLayout, Compilation source,
-        CompilationUnitSyntax domainInputs, CompilationUnitSyntax applicationInputs, OwnerKey owner, CancellationToken token)
+    private static bool HasMatchingConventionalOwnership(Selection selected, ServiceContext context, CancellationToken token)
     {
         var entityName = MetadataName(selected.Entity);
         var repositoryName = MetadataName(selected.Method.ContainingType);
-        var entityOwner = ResolveNamespaceOwnerKey(selected.Entity, domainNamespace, domainLayout);
-        var domainFilter = owner.DomainFilter;
-        return entityOwner is not null && entityOwner.NamespacePrefix == owner.NamespacePrefix &&
-               ConventionalOwner(selected.Method.ContainingType, domainNamespace, domainLayout, source) &&
-               ConventionalOwner(selected.Entity, domainNamespace, domainLayout, source) &&
-               OwnershipCompatible(domainInputs, entityName, owner.Subdomain, token, domainFilter) &&
-               OwnershipCompatible(domainInputs, repositoryName, owner.Subdomain, token, domainFilter) &&
-               OwnershipCompatible(applicationInputs, entityName, owner.Subdomain, token, domainFilter) &&
-               OwnershipCompatible(applicationInputs, repositoryName, owner.Subdomain, token, domainFilter);
+        var entityOwner = ResolveNamespaceOwnerKey(selected.Entity, context.DomainNamespace, context.DomainLayout);
+        var domainFilter = context.Owner.DomainFilter;
+        return entityOwner is not null && entityOwner.NamespacePrefix == context.Owner.NamespacePrefix &&
+               ConventionalOwner(selected.Method.ContainingType, context.DomainNamespace, context.DomainLayout, context.SourceCompilation) &&
+               ConventionalOwner(selected.Entity, context.DomainNamespace, context.DomainLayout, context.SourceCompilation) &&
+               OwnershipCompatible(context.DomainInputs, entityName, context.Owner.Subdomain, token, domainFilter) &&
+               OwnershipCompatible(context.DomainInputs, repositoryName, context.Owner.Subdomain, token, domainFilter) &&
+               OwnershipCompatible(context.ApplicationInputs, entityName, context.Owner.Subdomain, token, domainFilter) &&
+               OwnershipCompatible(context.ApplicationInputs, repositoryName, context.Owner.Subdomain, token, domainFilter);
     }
 
     private static bool CanConstructForwardingService(INamedTypeSymbol constructed, INamedTypeSymbol repository,

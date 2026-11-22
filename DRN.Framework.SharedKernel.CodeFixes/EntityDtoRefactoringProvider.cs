@@ -11,6 +11,7 @@ namespace DRN.Framework.SharedKernel.CodeFixes;
 [ExportCodeRefactoringProvider(LanguageNames.CSharp, Name = nameof(EntityDtoRefactoringProvider)), Shared]
 public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
 {
+    private const string SourceKnownEntityMetadataName = "DRN.Framework.SharedKernel.Domain.SourceKnownEntity";
     public override async Task ComputeRefactoringsAsync(CodeRefactoringContext context)
     {
         var solution = context.Document.Project.Solution;
@@ -104,7 +105,7 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         var call = name.FirstAncestorOrSelf<InvocationExpressionSyntax>();
         var site = call is not null && call.Expression.Span.End == name.Span.End ? call : name;
         if (model.GetSymbolInfo(site, token).Symbol is not IMethodSymbol method) return false;
-        var entityBase = model.Compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity");
+        var entityBase = model.Compilation.GetTypeByMetadataName(SourceKnownEntityMetadataName);
         return !(method is { MethodKind: MethodKind.Ordinary, IsAbstract: true, IsStatic: false, Name: "ToDto", Arity: 0, Parameters.IsEmpty: true } &&
             Same(method.ContainingType, entityBase));
     }
@@ -278,7 +279,7 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
     private static async Task<bool> IsEditablePublicEntityAsync(Document document, Compilation compilation,
         INamedTypeSymbol entity, CancellationToken token)
     {
-        var entityBase = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity");
+        var entityBase = compilation.GetTypeByMetadataName(SourceKnownEntityMetadataName);
         if (entity.IsAbstract || IsOpen(entity) || !IsPublicType(entity) || !Inherits(entity, entityBase)) return false;
         foreach (var type in Bases(entity))
         {
@@ -379,8 +380,8 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         if (sourceCompilation is null || targetCompilation is null ||
             !selection.Entity.ContainingAssembly.Identity.Equals(sourceCompilation.Assembly.Identity)) return null;
         var dto = targetCompilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.Dto");
-        var entityBase = targetCompilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity");
-        var sourceEntityBase = sourceCompilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity");
+        var entityBase = targetCompilation.GetTypeByMetadataName(SourceKnownEntityMetadataName);
+        var sourceEntityBase = sourceCompilation.GetTypeByMetadataName(SourceKnownEntityMetadataName);
         if (dto is null || entityBase is null || sourceEntityBase is null ||
             !targetCompilation.IsSymbolAccessibleWithin(dto, targetCompilation.Assembly) ||
             sourceCompilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.Dto") is not { } sourceDto ||

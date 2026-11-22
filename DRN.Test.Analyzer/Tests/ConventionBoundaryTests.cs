@@ -47,10 +47,7 @@ public sealed class ConventionBoundaryTests
             }
             namespace Sample.Hosted.Controllers.Billing
             {
-                public class UsersController() : DRN.Framework.Hosting.Controllers.SourceKnownControllerBase<Sample.Hosted.QA.User, Sample.Hosted.QA.UserDto>(null!)
-                {
-                    protected override Sample.Hosted.QA.UserDto ToResponse(Sample.Hosted.QA.User entity) => new();
-                }
+                public class UsersController() : DRN.Framework.Hosting.Controllers.SourceKnownControllerBase<Sample.Hosted.QA.User, Sample.Hosted.QA.UserDto>(null!);
             }
             """).AddReferences(AnalyzerTestCompilation.HostingReference);
         compilation.AssertNoCompilerErrors();

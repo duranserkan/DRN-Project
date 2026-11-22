@@ -29,7 +29,7 @@ public sealed class ControllerReviewPlanRefactoringTests
             [Authorize("Readers")]
             public abstract class OrdersController : SourceKnownWriteOnlyController<Order, OrderResponse, Request>
             {
-                protected OrdersController(ISourceKnownService<Order, Dto, Request> service) : base(service) { }
+                protected OrdersController(ISourceKnownService<Order, OrderResponse, Request> service) : base(service) { }
             }
             """;
         var document = project.AddDocument("OrdersController.cs", source, filePath: "/source/Sample.Hosted/QA/OrdersController.cs");

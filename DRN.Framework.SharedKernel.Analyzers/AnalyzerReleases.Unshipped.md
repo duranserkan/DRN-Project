@@ -35,7 +35,6 @@
 | DRNDTO004 | DRN.Conventions.Structure | Warning | Place entity-prefixed requests and responses beside their DTO |
 | DRNDTO005 | DRN.Conventions.Contract | Warning | Do not expose DTOs through public requests, responses, or controller endpoints |
 | DRNDTO006 | DRN.Conventions.Contract | Warning | Use explicit Contract Request and Response types on public endpoints |
-| DRNDTO007 | DRN.Conventions.Contract | Warning | Align inherited SourceKnownService DTO projection with entity ToDto() return type |
 | DRNENTITY001 | DRN.Domain | Error    | https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/README.md#compile-time-roslyn-analyzers |
 | DRNENTITY002 | DRN.Domain | Error    | https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/README.md#compile-time-roslyn-analyzers |
 | DRNENTITY003 | DRN.Domain | Error    | https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/README.md#compile-time-roslyn-analyzers |

@@ -151,7 +151,7 @@ Preserve the application's existing registration path. Attribute registration re
 
 ## Entity DTO, optional service and request
 
-A requested repository-backed service may derive from `SourceKnownService<TEntity>`, `SourceKnownService<TEntity, TDto>`, or `SourceKnownService<TEntity, TDto, TCreateRequest>`, or implement the corresponding `ISourceKnownService` interface. Supply the actual requested operation and domain behavior before writing it. If the request only needs repository access, no service is required. A service skeleton with a hidden TODO or `NotImplementedException` is not an acceptable output.
+A requested repository-backed service may derive from `SourceKnownService<TEntity>`, `SourceKnownService<TEntity, TResponse>`, or `SourceKnownService<TEntity, TResponse, TCreateRequest>`, or implement the corresponding `ISourceKnownService` interface. Supply the actual requested operation and domain behavior before writing it. If the request only needs repository access, no service is required. A service skeleton with a hidden TODO or `NotImplementedException` is not an acceptable output.
 
 For an explicitly requested forwarding use case, select one complete method declaration on an existing Domain repository interface. The Add forwarding service action offers eligible loaded Application projects and separate scoped/unregistered choices. It forwards exactly the selected method to the repository, and asynchronous (`Task`/`ValueTask`) methods require a `CancellationToken` parameter to qualify. It adds no business validation, query, write behavior or extra operations. Unsupported signatures, unavailable types, ownership conflicts or a missing existing Domain reference prevent the offer. Use this only when forwarding that existing operation is the intended use case. More involved orchestration still requires the real business implementation.
 
@@ -192,9 +192,9 @@ Do not emit a controller until every requested operation has a real mapping, nam
 
 | Selected base | Inherited HTTP surface to review |
 |---|---|
-| `SourceKnownControllerBase<TEntity,TResponse>` | No HTTP actions. Composes `ISourceKnownService<TEntity>` and rejects `Dto` response types. Own each requested operation explicitly. |
+| `SourceKnownControllerBase<TEntity,TResponse>` | No HTTP actions. Composes `ISourceKnownService<TEntity, TResponse>` and delegates response mapping via virtual `CreateResponseAsync`/`CreateResponsesAsync`. Own each requested operation explicitly. |
 | `SourceKnownReadOnlyController<TEntity,TResponse>` | GetAsync, GetManyAsync, AnyAsync, CountAsync, PaginateAsync, PaginateWithOptionsAsync, PaginateWithBodyAsync. POST lookup/pagination are still reads. |
-| `SourceKnownController<TEntity,TResponse,TCreateRequest>` | All read actions plus PostAsync and DeleteAsync. Delegates creation to `ISourceKnownService<TEntity, Dto, TCreateRequest>.CreateEntityAsync`. |
+| `SourceKnownController<TEntity,TResponse,TCreateRequest>` | All read actions plus PostAsync and DeleteAsync. Delegates creation and response projection to `ISourceKnownService<TEntity, TResponse, TCreateRequest>`. |
 | `SourceKnownWriteOnlyController<TEntity,TResponse,TCreateRequest>` | PostAsync and DeleteAsync. Inherited reads are sealed NonAction overrides. |
 
 Recheck the installed base's full inheritance chain when creating the preview. For each exposed action record route, verb, selected/enabled state, named policy, resource scope, input/output mapping and cancellation behavior. Explicitly disable unselected overridable actions with `[NonAction]`. `IgnoreApi` hides documentation but does not disable routing. Do not use `AllowAnonymous` as a fallback.

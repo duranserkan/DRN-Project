@@ -7,9 +7,8 @@ namespace DRN.Framework.Hosting.Controllers;
 /// Combines all read actions with opt-in create and delete actions backed by an application service.
 /// Applications supply explicit response projection, named authorization policies and resource-specific checks.
 /// </summary>
-[SuppressMessage("SonarQube", "S2436", Justification = "Entity, response contract and create request are independent contracts. Three type parameters preserve typed service access, response mapping and request binding.")]
 public abstract class SourceKnownController<TEntity, TResponse, TCreateRequest>(
-    ISourceKnownService<TEntity, Dto, TCreateRequest> service)
+    ISourceKnownService<TEntity, TResponse, TCreateRequest> service)
     : SourceKnownReadOnlyController<TEntity, TResponse>(service)
     where TEntity : AggregateRoot
     where TResponse : class
@@ -17,7 +16,7 @@ public abstract class SourceKnownController<TEntity, TResponse, TCreateRequest>(
 {
     /// <summary>Builds an entity through the backing application service.</summary>
     protected virtual Task<TEntity> CreateEntityAsync(TCreateRequest request, CancellationToken cancellationToken)
-        => ((ISourceKnownService<TEntity, Dto, TCreateRequest>)Service).CreateEntityAsync(request, cancellationToken);
+        => service.CreateEntityAsync(request, cancellationToken);
 
     /// <summary>Creates an entity and returns its response contract. Does not require the GET action to be enabled.</summary>
     [HttpPost]
@@ -27,11 +26,15 @@ public abstract class SourceKnownController<TEntity, TResponse, TCreateRequest>(
     {
         ArgumentNullException.ThrowIfNull(request);
         PrepareRepository(cancellationToken);
-        var entity = await CreateEntityAsync(request, cancellationToken);
+        var entity = await CreateEntityAsync(request, cancellationToken)
+                     ?? throw new InvalidOperationException($"{GetType().Name}.{nameof(CreateEntityAsync)} returned null.");
         cancellationToken.ThrowIfCancellationRequested();
         await Repository.CreateAsync(entity);
+        cancellationToken.ThrowIfCancellationRequested();
+        var response = await CreateResponseAsync(entity, cancellationToken)
+                       ?? throw new InvalidOperationException($"{GetType().Name}.{nameof(CreateResponseAsync)} returned null.");
 
-        return new ObjectResult(ToResponse(entity)) { StatusCode = StatusCodes.Status201Created };
+        return new ObjectResult(response) { StatusCode = StatusCodes.Status201Created };
     }
 
     /// <summary>

@@ -9,7 +9,7 @@ namespace DRN.Framework.Hosting.Controllers;
 /// Exposes bounded repository reads as explicit response contracts. Override an action with <see cref="NonActionAttribute"/>
 /// to remove it from routing. Repository filters must enforce application data visibility.
 /// </summary>
-public abstract class SourceKnownReadOnlyController<TEntity, TResponse>(ISourceKnownService<TEntity> service)
+public abstract class SourceKnownReadOnlyController<TEntity, TResponse>(ISourceKnownService<TEntity, TResponse> service)
     : SourceKnownControllerBase<TEntity, TResponse>(service)
     where TEntity : AggregateRoot
     where TResponse : class
@@ -25,19 +25,24 @@ public abstract class SourceKnownReadOnlyController<TEntity, TResponse>(ISourceK
     public virtual async Task<TResponse> GetAsync([FromRoute] Guid id, CancellationToken cancellationToken = default)
     {
         PrepareRepository(cancellationToken);
-        return ToResponse(await Repository.GetAsync(id));
+        var entity = await Repository.GetAsync(id);
+        cancellationToken.ThrowIfCancellationRequested();
+        return await CreateResponseAsync(entity, cancellationToken)
+               ?? throw new InvalidOperationException($"{GetType().Name}.{nameof(CreateResponseAsync)} returned null.");
     }
 
     /// <summary>Retrieves a bounded batch. Missing IDs and ordering follow repository semantics.</summary>
     [HttpPost("Lookup")]
     public virtual async Task<TResponse[]> GetManyAsync([FromBody] Guid[] ids, CancellationToken cancellationToken = default)
     {
-        if (ids is null || ids.Length == 0 || ids.Length > Math.Clamp(MaxBatchSize, 1, PageSize.MaxSizeThreshold))
+        if (ids.Length == 0 || ids.Length > Math.Clamp(MaxBatchSize, 1, PageSize.MaxSizeThreshold))
             throw ExceptionFor.Validation("Provide a nonempty ID batch within the server's batch limit.");
 
         PrepareRepository(cancellationToken);
         var entities = await Repository.GetAsync(ids);
-        return entities.Select(ToResponse).ToArray();
+        cancellationToken.ThrowIfCancellationRequested();
+        return await CreateResponsesAsync(entities, cancellationToken)
+               ?? throw new InvalidOperationException($"{GetType().Name}.{nameof(CreateResponsesAsync)} returned null.");
     }
 
     /// <summary>Reports whether any entity is visible through the configured repository filters.</summary>
@@ -65,8 +70,8 @@ public abstract class SourceKnownReadOnlyController<TEntity, TResponse>(ISourceK
     /// <summary>Fetches the first page using flat query options and the server's page ceiling.</summary>
     [HttpGet("Paginate")]
     public virtual Task<PaginationResultModel<TResponse>> PaginateWithOptionsAsync(
-        [FromQuery] PaginationOptions options, CancellationToken cancellationToken = default)
-        => ReadPageAsync(PaginationRequest.DefaultWith(options), cancellationToken);
+        [FromQuery] PaginationOptions? options = null, CancellationToken cancellationToken = default)
+        => ReadPageAsync(PaginationRequest.DefaultWith(options ?? new PaginationOptions()), cancellationToken);
 
     /// <summary>Fetches a bounded page using JSON cursor metadata. This action does not mutate data.</summary>
     [HttpPost("Paginate")]
@@ -90,6 +95,9 @@ public abstract class SourceKnownReadOnlyController<TEntity, TResponse>(ISourceK
             new PageSize(request.PageSize.Size, Math.Clamp(MaxPageSize, 1, PageSize.MaxSizeThreshold)),
             cursor, updateTotalCount: request.UpdateTotalCount);
         var result = await Repository.PaginateAsync(boundedRequest);
-        return result.ToModel(ToResponse);
+        cancellationToken.ThrowIfCancellationRequested();
+        var responses = await CreateResponsesAsync(result.Items, cancellationToken)
+                        ?? throw new InvalidOperationException($"{GetType().Name}.{nameof(CreateResponsesAsync)} returned null.");
+        return new PaginationResultModel<TResponse>(result.Info, responses);
     }
 }

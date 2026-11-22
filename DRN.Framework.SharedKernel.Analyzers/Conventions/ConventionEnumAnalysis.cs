@@ -116,6 +116,7 @@ internal static class ConventionEnumAnalysis
          facts.ReferenceProject(named.ContainingAssembly)?.Role is ConventionArchitecture.Contract or ConventionArchitecture.Domain or
              ConventionArchitecture.Application or ConventionArchitecture.Hosted);
 
+    [SuppressMessage("SonarQube", "S3267", Justification = "Scanning the immutable attribute array directly avoids boxing ImmutableArray and allocating a predicate capturing target.")]
     private static AttributeData? FindAttribute(INamedTypeSymbol type, INamedTypeSymbol? target)
     {
         if (target is null) return null;

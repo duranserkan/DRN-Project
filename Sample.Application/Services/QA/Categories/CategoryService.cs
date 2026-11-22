@@ -5,18 +5,33 @@ using Sample.Domain.QA.Category;
 
 namespace Sample.Application.Services.QA.Categories;
 
-public interface ICategoryService : ISourceKnownService<CategoryEntity, CategoryDto, CategoryPostRequest>
+public interface ICategoryService : ISourceKnownService<CategoryEntity, CategoryResponse, CategoryPostRequest>
 {
     Task<CategoryEntity?> GetOrDefaultAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
 [Scoped<ICategoryService>]
 public class CategoryService(ICategoryRepository repository)
-    : SourceKnownService<CategoryEntity, CategoryDto, CategoryPostRequest>(repository), ICategoryService
+    : SourceKnownService<CategoryEntity, CategoryResponse, CategoryPostRequest>(repository), ICategoryService
 {
+    public override Task<CategoryResponse> CreateResponseAsync(CategoryEntity entity, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.FromResult(new CategoryResponse
+        {
+            Id = entity.EntityId,
+            CreatedAt = entity.CreatedAt,
+            ModifiedAt = entity.ModifiedAt,
+            Name = entity.Name
+        });
+    }
+
     public override Task<CategoryEntity> CreateEntityAsync(CategoryPostRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(new CategoryEntity(request.Name));
     }
 

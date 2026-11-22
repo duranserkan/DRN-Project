@@ -411,10 +411,10 @@ var plainFromUtility = sourceKnownEntityIdUtils.ToPlain(secureFromUtility);
 `ISourceKnownService` contracts in `DRN.Framework.SharedKernel.Domain` provide progressive service abstractions for `AggregateRoot` entities:
 
 - `ISourceKnownService<TEntity>` exposes read-only `ISourceKnownRepository<TEntity> Repository`.
-- `ISourceKnownService<TEntity, out TDto>` extends `ISourceKnownService<TEntity>` with covariant `TDto ToDto(TEntity entity)`.
-- `ISourceKnownService<TEntity, out TDto, in TCreateRequest>` extends `ISourceKnownService<TEntity, TDto>` with `Task<TEntity> CreateEntityAsync(TCreateRequest request, CancellationToken cancellationToken = default)`.
+- `ISourceKnownService<TEntity, TResponse>` extends `ISourceKnownService<TEntity>` with `Task<TResponse> CreateResponseAsync(TEntity entity, CancellationToken cancellationToken = default)` and `Task<TResponse[]> CreateResponsesAsync(IReadOnlyList<TEntity> entities, CancellationToken cancellationToken = default)`.
+- `ISourceKnownService<TEntity, TResponse, in TCreateRequest>` extends `ISourceKnownService<TEntity, TResponse>` with `Task<TEntity> CreateEntityAsync(TCreateRequest request, CancellationToken cancellationToken = default)`.
 
-Derive from `SourceKnownService<TEntity>`, `SourceKnownService<TEntity, TDto>`, or `SourceKnownService<TEntity, TDto, TCreateRequest>` to implement these contracts with a constructor-supplied repository. `SourceKnownService<TEntity, TDto>` supplies a virtual `ToDto(TEntity)` that delegates to `entity.ToDto()` and verifies assignability to `TDto` at runtime (`DRNDTO007` checks this alignment at compile time unless `ToDto(TEntity)` is overridden). `SourceKnownService<TEntity, TDto, TCreateRequest>` adds abstract `CreateEntityAsync`.
+Derive from `SourceKnownService<TEntity>`, `SourceKnownService<TEntity, TResponse>`, or `SourceKnownService<TEntity, TResponse, TCreateRequest>` to implement these contracts with a constructor-supplied repository. `SourceKnownService<TEntity, TResponse>` requires `CreateResponseAsync` and provides a virtual sequential `CreateResponsesAsync` default (override to batch asynchronous enrichment queries). `SourceKnownService<TEntity, TResponse, TCreateRequest>` adds abstract `CreateEntityAsync`.
 
 Contract from [SourceKnownRepository.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/Repository/SourceKnownRepository.cs), grouped by operation:
 

@@ -30,9 +30,6 @@ internal static class ConventionDiagnosticDescriptors
     internal static readonly DiagnosticDescriptor ExplicitContractMessage = Create("DRNDTO006", "Use explicit Contract Request and Response types on public endpoints",
         "Public endpoint '{0}' must use an explicit Contract {1} type instead of '{2}'.", ContractArea);
 
-    internal static readonly DiagnosticDescriptor ServiceDtoProjection = Create("DRNDTO007", "Align service DTO projection with entity ToDto()",
-        "Service '{0}' inherits default ToDto() from SourceKnownService<{1}, {2}>, but '{1}.ToDto()' returns '{3}', which is not assignable to '{2}'. Override ToDto({1}) or align the service DTO type.", ContractArea);
-
     internal static readonly DiagnosticDescriptor DomainEnumRequiresMarker = Create("DRNENUM001", "Define application enums in Contract or mark Domain-only",
         "Enum '{0}' is declared in Domain without [DomainOnly]. Move it to Contract for shared vocabularies or mark it [DomainOnly].", ContractArea);
 
@@ -167,7 +164,7 @@ internal static class ConventionDiagnosticDescriptors
         ContextConstructor, Provider, BaseModel, Persistence, Configuration, Migration, ContextContract, DbSetAggregate, ContextOptionsRequired,
         Repository, Service, AggregateContract, AggregateRepository,
         Registration, LifetimeRequired, ModuleScan, InvalidInput, Exception,
-        EntityDto, DtoFolder, DtoClassification, DtoMessagePlacement, DtoExposure, ExplicitContractMessage, ServiceDtoProjection,
+        EntityDto, DtoFolder, DtoClassification, DtoMessagePlacement, DtoExposure, ExplicitContractMessage,
         DomainEnumRequiresMarker, DomainOnlyOutsideDomain, DomainOnlyEnumExposed, EnumZeroRequiresAllowZero, AllowZeroWithoutZeroMember
     ];
 

@@ -1154,11 +1154,9 @@ public sealed class ConventionDtoTests
                     public AppSummary Run([FromBody] AppCommand command) => new();
                 }
 
-                public class OrdersController(ISourceKnownService<OrderEntity> service)
+                public class OrdersController(ISourceKnownService<OrderEntity, OrderResponse> service)
                     : SourceKnownReadOnlyController<OrderEntity, OrderResponse>(service)
                 {
-                    protected override OrderResponse ToResponse(OrderEntity entity) => new();
-
                     [HttpPost("inferred")]
                     public Task<OrderResponse> Update(ClientErrorPayload payload, [FromKeyedServices("orders")] IOrderLookup lookup)
                         => Task.FromResult(new OrderResponse());
@@ -1269,99 +1267,6 @@ public sealed class ConventionDtoTests
             }
             """);
         diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNDTO001");
-    }
-
-    [Fact]
-    public void Service_Dto_Projection_Should_Verify_Entity_ToDto_Assignability_Unless_Service_Overrides_ToDto()
-    {
-        var contract = Compilation("""
-            using DRN.Framework.SharedKernel.Domain;
-            namespace Sample.Contract.QA.Items
-            {
-                public class BaseItemDto(SourceKnownEntity? e = null) : Dto(e);
-                public class ItemDto(SourceKnownEntity? e = null) : BaseItemDto(e);
-                public class OtherDto(SourceKnownEntity? e = null) : Dto(e);
-                public sealed record ItemPostRequest(string Name);
-            }
-            """).WithAssemblyName("Sample.Contract");
-        contract.AssertNoCompilerErrors();
-
-        var domain = Compilation("""
-            using DRN.Framework.SharedKernel.Domain;
-            using Sample.Contract.QA.Items;
-            namespace Sample.Domain.QA.Item
-            {
-                public class ItemEntity : AggregateRoot
-                {
-                    public override ItemDto ToDto() => new(this);
-                }
-            }
-            """).WithAssemblyName("Sample.Domain").AddReferences(contract.ToMetadataReference());
-        domain.AssertNoCompilerErrors();
-
-        var application = Compilation("""
-            using System.Threading;
-            using System.Threading.Tasks;
-            using DRN.Framework.SharedKernel.Domain;
-            using DRN.Framework.SharedKernel.Domain.Repository;
-            using Sample.Contract.QA.Items;
-            using Sample.Domain.QA.Item;
-            namespace Sample.Application.Services.QA.Items
-            {
-                public class ExactItemService(ISourceKnownRepository<ItemEntity> repository)
-                    : SourceKnownService<ItemEntity, ItemDto>(repository);
-
-                public class CovariantBaseDtoService(ISourceKnownRepository<ItemEntity> repository)
-                    : SourceKnownService<ItemEntity, BaseItemDto>(repository);
-
-                public class CovariantRootDtoService(ISourceKnownRepository<ItemEntity> repository)
-                    : SourceKnownService<ItemEntity, Dto>(repository);
-
-                public class CustomOverrideService(ISourceKnownRepository<ItemEntity> repository)
-                    : SourceKnownService<ItemEntity, OtherDto>(repository)
-                {
-                    public override OtherDto ToDto(ItemEntity entity) => new(entity);
-                }
-
-                public abstract class AbstractCustomBaseService(ISourceKnownRepository<ItemEntity> repository)
-                    : SourceKnownService<ItemEntity, OtherDto>(repository)
-                {
-                    public override OtherDto ToDto(ItemEntity entity) => new(entity);
-                }
-
-                public class InheritedOverrideService(ISourceKnownRepository<ItemEntity> repository)
-                    : AbstractCustomBaseService(repository);
-
-                public abstract class AbstractMismatchedService(ISourceKnownRepository<ItemEntity> repository)
-                    : SourceKnownService<ItemEntity, OtherDto>(repository);
-
-                public class OpenGenericService<TDto>(ISourceKnownRepository<ItemEntity> repository)
-                    : SourceKnownService<ItemEntity, TDto>(repository) where TDto : Dto;
-
-                public class MismatchedService(ISourceKnownRepository<ItemEntity> repository)
-                    : SourceKnownService<ItemEntity, OtherDto>(repository);
-
-                public class MismatchedWriteService(ISourceKnownRepository<ItemEntity> repository)
-                    : SourceKnownService<ItemEntity, OtherDto, ItemPostRequest>(repository)
-                {
-                    public override Task<ItemEntity> CreateEntityAsync(ItemPostRequest request, CancellationToken cancellationToken = default)
-                        => Task.FromResult(new ItemEntity());
-                }
-
-                public class HidingService(ISourceKnownRepository<ItemEntity> repository)
-                    : SourceKnownService<ItemEntity, OtherDto>(repository)
-                {
-                    public new OtherDto ToDto(ItemEntity entity) => new(entity);
-                }
-            }
-            """).WithAssemblyName("Sample.Application").AddReferences(contract.ToMetadataReference(), domain.ToMetadataReference());
-        application.AssertNoCompilerErrors();
-
-        var diagnostics = Analyze(application, "Application");
-        diagnostics.Where(d => d.Id == "DRNDTO007").Select(d => d.Properties["Target"]).Should().BeEquivalentTo(
-            "T:Sample.Application.Services.QA.Items.MismatchedService",
-            "T:Sample.Application.Services.QA.Items.MismatchedWriteService",
-            "T:Sample.Application.Services.QA.Items.HidingService");
     }
 
     [Fact]
@@ -1514,11 +1419,9 @@ public sealed class ConventionDtoTests
             using Sample.Domain.QA.Order;
             namespace Sample.Hosted.Controllers.QA
             {
-                public class OrdersController(ISourceKnownService<OrderEntity> service)
+                public class OrdersController(ISourceKnownService<OrderEntity, OrderResponse> service)
                     : SourceKnownReadOnlyController<OrderEntity, OrderResponse>(service)
                 {
-                    protected override OrderResponse ToResponse(OrderEntity entity) => new();
-
                     [HttpGet("ok-result")]
                     public Task<OkResult> PingOk() => Task.FromResult(Ok());
 

@@ -22,34 +22,48 @@ public abstract class SourceKnownService<TEntity> : ISourceKnownService<TEntity>
 
 /// <summary>
 /// Provides a base repository-backed service for entities of type <typeparamref name="TEntity"/>
-/// with default DTO projection delegating to <see cref="SourceKnownEntity.ToDto()"/>.
+/// that projects entities to explicit <typeparamref name="TResponse"/> contracts.
 /// </summary>
-public abstract class SourceKnownService<TEntity, TDto>(ISourceKnownRepository<TEntity> repository)
-    : SourceKnownService<TEntity>(repository), ISourceKnownService<TEntity, TDto>
+public abstract class SourceKnownService<TEntity, TResponse>(ISourceKnownRepository<TEntity> repository)
+    : SourceKnownService<TEntity>(repository), ISourceKnownService<TEntity, TResponse>
     where TEntity : AggregateRoot
-    where TDto : Dto
+    where TResponse : class
 {
     /// <inheritdoc />
-    public virtual TDto ToDto(TEntity entity)
+    public abstract Task<TResponse> CreateResponseAsync(TEntity entity, CancellationToken cancellationToken = default);
+
+    /// <inheritdoc />
+    public virtual async Task<TResponse[]> CreateResponsesAsync(IReadOnlyList<TEntity> entities,
+        CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(entity);
-        var mapped = entity.ToDto();
-        return mapped is TDto dto
-            ? dto
-            : throw new InvalidOperationException(
-                $"{entity.GetType().Name}.ToDto() returned '{mapped?.GetType().Name ?? "null"}', which is not assignable to '{typeof(TDto).Name}'.");
+        ArgumentNullException.ThrowIfNull(entities);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (entities.Count == 0)
+            return [];
+
+        var responses = new TResponse[entities.Count];
+        for (var i = 0; i < entities.Count; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var entity = entities[i];
+            ArgumentNullException.ThrowIfNull(entity);
+            responses[i] = await CreateResponseAsync(entity, cancellationToken)
+                           ?? throw new InvalidOperationException($"{GetType().Name}.{nameof(CreateResponseAsync)} returned null.");
+        }
+
+        return responses;
     }
 }
 
 /// <summary>
 /// Provides a base repository-backed service for entities of type <typeparamref name="TEntity"/>
-/// with DTO projection to <typeparamref name="TDto"/> and entity creation from <typeparamref name="TCreateRequest"/>.
+/// with response projection to <typeparamref name="TResponse"/> and entity creation from <typeparamref name="TCreateRequest"/>.
 /// </summary>
-[SuppressMessage("SonarQube", "S2436", Justification = "Entity, DTO projection and create request are independent contracts. Three type parameters preserve typed repository access, DTO projection and request handling.")]
-public abstract class SourceKnownService<TEntity, TDto, TCreateRequest>(ISourceKnownRepository<TEntity> repository)
-    : SourceKnownService<TEntity, TDto>(repository), ISourceKnownService<TEntity, TDto, TCreateRequest>
+[SuppressMessage("SonarQube", "S2436", Justification = "Entity, response contract and create request are independent contracts. Three type parameters preserve typed repository access, response projection and request handling.")]
+public abstract class SourceKnownService<TEntity, TResponse, TCreateRequest>(ISourceKnownRepository<TEntity> repository)
+    : SourceKnownService<TEntity, TResponse>(repository), ISourceKnownService<TEntity, TResponse, TCreateRequest>
     where TEntity : AggregateRoot
-    where TDto : Dto
+    where TResponse : class
     where TCreateRequest : class
 {
     /// <inheritdoc />

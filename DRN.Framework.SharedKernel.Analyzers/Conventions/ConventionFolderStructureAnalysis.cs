@@ -10,25 +10,23 @@ internal static class ConventionFolderStructureAnalysis
         if (!facts.HasDomainRole()) return;
 
         var foldersLayout = facts.Project.DomainLayout == ConventionProject.FoldersLayout;
-        var minTypeDepth = foldersLayout ? 3 : 2;
-        var populatedSubdomains = new HashSet<(string Domain, string Subdomain)>();
-        var hasAnyLogicalPaths = false;
         var rootIdentityEnums = CollectRootIdentityEnums(facts);
+        var scan = new DomainFolderScan(facts, foldersLayout, rootIdentityEnums);
 
         foreach (var type in facts.Types)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
-            if (facts.Role(type).Role != ConventionArchitecture.Domain) continue;
             var role = facts.Role(type);
-            InspectDomainType(facts, type, role.PathPrefix, foldersLayout, minTypeDepth, rootIdentityEnums, populatedSubdomains, ref hasAnyLogicalPaths);
+            if (role.Role != ConventionArchitecture.Domain) continue;
+            InspectDomainType(scan, type, role.PathPrefix);
         }
 
-        InspectGroupingFolderFilesWithoutTypes(facts, minTypeDepth);
+        InspectGroupingFolderFilesWithoutTypes(facts, scan.MinTypeDepth);
 
-        if (populatedSubdomains.Count == 0 && (!hasAnyLogicalPaths && HasFallbackPopulatedSubdomain(facts, rootIdentityEnums)))
+        if (scan.PopulatedSubdomains.Count == 0 && (!scan.HasAnyLogicalPaths && HasFallbackPopulatedSubdomain(facts, rootIdentityEnums)))
             return;
 
-        if (populatedSubdomains.Count == 0 && !facts.HasInvalidFolderStructureInputs())
+        if (scan.PopulatedSubdomains.Count == 0 && !facts.HasInvalidFolderStructureInputs())
         {
             var anchor = facts.Records.FirstOrDefault(record =>
                 record.Kind == ConventionInputSyntax.ReferenceKind &&
@@ -41,49 +39,70 @@ internal static class ConventionFolderStructureAnalysis
         }
     }
 
-    private static void InspectDomainType(ConventionFacts facts, INamedTypeSymbol type, string pathPrefix,
-        bool foldersLayout, int minTypeDepth, HashSet<INamedTypeSymbol> rootIdentityEnums,
-        HashSet<(string Domain, string Subdomain)> populatedSubdomains, ref bool hasAnyLogicalPaths)
+    private sealed class DomainFolderScan(ConventionFacts facts, bool foldersLayout, HashSet<INamedTypeSymbol> rootIdentityEnums)
+    {
+        internal ConventionFacts Facts { get; } = facts;
+        internal bool FoldersLayout { get; } = foldersLayout;
+        internal int MinTypeDepth => FoldersLayout ? 3 : 2;
+        internal HashSet<INamedTypeSymbol> RootIdentityEnums { get; } = rootIdentityEnums;
+        internal HashSet<(string Domain, string Subdomain)> PopulatedSubdomains { get; } = [];
+        internal bool HasAnyLogicalPaths { get; set; }
+    }
+
+    private static void InspectDomainType(DomainFolderScan scan, INamedTypeSymbol type, string pathPrefix)
     {
         foreach (var reference in type.DeclaringSyntaxReferences)
         {
-            facts.Cancellation.ThrowIfCancellationRequested();
-            var tree = reference.SyntaxTree;
-            if (facts.IsGenerated(tree) || facts.HasInvalidPath(tree)) continue;
-            var placement = facts.LogicalDirectory(tree);
-            if (placement is null) continue;
-            hasAnyLogicalPaths = true;
-            var relativeDirectory = StripPrefix(placement.Value.Directory, pathPrefix);
-            var segments = relativeDirectory.Length == 0
-                ? Array.Empty<string>()
-                : relativeDirectory.Split('/', StringSplitOptions.RemoveEmptyEntries);
-            var partLocation = PartLocation(type, reference, facts.Cancellation);
-
-            if (segments.Length == 0)
-            {
-                if (IsAllowedRootIdentityType(facts, type, rootIdentityEnums)) continue;
-                Report(facts, type, partLocation, foldersLayout
-                    ? "place Domain types under <Domain>/<Subdomain>/<Folder>/; only root zero-type files (such as Usings.cs) and EntityTypeAttribute<TApp>/IAppId/[DomainOnly] byte identity enums referenced by a local EntityTypeAttribute subclass may live at the project root"
-                    : "place Domain types under <Subdomain>/<Folder>/; only root zero-type files (such as Usings.cs) and EntityTypeAttribute<TApp>/IAppId/[DomainOnly] byte identity enums referenced by a local EntityTypeAttribute subclass may live at the project root");
-                continue;
-            }
-
-            if (segments.Length < minTypeDepth)
-            {
-                Report(facts, type, partLocation, foldersLayout
-                    ? $"grouping folder '{relativeDirectory}' may contain only folders; place types under <Domain>/<Subdomain>/<Folder>/"
-                    : $"grouping folder '{relativeDirectory}' may contain only folders; place types under <Subdomain>/<Folder>/");
-                continue;
-            }
-
-            if (ValidateSharedPlacement(facts, type, segments, foldersLayout, partLocation))
-                continue;
-
-            var domain = foldersLayout ? segments[0] : facts.Project.DefaultDomain;
-            var subdomain = foldersLayout ? segments[1] : segments[0];
-            populatedSubdomains.Add((domain, subdomain));
+            scan.Facts.Cancellation.ThrowIfCancellationRequested();
+            InspectDomainTypePart(scan, type, reference, pathPrefix);
         }
     }
+
+    private static void InspectDomainTypePart(DomainFolderScan scan, INamedTypeSymbol type, SyntaxReference reference, string pathPrefix)
+    {
+        var facts = scan.Facts;
+        var tree = reference.SyntaxTree;
+        if (facts.IsGenerated(tree) || facts.HasInvalidPath(tree)) return;
+        var placement = facts.LogicalDirectory(tree);
+        if (placement is null) return;
+        scan.HasAnyLogicalPaths = true;
+        var relativeDirectory = StripPrefix(placement.Value.Directory, pathPrefix);
+        var segments = relativeDirectory.Length == 0
+            ? Array.Empty<string>()
+            : relativeDirectory.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var partLocation = PartLocation(type, reference, facts.Cancellation);
+        if (ValidateDomainTypeDepth(scan, type, relativeDirectory, segments, partLocation)) return;
+        if (ValidateSharedPlacement(facts, type, segments, scan.FoldersLayout, partLocation)) return;
+
+        var domain = scan.FoldersLayout ? segments[0] : facts.Project.DefaultDomain;
+        var subdomain = scan.FoldersLayout ? segments[1] : segments[0];
+        scan.PopulatedSubdomains.Add((domain, subdomain));
+    }
+
+    private static bool ValidateDomainTypeDepth(DomainFolderScan scan, INamedTypeSymbol type, string relativeDirectory,
+        string[] segments, Location partLocation)
+    {
+        if (segments.Length == 0)
+        {
+            if (!IsAllowedRootIdentityType(scan.Facts, type, scan.RootIdentityEnums))
+                Report(scan.Facts, type, partLocation, RootPlacementMessage(scan.FoldersLayout));
+            return true;
+        }
+        if (segments.Length < scan.MinTypeDepth)
+        {
+            Report(scan.Facts, type, partLocation, GroupingFolderMessage(scan.FoldersLayout, relativeDirectory));
+            return true;
+        }
+        return false;
+    }
+
+    private static string RootPlacementMessage(bool foldersLayout) => foldersLayout
+        ? "place Domain types under <Domain>/<Subdomain>/<Folder>/; only root zero-type files (such as Usings.cs) and EntityTypeAttribute<TApp>/IAppId/[DomainOnly] byte identity enums referenced by a local EntityTypeAttribute subclass may live at the project root"
+        : "place Domain types under <Subdomain>/<Folder>/; only root zero-type files (such as Usings.cs) and EntityTypeAttribute<TApp>/IAppId/[DomainOnly] byte identity enums referenced by a local EntityTypeAttribute subclass may live at the project root";
+
+    private static string GroupingFolderMessage(bool foldersLayout, string relativeDirectory) => foldersLayout
+        ? $"grouping folder '{relativeDirectory}' may contain only folders; place types under <Domain>/<Subdomain>/<Folder>/"
+        : $"grouping folder '{relativeDirectory}' may contain only folders; place types under <Subdomain>/<Folder>/";
 
     private static bool ValidateSharedPlacement(ConventionFacts facts, INamedTypeSymbol type, string[] segments,
         bool foldersLayout, Location location)

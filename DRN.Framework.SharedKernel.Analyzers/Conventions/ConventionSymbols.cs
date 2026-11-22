@@ -25,7 +25,6 @@ internal sealed class ConventionSymbols(Compilation compilation)
     internal INamedTypeSymbol? RepositoryContract { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository`1");
     internal INamedTypeSymbol? ServiceContract { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.ISourceKnownService`1");
     internal INamedTypeSymbol? Dto { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.Dto");
-    internal INamedTypeSymbol? SourceKnownServiceDto { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownService`2");
     internal INamedTypeSymbol? DomainOnlyAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.DomainOnlyAttribute");
     internal INamedTypeSymbol? AllowZeroAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.AllowZeroAttribute");
     internal INamedTypeSymbol? EntityTypeAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.EntityTypeAttribute");

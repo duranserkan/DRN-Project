@@ -10,30 +10,24 @@ namespace DRN.Framework.Hosting.Controllers;
 /// </summary>
 [ApiController]
 [Authorize]
-public abstract class SourceKnownControllerBase<TEntity, TResponse>
+public abstract class SourceKnownControllerBase<TEntity, TResponse>(ISourceKnownService<TEntity, TResponse> service)
     : ControllerBase
     where TEntity : AggregateRoot
     where TResponse : class
 {
-    /// <summary>Initializes the controller with its backing application service.</summary>
-    protected SourceKnownControllerBase(ISourceKnownService<TEntity> service)
-    {
-        if (typeof(Dto).IsAssignableFrom(typeof(TResponse)))
-            throw new InvalidOperationException(
-                $"{nameof(SourceKnownControllerBase<TEntity, TResponse>)} response type '{typeof(TResponse).Name}' cannot derive from {nameof(Dto)}. Use an explicit Contract response model.");
+    /// <summary>Repository exposed through the backing service.</summary>
+    protected ISourceKnownRepository<TEntity> Repository => service.Repository;
 
-        ArgumentNullException.ThrowIfNull(service);
-        Service = service;
-    }
+    /// <summary>
+    /// Projects an entity to its public response representation through the backing service.
+    /// When overriding on a controller that exposes collection or pagination actions, also override <see cref="CreateResponsesAsync"/>.
+    /// </summary>
+    protected virtual Task<TResponse> CreateResponseAsync(TEntity entity, CancellationToken cancellationToken)
+        => service.CreateResponseAsync(entity, cancellationToken);
 
-    /// <summary>Application service backing this controller.</summary>
-    protected ISourceKnownService<TEntity> Service { get; }
-
-    /// <summary>Repository exposed through <see cref="Service"/>.</summary>
-    public ISourceKnownRepository<TEntity> Repository => Service.Repository;
-
-    /// <summary>Projects an entity to its public response representation.</summary>
-    protected abstract TResponse ToResponse(TEntity entity);
+    /// <summary>Projects a batch of entities to their public response representations through the backing service.</summary>
+    protected virtual Task<TResponse[]> CreateResponsesAsync(IReadOnlyList<TEntity> entities, CancellationToken cancellationToken)
+        => service.CreateResponsesAsync(entities, cancellationToken);
 
     /// <summary>Links request cancellation to the scoped repository before starting work.</summary>
     protected void PrepareRepository(CancellationToken cancellationToken)

@@ -134,24 +134,38 @@ internal static class ConventionDependencyAnalysis
     {
         var subdomains = new HashSet<ConventionOwner>();
         foreach (var (assembly, _) in domains)
-        {
-            var pending = new Stack<INamespaceOrTypeSymbol>();
-            pending.Push(assembly.GlobalNamespace);
-            while (pending.TryPop(out var container))
-            {
-                facts.Cancellation.ThrowIfCancellationRequested();
-                foreach (var member in container.GetMembers())
-                {
-                    if (member is INamespaceSymbol ns) pending.Push(ns);
-                    if (member is not INamedTypeSymbol type) continue;
-                    pending.Push(type);
-                    if (type.IsImplicitlyDeclared || !type.CanBeReferencedByName) continue;
-                    if (facts.Owner(type) is { Role: ConventionArchitecture.Domain } owner)
-                        subdomains.Add(owner);
-                }
-            }
-        }
+            CollectAssemblySubdomains(facts, assembly, subdomains);
         return subdomains;
+    }
+
+    private static void CollectAssemblySubdomains(ConventionFacts facts, IAssemblySymbol assembly,
+        HashSet<ConventionOwner> subdomains)
+    {
+        var pending = new Stack<INamespaceOrTypeSymbol>();
+        pending.Push(assembly.GlobalNamespace);
+        while (pending.TryPop(out var container))
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            CollectContainerSubdomains(facts, container, pending, subdomains);
+        }
+    }
+
+    private static void CollectContainerSubdomains(ConventionFacts facts, INamespaceOrTypeSymbol container,
+        Stack<INamespaceOrTypeSymbol> pending, HashSet<ConventionOwner> subdomains)
+    {
+        foreach (var member in container.GetMembers())
+        {
+            if (member is INamespaceSymbol ns)
+            {
+                pending.Push(ns);
+                continue;
+            }
+            if (member is not INamedTypeSymbol type) continue;
+            pending.Push(type);
+            if (!type.IsImplicitlyDeclared && type.CanBeReferencedByName &&
+                facts.Owner(type) is { Role: ConventionArchitecture.Domain } owner)
+                subdomains.Add(owner);
+        }
     }
 
     private static bool IsMissingDomainSubdomain(ConventionFacts facts, INamedTypeSymbol type,

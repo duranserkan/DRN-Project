@@ -20,7 +20,6 @@ The rules from Architecture through Convention exceptions default to Warning in 
 | DRNDTO004 | DRN.Conventions.Structure | Place a public entity-prefixed `Request` or `Response` beside its DTO in the same namespace and logical compile folder. |
 | DRNDTO005 | DRN.Conventions.Contract | Do not return, accept, inherit from, or nest a `Dto` in public Contract messages or controller endpoints. Checks inherited bases (including closed-generic, non-Contract, and referenced bases), referenced `Application` wrappers, write-only public properties, and `[ProducesResponseType]` metadata on untyped `IActionResult`/`ActionResult`/`IResult` actions. Honors `[NonAction]` and `[NonController]`, and excludes `[FromServices]` and `[FromKeyedServices]` parameters. Bounded to static signatures and metadata. See [DRNARCHITECTURE001](#drnarchitecture001-review-incomplete-public-contract-inspection) for the shared traversal limit. |
 | DRNDTO006 | DRN.Conventions.Contract | Use explicit Contract `*Request` and `*Response` types on public endpoints across return types, `[ProducesResponseType]` metadata, and request parameters (including complex `[FromQuery]` models and inferred JSON bodies on `[ApiController]` actions). Parameters injected with `[FromServices]` or `[FromKeyedServices]` are exempt. On ordinary `ControllerBase` controllers, `Contract` and `Application` payloads require explicit Contract messages while `Hosted`-local operational models (such as `ClientErrorPayload`) remain exempt. Route-only GETs, status-only `StatusCodeResult` subclasses (such as `OkResult` and 204 `NoContentResult`), untyped `IActionResult`/`ActionResult`/`IResult`, scalars, files, `ProblemDetails`, and pagination models are exempt. |
-| DRNDTO007 | DRN.Conventions.Contract | A concrete, closed `SourceKnownService<TEntity, TDto>` subclass that inherits default `ToDto(TEntity)` must bind a `TDto` assignable from `TEntity.ToDto()`'s return type, or override `ToDto(TEntity)` for a custom projection. |
 
 To escalate `DRNDTO001` (or any convention diagnostic) to a build error in projects without `TreatWarningsAsErrors`, add an `.editorconfig` entry:
 
@@ -53,7 +52,6 @@ For DRNDTO003, copy each positive source property annotation to the mapped DTO p
 | DRNDTO004 | `Place '{0}' in '{1}' with namespace '{2}' alongside its entity DTO.` | Request or response type |
 | DRNDTO005 | `Public contract or endpoint '{0}' exposes DTO type '{1}'; use an explicit Contract Request or Response without inheriting or nesting a DTO.` | Public member, message type, or controller |
 | DRNDTO006 | `Public endpoint '{0}' must use an explicit Contract {1} type instead of '{2}'.` | Action method or controller |
-| DRNDTO007 | `Service '{0}' inherits default ToDto() from SourceKnownService<{1}, {2}>, but '{1}.ToDto()' returns '{3}', which is not assignable to '{2}'. Override ToDto({1}) or align the service DTO type.` | Service type |
 
 ## Enum conventions
 

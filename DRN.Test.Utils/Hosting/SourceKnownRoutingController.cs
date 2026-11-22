@@ -39,12 +39,27 @@ public sealed class SourceKnownRoutingResponse
 }
 
 public interface ISourceKnownRoutingService
-    : ISourceKnownService<SourceKnownRoutingEntity, SourceKnownRoutingDto, SourceKnownRoutingRequest>;
+    : ISourceKnownService<SourceKnownRoutingEntity, SourceKnownRoutingResponse, SourceKnownRoutingRequest>;
 
 public sealed class SourceKnownRoutingService(ISourceKnownRepository<SourceKnownRoutingEntity> repository)
-    : SourceKnownService<SourceKnownRoutingEntity, SourceKnownRoutingDto, SourceKnownRoutingRequest>(repository),
+    : SourceKnownService<SourceKnownRoutingEntity, SourceKnownRoutingResponse, SourceKnownRoutingRequest>(repository),
         ISourceKnownRoutingService
 {
+    public override Task<SourceKnownRoutingResponse> CreateResponseAsync(
+        SourceKnownRoutingEntity entity, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.FromResult(new SourceKnownRoutingResponse
+        {
+            Id = entity.EntityId,
+            CreatedAt = entity.CreatedAt,
+            ModifiedAt = entity.ModifiedAt,
+            Label = entity.Label
+        });
+    }
+
     public override Task<SourceKnownRoutingEntity> CreateEntityAsync(
         SourceKnownRoutingRequest request, CancellationToken cancellationToken = default)
         => Task.FromResult(new SourceKnownRoutingEntity { Label = request.Label });
@@ -55,14 +70,6 @@ public sealed class SourceKnownRoutingService(ISourceKnownRepository<SourceKnown
 public sealed class SourceKnownRoutingController(ISourceKnownRoutingService service)
     : SourceKnownController<SourceKnownRoutingEntity, SourceKnownRoutingResponse, SourceKnownRoutingRequest>(service)
 {
-    protected override SourceKnownRoutingResponse ToResponse(SourceKnownRoutingEntity entity) => new()
-    {
-        Id = entity.EntityId,
-        CreatedAt = entity.CreatedAt,
-        ModifiedAt = entity.ModifiedAt,
-        Label = entity.Label
-    };
-
     protected override Task<SourceKnownRoutingEntity> CreateEntityAsync(SourceKnownRoutingRequest request, CancellationToken cancellationToken)
         => throw ExceptionFor.Forbidden("Routing fixture does not allow writes.");
 
@@ -86,14 +93,6 @@ public sealed class SourceKnownRoutingController(ISourceKnownRoutingService serv
 public sealed class SourceKnownWritableRoutingController(ISourceKnownRoutingService service)
     : SourceKnownController<SourceKnownRoutingEntity, SourceKnownRoutingResponse, SourceKnownRoutingRequest>(service)
 {
-    protected override SourceKnownRoutingResponse ToResponse(SourceKnownRoutingEntity entity) => new()
-    {
-        Id = entity.EntityId,
-        CreatedAt = entity.CreatedAt,
-        ModifiedAt = entity.ModifiedAt,
-        Label = entity.Label
-    };
-
     [Authorize(Policy = SourceKnownRoutingPolicies.Write)]
     public override Task<ActionResult<SourceKnownRoutingResponse>> PostAsync(SourceKnownRoutingRequest request,
         CancellationToken cancellationToken = default)

@@ -107,7 +107,8 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
             project.FilePath is null || !TryFullPath(project.FilePath, out var projectPath)) return result;
         var infraInputs = await ConventionGenerationPreflight.ReadInputs(project, required: false, token);
         if (infraInputs is null || HasRoleOverride(infraInputs)) return result;
-        if (await ResolveAccessibleEntityAsync(project, entityName, entityAssembly, infraIdentity.Namespace, infraLayout, infraInputs, token)
+        var infra = new InfraProjectContext(project, infraIdentity.Namespace, infraLayout, infraInputs);
+        if (await ResolveAccessibleEntityAsync(infra, entityName, entityAssembly, token)
             is not { } resolved) return result;
         var (compilation, entity, _) = resolved;
         if (HasConfigurationForEntity(compilation, entity, token, out var types, out var contextContract) ||
@@ -130,10 +131,9 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
     }
 
     private static async Task<(Compilation Compilation, INamedTypeSymbol Entity, OwnerKey EntityOwner)?> ResolveAccessibleEntityAsync(
-        Project project, string entityName, AssemblyIdentity entityAssembly, string infraNamespace,
-        ConventionGenerationPreflight.ProjectLayout infraLayout, CompilationUnitSyntax infraInputs, CancellationToken token)
+        InfraProjectContext infra, string entityName, AssemblyIdentity entityAssembly, CancellationToken token)
     {
-        var compilation = await project.GetCompilationAsync(token);
+        var compilation = await infra.Project.GetCompilationAsync(token);
         if (compilation?.GetTypeByMetadataName(entityName) is not { IsAbstract: false } entity ||
             !entity.ContainingAssembly.Identity.Equals(entityAssembly) || IsOpen(entity) ||
             !IsEntity(entity, compilation) || !compilation.IsSymbolAccessibleWithin(entity, compilation.Assembly)) return null;
@@ -146,7 +146,7 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
         }
         // The generated public Configure method exposes the entity in its parameter type.
         if (!IsPublicType(entity)) return null;
-        var entityOwner = await EntityOwner(project, compilation, entity, entityName, infraNamespace, infraLayout, infraInputs, token);
+        var entityOwner = await EntityOwner(infra, compilation, entity, entityName, token);
         return entityOwner is null ? null : (compilation, entity, entityOwner);
     }
 
@@ -232,31 +232,29 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
         return false;
     }
 
-    private static async Task<OwnerKey?> EntityOwner(Project project, Compilation compilation, INamedTypeSymbol entity,
-        string entityName, string infraNamespace, ConventionGenerationPreflight.ProjectLayout infraLayout,
-        CompilationUnitSyntax infraInputs, CancellationToken token)
+    private static async Task<OwnerKey?> EntityOwner(InfraProjectContext infra, Compilation compilation,
+        INamedTypeSymbol entity, string entityName, CancellationToken token)
     {
-        var (conventional, domainInputs, valid) = await ResolveConventionalOwnerAsync(project, compilation, entity, infraNamespace, infraLayout, token);
+        var (conventional, domainInputs, valid) = await ResolveConventionalOwnerAsync(infra, compilation, entity, token);
         if (!valid || conventional is null) return null;
         var declared = DeclaredOwner(entity, conventional, compilation);
         if (declared is null || !declared.SameOwner(conventional)) return null;
-        if (!OwnershipCompatible(infraInputs, entityName, declared.Subdomain, token, declared.DomainFilter)) return null;
+        if (!OwnershipCompatible(infra.Inputs, entityName, declared.Subdomain, token, declared.DomainFilter)) return null;
         if (domainInputs is not null && !OwnershipCompatible(domainInputs, entityName, declared.Subdomain, token, declared.DomainFilter)) return null;
         return declared;
     }
 
     private static async Task<(OwnerKey? Conventional, CompilationUnitSyntax? DomainInputs, bool Valid)> ResolveConventionalOwnerAsync(
-        Project project, Compilation compilation, INamedTypeSymbol entity, string infraNamespace,
-        ConventionGenerationPreflight.ProjectLayout infraLayout, CancellationToken token)
+        InfraProjectContext infra, Compilation compilation, INamedTypeSymbol entity, CancellationToken token)
     {
-        var declaringProject = await DeclaringProject(project, compilation, entity, token);
-        if (declaringProject is null || declaringProject.Id == project.Id)
+        var declaringProject = await DeclaringProject(infra.Project, compilation, entity, token);
+        if (declaringProject is null || declaringProject.Id == infra.Project.Id)
         {
-            if (declaringProject?.Id == project.Id)
+            if (declaringProject?.Id == infra.Project.Id)
             {
-                var localOwner = ResolveNamespaceOwnerKey(entity, infraNamespace, infraLayout) ??
-                    EntityDomainOwner(entity, infraLayout);
-                return (localOwner, null, infraLayout.Valid);
+                var localOwner = ResolveNamespaceOwnerKey(entity, infra.Namespace, infra.Layout) ??
+                    EntityDomainOwner(entity, infra.Layout);
+                return (localOwner, null, infra.Layout.Valid);
             }
             var (layout, rootNamespace, hasExplicitRoot) = ConventionGenerationPreflight.MetadataFromAssembly(entity.ContainingAssembly);
             var metadataOwner = ResolveNamespaceOwnerKey(entity, rootNamespace, layout) ??
@@ -276,6 +274,9 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
         if (domainInputs is null || HasRoleOverride(domainInputs)) return (null, null, false);
         return (ResolveNamespaceOwnerKey(entity, declaringIdentity.Namespace, declaringLayout), domainInputs, true);
     }
+
+    private readonly record struct InfraProjectContext(Project Project, string Namespace,
+        ConventionGenerationPreflight.ProjectLayout Layout, CompilationUnitSyntax Inputs);
 
     private static async Task<Project?> DeclaringProject(Project project, Compilation compilation, INamedTypeSymbol entity, CancellationToken token)
     {
