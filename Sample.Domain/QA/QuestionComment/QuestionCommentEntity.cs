@@ -19,7 +19,7 @@ public class QuestionCommentEntity : AggregateRoot
     public string Body { get; private set; } = null!;
     public long UserId { get; private set; }
 
-    public QuestionCommentDto ToDto() => new(this)
+    public override QuestionCommentDto ToDto() => new(this)
     {
         Body = Body
     };

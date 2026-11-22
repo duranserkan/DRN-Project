@@ -236,7 +236,7 @@ internal static partial class ConventionPersistenceAnalysis
             foreach (var context in contexts)
             {
                 if (SymbolEqualityComparer.Default.Equals(context.ContainingAssembly, configuration.ContainingAssembly) &&
-                    facts.Owner(context)?.Subdomain == owner.Subdomain) candidates.Add(context);
+                    facts.Owner(context) is { } contextOwner && contextOwner.SameOwner(owner)) candidates.Add(context);
             }
         }
         return candidates.Count == 1 ? candidates.Single() : null;

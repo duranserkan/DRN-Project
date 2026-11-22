@@ -21,5 +21,5 @@ public class AuthorEntity : AggregateRoot
 
     public List<QuestionEntity> Posts { get; private set; } = [];
 
-    public AuthorDto ToDto() => new(this);
+    public override AuthorDto ToDto() => new(this);
 }

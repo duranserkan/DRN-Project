@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.EntityFramework.Attributes;
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.EntityFramework.Extensions;
@@ -73,6 +74,7 @@ public class DbContextExtensionsTests
     }
 
     [Fact]
+    [SuppressMessage("Usage", "CA2263", Justification = "Verifies both the generic and runtime Type overloads.")]
     public void GetContextAttributes_Should_Reject_Repeated_Options_Type()
     {
         var genericAct = () => DbContextConventions.GetContextAttributes<RepeatedOptionsContext>();

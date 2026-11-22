@@ -94,7 +94,9 @@ public sealed class RepositoryMethodServiceRefactoringTests
     {
         using var workspace = new AdhocWorkspace();
         var document = Create(workspace);
-        var source = (await document.GetTextAsync()).ToString().Replace(" : DRN.Framework.SharedKernel.Domain.AggregateRoot", "", StringComparison.Ordinal);
+        var source = (await document.GetTextAsync()).ToString().Replace(
+            " : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }",
+            ";", StringComparison.Ordinal);
         workspace.TryApplyChanges(document.WithText(SourceText.From(source)).Project.Solution).Should().BeTrue();
         (await Actions(workspace.CurrentSolution.GetDocument(document.Id)!)).Should().BeEmpty();
     }
@@ -213,7 +215,7 @@ public sealed class RepositoryMethodServiceRefactoringTests
             .AddMetadataReferences(ClassificationTestFixture.References);
         var document = domain.AddDocument("IOrderRepository.cs", $$"""
             namespace Sample.Domain.QA.Order;
-            public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+            public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
             public interface IOrderRepository : DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<OrderEntity>
             {
                 // select-start
@@ -276,7 +278,7 @@ public sealed class RepositoryMethodServiceRefactoringTests
             .AddMetadataReferences(ClassificationTestFixture.References);
         var document = domain.AddDocument("IOrderRepository.cs", $$"""
             namespace Sample.Domain.QA.Orders;
-            public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+            public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
             public interface IOrderRepository : DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<Order>
             {
                 // select-start

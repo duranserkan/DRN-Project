@@ -48,7 +48,7 @@ internal static class ConventionAggregateRepositoryAnalysis
             if (facts.Role(type).Role == ConventionArchitecture.Domain && IsAggregate(facts, type) &&
                 facts.Owner(type) is { } owner && contracts.FindContracts(type).Count == 0)
                 facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.AggregateContract, location,
-                    Properties(type, type), type.Name, owner.Subdomain));
+                    Properties(type, type), type.Name, owner.DisplayName));
         }
     }
 
@@ -125,7 +125,7 @@ internal static class ConventionAggregateRepositoryAnalysis
                 HasRepository(facts, entity, implementations, repositoryMatches, contracts) ||
                 !reported.Add(entity)) continue;
             facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.AggregateRepository, location,
-                Properties(context, entity, context), entity.Name, facts.Owner(entity)!.Subdomain));
+                Properties(context, entity, context), entity.Name, facts.Owner(entity)!.DisplayName));
         }
     }
 
@@ -277,7 +277,7 @@ internal static class ConventionAggregateRepositoryAnalysis
             {
                 if (binding.TypeArguments is not [INamedTypeSymbol aggregate] ||
                     !SymbolEqualityComparer.Default.Equals(aggregate.ContainingAssembly, contract.ContainingAssembly) ||
-                    facts.Owner(aggregate)?.Subdomain != contractOwner.Subdomain ||
+                    facts.Owner(aggregate) is not { } aggregateOwner || !aggregateOwner.SameOwner(contractOwner) ||
                     !SymbolEqualityComparer.Default.Equals(aggregate.ContainingNamespace, contract.ContainingNamespace) ||
                     !SharesLogicalDirectory(aggregate, contract)) continue;
                 if (!_contracts.TryGetValue(aggregate, out var list))

@@ -20,12 +20,12 @@ public sealed class ConventionHostingCoexistenceTests
 
     private const string Controller = """
         namespace Sample.Hosted.QA;
-        public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+        public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
         public class OrderDto : DRN.Framework.SharedKernel.Domain.Dto;
         public abstract class ControllerParent : DRN.Framework.Hosting.Controllers.SourceKnownControllerBase<Order, OrderDto>
         {
-            protected ControllerParent(DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<Order> repository) : base(repository) { }
-            protected override OrderDto ToDto(Order entity) => new();
+            protected ControllerParent(DRN.Framework.SharedKernel.Domain.ISourceKnownService<Order> service) : base(service) { }
+            protected override OrderDto ToResponse(Order entity) => new();
             public void Unnamed() { }
             [Microsoft.AspNetCore.Authorization.AllowAnonymous]
             [Microsoft.AspNetCore.Authorization.Authorize("Readers")]
@@ -35,7 +35,7 @@ public sealed class ConventionHostingCoexistenceTests
         }
         public class OrdersController : ControllerParent
         {
-            public OrdersController(DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<Order> repository) : base(repository) { }
+            public OrdersController(DRN.Framework.SharedKernel.Domain.ISourceKnownService<Order> service) : base(service) { }
         }
         """;
 

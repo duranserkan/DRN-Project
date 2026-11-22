@@ -21,7 +21,7 @@ public sealed class ConventionAggregateRulesTests
         new(CreateMultiEntityConfigurationReferences);
     private const string Domain = """
         namespace Sample.Domain.QA.Order;
-        public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+        public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
         """;
     private const string Contract = """
         public interface IOrderRepository : DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<OrderEntity>;
@@ -53,7 +53,7 @@ public sealed class ConventionAggregateRulesTests
     [DataInline("OrderEntity", "Order", "QA/Orders/OrderEntity.cs", "DRNSTRUCTURE005")]
     public void Aggregate_Name_And_Placement_Should_Match(string name, string area, string path, string? expected)
     {
-        var source = $"namespace Sample.Domain.QA.{area}; public class {name} : DRN.Framework.SharedKernel.Domain.AggregateRoot;";
+        var source = $"namespace Sample.Domain.QA.{area}; public class {name} : DRN.Framework.SharedKernel.Domain.AggregateRoot {{ public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }}";
         var facts = Facts(Compilation(source, path).WithAssemblyName("Sample.Domain"), "Domain", path);
         ConventionNamingAnalysis.Analyze(facts);
         if (expected is null) facts.Diagnostics.Should().BeEmpty();
@@ -147,7 +147,7 @@ public sealed class ConventionAggregateRulesTests
         var facts = Facts(Compilation("""
             namespace Sample.Domain.QA;
             public abstract class Base : DRN.Framework.SharedKernel.Domain.AggregateRoot;
-            public class Generic<T> : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+            public class Generic<T> : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
             """).WithAssemblyName("Sample.Domain"), "Domain");
         ConventionNamingAnalysis.Analyze(facts);
         ConventionAggregateRepositoryAnalysis.Analyze(facts);
@@ -218,7 +218,7 @@ public sealed class ConventionAggregateRulesTests
     public void Repository_Contract_In_Another_Subdomain_Should_Not_Satisfy_The_Aggregate()
     {
         var compilation = Compilation("""
-            namespace Sample.Domain.QA.Order { public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot; }
+            namespace Sample.Domain.QA.Order { public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); } }
             namespace Sample.Domain.Billing
             {
                 public interface IOrderRepository : DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<Sample.Domain.QA.Order.OrderEntity>;
@@ -239,7 +239,7 @@ public sealed class ConventionAggregateRulesTests
             ? "[System.Diagnostics.CodeAnalysis.SuppressMessage(\"DRN.Conventions.Structure\", \"DRNSTRUCTURE004\", Justification = \"Preserve published aggregate name during migration.\")]"
             : "";
         var compilation = Compilation("namespace Sample.Domain.QA; " + attribute +
-            "public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot;").WithAssemblyName("Sample.Domain");
+            "public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }").WithAssemblyName("Sample.Domain");
         var diagnostics = await AnalyzerTestCompilation.Analyze(compilation, new SourceKnownConventionAnalyzer(),
             AnalyzerTestCompilation.ConventionOptions("Sample.Domain"));
         diagnostics.Should().NotContain(item => item.Id == "AD0001");
@@ -375,7 +375,7 @@ public sealed class ConventionAggregateRulesTests
     private static ImmutableArray<MetadataReference> CreateMultiEntityConfigurationReferences()
     {
         var domain = Compilation(Domain + Contract + """
-            public class OtherEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+            public class OtherEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
             public interface IOtherRepository : DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<OtherEntity>;
             """).WithAssemblyName("Sample.Domain");
         var domainReference = AnalyzerTestCompilation.EmitReference(domain);

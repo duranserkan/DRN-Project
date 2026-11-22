@@ -27,19 +27,31 @@ public sealed class CoLocatedEntityTypeAttribute<TApp>(CoLocatedEntityTypes enti
     : EntityTypeAttribute<TApp>((byte)entityType) where TApp : IAppId;
 
 [CoLocatedEntityType<CoLocatedFirstApp>(CoLocatedEntityTypes.ModelEntity)]
-public sealed class CoLocatedFirstEntity : SourceKnownEntity;
+public sealed class CoLocatedFirstEntity : SourceKnownEntity
+{
+    public override Dto ToDto() => new(this);
+}
 
 [CoLocatedEntityType<CoLocatedSecondApp>(CoLocatedEntityTypes.ModelEntity)]
-public sealed class CoLocatedSecondEntity : SourceKnownEntity;
+public sealed class CoLocatedSecondEntity : SourceKnownEntity
+{
+    public override Dto ToDto() => new(this);
+}
 
 [CoLocatedEntityType<CoLocatedFirstApp>(CoLocatedEntityTypes.NonModelEntity)]
-public sealed class CoLocatedNonModelDomainEntity : SourceKnownEntity;
+public sealed class CoLocatedNonModelDomainEntity : SourceKnownEntity
+{
+    public override Dto ToDto() => new(this);
+}
 
 public static class CoLocatedPrivateEntityFixture
 {
     public static Type EntityType => typeof(PrivateEntity);
 
-    private sealed class PrivateEntity : SourceKnownEntity;
+    private sealed class PrivateEntity : SourceKnownEntity
+    {
+        public override Dto ToDto() => new(this);
+    }
 }
 
 public class CoLocatedFirstContext(DbContextOptions<CoLocatedFirstContext> options) : DbContext(options)

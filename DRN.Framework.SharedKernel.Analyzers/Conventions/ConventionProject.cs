@@ -6,6 +6,12 @@ internal sealed record ConventionProject(bool Enabled, string Name, string Role,
     string AssemblyName, ImmutableArray<Diagnostic> Diagnostics)
 {
     internal const string MetadataPrefix = "DRN.Conventions.";
+    internal const string ProjectLayout = ConventionNames.ProjectLayout;
+    internal const string FoldersLayout = ConventionNames.FoldersLayout;
+
+    internal string DomainLayout { get; init; } = ProjectLayout;
+    internal string DefaultDomain { get; init; } = "";
+    internal bool HasExplicitDomain { get; init; }
 
     internal static bool IsRole(string role) => ConventionArchitecture.IsRole(role);
 
@@ -25,8 +31,25 @@ internal sealed record ConventionProject(bool Enabled, string Name, string Role,
         if (!IsNamespace(rootNamespace))
             diagnostics.Add(InputIssue("RootNamespace", "missing or malformed", "namespace independent of AssemblyName"));
 
+        var (domainLayout, defaultDomain, hasExplicitDomain) = ReadDomainLayout(options, projectName, role, diagnostics);
+
         var assemblyName = compilation.AssemblyName ?? "";
-        return new(true, projectName, role, rootNamespace, assemblyName, diagnostics.ToImmutable());
+        return new(true, projectName, role, rootNamespace, assemblyName, diagnostics.ToImmutable())
+        {
+            DomainLayout = domainLayout,
+            DefaultDomain = defaultDomain,
+            HasExplicitDomain = hasExplicitDomain
+        };
+    }
+
+    private static (string Layout, string Domain, bool Explicit) ReadDomainLayout(AnalyzerConfigOptions options,
+        string projectName, string role, ImmutableArray<Diagnostic>.Builder diagnostics)
+    {
+        var (layout, domain, explicitDomain, errorKey, errorProblem, errorRemedy) = ConventionNames.ParseDomainLayout(
+            projectName, role, Property(options, "DrnDomainLayout"), Property(options, "DrnDomain"));
+        if (errorKey.Length > 0)
+            diagnostics.Add(InputIssue(errorKey, errorProblem, errorRemedy));
+        return (layout, domain, explicitDomain);
     }
 
     internal static string Property(AnalyzerConfigOptions options, string name) =>

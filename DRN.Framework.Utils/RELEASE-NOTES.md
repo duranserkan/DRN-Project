@@ -8,34 +8,23 @@ Targets .NET 11 with Microsoft.Extensions and System dependencies upgraded to 11
 
 *   **Target framework**: Requires .NET 11.
 
-### Bug Fixes
-
-*   **Pagination diagnostics**: Invalid first-cursor errors report the supplied first ID instead of the last ID.
-
-*   **AES concurrency**: Concurrent portable encryption and decryption on one `Aes256` instance no longer fail with a cryptographic concurrency exception on .NET 11.
-
 ### New Features
 
-*   **Project Classification Rules**: Optional `DiagnosticLogging:RuleFile` and `RuleAssemblyName` settings validate file-based and embedded catalogs. Invalid or missing configured sources fail sanitizer creation. See the [diagnostic guide](Logging/Diagnostics/README.md) for configuration and migration guidance.
-
-*   **Compiler and Browser Name Rules**: Shared rules cover CVV/CVC/PIN-code fields, usernames, first/last names, dates of birth, IBAN, and client/IP-address patterns. They match `secret` and separator variants without matching `sec` alone in names such as `ElapsedSeconds`. Compiler matches support reviewed property opt-outs, scalar reason overloads, capture policies, and exact-name comments. These do not waive declaration requirements or configured analyzer paths. See the [diagnostic guide](Logging/Diagnostics/README.md) for exemption rules.
-
-*   **Dictionary Capture**: `AddDictionary` and `SanitizeDictionary` accept Sensitive, Personal, and NonSensitive classifications for exact keys. NonSensitive requires a supported scalar value and a nonblank reason. Nested dictionaries require separate classification. Exemptions do not override positive classifications or capture limits.
-
-*   **Property Discovery**: Added `GetPropertiesOfType<T>` to find properties with an exact declared type using caller-supplied binding flags.
-
-*   **Diagnostic Classification and Redaction**: Scoped logs redact explicitly classified Sensitive, Personal, derived, and dictionary values within capture limits. Interface classifications and `[IgnoreLog]` also protect concrete and nested captures. Scoped capture reads classified getters once; direct sanitization skips them. Both omit ignored getters and public fields. Backend runtime does not infer classification from names or scan free-text contents, including when catalogs are configured. Applications must classify dynamic data explicitly.
-*   **Grouped Diagnostic Overflow**: `LogScoped` keeps fitting diagnostics in one record and emits bounded parent/child records for larger sanitized diagnostics, preserving correlation and an expected-record manifest. Capture loss is explicit. Consumers must reconstruct `json-text` payload fragments when records are split. `ToString()` returns one snapshot with sanitized diagnostics and retained events.
-
-*   **Scoped Public Errors**: Added `ScopeContext.Problem` for public error details and extensions, with throwing helpers for every `ExceptionFor` factory. DRN Hosting applies these defaults without replacing existing response values or framework-controlled fields. Diagnostic data stays private.
-
-*   **HTTP Diagnostics**: Flurl exception logs sanitize URLs, proxy headers, and bounded error-body capture. Call `AddLinkerdProxyDiagnostics` to capture proxy diagnostics for explicitly handled responses without consuming their body. Unsupported or oversized bodies produce safe markers.
+*   **Diagnostic classification and redaction**: Scoped logs redact explicitly classified `[Sensitive]`, `[Personal]`, derived, interface-inherited, and dictionary values within capture limits without runtime name inference. Added `AddDictionary`, `SanitizeDictionary`, `DiagnosticCapturePolicy`, optional `DiagnosticLogging:RuleFile` and `RuleAssemblyName` catalog validation, and the shared compiler/browser classification catalog. See the [diagnostic guide](Logging/Diagnostics/README.md).
+*   **Grouped diagnostic overflow**: `LogScoped` keeps fitting diagnostics in one record and splits larger sanitized diagnostics into correlated parent/child `json-text` records with an expected-record manifest. `ToString()` returns one snapshot with sanitized diagnostics and retained events.
+*   **Scoped public errors**: Added `ScopeContext.Problem` for public Problem Details defaults and `ExceptionFor`-matching throwing helpers.
+*   **HTTP diagnostics**: Flurl exception logs sanitize URLs, proxy headers, and bounded error-body capture. Added `AddLinkerdProxyDiagnostics` for explicitly handled responses.
+*   **Property discovery**: Added `GetPropertiesOfType<T>` to find properties with an exact declared type.
 
 ### Changed
 
-*   **Rate Limit Defaults**: Increased post-auth burst capacity and refill from 100 to 250 tokens, and pre-auth capacity and refill from 1,000 to 2,500 tokens. Refill periods remain 60 seconds. Explicit settings override these defaults.
+*   **Rate limit defaults**: Increased post-auth defaults from 100 to 250 tokens and pre-auth defaults from 1,000 to 2,500 tokens per 60-second period.
+*   **Scope event retention**: Scoped logs retain one primary and eight additional events, counting omitted events in `OmittedEventCount`. Event contents bypass sanitization and diagnostic byte limits.
 
-*   **Scope Event Retention**: Scoped logs retain one primary and eight additional events. Further events are omitted without throwing and counted in `OmittedEventCount`. Event contents bypass sanitization and diagnostic byte limits. Keep them safe to log. Events appear on the first emitted record and remain subject to provider limits.
+### Bug Fixes
+
+*   **Pagination diagnostics**: Invalid first-cursor errors report the supplied first ID instead of the last ID.
+*   **AES concurrency**: Concurrent portable encryption and decryption on one `Aes256` instance no longer fail with a cryptographic concurrency exception on .NET 11.
 
 ## Version 0.10.0
 

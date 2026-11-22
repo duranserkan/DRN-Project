@@ -18,7 +18,7 @@ public class TagEntity : AggregateRoot<TagValueModel>
     public string Name { get; private set; } = null!;
     public List<QuestionEntity> Questions { get; private set; } = [];
 
-    public TagDto ToDto() => new(this)
+    public override TagDto ToDto() => new(this)
     {
         Name = Name,
         Model = Model

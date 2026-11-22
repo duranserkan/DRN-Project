@@ -23,7 +23,7 @@
 - **Shared extensions** - Casing and safe path helpers for lower-layer packages
 - **Source Known IDs** - Internal `long` keys and external `Guid` identifiers with type and partition validation
 
-[SourceKnown development conventions](CONVENTIONS.md) infer roles from project-name tokens without custom properties or an application-root identity. Rules apply progressively: Hosted requires at least one direct Application and Infra reference, Infra requires Domain with corresponding subdomains, and Domain requires Contract. Shared dependencies and multiple references are valid regardless of naming prefix. SharedKernel is a foundation role. These warnings are separate from existing identity, classification and authorization rules. See the [diagnostic reference](CONVENTION-DIAGNOSTICS.md) for exact messages and standard exception channels, and [editable assistance](SCAFFOLDING.md) for guarded refactorings and review plans. The guides describe supported evidence and static-analysis limits.
+[SourceKnown development conventions](CONVENTIONS.md) (see [terminology](CONVENTIONS.md#terminology)) infer roles from project-name tokens without custom properties or an application-root identity. Rules apply progressively: Hosted requires at least one direct Application and Infra reference, Infra requires Domain with corresponding subdomains, and Domain requires Contract. Shared dependencies and multiple references are valid regardless of naming prefix. SharedKernel is a foundation role. These warnings are separate from existing identity, classification and authorization rules. See the [diagnostic reference](CONVENTION-DIAGNOSTICS.md) for exact messages and standard exception channels, and [editable assistance](SCAFFOLDING.md) for guarded refactorings and review plans. The guides describe supported evidence and static-analysis limits.
 
 ## Table of Contents
 
@@ -50,6 +50,7 @@ Define an entity and collect a domain event. SharedKernel supplies the domain ty
 using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Domain;
 
+[DomainOnly]
 public enum UserEntityTypes : byte { User = 1 }
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
@@ -62,7 +63,7 @@ public class UserEntity : AggregateRoot
     [Personal]
     public string Name { get; private set; }
 
-    public UserDto ToDto() => new(this);
+    public override UserDto ToDto() => new(this);
 
     public UserEntity(string name)
     {
@@ -136,12 +137,13 @@ Entity and aggregate base constructors accept an optional internal `long id = 0`
 | `DateTimeOffset CreatedAt` | Derived from the encoded ID timestamp |
 | `DateTimeOffset ModifiedAt` | Protected internal setter; concurrency check; `ModifiedAtColumnOrder = 1` |
 | `SourceKnownEntityId EntityIdSource` | Internal setter; ignored by JSON |
+| `abstract Dto ToDto()` | Concrete entities override this covariantly to return their Contract DTO via `new(this)` |
 
 `SourceKnownEntity` implements `IHasEntityId`, `IEquatable<SourceKnownEntity>`, and `IComparable<SourceKnownEntity>`. See [SourceKnownEntity.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/SourceKnownEntity.cs) and [AggregateRoot.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/AggregateRoot.cs).
 
 ### Application Partitions
 
-`IAppId` requires `static abstract byte AppId { get; }` in the range `0..127`. Define an attribute for the domain and apply it to each eligible concrete entity with its enum member. The attribute accepts a byte-backed enum and forwards the value to `EntityTypeAttribute<TApp>(byte)`. When migrating a numeric annotation, assign its existing byte to the enum member and keep the same `TApp` to preserve stored IDs. Rebuild referenced domain assemblies that still use byte-based annotations because the analyzer checks their metadata too.
+`IAppId` requires `static abstract byte AppId { get; }` in the range `0..127`. Define an attribute for the domain and apply it to each eligible concrete entity with its enum member. The attribute accepts a byte-backed enum and forwards the value to `EntityTypeAttribute<TApp>(byte)`.
 
 | Partition | `AppId` and `Value` | Attribute example |
 |---|---|---|
@@ -155,17 +157,15 @@ Entity and aggregate base constructors accept an optional internal `long id = 0`
 
 The [diagnostic reference](CONVENTION-DIAGNOSTICS.md) groups all analyzer and generator rules by requirement and lists their severity settings.
 
-When upgrading, replace `DRN0001` through `DRN0014` with `DRNENTITY001` through `DRNENTITY014` in the same order. Classification IDs `DRN0015` through `DRN0025` map in order to `DRNCLASSIFICATION001` through `DRNCLASSIFICATION011`. Use `DRNAUTHORIZATION001` for `DRN0026`, `DRNCLASSIFICATION012` for `DRN0027`, and `DRNPERSISTENCE001` for the context constructor rule formerly named `DRNCV005`. Replace IDs in `.editorconfig`, `NoWarn`, paired `#pragma warning` directives and `SuppressMessage` attributes. See the [complete mapping, including convention exceptions](RELEASE-NOTES.md#version-0110).
-
 The analyzer and code-fix assemblies target `net10.0` for IDE compiler-host compatibility. Runtime and application projects remain on `net11.0`. Tooling requires a .NET 10 or newer host with compatible Roslyn 5.12 APIs. An IDE worker's runtime is independent of the application's target framework. After rebuilding changed tooling assemblies, reload the solution if the IDE still reports assembly-load failures.
 
 #### Data classification
 
-Register one project catalog as EmbeddedResource or AdditionalFiles. Build targets forward it to compiler analysis and publish metadata retained in reference assemblies. Analyzers inherit catalogs from referenced SharedKernel consumers without loading dependency code. Legacy diagnostic-rules.json is accepted. Identical files are deduplicated; distinct own catalogs are rejected. Invalid catalogs report DRNCLASSIFICATION007 (previously DRN0021). Rules are isolated per compilation. Backend runtime uses explicit classifications rather than catalog name matching. See [configuration and schema](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#project-classification-rules).
+Register one project catalog as EmbeddedResource or AdditionalFiles. Build targets forward it to compiler analysis and publish metadata retained in reference assemblies. Analyzers inherit catalogs from referenced SharedKernel consumers without loading dependency code. `diagnostic-rules.json` is also accepted. Identical files are deduplicated; distinct own catalogs are rejected. Invalid catalogs report DRNCLASSIFICATION007. Rules are isolated per compilation. Backend runtime uses explicit classifications rather than catalog name matching. See [configuration and schema](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#project-classification-rules).
 
 The shared catalog includes `cvv`, `cvc`, `pincode`, `username`, `firstname`, `lastname`, `dateofbirth`, `birthdate`, and `iban`. Matching public readable properties require classification or a reviewed false-positive annotation, including case and separator variants.
 
-DRNCLASSIFICATION005 exempts EF migration column definitions and constraint selectors recognized through EF API symbols and column-operation metadata. Data objects and logging inside migrations remain checked. See [schema boundaries](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#boundaries-and-migration).
+DRNCLASSIFICATION005 exempts EF migration column definitions and constraint selectors recognized through EF API symbols and column-operation metadata. Data objects and logging inside migrations remain checked. See [schema boundaries](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#capture-boundaries).
 
 `DRNCLASSIFICATION006` checks statically known dictionary keys, including nested initializers and direct local writes. Use AddDictionary/SanitizeDictionary classifications or an exact adjacent DiagnosticNameExemption comment. Configured analyzer paths and other children remain checked. Exploration is bounded. Dynamic and unexamined keys have no runtime name fallback. See [dictionary classifications](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#dictionary-classifications).
 
@@ -179,9 +179,9 @@ Browser diagnostics and compiler analysis consume the same baseline catalog, inc
 
 Compiler checks cover statically known values and paths. See [application responsibilities for dynamic data](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md).
 
-DRNCLASSIFICATION008 checks sensitive ILogger placeholders, scope dictionary keys, and direct classified-property captures. Remove or redact sensitive values; standard ILogger does not apply DRN runtime redaction. Reviewed name-only false positives can use adjacent comments. DRNCLASSIFICATION009 reports malformed comments. DRNCLASSIFICATION010 warns only on unused DiagnosticNameExemption comments, never redundant attributes or reason/policy exemptions. DRNCLASSIFICATION011 fails captures that exceed the model-analysis work limit so configured paths cannot silently escape verification. Capture a smaller model or explicitly classify sensitive subtrees. See [logging boundaries](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#boundaries-and-migration).
+DRNCLASSIFICATION008 checks sensitive ILogger placeholders, scope dictionary keys, and direct classified-property captures. Remove or redact sensitive values; standard ILogger does not apply DRN runtime redaction. Reviewed name-only false positives can use adjacent comments. DRNCLASSIFICATION009 reports malformed comments. DRNCLASSIFICATION010 warns only on unused DiagnosticNameExemption comments, never redundant attributes or reason/policy exemptions. DRNCLASSIFICATION011 fails captures that exceed the model-analysis work limit so configured paths cannot silently escape verification. Capture a smaller model or explicitly classify sensitive subtrees. See [logging boundaries](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#capture-boundaries).
 
-Diagnostic classification also applies to all public readable instance non-indexer model properties in directly and transitively dependent projects, even without logging calls. `DRNCLASSIFICATION001` requires classification or explicit `Sensitive(false)` for matching names. `DRNCLASSIFICATION002` rejects invalid opt-outs and offers `Use Sensitive(true)` as an individual code fix. `DRNCLASSIFICATION003` reports matched scalar/untyped capture paths and external property names, and `DRNCLASSIFICATION004` identifies unsupported custom Microsoft classification families. `DRNCLASSIFICATION005` requires matching anonymous properties, including nested and inferred members, to move to an annotated named class or record. Named model properties own classification without built-in logging-prefix matches. `[IgnoreLog]`, reason strings and capture policies do not suppress declaration requirements. Personal/Sensitive-derived company attributes are supported. See [classification, code fixes, migration and runtime boundaries](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#compile-time-classification).
+Diagnostic classification also applies to all public readable instance non-indexer model properties in directly and transitively dependent projects, even without logging calls. `DRNCLASSIFICATION001` requires classification or explicit `Sensitive(false)` for matching names. `DRNCLASSIFICATION002` rejects invalid opt-outs and offers `Use Sensitive(true)` as an individual code fix. `DRNCLASSIFICATION003` reports matched scalar/untyped capture paths and external property names, and `DRNCLASSIFICATION004` identifies unsupported custom Microsoft classification families. `DRNCLASSIFICATION005` requires matching anonymous properties, including nested and inferred members, to move to an annotated named class or record. Named model properties own classification without built-in logging-prefix matches. `[IgnoreLog]`, reason strings and capture policies do not suppress declaration requirements. Personal/Sensitive-derived company attributes are supported. See [classification, code fixes, and runtime boundaries](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#compile-time-classification).
 
 DRNCLASSIFICATION012 reports a direct property capture that exceeds the 256 interface-property scan limit before classification can be determined. Remove the capture, explicitly redact its value, or declare classification directly on the captured property or type.
 
@@ -240,8 +240,10 @@ var customerId = ids.Validate<CustomerEntity>(customerGuid);
 Derived entity attributes use a pass-through constructor:
 
 ```csharp
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Domain;
 
+[DomainOnly]
 public enum DomainEntityTypes : byte { Order = 2 }
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
@@ -267,7 +269,7 @@ See [SourceKnownEntityTypeAnalyzer.cs](https://github.com/duranserkan/DRN-Projec
 >
 > **DTO Mapping Rule**: DTOs should implement a primary constructor accepting a `SourceKnownEntity?` to automatically map `Id`, `CreatedAt`, and `ModifiedAt`. Avoid manual mapping of these fields.
 >
-> **Entity Exposure Prohibition**: Entities must never be exposed via public APIs. Always map to DTOs or Response Models. Entities are only permitted in Razor Pages (Internal UI).
+> **Entity and DTO Exposure Prohibition**: Never expose entities or internal `Dto` types through public APIs or Contract messages. Map to explicit Contract `*Request` and `*Response` models instead. Entities are only permitted in Razor Pages (Internal UI).
 
 The advanced quickstart defines `UserDto` once and uses its base constructor for identity and timestamp mapping. `Dto.AdditionalData` stores JSON extension data. See [Dto.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/Dto.cs).
 
@@ -309,7 +311,7 @@ The identifier system has three forms:
 
 `ISourceKnownEntityIdOperations` defines `Generate`, nullable/nonnullable `Parse`, all `Validate` overloads, `ToSecure`, and `ToPlain` in SharedKernel. Utils provides these operations through `ISourceKnownEntityIdUtils`. EntityFramework makes ID operations available on saved and queried entities. ID validation checks structure and identity metadata; application authorization still controls access to the entity.
 
-`Parse(Guid, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault)` accepts `ConfiguredDefault`, `Secure`, `Plain` or `Auto` from `DRN.Framework.SharedKernel.Domain`. ConfiguredDefault selects the immutable `ISourceKnownEntityIdOperations.DefaultFormat`, initialized from Nexus settings (Secure or Plain). Secure accepts only secure IDs, Plain accepts only plain IDs, and Auto accepts either valid form. Domain GUID helpers apply the selected format and requested identity checks. Conversions accept both forms. Format is non-nullable: omit it or pass ConfiguredDefault instead of null. Compiled consumers require rebuilding and custom implementations or method-group bindings require signature updates. See [Utils parsing and validation](../DRN.Framework.Utils/README.md#parse--validation).
+`Parse(Guid, SourceKnownEntityIdFormat format = SourceKnownEntityIdFormat.ConfiguredDefault)` accepts `ConfiguredDefault`, `Secure`, `Plain` or `Auto` from `DRN.Framework.SharedKernel.Domain`. ConfiguredDefault selects the immutable `ISourceKnownEntityIdOperations.DefaultFormat`, initialized from Nexus settings (Secure or Plain). Secure accepts only secure IDs, Plain accepts only plain IDs, and Auto accepts either valid form. Domain GUID helpers apply the selected format and requested identity checks. Conversions accept both forms. Format is non-nullable: omit it or pass ConfiguredDefault instead of null. See [Utils parsing and validation](../DRN.Framework.Utils/README.md#parse--validation).
 
 Record contract excerpt from [SourceKnownEntityId.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/SourceKnownEntityId.cs):
 
@@ -377,11 +379,11 @@ The default minimum is the same in every build configuration. It detects clocks 
 
 Parsed-record validation has no format parameter and accepts either representation. It neither reads settings nor reauthenticates the GUID. Records are publicly constructible, so treat them as trusted internal values rather than authenticated transport input. Operations `Parse`/`Validate` authenticate untrusted GUIDs and select the format: ConfiguredDefault uses DefaultFormat, while Auto enables mixed-format detection. Undefined enum values throw `ArgumentOutOfRangeException` at that parsing boundary.
 
-Identity validation requires an expected application partition: use `Validate<TEntity>()` to obtain it from the entity declaration, or `Validate(new EntityTypeId(entityType, expectedAppId))` to supply both components. `EntityTypeId` requires both constructor arguments, including explicit `0` for the default partition, and has no implicit conversion from `byte`. The former `Validate(byte)` overload is removed; validation never derives the expected partition from the incoming ID.
+Identity validation requires an expected application partition: use `Validate<TEntity>()` to obtain it from the entity declaration, or `Validate(new EntityTypeId(entityType, expectedAppId))` to supply both components. `EntityTypeId` requires both constructor arguments, including explicit `0` for the default partition, and has no implicit conversion from `byte`. Validation never derives the expected partition from the incoming ID.
 
-Domain helpers follow the same contract for GUID and numeric IDs: use `GetEntityId<TEntity>(id)` or `GetEntityId(id, new EntityTypeId(entityType, expectedAppId))`, including nullable forms. The former byte-only helpers are removed. The low-level `GetEntityId(Guid, bool validate = true)` helper checks parsing validity only, like `ValidateId()`. SharedKernel does not read application configuration; Utils supplies configured expectations and EF repositories supply the target entity's declared identity.
+Domain helpers follow the same contract for GUID and numeric IDs: use `GetEntityId<TEntity>(id)` or `GetEntityId(id, new EntityTypeId(entityType, expectedAppId))`, including nullable forms. The low-level `GetEntityId(Guid, bool validate = true)` helper checks parsing validity only, like `ValidateId()`. SharedKernel does not read application configuration; Utils supplies configured expectations and EF repositories supply the target entity's declared identity.
 
-All domain GUID helpers and repository single/batch/enumerable GUID helpers accept an optional final `format` argument. It reaches the injected parser; omission uses its configured default. For example, `entity.GetEntityId<UserEntity>(guid, SourceKnownEntityIdFormat.Plain)` and `repository.GetEntityIds(guids, format: SourceKnownEntityIdFormat.Auto)`. Undefined formats are rejected for null inputs and empty batches too. Numeric generation and conversions retain their existing behavior. Ordinary calls still compile, but changed signatures require binary consumers to rebuild and custom implementations/method-group bindings to update.
+All domain GUID helpers and repository single/batch/enumerable GUID helpers accept an optional final `format` argument. It reaches the injected parser; omission uses its configured default. For example, `entity.GetEntityId<UserEntity>(guid, SourceKnownEntityIdFormat.Plain)` and `repository.GetEntityIds(guids, format: SourceKnownEntityIdFormat.Auto)`. Undefined formats are rejected for null inputs and empty batches too. Numeric generation and conversions retain their existing behavior.
 
 ### Secure ↔ Plain Conversion
 
@@ -406,9 +408,13 @@ var plainFromUtility = sourceKnownEntityIdUtils.ToPlain(secureFromUtility);
 
 `ISourceKnownRepository<TEntity>` defines queries, mutations, identity conversion and pagination for `AggregateRoot` entities. EntityFramework supplies the default implementation. Subclasses own entity updates, additional filters and query includes.
 
-`ISourceKnownService<TEntity>` in `DRN.Framework.SharedKernel.Domain` exposes a read-only `ISourceKnownRepository<TEntity> Repository` property. Its entity type must derive from `AggregateRoot`.
+`ISourceKnownService` contracts in `DRN.Framework.SharedKernel.Domain` provide progressive service abstractions for `AggregateRoot` entities:
 
-Derive from the abstract `SourceKnownService<TEntity>` base class to implement this contract with a repository supplied through its constructor.
+- `ISourceKnownService<TEntity>` exposes read-only `ISourceKnownRepository<TEntity> Repository`.
+- `ISourceKnownService<TEntity, out TDto>` extends `ISourceKnownService<TEntity>` with covariant `TDto ToDto(TEntity entity)`.
+- `ISourceKnownService<TEntity, out TDto, in TCreateRequest>` extends `ISourceKnownService<TEntity, TDto>` with `Task<TEntity> CreateEntityAsync(TCreateRequest request, CancellationToken cancellationToken = default)`.
+
+Derive from `SourceKnownService<TEntity>`, `SourceKnownService<TEntity, TDto>`, or `SourceKnownService<TEntity, TDto, TCreateRequest>` to implement these contracts with a constructor-supplied repository. `SourceKnownService<TEntity, TDto>` supplies a virtual `ToDto(TEntity)` that delegates to `entity.ToDto()` and verifies assignability to `TDto` at runtime (`DRNDTO007` checks this alignment at compile time unless `ToDto(TEntity)` is overridden). `SourceKnownService<TEntity, TDto, TCreateRequest>` adds abstract `CreateEntityAsync`.
 
 Contract from [SourceKnownRepository.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Domain/Repository/SourceKnownRepository.cs), grouped by operation:
 
@@ -533,23 +539,36 @@ The three-argument `PageSize` constructor can override the maximum threshold for
 
 For flat first-page input, bind `PaginationOptions` from a query or JSON body and convert it with `PaginationRequest.DefaultWith(options)`. Set `updateTotalCount` to request a server-side count. JSON enum values follow the application's serializer configuration. Use the returned metadata for continuation requests.
 
-`PaginationRequest` supports query-string model binding. This controller uses the quickstart's `UserEntity` and `UserDto`:
+`PaginationRequest` supports query-string model binding. This controller uses the quickstart's `UserEntity` and maps to an explicit Contract `UserResponse`:
 
 ```csharp
+using System;
 using System.Threading.Tasks;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.SharedKernel.Domain.Repository;
 using Microsoft.AspNetCore.Mvc;
+
+public sealed class UserResponse
+{
+    public Guid Id { get; init; }
+    public DateTimeOffset CreatedAt { get; init; }
+    public DateTimeOffset ModifiedAt { get; init; }
+}
 
 [ApiController]
 [Route("users")]
 public class UsersController(ISourceKnownRepository<UserEntity> repository) : ControllerBase
 {
     [HttpGet]
-    public async Task<PaginationResultModel<UserDto>> GetAsync([FromQuery] PaginationRequest request)
+    public async Task<PaginationResultModel<UserResponse>> GetAsync([FromQuery] PaginationRequest request)
     {
         var result = await repository.PaginateAsync(request);
-        return result.ToModel(user => user.ToDto());
+        return result.ToModel(user => new UserResponse
+        {
+            Id = user.EntityId,
+            CreatedAt = user.CreatedAt,
+            ModifiedAt = user.ModifiedAt
+        });
     }
 }
 ```
@@ -632,6 +651,8 @@ See [Exceptions.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.F
 
 `Int64ToStringConverter` and `Int64NullableToStringConverter` accept numeric tokens and integer strings. The nullable converter preserves null. `SetJsonDefaults(options)` updates supplied mutable options or creates new options when omitted. `SetHtmlSafeWebJsonDefaults(options)` also sets `JavaScriptEncoder.Default`; Hosting uses it for MVC.
 
+`JsonStringEnumConverter` uses its default `allowIntegerValues: true` behavior and accepts numeric `0` and undefined integer enum values. Operations must validate allowed enum values explicitly.
+
 ```csharp
 using System.Text.Json;
 using DRN.Framework.SharedKernel.Json;
@@ -657,6 +678,14 @@ Marks classes, structs, properties or fields for exclusion by logging code that 
 ### `[SecureKey]`
 
 Validates string properties, fields or parameters. Defaults require 16 to 256 characters, uppercase, lowercase, a digit and a special character. The allowed set contains ASCII and Turkish letters, digits, space, and `!*()-_`; space counts as special. Sequential and repeated-character limits are configurable through `MaxSequentialChars` (4) and `MaxRepeatedChars` (3). Null values fail validation. See [SecureKeyAttribute.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Attributes/SecureKeyAttribute.cs) for the exact character checks.
+
+### `[DomainOnly]`
+
+Marks a Domain-declared enum as domain-internal (`DRNENUM001` through `DRNENUM003`). Root `byte` identity enums referenced by a local `EntityTypeAttribute` subclass remain valid at the Domain root. See [enum conventions](CONVENTIONS.md#enums-and-strict-public-contracts) and [DomainOnlyAttribute.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Attributes/DomainOnlyAttribute.cs).
+
+### `[AllowZero]`
+
+Opts an enum with a named `0` member into zero-value declarations at compile time (`DRNENUM004`, `DRNENUM005`). See [enum conventions](CONVENTIONS.md#enums-and-strict-public-contracts) and [AllowZeroAttribute.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/Attributes/AllowZeroAttribute.cs).
 
 ---
 

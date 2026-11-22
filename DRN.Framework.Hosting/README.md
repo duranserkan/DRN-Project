@@ -419,7 +419,7 @@ protected override MfaExemptionConfig ConfigureMFAExemption()
     => new() { ExemptAuthSchemes = ["ApiKey", "Certificate"] };
 ```
 
-`ConfigureAuthenticationClaims` defaults to Identity claim types and `amr=mfa`. See [Renewal and assurance](#renewal-and-assurance) for custom mappings and their migration requirements.
+`ConfigureAuthenticationClaims` defaults to Identity claim types and `amr=mfa`. See [Renewal and assurance](#renewal-and-assurance) for custom mappings and their requirements.
 
 For example, register `ApiKey`, add it to the exemption list, and select it in an API policy that requires an API scope. Listing `ApiKey` alone does not let it access default endpoints using `Identity.BearerAndApplication`. Programmatic MFA checks without an HTTP policy context require completed MFA.
 
@@ -749,17 +749,20 @@ protected override void ConfigurePostAuthRateLimiterOptions(
 
 ## Source-Known Controllers
 
-Use `DRN.Framework.Hosting.Controllers` to expose a filtered `ISourceKnownRepository<TEntity>` through DTOs. Choose one of three abstract controller variants:
+Use `DRN.Framework.Hosting.Controllers` to expose a service-backed `ISourceKnownRepository<TEntity>` through explicit Contract `*Response` types. See [conventions terminology](../DRN.Framework.SharedKernel/CONVENTIONS.md#terminology) for Domain, Subdomain, project stem, and role stem definitions.
 
 | Base | Behavior |
 |---|---|
-| `SourceKnownController<TEntity, TDto, TCreateRequest>` | Combines **all read actions** with create/delete actions. |
-| `SourceKnownReadOnlyController<TEntity, TDto>` | Exposes only bounded read actions. |
-| `SourceKnownWriteOnlyController<TEntity, TDto, TCreateRequest>` | Exposes only create/delete HTTP actions. |
+| `SourceKnownControllerBase<TEntity, TResponse>` | Foundation base without HTTP actions. Composes `ISourceKnownService<TEntity>`. |
+| `SourceKnownReadOnlyController<TEntity, TResponse>` | Exposes only bounded read actions using `ISourceKnownService<TEntity>`. |
+| `SourceKnownController<TEntity, TResponse, TCreateRequest>` | Combines **all read actions** with create/delete actions using `ISourceKnownService<TEntity, Dto, TCreateRequest>`. |
+| `SourceKnownWriteOnlyController<TEntity, TResponse, TCreateRequest>` | Exposes only create/delete HTTP actions using `ISourceKnownService<TEntity, Dto, TCreateRequest>`. |
 
-All variants share `SourceKnownControllerBase<TEntity, TDto>`, which implements `ISourceKnownService<TEntity>` and provides repository access, protected DTO mapping and cancellation helpers without HTTP actions. The combined controller inherits the read-only controller and adds writes. The write-only controller inherits the combined controller and seals `[NonAction]` overrides for all reads. Those methods remain callable from C#, but are excluded from HTTP routing and API discovery.
+All variants derive from `SourceKnownControllerBase<TEntity, TResponse>`, which composes `protected ISourceKnownService<TEntity> Service` and exposes `public ISourceKnownRepository<TEntity> Repository => Service.Repository;` without implementing `ISourceKnownService<TEntity>` (so service methods can never become MVC actions). It provides protected `abstract TResponse ToResponse(TEntity entity)` mapping and cancellation helpers without HTTP actions. `TEntity` derives from `AggregateRoot`, `TResponse` is a public Contract response class (`where TResponse : class`), and `TCreateRequest` is an explicit Contract request class. A constructor guard throws `InvalidOperationException` if `TResponse` derives from `Dto` (and `ArgumentNullException` if `service` is `null`), enforcing DRNDTO005 at runtime even when analyzers are disabled. Keeping `TResponse` separate from internal `Dto` types satisfies DRNDTO005 and DRNDTO006 and prevents future DTO fields from leaking into public APIs.
 
-`TEntity` derives from `AggregateRoot`, `TDto` derives from `Dto`, and the create request is an application-owned class. Pass the repository to the constructor and implement `ToDto`. Concrete controllers supply `[Route]` and explicit named authorization policies. DRNAUTHORIZATION001 rejects exposed actions without a nonblank `[Authorize(Policy = "...")]` on the controller or action, including inherited policies. Bare `[Authorize]` and roles alone do not satisfy this rule. `[AllowAnonymous]` is rejected. DRN host MFA and rate-limiting policies still apply.
+The combined controller inherits the read-only controller and adds writes, leveraging `out TDto` covariance on `ISourceKnownService<TEntity, out TDto, in TCreateRequest>` so controllers remain at 3 generic parameters. The write-only controller inherits the combined controller and seals `[NonAction]` overrides for all reads. Those methods remain callable from C#, but are excluded from HTTP routing and API discovery.
+
+Concrete controllers supply `[Route]` and explicit named authorization policies. DRNAUTHORIZATION001 rejects exposed actions without a nonblank `[Authorize(Policy = "...")]` on the controller or action, including inherited policies. Bare `[Authorize]` and roles alone do not satisfy this rule. `[AllowAnonymous]` is rejected. DRN host MFA and rate-limiting policies still apply.
 
 Register each named policy with ASP.NET Core authorization. Roslyn checks declarations, while ASP.NET Core enforces policies for HTTP requests. The analyzer cannot verify policy registration or resource permissions. Direct C# action calls do not execute MVC authorization. Applications must enforce tenant/resource visibility through repository filters and application code, including for counts and existence checks.
 
@@ -771,8 +774,8 @@ Routes below are relative to the concrete controller route.
 
 | Method | Route | Action | Result |
 |---|---|---|---|
-| GET | `{id:guid}` | `GetAsync` | One DTO. Missing records follow repository not-found behavior. |
-| POST | `Lookup` | `GetManyAsync` | DTO array for a nonempty JSON GUID array. Missing IDs and ordering follow repository behavior. |
+| GET | `{id:guid}` | `GetAsync` | One `TResponse`. Missing records follow repository not-found behavior. |
+| POST | `Lookup` | `GetManyAsync` | `TResponse` array for a nonempty JSON GUID array. Missing IDs and ordering follow repository behavior. |
 | GET | `Any` | `AnyAsync` | Whether any visible entity exists. |
 | GET | `Count` | `CountAsync` | Number of visible entities. |
 | GET | root | `PaginateAsync` | Page from query-bound `PaginationRequest`. Omit it for the first page. |
@@ -791,15 +794,23 @@ Every exposed action is virtual. Override it with MVC `[NonAction]` to remove it
 using DRN.Framework.Hosting.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Sample.Application.Services.QA.Tags;
 using Sample.Contract.QA.Tags;
 using Sample.Domain.QA.Tag;
 
 [Route("api/tags")]
 [Authorize(Policy = "Tags.Read")]
-public class ReadOnlyTagController(ITagRepository repository)
-    : SourceKnownReadOnlyController<TagEntity, TagDto>(repository)
+public class ReadOnlyTagController(ITagService service)
+    : SourceKnownReadOnlyController<TagEntity, TagResponse>(service)
 {
-    protected override TagDto ToDto(TagEntity entity) => entity.ToDto();
+    protected override TagResponse ToResponse(TagEntity entity) => new()
+    {
+        Id = entity.EntityId,
+        CreatedAt = entity.CreatedAt,
+        ModifiedAt = entity.ModifiedAt,
+        Name = entity.Name,
+        Model = new TagModelResponse { Type = entity.Model.Type }
+    };
 
     [NonAction]
     public override Task<long> CountAsync(CancellationToken cancellationToken = default)
@@ -811,11 +822,11 @@ public class ReadOnlyTagController(ITagRepository repository)
 
 ### Opt in to writes
 
-Derive from `SourceKnownController<TEntity, TDto, TCreateRequest>` to combine reads and writes, or `SourceKnownWriteOnlyController<TEntity, TDto, TCreateRequest>` for mutation endpoints alone. Implement protected `CreateEntityAsync(request, cancellationToken)` to construct the entity through application domain operations without saving it.
+Derive from `SourceKnownController<TEntity, TResponse, TCreateRequest>` to combine reads and writes, or `SourceKnownWriteOnlyController<TEntity, TResponse, TCreateRequest>` for mutation endpoints alone. Both accept `ISourceKnownService<TEntity, Dto, TCreateRequest>` and provide a virtual `CreateEntityAsync(request, cancellationToken)` method that delegates to `Service.CreateEntityAsync`. Implement entity creation and domain validation in the service (and override `CreateEntityAsync` on the controller only when transport-specific orchestration is required).
 
 Use controller policies for common permissions and action policies for additional write permissions. Inherited controller and action policies combine. For resource-specific checks, override the action and call an application authorization service before calling the base action. Pass the request cancellation token to that service. Reject forbidden access with `Forbid()` where the result type permits, or `ExceptionFor.Forbidden(...)`. Request-dependent creation checks may also live in application mapping/domain services. The framework does not supply mandatory authorization hooks.
 
-`PostAsync` calls the repository's `CreateAsync` and returns HTTP 201 with the DTO. It does not generate a Location header, so disabling `GetAsync` does not break creation. `DeleteAsync` calls the GUID delete overload and returns HTTP 204 even when no matching record exists. The default EF repository performs a direct delete with repository filters and does not invoke entity deletion lifecycle hooks.
+`PostAsync` calls `CreateEntityAsync`, persists via the repository's `CreateAsync`, and returns HTTP 201 with the mapped `TResponse`. It does not generate a Location header, so disabling `GetAsync` does not break creation. `DeleteAsync` calls the GUID delete overload and returns HTTP 204 even when no matching record exists. The default EF repository performs a direct delete with repository filters and does not invoke entity deletion lifecycle hooks.
 
 The base API actions do not require antiforgery tokens. For SPA APIs, explicitly select the application's registered bearer scheme in the named policies and require authentication. Do not add cookie or cookie/bearer composite schemes to their combined policies. The framework does not choose a handler name, and DRNAUTHORIZATION001 does not verify policy registration. For example, when using ASP.NET Core Identity bearer tokens:
 
@@ -852,9 +863,7 @@ The generator targets `net10.0` because IDE compiler hosts can run on .NET 10 in
 
 Generation requires SDK Web and a public, concrete, non-generic, top-level DRN program declared in that same project. Its inherited `DrnProgramBase<TProgram>` argument must be the program itself. For example, `AppProgram : DrnProgramBase<AppProgram>` qualifies, while a subclass of that closed program does not create another root. Referenced programs do not create roots in the consuming project. Non-Web projects do not generate helpers.
 
-Every class deriving directly or indirectly from `DrnProgramBase<TProgram>` must end with the case-sensitive suffix `Program`. Diagnostic `DRNHOSTING002` reports an error otherwise, including abstract, generic and nested descendants. `HostedAccessors` is no longer needed or available. Remove its assembly declarations and use the program's name and namespace for the generated roots.
-
-If your diagnostic settings or suppressions use the earlier IDs, replace `DRNHG001` with `DRNHOSTING001` for accessor diagnostics and `DRNHG002` with `DRNHOSTING002` for program naming.
+Every class deriving directly or indirectly from `DrnProgramBase<TProgram>` must end with the case-sensitive suffix `Program`. Diagnostic `DRNHOSTING002` reports an error otherwise, including abstract, generic and nested descendants.
 
 Return the generated singleton from the program's startup hook:
 
@@ -898,30 +907,9 @@ Pages use file identities, not custom `@page` URLs. Root files group under `Root
 
 Typed parameter/constraint generation remains a TODO. Continue passing route/query values to `Url.Endpoint`; runtime constraints and encoding remain authoritative. For absolute identity links use `LinkGenerator.GetUriByEndpoint(HttpContext, endpoint, values)`, which shares effective-action and destination-area validation with `Url.Endpoint` and uses the processed request origin and PathBase.
 
-### 1. Migrate existing accessors
+### Usage in Code
 
-Eligible SDK Web programs always generate both roots. An existing endpoint collection under another name produces `DRNHOSTING001`, even when the startup hook returns that collection. There is no root-name override or per-program generation opt-out. Changing only the old collection's base to `EndpointCollectionBase<TProgram, TCollection>` is insufficient.
-
-For an `Example.Hosted.AppProgram`, migrate as follows:
-
-1. Remove every `HostedAccessors` assembly declaration, including its `Name` and `Namespace` overrides. Rename DRN program descendants to end with `Program`.
-2. Replace references to the old roots with `Example.Hosted.Helpers.EndpointFor.AppEndpointFor` and `Example.Hosted.Helpers.PageFor.AppPageFor`. A program named `Program` uses these same root names. Other program names use their stem as described above.
-3. Remove old root declarations when they contain only generated members. Move custom root members into public partial classes at the new names and namespaces. Remove the old base declarations, constructors that duplicate generated initialization, and generated group properties. Do not declare an `EndpointCollection` property on the endpoint root.
-4. Move custom controller, group and page members into the corresponding generated partial classes. Remove declarations already supplied by generation, including controller constructors and page `PathSegments` overrides. Use `AccessorController.TypeName` and `AccessorGroup` to retain leaf or group type names where needed. These aliases do not rename roots or change their namespaces.
-5. Before retaining an authored replacement for a generated action or page, exclude that member with `AccessorMember`. Keep endpoint bindings aligned with the CLR action signature, using `EndpointAction` when needed. Exclusions affect accessor generation, not MVC routing or authorization.
-6. Update the handwritten `Get` facade and return the generated endpoint singleton from `ConfigureEndpointCollection`. Remove obsolete collections after moving their customizations.
-
-For example, this declaration preserves `Get.Endpoint.User.Login` and `Get.Endpoint.User.Profile` for a local `UserController` with eligible `Login` and `Profile` actions. Put assembly attributes before namespace and type declarations:
-
-```csharp
-using DRN.Framework.Hosting.Endpoints;
-using Example.Hosted;
-using Example.Hosted.Controllers;
-
-[assembly: AccessorController(typeof(AppProgram), typeof(UserController), "User", TypeName = "UserEndpoints")]
-```
-
-Keep the facade in an authored file. With `Pages/User/Login.cshtml` containing `@page`, the generated page root supplies `User.Login`:
+Expose generated singletons through an authored `Get` facade and bind the endpoint singleton in `ConfigureEndpointCollection`:
 
 ```csharp
 namespace Example.Hosted;
@@ -936,14 +924,7 @@ public static class Get
 }
 ```
 
-Inside `AppProgram`, bind the endpoint singleton during startup:
-
-```csharp
-protected override EndpointCollection<AppProgram> ConfigureEndpointCollection()
-    => Helpers.EndpointFor.AppEndpointFor.EndpointCollection;
-```
-
-To retain an authored page destination, exclude the generated member and provide its replacement in the generated type's partial declaration:
+To replace a generated action or page member with an authored member, exclude it with `AccessorMember` and declare the replacement in a matching partial class:
 
 ```csharp
 using DRN.Framework.Hosting.Endpoints;
@@ -959,11 +940,7 @@ public partial class UserPageFor
 }
 ```
 
-The exclusion requires a matching page input. Use page identity paths even when `@page` defines a custom URL route. Additional authored shortcuts that do not replace generated members need no exclusion.
-
-Collection construction no longer scans the host assembly. The startup hook accepts only a collection for the matching program. Leave it unconfigured for hosts without typed controller accessors that need binding. Access runtime endpoint lists through `IEndpointAccessor` instead of the removed base's static catalog properties. Code that used `EndpointSource` can construct `DrnEndpointSource` from `IEndpointAccessor.EndpointHelper.EndpointDataSource`.
-
-### 2. Usage in Code
+Exclusions require a matching input and use page identity paths even when `@page` defines a custom route. Exclusions affect accessor generation only, not MVC routing or authorization. Additional authored members need no exclusion. Access runtime endpoint lists through `IEndpointAccessor`, or construct `DrnEndpointSource` from `IEndpointAccessor.EndpointHelper.EndpointDataSource`.
 
 Use the typed accessor members with IDE completion:
 
@@ -1038,7 +1015,7 @@ Vite manifests under `wwwroot/**/.vite/manifest.json` are included automatically
 
 When publishing with a custom web root, build targets do not automatically capture manifests outside `wwwroot/**`; applications must separately include manifests and referenced assets in publish items.
 
-Before upgrading, add a hashing step to your Vite build. Stock Vite omits the `hash` field that DRN tag helpers use for subresource integrity. For every manifest entry, hash the final uncompressed bytes of its `file` with SHA-256 and write the digest as standard Base64 in `hash`. This applies even when deploying only original files. Rebuild and deploy the updated manifests together with their assets. See the [Sample Vite plugin](../Sample.Hosted/vite.config.plugin.ts) and its [build configuration](../Sample.Hosted/vite.config.ts).
+Stock Vite omits the `hash` field that DRN tag helpers require for subresource integrity. Add a build step that hashes each manifest entry's final uncompressed `file` bytes with SHA-256 and writes standard Base64 to `hash`, even when deploying only original files. Deploy the manifests together with their assets. See the [Sample Vite plugin](../Sample.Hosted/vite.config.plugin.ts) and its [build configuration](../Sample.Hosted/vite.config.ts).
 
 If using the Sample plugin, `precompressAssets([])` keeps every original and emits a Brotli sidecar when compression reduces its size. For a Brotli-only deployment, set `brotliOnly` to `true` on each entry whose original you omit and deploy `<file>.br`. Other entries require the original `file`.
 
@@ -1169,8 +1146,6 @@ This returns **409 Conflict** with the public detail and `code`. The exception m
 Swagger adds one representative 400 response as `application/problem+json` with required `requestId`. Its description explains that the same contract covers all 4xx and 5xx statuses. Other statuses are shown only when declared by the endpoint. Declared validation schemas and custom response types are preserved. Declare custom error bodies with `ProducesResponseType` or minimal API response metadata so Swagger can describe them accurately. Browser and HEAD operations are unchanged.
 
 Apply `[DisableDrnProblemDetails]` from `DRN.Framework.Hosting.Middlewares.ApiErrors` to a controller class or individual action to disable DRN formatting and automatic Swagger error metadata. The attribute is inherited. ASP.NET Core may still produce native Problem Details, including validation responses, without DRN's `requestId`. Exceptions use the existing development diagnostics or production fallback. Authentication and authorization remain unchanged. Unmatched routes still use the configured path prefixes because no endpoint attribute is available.
-
-**Migration:** Clients must handle JSON where API errors previously returned text, HTML, or no body. Validation gains `requestId`. For these statuses, `WriteProductionErrorResponseAsync` handles browser, non-API, and opted-out API exceptions. Browser error pages and development diagnostics are unchanged.
 
 Custom nonempty bodies are not rewritten. Empty-response handling respects declared content type and length, and disabled status-code pages. HEAD responses have no body. Responses that have started, aborted requests, and errors produced before the application pipeline are outside this contract.
 

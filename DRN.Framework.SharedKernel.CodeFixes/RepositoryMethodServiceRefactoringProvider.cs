@@ -145,7 +145,7 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
     {
         var context = await ResolveServiceContextAsync(domain, application, selected, token);
         if (context is null) return null;
-        if (!HasMatchingConventionalOwnership(selected, context.DomainNamespace, context.SourceCompilation,
+        if (!HasMatchingConventionalOwnership(selected, context.DomainNamespace, context.DomainLayout, context.SourceCompilation,
                 context.DomainInputs, context.ApplicationInputs, context.Owner, token)) return null;
         var ns = context.ApplicationNamespace + ".Services." + context.Area;
         if (!ValidNamespace(ns)) return null;
@@ -169,7 +169,10 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
     {
         var domainIdentity = ConventionGenerationPreflight.Identity(domain);
         var applicationIdentity = ConventionGenerationPreflight.Identity(application);
+        var domainLayout = ConventionGenerationPreflight.Layout(domain);
+        var applicationLayout = ConventionGenerationPreflight.Layout(application);
         if (domainIdentity.Role != "Domain" || applicationIdentity.Role != "Application" || application.Language != LanguageNames.CSharp ||
+            !domainLayout.Matches(applicationLayout) ||
             !ValidNamespace(domainIdentity.Namespace) || !ValidNamespace(applicationIdentity.Namespace) ||
             !application.ProjectReferences.Any(reference => reference.ProjectId == domain.Id &&
                 (reference.Aliases.IsEmpty || reference.Aliases.Contains("global", StringComparer.Ordinal))) ||
@@ -178,12 +181,12 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
         var applicationInputs = await ReadInputsWithoutRoleOverrideAsync(application, required: false, token);
         if (domainInputs is null || applicationInputs is null)
             return null;
-        return await ResolveServiceSymbolsAsync((domain, domainIdentity.Namespace, domainInputs),
+        return await ResolveServiceSymbolsAsync((domain, domainIdentity.Namespace, domainLayout, domainInputs),
             (application, applicationIdentity.Namespace, applicationInputs), selected, projectPath, token);
     }
 
     private static async Task<ServiceContext?> ResolveServiceSymbolsAsync(
-        (Project Project, string Namespace, CompilationUnitSyntax Inputs) domain,
+        (Project Project, string Namespace, ConventionGenerationPreflight.ProjectLayout Layout, CompilationUnitSyntax Inputs) domain,
         (Project Project, string Namespace, CompilationUnitSyntax Inputs) application, Selection selected, string projectPath, CancellationToken token)
     {
         var compilation = await application.Project.GetCompilationAsync(token);
@@ -203,24 +206,28 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
         var sourceNamespace = selected.Method.ContainingType.ContainingNamespace.ToDisplayString();
         if (!ValidNamespace(sourceNamespace) || !sourceNamespace.StartsWith(domain.Namespace + ".", StringComparison.Ordinal))
             return null;
+        var owner = ResolveNamespaceOwnerKey(selected.Method.ContainingType, domain.Namespace, domain.Layout);
+        if (owner is null) return null;
         var area = sourceNamespace[(domain.Namespace.Length + 1)..];
         return new(compilation, source, repository, entity, service, domain.Inputs, application.Inputs,
-            domain.Namespace, application.Namespace, projectPath, area, area.Split('.')[0]);
+            domain.Namespace, domain.Layout, application.Namespace, projectPath, area, owner);
     }
 
-    private static bool HasMatchingConventionalOwnership(Selection selected, string domainNamespace, Compilation source,
-        CompilationUnitSyntax domainInputs, CompilationUnitSyntax applicationInputs, string owner, CancellationToken token)
+    private static bool HasMatchingConventionalOwnership(Selection selected, string domainNamespace,
+        ConventionGenerationPreflight.ProjectLayout domainLayout, Compilation source,
+        CompilationUnitSyntax domainInputs, CompilationUnitSyntax applicationInputs, OwnerKey owner, CancellationToken token)
     {
         var entityName = MetadataName(selected.Entity);
         var repositoryName = MetadataName(selected.Method.ContainingType);
-        return ConventionalOwner(selected.Method.ContainingType, domainNamespace, source) &&
-               ConventionalOwner(selected.Entity, domainNamespace, source) &&
-               selected.Entity.ContainingNamespace.ToDisplayString().Split('.').Length > domainNamespace.Split('.').Length &&
-               selected.Entity.ContainingNamespace.ToDisplayString()[(domainNamespace.Length + 1)..].Split('.')[0] == owner &&
-               OwnershipCompatible(domainInputs, entityName, owner, token) &&
-               OwnershipCompatible(domainInputs, repositoryName, owner, token) &&
-               OwnershipCompatible(applicationInputs, entityName, owner, token) &&
-               OwnershipCompatible(applicationInputs, repositoryName, owner, token);
+        var entityOwner = ResolveNamespaceOwnerKey(selected.Entity, domainNamespace, domainLayout);
+        var domainFilter = owner.DomainFilter;
+        return entityOwner is not null && entityOwner.NamespacePrefix == owner.NamespacePrefix &&
+               ConventionalOwner(selected.Method.ContainingType, domainNamespace, domainLayout, source) &&
+               ConventionalOwner(selected.Entity, domainNamespace, domainLayout, source) &&
+               OwnershipCompatible(domainInputs, entityName, owner.Subdomain, token, domainFilter) &&
+               OwnershipCompatible(domainInputs, repositoryName, owner.Subdomain, token, domainFilter) &&
+               OwnershipCompatible(applicationInputs, entityName, owner.Subdomain, token, domainFilter) &&
+               OwnershipCompatible(applicationInputs, repositoryName, owner.Subdomain, token, domainFilter);
     }
 
     private static bool CanConstructForwardingService(INamedTypeSymbol constructed, INamedTypeSymbol repository,
@@ -305,18 +312,14 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
 
     private sealed record ServiceContext(Compilation Compilation, Compilation SourceCompilation, INamedTypeSymbol Repository,
         INamedTypeSymbol Entity, INamedTypeSymbol Service, CompilationUnitSyntax DomainInputs,
-        CompilationUnitSyntax ApplicationInputs, string DomainNamespace, string ApplicationNamespace,
-        string ProjectPath, string Area, string Owner);
+        CompilationUnitSyntax ApplicationInputs, string DomainNamespace,
+        ConventionGenerationPreflight.ProjectLayout DomainLayout, string ApplicationNamespace,
+        string ProjectPath, string Area, OwnerKey Owner);
 
-    private static bool ConventionalOwner(INamedTypeSymbol type, string root, Compilation compilation)
-    {
-        var ns = type.ContainingNamespace.ToDisplayString();
-        if (!ns.StartsWith(root + ".", StringComparison.Ordinal)) return false;
-        var owner = ns[(root.Length + 1)..].Split('.')[0];
-        var attributeType = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomainAttribute");
-        return type.GetAttributes().Where(attribute => Same(attribute.AttributeClass, attributeType)).All(attribute =>
-            attribute.ConstructorArguments is [{ Value: string declared }] && declared == owner);
-    }
+    private static bool ConventionalOwner(INamedTypeSymbol type, string root,
+        ConventionGenerationPreflight.ProjectLayout layout, Compilation compilation) =>
+        ResolveNamespaceOwnerKey(type, root, layout) is { } owner &&
+        AttributesPreserveOwner(type, owner, compilation);
 
     private sealed record Selection(IMethodSymbol Method, INamedTypeSymbol Entity, MethodDeclarationSyntax Syntax);
     private sealed record ServicePlan(string Name, string RelativePath, string FullPath, string Source);

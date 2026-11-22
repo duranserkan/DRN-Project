@@ -42,7 +42,7 @@ internal sealed class ConventionExceptions
     private void Validate(ConventionInput input)
     {
         var target = input.Get(ConventionInputSyntax.TargetField);
-        var symbol = ResolveDeclarationSymbol(target);
+        var symbol = ResolveExceptionTarget(target);
         var valid = IsRule(input.Identity) && target.Length > 0 && !target.Contains('*') &&
                     IsValidTarget(input.Identity, target, symbol) &&
                     !string.IsNullOrWhiteSpace(input.Get(ConventionInputSyntax.ReasonField)) &&
@@ -60,10 +60,20 @@ internal sealed class ConventionExceptions
         _valid.Add((input, symbol));
     }
 
-    private ISymbol? ResolveDeclarationSymbol(string target)
+    private ISymbol? ResolveExceptionTarget(string target)
     {
         var id = target.StartsWith('~') ? target[1..] : target;
-        return DocumentationCommentId.GetFirstSymbolForDeclarationId(id, _facts.Compilation);
+        var symbol = DocumentationCommentId.GetFirstSymbolForDeclarationId(id, _facts.Compilation);
+        if (symbol is not null || !id.StartsWith("P:", StringComparison.Ordinal) || id.Contains('('))
+            return symbol;
+        // Roslyn's DocumentationCommentId parser resolves property name "Item" as the indexer "this[]",
+        // which misses regular non-indexer properties literally named Item.
+        var lastDot = id.LastIndexOf('.');
+        if (lastDot <= 2) return null;
+        if (DocumentationCommentId.GetFirstSymbolForDeclarationId("T:" + id[2..lastDot], _facts.Compilation) is not INamedTypeSymbol container)
+            return null;
+        return container.GetMembers().OfType<IPropertySymbol>()
+            .FirstOrDefault(property => !property.IsIndexer && property.GetDocumentationCommentId() == id);
     }
 
     private bool IsValidTarget(string ruleId, string target, ISymbol? symbol)
@@ -81,6 +91,8 @@ internal sealed class ConventionExceptions
                 target[prefix.Length..] is ConventionArchitecture.Application or ConventionArchitecture.Infra or
                     ConventionArchitecture.Domain or ConventionArchitecture.Contract,
             "DRNOWNERSHIP003" => target == prefix + ConventionArchitecture.Domain,
+            "DRNOWNERSHIP004" => target == prefix + ConventionArchitecture.Domain,
+            "DRNSTRUCTURE008" => _facts.HasLogicalPath(target),
             "DRNDEPENDENCYINJECTION003" => target == prefix + "Module",
             _ => false
         };
@@ -135,7 +147,9 @@ internal sealed class ConventionExceptions
             _facts.Cancellation.ThrowIfCancellationRequested();
             if (input.Identity != diagnostic.Id) continue;
             var target = input.Get("Target").TrimStart('~');
-            var matches = diagnostic.Properties.TryGetValue("Target", out var declared) && declared == target;
+            var matches = diagnostic.Properties.TryGetValue("Target", out var declared) &&
+                (declared == target || diagnostic.Id == "DRNSTRUCTURE008" &&
+                 declared == ConventionProject.NormalizeSeparators(target));
             if (!matches && symbol is not null)
             {
                 if (!sourceResolved)
@@ -189,8 +203,10 @@ internal sealed class ConventionExceptions
                 ConventionInputSyntax.ConventionRulePrefix(check) is null) continue;
             var target = attribute.NamedArguments.FirstOrDefault(pair => pair.Key == ConventionInputSyntax.TargetField).Value.Value as string;
             var scope = attribute.NamedArguments.FirstOrDefault(pair => pair.Key == "Scope").Value.Value as string;
+            // Match Roslyn's exact global SuppressMessage documentation-ID resolution (ordinary properties named Item do not bind).
             var symbol = target is not null && !target.Contains('*')
-                ? DocumentationCommentId.GetFirstSymbolForDeclarationId(target.TrimStart('~'), _facts.Compilation) : null;
+                ? DocumentationCommentId.GetFirstSymbolForDeclarationId(target.StartsWith('~') ? target[1..] : target, _facts.Compilation)
+                : null;
             if (IsValidScopedSymbol(symbol, scope)) continue;
             Issue(check.Split(':')[0], "not bound to one resolvable symbol",
                 attribute.ApplicationSyntaxReference?.GetSyntax(_facts.Cancellation).GetLocation() ?? Location.None);

@@ -621,6 +621,24 @@ public sealed class ConventionFactsTests
         facts.Diagnostics.Should().BeEmpty();
     }
 
+    [Fact]
+    public void Context_Input_With_Domain_Without_Subdomain_Should_Report_DRNCONVENTIONINPUT001()
+    {
+        var compilation = Compilation("""
+            namespace Sample.Infra.QA;
+            public class QAContext() : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>(null);
+            """).WithAssemblyName("Sample.Infra")
+            .AddReferences(AnalyzerTestCompilation.EntityFrameworkReference, AnalyzerTestCompilation.UtilsReference);
+        compilation.AssertNoCompilerErrors();
+        var input = new ConventionInput("Context", "Sample.Infra.QA.QAContext",
+            ImmutableDictionary<string, string>.Empty.Add("Domain", "Sample"), Location.None);
+        var facts = Facts(compilation, input);
+        var context = compilation.GetTypeByMetadataName("Sample.Infra.QA.QAContext")!;
+        facts.HasInvalidContext(context).Should().BeTrue();
+        facts.ContextInput(context).Should().BeNull();
+        facts.Diagnostics.Should().ContainSingle().Which.Id.Should().Be("DRNCONVENTIONINPUT001");
+    }
+
     private static MetadataReference Reference(CSharpCompilation producer, bool emitted)
     {
         producer.AssertNoCompilerErrors();

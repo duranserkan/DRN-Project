@@ -24,7 +24,7 @@ public class AnswerCommentEntity : AggregateRoot
 
     public List<AnswerCommentEntity> Comments { get; private set; } = [];
 
-    public AnswerCommentDto ToDto() => new(this)
+    public override AnswerCommentDto ToDto() => new(this)
     {
         Body = Body
     };

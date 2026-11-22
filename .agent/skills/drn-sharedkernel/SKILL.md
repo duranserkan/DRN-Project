@@ -1,7 +1,7 @@
 ---
 name: drn-sharedkernel
 description: "DRN domain primitives, Source-Known identity and time, repository contracts, pagination, exceptions, and classification analyzers."
-last-updated: 2026-11-20
+last-updated: 2026-11-22
 difficulty: intermediate
 ---
 
@@ -11,7 +11,7 @@ Contract and Domain projects can reference `DRN.Framework.SharedKernel` directly
 
 ## Entity Base Class
 
-Derive an entity from `SourceKnownEntity` or an aggregate from `AggregateRoot`. Use `AggregateRoot<TModel>` for a JSON model. Enforce invariants through domain operations. Use the internal long ID for persistence and the Guid externally. EF supplies identity operations on saved and queried entities. Use injected ID utilities on fresh entities. An assigned ID does not prove persistence. Created, modified and deleted domain events correspond to lifecycle transitions. [EF lifecycle](../drn-entityframework/SKILL.md#augmented-entity-behavior)
+Derive an entity from `SourceKnownEntity` or an aggregate from `AggregateRoot`, overriding `public abstract Dto ToDto()` covariantly to return the owning Contract DTO. Use `AggregateRoot<TModel>` for a JSON model. Enforce invariants through domain operations. Use the internal long ID for persistence and the Guid externally. EF supplies identity operations on saved and queried entities. Use injected ID utilities on fresh entities. An assigned ID does not prove persistence. Created, modified and deleted domain events correspond to lifecycle transitions. [EF lifecycle](../drn-entityframework/SKILL.md#augmented-entity-behavior)
 
 Assign each concrete, effectively non-private entity a unique byte in its application partition with a domain-derived attribute accepting a byte-backed enum. Generic abstract bases need closed concrete descendants. Keep identity members visible and unshadowed. Bind metadata and repositories to concrete types. Derived attributes forward the enum value unchanged to the base constructor.
 
@@ -29,50 +29,41 @@ GUID helpers default to `ConfiguredDefault`. Implementations expose an immutable
 
 ## Repository Contract
 
-Concrete aggregates use an `Entity` suffix and a final namespace/folder matching the name without that suffix: `QA/Order/OrderEntity.cs` in `<DomainRoot>.QA.Order`. Each needs an `ISourceKnownRepository<TEntity>`-derived interface in the same Domain assembly, namespace and logical folder, such as `QA/Order/IOrderRepository.cs`. Use Compile/Link paths for folder validation. Repository classes/interfaces end in `Repository`, semantic services/contracts in `Service`, and MVC controllers in `Controller`. DRNSTRUCTURE004, DRNSTRUCTURE005, DRNREPOSITORY003 and DRNREPOSITORY004 own these checks. Abstract/open generic helpers are excluded. Other role folders keep their existing conventions. Consult CONVENTIONS.md for exact scope and intentional exceptions.
+Concrete aggregates use an `Entity` suffix and a matching final namespace and folder (`QA/Order/OrderEntity.cs` in `<DomainRoot>.QA.Order`). Each needs an `ISourceKnownRepository<TEntity>` interface in the same Domain assembly, namespace, and folder (`QA/Order/IOrderRepository.cs`). Compile/Link paths govern folder checks. Repositories end in `Repository`, semantic services in `Service`, and MVC controllers in `Controller` (`DRNSTRUCTURE004`/`005`, `DRNREPOSITORY003`/`004`). Abstract and open generic helpers are excluded. Consult the installed `DRN.Framework.SharedKernel` package's `CONVENTIONS.md` for scope and exceptions.
 
-`ISourceKnownService<TEntity>` in `DRN.Framework.SharedKernel.Domain` exposes a read-only `ISourceKnownRepository<TEntity> Repository` property and requires `TEntity : AggregateRoot`.
-The abstract `SourceKnownService<TEntity>` base class implements this contract with a repository supplied through its constructor.
+`ISourceKnownService<TEntity>` exposes `ISourceKnownRepository<TEntity> Repository` for `AggregateRoot`. `ISourceKnownService<TEntity, out TDto>` adds covariant `ToDto(TEntity)`, and `ISourceKnownService<TEntity, out TDto, in TCreateRequest>` adds `CreateEntityAsync`. Matching `SourceKnownService` abstract bases implement them from a constructor-supplied repository, with virtual `ToDto(TEntity)` delegating to `entity.ToDto()` (checked by `DRNDTO007` and guarded at runtime).
 
-Use GUID overloads for external IDs. Generic repository methods validate the declared entity type and partition. Expose DTOs deriving from `Dto` with GUID identifiers. Keep domain mapping and invariants in the domain layer. See [domain design](../drn-domain-design/SKILL.md) and [repository cancellation](../drn-entityframework/SKILL.md#repository-cancellation).
+Use GUID overloads for external IDs. Generic repository methods validate entity type and partition. Keep internal DTOs derived from `Dto` with GUID IDs and keep domain mapping and invariants in Domain. See [domain design](../drn-domain-design/SKILL.md) and [repository cancellation](../drn-entityframework/SKILL.md#repository-cancellation).
 
 ### Pagination
 
-Refresh detects another page from an extra fetched row without a total or caller hint. Null JSON page-size/cursor members use defaults. Test these through serialization and real result construction, not only mocked metadata.
+Refresh detects another page from an extra fetched row without a total or caller hint. Null JSON page-size or cursor members use defaults. Test through serialization and real results, not only mocks.
 
-`PaginationRequest.From()` defaults to 10 items, maximum 100, ascending. Bind flat first-page `PaginationOptions` from a query or JSON body and convert with `PaginationRequest.DefaultWith(options)`. Changing size, effective maximum or direction resets to page one with a fresh cursor. Omitted settings carry forward. Cap the maximum at 1,000 before comparing. Use the returned `PaginationResultInfo` to navigate with first/last ID cursors. Jumps advance at most ten pages in the requested direction. Use `PaginateAsync` for interactive reads and `PaginateAllAsync` for explicitly requested streaming. Map results with `ToModel(entity => entity.ToDto())`.
+`PaginationRequest.From()` defaults to 10 items, max 100, ascending. Bind flat `PaginationOptions` and convert with `PaginationRequest.DefaultWith(options)`. Changing size, max, or direction resets to page one with a fresh cursor. Cap max at 1,000 before comparing. Jumps advance at most 10 pages. Use `PaginateAsync` for interactive reads and `PaginateAllAsync` for streaming. Map pages with `ToModel(...)`.
 
 ## Exceptions, JSON and paths
 
-Use the semantic `ExceptionFor` factories. A custom semantic subclass inherits its status. Direct `DrnException` subclasses default to 500 unless supplied a status. Hosting owns HTTP mapping and malicious-request abort behavior. [Hosting error handling](../drn-hosting/SKILL.md#error-responses)
+Use `ExceptionFor` factories. Custom semantic subclasses inherit status. Direct `DrnException` subclasses default to 500. Hosting owns HTTP mapping and malicious-request aborts. [Hosting error handling](../drn-hosting/SKILL.md#error-responses)
 
-Use `JsonConventions.DefaultOptions` for framework serialization, including Web defaults, string enums and longs, camelCase, trailing commas and maximum depth 32. Use `GetPathWithinDirectory()` for manifests, uploads, and file serving to reject parent and symlink traversal. The [Utils skill](../drn-utils/SKILL.md) covers application data roots.
+Use `JsonConventions.DefaultOptions` (Web defaults, string enums and longs, camelCase, trailing commas, max depth 32). Use `GetPathWithinDirectory()` to reject parent and symlink traversal. The [Utils skill](../drn-utils/SKILL.md) covers app data roots.
 
 ## Attributes
 
-Use the installed package's `CONVENTIONS.md` for application roles, dependencies, ownership and exceptions. `SCAFFOLDING.md` covers editor actions. Convention warnings remain independent of identity, classification and authorization.
+Use the installed `DRN.Framework.SharedKernel` package's `CONVENTIONS.md` for roles, dependencies, ownership, domain layouts (`DrnDomainLayout=Project|Folders`, `DrnDomain`), folders-only Domain rules (`DRNSTRUCTURE008`), Domain-role subdomains (`DRNOWNERSHIP004`), strict contracts (`DRNDTO001`..`007`, `SourceKnownEntity.ToDto()`), enum rules (`DRNENUM001`..`005`, `[DomainOnly]`, `[AllowZero]`), canonical Domain, Subdomain, project stem, and role stem definitions (**Terminology**), and exceptions. The installed package's `SCAFFOLDING.md` covers editor actions. Convention warnings stay independent of identity, classification, and authorization.
 
-Analyzer/code-fix assemblies target net10.0 independently of net11.0 applications. The package README owns compiler-host requirements and reload guidance. Keep packaged DLL paths aligned with tooling targets.
+Analyzer and code-fix assemblies target `net10.0` independently of `net11.0` apps. Keep packaged DLL paths aligned with tooling targets. Allocate the next 3-digit ID per prefix, reserve retired IDs, and register IDs in `AnalyzerReleases.Unshipped.md`, contract tests, and `CONVENTION-DIAGNOSTICS.md`.
 
-Allocate the next three-digit ID under the prefix for the violated requirement. Reserve retired IDs. Register the ID, Roslyn category and severity in the owning project's `AnalyzerReleases.Unshipped.md`. Verify the descriptor, contract tests and diagnostic guide.
+`DRNDEPENDENCYINJECTION003` requires Hosted, Application, Infra, and Utils projects to declare a public top-level nongeneric static `*Module` class with a public static nongeneric `IServiceCollection` method scanning its own assembly via `AddServicesWithAttributes()`. Domain, Contract, SharedKernel, framework, and tests are excluded.
 
-DRNDEPENDENCYINJECTION003 requires Hosted, Application, Infra and Utils projects to expose a public static nongeneric method on a public top-level nongeneric static *Module class. Accept and return IServiceCollection and directly scan the local assembly on that parameter with AddServicesWithAttributes. Reuse the composition pass for this check. Keep Domain, Contract, SharedKernel, framework and tests excluded. Do not confuse module structure with proof of runtime invocation.
+Use [Roslyn performance guidance](../basic-agentic-development/SKILL.md#roslyn-analyzers-and-generators) for compilation-scoped reuse and cancellation checks before cache hits. Share lifetime facts across registration rules. Custom nongeneric attributes prove service binding via source-visible explicit constructor forwarding to `LifetimeAttribute`.
 
-Use the [Roslyn performance guidance](../basic-agentic-development/SKILL.md#roslyn-analyzers-and-generators) to check new loops and semantic queries for repeated scans, allocations and compilation-scoped reuse.
+`DRNDEPENDENCYINJECTION002` requires one lifetime attribute bound to the exact matching `I{Name}` interface (any recognized role, generic/keyed/custom derivatives, or `HostedServiceAttribute` for `IHostedService`) on concrete Application/Infra implementations. Direct attributes override inherited ones. Failures report once under `DRNDEPENDENCYINJECTION002`. `DRNDEPENDENCYINJECTION001` still checks other service demands and key mismatches.
 
-Share lifetime selection and binding facts across registration rules at compilation scope. Check cancellation before cache hits and publication. Custom nongeneric attributes can establish service binding through source-visible explicit constructor forwarding of typeof expressions or type-valued attribute arguments. Keep arbitrary expressions and custom key semantics outside the proof.
+`DRNAUTHORIZATION001` requires explicit nonblank policies on exposed SourceKnown controller actions, including inherited ones. Anonymous access is rejected. `[NonAction]` is exempt. `IgnoreApi` is not.
 
-Report a paired implementation's binding failure once under DRNDEPENDENCYINJECTION002. DRNDEPENDENCYINJECTION001 still checks other service demands and key mismatches. Runtime scanning requires separate verification.
+Use `[Sensitive]`, `[Personal]`, or derived attributes for protected members. Mapped interface classifications cover concrete and nested captures. Scoped logging reads classified getters once. `[IgnoreLog]` excludes capture without disabling declaration checks. Use named annotated models for matching anonymous properties. `DRNCLASSIFICATION012` rejects direct captures hitting the 256 interface-property limit. `DRNCLASSIFICATION011` covers model traversal and configured paths.
 
-DRNDEPENDENCYINJECTION002 requires one lifetime attribute bound to the exact matching IName interface, including generic arguments, for concrete, closed Application/Infra service implementations. Interface pairing uses any recognized role; see CONVENTIONS.md for the eligibility boundary. Generic and keyed lifetime derivatives count, including custom derivatives. Eligible HostedServiceAttribute implementations bind IHostedService. Direct attributes take precedence over inherited attributes. Self-registration, other interface bindings and ambiguous lifetime declarations fail even with manual registration or unknown composition. Preserve documented service eligibility exclusions, including page models and controllers. DRNDEPENDENCYINJECTION001 separately checks effective registration and required keys. Diagnostic examples should show Scoped, Transient and Singleton without choosing a lifetime for the user.
-
-DRNAUTHORIZATION001 requires explicit nonblank authorization policies on exposed SourceKnown controller actions, including inherited actions. Anonymous actions are rejected. `[NonAction]` is exempt, `IgnoreApi` is not. Hosting owns runtime policies and application resource checks.
-
-Use `[Sensitive]`, `[Personal]` or their derived attributes for protected members. Mapped interface classifications cover concrete and nested captures. Scoped logging reads classified getters once. Direct sanitization skips them. `[IgnoreLog]` excludes capture but leaves declaration analysis active. Apply these rules to fixtures too. Use named annotated models for matching anonymous properties, including nested and inferred members.
-
-DRNCLASSIFICATION012 rejects direct property captures when the 256 interface-property scan limit prevents a complete classification decision. Remove or explicitly redact the capture, or declare classification directly on its property or type. DRNCLASSIFICATION011 remains specific to model traversal and configured paths. Name exemptions waive neither limit diagnostic.
-
-- Apply direct `[Sensitive(false)]` only to reviewed built-in name matches. It cannot override positive classification or explicit URL protection. Other Microsoft classifications can redact at runtime without satisfying the compiler's required classification family.
-- DRNCLASSIFICATION003, DRNCLASSIFICATION006 and DRNCLASSIFICATION008 support exact adjacent acknowledgements at the reported path or captured dictionary key. Preserve configured paths, declaration checks, classified values and child traversal. DRNCLASSIFICATION009 reports malformed comments and DRNCLASSIFICATION010 reports unused comments. Known safe scalar constants and direct NSubstitute verification chains have narrow exemptions. Ordinary substitute calls are checked.
-- DRNCLASSIFICATION005 exempts direct EF schema column definitions and constraint selectors. Migration data, logging and lookalike APIs still require classification. Keep suppressions local. Check the analyzer shipped with the installed package before introducing a suppression.
-- Register a project catalog once through EmbeddedResource or AdditionalFiles. Referenced catalogs add rules without executing dependency code. Invalid catalogs report DRNCLASSIFICATION007. Rules stay isolated per compilation. Browser and analyzer share a baseline. Backend dynamic data requires explicit classification.
+- Apply direct `[Sensitive(false)]` only to reviewed built-in name matches. It cannot override positive classification or explicit URL protection.
+- `DRNCLASSIFICATION003`/`006`/`008` support exact adjacent acknowledgements. `DRNCLASSIFICATION009` reports malformed comments and `DRNCLASSIFICATION010` warns on unused ones.
+- `DRNCLASSIFICATION005` exempts direct EF schema column definitions and constraint selectors. Keep suppressions local.
+- Register a project catalog once via EmbeddedResource or AdditionalFiles. Invalid catalogs report `DRNCLASSIFICATION007`. Backend dynamic data requires explicit classification.

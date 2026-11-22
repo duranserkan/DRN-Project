@@ -15,7 +15,7 @@ public sealed class RepositoryPairRefactoringTests
     private const string EntitySource = """
         namespace Sample.Domain.QA.Orders;
         [System.ComponentModel.DataAnnotations.Schema.Table("orders")]
-        public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+        public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
         """;
 
     [Fact]
@@ -496,7 +496,7 @@ public sealed class RepositoryPairRefactoringTests
             namespace Sample.Domain.QA.Order;
             public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot
             {
-                public Sample.Contract.QA.Orders.OrderDto ToDto() => new(this);
+                public override Sample.Contract.QA.Orders.OrderDto ToDto() => new(this);
             }
             """, filePath: "/source/Sample.Domain/QA/Order/OrderEntity.cs");
         workspace.TryApplyChanges(entity.Project.Solution).Should().BeTrue();
@@ -573,6 +573,75 @@ public sealed class RepositoryPairRefactoringTests
             AnalyzerTestCompilation.ConventionOptions("Sample.Infra", files: infraInputs));
         domainDiagnostics.Should().BeEmpty();
         infraDiagnostics.Should().BeEmpty();
+    }
+
+    [Theory]
+    [DataInline(false, "Domain = \"Sample\"", true)]
+    [DataInline(false, "Domain = \"Other\", Reason = \"Other domain\"", false)]
+    [DataInline(true, "", true)]
+    [DataInline(true, "Domain = \"Billing\", Reason = \"Other domain\"", false)]
+    public async Task Domain_Subdomain_Attribute_Parity_Should_Support_Project_And_Folders_Layouts(
+        bool foldersLayout, string extraArgs, bool offered)
+    {
+        using var workspace = new AdhocWorkspace();
+        var nsSegment = foldersLayout ? "QA.Common" : "QA";
+        var pathSegment = foldersLayout ? "QA/Common" : "QA";
+        var subdomain = foldersLayout ? "Common" : "QA";
+        var attrArgs = extraArgs.Length == 0 ? $"\"{subdomain}\"" : $"\"{subdomain}\", {extraArgs}";
+
+        var domain = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: "/source/Sample.Domain/Sample.Domain.csproj"))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(ClassificationTestFixture.References);
+        var entityDoc = domain.AddDocument("Order.cs", $$"""
+            namespace Sample.Domain.{{nsSegment}}.Orders;
+            [DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomain({{(foldersLayout ? "\"Common\"" : "\"QA\", Domain = \"Sample\"")}})]
+            public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
+            """, filePath: "/source/Sample.Domain/" + pathSegment + "/Orders/Order.cs");
+        workspace.TryApplyChanges(entityDoc.Project.Solution).Should().BeTrue();
+
+        var infra = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                "Sample.Infra", "Sample.Infra", LanguageNames.CSharp, filePath: "/source/Sample.Infra/Sample.Infra.csproj"))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddProjectReference(new ProjectReference(domain.Id))
+            .AddMetadataReferences(ClassificationTestFixture.References)
+            .AddMetadataReference(FrameworkReference)
+            .AddMetadataReference(UtilsReference);
+        var contextName = foldersLayout ? "CommonContext" : "QAContext";
+        infra = infra.AddDocument(contextName + ".cs", $$"""
+            namespace Sample.Infra.{{nsSegment}};
+            [DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomain({{attrArgs}})]
+            public class {{contextName}} : DRN.Framework.EntityFramework.Context.DrnContext<{{contextName}}>
+            {
+                public {{contextName}}() : base(null) { }
+                public Microsoft.EntityFrameworkCore.DbSet<Sample.Domain.{{nsSegment}}.Orders.Order> Orders { get; set; }
+            }
+            """, filePath: "/source/Sample.Infra/" + pathSegment + "/" + contextName + ".cs").Project;
+        var solution = foldersLayout ? infra.Solution.WithFoldersLayout() : infra.Solution;
+        workspace.TryApplyChanges(solution).Should().BeTrue();
+        var currentEntity = workspace.CurrentSolution.GetDocument(entityDoc.Id)!;
+        var actions = await Actions(currentEntity);
+        if (offered) actions.Should().ContainSingle();
+        else actions.Should().BeEmpty();
+    }
+
+    [Theory]
+    [DataInline("Domain = \"Sample\", Subdomain = \"QA\"", true)]
+    [DataInline("Domain = \"Other\", Subdomain = \"QA\", Reason = \"Other domain\"", false)]
+    [DataInline("Domain = \"Sample\"", false)]
+    public async Task Context_Input_Domain_Should_Be_Validated_For_Repository_Pair(string extraFields, bool offered)
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace, destination: false);
+        var infra = workspace.CurrentSolution.Projects.Single(project => project.Name == "Sample.Infra");
+        var input = infra.AddAdditionalDocument("DrnConventionInputs.g.cs", $$"""
+            [assembly: DRN.Conventions.Version("1")]
+            [assembly: DRN.Conventions.Context("Sample.Infra.QA.QAContext", Repositories = "QA/Repositories", {{extraFields}})]
+            """, filePath: "/source/Sample.Infra/obj/DrnConventionInputs.g.cs");
+        workspace.TryApplyChanges(input.Project.Solution).Should().BeTrue();
+        var actions = await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!);
+        if (offered) actions.Should().ContainSingle();
+        else actions.Should().BeEmpty();
     }
 
     private static Document CreateDocuments(AdhocWorkspace workspace, bool membership = true, bool destination = true, bool cqrs = false,

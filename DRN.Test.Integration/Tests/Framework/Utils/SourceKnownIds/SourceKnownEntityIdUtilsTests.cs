@@ -82,5 +82,8 @@ public class SourceKnownEntityIdUtilsTests
         }
 
     [FixtureEntityType<SampleApp7>(FixtureEntityTypes.X)]
-    internal class XEntity(long id) : SourceKnownEntity(id);
+    internal class XEntity(long id) : SourceKnownEntity(id)
+    {
+        public override Dto ToDto() => new(this);
+    }
 }

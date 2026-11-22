@@ -1,27 +1,28 @@
 using DRN.Framework.SharedKernel.Domain;
-using DRN.Framework.SharedKernel.Domain.Repository;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DRN.Framework.Hosting.Controllers;
 
 /// <summary>
-/// Combines all read actions with opt-in create and delete actions.
-/// Applications supply request mapping, explicit authorization policies and resource-specific checks.
+/// Combines all read actions with opt-in create and delete actions backed by an application service.
+/// Applications supply explicit response projection, named authorization policies and resource-specific checks.
 /// </summary>
-[SuppressMessage("SonarQube", "S2436", Justification = "Entity, response DTO and create request are independent contracts. Three type parameters preserve typed repository access, response mapping and request binding.")]
-public abstract class SourceKnownController<TEntity, TDto, TCreateRequest>(ISourceKnownRepository<TEntity> repository)
-    : SourceKnownReadOnlyController<TEntity, TDto>(repository)
+[SuppressMessage("SonarQube", "S2436", Justification = "Entity, response contract and create request are independent contracts. Three type parameters preserve typed service access, response mapping and request binding.")]
+public abstract class SourceKnownController<TEntity, TResponse, TCreateRequest>(
+    ISourceKnownService<TEntity, Dto, TCreateRequest> service)
+    : SourceKnownReadOnlyController<TEntity, TResponse>(service)
     where TEntity : AggregateRoot
-    where TDto : Dto
+    where TResponse : class
     where TCreateRequest : class
 {
-    /// <summary>Builds an entity through application domain operations.</summary>
-    protected abstract Task<TEntity> CreateEntityAsync(TCreateRequest request, CancellationToken cancellationToken);
+    /// <summary>Builds an entity through the backing application service.</summary>
+    protected virtual Task<TEntity> CreateEntityAsync(TCreateRequest request, CancellationToken cancellationToken)
+        => ((ISourceKnownService<TEntity, Dto, TCreateRequest>)Service).CreateEntityAsync(request, cancellationToken);
 
-    /// <summary>Creates an entity and returns its DTO. Does not require the GET action to be enabled.</summary>
+    /// <summary>Creates an entity and returns its response contract. Does not require the GET action to be enabled.</summary>
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status201Created)]
-    public virtual async Task<ActionResult<TDto>> PostAsync([FromBody] TCreateRequest request,
+    public virtual async Task<ActionResult<TResponse>> PostAsync([FromBody] TCreateRequest request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -30,7 +31,7 @@ public abstract class SourceKnownController<TEntity, TDto, TCreateRequest>(ISour
         cancellationToken.ThrowIfCancellationRequested();
         await Repository.CreateAsync(entity);
 
-        return new ObjectResult(ToDto(entity)) { StatusCode = StatusCodes.Status201Created };
+        return new ObjectResult(ToResponse(entity)) { StatusCode = StatusCodes.Status201Created };
     }
 
     /// <summary>

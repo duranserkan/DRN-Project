@@ -1,6 +1,6 @@
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.SharedKernel.Domain;
-using DRN.Nexus.Domain.NexusIdentity;
+using DRN.Nexus.Domain.NexusIdentity.Users;
 using DRN.Nexus.Infra.NexusIdentity;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
@@ -13,7 +13,7 @@ using Author = Sample.Domain.QA.Author.AuthorEntity;
 using ProfilePicture = Sample.Domain.SampleIdentity.ProfilePictures.ProfilePicture;
 using Question = Sample.Domain.QA.Question.QuestionEntity;
 using User = Sample.Domain.QA.User.UserEntity;
-using SampleUser = Sample.Domain.SampleIdentity.SampleUser;
+using SampleUser = Sample.Domain.SampleIdentity.Users.SampleUser;
 using Sample.Infra.DrnDataProtection;
 using Sample.Infra.SampleIdentity;
 using Sample.Infra.QA;

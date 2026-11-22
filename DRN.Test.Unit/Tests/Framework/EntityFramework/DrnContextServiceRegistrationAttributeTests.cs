@@ -483,17 +483,32 @@ public readonly struct SecondValidationApp : IAppId
 }
 
 [FixtureEntityType<FirstValidationApp>(FixtureEntityTypes.PartitionValidation)]
-public sealed class FirstPartitionEntity : SourceKnownEntity;
+public sealed class FirstPartitionEntity : SourceKnownEntity
+{
+    public override Dto ToDto() => new(this);
+}
 
 [SuppressMessage("DRN.Domain", "DRNENTITY002", Justification = "Intentional duplicate entity type exercises runtime validation.")]
 [FixtureEntityType<FirstValidationApp>(FixtureEntityTypes.PartitionValidation)]
-public sealed class FirstPartitionDuplicateEntity : SourceKnownEntity;
+public sealed class FirstPartitionDuplicateEntity : SourceKnownEntity
+{
+    public override Dto ToDto() => new(this);
+}
 
 [FixtureEntityType<SecondValidationApp>(FixtureEntityTypes.PartitionValidation)]
-public sealed class SecondPartitionEntity : SourceKnownEntity;
+public sealed class SecondPartitionEntity : SourceKnownEntity
+{
+    public override Dto ToDto() => new(this);
+}
 
 [FixtureEntityType<TestApp>(FixtureEntityTypes.PartitionValidation)]
-public sealed class TestPartitionEntity : SourceKnownEntity;
+public sealed class TestPartitionEntity : SourceKnownEntity
+{
+    public override Dto ToDto() => new(this);
+}
 
 [FixtureEntityType<DefaultApp>(FixtureEntityTypes.PartitionValidation)]
-public sealed class DefaultPartitionEntity : SourceKnownEntity;
+public sealed class DefaultPartitionEntity : SourceKnownEntity
+{
+    public override Dto ToDto() => new(this);
+}

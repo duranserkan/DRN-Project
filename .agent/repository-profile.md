@@ -75,7 +75,7 @@ dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 ## Conventions
 
 - DI/configuration: use DRN attributes, not duplicate manual registrations. See `overview-drn-framework` and `drn-utils`.
-- SharedKernel `CONVENTIONS.md` owns application conventions. Declare alternate or ambiguous context destinations. Shared dependencies need no naming root or custom properties.
+- `DRN.Framework.SharedKernel/CONVENTIONS.md` owns application conventions and terminology. Declare alternate or ambiguous context destinations. Shared dependencies need no naming root or custom properties.
 - Identity: require explicit `NexusAppSettings:AppId` and `AppInstanceId` in all environments. Zero is valid. Use Source-Known IDs and entity metadata. DTOs derive from `Dto` in `*.Contract` and expose `Guid` IDs, not entities. `drn-sharedkernel` and `drn-utils` own identity, time and lifecycle contracts.
 - IDs: use `[Sensitive]` or `[Personal]` only when a contract, classification rule or reviewed use case requires it.
 - Runtime access: prefer `[UnsafeAccessor]` for compile-time accessible types. Reserve reflection for dynamically discovered types.
@@ -101,32 +101,32 @@ dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 
 ### Source Map
 
-Follow these owners for public contracts. Find implementation details in the owning module.
+Follow owners for public contracts. Find details in owning modules.
 
 | Contract | Owner | Agent guidance |
 |---|---|---|
-| Identity, aggregates, repositories, analyzer and generator diagnostics | `DRN.Framework.SharedKernel/README.md`, `DRN.Framework.SharedKernel/CONVENTION-DIAGNOSTICS.md`, `DRN.Framework.EntityFramework/README.md` | `drn-sharedkernel`, `drn-entityframework` |
+| Identity, aggregates, repositories, conventions, diagnostics | `DRN.Framework.SharedKernel/README.md`, `DRN.Framework.SharedKernel/CONVENTIONS.md`, `DRN.Framework.SharedKernel/CONVENTION-DIAGNOSTICS.md`, `DRN.Framework.SharedKernel/SCAFFOLDING.md`, `DRN.Framework.EntityFramework/README.md` | `drn-sharedkernel`, `drn-domain-design`, `drn-entityframework` |
 | Configuration, data paths, cancellation, ID/time utilities, events | `DRN.Framework.Utils/README.md` | `drn-utils`, `overview-drn-framework` |
-| Classification, capture limits, exemptions, migration | `DRN.Framework.Utils/Logging/Diagnostics/README.md`; catalog `DRN.Framework.Utils/Logging/Diagnostics/data-classification-rules.json` | `drn-utils`, `drn-sharedkernel`, `drn-testing` |
+| Classification, capture limits, exemptions | `DRN.Framework.Utils/Logging/Diagnostics/README.md`, `DRN.Framework.Utils/Logging/Diagnostics/data-classification-rules.json` | `drn-utils`, `drn-sharedkernel`, `drn-testing` |
 | Hosting, SourceKnown policy enforcement, MFA, Razor and assets | `DRN.Framework.Hosting/README.md` | `drn-hosting`, relevant frontend skills |
 | Test contexts, application factories, ownership | `DRN.Framework.Testing/README.md` | `drn-testing`, `overview-drn-testing` |
-| Browser errors, notifications, developer access | `Sample.Hosted/README.md`; `Sample.Hosted/buildwww/types/drnProblem.types.ts`, `drnNotifications.types.ts` | `drn-buildwww-libraries` |
+| Browser errors, notifications, developer access | `Sample.Hosted/README.md`, `Sample.Hosted/buildwww/types/drnProblem.types.ts`, `drnNotifications.types.ts` | `drn-buildwww-libraries` |
 
 ### Documentation Sync
 
-Document public usage, behavior, configuration and migration. For shared changes, update owning READMEs and skills, assess release notes, and scan names/defaults/examples for drift. Align browser declarations with the Sample guide. Run `git diff --check`.
+Document public usage, behavior, and configuration in READMEs. Keep concise migration guidance in release notes. For shared changes, update owning READMEs and skills, assess release notes, and check names/defaults/examples for drift. Align browser declarations with Sample. Run `git diff --check`.
 
 ### Release Notes
 
-Describe net consumer impact since the last published release (`release/v0.10.0` for upcoming 0.10.1). Preserve published history. Do not list documentation edits, README/release-note packaging edits, or fixes to bugs introduced after that baseline. Describe new features in final form.
+Describe net consumer impact since `release/v0.10.0`. Preserve published history. Ignore breaking changes or fixes for unreleased features, doc edits, and packaging edits. Describe new features in final form.
 
-Internal refactors, tests, comments, agent docs, and dependency-only updates without consumer impact need no entry outside coordinated releases. Dependency/runtime/container changes require notes when breaking, security-relevant, consumer-visible, or affecting published artifacts. Coordinated releases add the version to every Documentation Modules package, even without package-specific changes. Use concise alignment wording, e.g. `Dependencies upgraded to dotnet 10.0.11`.
+Internal refactors, tests, comments, agent docs, and non-impacting dependency updates need no entry outside coordinated releases. Note dependency/runtime/container changes when breaking, security-relevant, consumer-visible, or artifact-affecting. Coordinated releases add the version to every Documentation Modules package with concise alignment wording, e.g. `Dependencies upgraded to dotnet 10.0.11`.
 
-NuGet notes contain the first `## Version ...` section, ending at the next version or `---` footer, plus canonical DiSC OS attribution and the bold signature below. Missing version sections or metadata over 35,000 characters fail packing. The packed file retains full history, prefix, and footer. `Directory.Build.targets` owns extraction.
+NuGet notes extract the first `## Version ...` section until the next version or `---` footer, plus canonical DiSC OS attribution and bold signature (`Directory.Build.targets`). Missing versions or >35,000 chars fail packing. Packed files retain full history, prefix, and footer.
 
 ### Package Release Notes Format
 
-Use `## Version X.Y.Z`, omit empty sections, and preserve historical wording except when repairing invariant prefix/footer errors.
+Use `## Version X.Y.Z`, omit empty sections, and preserve history except invariant prefix/footer repairs.
 
 ```markdown
 Not every version includes changes, features or bug fixes. This project can increment version to keep consistency with other DRN.Framework projects.

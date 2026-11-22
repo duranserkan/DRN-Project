@@ -17,7 +17,7 @@ public sealed class ConventionInfrastructureRulesTests
     {
         var facts = Facts($$"""
             namespace Sample.Infra.QA.{{ns}};
-            public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+            public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
             public class QAContextNpgsqlDbContextOptionsAttribute : DRN.Framework.EntityFramework.Attributes.NpgsqlDbContextOptionsAttribute;
             [QAContextNpgsqlDbContextOptions]
             public class QAContext() : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>(null);

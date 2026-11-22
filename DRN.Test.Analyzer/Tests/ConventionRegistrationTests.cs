@@ -316,7 +316,7 @@ public sealed class ConventionRegistrationTests
         using DRN.Framework.Utils.DependencyInjection.Attributes;
         using Microsoft.Extensions.DependencyInjection;
         namespace Sample.Application.QA;
-        public class Category : AggregateRoot;
+        public class Category : AggregateRoot { public override Dto ToDto() => new(this); }
         public interface ICategoryService : ISourceKnownService<Category>;
 
         """;
@@ -648,7 +648,7 @@ public sealed class ConventionRegistrationTests
             public interface IResponse { int Value { get; } }
             public class Response : IResponse { public int Value => 1; }
             public interface IStoredCategory { int Read(); }
-            public class StoredCategory : AggregateRoot, IStoredCategory { public int Read() => 1; }
+            public class StoredCategory : AggregateRoot, IStoredCategory { public int Read() => 1; public override Dto ToDto() => new(this); }
             public interface IResponseDto { int Read(); }
             public class ResponseDto : Dto, IResponseDto { public int Read() => 1; }
             public interface ISettings { int Read(); }

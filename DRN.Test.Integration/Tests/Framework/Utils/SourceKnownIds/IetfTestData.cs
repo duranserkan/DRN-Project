@@ -29,6 +29,13 @@ public class IetfDraftTestEntity(long id = 0) : SourceKnownEntity(id)
     public Guid PlainId { get; init; }
     public Guid SecureId { get; init; }
     public string Name { get; init; } = string.Empty;
+
+    public override IetfDraftTestDto ToDto() => new(this)
+    {
+        PlainId = PlainId,
+        SecureId = SecureId,
+        Name = Name
+    };
 }
 
 public class IetfDraftTestDto(SourceKnownEntity? entity = null) : Dto(entity)

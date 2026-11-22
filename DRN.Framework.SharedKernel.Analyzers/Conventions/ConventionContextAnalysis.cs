@@ -51,16 +51,20 @@ internal static class ConventionContextAnalysis
     private static void AnalyzeAlias(ConventionFacts facts, INamedTypeSymbol type, ConventionInput? input, Location location)
     {
         if (!type.Name.EndsWith(ContextSuffix, StringComparison.Ordinal) || type.Name.Length <= ContextSuffix.Length ||
-            facts.Owner(type) is not { } owner || facts.HasInvalidOwner(type) || type.Name[..^7] == owner.Subdomain) return;
+            facts.Owner(type) is not { } owner || facts.HasInvalidOwner(type) ||
+            ConventionNames.IsConventionalContextName(type.Name, owner.Domain, owner.Subdomain, owner.HasFolderDomain)) return;
+        var inputDomain = input?.Get(ConventionInputSyntax.DomainField) ?? "";
         var mapped = input?.Get(ConventionInputSyntax.SubdomainField) == owner.Subdomain &&
+            (inputDomain.Length == 0 || inputDomain == owner.Domain) &&
             !string.IsNullOrWhiteSpace(input.Get(ConventionInputSyntax.ReasonField)) ||
             type.GetAttributes().Any(attribute => ConventionSymbols.Same(attribute.AttributeClass, facts.Symbols.OwnershipAttribute) &&
                 attribute.ConstructorArguments is [{ Value: string name }] && name == owner.Subdomain &&
+                (ConventionFacts.Domain(attribute) is "" || ConventionFacts.Domain(attribute) == owner.Domain) &&
                 !string.IsNullOrWhiteSpace(ConventionFacts.Reason(attribute)));
         if (!mapped)
             facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.InvalidInput, location,
-                type.Name + ":" + ConventionInputSyntax.SubdomainField, $"inconsistent with subdomain '{owner.Subdomain}'",
-                $"Use subdomain '{owner.Subdomain}' with context '{owner.Subdomain}{ContextSuffix}', or subdomain '{type.Name[..^7]}' with context '{type.Name}'. Align the namespace and folder. Only for an intentional alias, set Subdomain=\"{owner.Subdomain}\" and Reason on its DrnConventionContext item"));
+                type.Name + ":" + ConventionInputSyntax.SubdomainField, $"inconsistent with subdomain '{owner.DisplayName}'",
+                $"Use subdomain '{owner.DisplayName}' with context '{owner.Subdomain}{ContextSuffix}', or subdomain '{type.Name[..^7]}' with context '{type.Name}'. Align the namespace and folder. Only for an intentional alias, set Subdomain=\"{owner.Subdomain}\" and Reason on its DrnConventionContext item"));
     }
 
     private static void AnalyzeConstruction(ConventionFacts facts, INamedTypeSymbol type, ConventionInput? input,

@@ -18,7 +18,7 @@ public sealed class ConventionPersistenceTests
         using DRN.Framework.EntityFramework.Domain;
         using DRN.Framework.Utils.Entity;
         namespace Sample.Infra.QA;
-        public class Category : AggregateRoot;
+        public class Category : AggregateRoot { public override Dto ToDto() => new(this); }
 
         """;
 
@@ -26,7 +26,7 @@ public sealed class ConventionPersistenceTests
     public void Drn_DbSets_Should_Expose_Only_Aggregate_Roots()
     {
         var facts = Analyze(Imports + """
-            public class Child : SourceKnownEntity;
+            public class Child : SourceKnownEntity { public override Dto ToDto() => new(this); }
             public class Plain;
             public class DerivedCategory : Category;
             public class QAContext() : DrnContext<QAContext>(null)
@@ -50,7 +50,7 @@ public sealed class ConventionPersistenceTests
     public void Inherited_Generic_DbSets_Should_Be_Checked_After_Substitution()
     {
         var facts = Analyze(Imports + """
-            public class Child : SourceKnownEntity;
+            public class Child : SourceKnownEntity { public override Dto ToDto() => new(this); }
             public abstract class ContextBase<TContext, TEntity>() : DrnContext<TContext>(null)
                 where TContext : DrnContext<TContext>, new() where TEntity : class
             {
@@ -69,7 +69,7 @@ public sealed class ConventionPersistenceTests
     public void Non_Drn_Contexts_And_Static_Or_Lookalike_Sets_Should_Not_Trigger_Aggregate_Rule()
     {
         Analyze(Imports + """
-            public class Child : SourceKnownEntity;
+            public class Child : SourceKnownEntity { public override Dto ToDto() => new(this); }
             public class OtherContext : DbContext { public DbSet<Child> Children => Set<Child>(); }
             public class FakeSet<T>;
             public class QAContext() : DrnContext<QAContext>(null)
@@ -142,13 +142,14 @@ public sealed class ConventionPersistenceTests
     public void Navigation_Only_Owned_Keyless_And_Unmapped_Types_Should_Not_Invent_Membership_Or_Configuration_Demands()
     {
         Analyze(Imports + """
-            public class UnmappedAggregate : AggregateRoot;
+            public class UnmappedAggregate : AggregateRoot { public override Dto ToDto() => new(this); }
             [Owned] public class Details { public string Label { get; set; } = ""; }
             [Keyless] public class ReadRow { public string Label { get; set; } = ""; }
             public class Parent : AggregateRoot
             {
                 public Category Category { get; set; } = null!;
                 public Details Details { get; set; } = null!;
+                public override Dto ToDto() => new(this);
             }
             public class QAContext() : DrnContext<QAContext>(null)
             {
@@ -184,7 +185,7 @@ public sealed class ConventionPersistenceTests
             namespace Sample.Infra.QA
             {
                 [EntityTypeConfiguration(typeof(Sample.Infra.Other.CategoryConfiguration))]
-                public class Category : DRN.Framework.SharedKernel.Domain.AggregateRoot;
+                public class Category : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
                 public class QAContext() : DrnContext<QAContext>(null)
                 {
                     public DbSet<Category> Categories { get; set; } = null!;
@@ -314,8 +315,8 @@ public sealed class ConventionPersistenceTests
             using Sample.Infra.QA.Configurations;
             namespace Sample.Infra.QA
             {
-                public class Category : AggregateRoot;
-                public class Other : AggregateRoot;
+                public class Category : AggregateRoot { public override Dto ToDto() => new(this); }
+                public class Other : AggregateRoot { public override Dto ToDto() => new(this); }
             }
             namespace Sample.Infra.QA.Read
             {
@@ -359,7 +360,7 @@ public sealed class ConventionPersistenceTests
     {
         var facts = Analyze(Imports + """
             public class QAContext() : DrnContext<QAContext>(null);
-            public class Other : AggregateRoot;
+            public class Other : AggregateRoot { public override Dto ToDto() => new(this); }
             public class ParentConfig : IEntityTypeConfiguration<Category>
             {
                 void IEntityTypeConfiguration<Category>.Configure(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<Category> builder)
@@ -527,7 +528,7 @@ public sealed class ConventionPersistenceTests
             using DRN.Framework.Utils.Entity;
             namespace Sample.Infra.QA
             {
-                public class Category : AggregateRoot;
+                public class Category : AggregateRoot { public override Dto ToDto() => new(this); }
             }
             namespace Sample.Infra.QA.Write
             {
@@ -557,7 +558,7 @@ public sealed class ConventionPersistenceTests
             using Microsoft.EntityFrameworkCore;
             using Microsoft.EntityFrameworkCore.Metadata.Builders;
             using DRN.Framework.EntityFramework.Context;
-            namespace Sample.Infra.QA { public class Category : DRN.Framework.SharedKernel.Domain.AggregateRoot; }
+            namespace Sample.Infra.QA { public class Category : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); } }
             namespace Sample.Infra.QA.Read
             {
                 public class ReadContext() : DrnContext<ReadContext>(null)
@@ -958,8 +959,8 @@ public sealed class ConventionPersistenceTests
             using DRN.Framework.SharedKernel.Domain;
             using DRN.Framework.SharedKernel.Domain.Repository;
             namespace Sample.Application.QA;
-            public class Category : AggregateRoot;
-            public class Other : AggregateRoot;
+            public class Category : AggregateRoot { public override Dto ToDto() => new(this); }
+            public class Other : AggregateRoot { public override Dto ToDto() => new(this); }
             """ + $$"""
             public class CategoryService(ISourceKnownRepository<{{repositoryEntity}}> repository) : ISourceKnownService<Category>
             {
@@ -979,8 +980,8 @@ public sealed class ConventionPersistenceTests
             using DRN.Framework.SharedKernel.Domain;
             using DRN.Framework.SharedKernel.Domain.Repository;
             namespace Sample.Application.QA;
-            public class Category : AggregateRoot;
-            public class Other : AggregateRoot;
+            public class Category : AggregateRoot { public override Dto ToDto() => new(this); }
+            public class Other : AggregateRoot { public override Dto ToDto() => new(this); }
             public interface IAdapter : ISourceKnownRepository<Category>, ISourceKnownRepository<Other>;
             public class CategoryService(IAdapter repository) : ISourceKnownService<Category>
             {

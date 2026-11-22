@@ -26,10 +26,14 @@ public sealed class SourceKnownConventionAnalyzer : DiagnosticAnalyzer
             context.Options.AnalyzerConfigOptionsProvider, context.CancellationToken);
         if (inputs.Diagnostics.IsEmpty && facts.Records.Count(record =>
                 record.Kind == "Reference" && record.Identity == "Inventory" && record.Get("Stage") == "Complete") != 1)
+        {
+            facts.MarkIncompleteInventory();
             facts.Diagnostics.Add(ConventionProject.InputIssue("direct references", "missing or duplicated inventory provenance",
                 "complete build-supplied reference inventory"));
+        }
         var exceptions = new ConventionExceptions(facts);
         ConventionOwnershipAnalysis.Analyze(facts);
+        ConventionFolderStructureAnalysis.Analyze(facts);
         var registrations = ConventionRegistrationAnalysis.ReadInputs(facts, requireModule: true);
         var calls = new ConventionCallSites(facts, registrations.NeedsComposition);
         ConventionPersistenceAnalysis.AnalyzeWithContexts(facts, calls);
@@ -37,6 +41,7 @@ public sealed class SourceKnownConventionAnalyzer : DiagnosticAnalyzer
         ConventionBoundaryAnalysis.Analyze(facts);
         ConventionNamingAnalysis.Analyze(facts);
         ConventionDtoAnalysis.Analyze(facts);
+        ConventionEnumAnalysis.Analyze(facts);
         ConventionAggregateRepositoryAnalysis.Analyze(facts);
         ConventionInfrastructureAnalysis.Analyze(facts);
         foreach (var diagnostic in facts.Diagnostics)

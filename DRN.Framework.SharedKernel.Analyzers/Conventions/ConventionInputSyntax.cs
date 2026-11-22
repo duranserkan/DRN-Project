@@ -24,6 +24,7 @@ internal static class ConventionInputSyntax
     internal const string NamespacePrefixField = "NamespacePrefix";
     internal const string LogicalPathPrefixField = "LogicalPathPrefix";
     internal const string ReasonField = "Reason";
+    internal const string DomainField = "Domain";
     internal const string SubdomainField = "Subdomain";
     internal const string RepositoriesField = "Repositories";
     internal const string MigrationsField = "Migrations";
@@ -50,7 +51,7 @@ internal static class ConventionInputSyntax
 
     private static readonly string[] ConventionRulePrefixes =
     [
-        "DRNARCHITECTURE", "DRNDTO", "DRNOWNERSHIP", "DRNSTRUCTURE", "DRNPERSISTENCE",
+        "DRNARCHITECTURE", "DRNDTO", "DRNENUM", "DRNOWNERSHIP", "DRNSTRUCTURE", "DRNPERSISTENCE",
         "DRNREPOSITORY", "DRNDEPENDENCYINJECTION", "DRNCONVENTIONINPUT", "DRNCONVENTIONEXCEPTION"
     ];
 
@@ -206,7 +207,8 @@ internal static class ConventionInputSyntax
             VersionKind => true,
             PathKind => IsLogicalPath(Field(fields, LogicalPathField)),
             ReferenceKind => SupportsReferenceRecord(identity, fields),
-            OwnershipKind => SyntaxFacts.IsValidIdentifier(Field(fields, SubdomainField)) &&
+            OwnershipKind => (Field(fields, DomainField) is "" || SyntaxFacts.IsValidIdentifier(Field(fields, DomainField))) &&
+                SyntaxFacts.IsValidIdentifier(Field(fields, SubdomainField)) &&
                 Field(fields, KindField) is "" or EntityField or "Value",
             ContextKind => SupportsContextRecord(fields),
             RoleKind => SupportsRoleRecord(identity, fields),
@@ -236,7 +238,9 @@ internal static class ConventionInputSyntax
 
     private static bool SupportsContextRecord(Dictionary<string, string> fields)
     {
+        var domain = Field(fields, DomainField);
         var subdomain = Field(fields, SubdomainField);
+        if (domain.Length != 0 && (subdomain.Length == 0 || !SyntaxFacts.IsValidIdentifier(domain))) return false;
         if (subdomain.Length != 0 && !SyntaxFacts.IsValidIdentifier(subdomain)) return false;
         if (!OptionalLogicalPath(fields, RepositoriesField) || !OptionalLogicalPath(fields, MigrationsField)) return false;
         return string.IsNullOrWhiteSpace(Field(fields, FactoryField)) &&
@@ -308,8 +312,8 @@ internal static class ConventionInputSyntax
     {
         PathKind => field == LogicalPathField,
         RoleKind => field is NamespacePrefixField or LogicalPathPrefixField or ReasonField,
-        ContextKind => field is SubdomainField or RepositoriesField or MigrationsField or MigrationsAssemblyField or FactoryField or ProviderField or ReasonField,
-        OwnershipKind => field is SubdomainField or KindField or ReasonField,
+        ContextKind => field is DomainField or SubdomainField or RepositoriesField or MigrationsField or MigrationsAssemblyField or FactoryField or ProviderField or ReasonField,
+        OwnershipKind => field is DomainField or SubdomainField or KindField or ReasonField,
         ExceptionKind => field is TargetField or EntityField or ContextKind or ReasonField or OwnerField or ReviewField or FingerprintField,
         ReferenceKind => field is StageField or SourceField or ProjectField or OriginalProjectField or PackageField,
         RegistrationKind => field is ServiceField or KeyField or ReasonField,

@@ -4,6 +4,15 @@ Application projects receive ownership, placement and boundary warnings by defau
 
 Provider and composition analysis are bounded. Quiet analysis does not establish model, registration, authorization or performance correctness. Validate those properties through the application's runtime and model checks.
 
+## Terminology
+
+| Term | Meaning |
+|---|---|
+| **Domain** | Top-level business boundary. Inferred from the project stem or `<DrnDomain>` in `Project` layout, or declared by the first segment under the root namespace and folder in `Folders` layout. |
+| **Subdomain** | Business capability or technical area inside a Domain. Declared by the first segment in `Project` layout, the second segment in `Folders` layout, or `[SourceKnownSubdomain]`. |
+| **Project stem** | The dot-delimited project-name token immediately preceding the role token, or following it when the role token is first (for example, `Shop` in `Company.Shop.Domain`). |
+| **Entity / Role stem** | A type name minus its semantic role suffix (`OrderEntity` -> `Order`, `CategoryDto` -> `Category`, `SalesContext` -> `Sales`). |
+
 ## Project identity by convention
 
 Project names determine roles without custom activation or identity properties. Match whole dot-delimited tokens case-insensitively:
@@ -36,11 +45,13 @@ Concrete application-owned EF `DbContext` subclasses must implement `IDrnContext
 
 Business subdomain checks apply to Domain types and entities, persistence contexts/configurations, repository and service bindings, DI-registered Application/Infra services, and SourceKnown controllers. Nested helper types retain their owning type's boundary. Ordinary MVC controllers, Razor page models, tag helpers and unclassified helpers do not acquire business ownership from navigation or utility namespaces. Razor page models may use domain entities; their folders represent navigation. Public API contract checks still apply to MVC controllers, and project dependency and implementation-role checks remain independent. Existing DRNAUTHORIZATION001 enforcement still applies to SourceKnown controllers.
 
-The first namespace segment beneath the role owns the subdomain. Hosted may first use `Controllers` or `Pages`, Application may use `Services`. `Shop.Domain.Sales.Order.OrderEntity` and `Shop.Application.Services.Sales.OrderService` belong to Sales. Feature folders do not change ownership.
+The first namespace segment beneath the role owns the subdomain in single-domain projects (`DrnDomainLayout=Project`, the default). Hosted may first use `Controllers` or `Pages`, and Application may use `Services`. For single-domain projects, the project stem (or explicit `<DrnDomain>`) supplies the domain name. `QA.Domain.Ecommerce.Order.OrderEntity` owns `(QA, Ecommerce)`, `QA.Domain.QA.Order.OrderEntity` owns `(QA, QA)`, and `QA.Domain.Order.OrderEntity` lacks a subdomain. For multi-domain projects, set `<DrnDomainLayout>Folders</DrnDomainLayout>` so the first two segments declare `<Domain>/<Subdomain>`. `Sample.Domain.QA.Common.Order.OrderEntity` and `Sample.Domain.Billing.Common.Invoice.InvoiceEntity` have distinct `(Domain, Subdomain)` owners. Combining `DrnDomainLayout=Folders` with `DrnDomain`, or using a bare `Domain` project without `DrnDomain` or `Folders`, reports DRNCONVENTIONINPUT001.
 
-Ownership retains the declaring assembly and symbol. Bound Infra, Application or Hosted use of a referenced Domain entity can share its subdomain across naming prefixes. Two Domain assemblies remain distinct owners even when their subdomain names match.
+Domain grouping folders (`<Subdomain>/` in Project layout or `<Domain>/` and `<Domain>/<Subdomain>/` in Folders layout) may contain only folders (DRNSTRUCTURE008). Every Domain project must contain at least one populated subdomain folder (DRNOWNERSHIP004). Only root zero-type files (such as `Usings.cs` and assembly attributes) and application identity declarations (`EntityTypeAttribute<TApp>`, `IAppId`, and `[DomainOnly]` `byte` enums referenced as a parameter of a local `EntityTypeAttribute` subclass) may live at the Domain project root. An optional subdomain-scoped `<Subdomain>/_Shared/` (or `<Domain>/<Subdomain>/_Shared/`) folder is reserved strictly for shared value objects (non-static classes, records, or structs) and may never contain entities, repositories, services, enums, interfaces, delegates, static classes, or persistence types.
 
-Use `[SourceKnownSubdomain("Identity", Reason = "Authentication account ownership")]` for technical aliases. The attribute belongs to `DRN.Framework.SharedKernel.Attributes`. It does not waive placement warnings.
+Ownership retains the declaring assembly, domain, and subdomain. Bound Infra, Application or Hosted use of a referenced Domain entity can share its `(Domain, Subdomain)` across naming prefixes. Cross-layout references between `Folders`-layout and `Project`-layout projects match when their resolved `(Domain, Subdomain)` pairs agree. Unannotated `Project`-to-`Project` references remain prefix-independent by subdomain. Multi-domain `Project`-layout projects with colliding subdomain names should declare `<DrnDomain>` or use `Folders` layout. Two Domain assemblies remain distinct owners even when their domain and subdomain names match.
+
+Use `[SourceKnownSubdomain("Identity", Reason = "Authentication account ownership")]` (with optional `Domain = "..."` in multi-domain layouts) for technical aliases. The attribute belongs to `DRN.Framework.SharedKernel.Attributes`. It does not waive placement warnings.
 
 Assembly-level `SourceKnownSubdomain(typeof(ExternalType), "Owner", Reason = "...")` identifies one external type. It cannot redefine an established referenced owner.
 
@@ -48,12 +59,22 @@ Assembly-level `SourceKnownSubdomain(typeof(ExternalType), "Owner", Reason = "..
 
 `SalesReadContext` and `SalesWriteContext` may share OrderEntity within Sales. Context stems differing from their namespace owner need reasoned explicit ownership. Declare isolated destinations where intended. No runtime read-only guarantee or storage change is implied.
 
+## Enums and strict public contracts
+
+Application enums live once in Contract by default, and Domain uses that exact type. Domain-declared enums require `[DomainOnly]` (DRNENUM001). `[DomainOnly]` is invalid outside Domain (DRNENUM002), and `[DomainOnly]` enums cannot appear on public Contract shapes or controller endpoints, including nested or generic wrappers (DRNENUM003). Domain identity `byte` enums may remain CLR-public for attribute constructors.
+
+Contract and Domain enums may define a `0` member only when marked with `[AllowZero]` (DRNENUM004), and `[AllowZero]` requires a named zero member (DRNENUM005). Both rules inspect every resolved member value, including implicit, computed, aliased, later, `[Flags]`, and `[DomainOnly]` zeros. `JsonStringEnumConverter` and default MVC model binding still accept numeric `0` and undefined integer enum values at runtime, so operations must explicitly validate allowed values (for example with allowlist checks or `Enum.IsDefined`).
+
+Endpoint checks include `[ProducesResponseType]` on actions, controllers, and their bases. An action's declarations take precedence over controller declarations for the same HTTP status code.
+
+Public endpoints and Contract messages must not return, accept, inherit from, or nest a `Dto` (DRNDTO005, excluding `[FromServices]` and `[FromKeyedServices]` parameters and inspecting referenced `Application` wrappers and `[ProducesResponseType]` metadata). Public operations returning aggregate data or accepting business payloads use explicit Contract `*Request` and `*Response` types across return types, `[ProducesResponseType]`, and complex `[FromQuery]` parameters (DRNDTO006), while route-only GETs, `StatusCodeResult` (including 204 `NoContentResult`), and untyped `IActionResult`/`ActionResult`/`IResult` need no empty wrappers. `DRNDTO003` verifies `[Personal]` and `[Sensitive]` preservation on both entity `ToDto()` projections and Contract `*Response` object initializers and positional/constructor projections (including nested entity/DTO reads and `abstract` or generic mappers). Apply `[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]` on strict Request types to reject unexpected caller fields while keeping shared `JsonConventions` compatible with EF JSONB and upstream HTTP payloads.
+
 ## Declared inputs
 
 | Item | Required relationship and optional evidence |
 |---|---|
-| `DrnConventionContext` | Exact context metadata name. Conventional `Repositories` and `Migrations` destinations are inferred from namespace and logical source homes. Declare destinations for alternate or ambiguous layouts, with `Reason` for alternatives. Optional `Subdomain`, `MigrationsAssembly`, `Factory`, `Provider`, `Reason`. Custom construction/provider declarations need a review reason and runtime/model evidence. |
-| `DrnConventionOwnership` | Exact type, `Subdomain`, optional `Kind` (`Entity` or `Value`) and `Reason`. Persistence types cannot become neutral values. |
+| `DrnConventionContext` | Exact context metadata name. Conventional `Repositories` and `Migrations` destinations are inferred from namespace and logical source homes. Declare destinations for alternate or ambiguous layouts, with `Reason` for alternatives. Optional `Domain`, `Subdomain`, `MigrationsAssembly`, `Factory`, `Provider`, `Reason`. Custom construction/provider declarations need a review reason and runtime/model evidence. |
+| `DrnConventionOwnership` | Exact type and `Subdomain`. Optional `Domain`, `Kind` (`Entity` or `Value`), and `Reason`. Persistence types cannot become neutral values. |
 | `DrnConventionConfiguration` | Exact configuration type and `Context`. Records intended association without requiring a configuration class for every entity. |
 | `DrnConventionRegistration` | Exact implementation and `Service`, optional `Key`. `Reason` documents a reviewed custom/external path whose runtime behavior still needs validation. |
 | `DrnConventionException` | Exact diagnostic, `SymbolTarget`, `Reason`, `Owner`, `Review` (`yyyy-MM-dd`). Optional exact `Entity` and `Context` narrow an exception further. |
@@ -112,10 +133,20 @@ Convention rules default to Warning in enabled application projects, affecting w
 | ID | Why and ordinary remedy | Valid / invalid example | Exception and limit |
 |---|---|---|---|
 | DRNARCHITECTURE001 | Review incomplete public contract inspection. | Public model fits the analysis budget / a member's nested model exhausts it. | Review the named member or reduce its public shape. |
-| DRNDTO001 | Each concrete, closed Domain SourceKnownEntity declares public ToDto() returning its Contract DTO. | public CategoryDto ToDto() => new(this) { Name = Name }; | Metadata-only and partial projections are supported. |
+| DRNDTO001 | Each concrete, closed Domain SourceKnownEntity overrides public `ToDto()` returning its Contract DTO. | `public class CategoryEntity : AggregateRoot` with `public override CategoryDto ToDto() => new(this) { Name = Name };` | Metadata-only and partial projections are supported. |
 | DRNDTO002 | Put the DTO in its subdomain and plural entity folder. | QA/Categories/CategoryDto.cs | DRNSTRUCTURE001 checks logical source placement. |
-| DRNDTO003 | Preserve each mapped Personal or Sensitive property classification on the DTO property. | A renamed personal property still requires Personal. | Omitted fields need no DTO member. |
+| DRNDTO003 | Preserve each mapped Personal or Sensitive property classification on DTO and Contract `*Response` properties. | A renamed personal property still requires Personal. | Omitted fields need no destination member. |
 | DRNDTO004 | Place public entity-prefixed requests and responses beside their DTO. | QA/Categories/CategoryPostRequest.cs | The longest matching entity stem in the Contract subdomain wins. |
+| DRNDTO005 | Keep `Dto` types out of public Contract messages and controller endpoints. | `CategoryResponse` with explicit fields / `OrderResponse : OrderDto` or endpoint returning `OrderDto`. | Honors `[NonAction]` and `[NonController]`. |
+| DRNDTO006 | Use explicit Contract `*Request` and `*Response` types on public endpoints. | `TagController` returning `TagResponse` / endpoint returning raw Contract model. | Route-only GET, `NoContentResult` (204), scalars, and pagination types are exempt. |
+| DRNDTO007 | Align a `SourceKnownService<TEntity, TDto>` subclass's `TDto` with `TEntity.ToDto()`, or override `ToDto(TEntity)`. | `CategoryService : SourceKnownService<CategoryEntity, CategoryDto>` with matching `CategoryEntity.ToDto()` / mismatched `TDto` without overriding `ToDto(TEntity)`. | Applies to concrete, closed subclasses inheriting default `ToDto(TEntity)`. |
+| DRNENUM001 | Define application enums in Contract or mark internal Domain enums `[DomainOnly]`. | `TagType` in Contract, `[DomainOnly] SampleEntityTypes` in Domain / unmarked Domain enum. | Single definition per enum vocabulary. |
+| DRNENUM002 | Restrict `[DomainOnly]` to Domain enums. | Remove `[DomainOnly]` when moving an enum to Contract. | Prevents public Contract enums from carrying `[DomainOnly]`. |
+| DRNENUM003 | Keep `[DomainOnly]` enums off public Contract shapes and controller endpoints. | `SampleEntityTypeAttribute` constructor in Domain / `List<SampleEntityTypes?>` on a Response. | Bounded public-shape graph walk. |
+| DRNENUM004 | Require `[AllowZero]` on any Contract or Domain enum with a zero member. | `[AllowZero] TagType { System = 0, User }` / implicit, computed, aliased, later, or `[Flags]` zero without `[AllowZero]`. | Compile-time enum convention. Operations validate runtime input. |
+| DRNENUM005 | Require a named zero member whenever `[AllowZero]` is applied. | Remove `[AllowZero]` or declare an explicit `= 0` member. | Prevents misleading opt-ins. |
+| DRNOWNERSHIP004 | Ensure every Domain project contains at least one populated subdomain folder. | Domain project with `QA/Tag/TagEntity.cs` / Domain project with only root files. | Project-level exception target `<AssemblyName>:Domain`. |
+| DRNSTRUCTURE008 | Keep Domain grouping folders folders-only and `_Shared` subdomain-scoped for value objects. | `QA/Tag/TagEntity.cs`, `QA/_Shared/Money.cs`, root `Usings.cs` and `SampleEntityTypes.cs` / file directly under `QA/`. | Generated files are ignored; partial declarations are checked per file. |
 | DRNARCHITECTURE002 | Keep external contracts free of persistence objects. | Dto/Guid / public collection containing an entity. | Approved neutral value model. Dto mapping constructors may accept their source entity. Complex or external graphs remain bounded. |
 | DRNARCHITECTURE003 | Respect direct application-role edges. | Application to Infra / Domain to Infra. | Exact reasoned integration edge. Direct provenance and resolved assembly/project identity are required. Package IDs do not establish roles. |
 | DRNARCHITECTURE004 | Place the implementation in its owning layer. | Context in Infra, controller in Hosted / DTO declared in Domain. | Exact reasoned role exception. |

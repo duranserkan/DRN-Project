@@ -4,13 +4,14 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 Targets .NET 11.
 
-* **Container Defaults**: Updated the digest-pinned default images to PostgreSQL `18.7-alpine3.24` and RabbitMQ `4.4.1-management-alpine`.
-
 ### Breaking Changes
 
 *   **Target framework**: Requires .NET 11.
+*   **Diagnostic classification**: Test credentials and container connection strings carry explicit classifications, including `[Personal]` for usernames. Matching test-model properties require the same SharedKernel classification annotations as production models.
 
-* **Diagnostic Classification**: Test credentials and container connection strings carry explicit classifications, including Personal for usernames. Diagnostics indicate whether a container username is configured without exposing it. Matching test-model properties require the same SharedKernel classification annotations as production models.
+### Changed
+
+*   **Container defaults**: Updated digest-pinned default images to PostgreSQL `18.7-alpine3.24` and RabbitMQ `4.4.1-management-alpine`.
 
 ## Version 0.10.0
 

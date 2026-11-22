@@ -8,18 +8,26 @@ dotnet_diagnostic.DRNARCHITECTURE005.severity = error
 dotnet_analyzer_diagnostic.category-DRN.Conventions.Architecture.severity = error
 ```
 
-The rules from Architecture through Convention exceptions default to Warning in recognized application projects. Their messages below show placeholders for the relevant symbols or inputs. DRNPERSISTENCE001 offers an individual constructor code fix. See [project identity and exceptions](CONVENTIONS.md) and [editable assistance](SCAFFOLDING.md).
+The rules from Architecture through Convention exceptions default to Warning in recognized application projects. Their messages below show placeholders for the relevant symbols or inputs. DRNPERSISTENCE001 offers an individual constructor code fix. See [terminology](CONVENTIONS.md#terminology), [project identity and exceptions](CONVENTIONS.md), and [editable assistance](SCAFFOLDING.md).
 
-For older settings, update the ID in `.editorconfig`, `NoWarn`, both ends of a `#pragma warning` suppression, the check ID in `SuppressMessage`, and the rule ID in any `DrnConventionException`. The [release notes](RELEASE-NOTES.md#version-0110) map each previous ID, including split rules.
-
-## Entity DTOs
+## Entity DTOs and public contracts
 
 | ID | Category | Requirement |
 |---|---|---|
-| DRNDTO001 | DRN.Conventions.Contract | A concrete, closed Domain `SourceKnownEntity` declares a public parameterless instance `ToDto()` returning its matching public Contract DTO. Return the DTO directly with `new(this)` or the equivalent explicit constructor. |
-| DRNDTO002 | DRN.Conventions.Structure | Place the DTO under the owning subdomain and plural entity folder, for example `QA/Categories/CategoryDto.cs`. DRNSTRUCTURE001 checks the logical path against the namespace. |
-| DRNDTO003 | DRN.Conventions.Contract | Preserve each positive Personal and Sensitive classification on the corresponding DTO property. Explicit initializer assignments use the properties they read. Unassigned DTO properties use the same-name entity property when one exists. |
+| DRNDTO001 | DRN.Conventions.Contract | A concrete, closed Domain `SourceKnownEntity` overrides public parameterless instance `ToDto()` returning its matching public Contract DTO. Return the DTO directly with `new(this)` or the equivalent explicit constructor. |
+| DRNDTO002 | DRN.Conventions.Structure | Place the DTO under the owning `(Domain, Subdomain)` and plural entity folder, for example `QA/Categories/CategoryDto.cs`. DRNSTRUCTURE001 checks the logical path against the namespace. |
+| DRNDTO003 | DRN.Conventions.Contract | Preserve each positive Personal and Sensitive classification on the corresponding DTO or Contract `*Response` property. Checks object initializers, positional/constructor arguments matched to destination properties, nested entity/DTO property chains (such as `entity.Model.StringValue` and `dto.Contact.Email`), and projections inside `abstract`, generic, and nested-in-generic types. Unassigned DTO properties use the same-name entity property when one exists. |
 | DRNDTO004 | DRN.Conventions.Structure | Place a public entity-prefixed `Request` or `Response` beside its DTO in the same namespace and logical compile folder. |
+| DRNDTO005 | DRN.Conventions.Contract | Do not return, accept, inherit from, or nest a `Dto` in public Contract messages or controller endpoints. Checks inherited bases (including closed-generic, non-Contract, and referenced bases), referenced `Application` wrappers, write-only public properties, and `[ProducesResponseType]` metadata on untyped `IActionResult`/`ActionResult`/`IResult` actions. Honors `[NonAction]` and `[NonController]`, and excludes `[FromServices]` and `[FromKeyedServices]` parameters. Bounded to static signatures and metadata. See [DRNARCHITECTURE001](#drnarchitecture001-review-incomplete-public-contract-inspection) for the shared traversal limit. |
+| DRNDTO006 | DRN.Conventions.Contract | Use explicit Contract `*Request` and `*Response` types on public endpoints across return types, `[ProducesResponseType]` metadata, and request parameters (including complex `[FromQuery]` models and inferred JSON bodies on `[ApiController]` actions). Parameters injected with `[FromServices]` or `[FromKeyedServices]` are exempt. On ordinary `ControllerBase` controllers, `Contract` and `Application` payloads require explicit Contract messages while `Hosted`-local operational models (such as `ClientErrorPayload`) remain exempt. Route-only GETs, status-only `StatusCodeResult` subclasses (such as `OkResult` and 204 `NoContentResult`), untyped `IActionResult`/`ActionResult`/`IResult`, scalars, files, `ProblemDetails`, and pagination models are exempt. |
+| DRNDTO007 | DRN.Conventions.Contract | A concrete, closed `SourceKnownService<TEntity, TDto>` subclass that inherits default `ToDto(TEntity)` must bind a `TDto` assignable from `TEntity.ToDto()`'s return type, or override `ToDto(TEntity)` for a custom projection. |
+
+To escalate `DRNDTO001` (or any convention diagnostic) to a build error in projects without `TreatWarningsAsErrors`, add an `.editorconfig` entry:
+
+```ini
+[*.cs]
+dotnet_diagnostic.DRNDTO001.severity = error
+```
 
 DRNDTO004 matches the declared type name against public entity DTOs in the same Contract project and subdomain. The longest prefix at a PascalCase word boundary determines the owner. With only `ProductDto`, `ProductBatchRequest` belongs in `Products/`. Adding `ProductBatchDto` makes `ProductBatches/` its destination. `OrderDto` matches `OrderResponse` and leaves `OrderingRequest` unmatched. A request or response can define its own payload.
 
@@ -39,10 +47,25 @@ For DRNDTO003, copy each positive source property annotation to the mapped DTO p
 
 | ID | Message template | Exception target |
 |---|---|---|
-| DRNDTO001 | `'{0}' requires a public instance ToDto() returning {1} from its Contract subdomain and constructing it with this.` | Entity type |
+| DRNDTO001 | `'{0}' must override public ToDto() returning {1} from its Contract subdomain and constructing it with this.` | Entity type |
 | DRNDTO002 | `Place '{0}' under its subdomain in the '{1}' folder and matching namespace.` | DTO type |
-| DRNDTO003 | `DTO property '{0}' requires [{1}] from mapped property '{2}'.` | Entity type |
+| DRNDTO003 | `Projected property '{0}' requires [{1}] from mapped property '{2}'.` | Entity or projecting type |
 | DRNDTO004 | `Place '{0}' in '{1}' with namespace '{2}' alongside its entity DTO.` | Request or response type |
+| DRNDTO005 | `Public contract or endpoint '{0}' exposes DTO type '{1}'; use an explicit Contract Request or Response without inheriting or nesting a DTO.` | Public member, message type, or controller |
+| DRNDTO006 | `Public endpoint '{0}' must use an explicit Contract {1} type instead of '{2}'.` | Action method or controller |
+| DRNDTO007 | `Service '{0}' inherits default ToDto() from SourceKnownService<{1}, {2}>, but '{1}.ToDto()' returns '{3}', which is not assignable to '{2}'. Override ToDto({1}) or align the service DTO type.` | Service type |
+
+## Enum conventions
+
+Roslyn category: `DRN.Conventions.Contract`. All five rules default to Warning in recognized application projects.
+
+| ID | Message template | Requirement |
+|---|---|---|
+| DRNENUM001 | `Enum '{0}' is declared in Domain without [DomainOnly]. Move it to Contract for shared vocabularies or mark it [DomainOnly].` | Declare shared application enums once in Contract; mark internal Domain enums with `[DomainOnly]`. |
+| DRNENUM002 | `Enum '{0}' cannot carry [DomainOnly] outside a Domain project; remove [DomainOnly] from public Contract vocabularies.` | Remove `[DomainOnly]` from any enum outside Domain. |
+| DRNENUM003 | `Public contract or endpoint '{0}' exposes [DomainOnly] enum '{1}'; move the enum to Contract and remove [DomainOnly] before exposing it.` | Rejects `[DomainOnly]` enums anywhere in public Contract or endpoint graphs, including nested, generic, referenced `Application` wrappers, `[ProducesResponseType]` metadata, and write-only properties such as `List<SampleEntityTypes?>`, while excluding `[FromServices]` and `[FromKeyedServices]` parameters. Bounded to static signatures and metadata. See [DRNARCHITECTURE001](#drnarchitecture001-review-incomplete-public-contract-inspection) for the shared traversal limit. |
+| DRNENUM004 | `Enum '{0}' defines zero member '{1}' without [AllowZero]. Start members at a nonzero value or mark the enum with [AllowZero].` | Checks all resolved zero values across Contract and Domain enums, including implicit, computed, aliased, later, `[Flags]`, and `[DomainOnly]` zeros. |
+| DRNENUM005 | `Enum '{0}' is marked with [AllowZero] but defines no named member with value 0. Remove [AllowZero] or define a named zero member.` | Rejects `[AllowZero]` when no named member resolves to `0`. |
 
 ## Entity identity
 
@@ -69,8 +92,6 @@ Roslyn category: `DRN.Domain`. For examples of entity declarations, partitions, 
 
 Roslyn category: `DRN.Classification`. See [classification examples, code fixes and runtime boundaries](../DRN.Framework.Utils/Logging/Diagnostics/README.md#compile-time-classification).
 
-Replace `DRN0015` through `DRN0025` with `DRNCLASSIFICATION001` through `DRNCLASSIFICATION011` in the same order. Replace `DRN0027` with `DRNCLASSIFICATION012`.
-
 | ID | Default | Requirement |
 |---|---|---|
 | DRNCLASSIFICATION001 | Error | Classify matching model properties or declare a reviewed false positive. |
@@ -79,7 +100,7 @@ Replace `DRN0015` through `DRN0025` with `DRNCLASSIFICATION001` through `DRNCLAS
 | DRNCLASSIFICATION004 | Error | Use a supported classification attribute. |
 | DRNCLASSIFICATION005 | Error | Move matching anonymous properties to a named, annotated model. |
 | DRNCLASSIFICATION006 | Error | Classify a dictionary key or acknowledge an eligible exact-name match. |
-| DRNCLASSIFICATION007 | Error | Supply a readable, valid, unambiguous classification catalog. Previously DRN0021. |
+| DRNCLASSIFICATION007 | Error | Supply a readable, valid, unambiguous classification catalog. |
 | DRNCLASSIFICATION008 | Error | Remove or redact sensitive logging values. |
 | DRNCLASSIFICATION009 | Error | Put the exact name and a nonempty justification in the exemption comment immediately above the logging statement. |
 | DRNCLASSIFICATION010 | Warning | Remove or correct an unused name exemption comment. |
@@ -107,15 +128,15 @@ Roslyn category: `DRN.Conventions.Configuration`.
 
 > Inspection of public contract member '{0}' reached the analysis limit before verifying that its public model is free of persistence and domain types.
 
-Review the named member's public signature and nested model. A smaller DTO can make the contract fully inspectable. DRNARCHITECTURE002 identifies a type that was actually found in the public contract.
+Review the named member's public signature and nested model. A smaller Request or Response model can make the contract fully inspectable. `DRNARCHITECTURE001` is reported once per member when persistence (`DRNARCHITECTURE002`), DTO (`DRNDTO005`), or `[DomainOnly]` enum (`DRNENUM003`) public-shape traversal hits the 4,096-node analysis limit.
 
 ### DRNARCHITECTURE002: Keep external contracts free of persistence types
 
 Roslyn category: `DRN.Conventions.Contract`.
 
-> Public contract member '{0}' exposes persistence/domain type '{1}'; expose an approved DTO or value model.
+> Public contract member '{0}' exposes persistence/domain type '{1}'; expose an explicit Contract Request/Response or value model.
 
-Public Contract and MVC API shapes should expose DTOs/values rather than entities, contexts or repository objects. Razor page models are presentation models and are excluded from this API-shape check. Dto Guid/timestamp mapping is valid. A nested array/tuple/generic wrapper containing Order is invalid. An unrelated value class named Entity is not a persistence type.
+Public Contract and MVC API shapes should expose explicit Contract Request/Response or value models rather than entities, contexts or repository objects. Razor page models are presentation models and are excluded from this API-shape check. Dto Guid/timestamp mapping is valid. A nested array/tuple/generic wrapper containing Order is invalid. An unrelated value class named Entity is not a persistence type.
 
 Public `DbSet<T>` properties expose persistence even when `T` is an ordinary class.
 
@@ -141,7 +162,7 @@ Contexts, configurations and repository implementations belong in Infra, entitie
 
 SharedKernel may contain shared contracts and abstract entity, DTO and service bases. Concrete application entities and service implementations still belong in their owning layers. SharedKernel is not a persistence or transport layer.
 
-Correct the role/placement or justify an exact exceptional implementation. Utils cannot hide application implementation types. A SourceKnown controller remains transport even when it also implements a service interface. Semantic lookalikes are excluded. Moves are not automated because assembly discovery and public contracts can change.
+Correct the role/placement or justify an exact exceptional implementation. Utils cannot hide application implementation types. A SourceKnown controller composes `ISourceKnownService<TEntity>` and remains transport even when it also implements a service interface. Semantic lookalikes are excluded. Moves are not automated because assembly discovery and public contracts can change.
 
 ### DRNARCHITECTURE005: Remove a forbidden layer dependency
 
@@ -193,9 +214,17 @@ Roslyn category: `DRN.Conventions.Architecture`.
 
 > Infrastructure '{0}' requires populated Domain subdomain '{1}'.
 
-Every Infra project needs at least one populated subdomain namespace across its directly referenced Domain projects. Concrete Infra contexts and repositories must have matching Domain subdomains. A type in `Shop.Domain.Sales` establishes Sales in its declaring assembly. Same-named subdomains in different assemblies remain distinct owners. An empty directory or namespace with no types does not establish a subdomain. The message uses `<any>` when no populated Domain subdomain is available.
+Every Infra project needs at least one populated subdomain namespace across its directly referenced Domain projects. Concrete Infra contexts and repositories must match a directly referenced Domain owner. Matching compares `(Domain, Subdomain)` pairs when either side uses `Folders` layout or an explicit domain declaration, and matches unannotated `Project`-layout owners by subdomain only. A type in `Shop.Domain.Sales` (Project layout) or `Platform.Domain.QA.Common` (Folders layout) establishes its owner in its declaring assembly. Same-named subdomains in different assemblies or different domains remain distinct owners. An empty directory or namespace with no types does not establish a subdomain. The message uses `<any>` when no populated Domain subdomain is available.
 
 Place real Domain types under the owning subdomain or correct misplaced Infra ownership. Intentional project exceptions use `SymbolTarget="<AssemblyName>:Domain"` (or the reported symbol's documentation comment ID). Do not add placeholder types or empty folders merely to silence the diagnostic. Missing required references are reported first, and incomplete reference evidence does not prove a missing subdomain. No automatic namespace move or project-reference fix is offered.
+
+### DRNOWNERSHIP004: Establish at least one Domain subdomain
+
+Roslyn category: `DRN.Conventions.Ownership`.
+
+> Domain project '{0}' requires at least one populated subdomain folder.
+
+Every project carrying the Domain role (standalone Domain projects and split-role projects with a `Domain` role override) must contain at least one compiled non-generated type inside a valid subdomain folder (`<Subdomain>/<Folder>/` in Project layout or `<Domain>/<Subdomain>/<Folder>/` in Folders layout). Root zero-type files (such as `Usings.cs`) and root identity declarations (`EntityTypeAttribute<TApp>`, `IAppId`, `[DomainOnly]` `byte` enums) do not populate a subdomain on their own. Intentional project exceptions use `SymbolTarget="<AssemblyName>:Domain"`.
 
 ## Structure
 
@@ -264,6 +293,14 @@ Roslyn category: `DRN.Conventions.Context`.
 Custom NpgsqlDbContextOptionsAttribute descendants, including performance options, use the applied DRN context's exact name as their prefix. QAContextOptions and QAContextNpgsqlDbContextOptionsAttribute are valid for QAContext. Inherited custom attributes are checked against the receiving context too. Framework-provided shared defaults are exempt. Unapplied classes and arbitrary same-named options are not guessed to belong to a context. This rule does not require an Options folder or rename runtime settings automatically.
 
 Prefer `QAContextNpgsqlDbContextOptionsAttribute`, applied as `[QAContextNpgsqlDbContextOptions]`. The `NpgsqlDbContext` portion is recommended, not mandatory.
+
+### DRNSTRUCTURE008: Keep Domain grouping folders folders-only
+
+Roslyn category: `DRN.Conventions.Structure`.
+
+> '{0}' violates Domain folder rules: {1}.
+
+Enforces the folders-only Domain grouping, project-root, and subdomain `_Shared` value-object rules in [ownership and persistence](CONVENTIONS.md#ownership-and-persistence). Placement is verified through logical `Compile`/`Link` paths across handwritten files and partial declarations, including split-role projects with a `Domain` `LogicalPathPrefix`. `_Shared` matching is case-insensitive and allows only canonical `_Shared` at the single subdomain level. Generated files are ignored. Intentional exceptions use the type's documentation comment ID, or the file's logical path (`SymbolTarget="<LogicalPath>"`) for zero-type files.
 
 ## EF Core persistence
 
@@ -471,5 +508,7 @@ Roslyn category: `DRN.Conventions.Exceptions`.
 > Exception for '{0}' is {1}; provide an exact target, meaningful reason and required ownership metadata.
 
 A project exception needs an exact target, meaningful reason, owner and future review date. Standard symbol SuppressMessage declarations need an exact diagnostic and justification but do not require project owner/date fields. Wildcards, namespace-wide assembly or module suppressions, blank reasons, due project review dates and changed fingerprints are invalid. Unrelated diagnostic suppressions are left alone. Named paired pragmas need a concrete adjacent reason and a narrow region.
+
+For an ordinary C# property named `Item`, place `[SuppressMessage]` directly on the property or use a `DrnConventionException` with its exact property ID. Roslyn interprets `Item` as an indexer name when resolving an assembly or module suppression by documentation ID.
 
 Correct or remove the exception. Never fabricate a justification. Optional fingerprints bind reviewed declaration text and logical paths, so moves/edits need review. CI/editorconfig/command-line disabling cannot be universally audited. This rule is not a tamper-proof security boundary, and suppressing it does not make an invalid exception valid.

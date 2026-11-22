@@ -56,7 +56,7 @@ public sealed class SourceKnownConventionAnalyzerTests
         var input = new RuleFile(ConventionInputs.FileName, """
             [assembly: DRN.Conventions.Version("1")]
             [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
-            [assembly: DRN.Conventions.Path("Thing.cs", LogicalPath = "Other/Thing.cs")]
+            [assembly: DRN.Conventions.Path("Thing.cs", LogicalPath = "Other/Things/Thing.cs")]
             [assembly: DRN.Conventions.Ownership("Sample.Domain.QA.Thing", Subdomain = "QA", Kind = "Entity")]
             """ + "\n" + ConventionTestDependencies.Serialize(fixture.Records));
         var options = AnalyzerTestCompilation.ConventionOptions("Sample.Domain", files: input);
@@ -76,7 +76,7 @@ public sealed class SourceKnownConventionAnalyzerTests
     [Fact]
     public async Task Identical_Reference_Inventory_Records_Should_Be_Idempotent()
     {
-        var fixture = ConventionTestDependencies.WithRequiredLayers(Compilation("public class Marker;"), "Domain");
+        var fixture = ConventionTestDependencies.WithRequiredLayers(Compilation("namespace Sample.Domain.QA.Markers; public class Marker;"), "Domain");
         var input = new RuleFile(ConventionInputs.FileName, """
             [assembly: DRN.Conventions.Version("1")]
             [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
@@ -94,7 +94,7 @@ public sealed class SourceKnownConventionAnalyzerTests
         var first = Compilation("public class First;");
         var options = AnalyzerTestCompilation.ConventionOptions("Sample.Domain");
         (await AnalyzerTestCompilation.Analyze(first, analyzer, options)).Should().ContainSingle();
-        var second = ConventionTestDependencies.WithRequiredLayers(Compilation("public class Second;"), "Domain");
+        var second = ConventionTestDependencies.WithRequiredLayers(Compilation("namespace Sample.Domain.QA.Markers; public class Second;"), "Domain");
         var file = new RuleFile(ConventionInputs.FileName, """
             [assembly: DRN.Conventions.Version("1")]
             [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
@@ -116,7 +116,7 @@ public sealed class SourceKnownConventionAnalyzerTests
             [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.Legacy.Models.Customer.Kind", "Entity")]
             [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.Legacy.Models.Customer.Reason", "Preserve a published model namespace while retaining QA ownership.")]
             namespace Legacy.Models;
-            public class Customer : DRN.Framework.SharedKernel.Domain.SourceKnownEntity;
+            public class Customer : DRN.Framework.SharedKernel.Domain.SourceKnownEntity { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
             """).WithAssemblyName("Published.Domain");
         producer.AssertNoCompilerErrors();
         MetadataReference reference = shape switch
@@ -127,15 +127,15 @@ public sealed class SourceKnownConventionAnalyzerTests
             _ => throw new ArgumentOutOfRangeException(nameof(shape))
         };
         var consumer = Compilation("""
-            namespace Sample.Domain.Billing;
+            namespace Sample.Domain.Billing.Readers;
             public class Reader { public Legacy.Models.Customer Read() => new(); }
-            """, "Billing/Reader.cs").AddReferences(reference);
+            """, "Billing/Readers/Reader.cs").AddReferences(reference);
         consumer.AssertNoCompilerErrors();
         var fixture = ConventionTestDependencies.WithRequiredLayers(consumer, "Domain");
         var file = new RuleFile(ConventionInputs.FileName, """
             [assembly: DRN.Conventions.Version("1")]
             [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
-            [assembly: DRN.Conventions.Path("Billing/Reader.cs", LogicalPath = "Billing/Reader.cs")]
+            [assembly: DRN.Conventions.Path("Billing/Readers/Reader.cs", LogicalPath = "Billing/Readers/Reader.cs")]
             """ + "\n" + ConventionTestDependencies.Serialize(fixture.Records));
         var diagnostics = await AnalyzerTestCompilation.Analyze(fixture.Compilation, new SourceKnownConventionAnalyzer(),
             AnalyzerTestCompilation.ConventionOptions("Sample.Domain", files: file));
@@ -143,8 +143,8 @@ public sealed class SourceKnownConventionAnalyzerTests
         diagnostic.Id.Should().Be("DRNOWNERSHIP002");
         diagnostic.Severity.Should().Be(DiagnosticSeverity.Warning);
         diagnostic.Properties["Entity"].Should().Be("Legacy.Models.Customer");
-        diagnostic.Properties["Consumer"].Should().Be("M:Sample.Domain.Billing.Reader.Read");
-        diagnostic.GetMessage().Should().Be("'Sample.Domain.Billing.Reader.Read()' in subdomain 'Billing' references entity 'Legacy.Models.Customer' from 'QA'. Use the entity's identifier or a contract from 'QA'.");
+        diagnostic.Properties["Consumer"].Should().Be("M:Sample.Domain.Billing.Readers.Reader.Read");
+        diagnostic.GetMessage().Should().Be("'Sample.Domain.Billing.Readers.Reader.Read()' in subdomain 'Billing' references entity 'Legacy.Models.Customer' from 'QA'. Use the entity's identifier or a contract from 'QA'.");
         diagnostic.Location.SourceTree.Should().Be(consumer.SyntaxTrees.Single());
         diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan).Should().Be("Legacy.Models.Customer");
     }

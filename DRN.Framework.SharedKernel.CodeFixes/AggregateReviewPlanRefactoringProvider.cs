@@ -71,12 +71,10 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
     private static AggregateTarget? ValidateAggregateOwnership(Project domain, Compilation compilation, string domainPath,
         string domainNamespace, ParsedInputs domainInputs, INamedTypeSymbol entity)
     {
-        var namespacePrefix = domainNamespace + ".";
-        var entityNamespace = entity.ContainingNamespace.ToDisplayString();
-        if (!entityNamespace.StartsWith(namespacePrefix, StringComparison.Ordinal)) return null;
-        var owner = entityNamespace[namespacePrefix.Length..].Split('.')[0];
-        if (!ConventionGenerationPreflight.ValidNamespaceSegment(owner)) return null;
-        var ownership = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomainAttribute");
+        var layout = ConventionGenerationPreflight.Layout(domain);
+        var owner = ResolveNamespaceOwnerKey(entity, domainNamespace, layout);
+        if (owner is null) return null;
+        var ownership = compilation.GetTypeByMetadataName(OwnershipAttributeMetadataName);
         if (entity.GetAttributes().Any(attribute => Same(attribute.AttributeClass, ownership)) ||
             entity.ContainingAssembly.GetAttributes().Any(attribute => Same(attribute.AttributeClass, ownership) &&
                 attribute.ConstructorArguments.FirstOrDefault().Value is INamedTypeSymbol target &&
@@ -112,7 +110,9 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         Project infra, List<Plan> plans, CancellationToken token)
     {
         var infraNamespace = RoleNamespace(infra, "Infra");
-        if (infraNamespace is null || !infra.ProjectReferences.Any(reference => reference.ProjectId == target.Domain.Id &&
+        var infraLayout = ConventionGenerationPreflight.Layout(infra);
+        if (infraNamespace is null || !infraLayout.Matches(target.Owner) ||
+            !infra.ProjectReferences.Any(reference => reference.ProjectId == target.Domain.Id &&
                 (reference.Aliases.IsEmpty || reference.Aliases.Contains("global", StringComparer.Ordinal))) ||
             infra.FilePath is null || !TryFullPath(infra.FilePath, out var infraPath)) return;
         var infraInputs = await ReadProjectInputs(infra, token);
@@ -120,14 +120,15 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         var compilation = await infra.GetCompilationAsync(token);
         var contract = compilation?.GetTypeByMetadataName("DRN.Framework.EntityFramework.Context.IDrnContext");
         if (compilation is null || contract is null) return;
-        var contextOwners = TryMergeContextOwners(target.DomainInputs.Contexts, infraInputs.Contexts);
+        var contextOwners = TryMergeContextOwners(target.DomainInputs.Contexts, infraInputs.Contexts, target.Owner.Domain);
         if (contextOwners is null) return;
         var evidence = entityEvidence + target.DomainInputs.Evidence + infraInputs.Evidence;
         var types = Types(compilation.Assembly.GlobalNamespace, token).ToArray();
+        var ownerPrefix = target.Owner.NamespacePrefix;
         var contexts = types.Where(type => !type.IsAbstract && !IsOpen(type) &&
             type.AllInterfaces.Any(item => Same(item, contract)) &&
-            (type.ContainingNamespace.ToDisplayString() == infraNamespace + "." + target.Owner ||
-             type.ContainingNamespace.ToDisplayString().StartsWith(infraNamespace + "." + target.Owner + ".", StringComparison.Ordinal))).ToArray();
+            (type.ContainingNamespace.ToDisplayString() == infraNamespace + "." + ownerPrefix ||
+             type.ContainingNamespace.ToDisplayString().StartsWith(infraNamespace + "." + ownerPrefix + ".", StringComparison.Ordinal))).ToArray();
         var selections = contexts.Length == 0 ? new INamedTypeSymbol?[] { null } : contexts.Cast<INamedTypeSymbol?>();
         var project = new InfraPlanProject(infra, infraPath, infraNamespace, compilation, types, infraInputs, contextOwners);
         foreach (var selected in selections)
@@ -137,16 +138,25 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         }
     }
 
-    private static Dictionary<string, (string Owner, string Reason, string Declaration)>? TryMergeContextOwners(
-        Dictionary<string, (string Owner, string Reason, string Declaration)> domainContexts,
-        Dictionary<string, (string Owner, string Reason, string Declaration)> infraContexts)
+    private static Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)>? TryMergeContextOwners(
+        Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)> domainContexts,
+        Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)> infraContexts,
+        string defaultDomain)
     {
-        var merged = new Dictionary<string, (string Owner, string Reason, string Declaration)>(domainContexts, StringComparer.Ordinal);
+        var merged = new Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)>(domainContexts, StringComparer.Ordinal);
         foreach (var entry in infraContexts)
         {
-            if (merged.TryGetValue(entry.Key, out var previous) &&
-                (previous.Owner != entry.Value.Owner || previous.Reason != entry.Value.Reason))
-                return null;
+            if (merged.TryGetValue(entry.Key, out var previous))
+            {
+                var previousDomain = previous.Domain.Length > 0 ? previous.Domain : defaultDomain;
+                var currentDomain = entry.Value.Domain.Length > 0 ? entry.Value.Domain : defaultDomain;
+                if (previousDomain != currentDomain || previous.Owner != entry.Value.Owner || previous.Reason != entry.Value.Reason)
+                    return null;
+                merged[entry.Key] = entry.Value.Domain.Length > 0
+                    ? entry.Value
+                    : (previous.Domain, entry.Value.Owner, entry.Value.Reason, entry.Value.Declaration);
+                continue;
+            }
             merged[entry.Key] = entry.Value;
         }
         return merged;
@@ -158,8 +168,8 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         if (selected is not null &&
             (target.DomainInputs.OwnershipTargets.Contains(CodeFixSymbolFacts.MetadataName(selected)) ||
              infra.Inputs.OwnershipTargets.Contains(CodeFixSymbolFacts.MetadataName(selected)))) return null;
-        var contextName = selected?.Name ?? target.Owner + "Context";
-        var contextNamespace = selected?.ContainingNamespace.ToDisplayString() ?? infra.Namespace + "." + target.Owner;
+        var contextName = selected?.Name ?? target.Owner.Subdomain + "Context";
+        var contextNamespace = selected?.ContainingNamespace.ToDisplayString() ?? infra.Namespace + "." + target.Owner.NamespacePrefix;
         var contextSymbol = selected?.ToDisplayString() ?? contextNamespace + "." + contextName;
         if (!IsContextSelectionCompatible(infra.Compilation, target.Owner, infra.ContextOwners, selected, contextNamespace, contextName, token))
             return null;
@@ -177,8 +187,8 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         return BuildAggregatePlan(target, infra, (contextSymbol, selected is null, contextPath), planPath, evidence, contextEvidence);
     }
 
-    private static bool IsContextSelectionCompatible(Compilation compilation, string owner,
-        Dictionary<string, (string Owner, string Reason, string Declaration)> contextOwners,
+    private static bool IsContextSelectionCompatible(Compilation compilation, OwnerKey owner,
+        Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)> contextOwners,
         INamedTypeSymbol? selected, string contextNamespace, string contextName, CancellationToken token)
     {
         if (selected is null)
@@ -190,7 +200,8 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         INamedTypeSymbol? selected, Document? contextDocument, string contextName,
         string contextSymbol, CancellationToken token)
     {
-        var contextPath = contextDocument?.FilePath ?? Path.Combine(infra.Directory, target.Owner, contextName + ".cs");
+        var ownerPath = target.Owner.NamespacePrefix.Replace('.', Path.DirectorySeparatorChar);
+        var contextPath = contextDocument?.FilePath ?? Path.Combine(infra.Directory, ownerPath, contextName + ".cs");
         if (!TryFullPath(contextPath, out contextPath) ||
             !ConventionGenerationPreflight.IsUnderDirectory(contextPath, infra.Directory)) return null;
         if (selected is null && (infra.Types.Any(type => string.Equals(CodeFixSymbolFacts.MetadataName(type), contextSymbol, StringComparison.OrdinalIgnoreCase)) ||
@@ -198,25 +209,25 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         return contextPath;
     }
 
-    private static bool IsSelectedContextCompatible(Compilation compilation, string owner,
-        Dictionary<string, (string Owner, string Reason, string Declaration)> contextOwners,
+    private static bool IsSelectedContextCompatible(Compilation compilation, OwnerKey owner,
+        Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)> contextOwners,
         INamedTypeSymbol selected, string contextName)
     {
-        var ownerAttribute = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomainAttribute");
+        var ownerAttribute = compilation.GetTypeByMetadataName(OwnershipAttributeMetadataName);
         if (compilation.Assembly.GetAttributes().Any(attribute => Same(attribute.AttributeClass, ownerAttribute) &&
                 attribute.ConstructorArguments.FirstOrDefault().Value is INamedTypeSymbol target &&
                 SymbolEqualityComparer.Default.Equals(target, selected))) return false;
         var declaredOwners = selected.GetAttributes().Where(attribute => Same(attribute.AttributeClass, ownerAttribute)).ToArray();
-        if (declaredOwners.Length > 1 || declaredOwners.Any(attribute => attribute.ConstructorArguments.Length != 1 ||
-                attribute.ConstructorArguments[0].Value as string != owner)) return false;
-        var reasonedOwner = declaredOwners.Any(attribute => attribute.NamedArguments.Any(argument =>
-            argument.Key == "Reason" && argument.Value.Value is string reason && !string.IsNullOrWhiteSpace(reason)));
+        if (declaredOwners.Length > 1 || declaredOwners.Any(attribute => !MatchesSubdomainAttribute(attribute, owner))) return false;
+        var reasonedOwner = declaredOwners.Any(HasReason);
         if (contextOwners.TryGetValue(CodeFixSymbolFacts.MetadataName(selected), out var declared))
         {
-            if (declared.Owner.Length > 0 && declared.Owner != owner) return false;
-            reasonedOwner |= declared.Owner == owner && !string.IsNullOrWhiteSpace(declared.Reason);
+            if (declared.Domain.Length > 0 && declared.Domain != owner.Domain) return false;
+            if (declared.Owner.Length > 0 && declared.Owner != owner.Subdomain) return false;
+            reasonedOwner |= declared.Owner == owner.Subdomain && !string.IsNullOrWhiteSpace(declared.Reason);
         }
-        return contextName == owner + "Context" || reasonedOwner;
+        return ConventionNames.IsConventionalContextName(contextName, owner.Domain, owner.Subdomain, owner.HasFolderDomain) ||
+            reasonedOwner;
     }
 
     private static async Task<Document?> ResolveEditableContextHomeAsync(Project infra, INamedTypeSymbol? selected,
@@ -231,14 +242,19 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
     }
 
     private static async Task<string?> TryCollectContextEvidenceAsync(Project infra, string infraDirectory,
-        Dictionary<string, (string Owner, string Reason, string Declaration)> contextOwners,
+        Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)> contextOwners,
         INamedTypeSymbol? selected, CancellationToken token)
     {
         var contextEvidence = new StringBuilder();
         if (selected is null) return contextEvidence.ToString();
         if (contextOwners.TryGetValue(CodeFixSymbolFacts.MetadataName(selected), out var selectedOwnership))
-            contextEvidence.AppendLine("Selected context ownership input: " + EscapeMarkdown(selectedOwnership.Owner) +
+        {
+            var ownerLabel = selectedOwnership.Domain.Length > 0
+                ? selectedOwnership.Domain + "/" + selectedOwnership.Owner
+                : selectedOwnership.Owner;
+            contextEvidence.AppendLine("Selected context ownership input: " + EscapeMarkdown(ownerLabel) +
                 "; reason: " + EscapeMarkdown(selectedOwnership.Reason));
+        }
         string? contextDirectory = null;
         foreach (var reference in selected.DeclaringSyntaxReferences)
         {
@@ -284,7 +300,7 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
     {
         var files = project.AdditionalDocuments.Where(ConventionGenerationPreflight.IsInputsDocument).Take(2).ToArray();
         if (files.Length > 1) return null;
-        var contexts = new Dictionary<string, (string Owner, string Reason, string Declaration)>(StringComparer.Ordinal);
+        var contexts = new Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)>(StringComparer.Ordinal);
         var ownershipTargets = new HashSet<string>(StringComparer.Ordinal);
         var evidence = new StringBuilder();
         foreach (var input in files)
@@ -296,7 +312,7 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
     }
 
     private static async Task<bool> TryParseProjectInputFileAsync(Project project, TextDocument input,
-        Dictionary<string, (string Owner, string Reason, string Declaration)> contexts,
+        Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)> contexts,
         HashSet<string> ownershipTargets, StringBuilder evidence, CancellationToken token)
     {
         var text = await input.GetTextAsync(token);
@@ -325,7 +341,7 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
     }
 
     private static bool TryCollectContextInputs(CompilationUnitSyntax inputRoot,
-        Dictionary<string, (string Owner, string Reason, string Declaration)> contexts, CancellationToken token)
+        Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)> contexts, CancellationToken token)
     {
         foreach (var attribute in inputRoot.DescendantNodes().OfType<AttributeSyntax>())
         {
@@ -337,7 +353,7 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
     }
 
     private static bool TryReadContextAttributeInput(AttributeSyntax attribute,
-        Dictionary<string, (string Owner, string Reason, string Declaration)> contexts, CancellationToken token)
+        Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)> contexts, CancellationToken token)
     {
         var arguments = attribute.ArgumentList?.Arguments;
         if (arguments is null || arguments.Value.Count < 1) return false;
@@ -346,25 +362,29 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
             arguments.Value.Where(argument => argument.NameEquals is not null)
                 .GroupBy(argument => argument.NameEquals!.Name.Identifier.ValueText).Any(group => group.Count() > 1))
             return false;
+        var domainArgument = arguments.Value.FirstOrDefault(argument => argument.NameEquals?.Name.Identifier.ValueText == "Domain");
         var ownerArgument = arguments.Value.FirstOrDefault(argument => argument.NameEquals?.Name.Identifier.ValueText == "Subdomain");
         var reasonArgument = arguments.Value.FirstOrDefault(argument => argument.NameEquals?.Name.Identifier.ValueText == "Reason");
+        var declaredDomain = domainArgument is null ? "" : ConventionInputSyntax.String(domainArgument.Expression, token);
         var declaredOwner = ownerArgument is null ? "" : ConventionInputSyntax.String(ownerArgument.Expression, token);
         var reason = reasonArgument is null ? "" : ConventionInputSyntax.String(reasonArgument.Expression, token);
-        if (name is null || declaredOwner is null || reason is null ||
-            contexts.TryGetValue(name, out var previous) && (previous.Owner != declaredOwner || previous.Reason != reason))
+        if (name is null || declaredDomain is null || declaredOwner is null || reason is null ||
+            declaredDomain.Length > 0 && declaredOwner.Length == 0 ||
+            contexts.TryGetValue(name, out var previous) &&
+            (previous.Domain != declaredDomain || previous.Owner != declaredOwner || previous.Reason != reason))
             return false;
-        contexts[name] = (declaredOwner, reason, attribute.ToString());
+        contexts[name] = (declaredDomain, declaredOwner, reason, attribute.ToString());
         return true;
     }
 
     private sealed record InfraPlanProject(Project Project, string ProjectPath, string Namespace, Compilation Compilation,
-        INamedTypeSymbol[] Types, ParsedInputs Inputs, Dictionary<string, (string Owner, string Reason, string Declaration)> ContextOwners)
+        INamedTypeSymbol[] Types, ParsedInputs Inputs, Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)> ContextOwners)
     {
         internal string Directory { get; } = Path.GetDirectoryName(ProjectPath)!;
     }
 
     private sealed record AggregateTarget(Project Domain, Compilation DomainCompilation, string DomainPath,
-        ParsedInputs DomainInputs, INamedTypeSymbol Entity, string EntityName, string Owner);
+        ParsedInputs DomainInputs, INamedTypeSymbol Entity, string EntityName, OwnerKey Owner);
 
     private static string? RoleNamespace(Project project, string role)
     {
@@ -372,7 +392,7 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         return identity.Role == role && ValidNamespace(identity.Namespace) ? identity.Namespace : null;
     }
 
-    private sealed record ParsedInputs(string Evidence, Dictionary<string, (string Owner, string Reason, string Declaration)> Contexts,
+    private sealed record ParsedInputs(string Evidence, Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)> Contexts,
         HashSet<string> OwnershipTargets);
 
     private static string Fingerprint(SourceText text) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString())));

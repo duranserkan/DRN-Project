@@ -58,15 +58,15 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         if (root is null || declaration is null || SyntaxFactory.ParseMemberDeclaration(plan.MapperSource) is not MethodDeclarationSyntax mapper)
             return null;
         var marker = new SyntaxAnnotation();
-        var updated = declaration.AddMembers(mapper.WithAdditionalAnnotations(marker, Formatter.Annotation));
         var dtoId = DocumentId.CreateNewId(targetId);
-        var proposed = document.WithSyntaxRoot(root.ReplaceNode(declaration, updated)).Project.Solution
-            .AddDocument(dtoId, plan.DtoName + ".cs", SourceText.From(plan.DtoSource),
-                plan.RelativeDtoPath.Split('/')[..^1], plan.DtoPath);
+        var expectedName = plan.DtoNamespace + "." + plan.DtoName;
+        var withDto = document.Project.Solution.AddDocument(dtoId, plan.DtoName + ".cs", SourceText.From(plan.DtoSource),
+            plan.RelativeDtoPath.Split('/')[..^1], plan.DtoPath);
+        var updated = declaration.AddMembers(mapper.WithAdditionalAnnotations(marker, Formatter.Annotation));
+        var proposed = withDto.WithDocumentSyntaxRoot(document.Id, root.ReplaceNode(declaration, updated));
         var edited = proposed.GetDocument(document.Id)!;
         var model = await edited.GetSemanticModelAsync(token);
         var added = (await edited.GetSyntaxRootAsync(token))?.GetAnnotatedNodes(marker).SingleOrDefault();
-        var expectedName = plan.DtoNamespace + "." + plan.DtoName;
         if (added is not MethodDeclarationSyntax method || model?.GetDeclaredSymbol(method, token) is not IMethodSymbol symbol ||
             symbol.ReturnType is not INamedTypeSymbol { TypeKind: TypeKind.Class } returnType ||
             proposed.GetProject(returnType.ContainingAssembly, token) is not { } targetProject ||
@@ -91,8 +91,8 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
             var original = document.Project.Solution.GetDocument(location.Document.Id);
             if (original is null || await original.GetSemanticModelAsync(token) is not { } before) return true;
             var position = location.Location.SourceSpan.Start;
-            // Appending the unformatted member was the only edit to this tree.
-            if (original.Id == document.Id && position >= insertion.End) position -= insertion.Length;
+            if (original.Id == document.Id && position >= insertion.End)
+                position -= insertion.Length;
             var name = (await before.SyntaxTree.GetRootAsync(token)).FindToken(position).Parent;
             if (name is not null && BindsToMethod(before, name, token)) return true;
         }
@@ -103,7 +103,10 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
     {
         var call = name.FirstAncestorOrSelf<InvocationExpressionSyntax>();
         var site = call is not null && call.Expression.Span.End == name.Span.End ? call : name;
-        return model.GetSymbolInfo(site, token).Symbol is IMethodSymbol;
+        if (model.GetSymbolInfo(site, token).Symbol is not IMethodSymbol method) return false;
+        var entityBase = model.Compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity");
+        return !(method is { MethodKind: MethodKind.Ordinary, IsAbstract: true, IsStatic: false, Name: "ToDto", Arity: 0, Parameters.IsEmpty: true } &&
+            Same(method.ContainingType, entityBase));
     }
 
     private static async Task<bool> IntroducesBlockingDiagnosticsAsync(Document document, Solution proposed,
@@ -146,7 +149,8 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         diagnostic.Severity == DiagnosticSeverity.Error || diagnostic.Id == "CS0436";
 
     private static (string Id, DiagnosticSeverity Severity, string Message, DocumentId? Document, string? Path, TextSpan Span)
-        BlockingDiagnosticKey(Solution solution, Diagnostic diagnostic, DocumentId? editedDocument = null, TextSpan insertion = default)
+        BlockingDiagnosticKey(Solution solution, Diagnostic diagnostic, DocumentId? editedDocument = null,
+            TextSpan insertion = default)
     {
         var location = diagnostic.Location;
         var tree = location.SourceTree;
@@ -351,19 +355,23 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         var source = document.Project;
         var sourceIdentity = ConventionGenerationPreflight.Identity(source);
         var targetIdentity = ConventionGenerationPreflight.Identity(target);
+        var sourceLayout = ConventionGenerationPreflight.Layout(source);
+        var targetLayout = ConventionGenerationPreflight.Layout(target);
         if (sourceIdentity.Role != "Domain" || targetIdentity.Role != "Contract" || target.Language != LanguageNames.CSharp ||
+            !sourceLayout.Matches(targetLayout) ||
             !source.ProjectReferences.Any(reference => reference.ProjectId == target.Id &&
                 (reference.Aliases.IsEmpty || reference.Aliases.Contains("global", StringComparer.Ordinal))) ||
             target.FilePath is null || !TryFullPath(target.FilePath, out var targetProjectPath)) return null;
         var sourceInputs = await ReadInputsWithoutRoleOverrideAsync(source, required: false, token);
         if (sourceInputs is null || await HasRoleOverrides(target, token)) return null;
         var targetRoot = Path.GetDirectoryName(targetProjectPath)!;
-        return await ResolveDtoCompilationModelsAsync((source, sourceIdentity.Namespace),
+        return await ResolveDtoCompilationModelsAsync((source, sourceIdentity.Namespace, sourceLayout),
             (target, targetIdentity.Namespace, targetRoot), selection, sourceInputs, token);
     }
 
     private static async Task<DtoCompilations?> ResolveDtoCompilationModelsAsync(
-        (Project Project, string Namespace) source, (Project Project, string Namespace, string Root) target,
+        (Project Project, string Namespace, ConventionGenerationPreflight.ProjectLayout Layout) source,
+        (Project Project, string Namespace, string Root) target,
         Selection selection, CompilationUnitSyntax sourceInputs, CancellationToken token)
     {
         var sourceCompilation = await source.Project.GetCompilationAsync(token);
@@ -372,19 +380,21 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
             !selection.Entity.ContainingAssembly.Identity.Equals(sourceCompilation.Assembly.Identity)) return null;
         var dto = targetCompilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.Dto");
         var entityBase = targetCompilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity");
-        if (dto is null || entityBase is null || !targetCompilation.IsSymbolAccessibleWithin(dto, targetCompilation.Assembly) ||
+        var sourceEntityBase = sourceCompilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity");
+        if (dto is null || entityBase is null || sourceEntityBase is null ||
+            !targetCompilation.IsSymbolAccessibleWithin(dto, targetCompilation.Assembly) ||
             sourceCompilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.Dto") is not { } sourceDto ||
             !sourceDto.ContainingAssembly.Identity.Equals(dto.ContainingAssembly.Identity)) return null;
         var sourceNamespace = selection.Entity.ContainingNamespace.ToDisplayString();
         if (!ValidNamespace(source.Namespace) || !ValidNamespace(target.Namespace) ||
             !sourceNamespace.StartsWith(source.Namespace + ".", StringComparison.Ordinal)) return null;
-        var area = sourceNamespace[(source.Namespace.Length + 1)..];
-        if (!ValidNamespace(area) || !PreservesOwnership(selection.Entity, sourceCompilation, sourceInputs, area.Split('.')[0], token))
+        var owner = ResolveNamespaceOwnerKey(selection.Entity, source.Namespace, source.Layout);
+        if (owner is null || !PreservesOwnership(selection.Entity, sourceCompilation, sourceInputs, owner, token))
             return null;
         var folder = ConventionNames.DtoFolder(ConventionGenerationPreflight.EntityStem(selection.Entity.Name));
         if (!ConventionGenerationPreflight.ValidNamespaceSegment(folder)) return null;
-        var dtoArea = area.Split('.')[0] + "." + folder;
-        return new(sourceCompilation, targetCompilation, dto, target.Root, target.Namespace + "." + dtoArea, dtoArea);
+        var dtoArea = owner.NamespacePrefix + "." + folder;
+        return new(sourceCompilation, targetCompilation, dto, sourceEntityBase, target.Root, target.Namespace + "." + dtoArea, dtoArea);
     }
 
     private static DtoDestinations? TryBuildDtoDestinations(Project target, Selection selection, DtoCompilations resolved, CancellationToken token)
@@ -397,9 +407,15 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         if (!SafeDocumentDestination(target, resolved.TargetRoot, dtoPath, token)) return null;
         return new(resolved.DtoNamespace, dtoName, dtoPath, Path.GetRelativePath(resolved.TargetRoot, dtoPath).Replace('\\', '/'));
 
-        bool ConflictsWithMapper(ISymbol member) => member is not IMethodSymbol method || method.Arity == 0 &&
-            (method.Parameters.IsEmpty || !method.IsStatic && resolved.SourceCompilation.IsSymbolAccessibleWithin(method, selection.Entity) &&
-                method.Parameters.All(parameter => parameter.IsOptional || parameter.IsParams));
+        bool ConflictsWithMapper(ISymbol member)
+        {
+            if (member is IMethodSymbol { IsAbstract: true, Arity: 0, Parameters.IsEmpty: true } abstractMethod &&
+                Same(abstractMethod.ContainingType, resolved.SourceEntityBase))
+                return false;
+            return member is not IMethodSymbol method || method.Arity == 0 &&
+                (method.Parameters.IsEmpty || !method.IsStatic && resolved.SourceCompilation.IsSymbolAccessibleWithin(method, selection.Entity) &&
+                    method.Parameters.All(parameter => parameter.IsOptional || parameter.IsParams));
+        }
     }
 
     private static List<(string Name, string Type, string Attributes, bool Required)>? TryBuildDtoFields(
@@ -487,6 +503,9 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         if (target.GetTypeByMetadataName(name) is not { TypeKind: TypeKind.Enum } enumeration ||
             !enumeration.ContainingAssembly.Identity.Equals(named.ContainingAssembly.Identity) ||
             !target.IsSymbolAccessibleWithin(enumeration, target.Assembly)) return false;
+        if (named.GetAttributes().Any(attribute => attribute.AttributeClass is { } attr &&
+                MetadataName(attr) == "DRN.Framework.SharedKernel.Attributes.DomainOnlyAttribute"))
+            return false;
         if (SymbolEqualityComparer.Default.Equals(enumeration.ContainingAssembly, target.Assembly)) return true;
         var reference = target.GetMetadataReference(enumeration.ContainingAssembly);
         return reference is not null &&
@@ -564,13 +583,9 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         property.IsRequired || property.Type.IsReferenceType && property.NullableAnnotation != NullableAnnotation.Annotated;
 
     private static bool PreservesOwnership(INamedTypeSymbol entity, Compilation compilation,
-        CompilationUnitSyntax root, string owner, CancellationToken token)
-    {
-        var ownership = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomainAttribute");
-        foreach (var attribute in entity.GetAttributes().Where(attribute => Same(attribute.AttributeClass, ownership)))
-            if (attribute.ConstructorArguments is not [{ Value: string declared }] || declared != owner) return false;
-        return OwnershipCompatible(root, MetadataName(entity), owner, token);
-    }
+        CompilationUnitSyntax root, OwnerKey owner, CancellationToken token) =>
+        AttributesPreserveOwner(entity, owner, compilation) &&
+        OwnershipCompatible(root, MetadataName(entity), owner.Subdomain, token, owner.DomainFilter);
 
     private static DtoPlan Render(List<(string Name, string Type, string Attributes, bool Required)> fields,
         string typeAttributes, DtoDestinations destinations)
@@ -594,17 +609,19 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         var qualifiedDto = "global::" + destinations.DtoNamespace + "." + destinations.DtoName;
         var values = string.Join(",\n", fields.Select(field => "    " + field.Name + " = this." + field.Name));
         var mapperSource = $$"""
-            public {{qualifiedDto}} ToDto() => new(this)
+            public override {{qualifiedDto}} ToDto() => new(this)
             {
             {{values}}
             };
             """;
-        return new(destinations.DtoNamespace, destinations.DtoName, destinations.DtoPath, destinations.RelativeDtoPath, dtoSource, mapperSource);
+        return new(destinations.DtoNamespace, destinations.DtoName, destinations.DtoPath, destinations.RelativeDtoPath,
+            dtoSource, mapperSource);
     }
 
     private sealed record DtoCompilations(Compilation SourceCompilation, Compilation TargetCompilation, INamedTypeSymbol Dto,
-        string TargetRoot, string DtoNamespace, string Area);
+        INamedTypeSymbol SourceEntityBase, string TargetRoot, string DtoNamespace, string Area);
     private sealed record DtoDestinations(string DtoNamespace, string DtoName, string DtoPath, string RelativeDtoPath);
     private sealed record Selection(INamedTypeSymbol Entity, ImmutableArray<IPropertySymbol> Properties);
-    private sealed record DtoPlan(string DtoNamespace, string DtoName, string DtoPath, string RelativeDtoPath, string DtoSource, string MapperSource);
+    private sealed record DtoPlan(string DtoNamespace, string DtoName, string DtoPath, string RelativeDtoPath,
+        string DtoSource, string MapperSource);
 }

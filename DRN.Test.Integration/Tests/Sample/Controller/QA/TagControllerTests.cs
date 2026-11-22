@@ -24,13 +24,27 @@ public class TagControllerTests
         using var invalid = await client.GetAsync(endpoints.GetAsync.Path(Guid.NewGuid()));
         invalid.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-        var createdTags = new List<TagDto>();
+        foreach (var invalidPayload in new[]
+                 {
+                     """{"name":"Omitted type","model":{"stringValue":"abc"}}""",
+                     """{"name":"System tag","model":{"type":"System"}}""",
+                     """{"name":"System zero","model":{"type":0}}""",
+                     """{"name":"Undefined type","model":{"type":99}}""",
+                     """{"name":"Unexpected field","model":{"type":"User","isApproved":true}}"""
+                 })
+        {
+            using var content = new StringContent(invalidPayload, System.Text.Encoding.UTF8, "application/json");
+            using var rejected = await client.PostAsync(endpoints.PostAsync.Path(), content);
+            rejected.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        }
+
+        var createdTags = new List<TagResponse>();
         for (var index = 0; index < 4; index++)
         {
             var request = new TagPostRequest
             {
                 Name = $"Standard tag {index}",
-                Model =
+                Model = new TagModelPostRequest
                 {
                     Other = index,
                     StringValue = "Liberté",
@@ -40,14 +54,14 @@ public class TagControllerTests
             using var created = await client.PostAsJsonAsync(endpoints.PostAsync.Path(), request);
             created.StatusCode.Should().Be(HttpStatusCode.Created);
             created.Headers.Location.Should().BeNull();
-            var dto = await created.Content.ReadFromJsonAsync<TagDto>();
-            dto.Should().NotBeNull();
-            dto.Id.Should().NotBeEmpty();
-            dto.Name.Should().Be(request.Name);
-            dto.Model.Should().BeEquivalentTo(request.Model);
-            createdTags.Add(dto);
-            var fetched = await client.GetFromJsonAsync<TagDto>(endpoints.GetAsync.Path(dto.Id));
-            fetched.Should().BeEquivalentTo(dto);
+            var response = await created.Content.ReadFromJsonAsync<TagResponse>();
+            response.Should().NotBeNull();
+            response.Id.Should().NotBeEmpty();
+            response.Name.Should().Be(request.Name);
+            response.Model.Should().BeEquivalentTo(request.Model);
+            createdTags.Add(response);
+            var fetched = await client.GetFromJsonAsync<TagResponse>(endpoints.GetAsync.Path(response.Id));
+            fetched.Should().BeEquivalentTo(response);
         }
 
         using var deleted = await client.DeleteAsync(endpoints.DeleteAsync.Path(createdTags[0].Id));
@@ -58,7 +72,7 @@ public class TagControllerTests
         var optionsUrl = endpoints.PaginateWithOptionsAsync.Path()
             .AppendQueryParam("pageSize", 1).AppendQueryParam("maxSize", 1000)
             .AppendQueryParam("totalCount", 1000000);
-        var options = await client.GetFromJsonAsync<PaginationResultModel<TagDto>>(optionsUrl);
+        var options = await client.GetFromJsonAsync<PaginationResultModel<TagResponse>>(optionsUrl);
         options.Should().NotBeNull();
         options.Items.Should().HaveCount(1);
         options.Info.Request.PageSize.MaxSize.Should().Be(100);
@@ -66,7 +80,7 @@ public class TagControllerTests
 
         var firstRequest = PaginationRequest.DefaultWith(size: 1, updateTotalCount: true);
         var firstUrl = endpoints.PaginateAsync.Path().AppendQueryParam(firstRequest.Serialize(SerializationMethod.QueryString));
-        var first = await client.GetFromJsonAsync<PaginationResultModel<TagDto>>(firstUrl);
+        var first = await client.GetFromJsonAsync<PaginationResultModel<TagResponse>>(firstUrl);
         first.Should().NotBeNull();
         first.Items.Should().HaveCount(1);
         first.Info.Request.PageNumber.Should().Be(1);
@@ -76,7 +90,7 @@ public class TagControllerTests
 
         var nextUrl = endpoints.PaginateAsync.Path()
             .AppendQueryParam(first.Info.RequestNextPage().Serialize(SerializationMethod.QueryString));
-        var second = await client.GetFromJsonAsync<PaginationResultModel<TagDto>>(nextUrl);
+        var second = await client.GetFromJsonAsync<PaginationResultModel<TagResponse>>(nextUrl);
         second.Should().NotBeNull();
         second.Info.Request.PageNumber.Should().Be(2);
         second.Items.Should().HaveCount(1);
@@ -86,7 +100,7 @@ public class TagControllerTests
         using var thirdResponse = await client.PostAsJsonAsync(endpoints.PaginateWithBodyAsync.Path(),
             second.Info.RequestNextPage(updateTotalCount: true));
         thirdResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        var third = await thirdResponse.Content.ReadFromJsonAsync<PaginationResultModel<TagDto>>();
+        var third = await thirdResponse.Content.ReadFromJsonAsync<PaginationResultModel<TagResponse>>();
         third.Should().NotBeNull();
         third.Info.Request.PageNumber.Should().Be(3);
         third.Info.TotalCountUpdated.Should().BeTrue();
@@ -94,7 +108,7 @@ public class TagControllerTests
 
         using var previousResponse = await client.PostAsJsonAsync(endpoints.PaginateWithBodyAsync.Path(), third.Info.RequestPreviousPage());
         previousResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        var previous = await previousResponse.Content.ReadFromJsonAsync<PaginationResultModel<TagDto>>();
+        var previous = await previousResponse.Content.ReadFromJsonAsync<PaginationResultModel<TagResponse>>();
         previous.Should().NotBeNull();
         previous.Info.Request.PageNumber.Should().Be(2);
         previous.Items.Select(item => item.Id).Should().Equal(second.Items.Select(item => item.Id));

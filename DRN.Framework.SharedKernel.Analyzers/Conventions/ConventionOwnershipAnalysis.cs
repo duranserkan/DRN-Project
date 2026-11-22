@@ -27,13 +27,15 @@ internal static class ConventionOwnershipAnalysis
         if (owner is null)
         {
             if (entity && !type.IsAbstract && role.Role == ConventionArchitecture.Domain || service || repository)
-                facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.MissingOwnership, location, type.Name));
+                facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.MissingOwnership, location,
+                    ImmutableDictionary<string, string?>.Empty.Add(ConventionInputSyntax.TargetField, type.GetDocumentationCommentId()),
+                    type.Name));
             return;
         }
         if (role.Namespace.Length == 0) return;
 
         var (ns, expectedNamespace, expectedDirectory) = ComputeExpectedPlacement(
-            type, role, owner.Subdomain, ExpectedStructuralFolder(configuration, repository, role.Role));
+            type, role, owner, ExpectedStructuralFolder(configuration, repository, role.Role));
         AnalyzeTypePlacement(facts, type, location, ns, expectedNamespace, expectedDirectory);
     }
 
@@ -59,19 +61,30 @@ internal static class ConventionOwnershipAnalysis
     }
 
     private static (string CurrentNamespace, string ExpectedNamespace, string ExpectedDirectory) ComputeExpectedPlacement(
-        INamedTypeSymbol type, (string Role, string Namespace, string PathPrefix) role, string subdomain, string? structural)
+        INamedTypeSymbol type, (string Role, string Namespace, string PathPrefix) role, ConventionOwner owner, string? structural)
     {
         var ns = type.ContainingNamespace.ToDisplayString();
         var suffix = ns.StartsWith(role.Namespace + ".", StringComparison.Ordinal)
             ? ns[(role.Namespace.Length + 1)..] : "";
-        var parts = suffix.Split('.');
-        var index = role.Role == ConventionArchitecture.Hosted && parts[0] is "Controllers" or "Pages" ||
-                    role.Role == ConventionArchitecture.Application && parts[0] == "Services" ? 1 : 0;
+        var parts = suffix.Length == 0 ? [] : suffix.Split('.');
+        var index = ConventionFacts.OwnerSegmentOffset(role.Role, parts);
         var expectedParts = parts.ToList();
-        if (index >= expectedParts.Count) expectedParts.Add(subdomain);
-        else expectedParts[index] = subdomain;
-        if (structural is not null && !expectedParts.Skip(index + 1).Contains(structural, StringComparer.Ordinal))
-            expectedParts.Insert(index + 1, structural);
+        var ownerSegmentCount = owner.HasFolderDomain ? 2 : 1;
+        if (owner.HasFolderDomain)
+        {
+            if (index >= expectedParts.Count) expectedParts.Add(owner.Domain);
+            else expectedParts[index] = owner.Domain;
+            if (index + 1 >= expectedParts.Count) expectedParts.Add(owner.Subdomain);
+            else expectedParts[index + 1] = owner.Subdomain;
+        }
+        else
+        {
+            if (index >= expectedParts.Count) expectedParts.Add(owner.Subdomain);
+            else expectedParts[index] = owner.Subdomain;
+        }
+        var afterOwner = index + ownerSegmentCount;
+        if (structural is not null && !expectedParts.Skip(afterOwner).Contains(structural, StringComparer.Ordinal))
+            expectedParts.Insert(afterOwner, structural);
         var expectedSuffix = string.Join(".", expectedParts);
         var expectedNamespace = role.Namespace + "." + expectedSuffix;
         var expectedDirectory = (role.PathPrefix.Length == 0 ? "" : role.PathPrefix + "/") + expectedSuffix.Replace('.', '/');

@@ -141,6 +141,11 @@ public abstract class SourceKnownEntity(long id = 0) : IHasEntityId, IEquatable<
     public void SetExtendedProperties<TModel>(TModel? extendedProperty) where TModel : class
         => ExtendedProperties = extendedProperty != null ? JsonSerializer.Serialize(extendedProperty) : null;
 
+    /// <summary>
+    /// Projects this entity into its canonical Contract DTO.
+    /// </summary>
+    public abstract Dto ToDto();
+
     internal ISourceKnownEntityIdOperations? EntityIdOps;
 
     private ISourceKnownEntityIdOperations Ops =>

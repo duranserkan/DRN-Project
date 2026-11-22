@@ -13,16 +13,40 @@ internal static class ConventionDiagnosticDescriptors
     private const string ContractArea = "Contract";
 
     internal static readonly DiagnosticDescriptor EntityDto = Create("DRNDTO001", "Provide an entity-owned DTO projection",
-        "'{0}' requires a public instance ToDto() returning {1} from its Contract subdomain and constructing it with this.", ContractArea);
+        "'{0}' must override public ToDto() returning {1} from its Contract subdomain and constructing it with this.", ContractArea);
 
     internal static readonly DiagnosticDescriptor DtoFolder = Create("DRNDTO002", "Place the DTO in its entity folder",
         "Place '{0}' under its subdomain in the '{1}' folder and matching namespace.", StructureArea);
 
     internal static readonly DiagnosticDescriptor DtoClassification = Create("DRNDTO003", "Preserve projected property classification",
-        "DTO property '{0}' requires [{1}] from mapped property '{2}'.", ContractArea);
+        "Projected property '{0}' requires [{1}] from mapped property '{2}'.", ContractArea);
 
     internal static readonly DiagnosticDescriptor DtoMessagePlacement = Create("DRNDTO004", "Place entity requests and responses beside their DTO",
         "Place '{0}' in '{1}' with namespace '{2}' alongside its entity DTO.", StructureArea);
+
+    internal static readonly DiagnosticDescriptor DtoExposure = Create("DRNDTO005", "Do not expose DTOs in public contracts or endpoints",
+        "Public contract or endpoint '{0}' exposes DTO type '{1}'; use an explicit Contract Request or Response without inheriting or nesting a DTO.", ContractArea);
+
+    internal static readonly DiagnosticDescriptor ExplicitContractMessage = Create("DRNDTO006", "Use explicit Contract Request and Response types on public endpoints",
+        "Public endpoint '{0}' must use an explicit Contract {1} type instead of '{2}'.", ContractArea);
+
+    internal static readonly DiagnosticDescriptor ServiceDtoProjection = Create("DRNDTO007", "Align service DTO projection with entity ToDto()",
+        "Service '{0}' inherits default ToDto() from SourceKnownService<{1}, {2}>, but '{1}.ToDto()' returns '{3}', which is not assignable to '{2}'. Override ToDto({1}) or align the service DTO type.", ContractArea);
+
+    internal static readonly DiagnosticDescriptor DomainEnumRequiresMarker = Create("DRNENUM001", "Define application enums in Contract or mark Domain-only",
+        "Enum '{0}' is declared in Domain without [DomainOnly]. Move it to Contract for shared vocabularies or mark it [DomainOnly].", ContractArea);
+
+    internal static readonly DiagnosticDescriptor DomainOnlyOutsideDomain = Create("DRNENUM002", "Restrict [DomainOnly] to Domain enums",
+        "Enum '{0}' cannot carry [DomainOnly] outside a Domain project; remove [DomainOnly] from public Contract vocabularies.", ContractArea);
+
+    internal static readonly DiagnosticDescriptor DomainOnlyEnumExposed = Create("DRNENUM003", "Do not expose [DomainOnly] enums publicly",
+        "Public contract or endpoint '{0}' exposes [DomainOnly] enum '{1}'; move the enum to Contract and remove [DomainOnly] before exposing it.", ContractArea);
+
+    internal static readonly DiagnosticDescriptor EnumZeroRequiresAllowZero = Create("DRNENUM004", "Require [AllowZero] for enum zero values",
+        "Enum '{0}' defines zero member '{1}' without [AllowZero]. Start members at a nonzero value or mark the enum with [AllowZero].", ContractArea);
+
+    internal static readonly DiagnosticDescriptor AllowZeroWithoutZeroMember = Create("DRNENUM005", "Require a named zero member with [AllowZero]",
+        "Enum '{0}' is marked with [AllowZero] but defines no named member with value 0. Remove [AllowZero] or define a named zero member.", ContractArea);
     private const string ArchitectureArea = "Architecture";
     private const string MigrationsArea = "Migrations";
     private const string ExceptionsArea = "Exceptions";
@@ -31,7 +55,7 @@ internal static class ConventionDiagnosticDescriptors
         "Inspection of public contract member '{0}' reached the analysis limit before verifying that its public model is free of persistence and domain types.", ConfigurationArea);
 
     internal static readonly DiagnosticDescriptor Contract = Create("DRNARCHITECTURE002", "Keep external contracts free of persistence types",
-        "Public contract member '{0}' exposes persistence/domain type '{1}'; expose an approved DTO or value model.", ContractArea);
+        "Public contract member '{0}' exposes persistence/domain type '{1}'; expose an explicit Contract Request/Response or value model.", ContractArea);
 
     internal static readonly DiagnosticDescriptor Reference = Create("DRNARCHITECTURE003", "Remove a forbidden direct reference",
         "Direct {0} reference from '{1}' to '{2}' violates the declared role matrix; remove it or document the exact exception.", ArchitectureArea);
@@ -54,6 +78,9 @@ internal static class ConventionDiagnosticDescriptors
     internal static readonly DiagnosticDescriptor DomainSubdomain = Create("DRNOWNERSHIP003", "Establish the infrastructure's Domain subdomain",
         "Infrastructure '{0}' requires populated Domain subdomain '{1}'.", ArchitectureArea);
 
+    internal static readonly DiagnosticDescriptor DomainSubdomainRequired = Create("DRNOWNERSHIP004", "Establish at least one Domain subdomain",
+        "Domain project '{0}' requires at least one populated subdomain folder.", OwnershipArea);
+
     internal static readonly DiagnosticDescriptor Placement = Create("DRNSTRUCTURE001", "Align namespace and logical placement",
         "'{0}' belongs in '{1}' with namespace '{2}'; current logical placement conflicts.", StructureArea);
 
@@ -74,6 +101,9 @@ internal static class ConventionDiagnosticDescriptors
 
     internal static readonly DiagnosticDescriptor ContextOptionsName = Create("DRNSTRUCTURE007", "Name options for their context",
         "Rename options '{0}' to start with '{1}' and end with 'Options'. An 'Attribute' suffix may follow. Recommended name: '{1}NpgsqlDbContextOptionsAttribute'.", ContextArea);
+
+    internal static readonly DiagnosticDescriptor DomainFolderStructure = Create("DRNSTRUCTURE008", "Keep Domain grouping folders folders-only",
+        "'{0}' violates Domain folder rules: {1}.", StructureArea);
 
     internal static readonly DiagnosticDescriptor ContextConstructor = Create("DRNPERSISTENCE001", "Provide supported context construction",
         "Context '{0}' needs the options constructor required by its declared registration/design-time path.", ContextArea);
@@ -132,11 +162,13 @@ internal static class ConventionDiagnosticDescriptors
     internal static ImmutableArray<DiagnosticDescriptor> All { get; } =
     [
         IncompleteContract, Contract, Reference, ImplementationRole, ForbiddenDependency, RequiredReference,
-        MissingOwnership, CrossSubdomain, DomainSubdomain,
-        Placement, ContextName, Destination, RoleSuffix, AggregatePlacement, InfrastructureFolder, ContextOptionsName,
+        MissingOwnership, CrossSubdomain, DomainSubdomain, DomainSubdomainRequired,
+        Placement, ContextName, Destination, RoleSuffix, AggregatePlacement, InfrastructureFolder, ContextOptionsName, DomainFolderStructure,
         ContextConstructor, Provider, BaseModel, Persistence, Configuration, Migration, ContextContract, DbSetAggregate, ContextOptionsRequired,
         Repository, Service, AggregateContract, AggregateRepository,
-        Registration, LifetimeRequired, ModuleScan, InvalidInput, Exception, EntityDto, DtoFolder, DtoClassification, DtoMessagePlacement
+        Registration, LifetimeRequired, ModuleScan, InvalidInput, Exception,
+        EntityDto, DtoFolder, DtoClassification, DtoMessagePlacement, DtoExposure, ExplicitContractMessage, ServiceDtoProjection,
+        DomainEnumRequiresMarker, DomainOnlyOutsideDomain, DomainOnlyEnumExposed, EnumZeroRequiresAllowZero, AllowZeroWithoutZeroMember
     ];
 
     private static DiagnosticDescriptor Create(string id, string title, string message, string area) =>

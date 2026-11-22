@@ -71,6 +71,35 @@ internal static class AnalyzerTestCompilation
             ["build_property.RootNamespace"] = rootNamespace ?? projectName
         }));
 
+    internal static AnalyzerConfigOptionsProvider ConventionOptionsWithProperties(
+        string projectName, params (string Key, string Value)[] extra)
+    {
+        var values = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["build_property.MSBuildProjectName"] = projectName,
+            ["build_property.RootNamespace"] = projectName
+        };
+        foreach (var (key, value) in extra) values["build_property." + key] = value;
+        return new ConfigOptionsProvider(new ConfigOptions(values));
+    }
+
+    internal static Solution WithFoldersLayout(this Solution solution)
+    {
+        var layoutConfig = SourceText.From("is_global = true\nbuild_property.DrnDomainLayout = Folders\n");
+        foreach (var project in solution.Projects.ToArray())
+        {
+            var configPath = Path.Combine(Path.GetDirectoryName(project.FilePath!)!, "layout.globalconfig");
+            solution = solution.GetProject(project.Id)!
+                .AddAnalyzerConfigDocument("layout.globalconfig", layoutConfig, filePath: configPath).Project.Solution;
+        }
+        return solution;
+    }
+
+    internal static SyntaxTree WideModelTree(string ns) => CSharpSyntaxTree.ParseText(
+        $"namespace {ns}; public class Wide {{ " +
+        string.Join("\n", Enumerable.Range(0, 4097).Select(index => $"public int Field{index};")) + " }",
+        path: "Wide.cs");
+
     internal static string LocationText(Diagnostic diagnostic) =>
         diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan);
 

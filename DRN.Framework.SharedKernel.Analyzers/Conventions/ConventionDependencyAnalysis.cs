@@ -129,34 +129,41 @@ internal static class ConventionDependencyAnalysis
         }
     }
 
-    private static HashSet<string> CollectPopulatedSubdomains(ConventionFacts facts,
+    private static HashSet<ConventionOwner> CollectPopulatedSubdomains(ConventionFacts facts,
         (IAssemblySymbol Assembly, ConventionProject Project)[] domains)
     {
-        var subdomains = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var (assembly, project) in domains)
+        var subdomains = new HashSet<ConventionOwner>();
+        foreach (var (assembly, _) in domains)
         {
-            var pending = new Stack<INamespaceSymbol>();
+            var pending = new Stack<INamespaceOrTypeSymbol>();
             pending.Push(assembly.GlobalNamespace);
-            while (pending.TryPop(out var ns))
+            while (pending.TryPop(out var container))
             {
                 facts.Cancellation.ThrowIfCancellationRequested();
-                foreach (var child in ns.GetNamespaceMembers()) pending.Push(child);
-                var name = ns.ToDisplayString();
-                if (ns.GetTypeMembers().Length == 0 || !name.StartsWith(project.RootNamespace + ".", StringComparison.Ordinal)) continue;
-                subdomains.Add(name[(project.RootNamespace.Length + 1)..].Split('.')[0]);
+                foreach (var member in container.GetMembers())
+                {
+                    if (member is INamespaceSymbol ns) pending.Push(ns);
+                    if (member is not INamedTypeSymbol type) continue;
+                    pending.Push(type);
+                    if (type.IsImplicitlyDeclared || !type.CanBeReferencedByName) continue;
+                    if (facts.Owner(type) is { Role: ConventionArchitecture.Domain } owner)
+                        subdomains.Add(owner);
+                }
             }
         }
         return subdomains;
     }
 
-    private static bool IsMissingDomainSubdomain(ConventionFacts facts, INamedTypeSymbol type, HashSet<string> subdomains, out string? owner)
+    private static bool IsMissingDomainSubdomain(ConventionFacts facts, INamedTypeSymbol type,
+        HashSet<ConventionOwner> subdomains, out string? owner)
     {
         owner = null;
         if (type.TypeKind != TypeKind.Class || type.IsAbstract || facts.Symbols.IsOpen(type, facts.Cancellation) ||
             facts.Role(type).Role != ConventionArchitecture.Infra || facts.HasInvalidOwner(type)) return false;
         if (!facts.Symbols.IsContext(type, facts.Cancellation) &&
             !facts.Symbols.IsKnown(type, facts.Symbols.RepositoryContract, facts.Cancellation)) return false;
-        owner = facts.Owner(type)?.Subdomain;
-        return owner is null || !subdomains.Contains(owner);
+        var resolved = facts.Owner(type);
+        owner = resolved?.DisplayName;
+        return resolved is null || !subdomains.Any(entry => entry.MatchesAcrossLayers(resolved));
     }
 }
