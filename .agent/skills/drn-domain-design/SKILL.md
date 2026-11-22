@@ -1,7 +1,7 @@
 ---
 name: drn-domain-design
 description: "Model DRN aggregates, repository boundaries, contract DTOs, mapping, and paginated APIs."
-last-updated: 2026-11-21
+last-updated: 2026-11-22
 difficulty: advanced
 ---
 
@@ -39,7 +39,7 @@ Validate external GUIDs against the entity type and application partition at the
 
 ## Contract Layer
 
-Keep `*.Contract` dependent only on SharedKernel. Put DTOs, value models, explicit public `*Request`/`*Response` messages, shared constants, and shared application enums there. Keep entities, repository interfaces, domain services, and `[DomainOnly]` enums in Domain. Follow `CONVENTIONS.md` for folders-only Domain grouping, subdomain `_Shared` value objects, and `[AllowZero]` enum rules. See `CONVENTIONS.md#terminology` for canonical Domain, Subdomain, project stem, and role stem definitions.
+Keep `*.Contract` dependent only on SharedKernel. Put DTOs, value models, explicit public `*Request`/`*Response` messages, shared constants, and shared application enums there. Keep entities, repository interfaces, domain services, and `[DomainOnly]` enums in Domain. Resolve the installed `DRN.Framework.SharedKernel` package's `CONVENTIONS.md` through the [version-matched framework reference procedure](../overview-drn-framework/SKILL.md#documentation-and-source-references) for folders-only Domain grouping, subdomain `_Shared` value objects, `[AllowZero]` enum rules, and canonical Domain, Subdomain, project stem, and role stem definitions (**Terminology**).
 
 ## DTO Mapping Rules
 
@@ -53,7 +53,7 @@ public class CategoryDto(SourceKnownEntity? entity = null) : Dto(entity)
 }
 ```
 
-In Domain, override `SourceKnownEntity.ToDto()` covariantly with `public override CategoryDto ToDto() => new(this) { Name = Name };`. Application services deriving from `SourceKnownService<TEntity, TDto>` or `SourceKnownService<TEntity, TDto, TCreateRequest>` inherit virtual `ToDto(TEntity)` delegating to `entity.ToDto()` (checked by `DRNDTO007`) and implement `CreateEntityAsync`. Select only fields needed by consumers. Preserve each mapped property's Personal and Sensitive classifications on both DTOs and Contract `*Response` projections, including when renaming fields. A metadata-only mapper can return `new(this)`. Map writable request fields through domain constructors or operations so invariants run on every path.
+In Domain, override `SourceKnownEntity.ToDto()` covariantly with `public override CategoryDto ToDto() => new(this) { Name = Name };`. Application services deriving from either `SourceKnownService<TEntity, TDto>` or `SourceKnownService<TEntity, TDto, TCreateRequest>` inherit virtual `ToDto(TEntity)` delegating to `entity.ToDto()` (checked by `DRNDTO007`). Only services deriving from `SourceKnownService<TEntity, TDto, TCreateRequest>` must implement `CreateEntityAsync`. Select only fields needed by consumers. Preserve each mapped property's Personal and Sensitive classifications on both DTOs and Contract `*Response` projections, including when renaming fields. A metadata-only mapper can return `new(this)`. Map writable request fields through domain constructors or operations so invariants run on every path.
 
 ## API Integration
 

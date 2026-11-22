@@ -291,8 +291,6 @@ Ownerless keys share one ordinal-name namespace within the current `ICancellatio
 
 Do not derive keys from request data, user input, instance IDs, or operation IDs because these values represent individual work rather than shared component or workflow lifetimes. `ICancellationUtils` owns returned scopes; callers own and dispose local linked sources.
 
-For root-wide migration, replace `cancellation.Cancel()`, `Merge(token)`, `Token`, and `IsCancellationRequested` with their `cancellation.Root` equivalents.
-
 ### Module Registration & Startup Actions
 
 Services can require complex registration logic or post-startup actions. Attributes inheriting from `ServiceRegistrationAttribute` handle this.
@@ -545,7 +543,7 @@ Dictionary diagnostics use `AddDictionary` or `SanitizeDictionary` with exact `D
 
 `IScopedLog` aggregates structured operational data, metrics, checkpoints, and exceptions for a logical scope. Hosting emits one grouped record when it fits and bounded linked records for larger sanitized diagnostics. See [diagnostic redaction and grouping](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md) for classification, limits, and reconstruction.
 
-SharedKernel's classification analyzer checks model properties independently of capture and `[IgnoreLog]`. Use `[Personal]`, `[Sensitive]` or a derived company attribute for positive classification. Named models use their own property names without built-in logging-prefix matches. Direct `[Sensitive(false)]` acknowledges a property false positive without overriding positive classification or configured analyzer paths. For one supported scalar acknowledgement, use `Add(key, value, exemptionReason)` or `SanitizeValue(path, value, exemptionReason)` with an application-authored reason. Supported scalars include nullable values, DateOnly, TimeOnly and Uri. Uri always receives URL sanitization regardless of the entry name. Complex reason-bearing values return an unavailable marker without traversal. The analyzer recognizes policy overloads as name acknowledgements without interpreting individual entries. Configured paths and declaration checks remain enforced. Native copies preserve explicit classification metadata and destination budgets; public snapshots carry no classification metadata. See the [migration and capture boundaries](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#boundaries-and-migration).
+SharedKernel's classification analyzer checks model properties independently of capture and `[IgnoreLog]`. Use `[Personal]`, `[Sensitive]` or a derived company attribute for positive classification. Named models use their own property names without built-in logging-prefix matches. Direct `[Sensitive(false)]` acknowledges a property false positive without overriding positive classification or configured analyzer paths. For one supported scalar acknowledgement, use `Add(key, value, exemptionReason)` or `SanitizeValue(path, value, exemptionReason)` with an application-authored reason. Supported scalars include nullable values, DateOnly, TimeOnly and Uri. Uri always receives URL sanitization regardless of the entry name. Complex reason-bearing values return an unavailable marker without traversal. The analyzer recognizes policy overloads as name acknowledgements without interpreting individual entries. Configured paths and declaration checks remain enforced. Native copies preserve explicit classification metadata and destination budgets; public snapshots carry no classification metadata. See the [capture boundaries](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#capture-boundaries).
 
 `DiagnosticCapturePolicy` validates `DiagnosticNameExemption` entries for capture kinds, original path segments, and reasons. Use adjacent comments when an exact compiler name acknowledgement is needed.
 
@@ -694,7 +692,7 @@ public class NexusClient(INexusRequest request)
 ### Response conversion and failures
 
 Buffered response converters (`ToStringAsync`, `ToBytesAsync`, and `FromJsonAsync`) capture `HttpStatus` and `Payload`, then dispose the response even if reading or deserialization fails.
-Call converters as extension methods on `Task<IFlurlResponse>` or `IFlurlResponse`; `HttpResponse` models the converted result and no longer exposes static conversion entry points.
+Call converters as extension methods on `Task<IFlurlResponse>` or `IFlurlResponse`. `HttpResponse` models the converted result.
 
 `HttpResponse.StatusClass` classifies the status as `Informational`, `Success`, `Redirection`, `ClientError`, `ServerError`, or `Unknown`; `IsSuccessStatusCode` is true only for `2xx`. Flurl normally follows redirects, so a `3xx` snapshot represents a redirect that remained final. Use `AllowAnyHttpStatus()` when the throwing converters should return non-success responses for direct inspection.
 
@@ -1240,8 +1238,6 @@ var mixed = ids.Validate<User>(externalGuidId, SourceKnownEntityIdFormat.Auto);
 
 `Parse` returns `Valid == false` for invalid input or a disallowed representation. `Validate` throws `ValidationException` when integrity, format, entity type or application partition does not match. Nullable inputs return null for supported formats; undefined enum values throw `ArgumentOutOfRangeException`, even with null input. A valid ID does not grant access to an entity; authorization remains the application's responsibility.
 
-Migration: ordinary calls compile unchanged, but their omitted-format behavior is now strict. Select `Auto` explicitly where mixed formats are intentional. Public signatures changed, so compiled consumers must be rebuilt; custom interface implementations and method-group bindings must be updated. Domain helpers, repositories and pagination that omit the format inherit the configured policy.
-
 > [!IMPORTANT]
 > Add rate limiting to endpoints that accept `SourceKnownEntityId` from untrusted sources to prevent brute-force attacks.
 
@@ -1366,7 +1362,7 @@ Extensions cover .NET types, DI descriptors, HTTP diagnostics, and dynamic metho
 *   **Discovery**: `FindMethod` returns matching method metadata for repeated use.
 *   **Uncached Discovery**: `type.FindMethodUncached(...)` for explicit cache-bypassing scenarios (e.g. one-off startup discovery).
 
-Pass generic type arguments as an explicit `Type[]`, such as `instance.InvokeMethod("Name", [typeof(string)])`. A single `typeof(string)` argument selects an ordinary method accepting `Type`. The former generic/fast aliases were removed; use `FindMethod`, `FindMethodUncached`, `InvokeMethod`, and `InvokeStaticMethod`. For an already resolved method, use `MethodInvoker.Create(methodInfo)` or a compiled delegate. See [MethodUtils.cs](Extensions/MethodUtils.cs).
+Pass generic type arguments as an explicit `Type[]`, such as `instance.InvokeMethod("Name", [typeof(string)])`. A single `typeof(string)` argument selects an ordinary method accepting `Type`. For an already resolved method, use `MethodInvoker.Create(methodInfo)` or a compiled delegate. See [MethodUtils.cs](Extensions/MethodUtils.cs).
 
 ### Service Collection
 

@@ -1,7 +1,7 @@
 ---
 name: drn-sharedkernel
 description: "DRN domain primitives, Source-Known identity and time, repository contracts, pagination, exceptions, and classification analyzers."
-last-updated: 2026-11-21
+last-updated: 2026-11-22
 difficulty: intermediate
 ---
 
@@ -29,7 +29,7 @@ GUID helpers default to `ConfiguredDefault`. Implementations expose an immutable
 
 ## Repository Contract
 
-Concrete aggregates use an `Entity` suffix and a matching final namespace and folder (`QA/Order/OrderEntity.cs` in `<DomainRoot>.QA.Order`). Each needs an `ISourceKnownRepository<TEntity>` interface in the same Domain assembly, namespace, and folder (`QA/Order/IOrderRepository.cs`). Compile/Link paths govern folder checks. Repositories end in `Repository`, semantic services in `Service`, and MVC controllers in `Controller` (`DRNSTRUCTURE004`/`005`, `DRNREPOSITORY003`/`004`). Abstract and open generic helpers are excluded. Consult `CONVENTIONS.md` for scope and exceptions.
+Concrete aggregates use an `Entity` suffix and a matching final namespace and folder (`QA/Order/OrderEntity.cs` in `<DomainRoot>.QA.Order`). Each needs an `ISourceKnownRepository<TEntity>` interface in the same Domain assembly, namespace, and folder (`QA/Order/IOrderRepository.cs`). Compile/Link paths govern folder checks. Repositories end in `Repository`, semantic services in `Service`, and MVC controllers in `Controller` (`DRNSTRUCTURE004`/`005`, `DRNREPOSITORY003`/`004`). Abstract and open generic helpers are excluded. Consult the installed `DRN.Framework.SharedKernel` package's `CONVENTIONS.md` for scope and exceptions.
 
 `ISourceKnownService<TEntity>` exposes `ISourceKnownRepository<TEntity> Repository` for `AggregateRoot`. `ISourceKnownService<TEntity, out TDto>` adds covariant `ToDto(TEntity)`, and `ISourceKnownService<TEntity, out TDto, in TCreateRequest>` adds `CreateEntityAsync`. Matching `SourceKnownService` abstract bases implement them from a constructor-supplied repository, with virtual `ToDto(TEntity)` delegating to `entity.ToDto()` (checked by `DRNDTO007` and guarded at runtime).
 
@@ -49,7 +49,7 @@ Use `JsonConventions.DefaultOptions` (Web defaults, string enums and longs, came
 
 ## Attributes
 
-Use `CONVENTIONS.md` for roles, dependencies, ownership, domain layouts (`DrnDomainLayout=Project|Folders`, `DrnDomain`), folders-only Domain rules (`DRNSTRUCTURE008`), Domain-role subdomains (`DRNOWNERSHIP004`), strict contracts (`DRNDTO001`..`007`, `SourceKnownEntity.ToDto()`), enum rules (`DRNENUM001`..`005`, `[DomainOnly]`, `[AllowZero]`), and exceptions. See `CONVENTIONS.md#terminology` for canonical Domain, Subdomain, project stem, and role stem definitions. `SCAFFOLDING.md` covers editor actions. Convention warnings stay independent of identity, classification, and authorization.
+Use the installed `DRN.Framework.SharedKernel` package's `CONVENTIONS.md` for roles, dependencies, ownership, domain layouts (`DrnDomainLayout=Project|Folders`, `DrnDomain`), folders-only Domain rules (`DRNSTRUCTURE008`), Domain-role subdomains (`DRNOWNERSHIP004`), strict contracts (`DRNDTO001`..`007`, `SourceKnownEntity.ToDto()`), enum rules (`DRNENUM001`..`005`, `[DomainOnly]`, `[AllowZero]`), canonical Domain, Subdomain, project stem, and role stem definitions (**Terminology**), and exceptions. The installed package's `SCAFFOLDING.md` covers editor actions. Convention warnings stay independent of identity, classification, and authorization.
 
 Analyzer and code-fix assemblies target `net10.0` independently of `net11.0` apps. Keep packaged DLL paths aligned with tooling targets. Allocate the next 3-digit ID per prefix, reserve retired IDs, and register IDs in `AnalyzerReleases.Unshipped.md`, contract tests, and `CONVENTION-DIAGNOSTICS.md`.
 

@@ -74,7 +74,7 @@ Public endpoints and Contract messages must not return, accept, inherit from, or
 | Item | Required relationship and optional evidence |
 |---|---|
 | `DrnConventionContext` | Exact context metadata name. Conventional `Repositories` and `Migrations` destinations are inferred from namespace and logical source homes. Declare destinations for alternate or ambiguous layouts, with `Reason` for alternatives. Optional `Domain`, `Subdomain`, `MigrationsAssembly`, `Factory`, `Provider`, `Reason`. Custom construction/provider declarations need a review reason and runtime/model evidence. |
-| `DrnConventionOwnership` | Exact type, `Subdomain`, optional `Domain`, `Kind` (`Entity` or `Value`) and `Reason`. Persistence types cannot become neutral values. |
+| `DrnConventionOwnership` | Exact type and `Subdomain`. Optional `Domain`, `Kind` (`Entity` or `Value`), and `Reason`. Persistence types cannot become neutral values. |
 | `DrnConventionConfiguration` | Exact configuration type and `Context`. Records intended association without requiring a configuration class for every entity. |
 | `DrnConventionRegistration` | Exact implementation and `Service`, optional `Key`. `Reason` documents a reviewed custom/external path whose runtime behavior still needs validation. |
 | `DrnConventionException` | Exact diagnostic, `SymbolTarget`, `Reason`, `Owner`, `Review` (`yyyy-MM-dd`). Optional exact `Entity` and `Context` narrow an exception further. |

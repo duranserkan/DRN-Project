@@ -419,7 +419,7 @@ protected override MfaExemptionConfig ConfigureMFAExemption()
     => new() { ExemptAuthSchemes = ["ApiKey", "Certificate"] };
 ```
 
-`ConfigureAuthenticationClaims` defaults to Identity claim types and `amr=mfa`. See [Renewal and assurance](#renewal-and-assurance) for custom mappings and their migration requirements.
+`ConfigureAuthenticationClaims` defaults to Identity claim types and `amr=mfa`. See [Renewal and assurance](#renewal-and-assurance) for custom mappings and their requirements.
 
 For example, register `ApiKey`, add it to the exemption list, and select it in an API policy that requires an API scope. Listing `ApiKey` alone does not let it access default endpoints using `Identity.BearerAndApplication`. Programmatic MFA checks without an HTTP policy context require completed MFA.
 
@@ -863,9 +863,7 @@ The generator targets `net10.0` because IDE compiler hosts can run on .NET 10 in
 
 Generation requires SDK Web and a public, concrete, non-generic, top-level DRN program declared in that same project. Its inherited `DrnProgramBase<TProgram>` argument must be the program itself. For example, `AppProgram : DrnProgramBase<AppProgram>` qualifies, while a subclass of that closed program does not create another root. Referenced programs do not create roots in the consuming project. Non-Web projects do not generate helpers.
 
-Every class deriving directly or indirectly from `DrnProgramBase<TProgram>` must end with the case-sensitive suffix `Program`. Diagnostic `DRNHOSTING002` reports an error otherwise, including abstract, generic and nested descendants. `HostedAccessors` is no longer needed or available. Remove its assembly declarations and use the program's name and namespace for the generated roots.
-
-If your diagnostic settings or suppressions use the earlier IDs, replace `DRNHG001` with `DRNHOSTING001` for accessor diagnostics and `DRNHG002` with `DRNHOSTING002` for program naming.
+Every class deriving directly or indirectly from `DrnProgramBase<TProgram>` must end with the case-sensitive suffix `Program`. Diagnostic `DRNHOSTING002` reports an error otherwise, including abstract, generic and nested descendants.
 
 Return the generated singleton from the program's startup hook:
 
@@ -909,30 +907,9 @@ Pages use file identities, not custom `@page` URLs. Root files group under `Root
 
 Typed parameter/constraint generation remains a TODO. Continue passing route/query values to `Url.Endpoint`; runtime constraints and encoding remain authoritative. For absolute identity links use `LinkGenerator.GetUriByEndpoint(HttpContext, endpoint, values)`, which shares effective-action and destination-area validation with `Url.Endpoint` and uses the processed request origin and PathBase.
 
-### 1. Migrate existing accessors
+### Usage in Code
 
-Eligible SDK Web programs always generate both roots. An existing endpoint collection under another name produces `DRNHOSTING001`, even when the startup hook returns that collection. There is no root-name override or per-program generation opt-out. Changing only the old collection's base to `EndpointCollectionBase<TProgram, TCollection>` is insufficient.
-
-For an `Example.Hosted.AppProgram`, migrate as follows:
-
-1. Remove every `HostedAccessors` assembly declaration, including its `Name` and `Namespace` overrides. Rename DRN program descendants to end with `Program`.
-2. Replace references to the old roots with `Example.Hosted.Helpers.EndpointFor.AppEndpointFor` and `Example.Hosted.Helpers.PageFor.AppPageFor`. A program named `Program` uses these same root names. Other program names use their stem as described above.
-3. Remove old root declarations when they contain only generated members. Move custom root members into public partial classes at the new names and namespaces. Remove the old base declarations, constructors that duplicate generated initialization, and generated group properties. Do not declare an `EndpointCollection` property on the endpoint root.
-4. Move custom controller, group and page members into the corresponding generated partial classes. Remove declarations already supplied by generation, including controller constructors and page `PathSegments` overrides. Use `AccessorController.TypeName` and `AccessorGroup` to retain leaf or group type names where needed. These aliases do not rename roots or change their namespaces.
-5. Before retaining an authored replacement for a generated action or page, exclude that member with `AccessorMember`. Keep endpoint bindings aligned with the CLR action signature, using `EndpointAction` when needed. Exclusions affect accessor generation, not MVC routing or authorization.
-6. Update the handwritten `Get` facade and return the generated endpoint singleton from `ConfigureEndpointCollection`. Remove obsolete collections after moving their customizations.
-
-For example, this declaration preserves `Get.Endpoint.User.Login` and `Get.Endpoint.User.Profile` for a local `UserController` with eligible `Login` and `Profile` actions. Put assembly attributes before namespace and type declarations:
-
-```csharp
-using DRN.Framework.Hosting.Endpoints;
-using Example.Hosted;
-using Example.Hosted.Controllers;
-
-[assembly: AccessorController(typeof(AppProgram), typeof(UserController), "User", TypeName = "UserEndpoints")]
-```
-
-Keep the facade in an authored file. With `Pages/User/Login.cshtml` containing `@page`, the generated page root supplies `User.Login`:
+Expose generated singletons through an authored `Get` facade and bind the endpoint singleton in `ConfigureEndpointCollection`:
 
 ```csharp
 namespace Example.Hosted;
@@ -947,14 +924,7 @@ public static class Get
 }
 ```
 
-Inside `AppProgram`, bind the endpoint singleton during startup:
-
-```csharp
-protected override EndpointCollection<AppProgram> ConfigureEndpointCollection()
-    => Helpers.EndpointFor.AppEndpointFor.EndpointCollection;
-```
-
-To retain an authored page destination, exclude the generated member and provide its replacement in the generated type's partial declaration:
+To replace a generated action or page member with an authored member, exclude it with `AccessorMember` and declare the replacement in a matching partial class:
 
 ```csharp
 using DRN.Framework.Hosting.Endpoints;
@@ -970,11 +940,7 @@ public partial class UserPageFor
 }
 ```
 
-The exclusion requires a matching page input. Use page identity paths even when `@page` defines a custom URL route. Additional authored shortcuts that do not replace generated members need no exclusion.
-
-Collection construction no longer scans the host assembly. The startup hook accepts only a collection for the matching program. Leave it unconfigured for hosts without typed controller accessors that need binding. Access runtime endpoint lists through `IEndpointAccessor` instead of the removed base's static catalog properties. Code that used `EndpointSource` can construct `DrnEndpointSource` from `IEndpointAccessor.EndpointHelper.EndpointDataSource`.
-
-### 2. Usage in Code
+Exclusions require a matching input and use page identity paths even when `@page` defines a custom route. Exclusions affect accessor generation only, not MVC routing or authorization. Additional authored members need no exclusion. Access runtime endpoint lists through `IEndpointAccessor`, or construct `DrnEndpointSource` from `IEndpointAccessor.EndpointHelper.EndpointDataSource`.
 
 Use the typed accessor members with IDE completion:
 
@@ -1049,7 +1015,7 @@ Vite manifests under `wwwroot/**/.vite/manifest.json` are included automatically
 
 When publishing with a custom web root, build targets do not automatically capture manifests outside `wwwroot/**`; applications must separately include manifests and referenced assets in publish items.
 
-Before upgrading, add a hashing step to your Vite build. Stock Vite omits the `hash` field that DRN tag helpers use for subresource integrity. For every manifest entry, hash the final uncompressed bytes of its `file` with SHA-256 and write the digest as standard Base64 in `hash`. This applies even when deploying only original files. Rebuild and deploy the updated manifests together with their assets. See the [Sample Vite plugin](../Sample.Hosted/vite.config.plugin.ts) and its [build configuration](../Sample.Hosted/vite.config.ts).
+Stock Vite omits the `hash` field that DRN tag helpers require for subresource integrity. Add a build step that hashes each manifest entry's final uncompressed `file` bytes with SHA-256 and writes standard Base64 to `hash`, even when deploying only original files. Deploy the manifests together with their assets. See the [Sample Vite plugin](../Sample.Hosted/vite.config.plugin.ts) and its [build configuration](../Sample.Hosted/vite.config.ts).
 
 If using the Sample plugin, `precompressAssets([])` keeps every original and emits a Brotli sidecar when compression reduces its size. For a Brotli-only deployment, set `brotliOnly` to `true` on each entry whose original you omit and deploy `<file>.br`. Other entries require the original `file`.
 
@@ -1180,8 +1146,6 @@ This returns **409 Conflict** with the public detail and `code`. The exception m
 Swagger adds one representative 400 response as `application/problem+json` with required `requestId`. Its description explains that the same contract covers all 4xx and 5xx statuses. Other statuses are shown only when declared by the endpoint. Declared validation schemas and custom response types are preserved. Declare custom error bodies with `ProducesResponseType` or minimal API response metadata so Swagger can describe them accurately. Browser and HEAD operations are unchanged.
 
 Apply `[DisableDrnProblemDetails]` from `DRN.Framework.Hosting.Middlewares.ApiErrors` to a controller class or individual action to disable DRN formatting and automatic Swagger error metadata. The attribute is inherited. ASP.NET Core may still produce native Problem Details, including validation responses, without DRN's `requestId`. Exceptions use the existing development diagnostics or production fallback. Authentication and authorization remain unchanged. Unmatched routes still use the configured path prefixes because no endpoint attribute is available.
-
-**Migration:** Clients must handle JSON where API errors previously returned text, HTML, or no body. Validation gains `requestId`. For these statuses, `WriteProductionErrorResponseAsync` handles browser, non-API, and opted-out API exceptions. Browser error pages and development diagnostics are unchanged.
 
 Custom nonempty bodies are not rewritten. Empty-response handling respects declared content type and length, and disabled status-code pages. HEAD responses have no body. Responses that have started, aborted requests, and errors produced before the application pipeline are outside this contract.
 

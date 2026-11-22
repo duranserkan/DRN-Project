@@ -497,8 +497,6 @@ var mixedUsers = await repository.GetAsync(mixedIds);
 var mixedUsersFromGuids = await repository.GetAsync(guidList, SourceKnownEntityIdFormat.Auto);
 ```
 
-Rebuild binary consumers and update custom repository implementations, overrides and method-group bindings for the GUID helper/query signatures. Parsed-record query/delete APIs have no format parameter; the protected record-ID Filter is static. Conversion APIs retain their signatures.
-
 ### Secure ↔ Plain Conversion
 
 Repositories expose idempotent conversion between encrypted and plaintext entity IDs:

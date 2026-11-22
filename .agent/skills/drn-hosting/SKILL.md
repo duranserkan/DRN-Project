@@ -1,13 +1,13 @@
 ---
 name: drn-hosting
 description: "Configure DRN hosts, MFA, API errors, rate limits, Razor endpoints, CSP and TagHelpers."
-last-updated: 2026-11-21
+last-updated: 2026-11-22
 difficulty: advanced
 ---
 
 # DRN.Framework.Hosting
 
-Use [version-matched references](../overview-drn-framework/SKILL.md#documentation-and-source-references). The [Hosting README][hosting] owns signatures, examples, defaults, and migration. Development guidance may be unreleased. `Example*` names are placeholders.
+Use [version-matched references](../overview-drn-framework/SKILL.md#documentation-and-source-references). The [Hosting README][hosting] owns signatures, examples, and defaults. Development guidance may be unreleased. `Example*` names are placeholders.
 
 ## DrnProgramBase Pattern
 
@@ -43,9 +43,9 @@ Swagger UI prefixes use nonempty ASCII letter, digit, hyphen or underscore segme
 
 ## Page & Endpoint Management
 
-README **Source-Known Controllers** owns single-tier service-backed `SourceKnown*Controller` (`ISourceKnownService`, `abstract ToResponse`, constructor `Dto` rejection guard throwing `InvalidOperationException`, virtual `CreateEntityAsync` delegation). See `CONVENTIONS.md#terminology` for canonical Domain, Subdomain, project stem, and role stem definitions. `DRNAUTHORIZATION001` requires named policies. SPA APIs use bearer-only schemes. Cookie APIs need antiforgery. Keep resource checks in app code. Disable actions with `[NonAction]` and omit accessors. `IgnoreApi` only hides docs.
+README **Source-Known Controllers** owns single-tier service-backed `SourceKnown*Controller` (`ISourceKnownService`, `abstract ToResponse`, constructor `Dto` rejection guard throwing `InvalidOperationException`, virtual `CreateEntityAsync` delegation). Resolve the installed `DRN.Framework.SharedKernel` package's `CONVENTIONS.md` (**Terminology**) via the [version-matched reference lookup](../overview-drn-framework/SKILL.md#documentation-and-source-references) for canonical Domain, Subdomain, project stem, and role stem definitions. `DRNAUTHORIZATION001` requires named policies. SPA APIs use bearer-only schemes. Cookie APIs need antiforgery. Keep resource checks in app code. Disable actions with `[NonAction]` and omit accessors. `IgnoreApi` only hides docs.
 
-Use typed `PageCollection`/`EndpointCollection` singletons and return the latter from `ConfigureEndpointCollection`, including generated roots. Never cache request URLs or authorization results statically. `EndpointName` is a label, not a registered name. `Path(...)` formats templates. Use `Url.Endpoint` for routing, constraints, encoding, and prefixes. README owns base-type migration, typed-link restrictions, and disposal exclusions.
+Use typed `PageCollection`/`EndpointCollection` singletons and return the latter from `ConfigureEndpointCollection`, including generated roots. Never cache request URLs or authorization results statically. `EndpointName` is a label, not a registered name. `Path(...)` formats templates. Use `Url.Endpoint` for routing, constraints, encoding, and prefixes. README owns typed-link restrictions and disposal exclusions, and release notes own base-type migration.
 
 Hosting ships `net10.0` generation via buildTransitive/shared targets. README **Automatic hosted accessors** owns eligibility, `DRNHOSTING002` naming, and Razor conventions. Reuse typed singletons and keep `Get` and route constants handwritten. Controller accessors require `ControllerBase`. Discovery skips others and explicit mappings report `DRNHOSTING001`.
 

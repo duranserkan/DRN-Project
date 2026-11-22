@@ -36,7 +36,7 @@ SharedKernel distributes these diagnostics transitively. Public readable instanc
 | DRNCLASSIFICATION004 | An unrelated Microsoft classification cannot be verified statically. |
 | DRNCLASSIFICATION005 | A matching anonymous property requires an annotated named class or record. |
 | DRNCLASSIFICATION006 | A statically known matching dictionary key requires classification or a reviewed comment. |
-| DRNCLASSIFICATION007 | Invalid, unreadable, oversized, or ambiguous classification catalog. Previously DRN0021. |
+| DRNCLASSIFICATION007 | Invalid, unreadable, oversized, or ambiguous classification catalog. |
 | DRNCLASSIFICATION008 | Sensitive ILogger names or directly captured classified properties require a decision. |
 | DRNCLASSIFICATION009 | Malformed DiagnosticNameExemption comment. |
 | DRNCLASSIFICATION010 | Warning: a valid DiagnosticNameExemption comment suppresses no name diagnostic. |
@@ -84,7 +84,7 @@ Native copies preserve explicit classification metadata and detached values whil
 
 Metric APIs use code-owned identifiers without native runtime name matching. Custom sanitizers retain their own sensitivity checks. Do not use request values as metric identifiers.
 
-### Boundaries and migration
+### Capture boundaries
 
 DRNCLASSIFICATION008 covers Microsoft LoggerExtensions templates, template BeginScope, scope dictionary initializers/direct local writes, and directly extracted classified property values in ILogger and DRN captures. Escaped braces are literals; format/alignment suffixes are excluded. Known null, empty, and exact `[redacted]` values are allowed. DRNCLASSIFICATION003 also checks AddIfNotNullOrEmpty, excluding known null and empty values. Standard ILogger does not apply DRN runtime redaction.
 
@@ -108,7 +108,7 @@ Direct NSubstitute verification chains are excluded from capture checks. Ordinar
 
 DRNCLASSIFICATION005 exempts EF column-definition callbacks and supported column selectors by resolved symbols. Migration directories are not excluded. Ordinary anonymous objects inside migrations remain checked.
 
-Suppression of a compiler diagnostic does not classify a value at runtime. Review matching models and captures when upgrading. Do not mass-apply Sensitive or disable all test analysis. Classify generated properties through generator inputs or supported partial declarations where needed.
+Suppression of a compiler diagnostic does not classify a value at runtime. Do not mass-apply Sensitive or disable all test analysis. Classify generated properties through generator inputs or supported partial declarations where needed.
 
 ## Project classification rules
 
@@ -129,11 +129,11 @@ Build targets forward embedded catalogs to analysis and publish metadata retaine
 
 Project secret/personal fields extend analyzer names. Project sensitiveFieldPaths enforce full statically known capture paths, including nested scope dictionaries and reason/policy calls. Name exemptions cannot waive them. Runtime does not match any of these groups, including URL segments.
 
-Legacy `DiagnosticLogging` settings `SensitiveFields`, `SensitiveFieldPaths`, and `SensitivePathSegments` remain validated but have no redaction effect. `RuleFile` and `RuleAssemblyName` still load and validate catalogs for compatibility. They do not apply name matching. Relative `RuleFile` paths resolve from `AppContext.BaseDirectory`. Validation occurs once per options instance. Missing configured roots, invalid catalogs, and assembly load failures still fail construction. Missing transitive assemblies are skipped. No directory discovery or live reload occurs.
+`DiagnosticLogging` settings `SensitiveFields`, `SensitiveFieldPaths`, and `SensitivePathSegments` are validated without applying runtime redaction. `RuleFile` and `RuleAssemblyName` load and validate catalogs without applying runtime name matching. Relative `RuleFile` paths resolve from `AppContext.BaseDirectory`. Validation occurs once per options instance. Missing configured roots, invalid catalogs, and assembly load failures fail construction. Missing transitive assemblies are skipped. No directory discovery or live reload occurs.
 
-If retaining runtime catalog loading, deploy loose files through None Update with build/publish copying, or None Include with Link for external files. Embedded catalogs require no loose deployment. RuleFile and RuleAssemblyName merge additively. Analyzer registration alone does not require runtime loading.
+If using runtime catalog loading, deploy loose files through None Update with build/publish copying, or None Include with Link for external files. Embedded catalogs require no loose deployment. RuleFile and RuleAssemblyName merge additively. Analyzer registration alone does not require runtime loading.
 
-The four case-sensitive groups above must be string arrays. Unknown/duplicate groups, nulls, empty normalized names, names over 512 characters, more than 256 rules per file, and files over 65,536 characters are rejected. Inheritance is bounded to 1,024 assemblies, 64 catalogs, and 4,096 rules. Use UTF-8. Catalogs contain names, never secret values. Invalid compiler catalogs report DRNCLASSIFICATION007 (previously DRN0021) while baseline analysis remains active.
+The four case-sensitive groups above must be string arrays. Unknown/duplicate groups, nulls, empty normalized names, names over 512 characters, more than 256 rules per file, and files over 65,536 characters are rejected. Inheritance is bounded to 1,024 assemblies, 64 catalogs, and 4,096 rules. Use UTF-8. Catalogs contain names, never secret values. Invalid compiler catalogs report DRNCLASSIFICATION007 while baseline analysis remains active.
 
 The browser imports the shared catalog at bundle time and supports configured name matching. Server settings do not automatically reach the browser. Configure browser rules separately for project-specific names. Browser input carries no server classification authority.
 

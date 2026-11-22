@@ -10,8 +10,6 @@ dotnet_analyzer_diagnostic.category-DRN.Conventions.Architecture.severity = erro
 
 The rules from Architecture through Convention exceptions default to Warning in recognized application projects. Their messages below show placeholders for the relevant symbols or inputs. DRNPERSISTENCE001 offers an individual constructor code fix. See [terminology](CONVENTIONS.md#terminology), [project identity and exceptions](CONVENTIONS.md), and [editable assistance](SCAFFOLDING.md).
 
-For older settings, update the ID in `.editorconfig`, `NoWarn`, both ends of a `#pragma warning` suppression, the check ID in `SuppressMessage`, and the rule ID in any `DrnConventionException`. The [release notes](RELEASE-NOTES.md#version-0110) map each previous ID, including split rules.
-
 ## Entity DTOs and public contracts
 
 | ID | Category | Requirement |
@@ -94,8 +92,6 @@ Roslyn category: `DRN.Domain`. For examples of entity declarations, partitions, 
 
 Roslyn category: `DRN.Classification`. See [classification examples, code fixes and runtime boundaries](../DRN.Framework.Utils/Logging/Diagnostics/README.md#compile-time-classification).
 
-Replace `DRN0015` through `DRN0025` with `DRNCLASSIFICATION001` through `DRNCLASSIFICATION011` in the same order. Replace `DRN0027` with `DRNCLASSIFICATION012`.
-
 | ID | Default | Requirement |
 |---|---|---|
 | DRNCLASSIFICATION001 | Error | Classify matching model properties or declare a reviewed false positive. |
@@ -104,7 +100,7 @@ Replace `DRN0015` through `DRN0025` with `DRNCLASSIFICATION001` through `DRNCLAS
 | DRNCLASSIFICATION004 | Error | Use a supported classification attribute. |
 | DRNCLASSIFICATION005 | Error | Move matching anonymous properties to a named, annotated model. |
 | DRNCLASSIFICATION006 | Error | Classify a dictionary key or acknowledge an eligible exact-name match. |
-| DRNCLASSIFICATION007 | Error | Supply a readable, valid, unambiguous classification catalog. Previously DRN0021. |
+| DRNCLASSIFICATION007 | Error | Supply a readable, valid, unambiguous classification catalog. |
 | DRNCLASSIFICATION008 | Error | Remove or redact sensitive logging values. |
 | DRNCLASSIFICATION009 | Error | Put the exact name and a nonempty justification in the exemption comment immediately above the logging statement. |
 | DRNCLASSIFICATION010 | Warning | Remove or correct an unused name exemption comment. |
@@ -218,7 +214,7 @@ Roslyn category: `DRN.Conventions.Architecture`.
 
 > Infrastructure '{0}' requires populated Domain subdomain '{1}'.
 
-Every Infra project needs at least one populated subdomain namespace across its directly referenced Domain projects. Concrete Infra contexts and repositories must have matching Domain `(Domain, Subdomain)` owners. A type in `Shop.Domain.Sales` (Project layout) or `Platform.Domain.QA.Common` (Folders layout) establishes its owner in its declaring assembly. Same-named subdomains in different assemblies or different domains remain distinct owners. An empty directory or namespace with no types does not establish a subdomain. The message uses `<any>` when no populated Domain subdomain is available.
+Every Infra project needs at least one populated subdomain namespace across its directly referenced Domain projects. Concrete Infra contexts and repositories must match a directly referenced Domain owner. Matching compares `(Domain, Subdomain)` pairs when either side uses `Folders` layout or an explicit domain declaration, and matches unannotated `Project`-layout owners by subdomain only. A type in `Shop.Domain.Sales` (Project layout) or `Platform.Domain.QA.Common` (Folders layout) establishes its owner in its declaring assembly. Same-named subdomains in different assemblies or different domains remain distinct owners. An empty directory or namespace with no types does not establish a subdomain. The message uses `<any>` when no populated Domain subdomain is available.
 
 Place real Domain types under the owning subdomain or correct misplaced Infra ownership. Intentional project exceptions use `SymbolTarget="<AssemblyName>:Domain"` (or the reported symbol's documentation comment ID). Do not add placeholder types or empty folders merely to silence the diagnostic. Missing required references are reported first, and incomplete reference evidence does not prove a missing subdomain. No automatic namespace move or project-reference fix is offered.
 
