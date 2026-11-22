@@ -10,7 +10,7 @@ Targets .NET 11 with Microsoft.Extensions and System dependencies upgraded to 11
 
 ### New Features
 
-*   **Diagnostic classification and redaction**: Scoped logs redact explicitly classified `[Sensitive]`, `[Personal]`, derived, interface-inherited, and dictionary values within capture limits without runtime name inference. Added `AddDictionary`, `SanitizeDictionary`, `DiagnosticCapturePolicy`, optional `DiagnosticLogging:RuleFile` and `RuleAssemblyName` catalog validation, and the shared compiler/browser classification catalog. See the [diagnostic guide](Logging/Diagnostics/README.md).
+*   **Diagnostic classification and redaction**: Scoped logs redact explicitly classified `[Sensitive]`, `[Personal]`, derived, interface-inherited, and dictionary values within capture limits without runtime name inference. Added `AddDictionary`, `SanitizeDictionary`, `DiagnosticCapturePolicy`, optional `DiagnosticLogging:RuleFile` and `RuleAssemblyName` catalog validation, and the shared compiler/browser classification catalog. See the [diagnostic guide](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Logging/Diagnostics/README.md).
 *   **Grouped diagnostic overflow**: `LogScoped` keeps fitting diagnostics in one record and splits larger sanitized diagnostics into correlated parent/child `json-text` records with an expected-record manifest. `ToString()` returns one snapshot with sanitized diagnostics and retained events.
 *   **Scoped public errors**: Added `ScopeContext.Problem` for public Problem Details defaults and `ExceptionFor`-matching throwing helpers.
 *   **HTTP diagnostics**: Flurl exception logs sanitize URLs, proxy headers, and bounded error-body capture. Added `AddLinkerdProxyDiagnostics` for explicitly handled responses.

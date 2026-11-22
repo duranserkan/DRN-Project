@@ -21,10 +21,10 @@ public sealed class ConventionHostingCoexistenceTests
     private const string Controller = """
         namespace Sample.Hosted.QA;
         public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
-        public class OrderDto : DRN.Framework.SharedKernel.Domain.Dto;
-        public abstract class ControllerParent : DRN.Framework.Hosting.Controllers.SourceKnownControllerBase<Order, OrderDto>
+        public class OrderResponse;
+        public abstract class ControllerParent : DRN.Framework.Hosting.Controllers.SourceKnownControllerBase<Order, OrderResponse>
         {
-            protected ControllerParent(DRN.Framework.SharedKernel.Domain.ISourceKnownService<Order, OrderDto> service) : base(service) { }
+            protected ControllerParent(DRN.Framework.SharedKernel.Domain.ISourceKnownService<Order, OrderResponse> service) : base(service) { }
             public void Unnamed() { }
             [Microsoft.AspNetCore.Authorization.AllowAnonymous]
             [Microsoft.AspNetCore.Authorization.Authorize("Readers")]
@@ -34,7 +34,7 @@ public sealed class ConventionHostingCoexistenceTests
         }
         public class OrdersController : ControllerParent
         {
-            public OrdersController(DRN.Framework.SharedKernel.Domain.ISourceKnownService<Order, OrderDto> service) : base(service) { }
+            public OrdersController(DRN.Framework.SharedKernel.Domain.ISourceKnownService<Order, OrderResponse> service) : base(service) { }
         }
         """;
 
@@ -56,7 +56,7 @@ public sealed class ConventionHostingCoexistenceTests
         security.Should().OnlyContain(item => item.Severity == DiagnosticSeverity.Error);
         security.Select(AnalyzerTestCompilation.LocationText).Should().OnlyContain(text => text == "OrdersController");
         diagnostics.Should().NotContain(item => item.Id == "DRNARCHITECTURE004" && item.GetMessage().Contains("controller", StringComparison.OrdinalIgnoreCase));
-        if (enabled) diagnostics.Should().Contain(item => item.Id == "DRNARCHITECTURE004" && item.GetMessage().Contains("OrderDto"));
+        if (enabled) diagnostics.Should().Contain(item => item.Id == "DRNARCHITECTURE004" && item.GetMessage().Contains("'Order'"));
         else diagnostics.Should().OnlyContain(item => item.Id == "DRNAUTHORIZATION001");
     }
 

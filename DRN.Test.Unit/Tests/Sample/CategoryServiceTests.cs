@@ -58,7 +58,9 @@ public class CategoryServiceTests
         created.Name.Should().Be("Created");
 
         Func<Task> nullEntity = () => service.CreateResponseAsync(null!);
+        Func<Task> nullRequest = () => service.CreateEntityAsync(null!);
         await nullEntity.Should().ThrowAsync<ArgumentNullException>();
+        await nullRequest.Should().ThrowAsync<ArgumentNullException>();
 
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();

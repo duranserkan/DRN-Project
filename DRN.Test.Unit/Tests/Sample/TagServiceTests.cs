@@ -90,6 +90,11 @@ public class TagServiceTests
         created.Model.Date.Should().Be(date);
         created.Model.Type.Should().Be(TagType.User);
 
+        Func<Task> nullRequest = () => service.CreateEntityAsync(null!);
+        Func<Task> nullRequestModel = () => service.CreateEntityAsync(new TagPostRequest { Name = "Missing model", Model = null! });
+        await nullRequest.Should().ThrowAsync<ArgumentNullException>();
+        await nullRequestModel.Should().ThrowAsync<ArgumentNullException>();
+
         TagType?[] invalidTypes = [null, TagType.System, (TagType)99];
         foreach (var invalidType in invalidTypes)
         {

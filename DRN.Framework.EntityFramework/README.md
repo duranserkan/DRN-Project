@@ -16,7 +16,7 @@
 
 SharedKernel classification analyzers apply transitively to public readable model properties. Classify application model properties with the SharedKernel diagnostic attributes where required.
 
-[SourceKnown conventions](../DRN.Framework.SharedKernel/CONVENTIONS.md) require concrete application-owned EF contexts to implement `IDrnContext`, directly or through inheritance. See [DRNPERSISTENCE007](../DRN.Framework.SharedKernel/CONVENTION-DIAGNOSTICS.md#drnpersistence007-implement-the-application-persistence-context-contract) for specialized-context exceptions and validation limits. `SourceKnownPersistenceAttribute` describes context membership for analysis without changing the EF model. Attribute-only mapping and multiple contexts per entity remain supported. See [editable assistance](../DRN.Framework.SharedKernel/SCAFFOLDING.md) for optional scaffolding.
+[SourceKnown conventions](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/CONVENTIONS.md) require concrete application-owned EF contexts to implement `IDrnContext`, directly or through inheritance. See [DRNPERSISTENCE007](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/CONVENTION-DIAGNOSTICS.md#drnpersistence007-implement-the-application-persistence-context-contract) for specialized-context exceptions and validation limits. `SourceKnownPersistenceAttribute` describes context membership for analysis without changing the EF model. Attribute-only mapping and multiple contexts per entity remain supported. See [editable assistance](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/SCAFFOLDING.md) for optional scaffolding.
 
 ## Features
 
@@ -54,27 +54,38 @@ Define a DbContext and entity with automatic ID generation. DRNPERSISTENCE009 re
 ```csharp
 using DRN.Framework.EntityFramework.Context;
 using DRN.Framework.EntityFramework.Attributes;
+using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Domain;
 using Microsoft.EntityFrameworkCore;
 
-// 1. Define your application partition and entity
+// 1. Define your application partition, internal Contract DTO, and entity
 public readonly struct MyApp : IAppId
 {
     public const byte Value = 1;
     public static byte AppId => Value;
 }
 
+[DomainOnly]
 public enum DomainEntityTypes : byte { User = 1, Question = 2 }
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 public sealed class DomainEntityTypeAttribute(DomainEntityTypes kind)
     : EntityTypeAttribute<MyApp>((byte)kind);
 
+public sealed class UserDto(SourceKnownEntity? entity = null) : Dto(entity)
+{
+    [Personal]
+    public required string Username { get; init; }
+}
+
 [DomainEntityType(DomainEntityTypes.User)]
 public class UserEntity : AggregateRoot
 {
+    [Personal]
     public string Username { get; set; } = "";
     public bool IsActive { get; set; } = true;
+
+    public override UserDto ToDto() => new(this) { Username = Username };
 }
 
 // 2. Create your context inheriting from DrnContext
@@ -123,7 +134,7 @@ builder.Services.AddServicesWithAttributes(typeof(AppContext).Assembly);
 }
 ```
 
-Assign distinct `AppInstanceId` values to concurrent instances generating IDs for the same application. Zero is valid. Staging and Production also require private seed and Nexus key configuration; see [Utils configuration](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/README.md#configuration).
+Assign distinct `AppInstanceId` values to concurrent instances generating IDs for the same application. Zero is valid. Staging and Production also require private seed and Nexus key configuration. See [Utils configuration](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/README.md#configuration).
 
 `DRN.Framework.Hosting` runs startup validation automatically. Migration and seeding follow the environment settings described below. Standalone hosts must integrate the framework startup validation lifecycle explicitly.
 
@@ -131,11 +142,15 @@ Configure a connection using [Connection String Resolution by Environment](#conn
 
 ## QuickStart: Advanced
 
-Place public DTOs in the consuming application's `*.Contract` project. This example extends the beginner entity and context with a repository and controller:
+Place internal `Dto` types and explicit public `*Request`/`*Response` contracts in the consuming application's `*.Contract` project. This example extends the beginner entity and context with an explicit response contract, a repository, and a controller:
 
 ```csharp
-public sealed class UserDto(SourceKnownEntity? entity = null) : Dto(entity)
+public sealed class UserResponse
 {
+    public Guid Id { get; init; }
+    public DateTimeOffset CreatedAt { get; init; }
+    public DateTimeOffset ModifiedAt { get; init; }
+    [Personal]
     public required string Username { get; init; }
 }
 
@@ -162,41 +177,55 @@ public class UserRepository(AppContext context, IEntityUtils utils)
 public class UserController(IUserRepository repository) : ControllerBase
 {
     [HttpGet]
-    public async Task<PaginationResultModel<UserDto>> GetAsync([FromQuery] PaginationRequest request)
+    public async Task<PaginationResultModel<UserResponse>> GetAsync([FromQuery] PaginationRequest request)
     {
         var result = await repository.PaginateAsync(request);
-        return result.ToModel(u => new UserDto(u) { Username = u.Username });
+        return result.ToModel(u => new UserResponse
+        {
+            Id = u.EntityId,
+            CreatedAt = u.CreatedAt,
+            ModifiedAt = u.ModifiedAt,
+            Username = u.Username
+        });
     }
-    
+
     [HttpGet("{id:guid}")]
-    public async Task<UserDto> GetByIdAsync(Guid id)
+    public async Task<UserResponse> GetByIdAsync(Guid id)
     {
         var user = await repository.GetAsync(id); // Validates ID automatically
-        return new UserDto(user) { Username = user.Username };
+        return new UserResponse
+        {
+            Id = user.EntityId,
+            CreatedAt = user.CreatedAt,
+            ModifiedAt = user.ModifiedAt,
+            Username = user.Username
+        };
     }
 }
 ```
 
-Scan the repository assembly with `AddServicesWithAttributes` too if it differs from the context assembly. Apply your application's authorization policy to these endpoints; ID validation does not grant access to a record.
+Scan the repository assembly with `AddServicesWithAttributes` too if it differs from the context assembly. Apply your application's authorization policy to these endpoints. ID validation does not grant access to a record.
 
 ---
 
 ## Identity System
 
-The framework uses a database-optimized internal identifier and exposes `Guid EntityId` for external use. `SourceKnownEntityId` supports domain and repository identity operations; do not expose it in public contracts.
+The framework uses a database-optimized internal identifier and exposes `Guid EntityId` for external use. `SourceKnownEntityId` supports domain and repository identity operations. Do not expose it in public contracts.
 
 > [!IMPORTANT]
-> **External Identity Rule**: Always use `Guid EntityId` (mapped as `Id` in DTOs) for public contracts, API route parameters, and external lookups. Internal numeric IDs must never be exposed outside domain and infrastructure boundaries.
+> **External Identity Rule**: Always use `Guid EntityId` (mapped as `Id` in internal DTOs and explicit Contract responses) for public contracts, API route parameters, and external lookups. Internal numeric IDs must never be exposed outside domain and infrastructure boundaries.
+>
+> **Entity and DTO Exposure Prohibition**: Never expose entities or internal `Dto` types through public APIs or Contract messages. Map to explicit Contract `*Request` and `*Response` models instead. Entities are only permitted in Razor Pages (Internal UI).
 
 The internal `long` is the database key used for indexes and joins. External IDs are validated against the expected entity type and application partition. Secure IDs reduce predictability but do not replace authorization or rate limiting.
 
 ## DrnContext
 
-Put repository implementations in `Repositories`, EF configurations in `Configurations` with names ending in `Config`, and DRN migrations/snapshots in `Migrations`. These are the immediate logical folders and final namespace segments. Domain repository interfaces stay beside their aggregates. Applied custom options names start with the context name and end in `Options`, before an optional `Attribute`, such as `QAContextNpgsqlDbContextOptionsAttribute`. Shared framework defaults are exempt. See DRNSTRUCTURE004, DRNSTRUCTURE006 and DRNSTRUCTURE007 in the [diagnostic reference](../DRN.Framework.SharedKernel/CONVENTION-DIAGNOSTICS.md).
+Put repository implementations in `Repositories`, EF configurations in `Configurations` with names ending in `Config`, and DRN migrations/snapshots in `Migrations`. These are the immediate logical folders and final namespace segments. Domain repository interfaces stay beside their aggregates. Applied custom options names start with the context name and end in `Options`, before an optional `Attribute`, such as `QAContextNpgsqlDbContextOptionsAttribute`. Shared framework defaults are exempt. See DRNSTRUCTURE004, DRNSTRUCTURE006 and DRNSTRUCTURE007 in the [diagnostic reference](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/CONVENTION-DIAGNOSTICS.md).
 
-Each aggregate assigned to an Infra context needs a concrete `SourceKnownRepository<TContext,TEntity>` implementing its Domain subdomain repository interface. DRNREPOSITORY004 checks supported DbSet, explicit membership and configuration evidence. Unassigned aggregates from referenced Domain projects do not require implementations here. See [aggregate conventions](../DRN.Framework.SharedKernel/CONVENTIONS.md).
+Each aggregate assigned to an Infra context needs a concrete `SourceKnownRepository<TContext,TEntity>` implementing its Domain subdomain repository interface. DRNREPOSITORY004 checks supported DbSet, explicit membership and configuration evidence. Unassigned aggregates from referenced Domain projects do not require implementations here. See [aggregate conventions](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/CONVENTIONS.md).
 
-Instance `DbSet<TEntity>` properties on `DrnContext<TContext>` descendants must expose entities derived from `AggregateRoot`. DRNPERSISTENCE008 checks inherited properties and closed generic substitutions. Child entities may remain mapped through their aggregate without a DbSet property. The separate Identity context hierarchy is outside this rule. See the [diagnostic reference](../DRN.Framework.SharedKernel/CONVENTION-DIAGNOSTICS.md#drnpersistence008-expose-aggregate-roots-through-dbset-properties).
+Instance `DbSet<TEntity>` properties on `DrnContext<TContext>` descendants must expose entities derived from `AggregateRoot`. DRNPERSISTENCE008 checks inherited properties and closed generic substitutions. Child entities may remain mapped through their aggregate without a DbSet property. The separate Identity context hierarchy is outside this rule. See the [diagnostic reference](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/CONVENTION-DIAGNOSTICS.md#drnpersistence008-expose-aggregate-roots-through-dbset-properties).
 
 Derive from `DrnContext<TContext>` and provide both constructors shown in the beginner example. The options constructor is used by dependency injection; the public parameterless constructor supports `IDesignTimeDbContextFactory<TContext>`.
 
@@ -409,11 +438,8 @@ if (result.Info.HasPrevious)
 var filter = EntityCreatedFilter.After(DateTimeOffset.UtcNow.AddDays(-7));
 var recentUsers = await repository.PaginateAsync(request, filter);
 
-// Map to DTOs while preserving pagination
-var dtoResult = result.ToModel(user => new UserDto(user)
-{
-    Username = user.Username
-});
+// Map to internal DTOs while preserving pagination
+var dtoResult = result.ToModel(user => user.ToDto());
 ```
 
 ### Query Composition
@@ -479,7 +505,7 @@ All `GetEntityId`, `GetEntityIds` and `GetEntityIdsAsEnumerable` overloads accep
 
 GUID-input `GetAsync`, `GetOrDefaultAsync` and `DeleteAsync` enforce DefaultFormat during parsing. Pass an explicit format to override it; accepting both GUID formats requires Auto. For deletion, use `DeleteAsync(ids, format)` with a GUID collection; the GUID params overload uses ConfiguredDefault. Parsed-record reads and deletes have no format parameter: they accept either representation and check stored validity and identity without reauthenticating the GUID. Pass only trusted internal records; untrusted GUIDs must go through parsing. Entity-input Add/Create/Delete operations also have no format parameter.
 
-Secure-only defaults block direct plaintext MAC guessing. Keep `Plain`/`Auto` overrides under application control. Conversion helpers use `Auto`, so validate external GUIDs with the endpoint's required format before conversion or record-input operations. See [the security rationale](../DRN.Framework.Utils/README.md#parse--validation).
+Secure-only defaults block direct plaintext MAC guessing. Keep `Plain`/`Auto` overrides under application control. Conversion helpers use `Auto`, so validate external GUIDs with the endpoint's required format before conversion or record-input operations. See [the security rationale](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/README.md#parse--validation).
 
 ```csharp
 // Throws ValidationException for an invalid ID or a mismatched entity type/partition
@@ -522,14 +548,18 @@ Use attributes for constraints and indexes that they can express. This is an alt
 [Index(nameof(Username), IsUnique = true)]
 public class UserEntity : AggregateRoot
 {
+    [Personal]
     [MaxLength(100)]
     [Required]
     public string Username { get; set; } = string.Empty;
-    
+
+    [Personal]
     [MaxLength(255)]
     public string Email { get; set; } = string.Empty;
-    
+
     public bool IsActive { get; set; } = true;
+
+    public override UserDto ToDto() => new(this) { Username = Username };
 }
 ```
 
@@ -582,10 +612,17 @@ Sample.Infra/QA/
 Source-Known entities implementing `IEntityWithModel<TModel>` have their public `Model` property mapped as an owned JSON object with `OwnsOne(...).ToJson()`. PostgreSQL stores it as `jsonb`:
 
 ```csharp
+public sealed class QuestionDto(SourceKnownEntity? entity = null) : Dto(entity)
+{
+    public QuestionModel Model { get; init; } = new();
+}
+
 [DomainEntityType(DomainEntityTypes.Question)]
 public class QuestionEntity : AggregateRoot<QuestionModel>
 {
     public QuestionEntity() => Model = new QuestionModel();
+
+    public override QuestionDto ToDto() => new(this) { Model = Model };
 }
 
 public class QuestionModel
@@ -1039,6 +1076,7 @@ global using System.ComponentModel.DataAnnotations.Schema;
 global using DRN.Framework.EntityFramework.Attributes;
 global using DRN.Framework.EntityFramework.Context;
 global using DRN.Framework.EntityFramework.Domain;
+global using DRN.Framework.SharedKernel.Attributes;
 global using DRN.Framework.SharedKernel.Cancellation;
 global using DRN.Framework.SharedKernel.Domain;
 global using DRN.Framework.SharedKernel.Domain.Pagination;

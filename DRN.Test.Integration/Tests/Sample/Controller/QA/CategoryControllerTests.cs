@@ -87,8 +87,8 @@ public class CategoryControllerTests
         created.StatusCode.Should().Be(HttpStatusCode.Created, "response body: {0}", createdRaw);
         using (var createdDoc = JsonDocument.Parse(createdRaw))
         {
-            createdDoc.RootElement.TryGetProperty("internalReviewNote", out _).Should().BeFalse();
-            createdDoc.RootElement.TryGetProperty("additionalData", out _).Should().BeFalse();
+            createdDoc.RootElement.EnumerateObject().Select(property => property.Name)
+                .Should().BeEquivalentTo(new[] { "id", "createdAt", "modifiedAt", "name" });
         }
         var expected = JsonSerializer.Deserialize<CategoryResponse>(createdRaw, DRN.Framework.SharedKernel.Json.JsonConventions.DefaultOptions);
         expected.Should().NotBeNull();

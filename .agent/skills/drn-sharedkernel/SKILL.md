@@ -29,11 +29,11 @@ GUID helpers default to `ConfiguredDefault`. Implementations expose an immutable
 
 ## Repository Contract
 
-Concrete aggregates use an `Entity` suffix and a matching final namespace and folder (`QA/Order/OrderEntity.cs` in `<DomainRoot>.QA.Order`). Each needs an `ISourceKnownRepository<TEntity>` interface in the same Domain assembly, namespace, and folder (`QA/Order/IOrderRepository.cs`). Compile/Link paths govern folder checks. Repositories end in `Repository`, semantic services in `Service`, and MVC controllers in `Controller` (`DRNSTRUCTURE004`/`005`, `DRNREPOSITORY003`/`004`). Abstract and open generic helpers are excluded. Consult the installed `DRN.Framework.SharedKernel` package's `CONVENTIONS.md` for scope and exceptions.
+Concrete aggregates use an `Entity` suffix and a matching final namespace and folder (`QA/Order/OrderEntity.cs` in `<DomainRoot>.QA.Order`). Each needs an `ISourceKnownRepository<TEntity>` interface in the same Domain assembly, namespace, and folder (`QA/Order/IOrderRepository.cs`). Compile/Link paths govern folder checks. Repositories end in `Repository`, semantic services in `Service`, and MVC controllers in `Controller` (`DRNSTRUCTURE004`/`005`, `DRNREPOSITORY003`/`004`). Abstract and open generic helpers are excluded. See the installed `CONVENTIONS.md` for scope and exceptions.
 
 `ISourceKnownService<TEntity>` exposes `ISourceKnownRepository<TEntity> Repository` for `AggregateRoot`. `ISourceKnownService<TEntity, TResponse>` adds `CreateResponseAsync` and `CreateResponsesAsync`, and `ISourceKnownService<TEntity, TResponse, in TCreateRequest>` adds `CreateEntityAsync`. Matching `SourceKnownService` abstract bases implement them from a constructor-supplied repository and supply a virtual sequential `CreateResponsesAsync` default (override to batch async enrichment).
 
-Use GUID overloads for external IDs. Generic repository methods validate entity type and partition. Keep internal DTOs derived from `Dto` with GUID IDs and keep domain mapping and invariants in Domain. See [domain design](../drn-domain-design/SKILL.md) and [repository cancellation](../drn-entityframework/SKILL.md#repository-cancellation).
+Use GUID overloads for external IDs. Generic repository methods validate entity type and partition. Keep internal DTOs derived from `Dto` in `*.Contract` with GUID IDs, keep public HTTP contracts explicit (`*Request`/`*Response`), and keep domain mapping and invariants in Domain. See [domain design](../drn-domain-design/SKILL.md) and [repository cancellation](../drn-entityframework/SKILL.md#repository-cancellation).
 
 ### Pagination
 
@@ -49,7 +49,7 @@ Use `JsonConventions.DefaultOptions` (Web defaults, string enums and longs, came
 
 ## Attributes
 
-Use the installed `DRN.Framework.SharedKernel` package's `CONVENTIONS.md` for roles, dependencies, ownership, domain layouts (`DrnDomainLayout=Project|Folders`, `DrnDomain`), folders-only Domain rules (`DRNSTRUCTURE008`), Domain-role subdomains (`DRNOWNERSHIP004`), strict contracts (`DRNDTO001`..`006`, `SourceKnownEntity.ToDto()`), enum rules (`DRNENUM001`..`005`, `[DomainOnly]`, `[AllowZero]`), canonical Domain, Subdomain, project stem, and role stem definitions (**Terminology**), and exceptions. The installed package's `SCAFFOLDING.md` covers editor actions. Convention warnings stay independent of identity, classification, and authorization.
+Installed `CONVENTIONS.md` owns roles, dependencies, ownership, domain layouts (`DrnDomainLayout=Project|Folders`, `DrnDomain`), folders-only Domain rules (`DRNSTRUCTURE008`), Domain-role subdomains (`DRNOWNERSHIP004`), strict contracts (`DRNDTO001`..`006`, `SourceKnownEntity.ToDto()`), enum rules (`DRNENUM001`..`005`, `[DomainOnly]`, `[AllowZero]`), canonical **Terminology**, and exceptions. Installed `SCAFFOLDING.md` owns editor actions. Convention warnings stay independent of identity, classification, and authorization.
 
 Analyzer and code-fix assemblies target `net10.0` independently of `net11.0` apps. Keep packaged DLL paths aligned with tooling targets. Allocate the next 3-digit ID per prefix, reserve retired IDs, and register IDs in `AnalyzerReleases.Unshipped.md`, contract tests, and `CONVENTION-DIAGNOSTICS.md`.
 

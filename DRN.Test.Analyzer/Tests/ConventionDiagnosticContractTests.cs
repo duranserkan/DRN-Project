@@ -205,53 +205,60 @@ public sealed class ConventionDiagnosticContractTests
         (await AnalyzeProduction(scenario)).Should().BeEmpty();
     }
 
+    private static readonly string[] ContractRuleIdList =
+    [
+        "DRNCONVENTIONINPUT001",
+        "DRNOWNERSHIP001",
+        "DRNSTRUCTURE001",
+        "DRNSTRUCTURE002",
+        "DRNPERSISTENCE001",
+        "DRNPERSISTENCE002",
+        "DRNPERSISTENCE003",
+        "DRNPERSISTENCE004",
+        "DRNPERSISTENCE005",
+        "DRNSTRUCTURE003",
+        "DRNREPOSITORY001",
+        "DRNDEPENDENCYINJECTION001",
+        "DRNREPOSITORY002",
+        "DRNARCHITECTURE001",
+        "DRNARCHITECTURE002",
+        "DRNARCHITECTURE003",
+        "DRNARCHITECTURE004",
+        "DRNARCHITECTURE005",
+        "DRNPERSISTENCE006",
+        "DRNOWNERSHIP002",
+        "DRNPERSISTENCE007",
+        "DRNDTO001",
+        "DRNDTO002",
+        "DRNDTO003",
+        "DRNDTO004",
+        "DRNDTO005",
+        "DRNDTO006",
+        "DRNENUM001",
+        "DRNENUM002",
+        "DRNENUM003",
+        "DRNENUM004",
+        "DRNENUM005",
+        "DRNARCHITECTURE006",
+        "DRNOWNERSHIP003",
+        "DRNOWNERSHIP004",
+        "DRNPERSISTENCE008",
+        "DRNSTRUCTURE004",
+        "DRNSTRUCTURE005",
+        "DRNREPOSITORY003",
+        "DRNREPOSITORY004",
+        "DRNSTRUCTURE006",
+        "DRNSTRUCTURE007",
+        "DRNSTRUCTURE008",
+        "DRNPERSISTENCE009",
+        "DRNDEPENDENCYINJECTION002",
+        "DRNDEPENDENCYINJECTION003"
+    ];
+
+    public static IEnumerable<object[]> ContractRuleIds => ContractRuleIdList.Select(static id => new object[] { id });
+
     [Theory]
-    [DataInlineUnit("DRNCONVENTIONINPUT001")]
-    [DataInlineUnit("DRNOWNERSHIP001")]
-    [DataInlineUnit("DRNSTRUCTURE001")]
-    [DataInlineUnit("DRNSTRUCTURE002")]
-    [DataInlineUnit("DRNPERSISTENCE001")]
-    [DataInlineUnit("DRNPERSISTENCE002")]
-    [DataInlineUnit("DRNPERSISTENCE003")]
-    [DataInlineUnit("DRNPERSISTENCE004")]
-    [DataInlineUnit("DRNPERSISTENCE005")]
-    [DataInlineUnit("DRNSTRUCTURE003")]
-    [DataInlineUnit("DRNREPOSITORY001")]
-    [DataInlineUnit("DRNDEPENDENCYINJECTION001")]
-    [DataInlineUnit("DRNREPOSITORY002")]
-    [DataInlineUnit("DRNARCHITECTURE001")]
-    [DataInlineUnit("DRNARCHITECTURE002")]
-    [DataInlineUnit("DRNARCHITECTURE003")]
-    [DataInlineUnit("DRNARCHITECTURE004")]
-    [DataInlineUnit("DRNARCHITECTURE005")]
-    [DataInlineUnit("DRNPERSISTENCE006")]
-    [DataInlineUnit("DRNOWNERSHIP002")]
-    [DataInlineUnit("DRNPERSISTENCE007")]
-    [DataInlineUnit("DRNDTO001")]
-    [DataInlineUnit("DRNDTO002")]
-    [DataInlineUnit("DRNDTO003")]
-    [DataInlineUnit("DRNDTO004")]
-    [DataInlineUnit("DRNDTO005")]
-    [DataInlineUnit("DRNDTO006")]
-    [DataInlineUnit("DRNENUM001")]
-    [DataInlineUnit("DRNENUM002")]
-    [DataInlineUnit("DRNENUM003")]
-    [DataInlineUnit("DRNENUM004")]
-    [DataInlineUnit("DRNENUM005")]
-    [DataInlineUnit("DRNARCHITECTURE006")]
-    [DataInlineUnit("DRNOWNERSHIP003")]
-    [DataInlineUnit("DRNOWNERSHIP004")]
-    [DataInlineUnit("DRNPERSISTENCE008")]
-    [DataInlineUnit("DRNSTRUCTURE004")]
-    [DataInlineUnit("DRNSTRUCTURE005")]
-    [DataInlineUnit("DRNREPOSITORY003")]
-    [DataInlineUnit("DRNREPOSITORY004")]
-    [DataInlineUnit("DRNSTRUCTURE006")]
-    [DataInlineUnit("DRNSTRUCTURE007")]
-    [DataInlineUnit("DRNSTRUCTURE008")]
-    [DataInlineUnit("DRNPERSISTENCE009")]
-    [DataInlineUnit("DRNDEPENDENCYINJECTION002")]
-    [DataInlineUnit("DRNDEPENDENCYINJECTION003")]
+    [DataMemberUnit(nameof(ContractRuleIds))]
     public async Task Real_Violation_Should_Have_Exact_Public_Diagnostic_Contract(string id)
     {
         var scenario = ScenarioFor(id);
@@ -297,52 +304,7 @@ public sealed class ConventionDiagnosticContractTests
     }
 
     [Theory]
-    [DataInlineUnit("DRNCONVENTIONINPUT001")]
-    [DataInlineUnit("DRNOWNERSHIP001")]
-    [DataInlineUnit("DRNSTRUCTURE001")]
-    [DataInlineUnit("DRNSTRUCTURE002")]
-    [DataInlineUnit("DRNPERSISTENCE001")]
-    [DataInlineUnit("DRNPERSISTENCE002")]
-    [DataInlineUnit("DRNPERSISTENCE003")]
-    [DataInlineUnit("DRNPERSISTENCE004")]
-    [DataInlineUnit("DRNPERSISTENCE005")]
-    [DataInlineUnit("DRNSTRUCTURE003")]
-    [DataInlineUnit("DRNREPOSITORY001")]
-    [DataInlineUnit("DRNDEPENDENCYINJECTION001")]
-    [DataInlineUnit("DRNREPOSITORY002")]
-    [DataInlineUnit("DRNARCHITECTURE001")]
-    [DataInlineUnit("DRNARCHITECTURE002")]
-    [DataInlineUnit("DRNARCHITECTURE003")]
-    [DataInlineUnit("DRNARCHITECTURE004")]
-    [DataInlineUnit("DRNARCHITECTURE005")]
-    [DataInlineUnit("DRNPERSISTENCE006")]
-    [DataInlineUnit("DRNOWNERSHIP002")]
-    [DataInlineUnit("DRNPERSISTENCE007")]
-    [DataInlineUnit("DRNDTO001")]
-    [DataInlineUnit("DRNDTO002")]
-    [DataInlineUnit("DRNDTO003")]
-    [DataInlineUnit("DRNDTO004")]
-    [DataInlineUnit("DRNDTO005")]
-    [DataInlineUnit("DRNDTO006")]
-    [DataInlineUnit("DRNENUM001")]
-    [DataInlineUnit("DRNENUM002")]
-    [DataInlineUnit("DRNENUM003")]
-    [DataInlineUnit("DRNENUM004")]
-    [DataInlineUnit("DRNENUM005")]
-    [DataInlineUnit("DRNARCHITECTURE006")]
-    [DataInlineUnit("DRNOWNERSHIP003")]
-    [DataInlineUnit("DRNOWNERSHIP004")]
-    [DataInlineUnit("DRNPERSISTENCE008")]
-    [DataInlineUnit("DRNSTRUCTURE004")]
-    [DataInlineUnit("DRNSTRUCTURE005")]
-    [DataInlineUnit("DRNREPOSITORY003")]
-    [DataInlineUnit("DRNREPOSITORY004")]
-    [DataInlineUnit("DRNSTRUCTURE006")]
-    [DataInlineUnit("DRNSTRUCTURE007")]
-    [DataInlineUnit("DRNSTRUCTURE008")]
-    [DataInlineUnit("DRNPERSISTENCE009")]
-    [DataInlineUnit("DRNDEPENDENCYINJECTION002")]
-    [DataInlineUnit("DRNDEPENDENCYINJECTION003")]
+    [DataMemberUnit(nameof(ContractRuleIds))]
     public async Task Reviewed_Exception_Should_Cover_Only_The_Exact_Real_Violation_And_Expire_On_Review_Day(string id)
     {
         var scenario = ScenarioFor(id);

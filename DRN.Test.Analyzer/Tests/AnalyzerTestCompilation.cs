@@ -7,6 +7,7 @@ namespace DRN.Test.Analyzer.Tests;
 internal static class AnalyzerTestCompilation
 {
     private static readonly ConcurrentDictionary<string, MetadataReference> FileReferences = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, SyntaxTree> WideModelTrees = new(StringComparer.Ordinal);
 
     private static readonly Lazy<ImmutableArray<MetadataReference>> Core = new(() =>
     [
@@ -95,10 +96,11 @@ internal static class AnalyzerTestCompilation
         return solution;
     }
 
-    internal static SyntaxTree WideModelTree(string ns) => CSharpSyntaxTree.ParseText(
-        $"namespace {ns}; public class Wide {{ " +
-        string.Join("\n", Enumerable.Range(0, 4097).Select(index => $"public int Field{index};")) + " }",
-        path: "Wide.cs");
+    internal static SyntaxTree WideModelTree(string ns) => WideModelTrees.GetOrAdd(ns, static targetNamespace =>
+        CSharpSyntaxTree.ParseText(
+            $"namespace {targetNamespace}; public class Wide {{ " +
+            string.Join("\n", Enumerable.Range(0, 4097).Select(index => $"public int Field{index};")) + " }",
+            path: "Wide.cs"));
 
     internal static string LocationText(Diagnostic diagnostic) =>
         diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan);

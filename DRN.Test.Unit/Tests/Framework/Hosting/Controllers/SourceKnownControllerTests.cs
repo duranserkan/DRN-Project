@@ -374,6 +374,11 @@ public class SourceKnownControllerTests
         repository.GetAsync(id, SourceKnownEntityIdFormat.ConfiguredDefault).Returns(first);
         var nullGuardController = new WriteProbeController(nullGuardService) { AllowWrite = true };
 
+        Func<Task> nullPost = () => nullGuardController.PostAsync(null!);
+        Func<Task> nullPaginate = () => nullGuardController.PaginateWithBodyAsync(null!);
+        await nullPost.Should().ThrowAsync<ArgumentNullException>().WithParameterName("request");
+        await nullPaginate.Should().ThrowAsync<ArgumentNullException>().WithParameterName("request");
+
         Func<Task> nullEntityPost = () => nullGuardController.PostAsync(new CreateProbeRequest("Null entity"));
         Func<Task> nullResponseGet = () => nullGuardController.GetAsync(id);
         Func<Task> nullResponsesBatch = () => nullGuardController.GetManyAsync([id]);
@@ -554,11 +559,7 @@ public class SourceKnownControllerTests
     [Route("source-known-write-only")]
     [Authorize(Policy = "SourceKnown.Probe")]
     public sealed class WriteOnlyProbeController(ISourceKnownService<Tag, TagProbeResponse, CreateProbeRequest> service)
-        : SourceKnownWriteOnlyController<Tag, TagProbeResponse, CreateProbeRequest>(service)
-    {
-        protected override Task<Tag> CreateEntityAsync(CreateProbeRequest request, CancellationToken cancellationToken)
-            => throw new NotSupportedException("Discovery fixture does not allow writes.");
-    }
+        : SourceKnownWriteOnlyController<Tag, TagProbeResponse, CreateProbeRequest>(service);
 
     private static TagProbeResponse ToProbeResponse(Tag entity) => new()
     {

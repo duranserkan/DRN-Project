@@ -260,7 +260,7 @@ Override `ConfigureSwaggerOptions`, call base, then set `AddSwagger = true` and 
 
 ## Configuration
 
-Set `NexusAppSettings:AppId` and `NexusAppSettings:AppInstanceId` explicitly in every environment, including when either value is zero. AppId accepts 0 through 127 and must match the application's entity partition. AppInstanceId accepts 0 through 63; assign distinct values to concurrent instances generating IDs for that application. Staging and Production require private `DrnAppFeatures:SeedKey` and Nexus keys. See [Utils configuration](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/README.md#configuration) for key requirements.
+Set `NexusAppSettings:AppId` and `NexusAppSettings:AppInstanceId` explicitly in every environment, including when either value is zero. AppId accepts 0 through 127 and must match the application's entity partition. AppInstanceId accepts 0 through 63. Assign distinct values to concurrent instances generating IDs for that application. Staging and Production require private `DrnAppFeatures:SeedKey` and Nexus keys. See [Utils configuration](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/README.md#configuration) for key requirements.
 
 ### Layering
 
@@ -749,7 +749,7 @@ protected override void ConfigurePostAuthRateLimiterOptions(
 
 ## Source-Known Controllers
 
-Use `DRN.Framework.Hosting.Controllers` to expose a service-backed `ISourceKnownRepository<TEntity>` through explicit Contract `*Response` types. See [conventions terminology](../DRN.Framework.SharedKernel/CONVENTIONS.md#terminology) for Domain, Subdomain, project stem, and role stem definitions.
+Use `DRN.Framework.Hosting.Controllers` to expose a service-backed `ISourceKnownRepository<TEntity>` through explicit Contract `*Response` types. See [conventions terminology](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/CONVENTIONS.md#terminology) for Domain, Subdomain, project stem, and role stem definitions.
 
 | Base | Behavior |
 |---|---|
@@ -900,7 +900,7 @@ Typed parameter/constraint generation remains a TODO. Continue passing route/que
 
 ### Usage in Code
 
-Expose generated singletons through an authored `Get` facade and bind the endpoint singleton in `ConfigureEndpointCollection`:
+Expose generated singletons through an authored `Get` facade alongside the `ConfigureEndpointCollection` override shown in [Automatic hosted accessors](#automatic-hosted-accessors):
 
 ```csharp
 namespace Example.Hosted;
@@ -1006,7 +1006,7 @@ Vite manifests under `wwwroot/**/.vite/manifest.json` are included automatically
 
 When publishing with a custom web root, build targets do not automatically capture manifests outside `wwwroot/**`; applications must separately include manifests and referenced assets in publish items.
 
-Stock Vite omits the `hash` field that DRN tag helpers require for subresource integrity. Add a build step that hashes each manifest entry's final uncompressed `file` bytes with SHA-256 and writes standard Base64 to `hash`, even when deploying only original files. Deploy the manifests together with their assets. See the [Sample Vite plugin](../Sample.Hosted/vite.config.plugin.ts) and its [build configuration](../Sample.Hosted/vite.config.ts).
+Stock Vite omits the `hash` field that DRN tag helpers require for subresource integrity. Add a build step that hashes each manifest entry's final uncompressed `file` bytes with SHA-256 and writes standard Base64 to `hash`, even when deploying only original files. Deploy the manifests together with their assets. See the [Sample Vite plugin](https://github.com/duranserkan/DRN-Project/blob/master/Sample.Hosted/vite.config.plugin.ts) and its [build configuration](https://github.com/duranserkan/DRN-Project/blob/master/Sample.Hosted/vite.config.ts).
 
 If using the Sample plugin, `precompressAssets([])` keeps every original and emits a Brotli sidecar when compression reduces its size. For a Brotli-only deployment, set `brotliOnly` to `true` on each entry whose original you omit and deploy `<file>.br`. Other entries require the original `file`.
 
@@ -1089,7 +1089,7 @@ Leave `Type` unset for routine failures. Both `throw ExceptionFor.NotFound(...)`
 | `ScopeContext.Problem.Conflict(...)` | 409 | `https://tools.ietf.org/html/rfc9110#section-15.5.10` |
 | Unmapped exception | 500 | `https://tools.ietf.org/html/rfc9110#section-15.6.1` |
 
-Prefer an existing semantic base for custom exceptions. `ConflictException` subclasses inherit 409; direct `DrnException` subclasses use the supplied status or default to 500. See [inheritance examples](../DRN.Framework.SharedKernel/README.md#exceptions).
+Prefer an existing semantic base for custom exceptions. `ConflictException` subclasses inherit 409. Direct `DrnException` subclasses use the supplied status or default to 500. See [inheritance examples](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/README.md#exceptions).
 
 `HttpScopeMiddleware` selects the status from the caught exception in this order:
 
@@ -1132,7 +1132,7 @@ ScopeContext.Problem.Conflict("Duplicate tag detected during creation.");
 
 The same shorthand is available for every `ExceptionFor` factory. Helpers throw immediately and hide their frames from formatted stack traces.
 
-This returns **409 Conflict** with the public detail and `code`. The exception message stays private. `Type`, `Title`, and `Instance` can also be set on `ScopeContext.Problem`. Existing response fields and extension keys take precedence, including titles and types already generated by ASP.NET Core. Scoped defaults fill only null fields and missing extension keys. Standard field names and `errors` are reserved extension keys. This lazy, request-wide object holds one error context; do not use it for separate concurrent errors. See [scope usage](../DRN.Framework.Utils/README.md#scope--ambient-context-scopecontext).
+This returns **409 Conflict** with the public detail and `code`. The exception message stays private. `Type`, `Title`, and `Instance` can also be set on `ScopeContext.Problem`. Existing response fields and extension keys take precedence, including titles and types already generated by ASP.NET Core. Scoped defaults fill only null fields and missing extension keys. Standard field names and `errors` are reserved extension keys. This lazy, request-wide object holds one error context. Do not use it for separate concurrent errors. See [scope usage](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/README.md#scope--ambient-context-scopecontext).
 
 Swagger adds one representative 400 response as `application/problem+json` with required `requestId`. Its description explains that the same contract covers all 4xx and 5xx statuses. Other statuses are shown only when declared by the endpoint. Declared validation schemas and custom response types are preserved. Declare custom error bodies with `ProducesResponseType` or minimal API response metadata so Swagger can describe them accurately. Browser and HEAD operations are unchanged.
 
@@ -1152,7 +1152,7 @@ services.Configure<DrnApiErrorOptions>(options => options.HandleHtmxRequests = t
 
 Authentication, cookie redirects, endpoint opt-outs, and custom non-problem bodies retain their existing behavior. Normal navigation uses browser error pages and Development diagnostics. Opted-in HTMX exceptions return Problem Details instead of invoking `WriteProductionErrorResponseAsync` or displaying the Development exception page.
 
-Razor handlers choose validation representation explicitly. `Page()` with invalid ModelState retains HTML. To select JSON, return an `ObjectResult` containing `ValidationProblemDetails(ModelState)` with status 400 or 422. Use safe public messages, exact posted field names, and an empty key for form-level errors. The browser client must present Problem Details as data and explicitly support any HTML validation swaps. See the [Sample error handling conventions](../Sample.Hosted/README.md#error-handling-conventions) for examples.
+Razor handlers choose validation representation explicitly. `Page()` with invalid ModelState retains HTML. To select JSON, return an `ObjectResult` containing `ValidationProblemDetails(ModelState)` with status 400 or 422. Use safe public messages, exact posted field names, and an empty key for form-level errors. The browser client must present Problem Details as data and explicitly support any HTML validation swaps. See the [Sample error handling conventions](https://github.com/duranserkan/DRN-Project/blob/master/Sample.Hosted/README.md#error-handling-conventions) for examples.
 
 ### Custom Error Pages
 
@@ -1201,13 +1201,13 @@ services.ConfigureApplicationCookie(options =>
 
 ### Request Body Buffering
 
-Diagnostic capture retains HTTP status, authentication outcome, and rate-limit metadata. `Request_IpAddress` records the remote IP as text or an empty string. Nonempty `l5d-client-id` headers are logged directly. Backend runtime does not match names or configured paths, including request query/form names. Explicit classifications and capture bounds remain authoritative. Rate-limit rejection identifiers retain separate protection. SharedKernel analyzers check statically known names and project paths. Scoped logs preserve classification metadata for redacted reads. See the [diagnostic contract](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md).
+Diagnostic capture retains HTTP status, authentication outcome, and rate-limit metadata. `Request_IpAddress` records the remote IP as text or an empty string. Nonempty `l5d-client-id` headers are logged directly. Backend runtime does not match names or configured paths, including request query/form names. Explicit classifications and capture bounds remain authoritative. Rate-limit rejection identifiers retain separate protection. SharedKernel analyzers check statically known names and project paths. Scoped logs preserve classification metadata for redacted reads. See the [diagnostic contract](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Logging/Diagnostics/README.md).
 
 Request diagnostics buffer POST, PUT, and PATCH bodies only when `Content-Length` is known and within the configured limit. Kestrel request-size limits still apply.
 
-Apply the [application responsibilities for dynamic data](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md) when capturing request values.
+Apply the [application responsibilities for dynamic data](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Logging/Diagnostics/README.md) when capturing request values.
 
-Scoped HTTP diagnostics, startup reports, and developer-page copies use the [central diagnostic policy](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md). Explicit classifications control redaction; explicit URLs still remove credentials. Text remains bounded without content scanning. Original exception/context objects remain available to filters and DiagnosticSource subscribers, which own their export policy. Classify typed members and dictionary entries explicitly. This does not add body capture or change public Problem Details.
+Scoped HTTP diagnostics, startup reports, and developer-page copies use the [central diagnostic policy](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Logging/Diagnostics/README.md). Explicit classifications control redaction. Explicit URLs still remove credentials. Text remains bounded without content scanning. Original exception/context objects remain available to filters and DiagnosticSource subscribers, which own their export policy. Classify typed members and dictionary entries explicitly. This does not add body capture or change public Problem Details.
 
 **Configuration** via `DrnAppFeatures` (in `appsettings.json`):
 

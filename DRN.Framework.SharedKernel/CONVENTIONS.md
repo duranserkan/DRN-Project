@@ -146,7 +146,7 @@ Convention rules default to Warning in enabled application projects, affecting w
 | DRNENUM005 | Require a named zero member whenever `[AllowZero]` is applied. | Remove `[AllowZero]` or declare an explicit `= 0` member. | Prevents misleading opt-ins. |
 | DRNOWNERSHIP004 | Ensure every Domain project contains at least one populated subdomain folder. | Domain project with `QA/Tag/TagEntity.cs` / Domain project with only root files. | Project-level exception target `<AssemblyName>:Domain`. |
 | DRNSTRUCTURE008 | Keep Domain grouping folders folders-only and `_Shared` subdomain-scoped for value objects. | `QA/Tag/TagEntity.cs`, `QA/_Shared/Money.cs`, root `Usings.cs` and `SampleEntityTypes.cs` / file directly under `QA/`. | Generated files are ignored; partial declarations are checked per file. |
-| DRNARCHITECTURE002 | Keep external contracts free of persistence objects. | Dto/Guid / public collection containing an entity. | Approved neutral value model. Dto mapping constructors may accept their source entity. Complex or external graphs remain bounded. |
+| DRNARCHITECTURE002 | Keep external contracts free of persistence objects. | Contract Request/Response or Guid / public collection containing an entity. | Approved neutral value model. Dto mapping constructors may accept their source entity. Complex or external graphs remain bounded. |
 | DRNARCHITECTURE003 | Respect direct application-role edges. | Application to Infra / Domain to Infra. | Exact reasoned integration edge. Direct provenance and resolved assembly/project identity are required. Package IDs do not establish roles. |
 | DRNARCHITECTURE004 | Place the implementation in its owning layer. | Context in Infra, controller in Hosted / DTO declared in Domain. | Exact reasoned role exception. |
 | DRNARCHITECTURE005 | Remove a forbidden layer dependency. | Domain uses an EF mapping attribute / Domain uses DbContext or EntityTypeBuilder. | Reports independently of implementation placement. |
@@ -208,6 +208,8 @@ This illustrates suppression placement, not an operation template. Project excep
 
 - `DRNARCHITECTURE006`: `SymbolTarget="<AssemblyName>:Application"`, `<AssemblyName>:Infra`, `<AssemblyName>:Domain`, or `<AssemblyName>:Contract` (for example, `Shop.Domain:Contract`).
 - `DRNOWNERSHIP003`: `SymbolTarget="<AssemblyName>:Domain"` when no populated Domain subdomain exists, or the unresolved context/repository `T:...` symbol target.
+- `DRNOWNERSHIP004`: `SymbolTarget="<AssemblyName>:Domain"`.
+- `DRNSTRUCTURE008`: `SymbolTarget="<LogicalPath>"` for zero-type files, or the type's documentation comment ID.
 - `DRNDEPENDENCYINJECTION003`: `SymbolTarget="<AssemblyName>:Module"`.
 - `DRNREPOSITORY004`: optionally qualify with `Context="Shop.Infra.Sales.SalesContext"` alongside `SymbolTarget` and `Entity`.
 
