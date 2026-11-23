@@ -830,15 +830,10 @@ public sealed class ConventionDomainOwnershipAndEnumTests
     [Fact]
     public async Task Standalone_Zero_Type_File_Pragma_Should_Suppress_DRNSTRUCTURE008_Without_Exception_Record()
     {
-        var compilation = Compilation("""
+        var baseCompilation = Compilation("""
             namespace Sample.Domain.QA.Order;
             public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
             """, "QA/Order/OrderEntity.cs")
-            .AddSyntaxTrees(CSharpSyntaxTree.ParseText("""
-                #pragma warning disable DRNSTRUCTURE008 // Reviewed legacy grouping-folder global usings.
-                global using System.Linq;
-                #pragma warning restore DRNSTRUCTURE008
-                """, path: "QA/BadUsings.cs"))
             .WithAssemblyName("Sample.Domain");
         var input = new ProjectDiagnosticRulesTests.RuleFile(ConventionInputs.FileName, """
             [assembly: DRN.Conventions.Version("1")]
@@ -846,9 +841,23 @@ public sealed class ConventionDomainOwnershipAndEnumTests
             [assembly: DRN.Conventions.Path("QA/Order/OrderEntity.cs", LogicalPath = "QA/Order/OrderEntity.cs")]
             [assembly: DRN.Conventions.Path("QA/BadUsings.cs", LogicalPath = "QA/BadUsings.cs")]
             """);
-        var diagnostics = await AnalyzerTestCompilation.Analyze(compilation, new SourceKnownConventionAnalyzer(),
-            AnalyzerTestCompilation.ConventionOptions("Sample.Domain", files: input));
-        diagnostics.Should().NotContain(d => d.Id == "DRNSTRUCTURE008" || d.Id == "DRNCONVENTIONINPUT001");
+        var options = AnalyzerTestCompilation.ConventionOptions("Sample.Domain", files: input);
+
+        var unsuppressedCompilation = baseCompilation.AddSyntaxTrees(
+            CSharpSyntaxTree.ParseText("global using System.Linq;", path: "QA/BadUsings.cs"));
+        var unsuppressed = await AnalyzerTestCompilation.Analyze(unsuppressedCompilation, new SourceKnownConventionAnalyzer(), options);
+        unsuppressed.Should().NotContain(d => d.Id is "AD0001" or "DRNCONVENTIONINPUT001");
+        var structureWarning = unsuppressed.Where(d => d.Id == "DRNSTRUCTURE008").Should().ContainSingle().Which;
+        structureWarning.Properties["Target"].Should().Be("QA/BadUsings.cs");
+        structureWarning.Location.SourceTree?.FilePath.Should().Be("QA/BadUsings.cs");
+
+        var suppressedCompilation = baseCompilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText("""
+            #pragma warning disable DRNSTRUCTURE008 // Reviewed legacy grouping-folder global usings.
+            global using System.Linq;
+            #pragma warning restore DRNSTRUCTURE008
+            """, path: "QA/BadUsings.cs"));
+        var suppressed = await AnalyzerTestCompilation.Analyze(suppressedCompilation, new SourceKnownConventionAnalyzer(), options);
+        suppressed.Should().NotContain(d => d.Id is "DRNSTRUCTURE008" or "DRNCONVENTIONINPUT001" or "AD0001");
     }
 
     [Theory]

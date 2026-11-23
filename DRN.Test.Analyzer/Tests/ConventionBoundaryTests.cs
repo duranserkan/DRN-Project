@@ -643,10 +643,69 @@ public sealed class ConventionBoundaryTests
         var facts = ContractFacts("""
             namespace Sample.Contract.QA;
             public class Envelope<T> where T : User { public T Payload { get; set; } }
+            public class ConstrainedMarker<T> where T : Order;
+            public class UnconstrainedMarker<T> { public T Payload { get; set; } }
             """);
         ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").Should().ContainSingle()
-            .Which.GetMessage().Should().Contain("Envelope<T>.Payload").And.Contain("Sample.Domain.QA.User");
+        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").ToArray();
+        diagnostics.Select(item => (item.Properties["Target"], item.Properties["Entity"])).Should().BeEquivalentTo(
+            new (string?, string?)[]
+            {
+                ("T:Sample.Contract.QA.Envelope`1", "Sample.Domain.QA.User"),
+                ("T:Sample.Contract.QA.ConstrainedMarker`1", "Sample.Domain.QA.Order")
+            });
+        diagnostics.Single(item => item.Properties["Target"] == "T:Sample.Contract.QA.Envelope`1").GetMessage()
+            .Should().Contain("Envelope<T>").And.Contain("Sample.Domain.QA.User");
+    }
+
+    [Fact]
+    public void Inherited_Controller_Actions_Should_Report_Each_Distinct_Exposed_Entity_Once()
+    {
+        var facts = Facts("""
+            using Microsoft.AspNetCore.Mvc;
+            namespace Sample.Hosted.QA;
+            public class User : DRN.Framework.SharedKernel.Domain.SourceKnownEntity { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
+            public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
+            public abstract class MixedEntityBaseController : ControllerBase
+            {
+                [HttpGet("order")] public Order ReadOrder() => new();
+                [HttpGet("user")] public User ReadUser() => new();
+                [HttpGet("order-again")] public Order ReadOrderAgain() => new();
+            }
+            public class ConcreteMixedController : MixedEntityBaseController;
+            """, "Hosted");
+        ConventionBoundaryAnalysis.Analyze(facts);
+        facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002")
+            .Select(item => (item.Properties["Target"], item.Properties["Entity"])).Should().BeEquivalentTo(
+                new (string?, string?)[]
+                {
+                    ("T:Sample.Hosted.QA.ConcreteMixedController", "Sample.Hosted.QA.Order"),
+                    ("T:Sample.Hosted.QA.ConcreteMixedController", "Sample.Hosted.QA.User")
+                });
+    }
+
+    [Fact]
+    public void Exposed_Header_Should_Only_Collapse_Members_With_The_Same_Exposed_Type()
+    {
+        var facts = ContractFacts("""
+            namespace Sample.Contract.QA;
+            public interface IPair<T1, T2>
+            {
+                T1 First();
+                T2 Second();
+            }
+            public class EntityPair : IPair<Order, User>
+            {
+                public Order First() => new();
+                public User Second() => new();
+            }
+            """);
+        ConventionBoundaryAnalysis.Analyze(facts);
+        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").ToArray();
+        diagnostics.Select(item => item.Properties["Entity"]).Should().BeEquivalentTo(
+            "Sample.Domain.QA.Order",
+            "Sample.Domain.QA.User");
+        diagnostics.Should().HaveCount(2);
     }
 
     [Fact]

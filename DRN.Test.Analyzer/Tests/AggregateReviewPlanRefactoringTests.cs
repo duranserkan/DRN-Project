@@ -418,10 +418,11 @@ public sealed class AggregateReviewPlanRefactoringTests
     }
 
     [Theory]
-    [DataInlineUnit("Billing", true)]
-    [DataInlineUnit("QA", false)]
-    public async Task Multi_Domain_Folders_Context_Merge_Should_Resolve_Omitted_Domain_From_Context_Infra_Namespace(
-        string infraDeclaredDomain, bool offered)
+    [DataInlineUnit("", true)]
+    [DataInlineUnit("Domain = \"Billing\", ", true)]
+    [DataInlineUnit("Domain = \"QA\", ", false)]
+    public async Task Multi_Domain_Folders_Existing_Context_Should_Validate_Infra_Context_Input(
+        string domainPrefix, bool offered)
     {
         using var workspace = new AdhocWorkspace();
         var domain = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
@@ -429,9 +430,9 @@ public sealed class AggregateReviewPlanRefactoringTests
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReferences(ClassificationTestFixture.References);
         var document = domain.AddDocument("Order.cs", """
-            namespace Sample.Domain.QA.Sales.Orders;
+            namespace Sample.Domain.Billing.Sales.Orders;
             public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
-            """, filePath: "/source/Sample.Domain/QA/Sales/Orders/Order.cs");
+            """, filePath: "/source/Sample.Domain/Billing/Sales/Orders/Order.cs");
         workspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
 
         var infra = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
@@ -440,35 +441,84 @@ public sealed class AggregateReviewPlanRefactoringTests
             .AddMetadataReferences(ClassificationTestFixture.References)
             .AddMetadataReference(AnalyzerTestCompilation.EntityFrameworkReference)
             .AddProjectReference(new ProjectReference(domain.Id))
-            .AddDocument("Contexts.cs", """
-                namespace Sample.Infra.QA.Sales
-                {
-                    [DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomain("Sales", Reason = "QA sales read context")]
-                    public class ReadContext : DRN.Framework.EntityFramework.Context.DrnContext<ReadContext>
-                    { public ReadContext() : base(null) { } }
-                }
-                namespace Sample.Infra.Billing.Sales
-                {
-                    public class BillingReadContext : DRN.Framework.EntityFramework.Context.DrnContext<BillingReadContext>
-                    { public BillingReadContext() : base(null) { } }
-                }
-                """, filePath: "/source/Sample.Infra/QA/Sales/Contexts.cs").Project;
+            .AddDocument("BillingReadContext.cs", """
+                namespace Sample.Infra.Billing.Sales;
+                public class BillingReadContext : DRN.Framework.EntityFramework.Context.DrnContext<BillingReadContext>
+                { public BillingReadContext() : base(null) { } }
+                """, filePath: "/source/Sample.Infra/Billing/Sales/BillingReadContext.cs").Project;
         var solution = infra.Solution.WithFoldersLayout()
-            .AddAdditionalDocument(DocumentId.CreateNewId(domain.Id), "DrnConventionInputs.g.cs",
-                SourceText.From("""
-                    [assembly: DRN.Conventions.Version("1")]
-                    [assembly: DRN.Conventions.Context("Sample.Infra.Billing.Sales.BillingReadContext", Subdomain = "Sales", Reason = "Billing read context")]
-                    """))
             .AddAdditionalDocument(DocumentId.CreateNewId(infra.Id), "DrnConventionInputs.g.cs",
                 SourceText.From($$"""
                     [assembly: DRN.Conventions.Version("1")]
-                    [assembly: DRN.Conventions.Context("Sample.Infra.Billing.Sales.BillingReadContext", Domain = "{{infraDeclaredDomain}}", Subdomain = "Sales", Reason = "Billing read context")]
+                    [assembly: DRN.Conventions.Context("Sample.Infra.Billing.Sales.BillingReadContext", {{domainPrefix}}Subdomain = "Sales", Reason = "Billing read context")]
                     """));
         workspace.TryApplyChanges(solution).Should().BeTrue();
 
+        var infraCompilation = (await workspace.CurrentSolution.GetProject(infra.Id)!.GetCompilationAsync())!;
+        infraCompilation.AssertNoCompilerErrors();
+        infraCompilation.GetTypeByMetadataName("Sample.Infra.Billing.Sales.BillingReadContext").Should().NotBeNull();
+
         var actions = await Actions(workspace.CurrentSolution.GetDocument(document.Id)!);
-        if (offered) actions.Should().ContainSingle().Which.Title.Should().Contain("Sample.Infra.QA.Sales.ReadContext");
+        if (offered) actions.Should().ContainSingle().Which.Title.Should().Contain("Sample.Infra.Billing.Sales.BillingReadContext");
         else actions.Should().BeEmpty();
+    }
+
+    [Theory]
+    [DataInlineUnit("Billing", false, true)]
+    [DataInlineUnit("Billing", true, true)]
+    [DataInlineUnit("QA", false, false)]
+    [DataInlineUnit("QA", true, false)]
+    public async Task Multi_Domain_Folders_Context_Merge_Should_Resolve_Omitted_Domain_From_Context_Infra_Namespace(
+        string declaredDomain, bool explicitFirst, bool shouldMerge)
+    {
+        using var workspace = new AdhocWorkspace();
+        var infra = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                "Sample.Infra", "Sample.Infra", LanguageNames.CSharp, filePath: "/source/Sample.Infra/Sample.Infra.csproj"))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(ClassificationTestFixture.References)
+            .AddMetadataReference(AnalyzerTestCompilation.EntityFrameworkReference)
+            .AddDocument("BillingReadContext.cs", """
+                namespace Sample.Infra.Billing.Sales;
+                public class BillingReadContext : DRN.Framework.EntityFramework.Context.DrnContext<BillingReadContext>
+                { public BillingReadContext() : base(null) { } }
+                """, filePath: "/source/Sample.Infra/Billing/Sales/BillingReadContext.cs").Project;
+        var solution = infra.Solution.WithFoldersLayout();
+        var omittedInput = SourceText.From("""
+            [assembly: DRN.Conventions.Version("1")]
+            [assembly: DRN.Conventions.Context("Sample.Infra.Billing.Sales.BillingReadContext", Subdomain = "Sales", Reason = "Billing read context")]
+            """);
+        var explicitInput = SourceText.From($$"""
+            [assembly: DRN.Conventions.Version("1")]
+            [assembly: DRN.Conventions.Context("Sample.Infra.Billing.Sales.BillingReadContext", Domain = "{{declaredDomain}}", Subdomain = "Sales", Reason = "Billing read context")]
+            """);
+        var firstProject = solution.GetProject(infra.Id)!
+            .AddAdditionalDocument("DrnConventionInputs.g.cs", explicitFirst ? explicitInput : omittedInput).Project;
+        var secondProject = solution.GetProject(infra.Id)!
+            .AddAdditionalDocument("DrnConventionInputs.g.cs", explicitFirst ? omittedInput : explicitInput).Project;
+
+        var firstParsed = await AggregateReviewPlanRefactoringProvider.ReadProjectInputs(firstProject, CancellationToken.None);
+        var secondParsed = await AggregateReviewPlanRefactoringProvider.ReadProjectInputs(secondProject, CancellationToken.None);
+        firstParsed.Should().NotBeNull();
+        secondParsed.Should().NotBeNull();
+
+        var infraProject = solution.GetProject(infra.Id)!;
+        var infraCompilation = (await infraProject.GetCompilationAsync())!;
+        infraCompilation.AssertNoCompilerErrors();
+        var infraInfo = ConventionGenerationPreflight.ReadProject(infraProject);
+
+        var merged = AggregateReviewPlanRefactoringProvider.TryMergeContextOwners(
+            firstParsed!.Contexts, secondParsed!.Contexts, infraCompilation, infraInfo.Namespace, infraInfo.Layout);
+        if (!shouldMerge)
+        {
+            merged.Should().BeNull();
+            return;
+        }
+        merged.Should().NotBeNull();
+        merged!.Should().ContainKey("Sample.Infra.Billing.Sales.BillingReadContext");
+        var entry = merged["Sample.Infra.Billing.Sales.BillingReadContext"];
+        entry.Domain.Should().Be("Billing");
+        entry.Owner.Should().Be("Sales");
+        entry.Reason.Should().Be("Billing read context");
     }
 
     [Theory]

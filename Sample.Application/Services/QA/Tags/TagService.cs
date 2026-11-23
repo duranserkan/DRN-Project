@@ -39,8 +39,9 @@ public class TagService(ITagRepository repository)
     public override Task<TagEntity> CreateEntityAsync(TagPostRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        ArgumentNullException.ThrowIfNull(request.Model);
         cancellationToken.ThrowIfCancellationRequested();
+        if (request.Model is null)
+            throw ExceptionFor.Validation("Tag model is required.");
         if (request.Model.Type != TagType.User)
             throw ExceptionFor.Validation("Only User tag type is permitted.");
 

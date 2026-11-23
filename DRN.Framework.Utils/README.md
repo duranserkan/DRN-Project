@@ -971,7 +971,7 @@ public class OrderService(IEntityDateTimeUtils dateTimeUtils)
 ```csharp
 public class OrderDto(SourceKnownEntity? entity = null) : Dto(entity)
 {
-    public bool Active { get; init; }
+    public required bool Active { get; init; }
 }
 
 public class OrderService(IPaginationUtils pagination, OrderDbContext dbContext)

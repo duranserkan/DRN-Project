@@ -169,12 +169,21 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
         if (repoOwner is null || entityOwner is null || !entityOwner.SameOwner(repoOwner)) return null;
         var entityName = MetadataName(selected.Entity);
         var repositoryName = MetadataName(selected.Method.ContainingType);
-        if (!AttributesPreserveOwner(selected.Method.ContainingType, repoOwner, source, out var repoAttrExplicit) ||
+        var repoMetadata = ConventionGenerationPreflight.MetadataFromAssembly(selected.Method.ContainingType.ContainingAssembly);
+        var entityMetadata = SymbolEqualityComparer.Default.Equals(selected.Entity.ContainingAssembly, selected.Method.ContainingType.ContainingAssembly)
+            ? repoMetadata
+            : ConventionGenerationPreflight.MetadataFromAssembly(selected.Entity.ContainingAssembly);
+        if (repoMetadata.HasRoleOverrides || entityMetadata.HasRoleOverrides ||
+            !AttributesPreserveOwner(selected.Method.ContainingType, repoOwner, source, out var repoAttrExplicit) ||
             !AttributesPreserveOwner(selected.Entity, entityOwner, source, out var entityAttrExplicit) ||
             !OwnershipCompatible(domainInputs, entityName, repoOwner.Subdomain, token, out var entityInputExplicit, repoOwner.DomainFilter) ||
-            !OwnershipCompatible(domainInputs, repositoryName, repoOwner.Subdomain, token, out var repoInputExplicit, repoOwner.DomainFilter))
+            !OwnershipCompatible(domainInputs, repositoryName, repoOwner.Subdomain, token, out var repoInputExplicit, repoOwner.DomainFilter) ||
+            !entityMetadata.TryValidateProducerOwnership(entityName, entityOwner, out var entityMetadataExplicit) ||
+            !repoMetadata.TryValidateProducerOwnership(repositoryName, repoOwner, out var repoMetadataExplicit))
             return null;
-        var effectiveOwner = repoOwner.WithExplicitDomain(repoAttrExplicit || entityAttrExplicit || entityInputExplicit || repoInputExplicit);
+        var effectiveOwner = repoOwner.WithExplicitDomain(
+            repoAttrExplicit || entityAttrExplicit || entityInputExplicit || repoInputExplicit ||
+            entityMetadataExplicit || repoMetadataExplicit);
         var sourceSuffix = sourceNamespace[(domainInfo.Namespace.Length + 1)..];
         var ownerPrefix = repoOwner.NamespacePrefix;
         var namespaceTail = sourceSuffix.Length == ownerPrefix.Length ? "" : sourceSuffix[ownerPrefix.Length..];

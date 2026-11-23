@@ -139,7 +139,7 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         }
     }
 
-    private static Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)>? TryMergeContextOwners(
+    internal static Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)>? TryMergeContextOwners(
         Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)> domainContexts,
         Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)> infraContexts,
         Compilation compilation, string infraNamespace, ConventionGenerationPreflight.ProjectLayout infraLayout)
@@ -334,7 +334,7 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         return body.Length < 12000 ? new(infra.Project.Id, infra.Project.Name, context.Symbol, Path.GetFileName(planPath), planPath, relativePlanPath, body.ToString()) : null;
     }
 
-    private static async Task<ParsedInputs?> ReadProjectInputs(Project project, CancellationToken token)
+    internal static async Task<ParsedInputs?> ReadProjectInputs(Project project, CancellationToken token)
     {
         var files = project.AdditionalDocuments.Where(ConventionGenerationPreflight.IsInputsDocument).Take(2).ToArray();
         if (files.Length > 1) return null;
@@ -415,7 +415,7 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
     private sealed record AggregateTarget(Project Domain, Compilation DomainCompilation, string DomainPath,
         ParsedInputs DomainInputs, INamedTypeSymbol Entity, string EntityName, OwnerKey Owner);
 
-    private sealed record ParsedInputs(string Evidence, Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)> Contexts,
+    internal sealed record ParsedInputs(string Evidence, Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)> Contexts,
         HashSet<string> OwnershipTargets);
 
     private static string Fingerprint(SourceText text) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString())));

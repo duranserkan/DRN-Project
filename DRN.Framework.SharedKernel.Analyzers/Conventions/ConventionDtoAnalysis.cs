@@ -185,7 +185,7 @@ internal static class ConventionDtoAnalysis
     {
         var nonAction = facts.Symbols.NonActionAttribute;
         var isSourceKnown = facts.Symbols.IsKnown(controller, facts.Symbols.SourceKnownController, facts.Cancellation);
-        var reportedTypeDto = false;
+        HashSet<INamedTypeSymbol>? reportedTypeDtos = null;
         HashSet<INamedTypeSymbol>? reportedFrameworkResponses = null;
         HashSet<INamedTypeSymbol>? reportedFrameworkRequests = null;
         foreach (var member in ConventionBoundaryAnalysis.PublicMembers(facts, controller, transport: true))
@@ -197,18 +197,15 @@ internal static class ConventionDtoAnalysis
                 continue;
 
             var reportsOnType = SymbolEqualityComparer.Default.Equals(reportingSymbol, controller);
-            if (!reportsOnType || !reportedTypeDto)
+            var exposedDto = FindExposedDtoType(facts, controller, method, transport: true, out var exhausted);
+            if (exhausted)
+                facts.ReportIncompleteContract(reportingSymbol, method, location);
+            if (exposedDto is not null &&
+                (!reportsOnType || (reportedTypeDtos ??= new(SymbolEqualityComparer.Default)).Add(exposedDto)))
             {
-                var exposedDto = FindExposedDtoType(facts, controller, method, transport: true, out var exhausted);
-                if (exhausted)
-                    facts.ReportIncompleteContract(reportingSymbol, method, location);
-                if (exposedDto is not null)
-                {
-                    facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.DtoExposure, location,
-                        ConventionBoundaryAnalysis.Properties(reportingSymbol, exposedDto),
-                        method.ToDisplayString(), exposedDto.ToDisplayString()));
-                    if (reportsOnType) reportedTypeDto = true;
-                }
+                facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.DtoExposure, location,
+                    ConventionBoundaryAnalysis.Properties(reportingSymbol, exposedDto),
+                    method.ToDisplayString(), exposedDto.ToDisplayString()));
             }
 
             var context = new EndpointCheckContext(facts, controller, method, reportingSymbol, location, isSourceKnown);
@@ -286,13 +283,14 @@ internal static class ConventionDtoAnalysis
     private static bool RequiresExplicitContractMessage(ConventionFacts facts, INamedTypeSymbol payload, bool isSourceKnown) =>
         isSourceKnown ||
         payload.SpecialType == SpecialType.System_Object ||
+        IsCollectionWrapper(facts, payload) ||
         facts.Role(payload).Role is ConventionArchitecture.Contract or ConventionArchitecture.Application;
 
     private static INamedTypeSymbol? UnwrapResponsePayload(ConventionFacts facts, ITypeSymbol type) =>
-        UnwrapPayload(facts, type, unwrapResponseWrappers: true, maxDepth: 8);
+        UnwrapPayload(facts, type, unwrapResponseWrappers: true, maxDepth: 64);
 
     private static INamedTypeSymbol? UnwrapRequestPayload(ConventionFacts facts, ITypeSymbol type) =>
-        UnwrapPayload(facts, type, unwrapResponseWrappers: false, maxDepth: 4);
+        UnwrapPayload(facts, type, unwrapResponseWrappers: false, maxDepth: 64);
 
     private static INamedTypeSymbol? UnwrapPayload(ConventionFacts facts, ITypeSymbol type,
         bool unwrapResponseWrappers, int maxDepth)
@@ -300,6 +298,7 @@ internal static class ConventionDtoAnalysis
         var current = type;
         for (var depth = 0; depth < maxDepth; depth++)
         {
+            facts.Cancellation.ThrowIfCancellationRequested();
             if (current.TypeKind == TypeKind.Error) return null;
             if (current is IDynamicTypeSymbol) return DynamicAsObject(facts);
             if (current is IArrayTypeSymbol array)
@@ -328,7 +327,7 @@ internal static class ConventionDtoAnalysis
         }
         return current switch
         {
-            IDynamicTypeSymbol => DynamicAsObject(facts),
+            IDynamicTypeSymbol or IArrayTypeSymbol => DynamicAsObject(facts),
             INamedTypeSymbol { TypeKind: not TypeKind.Error } result => result,
             _ => null
         };

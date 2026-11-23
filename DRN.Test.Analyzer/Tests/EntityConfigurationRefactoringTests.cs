@@ -8,6 +8,9 @@ namespace DRN.Test.Analyzer.Tests;
 
 public sealed class EntityConfigurationRefactoringTests
 {
+    private static readonly string SourceRoot = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "drn-entity-config-tests"));
+    private static string SourcePath(params string[] segments) => Path.Combine([SourceRoot, .. segments]);
+
     private const string EntitySource = """
         namespace Sample.Domain.QA;
         [System.ComponentModel.DataAnnotations.Schema.Table("users")]
@@ -150,7 +153,7 @@ public sealed class EntityConfigurationRefactoringTests
         using var workspace = new AdhocWorkspace();
         var entity = CreateDocuments(workspace);
         var collision = entity.Project.AddDocument("userconfig.cs", "// preserved content",
-            filePath: "/source/Sample.Infra/QA/Configurations/userconfig.cs");
+            filePath: SourcePath("Sample.Infra", "QA", "Configurations", "userconfig.cs"));
         workspace.TryApplyChanges(collision.Project.Solution).Should().BeTrue();
         (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().BeEmpty();
     }
@@ -163,7 +166,7 @@ public sealed class EntityConfigurationRefactoringTests
         using var workspace = new AdhocWorkspace();
         var entity = CreateDocuments(workspace);
         var id = DocumentId.CreateNewId(entity.Project.Id);
-        var path = "/source/Sample.Infra/QA/Configurations/UserConfig.cs";
+        var path = SourcePath("Sample.Infra", "QA", "Configurations", "UserConfig.cs");
         var text = SourceText.From("# Existing user content");
         var changed = analyzerConfig
             ? entity.Project.Solution.AddAnalyzerConfigDocument(id, "UserConfig.cs", text, filePath: path)
@@ -185,13 +188,14 @@ public sealed class EntityConfigurationRefactoringTests
     }
 
     [Theory]
-    [DataInline("/source/Sample.Infra/QA/Configurations")]
-    [DataInline("/source/Sample.Infra/QA/configurations")]
-    [DataInline("/source/Sample.Infra/QA/Configurations/UserConfig.cs/notes.md")]
-    public async Task Workspace_File_And_Directory_Conflicts_Should_Decline_Configuration(string path)
+    [DataInline("QA/Configurations")]
+    [DataInline("QA/configurations")]
+    [DataInline("QA/Configurations/UserConfig.cs/notes.md")]
+    public async Task Workspace_File_And_Directory_Conflicts_Should_Decline_Configuration(string relativePath)
     {
         using var workspace = new AdhocWorkspace();
         var entity = CreateDocuments(workspace);
+        var path = SourcePath(["Sample.Infra", .. relativePath.Split('/')]);
         var collision = entity.Project.AddAdditionalDocument("notes.md", "Existing user content", filePath: path);
         workspace.TryApplyChanges(collision.Project.Solution).Should().BeTrue();
         var before = workspace.CurrentSolution;
@@ -206,7 +210,7 @@ public sealed class EntityConfigurationRefactoringTests
         using var workspace = new AdhocWorkspace();
         var entity = CreateDocuments(workspace);
         var existing = entity.Project.AddDocument("Other.cs", "// preserved content",
-            filePath: "/source/Sample.Infra/QA/configurations/Other.cs");
+            filePath: SourcePath("Sample.Infra", "QA", "configurations", "Other.cs"));
         workspace.TryApplyChanges(existing.Project.Solution).Should().BeTrue();
         (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().BeEmpty();
     }
@@ -217,7 +221,7 @@ public sealed class EntityConfigurationRefactoringTests
         using var workspace = new AdhocWorkspace();
         var entity = CreateDocuments(workspace);
         var context = entity.Project.Documents.Single(document => document.Name == "QAContext.cs");
-        var changed = context.WithFilePath("/source/Sample.Infra/QA/\0Context.cs");
+        var changed = context.WithFilePath(SourcePath("Sample.Infra", "QA", "\0Context.cs"));
         workspace.TryApplyChanges(changed.Project.Solution).Should().BeTrue();
         (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().BeEmpty();
     }
@@ -373,7 +377,7 @@ public sealed class EntityConfigurationRefactoringTests
             {
                 {{(externalScan ? "protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder builder) => builder.ApplyConfigurationsFromAssembly(typeof(Sample.Infra.QA.QAContext).Assembly, type => type.Namespace == \"Sample.Infra.QA.Configurations\");" : "")}}
             }
-            """, filePath: "/source/Sample.Read.Infra/QA/ReadContext.cs");
+            """, filePath: SourcePath("Sample.Read.Infra", "QA", "ReadContext.cs"));
         workspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
         (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().HaveCount(externalScan ? 0 : 1);
     }
@@ -478,7 +482,7 @@ public sealed class EntityConfigurationRefactoringTests
             [SampleType(SampleKinds.Order)]
             public sealed class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
             public readonly struct SampleApp : DRN.Framework.SharedKernel.Domain.IAppId { public static byte AppId => 1; }
-            """, filePath: "/source/Sample.Domain/QA/Order/OrderEntity.cs");
+            """, filePath: SourcePath("Sample.Domain", "QA", "Order", "OrderEntity.cs"));
         entityWorkspace.TryApplyChanges(entity.Project.Solution).Should().BeTrue();
 
         var infra = AddInfraProject(entityWorkspace, domainProjectId: domain.Id);
@@ -501,7 +505,7 @@ public sealed class EntityConfigurationRefactoringTests
                     return services;
                 }
             }
-            """, filePath: "/source/Sample.Infra/QA/QAContext.cs");
+            """, filePath: SourcePath("Sample.Infra", "QA", "QAContext.cs"));
         entityWorkspace.TryApplyChanges(context.Project.Solution).Should().BeTrue();
 
         var actions = new List<CodeAction>();
@@ -526,7 +530,7 @@ public sealed class EntityConfigurationRefactoringTests
         var entityDoc = domain.AddDocument("OrderEntity.cs", """
             namespace Sample.Domain.QA.Order;
             public sealed class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
-            """, filePath: "/source/Sample.Domain/QA/Order/OrderEntity.cs");
+            """, filePath: SourcePath("Sample.Domain", "QA", "Order", "OrderEntity.cs"));
         aliasWorkspace.TryApplyChanges(entityDoc.Project.Solution).Should().BeTrue();
         var infra = AddInfraProject(aliasWorkspace)
             .AddProjectReference(new ProjectReference(domain.Id, ["DomainAlias"]));
@@ -538,7 +542,7 @@ public sealed class EntityConfigurationRefactoringTests
                 public QAContext() : base(null) { }
                 public Microsoft.EntityFrameworkCore.DbSet<DomainAlias::Sample.Domain.QA.Order.OrderEntity> Orders { get; set; }
             }
-            """, filePath: "/source/Sample.Infra/QA/QAContext.cs");
+            """, filePath: SourcePath("Sample.Infra", "QA", "QAContext.cs"));
         aliasWorkspace.TryApplyChanges(aliasedContext.Project.Solution).Should().BeTrue();
         var currentEntity = aliasWorkspace.CurrentSolution.GetDocument(entityDoc.Id)!;
         var entityText = (await currentEntity.GetTextAsync()).ToString();
@@ -597,7 +601,7 @@ public sealed class EntityConfigurationRefactoringTests
             namespace Sample.Domain.{{nsSegment}};
             [DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomain({{entityAttr}})]
             public class User : DRN.Framework.SharedKernel.Domain.SourceKnownEntity { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
-            """, filePath: "/source/Sample.Domain/" + pathSegment + "/User.cs");
+            """, filePath: SourcePath(["Sample.Domain", .. pathSegment.Split('/'), "User.cs"]));
         workspace.TryApplyChanges(entityDoc.Project.Solution).Should().BeTrue();
 
         var contextName = foldersLayout ? "CommonContext" : "QAContext";
@@ -610,7 +614,7 @@ public sealed class EntityConfigurationRefactoringTests
                     public {{contextName}}() : base(null) { }
                     public Microsoft.EntityFrameworkCore.DbSet<Sample.Domain.{{nsSegment}}.User> Users { get; set; }
                 }
-                """, filePath: "/source/Sample.Infra/" + pathSegment + "/" + contextName + ".cs").Project;
+                """, filePath: SourcePath(["Sample.Infra", .. pathSegment.Split('/'), contextName + ".cs"])).Project;
         var solution = foldersLayout ? infra.Solution.WithFoldersLayout() : infra.Solution;
         workspace.TryApplyChanges(solution).Should().BeTrue();
         var current = workspace.CurrentSolution.GetDocument(entityDoc.Id)!;
@@ -647,7 +651,7 @@ public sealed class EntityConfigurationRefactoringTests
             public class User : DRN.Framework.SharedKernel.Domain.SourceKnownEntity { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
             """).WithAssemblyName("Sample.Domain");
         metadataDomain.AssertNoCompilerErrors();
-        var metadataRef = AnalyzerTestCompilation.EmitReference(metadataDomain, "/source/Sample.Domain/Sample.Domain.dll", AnalyzerTestCompilation.ReferenceAssemblyOptions);
+        var metadataRef = AnalyzerTestCompilation.EmitReference(metadataDomain, SourcePath("Sample.Domain", "Sample.Domain.dll"), AnalyzerTestCompilation.ReferenceAssemblyOptions);
 
         using var workspace = new AdhocWorkspace();
         var infra = AddInfraProject(workspace, extraReferences: [metadataRef]);
@@ -659,7 +663,7 @@ public sealed class EntityConfigurationRefactoringTests
                 public Microsoft.EntityFrameworkCore.DbSet<CustomRoot.QA.User> Users { get; set; }
             }
             """;
-        var contextDoc = infra.AddDocument("QAContext.cs", contextSource, filePath: "/source/Sample.Infra/QA/QAContext.cs");
+        var contextDoc = infra.AddDocument("QAContext.cs", contextSource, filePath: SourcePath("Sample.Infra", "QA", "QAContext.cs"));
         workspace.TryApplyChanges(contextDoc.Project.Solution).Should().BeTrue();
 
         var current = workspace.CurrentSolution.GetDocument(contextDoc.Id)!;
@@ -706,7 +710,7 @@ public sealed class EntityConfigurationRefactoringTests
             public class User : DRN.Framework.SharedKernel.Domain.SourceKnownEntity { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
             """).WithAssemblyName("Sample.Domain");
         metadataDomain.AssertNoCompilerErrors();
-        var metadataRef = AnalyzerTestCompilation.EmitReference(metadataDomain, "/source/Sample.Domain/Sample.Domain.dll", AnalyzerTestCompilation.ReferenceAssemblyOptions);
+        var metadataRef = AnalyzerTestCompilation.EmitReference(metadataDomain, SourcePath("Sample.Domain", "Sample.Domain.dll"), AnalyzerTestCompilation.ReferenceAssemblyOptions);
 
         using var workspace = new AdhocWorkspace();
         var infra = AddInfraProject(workspace, extraReferences: [metadataRef]);
@@ -718,7 +722,7 @@ public sealed class EntityConfigurationRefactoringTests
                 public Microsoft.EntityFrameworkCore.DbSet<Sample.Domain.QA.User> Users { get; set; }
             }
             """;
-        var contextDoc = infra.AddDocument("QAContext.cs", contextSource, filePath: "/source/Sample.Infra/QA/QAContext.cs");
+        var contextDoc = infra.AddDocument("QAContext.cs", contextSource, filePath: SourcePath("Sample.Infra", "QA", "QAContext.cs"));
         workspace.TryApplyChanges(contextDoc.Project.Solution).Should().BeTrue();
 
         var current = workspace.CurrentSolution.GetDocument(contextDoc.Id)!;
@@ -727,6 +731,52 @@ public sealed class EntityConfigurationRefactoringTests
         await new EntityConfigurationRefactoringProvider().ComputeRefactoringsAsync(new CodeRefactoringContext(current,
             new TextSpan(contextSource.IndexOf("Sample.Domain.QA.User", StringComparison.Ordinal) + "Sample.Domain.QA.".Length, 0),
             actions.Add, CancellationToken.None));
+        if (offered) actions.Should().ContainSingle();
+        else actions.Should().BeEmpty();
+    }
+
+    [Theory]
+    [DataInlineUnit("Sample.Infra", "", true)]
+    [DataInlineUnit("Sample.Infra", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.QA.User.Domain", "Sample")]
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.QA.User.Subdomain", "QA")]
+        """, true)]
+    [DataInlineUnit("Other.Infra", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.QA.User.Domain", "Sample")]
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.QA.User.Subdomain", "QA")]
+        """, false)]
+    [DataInlineUnit("Sample.Infra", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.QA.User.Subdomain", "Billing")]
+        """, false)]
+    [DataInlineUnit("Sample.Infra", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.QA.User.Domain", "Other")]
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.QA.User.Subdomain", "QA")]
+        """, false)]
+    public async Task Project_Referenced_Domain_Should_Validate_Producer_Ownership_Metadata(
+        string infraName, string metadataAttributes, bool offered)
+    {
+        using var workspace = new AdhocWorkspace();
+        var domain = AddDomainProject(workspace);
+        var entityDoc = domain.AddDocument("User.cs", $$"""
+            {{metadataAttributes}}
+            namespace Sample.Domain.QA;
+            public class User : DRN.Framework.SharedKernel.Domain.SourceKnownEntity { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
+            """, filePath: SourcePath("Sample.Domain", "QA", "User.cs"));
+        workspace.TryApplyChanges(entityDoc.Project.Solution).Should().BeTrue();
+
+        var infra = AddInfraProject(workspace, infraName, domain.Id)
+            .AddDocument("QAContext.cs", $$"""
+                namespace {{infraName}}.QA;
+                public class QAContext : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>
+                {
+                    public QAContext() : base(null) { }
+                    public Microsoft.EntityFrameworkCore.DbSet<Sample.Domain.QA.User> Users { get; set; }
+                }
+                """, filePath: SourcePath(infraName, "QA", "QAContext.cs")).Project;
+        workspace.TryApplyChanges(infra.Solution).Should().BeTrue();
+
+        (await workspace.CurrentSolution.GetProject(infra.Id)!.GetCompilationAsync())!.AssertNoCompilerErrors();
+        var actions = await Actions(workspace.CurrentSolution.GetDocument(entityDoc.Id)!);
         if (offered) actions.Should().ContainSingle();
         else actions.Should().BeEmpty();
     }
@@ -742,7 +792,7 @@ public sealed class EntityConfigurationRefactoringTests
             namespace Sample.Domain.QA;
             [DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomain("QA", Domain = "Sample")]
             public class User : DRN.Framework.SharedKernel.Domain.SourceKnownEntity { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
-            """, filePath: "/source/Sample.Domain/QA/User.cs");
+            """, filePath: SourcePath("Sample.Domain", "QA", "User.cs"));
         workspace.TryApplyChanges(entityDoc.Project.Solution).Should().BeTrue();
 
         var infra = AddInfraProject(workspace, infraName, domain.Id)
@@ -753,7 +803,7 @@ public sealed class EntityConfigurationRefactoringTests
                     public QAContext() : base(null) { }
                     public Microsoft.EntityFrameworkCore.DbSet<Sample.Domain.QA.User> Users { get; set; }
                 }
-                """, filePath: "/source/" + infraName + "/QA/QAContext.cs").Project;
+                """, filePath: SourcePath(infraName, "QA", "QAContext.cs")).Project;
         workspace.TryApplyChanges(infra.Solution).Should().BeTrue();
 
         var actions = await Actions(workspace.CurrentSolution.GetDocument(entityDoc.Id)!);
@@ -777,7 +827,7 @@ public sealed class EntityConfigurationRefactoringTests
         var entityDoc = infra.AddDocument("OrderEntity.cs", """
             namespace Sample.Domain.Order;
             public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
-            """, filePath: "/source/Sample.Infra/Order/OrderEntity.cs");
+            """, filePath: SourcePath("Sample.Infra", "Order", "OrderEntity.cs"));
         var contextDoc = entityDoc.Project.AddDocument("OrderContext.cs", """
             namespace Sample.Infra.Order;
             public class OrderContext : DRN.Framework.EntityFramework.Context.DrnContext<OrderContext>
@@ -785,7 +835,7 @@ public sealed class EntityConfigurationRefactoringTests
                 public OrderContext() : base(null) { }
                 public Microsoft.EntityFrameworkCore.DbSet<Sample.Domain.Order.OrderEntity> Orders { get; set; }
             }
-            """, filePath: "/source/Sample.Infra/Order/OrderContext.cs");
+            """, filePath: SourcePath("Sample.Infra", "Order", "OrderContext.cs"));
         unownedWorkspace.TryApplyChanges(contextDoc.Project.Solution).Should().BeTrue();
 
         var current = unownedWorkspace.CurrentSolution.GetDocument(entityDoc.Id)!;
@@ -798,7 +848,7 @@ public sealed class EntityConfigurationRefactoringTests
 
     private static Project AddDomainProject(AdhocWorkspace workspace, string name = "Sample.Domain") =>
         workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
-                name, name, LanguageNames.CSharp, filePath: "/source/" + name + "/" + name + ".csproj"))
+                name, name, LanguageNames.CSharp, filePath: SourcePath(name, name + ".csproj")))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReferences(ClassificationTestFixture.References);
 
@@ -806,7 +856,7 @@ public sealed class EntityConfigurationRefactoringTests
         ProjectId? domainProjectId = null, params MetadataReference[] extraReferences)
     {
         var project = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
-                name, name, LanguageNames.CSharp, filePath: "/source/" + name + "/" + name + ".csproj"))
+                name, name, LanguageNames.CSharp, filePath: SourcePath(name, name + ".csproj")))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReferences(ClassificationTestFixture.References)
             .AddMetadataReference(AnalyzerTestCompilation.EntityFrameworkReference)
@@ -821,7 +871,7 @@ public sealed class EntityConfigurationRefactoringTests
     private static Document CreateDocuments(AdhocWorkspace workspace, string? extraSource = null, string contextMembers = "")
     {
         var project = AddInfraProject(workspace);
-        var entity = project.AddDocument("User.cs", EntitySource, filePath: "/source/Sample.Infra/QA/User.cs");
+        var entity = project.AddDocument("User.cs", EntitySource, filePath: SourcePath("Sample.Infra", "QA", "User.cs"));
         var context = entity.Project.AddDocument("QAContext.cs", $$"""
             namespace Sample.Infra.QA;
             public class QAContext : DRN.Framework.EntityFramework.Context.DrnContext<QAContext>
@@ -830,10 +880,10 @@ public sealed class EntityConfigurationRefactoringTests
                 public Microsoft.EntityFrameworkCore.DbSet<Sample.Domain.QA.User> Users { get; set; }
                 {{contextMembers}}
             }
-            """, filePath: "/source/Sample.Infra/QA/QAContext.cs");
+            """, filePath: SourcePath("Sample.Infra", "QA", "QAContext.cs"));
         var solution = context.Project.Solution;
         if (extraSource is not null)
-            solution = context.Project.AddDocument("Existing.cs", extraSource, filePath: "/source/Sample.Infra/Other/Existing.cs").Project.Solution;
+            solution = context.Project.AddDocument("Existing.cs", extraSource, filePath: SourcePath("Sample.Infra", "Other", "Existing.cs")).Project.Solution;
         workspace.TryApplyChanges(solution).Should().BeTrue();
         return workspace.CurrentSolution.GetDocument(entity.Id)!;
     }

@@ -93,7 +93,8 @@ public class TagServiceTests
         Func<Task> nullRequest = () => service.CreateEntityAsync(null!);
         Func<Task> nullRequestModel = () => service.CreateEntityAsync(new TagPostRequest { Name = "Missing model", Model = null! });
         await nullRequest.Should().ThrowAsync<ArgumentNullException>();
-        await nullRequestModel.Should().ThrowAsync<ArgumentNullException>();
+        await nullRequestModel.Should().ThrowAsync<ValidationException>()
+            .WithMessage("Tag model is required.");
 
         TagType?[] invalidTypes = [null, TagType.System, (TagType)99];
         foreach (var invalidType in invalidTypes)

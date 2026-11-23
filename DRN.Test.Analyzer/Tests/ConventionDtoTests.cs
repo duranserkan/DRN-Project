@@ -2061,6 +2061,126 @@ public sealed class ConventionDtoTests
             "Email = Enumerable.First(predicate: c => true, source: entity.Contacts).Email");
     }
 
+    [Fact]
+    public void Dto_Exposure_Should_Check_Type_Parameter_Constraints_Distinct_Member_Dtos_And_Distinct_Inherited_Controller_Dtos()
+    {
+        var contractRef = EmitProjectReference("Sample.Contract", "/dto-header-inherited/Sample.Contract.dll", """
+            using DRN.Framework.SharedKernel.Domain;
+            namespace Sample.Contract.QA.Orders
+            {
+                public class OrderDto(SourceKnownEntity? entity = null) : Dto(entity);
+                public class CustomerDto(SourceKnownEntity? entity = null) : Dto(entity);
+            }
+            """);
+
+        var contract = Compilation("""
+            using DRN.Framework.SharedKernel.Domain;
+            namespace Sample.Contract.QA.Orders
+            {
+                public class OrderDto(SourceKnownEntity? entity = null) : Dto(entity);
+                public class CustomerDto(SourceKnownEntity? entity = null) : Dto(entity);
+                public class ConstrainedDtoMarker<T> where T : OrderDto;
+                public class UnconstrainedMarker<T> { public T Value { get; init; } = default!; }
+                public interface IPair<T1, T2>
+                {
+                    T1 First();
+                    T2 Second();
+                }
+                public class DtoPair : IPair<OrderDto, CustomerDto>
+                {
+                    public OrderDto First() => new();
+                    public CustomerDto Second() => new();
+                }
+            }
+            """).WithAssemblyName("Sample.Contract");
+        contract.AssertNoCompilerErrors();
+        var contractDiagnostics = Analyze(contract, "Contract").Where(d => d.Id == "DRNDTO005").ToArray();
+        contractDiagnostics.Where(d => d.Properties["Target"] == "T:Sample.Contract.QA.Orders.ConstrainedDtoMarker`1")
+            .Should().ContainSingle().Which.Properties["Entity"].Should().Be("Sample.Contract.QA.Orders.OrderDto");
+        contractDiagnostics.Should().NotContain(d => d.Properties["Target"] == "T:Sample.Contract.QA.Orders.UnconstrainedMarker`1");
+        contractDiagnostics.Where(d => d.Properties["Target"]!.Contains("DtoPair", StringComparison.Ordinal))
+            .Select(d => d.Properties["Entity"]).Should().BeEquivalentTo(
+                "Sample.Contract.QA.Orders.OrderDto",
+                "Sample.Contract.QA.Orders.CustomerDto");
+
+        var hosted = Compilation("""
+            using Microsoft.AspNetCore.Mvc;
+            using Sample.Contract.QA.Orders;
+            namespace Sample.Hosted.Controllers.QA
+            {
+                public abstract class BaseDtoController : ControllerBase
+                {
+                    [HttpGet("order")] public OrderDto GetOrder() => new();
+                    [HttpGet("customer")] public CustomerDto GetCustomer() => new();
+                    [HttpGet("order-again")] public OrderDto GetOrderAgain() => new();
+                }
+                public class ConcreteDtoController : BaseDtoController
+                {
+                    [HttpGet("own-order")] public OrderDto OwnOrder() => new();
+                }
+            }
+            """).WithAssemblyName("Sample.Hosted").AddReferences(contractRef);
+        hosted.AssertNoCompilerErrors();
+        Analyze(hosted, "Hosted").Where(d => d.Id == "DRNDTO005")
+            .Select(d => (d.Properties["Target"], d.Properties["Entity"])).Should().BeEquivalentTo(
+                new (string?, string?)[]
+                {
+                    ("T:Sample.Hosted.Controllers.QA.ConcreteDtoController", "Sample.Contract.QA.Orders.OrderDto"),
+                    ("T:Sample.Hosted.Controllers.QA.ConcreteDtoController", "Sample.Contract.QA.Orders.CustomerDto"),
+                    ("M:Sample.Hosted.Controllers.QA.ConcreteDtoController.OwnOrder", "Sample.Contract.QA.Orders.OrderDto")
+                });
+    }
+
+    [Fact]
+    public void Deeply_Wrapped_Request_Bodies_Should_Reject_Object_While_Allowing_Named_Contract_Requests()
+    {
+        var contractRef = EmitProjectReference("Sample.Contract", "/dto-deep-request/Sample.Contract.dll", """
+            namespace Sample.Contract.QA.Orders
+            {
+                public class OrderRequest { public string Name { get; init; } = ""; }
+                public class OrderResponse { public string Name { get; init; } = ""; }
+            }
+            """);
+        var hosted = Compilation("""
+            using System.Collections.Generic;
+            using Microsoft.AspNetCore.Mvc;
+            using Sample.Contract.QA.Orders;
+            namespace Sample.Hosted.Controllers.QA
+            {
+                public class OrdersController : ControllerBase
+                {
+                    [HttpPost("four-obj")]
+                    public OrderResponse FourObjectWrappers([FromBody] List<List<List<List<object>>>> payload) => new();
+
+                    [HttpPost("five-obj")]
+                    public OrderResponse FiveObjectWrappers([FromBody] List<List<List<List<List<object>>>>> payload) => new();
+
+                    [HttpPost("five-arr")]
+                    public OrderResponse FiveObjectArrays([FromBody] object[][][][][] payload) => new();
+
+                    [HttpPost("four-req")]
+                    public OrderResponse FourRequestWrappers([FromBody] List<List<List<List<OrderRequest>>>> request) => new();
+
+                    [HttpPost("five-req")]
+                    public OrderResponse FiveRequestWrappers([FromBody] List<List<List<List<List<OrderRequest>>>>> request) => new();
+
+                    [HttpPost("five-req-arr")]
+                    public OrderResponse FiveRequestArrays([FromBody] OrderRequest[][][][][] request) => new();
+                }
+            }
+            """).WithAssemblyName("Sample.Hosted").AddReferences(contractRef);
+        hosted.AssertNoCompilerErrors();
+
+        Analyze(hosted, "Hosted").Where(d => d.Id == "DRNDTO006")
+            .Select(d => (d.Properties["Target"], d.Properties["Entity"])).Should().BeEquivalentTo(
+                new (string?, string?)[]
+                {
+                    ("M:Sample.Hosted.Controllers.QA.OrdersController.FourObjectWrappers(System.Collections.Generic.List{System.Collections.Generic.List{System.Collections.Generic.List{System.Collections.Generic.List{System.Object}}}})", "System.Object"),
+                    ("M:Sample.Hosted.Controllers.QA.OrdersController.FiveObjectWrappers(System.Collections.Generic.List{System.Collections.Generic.List{System.Collections.Generic.List{System.Collections.Generic.List{System.Collections.Generic.List{System.Object}}}}})", "System.Object"),
+                    ("M:Sample.Hosted.Controllers.QA.OrdersController.FiveObjectArrays(System.Object[][][][][])", "System.Object")
+                });
+    }
+
     private static List<Diagnostic> Project(string contractTypes, string domainTypes, string area = "QA.Users")
     {
         var contract = Compilation($$"""
