@@ -29,7 +29,7 @@ public interface ISourceKnownService<TEntity, TResponse> : ISourceKnownService<T
     Task<TResponse> CreateResponseAsync(TEntity entity, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Projects <paramref name="entities"/> to explicit <typeparamref name="TResponse"/> contracts.
+    /// Projects <paramref name="entities"/> to explicit <typeparamref name="TResponse"/> contracts, returning one non-null response per input entity in order.
     /// Override to batch asynchronous enrichment queries for collections and paginated results.
     /// </summary>
     Task<TResponse[]> CreateResponsesAsync(IReadOnlyList<TEntity> entities, CancellationToken cancellationToken = default);

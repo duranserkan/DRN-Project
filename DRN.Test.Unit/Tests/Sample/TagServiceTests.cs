@@ -1,4 +1,5 @@
 using DRN.Framework.SharedKernel.Domain;
+using DRN.Framework.Utils.Scope;
 using Sample.Application.Services.QA.Tags;
 using Sample.Contract.QA.Tags;
 using Sample.Domain.QA.Tag;
@@ -93,8 +94,10 @@ public class TagServiceTests
         Func<Task> nullRequest = () => service.CreateEntityAsync(null!);
         Func<Task> nullRequestModel = () => service.CreateEntityAsync(new TagPostRequest { Name = "Missing model", Model = null! });
         await nullRequest.Should().ThrowAsync<ArgumentNullException>();
+        ScopeContext.Problem.Detail = null;
         await nullRequestModel.Should().ThrowAsync<ValidationException>()
             .WithMessage("Tag model is required.");
+        ScopeContext.Problem.Detail.Should().Be("Tag model is required.");
 
         TagType?[] invalidTypes = [null, TagType.System, (TagType)99];
         foreach (var invalidType in invalidTypes)
@@ -104,9 +107,11 @@ public class TagServiceTests
                 Name = "Invalid tag",
                 Model = new TagModelPostRequest { Type = invalidType }
             };
+            ScopeContext.Problem.Detail = null;
             Func<Task> createInvalid = () => service.CreateEntityAsync(invalidRequest);
             await createInvalid.Should().ThrowAsync<ValidationException>()
                 .WithMessage("Only User tag type is permitted.");
+            ScopeContext.Problem.Detail.Should().Be("Only User tag type is permitted.");
         }
 
         using var cancellation = new CancellationTokenSource();

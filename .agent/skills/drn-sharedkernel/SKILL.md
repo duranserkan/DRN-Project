@@ -1,7 +1,7 @@
 ---
 name: drn-sharedkernel
 description: "DRN domain primitives, Source-Known identity and time, repository contracts, pagination, exceptions, and classification analyzers."
-last-updated: 2026-11-22
+last-updated: 2026-11-23
 difficulty: intermediate
 ---
 
@@ -31,7 +31,7 @@ GUID helpers default to `ConfiguredDefault`. Implementations expose an immutable
 
 Concrete aggregates use an `Entity` suffix and a matching final namespace and folder (`QA/Order/OrderEntity.cs` in `<DomainRoot>.QA.Order`). Each needs an `ISourceKnownRepository<TEntity>` interface in the same Domain assembly, namespace, and folder (`QA/Order/IOrderRepository.cs`). Compile/Link paths govern folder checks. Repositories end in `Repository`, semantic services in `Service`, and MVC controllers in `Controller` (`DRNSTRUCTURE004`/`005`, `DRNREPOSITORY003`/`004`). Abstract and open generic helpers are excluded. See the installed `CONVENTIONS.md` for scope and exceptions.
 
-`ISourceKnownService<TEntity>` exposes `ISourceKnownRepository<TEntity> Repository` for `AggregateRoot`. `ISourceKnownService<TEntity, TResponse>` adds `CreateResponseAsync` and `CreateResponsesAsync`, and `ISourceKnownService<TEntity, TResponse, in TCreateRequest>` adds `CreateEntityAsync`. Matching `SourceKnownService` abstract bases implement them from a constructor-supplied repository and supply a virtual sequential `CreateResponsesAsync` default (override to batch async enrichment).
+`ISourceKnownService<TEntity>` exposes `ISourceKnownRepository<TEntity> Repository` for `AggregateRoot`. `ISourceKnownService<TEntity, TResponse>` adds `CreateResponseAsync` and `CreateResponsesAsync`, and `ISourceKnownService<TEntity, TResponse, in TCreateRequest>` adds `CreateEntityAsync`. Matching `SourceKnownService` abstract bases implement them from a constructor-supplied repository, enforce input/cancellation/projection invariants on the non-overridable public methods, and delegate to protected `CreateResponseCoreAsync`, virtual sequential `CreateResponsesCoreAsync` (override to batch async enrichment), and `CreateEntityCoreAsync`.
 
 Use GUID overloads for external IDs. Generic repository methods validate entity type and partition. Keep internal DTOs derived from `Dto` in `*.Contract` with GUID IDs, keep public HTTP contracts explicit (`*Request`/`*Response`), and keep domain mapping and invariants in Domain. See [domain design](../drn-domain-design/SKILL.md) and [repository cancellation](../drn-entityframework/SKILL.md#repository-cancellation).
 

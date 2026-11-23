@@ -192,7 +192,7 @@ Do not emit a controller until every requested operation has a real mapping, nam
 
 | Selected base | Inherited HTTP surface to review |
 |---|---|
-| `SourceKnownControllerBase<TEntity,TResponse>` | No HTTP actions. Composes `ISourceKnownService<TEntity, TResponse>` and delegates response mapping via virtual `CreateResponseAsync`/`CreateResponsesAsync`. Own each requested operation explicitly. |
+| `SourceKnownControllerBase<TEntity,TResponse>` | No HTTP actions. Composes `ISourceKnownService<TEntity, TResponse>` and delegates response mapping via protected `CreateResponseAsync`/`CreateResponsesAsync` helpers. Own each requested operation explicitly. |
 | `SourceKnownReadOnlyController<TEntity,TResponse>` | GetAsync, GetManyAsync, AnyAsync, CountAsync, PaginateAsync, PaginateWithOptionsAsync, PaginateWithBodyAsync. POST lookup/pagination are still reads. |
 | `SourceKnownController<TEntity,TResponse,TCreateRequest>` | All read actions plus PostAsync and DeleteAsync. Delegates creation and response projection to `ISourceKnownService<TEntity, TResponse, TCreateRequest>`. |
 | `SourceKnownWriteOnlyController<TEntity,TResponse,TCreateRequest>` | PostAsync and DeleteAsync. Inherited reads are sealed NonAction overrides. |

@@ -1,7 +1,7 @@
 ---
 name: drn-domain-design
 description: "Model DRN aggregates, repository boundaries, contract DTOs, mapping, and paginated APIs."
-last-updated: 2026-11-22
+last-updated: 2026-11-23
 difficulty: advanced
 ---
 
@@ -53,7 +53,7 @@ public class CategoryDto(SourceKnownEntity? entity = null) : Dto(entity)
 }
 ```
 
-In Domain, override `SourceKnownEntity.ToDto()` covariantly with `public override CategoryDto ToDto() => new(this) { Name = Name };`. Application services deriving from `SourceKnownService<TEntity, TResponse>` or `SourceKnownService<TEntity, TResponse, TCreateRequest>` implement `CreateResponseAsync` (and may override `CreateResponsesAsync` to batch async enrichment), and write-capable services also implement `CreateEntityAsync`. Select only fields needed by consumers. Preserve each mapped property's Personal and Sensitive classifications on both DTOs and Contract `*Response` projections, including when renaming fields. A metadata-only mapper can return `new(this)`. Map writable request fields through domain constructors or operations so invariants run on every path.
+In Domain, override `SourceKnownEntity.ToDto()` covariantly with `public override CategoryDto ToDto() => new(this) { Name = Name };`. Application services deriving from `SourceKnownService<TEntity, TResponse>` or `SourceKnownService<TEntity, TResponse, TCreateRequest>` implement `CreateResponseCoreAsync` (and may override `CreateResponsesCoreAsync` to batch async enrichment), and write-capable services also implement `CreateEntityCoreAsync`. Select only fields needed by consumers. Preserve each mapped property's Personal and Sensitive classifications on both DTOs and Contract `*Response` projections, including when renaming fields. A metadata-only mapper can return `new(this)`. Map writable request fields through domain constructors or operations so invariants run on every path.
 
 ## API Integration
 

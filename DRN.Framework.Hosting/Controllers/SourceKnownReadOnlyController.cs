@@ -1,6 +1,6 @@
-using DRN.Framework.SharedKernel;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.SharedKernel.Domain.Pagination;
+using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DRN.Framework.Hosting.Controllers;
@@ -27,8 +27,7 @@ public abstract class SourceKnownReadOnlyController<TEntity, TResponse>(ISourceK
         PrepareRepository(cancellationToken);
         var entity = await Repository.GetAsync(id);
         cancellationToken.ThrowIfCancellationRequested();
-        return await CreateResponseAsync(entity, cancellationToken)
-               ?? throw new InvalidOperationException($"{GetType().Name}.{nameof(CreateResponseAsync)} returned null.");
+        return await CreateResponseAsync(entity, cancellationToken);
     }
 
     /// <summary>Retrieves a bounded batch. Missing IDs and ordering follow repository semantics.</summary>
@@ -36,13 +35,16 @@ public abstract class SourceKnownReadOnlyController<TEntity, TResponse>(ISourceK
     public virtual async Task<TResponse[]> GetManyAsync([FromBody] Guid[] ids, CancellationToken cancellationToken = default)
     {
         if (ids is null || ids.Length == 0 || ids.Length > Math.Clamp(MaxBatchSize, 1, PageSize.MaxSizeThreshold))
-            throw ExceptionFor.Validation("Provide a nonempty ID batch within the server's batch limit.");
+        {
+            const string message = "Provide a nonempty ID batch within the server's batch limit.";
+            ScopeContext.Problem.Detail = message;
+            ScopeContext.Problem.Validation(message);
+        }
 
         PrepareRepository(cancellationToken);
         var entities = await Repository.GetAsync(ids);
         cancellationToken.ThrowIfCancellationRequested();
-        return await CreateResponsesAsync(entities, cancellationToken)
-               ?? throw new InvalidOperationException($"{GetType().Name}.{nameof(CreateResponsesAsync)} returned null.");
+        return await CreateResponsesAsync(entities, cancellationToken);
     }
 
     /// <summary>Reports whether any entity is visible through the configured repository filters.</summary>
@@ -96,8 +98,7 @@ public abstract class SourceKnownReadOnlyController<TEntity, TResponse>(ISourceK
             cursor, updateTotalCount: request.UpdateTotalCount);
         var result = await Repository.PaginateAsync(boundedRequest);
         cancellationToken.ThrowIfCancellationRequested();
-        var responses = await CreateResponsesAsync(result.Items, cancellationToken)
-                        ?? throw new InvalidOperationException($"{GetType().Name}.{nameof(CreateResponsesAsync)} returned null.");
+        var responses = await CreateResponsesAsync(result.Items, cancellationToken);
         return new PaginationResultModel<TResponse>(result.Info, responses);
     }
 }

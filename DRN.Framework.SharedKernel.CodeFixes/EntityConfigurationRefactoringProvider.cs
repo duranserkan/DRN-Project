@@ -282,9 +282,9 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
         if (!declaringInfo.Layout.Valid || !ValidNamespace(declaringInfo.Namespace)) return (null, null, null, false);
         var domainInputs = await ReadInputsWithoutRoleOverrideAsync(declaringProject, required: false, token);
         if (domainInputs is null) return (null, null, null, false);
-        var assemblyMetadata = ConventionGenerationPreflight.MetadataFromAssembly(entity.ContainingAssembly);
-        if (assemblyMetadata.HasRoleOverrides) return (null, null, null, false);
-        return (ResolveNamespaceOwnerKey(entity, declaringInfo.Namespace, declaringInfo.Layout), domainInputs, assemblyMetadata, true);
+        var domainAssemblyMetadata = ConventionGenerationPreflight.MetadataFromAssembly(entity.ContainingAssembly);
+        if (domainAssemblyMetadata.HasRoleOverrides) return (null, null, null, false);
+        return (ResolveNamespaceOwnerKey(entity, declaringInfo.Namespace, declaringInfo.Layout), domainInputs, domainAssemblyMetadata, true);
     }
 
     private readonly record struct InfraProjectContext(Project Project, string Namespace,

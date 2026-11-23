@@ -45,22 +45,17 @@ public sealed class SourceKnownRoutingService(ISourceKnownRepository<SourceKnown
     : SourceKnownService<SourceKnownRoutingEntity, SourceKnownRoutingResponse, SourceKnownRoutingRequest>(repository),
         ISourceKnownRoutingService
 {
-    public override Task<SourceKnownRoutingResponse> CreateResponseAsync(
+    protected override Task<SourceKnownRoutingResponse> CreateResponseCoreAsync(
         SourceKnownRoutingEntity entity, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(entity);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        return Task.FromResult(new SourceKnownRoutingResponse
+        => Task.FromResult(new SourceKnownRoutingResponse
         {
             Id = entity.EntityId,
             CreatedAt = entity.CreatedAt,
             ModifiedAt = entity.ModifiedAt,
             Label = entity.Label
         });
-    }
 
-    public override Task<SourceKnownRoutingEntity> CreateEntityAsync(
+    protected override Task<SourceKnownRoutingEntity> CreateEntityCoreAsync(
         SourceKnownRoutingRequest request, CancellationToken cancellationToken = default)
         => Task.FromResult(new SourceKnownRoutingEntity { Label = request.Label });
 }

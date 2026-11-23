@@ -7,6 +7,7 @@ namespace DRN.Framework.Hosting.Controllers;
 /// Combines all read actions with opt-in create and delete actions backed by an application service.
 /// Applications supply explicit response projection, named authorization policies and resource-specific checks.
 /// </summary>
+[SuppressMessage("SonarQube", "S2436", Justification = "Entity, response contract and create request are independent contracts. Three type parameters preserve typed service access, response projection and request binding.")]
 public abstract class SourceKnownController<TEntity, TResponse, TCreateRequest>(
     ISourceKnownService<TEntity, TResponse, TCreateRequest> service)
     : SourceKnownReadOnlyController<TEntity, TResponse>(service)
@@ -31,8 +32,7 @@ public abstract class SourceKnownController<TEntity, TResponse, TCreateRequest>(
         cancellationToken.ThrowIfCancellationRequested();
         await Repository.CreateAsync(entity);
         cancellationToken.ThrowIfCancellationRequested();
-        var response = await CreateResponseAsync(entity, cancellationToken)
-                       ?? throw new InvalidOperationException($"{GetType().Name}.{nameof(CreateResponseAsync)} returned null.");
+        var response = await CreateResponseAsync(entity, cancellationToken);
 
         return new ObjectResult(response) { StatusCode = StatusCodes.Status201Created };
     }

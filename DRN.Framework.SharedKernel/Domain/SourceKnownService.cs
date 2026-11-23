@@ -30,10 +30,17 @@ public abstract class SourceKnownService<TEntity, TResponse>(ISourceKnownReposit
     where TResponse : class
 {
     /// <inheritdoc />
-    public abstract Task<TResponse> CreateResponseAsync(TEntity entity, CancellationToken cancellationToken = default);
+    public async Task<TResponse> CreateResponseAsync(TEntity entity, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(entity);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return await CreateResponseCoreAsync(entity, cancellationToken)
+               ?? throw new InvalidOperationException($"{GetType().Name}.{nameof(CreateResponseCoreAsync)} returned null.");
+    }
 
     /// <inheritdoc />
-    public virtual async Task<TResponse[]> CreateResponsesAsync(IReadOnlyList<TEntity> entities,
+    public async Task<TResponse[]> CreateResponsesAsync(IReadOnlyList<TEntity> entities,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entities);
@@ -41,14 +48,41 @@ public abstract class SourceKnownService<TEntity, TResponse>(ISourceKnownReposit
         if (entities.Count == 0)
             return [];
 
+        foreach (var t in entities)
+            ArgumentNullException.ThrowIfNull(t, nameof(entities));
+
+        var responses = await CreateResponsesCoreAsync(entities, cancellationToken)
+                        ?? throw new InvalidOperationException($"{GetType().Name}.{nameof(CreateResponsesCoreAsync)} returned null.");
+
+        if (responses.Length != entities.Count)
+            throw new InvalidOperationException(
+                $"{GetType().Name}.{nameof(CreateResponsesCoreAsync)} returned {responses.Length} responses for {entities.Count} entities.");
+
+        foreach (var response in responses)
+            if (response is null)
+                throw new InvalidOperationException($"{GetType().Name}.{nameof(CreateResponsesCoreAsync)} returned a null element.");
+
+        return responses;
+    }
+
+    /// <summary>
+    /// Projects a validated non-null <paramref name="entity"/> to its explicit <typeparamref name="TResponse"/> contract.
+    /// </summary>
+    protected abstract Task<TResponse> CreateResponseCoreAsync(TEntity entity, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Projects a validated nonempty list of non-null <paramref name="entities"/> to explicit <typeparamref name="TResponse"/> contracts in order.
+    /// Override to batch asynchronous enrichment queries for collections and paginated results.
+    /// </summary>
+    protected virtual async Task<TResponse[]> CreateResponsesCoreAsync(IReadOnlyList<TEntity> entities,
+        CancellationToken cancellationToken = default)
+    {
         var responses = new TResponse[entities.Count];
         for (var i = 0; i < entities.Count; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var entity = entities[i];
-            ArgumentNullException.ThrowIfNull(entity);
-            responses[i] = await CreateResponseAsync(entity, cancellationToken)
-                           ?? throw new InvalidOperationException($"{GetType().Name}.{nameof(CreateResponseAsync)} returned null.");
+            responses[i] = await CreateResponseCoreAsync(entities[i], cancellationToken)
+                           ?? throw new InvalidOperationException($"{GetType().Name}.{nameof(CreateResponseCoreAsync)} returned null.");
         }
 
         return responses;
@@ -67,5 +101,17 @@ public abstract class SourceKnownService<TEntity, TResponse, TCreateRequest>(ISo
     where TCreateRequest : class
 {
     /// <inheritdoc />
-    public abstract Task<TEntity> CreateEntityAsync(TCreateRequest request, CancellationToken cancellationToken = default);
+    public async Task<TEntity> CreateEntityAsync(TCreateRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return await CreateEntityCoreAsync(request, cancellationToken)
+               ?? throw new InvalidOperationException($"{GetType().Name}.{nameof(CreateEntityCoreAsync)} returned null.");
+    }
+
+    /// <summary>
+    /// Builds a new <typeparamref name="TEntity"/> from a validated non-null <paramref name="request"/> through application domain operations without saving it.
+    /// </summary>
+    protected abstract Task<TEntity> CreateEntityCoreAsync(TCreateRequest request, CancellationToken cancellationToken = default);
 }

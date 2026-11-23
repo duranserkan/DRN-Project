@@ -14,26 +14,17 @@ public interface ICategoryService : ISourceKnownService<CategoryEntity, Category
 public class CategoryService(ICategoryRepository repository)
     : SourceKnownService<CategoryEntity, CategoryResponse, CategoryPostRequest>(repository), ICategoryService
 {
-    public override Task<CategoryResponse> CreateResponseAsync(CategoryEntity entity, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(entity);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        return Task.FromResult(new CategoryResponse
+    protected override Task<CategoryResponse> CreateResponseCoreAsync(CategoryEntity entity, CancellationToken cancellationToken = default)
+        => Task.FromResult(new CategoryResponse
         {
             Id = entity.EntityId,
             CreatedAt = entity.CreatedAt,
             ModifiedAt = entity.ModifiedAt,
             Name = entity.Name
         });
-    }
 
-    public override Task<CategoryEntity> CreateEntityAsync(CategoryPostRequest request, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(new CategoryEntity(request.Name));
-    }
+    protected override Task<CategoryEntity> CreateEntityCoreAsync(CategoryPostRequest request, CancellationToken cancellationToken = default)
+        => Task.FromResult(new CategoryEntity(request.Name));
 
     public Task<CategoryEntity?> GetOrDefaultAsync(Guid id, CancellationToken cancellationToken = default)
     {

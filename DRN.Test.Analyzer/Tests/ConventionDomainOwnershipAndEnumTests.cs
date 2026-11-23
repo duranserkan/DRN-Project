@@ -846,7 +846,7 @@ public sealed class ConventionDomainOwnershipAndEnumTests
         var unsuppressedCompilation = baseCompilation.AddSyntaxTrees(
             CSharpSyntaxTree.ParseText("global using System.Linq;", path: "QA/BadUsings.cs"));
         var unsuppressed = await AnalyzerTestCompilation.Analyze(unsuppressedCompilation, new SourceKnownConventionAnalyzer(), options);
-        unsuppressed.Should().NotContain(d => d.Id is "AD0001" or "DRNCONVENTIONINPUT001");
+        unsuppressed.Should().NotContain(d => d.Id == "AD0001" || d.Id == "DRNCONVENTIONINPUT001");
         var structureWarning = unsuppressed.Where(d => d.Id == "DRNSTRUCTURE008").Should().ContainSingle().Which;
         structureWarning.Properties["Target"].Should().Be("QA/BadUsings.cs");
         structureWarning.Location.SourceTree?.FilePath.Should().Be("QA/BadUsings.cs");
@@ -857,7 +857,7 @@ public sealed class ConventionDomainOwnershipAndEnumTests
             #pragma warning restore DRNSTRUCTURE008
             """, path: "QA/BadUsings.cs"));
         var suppressed = await AnalyzerTestCompilation.Analyze(suppressedCompilation, new SourceKnownConventionAnalyzer(), options);
-        suppressed.Should().NotContain(d => d.Id is "DRNSTRUCTURE008" or "DRNCONVENTIONINPUT001" or "AD0001");
+        suppressed.Should().NotContain(d => d.Id == "DRNSTRUCTURE008" || d.Id == "DRNCONVENTIONINPUT001" || d.Id == "AD0001");
     }
 
     [Theory]

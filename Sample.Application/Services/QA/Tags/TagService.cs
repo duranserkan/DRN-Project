@@ -1,5 +1,6 @@
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.Utils.DependencyInjection.Attributes;
+using DRN.Framework.Utils.Scope;
 using Sample.Contract.QA.Tags;
 using Sample.Domain.QA.Tag;
 
@@ -11,11 +12,9 @@ public interface ITagService : ISourceKnownService<TagEntity, TagResponse, TagPo
 public class TagService(ITagRepository repository)
     : SourceKnownService<TagEntity, TagResponse, TagPostRequest>(repository), ITagService
 {
-    public override Task<TagResponse> CreateResponseAsync(TagEntity entity, CancellationToken cancellationToken = default)
+    protected override Task<TagResponse> CreateResponseCoreAsync(TagEntity entity, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(entity);
         ArgumentNullException.ThrowIfNull(entity.Model);
-        cancellationToken.ThrowIfCancellationRequested();
 
         return Task.FromResult(new TagResponse
         {
@@ -36,14 +35,21 @@ public class TagService(ITagRepository repository)
         });
     }
 
-    public override Task<TagEntity> CreateEntityAsync(TagPostRequest request, CancellationToken cancellationToken = default)
+    protected override Task<TagEntity> CreateEntityCoreAsync(TagPostRequest request, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(request);
-        cancellationToken.ThrowIfCancellationRequested();
         if (request.Model is null)
-            throw ExceptionFor.Validation("Tag model is required.");
+        {
+            const string message = "Tag model is required.";
+            ScopeContext.Problem.Detail = message;
+            ScopeContext.Problem.Validation(message);
+        }
+
         if (request.Model.Type != TagType.User)
-            throw ExceptionFor.Validation("Only User tag type is permitted.");
+        {
+            const string message = "Only User tag type is permitted.";
+            ScopeContext.Problem.Detail = message;
+            ScopeContext.Problem.Validation(message);
+        }
 
         return Task.FromResult(new TagEntity(request.Name)
         {

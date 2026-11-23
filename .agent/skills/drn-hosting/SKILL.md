@@ -1,7 +1,7 @@
 ---
 name: drn-hosting
 description: "Configure DRN hosts, MFA, API errors, rate limits, Razor endpoints, CSP and TagHelpers."
-last-updated: 2026-11-22
+last-updated: 2026-11-23
 difficulty: advanced
 ---
 
@@ -41,7 +41,7 @@ Swagger UI prefixes require nonempty ASCII letter, digit, hyphen, or underscore 
 
 ## Page & Endpoint Management
 
-README **Source-Known Controllers** owns service-backed `SourceKnown*Controller` (`protected` `Repository`, `ISourceKnownService<TEntity, TResponse>`, virtual `CreateResponseAsync`/`CreateResponsesAsync`/`CreateEntityAsync`). Use installed `DRN.Framework.SharedKernel` `CONVENTIONS.md` (**Terminology**) via [version-matched lookup](../overview-drn-framework/SKILL.md#documentation-and-source-references) for canonical Domain, Subdomain, project stem, and role stem terms. `DRNAUTHORIZATION001` requires named policies. SPA APIs use bearer-only schemes and cookie APIs need antiforgery. Keep resource checks in app code. Disable actions with `[NonAction]` and omit their accessors (`IgnoreApi` only hides docs). `SourceKnownControllerBase` contributes no HTTP actions. MVC still discovers eligible public methods on derived controllers.
+README **Source-Known Controllers** owns service-backed `SourceKnown*Controller` (`protected` `Repository`, `ISourceKnownService<TEntity, TResponse>`, non-virtual `CreateResponseAsync`/`CreateResponsesAsync` helpers, virtual `CreateEntityAsync`). Use installed `DRN.Framework.SharedKernel` `CONVENTIONS.md` (**Terminology**) via [version-matched lookup](../overview-drn-framework/SKILL.md#documentation-and-source-references) for canonical Domain, Subdomain, project stem, and role stem terms. `DRNAUTHORIZATION001` requires named policies. SPA APIs use bearer-only schemes and cookie APIs need antiforgery. Keep resource checks in app code. Disable actions with `[NonAction]` and omit their accessors (`IgnoreApi` only hides docs). `SourceKnownControllerBase` contributes no HTTP actions. MVC still discovers eligible public methods on derived controllers.
 
 Return typed `EndpointCollection` singletons (including generated roots) from `ConfigureEndpointCollection` and pair with typed `PageCollection` singletons. Never cache request URLs or auth results statically. `EndpointName` is a label, not a registered name. Use `Path(...)` for templates and `Url.Endpoint` for routing, constraints, encoding, and prefixes.
 
