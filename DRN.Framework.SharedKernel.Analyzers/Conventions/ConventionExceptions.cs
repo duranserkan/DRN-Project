@@ -204,13 +204,18 @@ internal sealed class ConventionExceptions
             var target = attribute.NamedArguments.FirstOrDefault(pair => pair.Key == ConventionInputSyntax.TargetField).Value.Value as string;
             var scope = attribute.NamedArguments.FirstOrDefault(pair => pair.Key == "Scope").Value.Value as string;
             // Match Roslyn's exact global SuppressMessage documentation-ID resolution (ordinary properties named Item do not bind).
-            var symbol = target is not null && !target.Contains('*')
-                ? DocumentationCommentId.GetFirstSymbolForDeclarationId(target.StartsWith('~') ? target[1..] : target, _facts.Compilation)
-                : null;
+            var symbol = ResolveGlobalSuppressionTarget(target);
             if (IsValidScopedSymbol(symbol, scope)) continue;
             Issue(check.Split(':')[0], "not bound to one resolvable symbol",
                 attribute.ApplicationSyntaxReference?.GetSyntax(_facts.Cancellation).GetLocation() ?? Location.None);
         }
+    }
+
+    private ISymbol? ResolveGlobalSuppressionTarget(string? target)
+    {
+        if (target is null || target.Contains('*')) return null;
+        var declarationId = target.StartsWith('~') ? target[1..] : target;
+        return DocumentationCommentId.GetFirstSymbolForDeclarationId(declarationId, _facts.Compilation);
     }
 
     private static bool IsValidScopedSymbol(ISymbol? symbol, string? scope) =>

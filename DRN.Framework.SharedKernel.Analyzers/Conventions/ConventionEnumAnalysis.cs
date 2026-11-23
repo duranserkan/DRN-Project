@@ -2,6 +2,13 @@ namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 
 internal static class ConventionEnumAnalysis
 {
+    private static readonly PublicShapePolicy DomainOnlyEnumPolicy = new(
+        PublicShapeRule.DomainOnlyEnum,
+        ConventionDiagnosticDescriptors.DomainOnlyEnumExposed,
+        IsDomainOnlyEnum,
+        ShouldExpand,
+        IncludeExposedLocations: true);
+
     internal static void Analyze(ConventionFacts facts)
     {
         foreach (var type in facts.Types)
@@ -25,13 +32,14 @@ internal static class ConventionEnumAnalysis
 
     private static void AnalyzeEnumDeclaration(ConventionFacts facts, INamedTypeSymbol enumType, string role, Location location)
     {
-        var domainOnly = FindAttribute(enumType, facts.Symbols.DomainOnlyAttribute);
-        var allowZero = FindAttribute(enumType, facts.Symbols.AllowZeroAttribute);
+        if (role.Length == 0) return;
+        var domainOnly = ConventionBoundaryAnalysis.FindAttribute(enumType, facts.Symbols.DomainOnlyAttribute);
+        var allowZero = ConventionBoundaryAnalysis.FindAttribute(enumType, facts.Symbols.AllowZeroAttribute);
 
         if (role == ConventionArchitecture.Domain && domainOnly is null)
-            Report(facts, ConventionDiagnosticDescriptors.DomainEnumRequiresMarker, enumType, location, enumType.Name);
+            ConventionBoundaryAnalysis.Report(facts, ConventionDiagnosticDescriptors.DomainEnumRequiresMarker, enumType, location, enumType.Name);
         else if (role != ConventionArchitecture.Domain && domainOnly is not null)
-            Report(facts, ConventionDiagnosticDescriptors.DomainOnlyOutsideDomain, enumType,
+            ConventionBoundaryAnalysis.Report(facts, ConventionDiagnosticDescriptors.DomainOnlyOutsideDomain, enumType,
                 facts.AttributeLocation(domainOnly, enumType), enumType.Name);
 
         if (role is not (ConventionArchitecture.Contract or ConventionArchitecture.Domain)) return;
@@ -41,12 +49,12 @@ internal static class ConventionEnumAnalysis
         {
             var zeroLocation = facts.Location(zeroMember);
             if (zeroLocation == Location.None) zeroLocation = location;
-            Report(facts, ConventionDiagnosticDescriptors.EnumZeroRequiresAllowZero, enumType, zeroLocation,
+            ConventionBoundaryAnalysis.Report(facts, ConventionDiagnosticDescriptors.EnumZeroRequiresAllowZero, enumType, zeroLocation,
                 enumType.Name, zeroMember.Name);
         }
         else if (zeroMember is null && allowZero is not null)
         {
-            Report(facts, ConventionDiagnosticDescriptors.AllowZeroWithoutZeroMember, enumType,
+            ConventionBoundaryAnalysis.Report(facts, ConventionDiagnosticDescriptors.AllowZeroWithoutZeroMember, enumType,
                 facts.AttributeLocation(allowZero, enumType), enumType.Name);
         }
     }
@@ -79,57 +87,13 @@ internal static class ConventionEnumAnalysis
     private static void AnalyzeDomainOnlyExposure(ConventionFacts facts, INamedTypeSymbol type)
     {
         var transport = facts.Symbols.IsTransport(type, facts.Cancellation);
-        var nonAction = facts.Symbols.NonActionAttribute;
-        foreach (var member in ConventionBoundaryAnalysis.PublicMembers(facts, type, transport))
-        {
-            facts.Cancellation.ThrowIfCancellationRequested();
-            if (!IsInspectableMember(facts, type, member, transport, nonAction) ||
-                !ConventionBoundaryAnalysis.TryGetReportingTarget(facts, type, member, out var reportingSymbol, out var location))
-                continue;
-            var exposed = ConventionBoundaryAnalysis.FindExposedType(facts, PublicShapeRule.DomainOnlyEnum,
-                ConventionBoundaryAnalysis.ExposureRootTypes(facts, type, member, transport, includeProducesResponseTypes: transport),
-                IsDomainOnlyEnum, ShouldExpand, ConventionBoundaryAnalysis.HasPublicAccessor, out var exhausted);
-            if (exhausted)
-                facts.ReportIncompleteContract(reportingSymbol, member, location);
-            if (exposed is not null)
-                facts.Diagnostics.Add(Diagnostic.Create(ConventionDiagnosticDescriptors.DomainOnlyEnumExposed, location,
-                    exposed.Locations.Where(item => item.SourceTree is { } tree && facts.Compilation.ContainsSyntaxTree(tree)),
-                    ConventionBoundaryAnalysis.Properties(reportingSymbol, exposed),
-                    member.ToDisplayString(), exposed.ToDisplayString()));
-        }
+        ConventionBoundaryAnalysis.AnalyzeExposedPublicShape(facts, type, transport, DomainOnlyEnumPolicy);
     }
-
-    private static bool IsInspectableMember(ConventionFacts facts, INamedTypeSymbol type, ISymbol member,
-        bool transport, INamedTypeSymbol? nonAction) =>
-        ConventionBoundaryAnalysis.IsInspectablePublicMember(facts, type, member, transport, nonAction) &&
-        !(transport && member is IMethodSymbol method &&
-          ConventionBoundaryAnalysis.IsObjectOrDisposeMethod(facts, method));
 
     private static bool IsDomainOnlyEnum(ConventionFacts facts, INamedTypeSymbol named) =>
-        named.TypeKind == TypeKind.Enum && HasDomainOnlyAttribute(named, facts.Symbols.DomainOnlyAttribute);
+        named.TypeKind == TypeKind.Enum &&
+        ConventionBoundaryAnalysis.HasAttribute(named, facts.Symbols.DomainOnlyAttribute);
 
     private static bool ShouldExpand(ConventionFacts facts, INamedTypeSymbol named) =>
-        named.TypeKind is not TypeKind.Enum &&
-        (facts.IsLocal(named) ||
-         ConventionSymbols.Is(named, facts.Symbols.Dto, facts.Cancellation) ||
-         facts.IsNeutralValue(named) ||
-         facts.ReferenceProject(named.ContainingAssembly)?.Role is ConventionArchitecture.Contract or ConventionArchitecture.Domain or
-             ConventionArchitecture.Application or ConventionArchitecture.Hosted);
-
-    private static AttributeData? FindAttribute(INamedTypeSymbol type, INamedTypeSymbol? target)
-    {
-        if (target is null) return null;
-        foreach (var attribute in type.GetAttributes())
-            if (ConventionSymbols.Same(attribute.AttributeClass, target)) return attribute;
-        return null;
-    }
-
-    private static bool HasDomainOnlyAttribute(INamedTypeSymbol enumType, INamedTypeSymbol? domainOnly) =>
-        FindAttribute(enumType, domainOnly) is not null;
-
-    private static void Report(ConventionFacts facts, DiagnosticDescriptor descriptor, INamedTypeSymbol target,
-        Location location, params object[] args) =>
-        facts.Diagnostics.Add(Diagnostic.Create(descriptor, location,
-            ImmutableDictionary<string, string?>.Empty.Add(ConventionInputSyntax.TargetField, target.GetDocumentationCommentId()),
-            args));
+        ConventionBoundaryAnalysis.ShouldExpandPublicModel(facts, named, includeDto: true);
 }

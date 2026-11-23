@@ -21,23 +21,14 @@ public class SourceKnownControllerRoutingTests
     public async Task Combined_Controller_Should_Require_Auth_Remove_NonActions_And_Retain_Hidden_Actions(
         DrnTestContext context)
     {
-        using var testEnvironment = TestEnvironment.SetTestContextEnabledScope(true);
-        context.AddToConfiguration("Environment", "Production");
-        context.AddToConfiguration("AllowedHosts", "localhost");
-        var repository = Substitute.For<ISourceKnownRepository<SourceKnownRoutingEntity>>();
-        repository.AnyAsync().Returns(true);
-        context.ServiceCollection.AddSingleton(repository);
-        context.ServiceCollection.AddSingleton<ISourceKnownRoutingService>(new SourceKnownRoutingService(repository));
-        var application = context.ApplicationContext.CreateApplication<ApiErrorTestProgram>();
-        using var client = application.CreateClient(new() { AllowAutoRedirect = false });
+        using var harness = CreateRoutingHarness(context, configureRepository: repository => repository.AnyAsync().Returns(true));
+        var client = harness.Http;
+        var repository = harness.Repository;
 
         using var anonymous = await client.GetAsync("/source-known-routing/Any");
         anonymous.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 
-        using var tokenResponse = await client.GetAsync(ApiErrorTestProgram.Root + "/token");
-        tokenResponse.EnsureSuccessStatusCode();
-        using var tokenBody = JsonDocument.Parse(await tokenResponse.Content.ReadAsStringAsync());
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenBody.RootElement.GetProperty("access-token").GetString());
+        await AuthenticateAsync(client);
 
         using var hidden = await client.GetAsync("/source-known-routing/Any");
         hidden.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -52,7 +43,7 @@ public class SourceKnownControllerRoutingTests
         await repository.DidNotReceive().CreateAsync(Arg.Any<IReadOnlyCollection<SourceKnownRoutingEntity>>());
         await repository.DidNotReceive().DeleteAsync(Arg.Any<IReadOnlyCollection<Guid>>());
 
-        var descriptions = application.Services
+        var descriptions = harness.Services
             .GetRequiredService<IApiDescriptionGroupCollectionProvider>().ApiDescriptionGroups.Items
             .SelectMany(group => group.Items)
             .Where(description => description.ActionDescriptor is ControllerActionDescriptor controllerAction &&
@@ -69,14 +60,9 @@ public class SourceKnownControllerRoutingTests
     [IsolatedHostingData]
     public async Task Bearer_Writes_Should_Require_Policy_And_Resource_Authorization_Without_Antiforgery(DrnTestContext context)
     {
-        using var testEnvironment = TestEnvironment.SetTestContextEnabledScope(true);
-        context.AddToConfiguration("Environment", "Production");
-        context.AddToConfiguration("AllowedHosts", "localhost");
-        var repository = Substitute.For<ISourceKnownRepository<SourceKnownRoutingEntity>>();
-        context.ServiceCollection.AddSingleton(repository);
-        context.ServiceCollection.AddSingleton<ISourceKnownRoutingService>(new SourceKnownRoutingService(repository));
-        var application = context.ApplicationContext.CreateApplication<ApiErrorTestProgram>();
-        using var client = application.CreateClient(new() { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false });
+        using var harness = CreateRoutingHarness(context, useHttps: true);
+        var client = harness.Http;
+        var repository = harness.Repository;
         await AuthenticateAsync(client);
         var id = Guid.NewGuid();
 
@@ -113,21 +99,18 @@ public class SourceKnownControllerRoutingTests
     [IsolatedHostingData]
     public async Task SourceKnown_Policies_Should_Reject_Valid_Cookies_Even_When_Browser_Is_The_Default_Scheme(DrnTestContext context)
     {
-        using var testEnvironment = TestEnvironment.SetTestContextEnabledScope(true);
-        context.AddToConfiguration("Environment", "Production");
-        context.AddToConfiguration("AllowedHosts", "localhost");
-        var repository = Substitute.For<ISourceKnownRepository<SourceKnownRoutingEntity>>();
-        context.ServiceCollection.AddSingleton(repository);
-        context.ServiceCollection.AddSingleton<ISourceKnownRoutingService>(new SourceKnownRoutingService(repository));
-        context.ServiceCollection.PostConfigure<AuthenticationOptions>(options =>
+        using var harness = CreateRoutingHarness(context, useHttps: true, configureServices: services =>
         {
-            options.DefaultScheme = "Browser";
-            options.DefaultAuthenticateScheme = "Browser";
-            options.DefaultChallengeScheme = "Browser";
+            services.PostConfigure<AuthenticationOptions>(options =>
+            {
+                options.DefaultScheme = "Browser";
+                options.DefaultAuthenticateScheme = "Browser";
+                options.DefaultChallengeScheme = "Browser";
+            });
         });
-        var application = context.ApplicationContext.CreateApplication<ApiErrorTestProgram>();
-        using var client = application.CreateClient(new() { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false });
-        application.Services.GetRequiredService<IOptions<AuthenticationOptions>>().Value.DefaultAuthenticateScheme.Should().Be("Browser");
+        var client = harness.Http;
+        var repository = harness.Repository;
+        harness.Services.GetRequiredService<IOptions<AuthenticationOptions>>().Value.DefaultAuthenticateScheme.Should().Be("Browser");
 
         using var signedIn = await client.GetAsync(ApiErrorTestProgram.Root + "/cookie-sign-in");
         signedIn.EnsureSuccessStatusCode();
@@ -149,23 +132,19 @@ public class SourceKnownControllerRoutingTests
     [IsolatedHostingData]
     public async Task Pagination_Should_Bind_Query_And_Json_And_Normalize_Null_Nested_Models(DrnTestContext context)
     {
-        using var testEnvironment = TestEnvironment.SetTestContextEnabledScope(true);
-        context.AddToConfiguration("Environment", "Production");
-        context.AddToConfiguration("AllowedHosts", "localhost");
-        var repository = Substitute.For<ISourceKnownRepository<SourceKnownRoutingEntity>>();
         var requests = new List<PaginationRequest>();
-        repository.PaginateAsync(Arg.Any<PaginationRequest>(), null).Returns(call =>
+        using var harness = CreateRoutingHarness(context, useHttps: true, configureRepository: repository =>
         {
-            var request = call.ArgAt<PaginationRequest>(0);
-            requests.Add(request);
-            var items = Enumerable.Range(0, request.PageSize.Size + 1)
-                .Select(index => new SourceKnownRoutingEntity { Label = $"item-{index}" }).ToArray();
-            return new PaginationResult<SourceKnownRoutingEntity>(items, request).ToModel();
+            repository.PaginateAsync(Arg.Any<PaginationRequest>(), null).Returns(call =>
+            {
+                var request = call.ArgAt<PaginationRequest>(0);
+                requests.Add(request);
+                var items = Enumerable.Range(0, request.PageSize.Size + 1)
+                    .Select(index => new SourceKnownRoutingEntity { Label = $"item-{index}" }).ToArray();
+                return new PaginationResult<SourceKnownRoutingEntity>(items, request).ToModel();
+            });
         });
-        context.ServiceCollection.AddSingleton(repository);
-        context.ServiceCollection.AddSingleton<ISourceKnownRoutingService>(new SourceKnownRoutingService(repository));
-        var application = context.ApplicationContext.CreateApplication<ApiErrorTestProgram>();
-        using var client = application.CreateClient(new() { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false });
+        var client = harness.Http;
         await AuthenticateAsync(client);
 
         using var query = await client.GetAsync("/source-known-writes?PageSize.Size=1000&PageSize.MaxSize=1000&TotalCount=500");
@@ -200,6 +179,56 @@ public class SourceKnownControllerRoutingTests
         requests.Should().OnlyContain(request => request.TotalCount == -1 && !request.MarkAsHasNextOnRefresh);
         requests[2].PageCursor.IsFirstRequest.Should().BeTrue();
         requests[3].IsPageRefresh.Should().BeTrue();
+    }
+
+    private static RoutingTestHarness CreateRoutingHarness(
+        DrnTestContext context,
+        bool useHttps = false,
+        Action<ISourceKnownRepository<SourceKnownRoutingEntity>>? configureRepository = null,
+        Action<IServiceCollection>? configureServices = null)
+    {
+        var testEnvironment = TestEnvironment.SetTestContextEnabledScope(true);
+        try
+        {
+            context.AddToConfiguration("Environment", "Production");
+            context.AddToConfiguration("AllowedHosts", "localhost");
+            var repository = Substitute.For<ISourceKnownRepository<SourceKnownRoutingEntity>>();
+            configureRepository?.Invoke(repository);
+            context.ServiceCollection.AddSingleton(repository);
+            context.ServiceCollection.AddSingleton<ISourceKnownRoutingService>(new SourceKnownRoutingService(repository));
+            configureServices?.Invoke(context.ServiceCollection);
+            var application = context.ApplicationContext.CreateApplication<ApiErrorTestProgram>();
+            var clientOptions = new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactoryClientOptions
+            {
+                AllowAutoRedirect = false
+            };
+            if (useHttps)
+                clientOptions.BaseAddress = new Uri("https://localhost");
+
+            return new RoutingTestHarness(testEnvironment, repository, application.Services, application.CreateClient(clientOptions));
+        }
+        catch
+        {
+            testEnvironment.Dispose();
+            throw;
+        }
+    }
+
+    private sealed class RoutingTestHarness(
+        IDisposable testEnvironment,
+        ISourceKnownRepository<SourceKnownRoutingEntity> repository,
+        IServiceProvider services,
+        HttpClient http) : IDisposable
+    {
+        public ISourceKnownRepository<SourceKnownRoutingEntity> Repository { get; } = repository;
+        public IServiceProvider Services { get; } = services;
+        public HttpClient Http { get; } = http;
+
+        public void Dispose()
+        {
+            Http.Dispose();
+            testEnvironment.Dispose();
+        }
     }
 
     private static async Task AuthenticateAsync(HttpClient client, bool allowWrites = false)

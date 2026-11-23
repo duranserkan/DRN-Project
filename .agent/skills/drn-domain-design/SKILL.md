@@ -1,7 +1,7 @@
 ---
 name: drn-domain-design
 description: "Model DRN aggregates, repository boundaries, contract DTOs, mapping, and paginated APIs."
-last-updated: 2026-11-22
+last-updated: 2026-11-23
 difficulty: advanced
 ---
 
@@ -53,12 +53,12 @@ public class CategoryDto(SourceKnownEntity? entity = null) : Dto(entity)
 }
 ```
 
-In Domain, override `SourceKnownEntity.ToDto()` covariantly with `public override CategoryDto ToDto() => new(this) { Name = Name };`. Application services deriving from either `SourceKnownService<TEntity, TDto>` or `SourceKnownService<TEntity, TDto, TCreateRequest>` inherit virtual `ToDto(TEntity)` delegating to `entity.ToDto()` (checked by `DRNDTO007`). Only services deriving from `SourceKnownService<TEntity, TDto, TCreateRequest>` must implement `CreateEntityAsync`. Select only fields needed by consumers. Preserve each mapped property's Personal and Sensitive classifications on both DTOs and Contract `*Response` projections, including when renaming fields. A metadata-only mapper can return `new(this)`. Map writable request fields through domain constructors or operations so invariants run on every path.
+In Domain, override `SourceKnownEntity.ToDto()` covariantly with `public override CategoryDto ToDto() => new(this) { Name = Name };`. Application services deriving from `SourceKnownService<TEntity, TResponse>` or `SourceKnownService<TEntity, TResponse, TCreateRequest>` implement `CreateResponseCoreAsync` (and may override `CreateResponsesCoreAsync` to batch async enrichment), and write-capable services also implement `CreateEntityCoreAsync`. Select only fields needed by consumers. Preserve each mapped property's Personal and Sensitive classifications on both DTOs and Contract `*Response` projections, including when renaming fields. A metadata-only mapper can return `new(this)`. Map writable request fields through domain constructors or operations so invariants run on every path.
 
 ## API Integration
 
 Use explicit Contract `*Request` and `*Response` types on public endpoints instead of returning, accepting, inheriting from, or nesting a `Dto` (DRNDTO005 and DRNDTO006). Route-only GETs need no empty request body, and 204 responses need no response body. Apply `[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]` on strict Request types to reject unexpected caller fields, and use nullable properties where presence must be tracked. Keep entity-prefixed public requests and responses beside the matching DTO (DRNDTO004).
 
-Use paged collection endpoints by default. Accept `PaginationRequest` from the query for the initial GET and `PaginationResultInfo` for subsequent GET-query or POST-body navigation. For an individual item accept a GUID and map the entity to its explicit `*Response` in a service-backed `SourceKnown*Controller`. Map page items with `result.ToModel(...)`. Enumerate the full dataset only when explicitly requested.
+Use paged collection endpoints by default. Accept `PaginationOptions` from the query for flat initial GET (`GET Paginate`) and `PaginationRequest` for query or POST continuation (`GET` root and `POST Paginate`). For an individual item accept a GUID and delegate response mapping through `ISourceKnownService<TEntity, TResponse>` in a service-backed `SourceKnown*Controller`. Map custom pages with `result.ToModel(...)` or `CreateResponsesAsync`. Enumerate the full dataset only when explicitly requested.
 
 Use `EntityCreatedFilter.After`, `Before`, `Between` or `Outside` for creation dates. Boundaries default to inclusive. Keep date logic in the shared filter to preserve ID tick precision. Once mapping and registration are in place, follow the repository's migration and execution gates.

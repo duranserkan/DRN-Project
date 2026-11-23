@@ -43,14 +43,11 @@ public sealed class ConventionBoundaryTests
             namespace Sample.Hosted.QA
             {
                 public class User : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
-                public class UserDto : DRN.Framework.SharedKernel.Domain.Dto;
+                public class UserResponse;
             }
             namespace Sample.Hosted.Controllers.Billing
             {
-                public class UsersController() : DRN.Framework.Hosting.Controllers.SourceKnownControllerBase<Sample.Hosted.QA.User, Sample.Hosted.QA.UserDto>(null!)
-                {
-                    protected override Sample.Hosted.QA.UserDto ToResponse(Sample.Hosted.QA.User entity) => new();
-                }
+                public class UsersController() : DRN.Framework.Hosting.Controllers.SourceKnownControllerBase<Sample.Hosted.QA.User, Sample.Hosted.QA.UserResponse>(null!);
             }
             """).AddReferences(AnalyzerTestCompilation.HostingReference);
         compilation.AssertNoCompilerErrors();
@@ -291,7 +288,7 @@ public sealed class ConventionBoundaryTests
         var consumer = Compilation($$"""
             namespace Sample.Domain.Billing;
             public {{kind}} Reader : Sample.Domain.QA.Closed;
-            """).AddReferences(AnalyzerTestCompilation.EmitReference(producer));
+            """).AddReferences(AnalyzerTestCompilation.EmitReference(producer, options: AnalyzerTestCompilation.ReferenceAssemblyOptions));
         consumer.AssertNoCompilerErrors();
         var facts = CreateFacts(consumer, "Domain");
         ConventionBoundaryAnalysis.Analyze(facts);
@@ -582,7 +579,7 @@ public sealed class ConventionBoundaryTests
             [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Sample.{{to}}")]
             public class Marker;
             """).WithAssemblyName("PublishedDependency");
-        var reference = AnalyzerTestCompilation.EmitReference(dependency, "/references/dependency.dll");
+        var reference = AnalyzerTestCompilation.EmitReference(dependency, "/references/dependency.dll", AnalyzerTestCompilation.ReferenceAssemblyOptions);
         var compilation = Compilation("public class Consumer;").AddReferences(reference);
         var records = new List<ConventionInput>
         {
@@ -646,10 +643,69 @@ public sealed class ConventionBoundaryTests
         var facts = ContractFacts("""
             namespace Sample.Contract.QA;
             public class Envelope<T> where T : User { public T Payload { get; set; } }
+            public class ConstrainedMarker<T> where T : Order;
+            public class UnconstrainedMarker<T> { public T Payload { get; set; } }
             """);
         ConventionBoundaryAnalysis.Analyze(facts);
-        facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").Should().ContainSingle()
-            .Which.GetMessage().Should().Contain("Envelope<T>.Payload").And.Contain("Sample.Domain.QA.User");
+        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").ToArray();
+        diagnostics.Select(item => (item.Properties["Target"], item.Properties["Entity"])).Should().BeEquivalentTo(
+            new (string?, string?)[]
+            {
+                ("T:Sample.Contract.QA.Envelope`1", "Sample.Domain.QA.User"),
+                ("T:Sample.Contract.QA.ConstrainedMarker`1", "Sample.Domain.QA.Order")
+            });
+        diagnostics.Single(item => item.Properties["Target"] == "T:Sample.Contract.QA.Envelope`1").GetMessage()
+            .Should().Contain("Envelope<T>").And.Contain("Sample.Domain.QA.User");
+    }
+
+    [Fact]
+    public void Inherited_Controller_Actions_Should_Report_Each_Distinct_Exposed_Entity_Once()
+    {
+        var facts = Facts("""
+            using Microsoft.AspNetCore.Mvc;
+            namespace Sample.Hosted.QA;
+            public class User : DRN.Framework.SharedKernel.Domain.SourceKnownEntity { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
+            public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
+            public abstract class MixedEntityBaseController : ControllerBase
+            {
+                [HttpGet("order")] public Order ReadOrder() => new();
+                [HttpGet("user")] public User ReadUser() => new();
+                [HttpGet("order-again")] public Order ReadOrderAgain() => new();
+            }
+            public class ConcreteMixedController : MixedEntityBaseController;
+            """, "Hosted");
+        ConventionBoundaryAnalysis.Analyze(facts);
+        facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002")
+            .Select(item => (item.Properties["Target"], item.Properties["Entity"])).Should().BeEquivalentTo(
+                new (string?, string?)[]
+                {
+                    ("T:Sample.Hosted.QA.ConcreteMixedController", "Sample.Hosted.QA.Order"),
+                    ("T:Sample.Hosted.QA.ConcreteMixedController", "Sample.Hosted.QA.User")
+                });
+    }
+
+    [Fact]
+    public void Exposed_Header_Should_Only_Collapse_Members_With_The_Same_Exposed_Type()
+    {
+        var facts = ContractFacts("""
+            namespace Sample.Contract.QA;
+            public interface IPair<T1, T2>
+            {
+                T1 First();
+                T2 Second();
+            }
+            public class EntityPair : IPair<Order, User>
+            {
+                public Order First() => new();
+                public User Second() => new();
+            }
+            """);
+        ConventionBoundaryAnalysis.Analyze(facts);
+        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").ToArray();
+        diagnostics.Select(item => item.Properties["Entity"]).Should().BeEquivalentTo(
+            "Sample.Domain.QA.Order",
+            "Sample.Domain.QA.User");
+        diagnostics.Should().HaveCount(2);
     }
 
     [Fact]
@@ -1017,6 +1073,106 @@ public sealed class ConventionBoundaryTests
         hostedFacts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002")
             .Select(item => item.Properties["Target"]).Should().BeEquivalentTo(
                 "M:Sample.Hosted.QA.OrdersController.Create(Sample.Hosted.QA.LocalInput)");
+    }
+
+    [Fact]
+    public void Closed_Generic_Base_Implemented_Interface_And_Generic_Containing_Type_Should_Report_DRNARCHITECTURE002()
+    {
+        var facts = ContractFacts("""
+            using System.Collections.Generic;
+            using System.Threading;
+            namespace Sample.Contract.QA;
+            public class EntityQueue : Queue<Order>;
+            public class EntityStream : IAsyncEnumerable<Order>
+            {
+                public IAsyncEnumerator<Order> GetAsyncEnumerator(CancellationToken cancellationToken = default) => throw new System.NotImplementedException();
+            }
+            internal interface IIndirectEntityStream : IAsyncEnumerable<Order>;
+            public class IndirectEntityStream : IIndirectEntityStream
+            {
+                IAsyncEnumerator<Order> IAsyncEnumerable<Order>.GetAsyncEnumerator(CancellationToken cancellationToken) => throw new System.NotImplementedException();
+            }
+            internal interface IInternalOnlyEntityMarker<T>;
+            public class InternalOnlyEntityMarker : IInternalOnlyEntityMarker<Order>;
+            public class Envelope<T>
+            {
+                public class Metadata { public string Label { get; init; } = ""; }
+            }
+            public class NestedWrapper
+            {
+                public Envelope<Order>.Metadata Meta { get; init; } = new();
+            }
+            """);
+        ConventionBoundaryAnalysis.Analyze(facts);
+        facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002")
+            .Select(item => item.Properties["Target"]).Should().BeEquivalentTo(
+                "T:Sample.Contract.QA.EntityQueue",
+                "T:Sample.Contract.QA.EntityStream",
+                "T:Sample.Contract.QA.IndirectEntityStream",
+                "P:Sample.Contract.QA.NestedWrapper.Meta");
+    }
+
+    [Fact]
+    public void Internal_Interfaces_And_Public_Type_Arguments_Should_Share_The_Contract_Inspection_Limit()
+    {
+        var markers = Enumerable.Range(0, 4094).Select(index => $"IMarker{index}").ToArray();
+        var facts = ContractFacts($$"""
+            namespace Sample.Contract.QA;
+            {{string.Join("\n", markers.Select(name => $"internal interface {name};"))}}
+            internal interface IGroup : {{string.Join(", ", markers)}};
+            internal interface IAtLimit : IGroup;
+            internal interface IOverLimit : IAtLimit;
+            public interface IPayload<T>;
+            public class AtLimit : IAtLimit;
+            public class OverLimit : IOverLimit;
+            public class CombinedLimit : IGroup, IPayload<string>;
+            public class Envelope { public OverLimit Value { get; init; } = new(); }
+            """);
+
+        ConventionBoundaryAnalysis.Analyze(facts);
+
+        facts.Diagnostics.Where(d => d.Id == "DRNARCHITECTURE001").Select(d => d.Properties["Target"])
+            .Should().BeEquivalentTo(
+                "T:Sample.Contract.QA.OverLimit",
+                "T:Sample.Contract.QA.CombinedLimit",
+                "P:Sample.Contract.QA.Envelope.Value");
+    }
+
+    [Fact]
+    public void Referenced_Application_Wrapper_Holding_Entity_Should_Report_DRNARCHITECTURE002()
+    {
+        var domain = Compilation("""
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Sample.Domain")]
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Sample.Domain")]
+            namespace Sample.Domain.QA.Order;
+            public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
+            """).WithAssemblyName("Sample.Domain");
+        domain.AssertNoCompilerErrors();
+        var domainRef = AnalyzerTestCompilation.EmitReference(domain, "/app-wrapper/Sample.Domain.dll", AnalyzerTestCompilation.ReferenceAssemblyOptions);
+
+        var application = Compilation("""
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Sample.Application")]
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Sample.Application")]
+            namespace Sample.Application.QA;
+            public class OrderSummary { public Sample.Domain.QA.Order.OrderEntity Entity { get; init; } = new(); }
+            """).WithAssemblyName("Sample.Application").AddReferences(domainRef);
+        application.AssertNoCompilerErrors();
+        var appRef = AnalyzerTestCompilation.EmitReference(application, "/app-wrapper/Sample.Application.dll", AnalyzerTestCompilation.ReferenceAssemblyOptions);
+
+        var hosted = Compilation("""
+            using Microsoft.AspNetCore.Mvc;
+            namespace Sample.Hosted.Controllers.QA;
+            public class OrdersController : ControllerBase
+            {
+                [HttpGet] public Sample.Application.QA.OrderSummary Read() => new();
+            }
+            """).WithAssemblyName("Sample.Hosted").AddReferences(domainRef, appRef);
+        hosted.AssertNoCompilerErrors();
+        var facts = CreateFacts(hosted, "Hosted");
+        ConventionBoundaryAnalysis.Analyze(facts);
+        facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002")
+            .Select(item => item.Properties["Target"]).Should().BeEquivalentTo(
+                "M:Sample.Hosted.Controllers.QA.OrdersController.Read");
     }
 
     private static Compilation GeneratedCompilation(string source, string generated)

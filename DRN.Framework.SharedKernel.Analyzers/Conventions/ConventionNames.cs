@@ -7,6 +7,10 @@ internal static class ConventionNames
 {
     internal const string ProjectLayout = "Project";
     internal const string FoldersLayout = "Folders";
+    private const string DomainLayoutProperty = "DrnDomainLayout";
+    private const string DomainProperty = "DrnDomain";
+
+    internal readonly record struct OwnerIdentity(string Domain, string Subdomain, bool HasFolderDomain, bool HasExplicitDomain);
 
     internal readonly record struct ReferenceAssemblyMetadata(
         string ProjectName,
@@ -67,8 +71,8 @@ internal static class ConventionNames
             {
                 "DRN.Conventions.ProjectName" => "MSBuildProjectName",
                 "DRN.Conventions.RootNamespace" => "RootNamespace",
-                "DRN.Conventions.DomainLayout" => "DrnDomainLayout",
-                "DRN.Conventions.Domain" => "DrnDomain",
+                "DRN.Conventions.DomainLayout" => DomainLayoutProperty,
+                "DRN.Conventions.Domain" => DomainProperty,
                 _ => null
             };
             if (property is null) continue;
@@ -79,8 +83,8 @@ internal static class ConventionNames
             {
                 "MSBuildProjectName" => hasProjectName && projectName != value,
                 "RootNamespace" => hasRootNamespace && rootNamespace != value,
-                "DrnDomainLayout" => hasDomainLayout && domainLayout != value,
-                "DrnDomain" => hasDomain && domain != value,
+                DomainLayoutProperty => hasDomainLayout && domainLayout != value,
+                DomainProperty => hasDomain && domain != value,
                 _ => false
             };
             if (conflict)
@@ -96,11 +100,11 @@ internal static class ConventionNames
                     hasRootNamespace = true;
                     rootNamespace = value;
                     break;
-                case "DrnDomainLayout":
+                case DomainLayoutProperty:
                     hasDomainLayout = true;
                     domainLayout = value;
                     break;
-                case "DrnDomain":
+                case DomainProperty:
                     hasDomain = true;
                     domain = value;
                     break;
@@ -123,15 +127,30 @@ internal static class ConventionNames
     internal static string EntityStem(string name) =>
         name.Length > "Entity".Length && name.EndsWith("Entity", StringComparison.Ordinal) ? name[..^"Entity".Length] : name;
 
+    internal static string MetadataName(INamedTypeSymbol type)
+    {
+        var typeParts = new Stack<string>();
+        INamespaceSymbol? outermostNamespace = null;
+        for (var current = type; current is not null; current = current.ContainingType)
+        {
+            typeParts.Push(current.MetadataName);
+            if (current.ContainingType is null) outermostNamespace = current.ContainingNamespace;
+        }
+        var namespaceParts = new Stack<string>();
+        for (var ns = outermostNamespace; ns is { IsGlobalNamespace: false }; ns = ns.ContainingNamespace)
+            namespaceParts.Push(ns.MetadataName);
+        var qualifiedType = string.Join("+", typeParts);
+        return namespaceParts.Count == 0 ? qualifiedType : string.Join(".", namespaceParts) + "." + qualifiedType;
+    }
+
     internal static bool SameOwner(string leftDomain, string leftSubdomain, string rightDomain, string rightSubdomain) =>
         string.Equals(leftDomain, rightDomain, StringComparison.Ordinal) &&
         string.Equals(leftSubdomain, rightSubdomain, StringComparison.Ordinal);
 
-    internal static bool MatchesOwnerAcrossLayers(string leftDomain, string leftSubdomain, bool leftFolderDomain, bool leftExplicitDomain,
-        string rightDomain, string rightSubdomain, bool rightFolderDomain, bool rightExplicitDomain) =>
-        leftFolderDomain || rightFolderDomain || leftExplicitDomain || rightExplicitDomain
-            ? SameOwner(leftDomain, leftSubdomain, rightDomain, rightSubdomain)
-            : string.Equals(leftSubdomain, rightSubdomain, StringComparison.Ordinal);
+    internal static bool MatchesOwnerAcrossLayers(OwnerIdentity left, OwnerIdentity right) =>
+        left.HasFolderDomain || right.HasFolderDomain || left.HasExplicitDomain || right.HasExplicitDomain
+            ? SameOwner(left.Domain, left.Subdomain, right.Domain, right.Subdomain)
+            : string.Equals(left.Subdomain, right.Subdomain, StringComparison.Ordinal);
 
     internal static bool IsConventionalContextName(string contextName, string domain, string subdomain, bool hasFolderDomain)
     {
@@ -149,20 +168,20 @@ internal static class ConventionNames
     {
         var layout = rawLayout.Length == 0 ? ProjectLayout : rawLayout;
         if (layout is not (ProjectLayout or FoldersLayout))
-            return ("", "", false, "DrnDomainLayout", "malformed", "layout value of 'Project' or 'Folders'");
+            return ("", "", false, DomainLayoutProperty, "malformed", "layout value of 'Project' or 'Folders'");
         if (layout == FoldersLayout)
             return rawDomain.Length > 0
-                ? (FoldersLayout, "", false, "DrnDomain", "contradictory with Folders layout", "project-level DrnDomain only with Project layout")
+                ? (FoldersLayout, "", false, DomainProperty, "contradictory with Folders layout", "project-level DrnDomain only with Project layout")
                 : (FoldersLayout, "", false, "", "", "");
         if (rawDomain.Length > 0)
             return SyntaxFacts.IsValidIdentifier(rawDomain)
                 ? (ProjectLayout, rawDomain, true, "", "", "")
-                : (ProjectLayout, "", true, "DrnDomain", "malformed", "valid identifier for project domain");
+                : (ProjectLayout, "", true, DomainProperty, "malformed", "valid identifier for project domain");
         var inferred = DefaultDomain(projectName);
         if (inferred.Length > 0 && SyntaxFacts.IsValidIdentifier(inferred))
             return (ProjectLayout, inferred, false, "", "", "");
         if (role == "Domain")
-            return (ProjectLayout, "", false, "DrnDomain", "missing for ambiguous Domain project name", "DrnDomain or DrnDomainLayout='Folders'");
+            return (ProjectLayout, "", false, DomainProperty, "missing for ambiguous Domain project name", "DrnDomain or DrnDomainLayout='Folders'");
         return (ProjectLayout, "", false, "", "", "");
     }
 

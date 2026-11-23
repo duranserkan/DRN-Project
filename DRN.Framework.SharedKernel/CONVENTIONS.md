@@ -139,7 +139,6 @@ Convention rules default to Warning in enabled application projects, affecting w
 | DRNDTO004 | Place public entity-prefixed requests and responses beside their DTO. | QA/Categories/CategoryPostRequest.cs | The longest matching entity stem in the Contract subdomain wins. |
 | DRNDTO005 | Keep `Dto` types out of public Contract messages and controller endpoints. | `CategoryResponse` with explicit fields / `OrderResponse : OrderDto` or endpoint returning `OrderDto`. | Honors `[NonAction]` and `[NonController]`. |
 | DRNDTO006 | Use explicit Contract `*Request` and `*Response` types on public endpoints. | `TagController` returning `TagResponse` / endpoint returning raw Contract model. | Route-only GET, `NoContentResult` (204), scalars, and pagination types are exempt. |
-| DRNDTO007 | Align a `SourceKnownService<TEntity, TDto>` subclass's `TDto` with `TEntity.ToDto()`, or override `ToDto(TEntity)`. | `CategoryService : SourceKnownService<CategoryEntity, CategoryDto>` with matching `CategoryEntity.ToDto()` / mismatched `TDto` without overriding `ToDto(TEntity)`. | Applies to concrete, closed subclasses inheriting default `ToDto(TEntity)`. |
 | DRNENUM001 | Define application enums in Contract or mark internal Domain enums `[DomainOnly]`. | `TagType` in Contract, `[DomainOnly] SampleEntityTypes` in Domain / unmarked Domain enum. | Single definition per enum vocabulary. |
 | DRNENUM002 | Restrict `[DomainOnly]` to Domain enums. | Remove `[DomainOnly]` when moving an enum to Contract. | Prevents public Contract enums from carrying `[DomainOnly]`. |
 | DRNENUM003 | Keep `[DomainOnly]` enums off public Contract shapes and controller endpoints. | `SampleEntityTypeAttribute` constructor in Domain / `List<SampleEntityTypes?>` on a Response. | Bounded public-shape graph walk. |
@@ -147,7 +146,7 @@ Convention rules default to Warning in enabled application projects, affecting w
 | DRNENUM005 | Require a named zero member whenever `[AllowZero]` is applied. | Remove `[AllowZero]` or declare an explicit `= 0` member. | Prevents misleading opt-ins. |
 | DRNOWNERSHIP004 | Ensure every Domain project contains at least one populated subdomain folder. | Domain project with `QA/Tag/TagEntity.cs` / Domain project with only root files. | Project-level exception target `<AssemblyName>:Domain`. |
 | DRNSTRUCTURE008 | Keep Domain grouping folders folders-only and `_Shared` subdomain-scoped for value objects. | `QA/Tag/TagEntity.cs`, `QA/_Shared/Money.cs`, root `Usings.cs` and `SampleEntityTypes.cs` / file directly under `QA/`. | Generated files are ignored; partial declarations are checked per file. |
-| DRNARCHITECTURE002 | Keep external contracts free of persistence objects. | Dto/Guid / public collection containing an entity. | Approved neutral value model. Dto mapping constructors may accept their source entity. Complex or external graphs remain bounded. |
+| DRNARCHITECTURE002 | Keep external contracts free of persistence objects. | Contract Request/Response or Guid / public collection containing an entity. | Approved neutral value model. Dto mapping constructors may accept their source entity. Complex or external graphs remain bounded. |
 | DRNARCHITECTURE003 | Respect direct application-role edges. | Application to Infra / Domain to Infra. | Exact reasoned integration edge. Direct provenance and resolved assembly/project identity are required. Package IDs do not establish roles. |
 | DRNARCHITECTURE004 | Place the implementation in its owning layer. | Context in Infra, controller in Hosted / DTO declared in Domain. | Exact reasoned role exception. |
 | DRNARCHITECTURE005 | Remove a forbidden layer dependency. | Domain uses an EF mapping attribute / Domain uses DbContext or EntityTypeBuilder. | Reports independently of implementation placement. |
@@ -209,6 +208,8 @@ This illustrates suppression placement, not an operation template. Project excep
 
 - `DRNARCHITECTURE006`: `SymbolTarget="<AssemblyName>:Application"`, `<AssemblyName>:Infra`, `<AssemblyName>:Domain`, or `<AssemblyName>:Contract` (for example, `Shop.Domain:Contract`).
 - `DRNOWNERSHIP003`: `SymbolTarget="<AssemblyName>:Domain"` when no populated Domain subdomain exists, or the unresolved context/repository `T:...` symbol target.
+- `DRNOWNERSHIP004`: `SymbolTarget="<AssemblyName>:Domain"`.
+- `DRNSTRUCTURE008`: `SymbolTarget="<LogicalPath>"` for zero-type files, or the type's documentation comment ID.
 - `DRNDEPENDENCYINJECTION003`: `SymbolTarget="<AssemblyName>:Module"`.
 - `DRNREPOSITORY004`: optionally qualify with `Context="Shop.Infra.Sales.SalesContext"` alongside `SymbolTarget` and `Entity`.
 

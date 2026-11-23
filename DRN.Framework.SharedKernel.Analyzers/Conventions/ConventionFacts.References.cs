@@ -24,7 +24,7 @@ internal sealed partial class ConventionFacts
 
     private ProducerOwnership? ReferenceOwnership(INamedTypeSymbol type)
     {
-        var assembly = type.ContainingAssembly;
+        if (type.TypeKind == TypeKind.Error || type.ContainingAssembly is not { } assembly) return null;
         if (!_referenceOwnership.TryGetValue(assembly, out var owners))
         {
             owners = ReadReferenceOwnership(assembly);
@@ -135,25 +135,47 @@ internal sealed partial class ConventionFacts
         string? reason, string? classification, out string effectiveDomain)
     {
         effectiveDomain = "";
-        if (subdomain is null || !SyntaxFacts.IsValidIdentifier(subdomain) ||
-            !string.IsNullOrEmpty(domain) && !SyntaxFacts.IsValidIdentifier(domain) ||
-            classification is not (null or "" or ConventionInputSyntax.EntityField or "Value") ||
-            classification == "Value" && Symbols.IsPersistenceType(type, Cancellation) ||
-            kind == ConventionInputSyntax.ContextKind && Symbols.Context is not null && !Symbols.IsContext(type, Cancellation))
+        if (!HasValidProducerFields(type, kind, domain, subdomain, classification) ||
+            ReferenceProject(type.ContainingAssembly) is not { } project)
             return false;
-        var project = ReferenceProject(type.ContainingAssembly);
-        if (project is null) return false;
         var role = Role(type);
         var conventional = InferOwner(type, role.Role, role.Namespace, project);
-        effectiveDomain = !string.IsNullOrEmpty(domain) ? domain :
-            project.DomainLayout == ConventionProject.FoldersLayout ? conventional?.Domain ?? "" : project.DefaultDomain;
+        effectiveDomain = ResolveProducerDomain(domain, project, conventional?.Domain);
+        if (project.DomainLayout == ConventionProject.FoldersLayout && effectiveDomain.Length == 0)
+            return false;
         var differs = conventional is null || subdomain != conventional.Value.Subdomain || effectiveDomain != conventional.Value.Domain;
         if (differs && string.IsNullOrWhiteSpace(reason)) return false;
-        var resolvedDomain = effectiveDomain;
-        return !type.GetAttributes().Any(attribute =>
-            ConventionSymbols.Same(attribute.AttributeClass, Symbols.OwnershipAttribute) &&
-            attribute.ConstructorArguments is [{ Value: string attributed }] &&
-            (attributed != subdomain || Domain(attribute) is { Length: > 0 } attrDomain && attrDomain != resolvedDomain));
+        return !HasConflictingOwnershipAttribute(type, subdomain!, effectiveDomain);
+    }
+
+    private bool HasValidProducerFields(INamedTypeSymbol type, string kind, string? domain, string? subdomain, string? classification)
+    {
+        if (subdomain is null || !SyntaxFacts.IsValidIdentifier(subdomain)) return false;
+        if (!string.IsNullOrEmpty(domain) && !SyntaxFacts.IsValidIdentifier(domain)) return false;
+        if (classification is not (null or "" or ConventionInputSyntax.EntityField or "Value")) return false;
+        if (classification == "Value" && Symbols.IsPersistenceType(type, Cancellation)) return false;
+        return kind != ConventionInputSyntax.ContextKind || Symbols.Context is null || Symbols.IsContext(type, Cancellation);
+    }
+
+    private static string ResolveProducerDomain(string? domain, ConventionProject project, string? conventionalDomain)
+    {
+        if (!string.IsNullOrEmpty(domain)) return domain;
+        return project.DomainLayout == ConventionProject.FoldersLayout
+            ? conventionalDomain ?? ""
+            : project.DefaultDomain;
+    }
+
+    [SuppressMessage("SonarQube", "S3267", Justification = "Scanning the immutable attribute array directly avoids boxing ImmutableArray and allocating a predicate capturing subdomain and resolvedDomain.")]
+    private bool HasConflictingOwnershipAttribute(INamedTypeSymbol type, string subdomain, string resolvedDomain)
+    {
+        foreach (var attribute in type.GetAttributes())
+        {
+            if (ConventionSymbols.Same(attribute.AttributeClass, Symbols.OwnershipAttribute) &&
+                attribute.ConstructorArguments is [{ Value: string attributed }] &&
+                (attributed != subdomain || Domain(attribute) is { Length: > 0 } attrDomain && attrDomain != resolvedDomain))
+                return true;
+        }
+        return false;
     }
 
     private void InvalidateConflictingOwners(IAssemblySymbol assembly, Dictionary<string, ProducerOwnership> result, HashSet<string> invalid)

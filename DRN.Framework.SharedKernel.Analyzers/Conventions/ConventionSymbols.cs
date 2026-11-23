@@ -25,13 +25,14 @@ internal sealed class ConventionSymbols(Compilation compilation)
     internal INamedTypeSymbol? RepositoryContract { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository`1");
     internal INamedTypeSymbol? ServiceContract { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.ISourceKnownService`1");
     internal INamedTypeSymbol? Dto { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.Dto");
-    internal INamedTypeSymbol? SourceKnownServiceDto { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownService`2");
     internal INamedTypeSymbol? DomainOnlyAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.DomainOnlyAttribute");
     internal INamedTypeSymbol? AllowZeroAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.AllowZeroAttribute");
     internal INamedTypeSymbol? EntityTypeAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.EntityTypeAttribute");
     internal INamedTypeSymbol? AppId { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.IAppId");
     internal INamedTypeSymbol? Controller { get; } = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.ControllerBase");
     internal INamedTypeSymbol? SourceKnownController { get; } = compilation.GetTypeByMetadataName("DRN.Framework.Hosting.Controllers.SourceKnownControllerBase`2");
+    internal INamedTypeSymbol? SourceKnownReadOnlyController { get; } = compilation.GetTypeByMetadataName("DRN.Framework.Hosting.Controllers.SourceKnownReadOnlyController`2");
+    internal INamedTypeSymbol? SourceKnownCombinedController { get; } = compilation.GetTypeByMetadataName("DRN.Framework.Hosting.Controllers.SourceKnownController`3");
     internal INamedTypeSymbol? NonActionAttribute { get; } = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.NonActionAttribute");
     internal INamedTypeSymbol? NonControllerAttribute { get; } = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.NonControllerAttribute");
     internal INamedTypeSymbol? ProducesResponseTypeAttribute { get; } = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.ProducesResponseTypeAttribute");
@@ -63,6 +64,22 @@ internal sealed class ConventionSymbols(Compilation compilation)
     internal INamedTypeSymbol? ValueTaskGeneric { get; } = compilation.GetTypeByMetadataName("System.Threading.Tasks.ValueTask`1");
     internal INamedTypeSymbol? ValueTask { get; } = compilation.GetTypeByMetadataName("System.Threading.Tasks.ValueTask");
     internal INamedTypeSymbol? CancellationToken { get; } = compilation.GetTypeByMetadataName("System.Threading.CancellationToken");
+    internal INamedTypeSymbol? ListGeneric { get; } = compilation.GetTypeByMetadataName("System.Collections.Generic.List`1");
+    internal INamedTypeSymbol? AsyncEnumerableGeneric { get; } = compilation.GetTypeByMetadataName("System.Collections.Generic.IAsyncEnumerable`1");
+    internal INamedTypeSymbol? ImmutableArrayGeneric { get; } = compilation.GetTypeByMetadataName("System.Collections.Immutable.ImmutableArray`1");
+    internal INamedTypeSymbol? ImmutableListGeneric { get; } = compilation.GetTypeByMetadataName("System.Collections.Immutable.ImmutableList`1");
+    internal INamedTypeSymbol? SetGeneric { get; } = compilation.GetTypeByMetadataName("System.Collections.Generic.ISet`1");
+    internal INamedTypeSymbol? ReadOnlySetGeneric { get; } = compilation.GetTypeByMetadataName("System.Collections.Generic.IReadOnlySet`1");
+    internal INamedTypeSymbol? HashSetGeneric { get; } = compilation.GetTypeByMetadataName("System.Collections.Generic.HashSet`1");
+    internal INamedTypeSymbol? CollectionGeneric { get; } = compilation.GetTypeByMetadataName("System.Collections.ObjectModel.Collection`1");
+    internal INamedTypeSymbol? ReadOnlyCollectionGeneric { get; } = compilation.GetTypeByMetadataName("System.Collections.ObjectModel.ReadOnlyCollection`1");
+    internal INamedTypeSymbol? NonGenericList { get; } = compilation.GetTypeByMetadataName("System.Collections.IList");
+    internal INamedTypeSymbol? Guid { get; } = compilation.GetTypeByMetadataName("System.Guid");
+    internal INamedTypeSymbol? DateTimeOffset { get; } = compilation.GetTypeByMetadataName("System.DateTimeOffset");
+    internal INamedTypeSymbol? DateOnly { get; } = compilation.GetTypeByMetadataName("System.DateOnly");
+    internal INamedTypeSymbol? TimeOnly { get; } = compilation.GetTypeByMetadataName("System.TimeOnly");
+    internal INamedTypeSymbol? TimeSpan { get; } = compilation.GetTypeByMetadataName("System.TimeSpan");
+    internal INamedTypeSymbol? Uri { get; } = compilation.GetTypeByMetadataName("System.Uri");
     internal INamedTypeSymbol? PageModel { get; } = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.RazorPages.PageModel");
     internal INamedTypeSymbol? OwnershipAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomainAttribute");
     internal INamedTypeSymbol? PersistenceAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.EntityFramework.Attributes.SourceKnownPersistenceAttribute");
@@ -241,16 +258,7 @@ internal sealed class ConventionSymbols(Compilation compilation)
         return false;
     }
 
-    internal static string MetadataName(INamedTypeSymbol type)
-    {
-        var names = new Stack<string>();
-        for (var current = type; current is not null; current = current.ContainingType) names.Push(current.MetadataName);
-        var name = string.Join("+", names);
-        var namespaces = new Stack<string>();
-        for (var current = type.ContainingNamespace; current is { IsGlobalNamespace: false }; current = current.ContainingNamespace)
-            namespaces.Push(current.MetadataName);
-        return namespaces.Count == 0 ? name : string.Join(".", namespaces) + "." + name;
-    }
+    internal static string MetadataName(INamedTypeSymbol type) => ConventionNames.MetadataName(type);
 
     internal static ImmutableArray<INamedTypeSymbol> SourceTypes(Compilation compilation, CancellationToken cancellation)
     {

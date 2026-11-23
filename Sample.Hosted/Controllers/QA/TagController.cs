@@ -10,24 +10,6 @@ namespace Sample.Hosted.Controllers.QA;
 public class TagController(ITagService service)
     : SourceKnownController<TagEntity, TagResponse, TagPostRequest>(service)
 {
-    protected override TagResponse ToResponse(TagEntity entity) => new()
-    {
-        Id = entity.EntityId,
-        CreatedAt = entity.CreatedAt,
-        ModifiedAt = entity.ModifiedAt,
-        Name = entity.Name,
-        Model = new TagModelResponse
-        {
-            BoolValue = entity.Model.BoolValue,
-            StringValue = entity.Model.StringValue,
-            Max = entity.Model.Max,
-            Min = entity.Model.Min,
-            Other = entity.Model.Other,
-            Date = entity.Model.Date,
-            Type = entity.Model.Type
-        }
-    };
-
     [NonAction]
     public override Task<TagResponse[]> GetManyAsync(Guid[] ids, CancellationToken cancellationToken = default)
         => base.GetManyAsync(ids, cancellationToken);

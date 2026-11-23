@@ -188,7 +188,7 @@ See [Providers](#providers) for file lookup rules and examples.
         await context.ContainerContext.Postgres.ApplyMigrationsAsync();
         var qaContext = context.GetRequiredService<QAContext>();
 
-        var category = new Category("dotnet");
+        var category = new CategoryEntity("dotnet");
         qaContext.Categories.Add(category);
         await qaContext.SaveChangesAsync();
         category.EntityId.Should().NotBe(Guid.Empty);

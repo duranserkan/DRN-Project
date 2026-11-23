@@ -211,17 +211,14 @@ public sealed class EntityDtoRefactoringTests
     }
 
     [Theory]
-    [DataInlineUnit("ToDto(this User user)", "Map(User user) => user.ToDto()", false, true)]
-    [DataInlineUnit("ToDto(this SourceKnownEntity user)", "Map(User user) => user.ToDto()", true, true)]
-    [DataInlineUnit("ToDto(this IProfile user, int mode = 0)", "Map(User user) => user?.ToDto()", true, true)]
-    [DataInlineUnit("ToDto<T>(this T user) where T : IProfile", "Map(User user) => user.ToDto()", true, true)]
-    [DataInlineUnit("ToDto<T>(this T user) where T : IProfile", "Map<T>(T user) where T : User => user.ToDto()", true, true)]
-    [DataInlineUnit("ToDto(this IProfile user)", "Map(User user) => ((IProfile)user).ToDto()", true, true)]
-    [DataInlineUnit("ToDto(this User user)", "Map(User user) => Extensions.ToDto(user)", true, true)]
-    [DataInlineUnit("ToDto<T>(this T user) where T : struct", "Map(int value) => value.ToDto()", true, true)]
-    [DataInlineUnit("ToDto(this User user, int mode)", "Map(User user) => user.ToDto(1)", true, true)]
-    public async Task Extension_Collision_Should_Depend_On_The_Binding_At_The_Caller(
-        DrnTestContextUnit context, string signature, string callerMethod, bool dependent, bool offered)
+    [DataInlineUnit("ToDto(this User user)", "Map(User user) => user.ToDto()", false)]
+    [DataInlineUnit("ToDto(this SourceKnownEntity user)", "Map(User user) => user.ToDto()", true)]
+    [DataInlineUnit("ToDto(this IProfile user)", "Map(User user) => ((IProfile)user).ToDto()", true)]
+    [DataInlineUnit("ToDto(this User user)", "Map(User user) => Extensions.ToDto(user)", true)]
+    [DataInlineUnit("ToDto<T>(this T user) where T : struct", "Map(int value) => value.ToDto()", true)]
+    [DataInlineUnit("ToDto(this User user, int mode)", "Map(User user) => user.ToDto(1)", true)]
+    public async Task NonConflicting_Extension_Methods_Should_Still_Offer_Covariant_ToDto_Override(
+        DrnTestContextUnit context, string signature, string callerMethod, bool dependent)
     {
         using var workspace = new AdhocWorkspace();
         var caller = "public class Caller { public object? " + callerMethod + "; }";
@@ -244,13 +241,9 @@ public sealed class EntityDtoRefactoringTests
         workspace.TryApplyChanges(extensions.Project.Solution).Should().BeTrue();
         AssertCompilesBeforeMapper((await workspace.CurrentSolution.GetProject(project.Id)!.GetCompilationAsync())!);
         var actions = await Actions(workspace.CurrentSolution.GetDocument(document.Id)!);
-        if (offered)
-        {
-            var changed = await actions.Should().ContainSingle().Which.GetChangedSolutionAsync();
-            foreach (var candidate in changed.Projects)
-                (await candidate.GetCompilationAsync())!.AssertNoCompilerErrors();
-        }
-        else actions.Should().BeEmpty();
+        var changed = await actions.Should().ContainSingle().Which.GetChangedSolutionAsync();
+        foreach (var candidate in changed.Projects)
+            (await candidate.GetCompilationAsync())!.AssertNoCompilerErrors();
     }
 
     [Theory]
@@ -866,7 +859,7 @@ public sealed class EntityDtoRefactoringTests
                 var compiled = CSharpCompilation.Create("External.Legacy",
                     [CSharpSyntaxTree.ParseText(collidingDto)], ClassificationTestFixture.References,
                     new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-                solution = solution.AddMetadataReference(document.Project.Id, AnalyzerTestCompilation.EmitReference(compiled));
+                solution = solution.AddMetadataReference(document.Project.Id, AnalyzerTestCompilation.EmitReference(compiled, options: AnalyzerTestCompilation.ReferenceAssemblyOptions));
                 break;
             case "domain-shadowing":
                 solution = document.Project.AddDocument("ShadowUserDto.cs", collidingDto).Project.Solution;
@@ -1098,6 +1091,95 @@ public sealed class EntityDtoRefactoringTests
         }
         AssertCompilesBeforeMapper((await document.Project.GetCompilationAsync())!);
         (await Actions(document)).Should().BeEmpty();
+    }
+
+    [Theory]
+    [DataInlineUnit("Sample.Contract", true)]
+    [DataInlineUnit("Other.Contract", false)]
+    public async Task Explicit_Domain_Attribute_Should_Enforce_Cross_Layer_Domain_Match(
+        DrnTestContextUnit context, string contractName, bool offered)
+    {
+        using var workspace = new AdhocWorkspace();
+        var source = Source.Replace("public class User",
+            "[DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomain(\"QA\", Domain = \"Sample\")]\npublic class User",
+            StringComparison.Ordinal);
+        var document = Create(workspace, context, source, contractName: contractName);
+        var actions = await Actions(document);
+        if (offered) actions.Should().ContainSingle();
+        else actions.Should().BeEmpty();
+    }
+
+    [Theory, DataInlineUnit]
+    public async Task Errored_SourceKnownSubdomain_Domain_Argument_Should_Decline_Dto_Generation(DrnTestContextUnit context)
+    {
+        using var workspace = new AdhocWorkspace();
+        var source = Source.Replace("public class User",
+            "[DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomain(\"QA\", Domain = MissingConst)]\npublic class User",
+            StringComparison.Ordinal);
+        var document = Create(workspace, context, source);
+        (await Actions(document)).Should().BeEmpty();
+    }
+
+    [Theory]
+    [DataInlineUnit(true, "Sample.Domain", "Billing.Contract", "Sample.Domain.Billing.QA.Order", "Billing/QA/Order/OrderEntity.cs", true, "Billing.Contract.QA.Orders", "QA/Orders/OrderDto.cs")]
+    [DataInlineUnit(true, "Sample.Domain", "Sales.Contract", "Sample.Domain.Billing.QA.Order", "Billing/QA/Order/OrderEntity.cs", false, "", "")]
+    [DataInlineUnit(false, "Billing.Domain", "Sample.Contract", "Billing.Domain.QA.Order", "QA/Order/OrderEntity.cs", true, "Sample.Contract.Billing.QA.Orders", "Billing/QA/Orders/OrderDto.cs")]
+    public async Task Cross_Layout_Solutions_Should_Emit_Target_Layout_Prefix_And_Reject_Domain_Mismatch(
+        DrnTestContextUnit context, bool domainFolders, string domainName, string contractName, string entityNamespace,
+        string entityPath, bool offered, string expectedNamespace, string expectedTitlePath)
+    {
+        using var workspace = new AdhocWorkspace();
+        var root = context.GetTempPath();
+        var domainRoot = Path.Combine(root, domainName);
+        var fullEntityPath = Path.GetFullPath(entityPath, domainRoot);
+        Directory.CreateDirectory(Path.GetDirectoryName(fullEntityPath)!);
+        var source = $$"""
+            #nullable enable
+            namespace {{entityNamespace}};
+            public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot
+            {
+                // select-start
+                public string Reference { get; private set; } = "";
+                // select-end
+            }
+            """;
+        File.WriteAllText(fullEntityPath, source);
+        var layoutConfig = SourceText.From("is_global = true\nbuild_property.DrnDomainLayout = Folders\n");
+
+        var contract = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                contractName, contractName, LanguageNames.CSharp, filePath: Path.Combine(root, contractName, contractName + ".csproj")))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(ClassificationTestFixture.References);
+        if (!domainFolders)
+            contract = contract.AddAnalyzerConfigDocument("layout.globalconfig", layoutConfig,
+                filePath: Path.Combine(root, contractName, "layout.globalconfig")).Project;
+        workspace.TryApplyChanges(contract.Solution).Should().BeTrue();
+
+        var domain = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                domainName, domainName, LanguageNames.CSharp, filePath: Path.Combine(domainRoot, domainName + ".csproj")))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(ClassificationTestFixture.References)
+            .AddProjectReference(new ProjectReference(contract.Id));
+        if (domainFolders)
+            domain = domain.AddAnalyzerConfigDocument("layout.globalconfig", layoutConfig,
+                filePath: Path.Combine(domainRoot, "layout.globalconfig")).Project;
+        var document = domain.AddDocument(Path.GetFileName(fullEntityPath), source, filePath: fullEntityPath);
+        workspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
+        document = workspace.CurrentSolution.GetDocument(document.Id)!;
+
+        var actions = await Actions(document);
+        if (!offered)
+        {
+            actions.Should().BeEmpty();
+            return;
+        }
+        var action = actions.Should().ContainSingle().Which;
+        action.Title.Should().Contain(contractName).And.Contain(expectedTitlePath);
+        var changed = await action.GetChangedSolutionAsync();
+        var dto = changed.Projects.Single(project => project.Name == contractName).Documents.Single();
+        (await dto.GetTextAsync()).ToString().Should().Contain("namespace " + expectedNamespace + ";");
+        foreach (var project in changed.Projects)
+            (await project.GetCompilationAsync())!.AssertNoCompilerErrors();
     }
 
     private static Document Create(AdhocWorkspace workspace, DrnTestContextUnit context, string source = Source, bool reference = true,

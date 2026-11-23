@@ -74,7 +74,7 @@ public sealed class ConventionDiagnosticContractTests
                 AnonymousClassification, DictionaryClassification, InvalidRuleFile, UnsafeLoggingCapture,
                 InvalidNameExemptionComment, UnusedNameExemptionComment, IncompleteModelAnalysis, IncompleteInterfaceAnalysis],
             ["DRNAUTHORIZATION"] = [SourceKnownControllerPolicyRequired],
-            ["DRNDTO"] = [EntityDto, DtoFolder, DtoClassification, DtoMessagePlacement, DtoExposure, ExplicitContractMessage, ServiceDtoProjection],
+            ["DRNDTO"] = [EntityDto, DtoFolder, DtoClassification, DtoMessagePlacement, DtoExposure, ExplicitContractMessage],
             ["DRNENUM"] = [DomainEnumRequiresMarker, DomainOnlyOutsideDomain, DomainOnlyEnumExposed, EnumZeroRequiresAllowZero, AllowZeroWithoutZeroMember],
             ["DRNHOSTING"] = [accessor, program.Single()],
             ["DRNARCHITECTURE"] = [IncompleteContract, Contract, Reference, ImplementationRole, ForbiddenDependency, RequiredReference],
@@ -205,54 +205,60 @@ public sealed class ConventionDiagnosticContractTests
         (await AnalyzeProduction(scenario)).Should().BeEmpty();
     }
 
+    private static readonly string[] ContractRuleIdList =
+    [
+        "DRNCONVENTIONINPUT001",
+        "DRNOWNERSHIP001",
+        "DRNSTRUCTURE001",
+        "DRNSTRUCTURE002",
+        "DRNPERSISTENCE001",
+        "DRNPERSISTENCE002",
+        "DRNPERSISTENCE003",
+        "DRNPERSISTENCE004",
+        "DRNPERSISTENCE005",
+        "DRNSTRUCTURE003",
+        "DRNREPOSITORY001",
+        "DRNDEPENDENCYINJECTION001",
+        "DRNREPOSITORY002",
+        "DRNARCHITECTURE001",
+        "DRNARCHITECTURE002",
+        "DRNARCHITECTURE003",
+        "DRNARCHITECTURE004",
+        "DRNARCHITECTURE005",
+        "DRNPERSISTENCE006",
+        "DRNOWNERSHIP002",
+        "DRNPERSISTENCE007",
+        "DRNDTO001",
+        "DRNDTO002",
+        "DRNDTO003",
+        "DRNDTO004",
+        "DRNDTO005",
+        "DRNDTO006",
+        "DRNENUM001",
+        "DRNENUM002",
+        "DRNENUM003",
+        "DRNENUM004",
+        "DRNENUM005",
+        "DRNARCHITECTURE006",
+        "DRNOWNERSHIP003",
+        "DRNOWNERSHIP004",
+        "DRNPERSISTENCE008",
+        "DRNSTRUCTURE004",
+        "DRNSTRUCTURE005",
+        "DRNREPOSITORY003",
+        "DRNREPOSITORY004",
+        "DRNSTRUCTURE006",
+        "DRNSTRUCTURE007",
+        "DRNSTRUCTURE008",
+        "DRNPERSISTENCE009",
+        "DRNDEPENDENCYINJECTION002",
+        "DRNDEPENDENCYINJECTION003"
+    ];
+
+    public static IEnumerable<object[]> ContractRuleIds => ContractRuleIdList.Select(static id => new object[] { id });
+
     [Theory]
-    [DataInlineUnit("DRNCONVENTIONINPUT001")]
-    [DataInlineUnit("DRNOWNERSHIP001")]
-    [DataInlineUnit("DRNSTRUCTURE001")]
-    [DataInlineUnit("DRNSTRUCTURE002")]
-    [DataInlineUnit("DRNPERSISTENCE001")]
-    [DataInlineUnit("DRNPERSISTENCE002")]
-    [DataInlineUnit("DRNPERSISTENCE003")]
-    [DataInlineUnit("DRNPERSISTENCE004")]
-    [DataInlineUnit("DRNPERSISTENCE005")]
-    [DataInlineUnit("DRNSTRUCTURE003")]
-    [DataInlineUnit("DRNREPOSITORY001")]
-    [DataInlineUnit("DRNDEPENDENCYINJECTION001")]
-    [DataInlineUnit("DRNREPOSITORY002")]
-    [DataInlineUnit("DRNARCHITECTURE001")]
-    [DataInlineUnit("DRNARCHITECTURE002")]
-    [DataInlineUnit("DRNARCHITECTURE003")]
-    [DataInlineUnit("DRNARCHITECTURE004")]
-    [DataInlineUnit("DRNARCHITECTURE005")]
-    [DataInlineUnit("DRNPERSISTENCE006")]
-    [DataInlineUnit("DRNOWNERSHIP002")]
-    [DataInlineUnit("DRNPERSISTENCE007")]
-    [DataInlineUnit("DRNDTO001")]
-    [DataInlineUnit("DRNDTO002")]
-    [DataInlineUnit("DRNDTO003")]
-    [DataInlineUnit("DRNDTO004")]
-    [DataInlineUnit("DRNDTO005")]
-    [DataInlineUnit("DRNDTO006")]
-    [DataInlineUnit("DRNDTO007")]
-    [DataInlineUnit("DRNENUM001")]
-    [DataInlineUnit("DRNENUM002")]
-    [DataInlineUnit("DRNENUM003")]
-    [DataInlineUnit("DRNENUM004")]
-    [DataInlineUnit("DRNENUM005")]
-    [DataInlineUnit("DRNARCHITECTURE006")]
-    [DataInlineUnit("DRNOWNERSHIP003")]
-    [DataInlineUnit("DRNOWNERSHIP004")]
-    [DataInlineUnit("DRNPERSISTENCE008")]
-    [DataInlineUnit("DRNSTRUCTURE004")]
-    [DataInlineUnit("DRNSTRUCTURE005")]
-    [DataInlineUnit("DRNREPOSITORY003")]
-    [DataInlineUnit("DRNREPOSITORY004")]
-    [DataInlineUnit("DRNSTRUCTURE006")]
-    [DataInlineUnit("DRNSTRUCTURE007")]
-    [DataInlineUnit("DRNSTRUCTURE008")]
-    [DataInlineUnit("DRNPERSISTENCE009")]
-    [DataInlineUnit("DRNDEPENDENCYINJECTION002")]
-    [DataInlineUnit("DRNDEPENDENCYINJECTION003")]
+    [DataMemberUnit(nameof(ContractRuleIds))]
     public async Task Real_Violation_Should_Have_Exact_Public_Diagnostic_Contract(string id)
     {
         var scenario = ScenarioFor(id);
@@ -298,53 +304,7 @@ public sealed class ConventionDiagnosticContractTests
     }
 
     [Theory]
-    [DataInlineUnit("DRNCONVENTIONINPUT001")]
-    [DataInlineUnit("DRNOWNERSHIP001")]
-    [DataInlineUnit("DRNSTRUCTURE001")]
-    [DataInlineUnit("DRNSTRUCTURE002")]
-    [DataInlineUnit("DRNPERSISTENCE001")]
-    [DataInlineUnit("DRNPERSISTENCE002")]
-    [DataInlineUnit("DRNPERSISTENCE003")]
-    [DataInlineUnit("DRNPERSISTENCE004")]
-    [DataInlineUnit("DRNPERSISTENCE005")]
-    [DataInlineUnit("DRNSTRUCTURE003")]
-    [DataInlineUnit("DRNREPOSITORY001")]
-    [DataInlineUnit("DRNDEPENDENCYINJECTION001")]
-    [DataInlineUnit("DRNREPOSITORY002")]
-    [DataInlineUnit("DRNARCHITECTURE001")]
-    [DataInlineUnit("DRNARCHITECTURE002")]
-    [DataInlineUnit("DRNARCHITECTURE003")]
-    [DataInlineUnit("DRNARCHITECTURE004")]
-    [DataInlineUnit("DRNARCHITECTURE005")]
-    [DataInlineUnit("DRNPERSISTENCE006")]
-    [DataInlineUnit("DRNOWNERSHIP002")]
-    [DataInlineUnit("DRNPERSISTENCE007")]
-    [DataInlineUnit("DRNDTO001")]
-    [DataInlineUnit("DRNDTO002")]
-    [DataInlineUnit("DRNDTO003")]
-    [DataInlineUnit("DRNDTO004")]
-    [DataInlineUnit("DRNDTO005")]
-    [DataInlineUnit("DRNDTO006")]
-    [DataInlineUnit("DRNDTO007")]
-    [DataInlineUnit("DRNENUM001")]
-    [DataInlineUnit("DRNENUM002")]
-    [DataInlineUnit("DRNENUM003")]
-    [DataInlineUnit("DRNENUM004")]
-    [DataInlineUnit("DRNENUM005")]
-    [DataInlineUnit("DRNARCHITECTURE006")]
-    [DataInlineUnit("DRNOWNERSHIP003")]
-    [DataInlineUnit("DRNOWNERSHIP004")]
-    [DataInlineUnit("DRNPERSISTENCE008")]
-    [DataInlineUnit("DRNSTRUCTURE004")]
-    [DataInlineUnit("DRNSTRUCTURE005")]
-    [DataInlineUnit("DRNREPOSITORY003")]
-    [DataInlineUnit("DRNREPOSITORY004")]
-    [DataInlineUnit("DRNSTRUCTURE006")]
-    [DataInlineUnit("DRNSTRUCTURE007")]
-    [DataInlineUnit("DRNSTRUCTURE008")]
-    [DataInlineUnit("DRNPERSISTENCE009")]
-    [DataInlineUnit("DRNDEPENDENCYINJECTION002")]
-    [DataInlineUnit("DRNDEPENDENCYINJECTION003")]
+    [DataMemberUnit(nameof(ContractRuleIds))]
     public async Task Reviewed_Exception_Should_Cover_Only_The_Exact_Real_Violation_And_Expire_On_Review_Day(string id)
     {
         var scenario = ScenarioFor(id);
@@ -692,17 +652,6 @@ public sealed class ConventionDiagnosticContractTests
                 """, [], "M:Sample.Hosted.QA.OrdersController.Read", "Read",
                 "Public endpoint 'Sample.Hosted.QA.OrdersController.Read()' must use an explicit Contract Response type instead of 'Shared.Contract.QA.Orders.OrderView'.",
                 ConventionDtoAnalysis.Analyze, ExtraReferences: [OrderViewContract.Value.Reference]),
-            "DRNDTO007" => new("Application", """
-                using DRN.Framework.SharedKernel.Domain;
-                using DRN.Framework.SharedKernel.Domain.Repository;
-                namespace Sample.Application.QA;
-                public class OtherTarget;
-                public class OrderEntity : AggregateRoot { public override Dto ToDto() => new(this); }
-                public class OrderService(ISourceKnownRepository<OrderEntity> repository)
-                    : SourceKnownService<OrderEntity, Shared.Contract.QA.Items.ItemDto>(repository);
-                """, [.. ItemContract.Value.Records], "T:Sample.Application.QA.OrderService", "OrderService",
-                "Service 'OrderService' inherits default ToDto() from SourceKnownService<OrderEntity, ItemDto>, but 'OrderEntity.ToDto()' returns 'Dto', which is not assignable to 'ItemDto'. Override ToDto(OrderEntity) or align the service DTO type.",
-                ConventionDtoAnalysis.Analyze, ExtraReferences: [ItemContract.Value.Reference]),
             "DRNENUM001" => new("Domain", """
                 namespace Sample.Domain.QA { public class OtherTarget; }
                 namespace Sample.Domain.QA.Fixture { public enum Status { Active = 1 } }

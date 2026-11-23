@@ -17,26 +17,32 @@ public interface ISourceKnownService<TEntity>
 
 /// <summary>
 /// Represents a repository-backed service for entities of type <typeparamref name="TEntity"/>
-/// that projects entities to <typeparamref name="TDto"/>.
+/// that projects entities to explicit <typeparamref name="TResponse"/> contracts.
 /// </summary>
-public interface ISourceKnownService<TEntity, out TDto> : ISourceKnownService<TEntity>
+public interface ISourceKnownService<TEntity, TResponse> : ISourceKnownService<TEntity>
     where TEntity : AggregateRoot
-    where TDto : Dto
+    where TResponse : class
 {
     /// <summary>
-    /// Projects <paramref name="entity"/> to its <typeparamref name="TDto"/> representation.
+    /// Projects <paramref name="entity"/> to its explicit <typeparamref name="TResponse"/> contract.
     /// </summary>
-    TDto ToDto(TEntity entity);
+    Task<TResponse> CreateResponseAsync(TEntity entity, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Projects <paramref name="entities"/> to explicit <typeparamref name="TResponse"/> contracts, returning one non-null response per input entity in order.
+    /// Override to batch asynchronous enrichment queries for collections and paginated results.
+    /// </summary>
+    Task<TResponse[]> CreateResponsesAsync(IReadOnlyList<TEntity> entities, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
 /// Represents a repository-backed service for entities of type <typeparamref name="TEntity"/>
-/// with DTO projection to <typeparamref name="TDto"/> and entity creation from <typeparamref name="TCreateRequest"/>.
+/// with response projection to <typeparamref name="TResponse"/> and entity creation from <typeparamref name="TCreateRequest"/>.
 /// </summary>
-[SuppressMessage("SonarQube", "S2436", Justification = "Entity, DTO projection and create request are independent contracts. Three type parameters preserve covariant DTO output and contravariant request input.")]
-public interface ISourceKnownService<TEntity, out TDto, in TCreateRequest> : ISourceKnownService<TEntity, TDto>
+[SuppressMessage("SonarQube", "S2436", Justification = "Entity, response contract and create request are independent contracts. Three type parameters preserve typed repository access, response projection and contravariant request input.")]
+public interface ISourceKnownService<TEntity, TResponse, in TCreateRequest> : ISourceKnownService<TEntity, TResponse>
     where TEntity : AggregateRoot
-    where TDto : Dto
+    where TResponse : class
     where TCreateRequest : class
 {
     /// <summary>

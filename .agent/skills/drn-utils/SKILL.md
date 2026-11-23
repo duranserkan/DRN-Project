@@ -1,7 +1,7 @@
 ---
 name: drn-utils
 description: "DRN utilities for DI, configuration, scoped diagnostics, HTTP, Source-Known IDs, cancellation, and MFA."
-last-updated: 2026-11-15
+last-updated: 2026-11-22
 difficulty: intermediate
 ---
 
@@ -38,7 +38,7 @@ Use `IScopedLog` for operation diagnostics. Use code-owned metric names. A scope
 
 Scope events bypass diagnostic sanitization and budgets. Supply safe event data. Keep one primary and up to eight additional events on the first emitted record, with the omission count when needed. Ordinary diagnostic values remain bounded on every record.
 
-Classify dynamic backend values at capture. Compiler name/path checks and browser rules do not redact server values at runtime. Explicit URL capture removes credentials and validates encoding. Explicit Sensitive/Personal values redact as `[redacted]`. Free text keeps its contents within capture budgets. Check the installed package’s logging documentation for its capture limits and overflow behavior.
+Classify dynamic backend values at capture. Compiler name/path checks and browser rules do not redact server values at runtime. Explicit URL capture removes credentials and validates encoding. Explicit Sensitive/Personal values redact as `[redacted]`. Free text keeps its contents within capture budgets. See the installed `DRN.Framework.Utils` README and its linked GitHub diagnostic guide for capture limits and overflow behavior.
 
 - Use `AddDictionary` or `SanitizeDictionary` for exact key classifications. NonSensitive requires a reason and a supported scalar. Preserve positive classifications and configured analyzer paths. Native copies retain detached values and classification metadata within destination budgets. Custom sanitizers receive redacted snapshots.
 - Preserve inherited and mapped interface classifications, ignored members, single getter evaluation in scoped capture, and getter suppression in direct sanitization. Register redactors for Sensitive, Personal and their combination. See [catalog and analyzer rules](../drn-sharedkernel/SKILL.md#attributes).

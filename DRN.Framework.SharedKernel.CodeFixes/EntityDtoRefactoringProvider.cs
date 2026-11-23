@@ -11,18 +11,22 @@ namespace DRN.Framework.SharedKernel.CodeFixes;
 [ExportCodeRefactoringProvider(LanguageNames.CSharp, Name = nameof(EntityDtoRefactoringProvider)), Shared]
 public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
 {
+    private const string SourceKnownEntityMetadataName = "DRN.Framework.SharedKernel.Domain.SourceKnownEntity";
     public override async Task ComputeRefactoringsAsync(CodeRefactoringContext context)
     {
         var solution = context.Document.Project.Solution;
         if (context.Span.IsEmpty || !solution.Workspace.CanApplyChange(ApplyChangesKind.AddDocument) ||
-            !solution.Workspace.CanApplyChange(ApplyChangesKind.ChangeDocument) ||
-            ConventionGenerationPreflight.Identity(context.Document.Project).Role != "Domain") return;
+            !solution.Workspace.CanApplyChange(ApplyChangesKind.ChangeDocument)) return;
+        var sourceInfo = ConventionGenerationPreflight.ReadProject(context.Document.Project);
+        if (sourceInfo.Role != "Domain" || !sourceInfo.Layout.Valid) return;
         var selection = await ReadSelection(context.Document, context.Span, context.CancellationToken);
         if (selection is null) return;
+        var domainPreflight = await ResolveDomainPreflightAsync(context.Document.Project, sourceInfo, selection, context.CancellationToken);
+        if (domainPreflight is null) return;
         foreach (var project in solution.Projects)
         {
             context.CancellationToken.ThrowIfCancellationRequested();
-            var candidate = await Plan(context.Document, selection, project, context.CancellationToken);
+            var candidate = await Plan(domainPreflight, selection, project, context.CancellationToken);
             if (candidate is null) continue;
             var edited = await AddProjectionAsync(context.Document, selection, project.Id, candidate, context.CancellationToken);
             if (edited is null) continue;
@@ -104,7 +108,7 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         var call = name.FirstAncestorOrSelf<InvocationExpressionSyntax>();
         var site = call is not null && call.Expression.Span.End == name.Span.End ? call : name;
         if (model.GetSymbolInfo(site, token).Symbol is not IMethodSymbol method) return false;
-        var entityBase = model.Compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity");
+        var entityBase = model.Compilation.GetTypeByMetadataName(SourceKnownEntityMetadataName);
         return !(method is { MethodKind: MethodKind.Ordinary, IsAbstract: true, IsStatic: false, Name: "ToDto", Arity: 0, Parameters.IsEmpty: true } &&
             Same(method.ContainingType, entityBase));
     }
@@ -278,7 +282,7 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
     private static async Task<bool> IsEditablePublicEntityAsync(Document document, Compilation compilation,
         INamedTypeSymbol entity, CancellationToken token)
     {
-        var entityBase = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity");
+        var entityBase = compilation.GetTypeByMetadataName(SourceKnownEntityMetadataName);
         if (entity.IsAbstract || IsOpen(entity) || !IsPublicType(entity) || !Inherits(entity, entityBase)) return false;
         foreach (var type in Bases(entity))
         {
@@ -337,85 +341,85 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         return false;
     }
 
-    private static async Task<DtoPlan?> Plan(Document document, Selection selection, Project target, CancellationToken token)
+    private static async Task<DomainDtoPreflight?> ResolveDomainPreflightAsync(Project source,
+        ConventionGenerationPreflight.ProjectMetadata sourceInfo, Selection selection, CancellationToken token)
     {
-        var resolved = await ResolveDtoCompilationsAsync(document, selection, target, token);
+        if (!ValidNamespace(sourceInfo.Namespace)) return null;
+        var sourceInputs = await ReadInputsWithoutRoleOverrideAsync(source, required: false, token);
+        if (sourceInputs is null) return null;
+        var sourceCompilation = await source.GetCompilationAsync(token);
+        if (sourceCompilation is null ||
+            !selection.Entity.ContainingAssembly.Identity.Equals(sourceCompilation.Assembly.Identity)) return null;
+        var sourceEntityBase = sourceCompilation.GetTypeByMetadataName(SourceKnownEntityMetadataName);
+        var sourceDto = sourceCompilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.Dto");
+        if (sourceEntityBase is null || sourceDto is null) return null;
+        var sourceNamespace = selection.Entity.ContainingNamespace.ToDisplayString();
+        if (!sourceNamespace.StartsWith(sourceInfo.Namespace + ".", StringComparison.Ordinal)) return null;
+        var owner = ResolveNamespaceOwnerKey(selection.Entity, sourceInfo.Namespace, sourceInfo.Layout);
+        if (owner is null || !PreservesOwnership(selection.Entity, sourceCompilation, sourceInputs, owner, token, out var explicitDomain))
+            return null;
+        owner = owner.WithExplicitDomain(explicitDomain);
+        var stem = ConventionGenerationPreflight.EntityStem(selection.Entity.Name);
+        var folder = ConventionNames.DtoFolder(stem);
+        var dtoName = stem + "Dto";
+        if (!ConventionGenerationPreflight.ValidNamespaceSegment(folder) || !SyntaxFacts.IsValidIdentifier(dtoName) ||
+            Bases(selection.Entity).Any(type => type.GetMembers("ToDto").Any(member =>
+                ConflictsWithMapper(member, sourceEntityBase, sourceCompilation, selection.Entity))))
+            return null;
+        return new(source, sourceCompilation, sourceDto, owner, folder, dtoName);
+    }
+
+    private static bool ConflictsWithMapper(ISymbol member, INamedTypeSymbol sourceEntityBase,
+        Compilation sourceCompilation, INamedTypeSymbol entity)
+    {
+        if (member is IMethodSymbol { IsAbstract: true, Arity: 0, Parameters.IsEmpty: true } abstractMethod &&
+            Same(abstractMethod.ContainingType, sourceEntityBase))
+            return false;
+        return member is not IMethodSymbol method || method.Arity == 0 &&
+            (method.Parameters.IsEmpty || !method.IsStatic && sourceCompilation.IsSymbolAccessibleWithin(method, entity) &&
+                method.Parameters.All(parameter => parameter.IsOptional || parameter.IsParams));
+    }
+
+    private static async Task<DtoPlan?> Plan(DomainDtoPreflight domain, Selection selection, Project target, CancellationToken token)
+    {
+        var resolved = await ResolveDtoCompilationsAsync(domain, target, token);
         if (resolved is null) return null;
-        var destinations = TryBuildDtoDestinations(target, selection, resolved, token);
+        var destinations = TryBuildDtoDestinations(target, domain.DtoName, resolved, token);
         if (destinations is null) return null;
-        var typeAttributes = TypeClassifications(selection.Entity, resolved.SourceCompilation, resolved.TargetCompilation);
+        var typeAttributes = TypeClassifications(selection.Entity, domain.SourceCompilation, resolved.TargetCompilation);
         if (typeAttributes is null) return null;
-        var fields = TryBuildDtoFields(selection, resolved.Dto, destinations.DtoName, resolved.SourceCompilation, resolved.TargetCompilation);
+        var fields = TryBuildDtoFields(selection, resolved.Dto, destinations.DtoName, domain.SourceCompilation, resolved.TargetCompilation);
         return fields is null ? null : Render(fields, typeAttributes, destinations);
     }
 
-    private static async Task<DtoCompilations?> ResolveDtoCompilationsAsync(Document document, Selection selection,
+    private static async Task<DtoCompilations?> ResolveDtoCompilationsAsync(DomainDtoPreflight domain,
         Project target, CancellationToken token)
     {
-        var source = document.Project;
-        var sourceIdentity = ConventionGenerationPreflight.Identity(source);
-        var targetIdentity = ConventionGenerationPreflight.Identity(target);
-        var sourceLayout = ConventionGenerationPreflight.Layout(source);
-        var targetLayout = ConventionGenerationPreflight.Layout(target);
-        if (sourceIdentity.Role != "Domain" || targetIdentity.Role != "Contract" || target.Language != LanguageNames.CSharp ||
-            !sourceLayout.Matches(targetLayout) ||
-            !source.ProjectReferences.Any(reference => reference.ProjectId == target.Id &&
+        if (target.Language != LanguageNames.CSharp) return null;
+        var targetInfo = ConventionGenerationPreflight.ReadProject(target);
+        if (targetInfo.Role != "Contract" || !ValidNamespace(targetInfo.Namespace) ||
+            !targetInfo.Layout.TryResolveTargetOwner(domain.Owner, out var targetOwner) ||
+            !domain.Source.ProjectReferences.Any(reference => reference.ProjectId == target.Id &&
                 (reference.Aliases.IsEmpty || reference.Aliases.Contains("global", StringComparer.Ordinal))) ||
             target.FilePath is null || !TryFullPath(target.FilePath, out var targetProjectPath)) return null;
-        var sourceInputs = await ReadInputsWithoutRoleOverrideAsync(source, required: false, token);
-        if (sourceInputs is null || await HasRoleOverrides(target, token)) return null;
-        var targetRoot = Path.GetDirectoryName(targetProjectPath)!;
-        return await ResolveDtoCompilationModelsAsync((source, sourceIdentity.Namespace, sourceLayout),
-            (target, targetIdentity.Namespace, targetRoot), selection, sourceInputs, token);
-    }
-
-    private static async Task<DtoCompilations?> ResolveDtoCompilationModelsAsync(
-        (Project Project, string Namespace, ConventionGenerationPreflight.ProjectLayout Layout) source,
-        (Project Project, string Namespace, string Root) target,
-        Selection selection, CompilationUnitSyntax sourceInputs, CancellationToken token)
-    {
-        var sourceCompilation = await source.Project.GetCompilationAsync(token);
-        var targetCompilation = await target.Project.GetCompilationAsync(token);
-        if (sourceCompilation is null || targetCompilation is null ||
-            !selection.Entity.ContainingAssembly.Identity.Equals(sourceCompilation.Assembly.Identity)) return null;
+        if (await HasRoleOverrides(target, token)) return null;
+        var targetCompilation = await target.GetCompilationAsync(token);
+        if (targetCompilation is null) return null;
         var dto = targetCompilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.Dto");
-        var entityBase = targetCompilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity");
-        var sourceEntityBase = sourceCompilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownEntity");
-        if (dto is null || entityBase is null || sourceEntityBase is null ||
+        var entityBase = targetCompilation.GetTypeByMetadataName(SourceKnownEntityMetadataName);
+        if (dto is null || entityBase is null ||
             !targetCompilation.IsSymbolAccessibleWithin(dto, targetCompilation.Assembly) ||
-            sourceCompilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.Dto") is not { } sourceDto ||
-            !sourceDto.ContainingAssembly.Identity.Equals(dto.ContainingAssembly.Identity)) return null;
-        var sourceNamespace = selection.Entity.ContainingNamespace.ToDisplayString();
-        if (!ValidNamespace(source.Namespace) || !ValidNamespace(target.Namespace) ||
-            !sourceNamespace.StartsWith(source.Namespace + ".", StringComparison.Ordinal)) return null;
-        var owner = ResolveNamespaceOwnerKey(selection.Entity, source.Namespace, source.Layout);
-        if (owner is null || !PreservesOwnership(selection.Entity, sourceCompilation, sourceInputs, owner, token))
-            return null;
-        var folder = ConventionNames.DtoFolder(ConventionGenerationPreflight.EntityStem(selection.Entity.Name));
-        if (!ConventionGenerationPreflight.ValidNamespaceSegment(folder)) return null;
-        var dtoArea = owner.NamespacePrefix + "." + folder;
-        return new(sourceCompilation, targetCompilation, dto, sourceEntityBase, target.Root, target.Namespace + "." + dtoArea, dtoArea);
+            !domain.SourceDto.ContainingAssembly.Identity.Equals(dto.ContainingAssembly.Identity)) return null;
+        var dtoArea = targetOwner.NamespacePrefix + "." + domain.Folder;
+        return new(targetCompilation, dto, Path.GetDirectoryName(targetProjectPath)!, targetInfo.Namespace + "." + dtoArea, dtoArea);
     }
 
-    private static DtoDestinations? TryBuildDtoDestinations(Project target, Selection selection, DtoCompilations resolved, CancellationToken token)
+    private static DtoDestinations? TryBuildDtoDestinations(Project target, string dtoName, DtoCompilations resolved, CancellationToken token)
     {
-        var dtoName = ConventionGenerationPreflight.EntityStem(selection.Entity.Name) + "Dto";
-        if (!SyntaxFacts.IsValidIdentifier(dtoName) ||
-            Bases(selection.Entity).Any(type => type.GetMembers("ToDto").Any(ConflictsWithMapper)) ||
-            ConventionGenerationPreflight.SymbolCollision(resolved.TargetCompilation, resolved.DtoNamespace, dtoName, token)) return null;
+        if (ConventionGenerationPreflight.SymbolCollision(resolved.TargetCompilation, resolved.DtoNamespace, dtoName, token)) return null;
         var dtoPath = Path.Combine(resolved.TargetRoot, resolved.Area.Replace('.', Path.DirectorySeparatorChar), dtoName + ".cs");
         if (!SafeDocumentDestination(target, resolved.TargetRoot, dtoPath, token)) return null;
         return new(resolved.DtoNamespace, dtoName, dtoPath, Path.GetRelativePath(resolved.TargetRoot, dtoPath).Replace('\\', '/'));
-
-        bool ConflictsWithMapper(ISymbol member)
-        {
-            if (member is IMethodSymbol { IsAbstract: true, Arity: 0, Parameters.IsEmpty: true } abstractMethod &&
-                Same(abstractMethod.ContainingType, resolved.SourceEntityBase))
-                return false;
-            return member is not IMethodSymbol method || method.Arity == 0 &&
-                (method.Parameters.IsEmpty || !method.IsStatic && resolved.SourceCompilation.IsSymbolAccessibleWithin(method, selection.Entity) &&
-                    method.Parameters.All(parameter => parameter.IsOptional || parameter.IsParams));
-        }
     }
 
     private static List<(string Name, string Type, string Attributes, bool Required)>? TryBuildDtoFields(
@@ -502,6 +506,7 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
             if (containing.IsGenericType) return false;
         if (target.GetTypeByMetadataName(name) is not { TypeKind: TypeKind.Enum } enumeration ||
             !enumeration.ContainingAssembly.Identity.Equals(named.ContainingAssembly.Identity) ||
+            !IsPublicType(enumeration) ||
             !target.IsSymbolAccessibleWithin(enumeration, target.Assembly)) return false;
         if (named.GetAttributes().Any(attribute => attribute.AttributeClass is { } attr &&
                 MetadataName(attr) == "DRN.Framework.SharedKernel.Attributes.DomainOnlyAttribute"))
@@ -583,9 +588,15 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         property.IsRequired || property.Type.IsReferenceType && property.NullableAnnotation != NullableAnnotation.Annotated;
 
     private static bool PreservesOwnership(INamedTypeSymbol entity, Compilation compilation,
-        CompilationUnitSyntax root, OwnerKey owner, CancellationToken token) =>
-        AttributesPreserveOwner(entity, owner, compilation) &&
-        OwnershipCompatible(root, MetadataName(entity), owner.Subdomain, token, owner.DomainFilter);
+        CompilationUnitSyntax root, OwnerKey owner, CancellationToken token, out bool hasExplicitDomain)
+    {
+        hasExplicitDomain = false;
+        if (!AttributesPreserveOwner(entity, owner, compilation, out var attrExplicitDomain) ||
+            !OwnershipCompatible(root, MetadataName(entity), owner.Subdomain, token, out var inputExplicitDomain, owner.DomainFilter))
+            return false;
+        hasExplicitDomain = attrExplicitDomain || inputExplicitDomain;
+        return true;
+    }
 
     private static DtoPlan Render(List<(string Name, string Type, string Attributes, bool Required)> fields,
         string typeAttributes, DtoDestinations destinations)
@@ -618,8 +629,10 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
             dtoSource, mapperSource);
     }
 
-    private sealed record DtoCompilations(Compilation SourceCompilation, Compilation TargetCompilation, INamedTypeSymbol Dto,
-        INamedTypeSymbol SourceEntityBase, string TargetRoot, string DtoNamespace, string Area);
+    private sealed record DomainDtoPreflight(Project Source, Compilation SourceCompilation, INamedTypeSymbol SourceDto,
+        OwnerKey Owner, string Folder, string DtoName);
+    private sealed record DtoCompilations(Compilation TargetCompilation, INamedTypeSymbol Dto,
+        string TargetRoot, string DtoNamespace, string Area);
     private sealed record DtoDestinations(string DtoNamespace, string DtoName, string DtoPath, string RelativeDtoPath);
     private sealed record Selection(INamedTypeSymbol Entity, ImmutableArray<IPropertySymbol> Properties);
     private sealed record DtoPlan(string DtoNamespace, string DtoName, string DtoPath, string RelativeDtoPath,

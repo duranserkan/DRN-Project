@@ -116,9 +116,16 @@ internal sealed partial class ConventionFacts
         }
         var domain = input.Get(ConventionInputSyntax.DomainField);
         var subdomain = input.Get(ConventionInputSyntax.SubdomainField);
-        if (domain.Length > 0 && (subdomain.Length == 0 || !SyntaxFacts.IsValidIdentifier(domain)))
+        if (domain.Length > 0 && subdomain.Length == 0)
         {
-            InvalidInput(input, "declared with a Domain without a valid Subdomain", "valid Subdomain alongside Domain");
+            InvalidInput(input, "declared with a Domain without a Subdomain", "valid Subdomain alongside Domain");
+            _invalidContextNames.Add(input.Identity);
+            return;
+        }
+        if (domain.Length > 0 && !SyntaxFacts.IsValidIdentifier(domain) ||
+            subdomain.Length > 0 && !SyntaxFacts.IsValidIdentifier(subdomain))
+        {
+            InvalidInput(input, "declared with an invalid Domain or Subdomain", "valid C# identifiers for Domain and Subdomain");
             _invalidContextNames.Add(input.Identity);
             return;
         }

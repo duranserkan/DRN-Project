@@ -446,22 +446,15 @@ public class HostedAccessorGeneratorTests
             public class Entity : AggregateRoot { public override Dto ToDto() => new(this); }
             public class Model { }
             public record CreateModel;
-            public class TagController(ISourceKnownService<Entity, Dto, CreateModel> service) : SourceKnownController<Entity, Model, CreateModel>(service)
+            public class TagController(ISourceKnownService<Entity, Model, CreateModel> service) : SourceKnownController<Entity, Model, CreateModel>(service)
             {
-                protected override Model ToResponse(Entity entity) => new();
                 [NonAction] public override System.Threading.Tasks.Task<long> CountAsync(System.Threading.CancellationToken token = default)
                     => base.CountAsync(token);
                 [ApiExplorerSettings(IgnoreApi = true)] public override System.Threading.Tasks.Task<bool> AnyAsync(System.Threading.CancellationToken token = default)
                     => base.AnyAsync(token);
             }
-            public class WriteController(ISourceKnownService<Entity, Dto, CreateModel> service) : SourceKnownWriteOnlyController<Entity, Model, CreateModel>(service)
-            {
-                protected override Model ToResponse(Entity entity) => new();
-            }
-            public class ReadController(ISourceKnownService<Entity> service) : SourceKnownReadOnlyController<Entity, Model>(service)
-            {
-                protected override Model ToResponse(Entity entity) => new();
-            }
+            public class WriteController(ISourceKnownService<Entity, Model, CreateModel> service) : SourceKnownWriteOnlyController<Entity, Model, CreateModel>(service);
+            public class ReadController(ISourceKnownService<Entity, Model> service) : SourceKnownReadOnlyController<Entity, Model>(service);
             """ + ProgramSource;
         var result = Generate(source);
         result.Diagnostics.Should().BeEmpty();

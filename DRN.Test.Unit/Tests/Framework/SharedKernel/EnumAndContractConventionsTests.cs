@@ -34,8 +34,8 @@ public class EnumAndContractConventionsTests
             Name = "Public"
         }, JsonConventions.DefaultOptions);
         using var doc = JsonDocument.Parse(responseJson);
-        doc.RootElement.TryGetProperty("internalReviewNote", out _).Should().BeFalse();
-        doc.RootElement.TryGetProperty("additionalData", out _).Should().BeFalse();
+        doc.RootElement.EnumerateObject().Select(property => property.Name)
+            .Should().BeEquivalentTo(new[] { "id", "createdAt", "modifiedAt", "name" });
     }
 
     [Fact]
@@ -101,5 +101,8 @@ public class EnumAndContractConventionsTests
 
         var unknownField = () => JsonSerializer.Deserialize<TagPostRequest>("""{"name":"Bad","model":{"type":"User","isSystem":true}}""", JsonConventions.DefaultOptions);
         unknownField.Should().Throw<JsonException>();
+
+        var rootUnknownField = () => JsonSerializer.Deserialize<TagPostRequest>("""{"name":"Bad","isSystem":true,"model":{"type":"User"}}""", JsonConventions.DefaultOptions);
+        rootUnknownField.Should().Throw<JsonException>();
     }
 }

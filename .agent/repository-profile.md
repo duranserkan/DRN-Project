@@ -1,19 +1,19 @@
 # Repository Profile - DRN-Project
 
-> Local overlay for `AGENTS.md` and `.agent/rules/DiSCOS.md`. Keep those entry points portable. Rebuild this profile from the destination when porting. `.agent/temp/` is local workflow history.
+> Local overlay for `AGENTS.md` and `.agent/rules/DiSCOS.md`. Keep entry points portable and rebuild this file when porting. `.agent/temp/` holds local workflow history.
 
 ## Snapshot
 
 | Aspect | Detail |
 |---|---|
-| Type | .NET 11 framework plus DDD reference app |
+| Type | .NET 11 framework + DDD reference app |
 | Architecture | Domain -> Infrastructure/Application -> Hosted |
 | Frontend | Razor Pages, htmx, Bootstrap 5, Vite |
-| Testing | DTT; unit, analyzer, then integration |
+| Testing | DTT: unit, analyzer, then integration |
 
 ## Layout
 
-Folders are flat; `DRN.slnx` groups them. `docs/solution-structure.md` owns roles. Paths are repository-relative.
+Flat folders grouped by `DRN.slnx` (roles: `docs/solution-structure.md`, setup/commands: `docs/quick-start.md`, host/frontend: `Sample.Hosted/README.md`, packages: module `README.md` + `RELEASE-NOTES.md`). Root README links standalone guides and its TOC links only its own sections.
 
 | Area | Paths |
 |---|---|
@@ -25,17 +25,15 @@ Folders are flat; `DRN.slnx` groups them. `docs/solution-structure.md` owns role
 | Agent and CI | `.agent/`, `.github/workflows/`, `.github/actions/` |
 | Docs | `README.md`, `ROADMAP.md`, `SECURITY.md`, `NOTICE.md`, `docs/` |
 
-`docs/quick-start.md` owns setup and commands. Root README links standalone guides; its TOC links only its own sections. `Sample.Hosted/README.md` owns host/frontend usage. Module READMEs and RELEASE-NOTES own package docs.
-
-Tooling uses net10.0: Hosting.Generators, SharedKernel.Analyzers/CodeFixes. Apps use net11.0. See package READMEs. Maps: `Helpers/AccessorDeclarations.cs`.
+Tooling targets `net10.0` (`Hosting.Generators`, `SharedKernel.Analyzers/CodeFixes`). Apps target `net11.0`. Accessor maps: `Helpers/AccessorDeclarations.cs`.
 
 ## Skill Routing
 
-- Framework: `overview-drn-framework`, then the relevant `drn-*` skill.
-- Testing: `drn-testing` and `overview-drn-testing` before generic `test-*` routers.
-- Frontend: relevant `drn-buildwww-*` skills. Razor: `frontend-razor-pages-shared` -> `frontend-razor-pages-navigation` -> `frontend-razor-accessors`. DRN accessor construction: `drn-hosting`, Page & Endpoint Management.
+- Framework: `overview-drn-framework`, then relevant `drn-*`.
+- Testing: `drn-testing` and `overview-drn-testing` before generic `test-*`.
+- Frontend: relevant `drn-buildwww-*`. Razor: `frontend-razor-pages-shared` -> `frontend-razor-pages-navigation` -> `frontend-razor-accessors`. DRN accessors: `drn-hosting`.
 - Package docs: `.agent/workflows/documentation.md`.
-- Classification rules: `.agent/workflows/data-classification.md` with `drn-utils`, `drn-sharedkernel`, and `drn-testing`.
+- Classification: `.agent/workflows/data-classification.md` with `drn-utils`, `drn-sharedkernel`, `drn-testing`.
 
 ### Framework Skills
 
@@ -45,7 +43,7 @@ Tooling uses net10.0: Hosting.Generators, SharedKernel.Analyzers/CodeFixes. Apps
 
 ### Missing Profile Extensions
 
-Use the [Stage 3 contract](workflows/update-execute.md#skill-discovery-and-custom-routes) for missing load-set skills.
+See [Stage 3 contract](workflows/update-execute.md#skill-discovery-and-custom-routes).
 
 ## Documentation Modules
 
@@ -59,11 +57,11 @@ Default `/documentation` scope:
 - `DRN.Framework.Jobs`
 - `DRN.Framework.MassTransit`
 
-`/optimize docs` and `/optimize all` include these modules' READMEs/release notes, root docs, Quick Start, Solution Structure, and the Sample guide.
+`/optimize docs` and `/optimize all` include these modules' READMEs/release notes, root docs, Quick Start, Solution Structure, and Sample guide.
 
 ## Commands
 
-Apply the AGENTS.md command gate to npm and dotnet. Plan builds and tests only with permission. Run unit and analyzer tests before integration tests. Run MTP projects individually.
+Apply the `AGENTS.md` command gate to `npm` and `dotnet`. Plan builds/tests only with permission. Run unit and analyzer tests before integration tests, and run MTP projects individually.
 
 ```bash
 dotnet build DRN.slnx
@@ -74,34 +72,30 @@ dotnet run --project DRN.Test.Integration/DRN.Test.Integration.csproj
 
 ## Conventions
 
-- DI/configuration: use DRN attributes, not duplicate manual registrations. See `overview-drn-framework` and `drn-utils`.
-- `DRN.Framework.SharedKernel/CONVENTIONS.md` owns application conventions and terminology. Declare alternate or ambiguous context destinations. Shared dependencies need no naming root or custom properties.
-- Identity: require explicit `NexusAppSettings:AppId` and `AppInstanceId` in all environments. Zero is valid. Use Source-Known IDs and entity metadata. DTOs derive from `Dto` in `*.Contract` and expose `Guid` IDs, not entities. `drn-sharedkernel` and `drn-utils` own identity, time and lifecycle contracts.
-- IDs: use `[Sensitive]` or `[Personal]` only when a contract, classification rule or reviewed use case requires it.
-- Runtime access: prefer `[UnsafeAccessor]` for compile-time accessible types. Reserve reflection for dynamically discovered types.
-- `drn-hosting` owns typed roots, `ConfigureEndpointCollection`, and automatic Razor detection.
-- Logging: use `IScopedLog` for request/operation diagnostics. Reserve `ILogger` for bootstrap, scope flushing or audit events. Avoid duplicating request logs in audits. Applications own dynamic classification. Backend capture has no name-based redaction fallback.
-- Testing: use `DrnTestContextUnit` in `DRN.Test.Unit`; full `DrnTestContext` belongs in integration tests. Reusable hosted test programs belong in `DRN.Test.Utils`, not MTP executables. `drn-testing` owns data attributes and fixture contracts. Do not weaken production invariants for tests.
-- Frontend: `Sample.Hosted/buildwww/` builds to `Sample.Hosted/wwwroot/`. See [assets](../Sample.Hosted/README.md#frontend-assets). Browser APIs use `window.DRN`. Preserve `DRN`, `Drn*`, and `DRN.Framework.*`. Hosting owns typed static-file header rules and robots.txt revalidation. See `drn-hosting`.
-- Sample behaviors: `buildwww/app/ts/behaviors/{layout,home,test}/` feed separate `layoutBehaviors.ts`, `homeBehaviors.ts`, and `testBehaviors.ts` entries. Load layout globally and page entries through their owning Razor `Scripts` sections. Use declarative data and idempotent mounting. `Sample.Hosted/README.md`, Independently updating component behaviors, owns aggregate/selective commands, nonce-fixture exceptions, and deployment/restart rules.
-- Sample developer tools require completed MFA. Swagger and HTMX test pages allow signed-in users in Development. Elsewhere they require `SystemAdmin` or the matching boolean access claim. Use `[DeveloperExceptionPreview]` on preview endpoints and `DeveloperExceptionAccess.AllowsAsync` for their links. Framework Swagger defaults to Development only.
-- Sample/Nexus configure `/Api` for unmatched API routes. Sample opts into HTMX Problem Details through `DrnApiErrorOptions.HandleHtmxRequests`. Preserve browser account isolation and separate `requestId`/`clientErrorId` references.
-- Git: GitFlow-inspired. Integration branch `develop`, release branch `master`. Squash merge to `develop`; merge commits from `develop` to `master`. Tags: `release/v*.*.*` or `release/v*.*.*-previewNNN`.
-- Security: CSP nonces, CSRF, and input validation are required. Pin third-party Actions to full immutable SHAs with version comments and verify upstream tag alignment. Pin container bases to verified registry digests. Keep SDK/runtime distro choices and `DOTNET_RUNTIME_VERSION` aligned with `RuntimeFrameworkVersion`.
-- PR CI: trusted workflow/action code comes from `github.event.pull_request.base.sha` at workspace root; PR source lives under `src`. Jobs are secretless, have timeouts, and join an aggregate gatekeeper. `.github/CODEOWNERS` owns itself, workflows, and composite actions. Branch rulesets should require code-owner review and scanning/gatekeeper statuses.
-- Release CI: derive one version from the release tag and verify its commit equals protected branch HEAD. Keep artifacts in the publishing job unless crossing jobs is necessary. Preserve pre-publish NuGet packages for provenance/SBOM checks. Verify NuGet.org's repository signature before removing `.signature.p7s` from a copy for GitHub attestation verification. Scan exact staged Docker digests, attest multi-platform provenance, bind SPDX 2.3 platform SBOMs to image digests, publish packages, then promote scanned digests. Use deterministic `staged-*` cleanup tags and a digest-pinned scanner.
-- CodeRabbit loads `AGENTS.md` and DiSCOS through `knowledge_base.code_guidelines.filePatterns`.
-- Workflow artifacts: `/clarify` owns `CLARIFY-*`; `/answer` accepts reviewed CLARIFY input and may resume approved `clarified` input solely to create collision-safe `DEVELOP-*`; `/develop` owns the matching `WALKTHROUGH-*`. Keep these in `.agent/temp/` and link them from system plans.
+- DI/config: use DRN attributes, not duplicate manual registrations (`overview-drn-framework`, `drn-utils`).
+- Conventions: `DRN.Framework.SharedKernel/CONVENTIONS.md` owns rules and terminology. Declare alternate/ambiguous context destinations. Shared dependencies need no naming root or custom properties.
+- Identity and contracts: require explicit `NexusAppSettings:AppId` and `AppInstanceId` everywhere (`0` is valid). Use Source-Known IDs and entity metadata. Internal Contract DTOs derive from `Dto` in `*.Contract` and map via `SourceKnownEntity.ToDto()`. Public HTTP endpoints use explicit `*Request`/`*Response` contracts exposing `Guid` IDs, never `Dto` or entities (`drn-sharedkernel`, `drn-utils`).
+- IDs: apply `[Sensitive]` or `[Personal]` only when a contract, classification rule, or reviewed use case requires it.
+- Runtime access: prefer `[UnsafeAccessor]` for compile-time accessible types and reflection only for dynamic types.
+- Hosting: `drn-hosting` owns typed roots, `ConfigureEndpointCollection`, automatic Razor detection, static-file headers, and `robots.txt` revalidation.
+- Logging: use `IScopedLog` for request/operation diagnostics and `ILogger` for bootstrap, scope flushing, or audit events. Avoid duplicating request logs in audits. Apps own dynamic classification, with no backend name-based redaction fallback.
+- Testing: use `DrnTestContextUnit` in `DRN.Test.Unit` and full `DrnTestContext` in integration tests. Put reusable hosted test programs in `DRN.Test.Utils`, not MTP executables (`drn-testing`). Never weaken production invariants for tests.
+- Frontend: `Sample.Hosted/buildwww/` builds to `Sample.Hosted/wwwroot/` ([assets](../Sample.Hosted/README.md#frontend-assets)). Browser APIs use `window.DRN`. Preserve `DRN`, `Drn*`, and `DRN.Framework.*`. `buildwww/app/ts/behaviors/{layout,home,test}/` feed matching `*Behaviors.ts` entries loaded globally (layout) or via owning Razor `Scripts` sections with declarative data and idempotent mounting (`Sample.Hosted/README.md` owns selective commands, nonce-fixture exceptions, and restart rules).
+- Sample dev tools: require completed MFA. Swagger and HTMX test pages allow signed-in users in Development and require `SystemAdmin` or the matching boolean claim elsewhere. Use `[DeveloperExceptionPreview]` and `DeveloperExceptionAccess.AllowsAsync`. Framework Swagger defaults to Development.
+- API errors: Sample/Nexus configure `/Api` for unmatched API routes. Sample enables `DrnApiErrorOptions.HandleHtmxRequests`. Preserve browser account isolation and separate `requestId`/`clientErrorId`.
+- Git: GitFlow (`develop` integration, `master` release). Squash merge to `develop`, merge commit to `master`. Tags: `release/v*.*.*` or `release/v*.*.*-previewNNN`.
+- Security: require CSP nonces, CSRF, input validation, SHA-pinned third-party Actions (with version comments and tag alignment), and digest-pinned container bases. Align SDK/runtime distros and `DOTNET_RUNTIME_VERSION` with `RuntimeFrameworkVersion`.
+- PR/Release CI (`overview-github-actions`): PR workflows run trusted code from `github.event.pull_request.base.sha` at root with PR source under `src`, stay secretless with timeouts, and join the gatekeeper. `.github/CODEOWNERS` owns itself, workflows, and composite actions. Release CI derives one version from the tag, verifies commit == protected branch HEAD, keeps pre-publish NuGet packages for provenance/SBOM checks, verifies NuGet.org signatures before copying without `.signature.p7s` for GitHub attestation, scans staged Docker digests with a digest-pinned scanner, attests multi-platform provenance and SPDX 2.3 SBOMs, promotes scanned digests, and cleans `staged-*` tags.
+- CodeRabbit loads `AGENTS.md` and DiSCOS via `knowledge_base.code_guidelines.filePatterns`.
+- Workflow artifacts: `/clarify` -> `CLARIFY-*`, `/answer` -> reviewed CLARIFY or approved `clarified` solely to create collision-safe `DEVELOP-*`, `/develop` -> `WALKTHROUGH-*` in `.agent/temp/`, linked from system plans.
 
 ## Frontend Test Scope
 
-`Sample.Hosted/README.md`, Frontend tests, owns CI gates, coverage and commands. On master and verified release tags, the frontend bundle job supplies LCOV and the built web root. Sonar imports frontend and .NET coverage in one required analysis. Playwright and hosted integration tests exercise the built assets.
+`Sample.Hosted/README.md` (Frontend tests) owns CI gates, coverage, and commands. Master and verified release tags supply LCOV and built assets for combined Sonar analysis, Playwright, and hosted integration tests.
 
 ## DRN Framework Source Overlay
 
 ### Source Map
-
-Follow owners for public contracts. Find details in owning modules.
 
 | Contract | Owner | Agent guidance |
 |---|---|---|
@@ -114,15 +108,13 @@ Follow owners for public contracts. Find details in owning modules.
 
 ### Documentation Sync
 
-Document public usage, behavior, and configuration in READMEs. Keep concise migration guidance in release notes. For shared changes, update owning READMEs and skills, assess release notes, and check names/defaults/examples for drift. Align browser declarations with Sample. Run `git diff --check`.
+Document public usage, behavior, and configuration in READMEs, with concise migration notes in release notes. For shared changes, update owning READMEs and skills, assess release notes, align browser declarations with Sample, check names/defaults/examples for drift, and run `git diff --check`.
 
 ### Release Notes
 
-Describe net consumer impact since `release/v0.10.0`. Preserve published history. Ignore breaking changes or fixes for unreleased features, doc edits, and packaging edits. Describe new features in final form.
+Describe net consumer impact since `release/v0.10.0` in final form while preserving published history. Omit unreleased-feature breaking changes/fixes, doc/packaging edits, internal refactors, tests, comments, agent docs, and non-impacting dependency updates outside coordinated releases. Note breaking, security-relevant, consumer-visible, or artifact-affecting dependency/runtime/container changes. Coordinated releases add the version to every Documentation Modules package with concise alignment wording (e.g., `Dependencies upgraded to dotnet 10.0.11`).
 
-Internal refactors, tests, comments, agent docs, and non-impacting dependency updates need no entry outside coordinated releases. Note dependency/runtime/container changes when breaking, security-relevant, consumer-visible, or artifact-affecting. Coordinated releases add the version to every Documentation Modules package with concise alignment wording, e.g. `Dependencies upgraded to dotnet 10.0.11`.
-
-NuGet notes extract the first `## Version ...` section until the next version or `---` footer, plus canonical DiSC OS attribution and bold signature (`Directory.Build.targets`). Missing versions or >35,000 chars fail packing. Packed files retain full history, prefix, and footer.
+NuGet packing (`Directory.Build.targets`) extracts the first `## Version ...` section until the next version or `---` footer, plus canonical DiSC OS attribution and bold signature. Missing versions or >35,000 chars fail packing. Packed files retain full history, prefix, and footer.
 
 ### Package Release Notes Format
 

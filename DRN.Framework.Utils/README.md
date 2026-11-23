@@ -161,7 +161,7 @@ builder.Services.AddDrnUtils();
 builder.Services.AddServicesWithAttributes();
 ```
 
-`AddServicesWithAttributes()` also calls `AddDrnUtils()` when scanning a consumer assembly, so the first call is optional in that case. Manual applications must supply `IConfiguration` or `IAppSettings`. Neither registration call creates an ambient `ScopeContext`. See [UtilsModule.cs](UtilsModule.cs) and [registration extensions](DependencyInjection/ServiceCollectionExtensions.cs).
+`AddServicesWithAttributes()` also calls `AddDrnUtils()` when scanning a consumer assembly, so the first call is optional in that case. Manual applications must supply `IConfiguration` or `IAppSettings`. Neither registration call creates an ambient `ScopeContext`. See [UtilsModule.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/UtilsModule.cs) and [registration extensions](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/DependencyInjection/ServiceCollectionExtensions.cs).
 
 The sections below show consumer snippets. Names such as `Order`, `OrderDbContext`, `StatusResponse`, `SomeAsyncOp`, `model`, and stream variables belong to the consuming application. Import the namespaces of the linked APIs; the snippets do not define an entire application.
 
@@ -187,7 +187,7 @@ For DRN Hosting rate limiting, use `HybridCache` to cache tenant plan, feature f
 
 ### Attribute-Based Registration
 
-`AddServicesWithAttributes()` scans the calling assembly by default; pass an `Assembly` argument to scan another assembly. Lifetime discovery includes visible, concrete classes. Attribute definitions are in [LifetimeAttribute.cs](DependencyInjection/Attributes/LifetimeAttribute.cs).
+`AddServicesWithAttributes()` scans the calling assembly by default. Pass an `Assembly` argument to scan another assembly. Lifetime discovery includes visible, concrete classes. Attribute definitions are in [LifetimeAttribute.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/DependencyInjection/Attributes/LifetimeAttribute.cs).
 
 | Attribute | Lifetime | Usage |
 |-----------|----------|-------|
@@ -312,7 +312,7 @@ public class MyDbContext : DrnContext<MyDbContext>
 }
 ```
 
-The parameterless constructor supports design-time creation; the options constructor supports DI. See [DrnContext.cs](../DRN.Framework.EntityFramework/Context/DrnContext.cs).
+The parameterless constructor supports design-time creation. The options constructor supports DI. See [DrnContext.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.EntityFramework/Context/DrnContext.cs).
 
 ## Configuration
 
@@ -371,7 +371,7 @@ DRN Hosting's `AddDrnSettings` loads configuration in this order, with later sou
 
 `Environment` is required and must be `Development`, `Staging`, or `Production`. DRN validates the value used to select `appsettings.{Environment}.json`; define it in `appsettings.json`, environment variables, mounted settings, or command-line arguments, and do not override it in environment-specific JSON or user secrets.
 
-Override the mount directory by registering `IMountedSettingsConventionsOverride`. See [Hosting configuration extensions](../DRN.Framework.Hosting/Extensions/ConfigurationExtensions.cs).
+Override the mount directory by registering `IMountedSettingsConventionsOverride`. See [Hosting configuration extensions](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Hosting/Extensions/ConfigurationExtensions.cs).
 
 ### IAppSettings Troubleshooting
 
@@ -448,14 +448,14 @@ This JSON shows Development defaults. Replace `SeedKey` with private key materia
 }
 ```
 
-`DrnRateLimit` is the configuration key; application code reads the same settings through `IAppSettings.Features.RateLimit`.
-Shared values apply to both DRN Hosting rate limiting phases. Phase-specific values set to `0` inherit the shared value; positive phase-specific values override it. Treat these values as global defaults; tenant plan, feature-flag, and account-specific quotas belong in DRN Hosting rate-limit rules. See the [Hosting README rate limiting settings](../DRN.Framework.Hosting/README.md#settings-quick-reference) for operational guidance, endpoint metadata behavior, and production scaling notes.
+`DrnRateLimit` is the configuration key. Application code reads the same settings through `IAppSettings.Features.RateLimit`.
+Shared values apply to both DRN Hosting rate limiting phases. Phase-specific values set to `0` inherit the shared value. Positive phase-specific values override it. Treat these values as global defaults. Tenant plan, feature-flag, and account-specific quotas belong in DRN Hosting rate-limit rules. See the [Hosting README rate limiting settings](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Hosting/README.md#settings-quick-reference) for operational guidance, endpoint metadata behavior, and production scaling notes.
 
 Invalid `DrnRateLimit` values fail startup validation.
 
 #### Seed keys and derived settings
 
-`DrnAppFeatures.SeedKey` determines these [AppSecuritySettings](Settings/AppSecuritySettings.cs) values:
+`DrnAppFeatures.SeedKey` determines these [AppSecuritySettings](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Settings/AppSecuritySettings.cs) values:
 
 | Output | Representation | Use |
 |---|---|---|
@@ -493,7 +493,7 @@ Changing `SeedKey` changes app-specific names, rate-limit keyed hashes, Developm
 | `DrnRateLimit.PostAuthTokensPerPeriod` | `int` | `0` | Optional post-auth tokens per period. 0 inherits `TokensPerPeriod`. |
 
 > [!TIP]
-> Request buffering and rate limiting settings are consumed by `DRN.Framework.Hosting`. See the [Hosting README](../DRN.Framework.Hosting/README.md) for middleware details.
+> Request buffering and rate limiting settings are consumed by `DRN.Framework.Hosting`. See the [Hosting README](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Hosting/README.md) for middleware details.
 
 ### NexusAppSettings and Nexus Keys
 
@@ -533,17 +533,17 @@ Retain old keys only for routine rotation. After compromise, select a fresh defa
 | `Base64` | `KeyMaterial` must Base64-decode to exactly 32 bytes. |
 | `Base64UrlEncoded` | `KeyMaterial` must Base64Url-decode to exactly 32 bytes. This is the format used by Development default key-material generation. |
 
-Invalid user-provided keys are not hashed, stretched, truncated, repaired, or treated as another format. Validation rejects malformed encodings, empty keys, wrong decoded lengths, and raw values that are not exactly 32 UTF-8 bytes. Exception messages avoid including the secret key value. `NexusKey.SampleKeyMaterial` is forbidden in all environments, including tests. See [NexusAppSettings.cs](Settings/NexusAppSettings.cs).
+Invalid user-provided keys are not hashed, stretched, truncated, repaired, or treated as another format. Validation rejects malformed encodings, empty keys, wrong decoded lengths, and raw values that are not exactly 32 UTF-8 bytes. Exception messages avoid including the secret key value. `NexusKey.SampleKeyMaterial` is forbidden in all environments, including tests. See [NexusAppSettings.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Settings/NexusAppSettings.cs).
 
 When Development has no default Nexus key, a deterministic key derived from the application's seed is supplied automatically. This fallback is not random and is unavailable outside Development.
 
 ## Logging (`IScopedLog`)
 
-Dictionary diagnostics use `AddDictionary` or `SanitizeDictionary` with exact `DiagnosticKeyClassification` entries. Sensitive and Personal redact whole values. NonSensitive requires a reason and a supported scalar. Matching statically known dictionary captures produce DRNCLASSIFICATION006 guidance. See the [dictionary classification contract](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#dictionary-classifications).
+Dictionary diagnostics use `AddDictionary` or `SanitizeDictionary` with exact `DiagnosticKeyClassification` entries. Sensitive and Personal redact whole values. NonSensitive requires a reason and a supported scalar. Matching statically known dictionary captures produce DRNCLASSIFICATION006 guidance. See the [dictionary classification contract](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Logging/Diagnostics/README.md#dictionary-classifications).
 
-`IScopedLog` aggregates structured operational data, metrics, checkpoints, and exceptions for a logical scope. Hosting emits one grouped record when it fits and bounded linked records for larger sanitized diagnostics. See [diagnostic redaction and grouping](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md) for classification, limits, and reconstruction.
+`IScopedLog` aggregates structured operational data, metrics, checkpoints, and exceptions for a logical scope. Hosting emits one grouped record when it fits and bounded linked records for larger sanitized diagnostics. See [diagnostic redaction and grouping](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Logging/Diagnostics/README.md) for classification, limits, and reconstruction.
 
-SharedKernel's classification analyzer checks model properties independently of capture and `[IgnoreLog]`. Use `[Personal]`, `[Sensitive]` or a derived company attribute for positive classification. Named models use their own property names without built-in logging-prefix matches. Direct `[Sensitive(false)]` acknowledges a property false positive without overriding positive classification or configured analyzer paths. For one supported scalar acknowledgement, use `Add(key, value, exemptionReason)` or `SanitizeValue(path, value, exemptionReason)` with an application-authored reason. Supported scalars include nullable values, DateOnly, TimeOnly and Uri. Uri always receives URL sanitization regardless of the entry name. Complex reason-bearing values return an unavailable marker without traversal. The analyzer recognizes policy overloads as name acknowledgements without interpreting individual entries. Configured paths and declaration checks remain enforced. Native copies preserve explicit classification metadata and destination budgets; public snapshots carry no classification metadata. See the [capture boundaries](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#capture-boundaries).
+SharedKernel's classification analyzer checks model properties independently of capture and `[IgnoreLog]`. Use `[Personal]`, `[Sensitive]` or a derived company attribute for positive classification. Named models use their own property names without built-in logging-prefix matches. Direct `[Sensitive(false)]` acknowledges a property false positive without overriding positive classification or configured analyzer paths. For one supported scalar acknowledgement, use `Add(key, value, exemptionReason)` or `SanitizeValue(path, value, exemptionReason)` with an application-authored reason. Supported scalars include nullable values, DateOnly, TimeOnly and Uri. Uri always receives URL sanitization regardless of the entry name. Complex reason-bearing values return an unavailable marker without traversal. The analyzer recognizes policy overloads as name acknowledgements without interpreting individual entries. Configured paths and declaration checks remain enforced. Native copies preserve explicit classification metadata and destination budgets. Public snapshots carry no classification metadata. See the [capture boundaries](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Logging/Diagnostics/README.md#capture-boundaries).
 
 `DiagnosticCapturePolicy` validates `DiagnosticNameExemption` entries for capture kinds, original path segments, and reasons. Use adjacent comments when an exact compiler name acknowledgement is needed.
 
@@ -578,7 +578,7 @@ log.WithEvent(new ScopeEvent(OrderLogEvents.OrderProcessed, "success", "complete
 
 Event contents are preserved without sanitization or byte limits, including when a custom sanitizer is supplied. Keep event names, outcomes, and reasons safe to log. A `ScopeEvent` passed through ordinary `Add` retains its contents, but its containing diagnostic field remains subject to classification and output limits.
 
-`LogScoped` passes the primary .NET `EventId` to `ILogger` and preserves exception/warning severity. Retained events and any omission count appear on the first record, which can exceed diagnostic byte limits. Providers may impose their own record limits. See [emission and reconstruction](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#emission-and-reconstruction) for split logs.
+`LogScoped` passes the primary .NET `EventId` to `ILogger` and preserves exception/warning severity. Retained events and any omission count appear on the first record, which can exceed diagnostic byte limits. Providers may impose their own record limits. See [emission and reconstruction](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Logging/Diagnostics/README.md#emission-and-reconstruction) for split logs.
 
 `CopyFrom` preserves destination correlation, trace, and existing events. When a primary already exists, the source primary joins the additional events. Copies respect the eight-event limit and accumulate source omissions plus any events omitted at the destination.
 
@@ -596,9 +596,9 @@ Use module-owned catalogs such as `OrderLogEvents` with stable IDs and names. ID
 
 ### Operation data
 
-Add project-specific compiler rules through `data-classification-rules.json`, registered as EmbeddedResource or AdditionalFiles. Build targets expose catalogs to analyzers and preserve them in reference-assembly metadata. Optional runtime `DiagnosticLogging:RuleAssemblyName` and `RuleFile` settings load and validate catalogs but do not apply name matching. See [project classification rules](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#project-classification-rules) for schema, registration, bounds, and lifecycle.
+Add project-specific compiler rules through `data-classification-rules.json`, registered as EmbeddedResource or AdditionalFiles. Build targets expose catalogs to analyzers and preserve them in reference-assembly metadata. Optional runtime `DiagnosticLogging:RuleAssemblyName` and `RuleFile` settings load and validate catalogs but do not apply name matching. See [project classification rules](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Logging/Diagnostics/README.md#project-classification-rules) for schema, registration, bounds, and lifecycle.
 
-The browser and analyzer share a name catalog covering CVV/CVC/PIN-code fields, usernames, first/last names, dates of birth, and IBAN fields. Matching ignores ASCII case and separators. See the [diagnostic rule boundaries](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md#compile-time-classification) before adding broader patterns.
+The browser and analyzer share a name catalog covering CVV/CVC/PIN-code fields, usernames, first/last names, dates of birth, and IBAN fields. Matching ignores ASCII case and separators. See the [diagnostic rule boundaries](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Logging/Diagnostics/README.md#compile-time-classification) before adding broader patterns.
 
 `AddProperties` and nested object projection capture public instance getters once and skip indexers and `[IgnoreLog]` members. Public fields are omitted. Captured values retain classification metadata for default redaction in `GetLogs()`, `LogScoped()`, and `ToString()`. In Development, `ScopedLog.GetLogs(redact: false)` returns an unredacted view of the same bounded capture; other environments reject this flag. Dictionary keys and named entries require explicit classification for runtime redaction. Getter failures produce safe markers. Direct sanitizer calls still redact immediately and skip classified getters. Add classification to secret-bearing properties before logging them.
 
@@ -636,7 +636,7 @@ public class OrderService(IScopedLog logger)
 
 ## HTTP Client Factories (`IExternalRequest`, `IInternalRequest`)
 
-These factories wrap [Flurl](https://flurl.dev/) with framework JSON conventions and exact HTTP version requests. They do not configure retries or circuit breakers. See [FlurlRequestFactory.cs](Http/FlurlRequestFactory.cs).
+These factories wrap [Flurl](https://flurl.dev/) with framework JSON conventions and exact HTTP version requests. They do not configure retries or circuit breakers. See [FlurlRequestFactory.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Http/FlurlRequestFactory.cs).
 
 ### External Requests
 
@@ -736,7 +736,7 @@ await response.Payload!.CopyToAsync(destination);
 
 `ScopeContext` provides ambient access to request-scoped data after a DRN Hosting request scope has been initialized. Use injected services during startup, in background work, and outside request scopes.
 
-Throwing helpers and `ExceptionFor` factories produce the same DRN exceptions. Hosting infers standard problem types from their status: NotFound -> 404, Conflict -> 409. Routine failures need no Type assignment. Set only safe public fields that add context; assigning Type does not change status. See [Hosting defaults and overrides](../DRN.Framework.Hosting/README.md#api-failure-responses).
+Throwing helpers and `ExceptionFor` factories produce the same DRN exceptions. Hosting infers standard problem types from their status: NotFound -> 404, Conflict -> 409. Routine failures need no Type assignment. Set only safe public fields that add context. Assigning Type does not change status. See [Hosting defaults and overrides](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Hosting/README.md#api-failure-responses).
 
 Use the lazy `ScopeContext.Problem` object for public error defaults: `Type`, `Title`, `Detail`, `Instance`, and `Extensions`. DRN Hosting fills null fields and missing extension keys from these values. Existing values take precedence, including framework-generated titles and types. Status, request ID, and validation errors stay framework controlled. Exception messages and logs are not copied. This mutable object is shared within the request; do not use it for separate errors from concurrent operations.
 
@@ -752,7 +752,7 @@ ScopeContext.Problem.Conflict("Duplicate tag detected during creation.");
 
 `ScopeProblem` provides throwing helpers for every `ExceptionFor` factory with the same arguments. Public defaults remain unchanged, and helper frames are hidden from formatted stack traces so the caller remains visible.
 
-With DRN API error handling enabled, both approaches return 409 Conflict with the public detail and `code`. See [API failure responses](../DRN.Framework.Hosting/README.md#api-failure-responses) for configuration and opt-out behavior.
+With DRN API error handling enabled, both approaches return 409 Conflict with the public detail and `code`. See [API failure responses](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Hosting/README.md#api-failure-responses) for configuration and opt-out behavior.
 
 *   **Contextual Identity**: Access `UserId`, `TraceId`, and `Authenticated` status within an initialized request scope.
 *   **Static Accessors**: Provides request-scope access to `IAppSettings`, `IScopedLog`, and `IServiceProvider`.
@@ -777,7 +777,7 @@ With DRN API error handling enabled, both approaches return 409 Conflict with th
 
 Scoped name/email use the primary identity and return null for conflicting selected values or issuers. `IsInRole` checks all selected roles from authenticated identities across issuers. Generic claim groups retain their issuer filters.
 
-Canonical types govern issuance and native `NameClaimType`/`RoleClaimType`; aliases are additional DRN inputs and do not rewrite claims or alter native authorization. Hosting configures Identity's claim options so its factory emits matching claims and metadata directly. Future authentication integrations must produce the same contract, mapping aliases into canonical claims only when needed, rejecting ambiguous evidence and excluding unselected case variants that native lookups could accept. Only validated identities belong in the application principal. Preserve claim provenance and identity boundaries; never infer MFA from `otp`, arbitrary `acr`, or a claim's name. See [Hosting integration](../DRN.Framework.Hosting/README.md#renewal-and-assurance).
+Canonical types govern issuance and native `NameClaimType`/`RoleClaimType`. Aliases are additional DRN inputs and do not rewrite claims or alter native authorization. Hosting configures Identity's claim options so its factory emits matching claims and metadata directly. Future authentication integrations must produce the same contract, mapping aliases into canonical claims only when needed, rejecting ambiguous evidence and excluding unselected case variants that native lookups could accept. Only validated identities belong in the application principal. Preserve claim provenance and identity boundaries. Never infer MFA from `otp`, arbitrary `acr`, or a claim's name. See [Hosting integration](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Hosting/README.md#renewal-and-assurance).
 
 ### MFA completion and assurance
 
@@ -791,7 +791,7 @@ For stronger opt-in checks, `MfaPrincipal.IsRecent(principal, config, trustedIss
 
 `IsPhishingResistant` requires an explicit `MfaClaimConfig` for an assurance marker distinct from the completed marker. Configure it only for an issuer/value that guarantees phishing-resistant authentication; generic `amr=mfa` and passkey labels do not automatically establish this. Provider validation/mapping and preservation of additional assurance claims remain application responsibilities. Missing assurance after renewal returns false.
 
-The implementation is in [MfaPrincipal.cs](Auth/MFA/MfaPrincipal.cs); claim mappings are defined in [AuthenticationClaimConfig.cs](Auth/AuthenticationClaimConfig.cs).
+The implementation is in [MfaPrincipal.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Auth/MFA/MfaPrincipal.cs). Claim mappings are defined in [AuthenticationClaimConfig.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Auth/AuthenticationClaimConfig.cs).
 
 ### Ambient application data
 
@@ -814,7 +814,7 @@ ScopeContext.Data.SetParameter("page-size", 50);
 
 `TotpUtils.GenerateTotpCode(sharedKey)` generates an authenticator code from a Base32 shared secret; `TotpUtils.VerifyTotpCode(sharedKey, code)` checks a submitted code. Defaults are six digits, 30-second steps, and ±1-step verification drift. Overloads accept an explicit timestamp and custom settings.
 
-Verification is stateless: callers must enforce atomic per-account replay protection and attempt limits before accepting authentication. Bounded clock drift does not prevent code reuse. The utility does not issue MFA claims. See [TotpUtils.cs](Auth/MFA/TotpUtils.cs) for parameter validation details.
+Verification is stateless: callers must enforce atomic per-account replay protection and attempt limits before accepting authentication. Bounded clock drift does not prevent code reuse. The utility does not issue MFA claims. See [TotpUtils.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Auth/MFA/TotpUtils.cs) for parameter validation details.
 
 ## Data Utilities
 
@@ -832,7 +832,7 @@ public class ExportService(IAppData appData)
 
 Use `AppDataPathResult.GetPath(...)` for traversal-safe child paths.
 
-`Temp` and `Data` expose `Path`, `DirectoryExists`, and `Status`. The status describes resolution time; it is not a live filesystem check. `GetPath` rejects empty or invalid roots and paths escaping the root. It does not create the requested child directory. See [AppDataPathResult.cs](Data/App/AppDataPathResult.cs) and [App Data Settings](#app-data-settings).
+`Temp` and `Data` expose `Path`, `DirectoryExists`, and `Status`. The status describes resolution time. It is not a live filesystem check. `GetPath` rejects empty or invalid roots and paths escaping the root. It does not create the requested child directory. See [AppDataPathResult.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Data/App/AppDataPathResult.cs) and [App Data Settings](#app-data-settings).
 
 ### Encodings (`EncodingExtensions`)
 
@@ -897,7 +897,7 @@ var encrypted = encryptor.Encrypt(payload);
 var recovered = encryptor.Decrypt(encrypted.Nonce, encrypted.Ciphertext, encrypted.Tag);
 ```
 
-`Encrypt` generates a fresh random 12-byte nonce and returns `AesGcmEncryptedData(Ciphertext, Nonce, Tag)`. Keep all three values for decryption. Span overloads accept caller-owned buffers; use 12 bytes for the nonce, 16 for the tag, and the payload length for ciphertext/plaintext. Authentication failures throw. Keep the derivation context stable for existing data and dispose the encryptor after use. See [AesGcmEncryptorBase.cs](Data/Encryption/AesGcmEncryptorBase.cs).
+`Encrypt` generates a fresh random 12-byte nonce and returns `AesGcmEncryptedData(Ciphertext, Nonce, Tag)`. Keep all three values for decryption. Span overloads accept caller-owned buffers. Use 12 bytes for the nonce, 16 for the tag, and the payload length for ciphertext/plaintext. Authentication failures throw. Keep the derivation context stable for existing data and dispose the encryptor after use. See [AesGcmEncryptorBase.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Data/Encryption/AesGcmEncryptorBase.cs).
 
 ### Hashing (`HashExtensions`)
 
@@ -919,7 +919,7 @@ var fileHash = fileStream.Hash(HashAlgorithm.Sha256);
 *   **Resource Safety**: All merge methods reject patches exceeding the configured depth limit before changing the target.
 *   **Query String Serialization**: `QueryParameterSerializer` flattens nested objects and arrays into query strings for API clients.
 
-Merge patch object properties set to `null` remove those properties; arrays and other non-object patches replace the target. The default maximum patch depth is 64 and must be positive. The query serializer has a separate default depth limit of 10. See [JsonMergePatch.cs](Data/Json/JsonMergePatch.cs) and [QueryParameterSerializer.cs](Data/Serialization/QueryParameterSerializer.cs).
+Merge patch object properties set to `null` remove those properties. Arrays and other non-object patches replace the target. The default maximum patch depth is 64 and must be positive. The query serializer has a separate default depth limit of 10. See [JsonMergePatch.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Data/Json/JsonMergePatch.cs) and [QueryParameterSerializer.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Data/Serialization/QueryParameterSerializer.cs).
 
 ### Serialization & Streams
 
@@ -932,7 +932,7 @@ var query = model.Serialize(SerializationMethod.QueryString);
 var bytes = await requestStream.ToBinaryDataAsync(maxSize: 1024 * 1024);
 ```
 
-The stream helpers default to a 10 MiB limit and throw `ValidationException` when it is exceeded. Seekable streams are read from the current position and restored afterward; non-seekable streams are consumed. The helpers leave the input stream open and accept cancellation. See [StreamExtensions.cs](Data/Serialization/StreamExtensions.cs).
+The stream helpers default to a 10 MiB limit and throw `ValidationException` when it is exceeded. Seekable streams are read from the current position and restored afterward. Non-seekable streams are consumed. The helpers leave the input stream open and accept cancellation. See [StreamExtensions.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Data/Serialization/StreamExtensions.cs).
 
 `Serialize(SystemTextJson)` uses `JsonSerializer.Serialize(model)` with its default options. `Deserialize<T>` supports JSON only; query-string deserialization is not provided.
 
@@ -962,16 +962,16 @@ public class OrderService(IEntityDateTimeUtils dateTimeUtils)
 | `CreatedBetween` | `Id >= begin.Min && Id <= end.Max` | `Id > begin.Max && Id < end.Min` |
 | `CreatedOutside` | `Id <= begin.Max \|\| Id >= end.Min` | `Id < begin.Min \|\| Id > end.Max` |
 
-`CreatedBetween` and `CreatedOutside` normalize reversed endpoints. When both endpoints fall in the same tick, inclusive `Between` selects that entire tick and exclusive `Between` selects nothing. Inclusive `Outside` selects all rows; exclusive `Outside` excludes that tick. `Apply(query, EntityCreatedFilter)` dispatches by filter type and requires an end date for `Between` and `Outside`. See [EntityDateTimeUtils.cs](Entity/EntityDateTimeUtils.cs).
+`CreatedBetween` and `CreatedOutside` normalize reversed endpoints. When both endpoints fall in the same tick, inclusive `Between` selects that entire tick and exclusive `Between` selects nothing. Inclusive `Outside` selects all rows. Exclusive `Outside` excludes that tick. `Apply(query, EntityCreatedFilter)` dispatches by filter type and requires an end date for `Between` and `Outside`. See [EntityDateTimeUtils.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Entity/EntityDateTimeUtils.cs).
 
 ## Pagination
 
 `IPaginationUtils` paginates by the internal `SourceKnownEntity.Id` (`long`). External GUID cursors are parsed and checked for validity, then converted to internal IDs for filtering. Secure GUID ciphertext is not used as the sort key.
 
 ```csharp
-public class OrderDto(Order order) : Dto(order)
+public class OrderDto(SourceKnownEntity? entity = null) : Dto(entity)
 {
-    public bool Active { get; } = order.Active;
+    public required bool Active { get; init; }
 }
 
 public class OrderService(IPaginationUtils pagination, OrderDbContext dbContext)
@@ -980,12 +980,12 @@ public class OrderService(IPaginationUtils pagination, OrderDbContext dbContext)
     {
         var query = dbContext.Orders.Where(x => x.Active);
         var result = await pagination.GetResultAsync(query, request);
-        return result.ToModel(order => new OrderDto(order));
+        return result.ToModel(order => new OrderDto(order) { Active = order.Active });
     }
 }
 ```
 
-The query must support EF Core asynchronous execution. `GetResultAsync` accepts an optional cancellation token, handles next/previous/refresh navigation, and fetches one extra item for page metadata. Explicit page jumps use `Skip`; ordinary cursor navigation uses ID comparisons. A total-count query runs only when `UpdateTotalCount` is requested. See [PaginationUtils.cs](Entity/PaginationUtils.cs).
+The query must support EF Core asynchronous execution. `GetResultAsync` accepts an optional cancellation token, handles next/previous/refresh navigation, and fetches one extra item for page metadata. Explicit page jumps use `Skip`. Ordinary cursor navigation uses ID comparisons. A total-count query runs only when `UpdateTotalCount` is requested. See [PaginationUtils.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Entity/PaginationUtils.cs).
 
 Use the returned page's outer `FirstId` and `LastId` for the next cursor. Its `Request.PageCursor` describes the preceding page. Invalid cursor diagnostics identify the failing field and its supplied ID. When continuing through `PaginationRequest.From(resultInfo, jumpTo)`, the requested target is clamped to at least page 1 and within ten pages of the previous page. Direct `PaginationRequest` construction does not apply that jump clamp.
 
@@ -1006,7 +1006,7 @@ byte nibble = parser.ReadNibble();
 ushort value = parser.ReadUShort();
 ```
 
-Use the same `NumberBuildDirection` and residue-bit settings for packing and parsing. The defaults are most-significant-first with 32 residue bits for signed `long`. `TryAdd*` returns `false` when there is insufficient remaining capacity; values are masked to the requested bit width. Validate value ranges before packing when truncation is unacceptable. See [NumberBuilder.cs](Numbers/NumberBuilder.cs) and [NumberParser.cs](Numbers/NumberParser.cs).
+Use the same `NumberBuildDirection` and residue-bit settings for packing and parsing. The defaults are most-significant-first with 32 residue bits for signed `long`. `TryAdd*` returns `false` when there is insufficient remaining capacity. Values are masked to the requested bit width. Validate value ranges before packing when truncation is unacceptable. See [NumberBuilder.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Numbers/NumberBuilder.cs) and [NumberParser.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Numbers/NumberParser.cs).
 
 ## Validators
 
@@ -1032,11 +1032,11 @@ var imageBytes = validation.ImageData;
 
 `JpegValidator` performs structural JPEG checks for markers, segment bounds, frame metadata, scan metadata, scan data presence, and optional maximum byte length. `JpegValidationResult.ErrorReason` distinguishes `MaxLengthExceeded`, `InvalidMaxLength`, and `InvalidJpeg` failures. Use `ValidateAsync` when validating an upload stream and keeping the validated bytes for persistence.
 
-The default limit is 10 MiB. `Validate` and `ValidateAsync` return bytes only through the validated end-of-image marker, excluding trailing data. Span-based `IsValid` also requires any trailing bytes to be permitted padding. Structural validation does not decode image pixels. See [JpegValidator.cs](Validators/JpegValidator.cs).
+The default limit is 10 MiB. `Validate` and `ValidateAsync` return bytes only through the validated end-of-image marker, excluding trailing data. Span-based `IsValid` also requires any trailing bytes to be permitted padding. Structural validation does not decode image pixels. See [JpegValidator.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Validators/JpegValidator.cs).
 
 ## Diagnostics
 
-See the [diagnostic contract](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md) for capture behavior and application responsibilities for dynamic data.
+See the [diagnostic contract](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Logging/Diagnostics/README.md) for capture behavior and application responsibilities for dynamic data.
 
 Form-body processing validates encoding and bounds without matching field names or source paths. URL query and path names are not classified at runtime.
 
@@ -1048,7 +1048,7 @@ Explicit URL capture removes credentials and validates encoding without matching
 
 ### Development Status
 
-`DevelopmentStatus` collects database model and migration information during context startup. `HasPendingChanges` reports pending model changes; inspect each model's `Flags.HasPendingMigrations` for unapplied migrations. It is not a continuous database monitor. See [DevelopmentStatus.cs](Models/DevelopmentStatus.cs).
+`DevelopmentStatus` collects database model and migration information during context startup. `HasPendingChanges` reports pending model changes. Inspect each model's `Flags.HasPendingMigrations` for unapplied migrations. It is not a continuous database monitor. See [DevelopmentStatus.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Models/DevelopmentStatus.cs).
 
 ```csharp
 public class StartupService(DevelopmentStatus status, IScopedLog log)
@@ -1078,7 +1078,7 @@ long precisionTicks = TimeStampManager.CurrentTimestamp();
 DateTimeOffset now = TimeStampManager.UtcNow; // Cached UTC time truncated to 250ms precision
 ```
 
-Backward clock drift below five seconds freezes the cached timestamp until the clock catches up. Drift of at least five seconds requests application shutdown and causes timestamp reads to throw `ClockDriftException`. See [TimeStampManager.cs](Time/TimeStampManager.cs).
+Backward clock drift below five seconds freezes the cached timestamp until the clock catches up. Drift of at least five seconds requests application shutdown and causes timestamp reads to throw `ClockDriftException`. See [TimeStampManager.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Time/TimeStampManager.cs).
 
 `CurrentTimestamp()` applies the [generation-time policy](#trusted-minimum-utc). `UtcNow` is a general cached read and does not enforce the generation floor.
 
@@ -1126,7 +1126,7 @@ backgroundWorker.Start(); // Resume execution
 
 Timeouts require a `Func<CancellationToken, Task>` callback. Pass the token to cancellable operations: a callback that ignores it can block later iterations and asynchronous disposal. `OnActionFailed` reports callback errors, or `TimeoutException` when the callback throws `OperationCanceledException` after its timeout.
 
-Periods truncate to 1–4,294,967,294 whole milliseconds. Timeouts must be positive and truncate to at most the same upper limit; positive sub-millisecond timeouts become zero milliseconds. Invalid bounds throw `ArgumentOutOfRangeException` during construction, even with `start: false`. Tokenless `Func<Task>` constructors accept only the callback, period, and optional `start`; they execute without a timeout.
+Periods truncate to 1 to 4,294,967,294 whole milliseconds. Timeouts must be positive and truncate to at most the same upper limit. Positive sub-millisecond timeouts become zero milliseconds. Invalid bounds throw `ArgumentOutOfRangeException` during construction, even with `start: false`. Tokenless `Func<Task>` constructors accept only the callback, period, and optional `start`. They execute without a timeout.
 
 ### Time
 
@@ -1160,7 +1160,7 @@ Keep the epoch unchanged across every service and restart using a dataset. IDs d
 
 The minimum rounds upward to a 250ms boundary relative to the epoch. Hosts validate before program/actions constructors and hooks, including read-only and temporary hosts; non-hosted generation validates on first use. Invalid configuration, a time below the rounded minimum, or a time outside the supported epoch fails. A failed time check can be retried when time catches up.
 
-Only encoded epoch `0`, including both halves, is supported. Historical parsing and GUID reconstruction from existing numeric IDs use the configured epoch without enforcing the generation floor. The floor constrains generated timestamps; [clock-drift protection](#high-performance-time-timestampmanager) still applies. See the [SharedKernel baseline](../DRN.Framework.SharedKernel/README.md#source-baseline-contract) for maintenance and cross-restart limits.
+Only encoded epoch `0`, including both halves, is supported. Historical parsing and GUID reconstruction from existing numeric IDs use the configured epoch without enforcing the generation floor. The floor constrains generated timestamps, and [clock-drift protection](#high-performance-time-timestampmanager) still applies. See the [SharedKernel baseline](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/README.md#source-baseline-contract) for maintenance and cross-restart limits.
 
 Source-known IDs separate the internal `long` ID from the external `SourceKnownEntityId` GUID. The external form adds entity metadata and a keyed integrity check; it can be plain or encrypted.
 > [!NOTE]
@@ -1205,7 +1205,7 @@ var externalId = sourceKnownEntityIdUtils.Generate<User>(internalId);
 var anotherId = sourceKnownEntityIdUtils.Generate<User>();
 ```
 
-`User` must derive from `SourceKnownEntity` and carry the required entity/app metadata. `Next<TEntity>()`, `Next(SourceKnownEntity)`, and `Next(Type)` derive the app partition from that metadata and use the configured instance ID. `GeneratePlain<TEntity>()` and `GenerateSecure<TEntity>()` also generate a new internal ID when called without arguments. See [SourceKnownIdUtils.cs](Ids/SourceKnownIdUtils.cs) and [SourceKnownEntityIdUtils.cs](Ids/SourceKnownEntityIdUtils.cs).
+`User` must derive from `SourceKnownEntity` and carry the required entity/app metadata. `Next<TEntity>()`, `Next(SourceKnownEntity)`, and `Next(Type)` derive the app partition from that metadata and use the configured instance ID. `GeneratePlain<TEntity>()` and `GenerateSecure<TEntity>()` also generate a new internal ID when called without arguments. See [SourceKnownIdUtils.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Ids/SourceKnownIdUtils.cs) and [SourceKnownEntityIdUtils.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Ids/SourceKnownEntityIdUtils.cs).
 
 ### Parse & Validation
 
@@ -1267,7 +1267,7 @@ Nullable inputs return null. `Parse` and SharedKernel validation do not enforce 
 Repositories validate the target entity's declared `(EntityType, AppId)`, including registered secondary partitions.
 
 ```csharp
-// Method on SourceKnownRepository<TEntity>
+// Method on SourceKnownRepository<TContext, TEntity> (and ISourceKnownRepository<TEntity>)
 var sourceKnownId = userRepository.GetEntityId(externalGuidId); 
 ```
 
@@ -1286,14 +1286,14 @@ The plaintext form of a `SourceKnownEntityId` (SKEID) packs identity, integrity,
 
 | Byte(s) | Purpose |
 |---------|---------|
-| 0 | Epoch index (8 bits; current releases support epoch 0) |
-| 1–4 | SKID upper half (32 bits, sign-toggled) |
+| 0 | Epoch index (8 bits, current releases support epoch 0) |
+| 1 to 4 | SKID upper half (32 bits, sign-toggled) |
 | 5 | SKID low byte 0 (MSB of SKID lower half / timestamp LSB) |
 | 6 | Version marker (`0x8D`, UUID V8, RFC 9562 §5.8) |
 | 7 | Entity type (8 bits, up to 256 entity types) |
 | 8 | Variant marker (`0x8D`, RFC 4122 compatible) |
-| 9–11 | SKID low bytes (remaining 24 bits) |
-| 12–15 | BLAKE3 keyed MAC (32 bits, integrity verification) |
+| 9 to 11 | SKID low bytes (remaining 24 bits) |
+| 12 to 15 | BLAKE3 keyed MAC (32 bits, integrity verification) |
 
 ### Epoch & Time Addressing
 
@@ -1362,7 +1362,7 @@ Extensions cover .NET types, DI descriptors, HTTP diagnostics, and dynamic metho
 *   **Discovery**: `FindMethod` returns matching method metadata for repeated use.
 *   **Uncached Discovery**: `type.FindMethodUncached(...)` for explicit cache-bypassing scenarios (e.g. one-off startup discovery).
 
-Pass generic type arguments as an explicit `Type[]`, such as `instance.InvokeMethod("Name", [typeof(string)])`. A single `typeof(string)` argument selects an ordinary method accepting `Type`. For an already resolved method, use `MethodInvoker.Create(methodInfo)` or a compiled delegate. See [MethodUtils.cs](Extensions/MethodUtils.cs).
+Pass generic type arguments as an explicit `Type[]`, such as `instance.InvokeMethod("Name", [typeof(string)])`. A single `typeof(string)` argument selects an ordinary method accepting `Type`. For an already resolved method, use `MethodInvoker.Create(methodInfo)` or a compiled delegate. See [MethodUtils.cs](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Extensions/MethodUtils.cs).
 
 ### Service Collection
 
@@ -1386,7 +1386,7 @@ Casing and safe path helpers live in `DRN.Framework.SharedKernel.Extensions`.
 
 ### Flurl & HTTP Diagnostics
 
-*   **Logging**: `PrepareScopeLogForFlurlExceptionAsync()` adds centrally sanitized Flurl failure diagnostics to `IScopedLog`. Error bodies are read with a strict byte bound. Unsupported or incomplete bodies produce markers. DRN Hosting applies it to unhandled Flurl exceptions. Text and form bodies retain their contents within capture limits. Runtime capture does not match field names. Classify, redact, or omit sensitive upstream payloads according to the [diagnostic contract](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md).
+*   **Logging**: `PrepareScopeLogForFlurlExceptionAsync()` adds centrally sanitized Flurl failure diagnostics to `IScopedLog`. Error bodies are read with a strict byte bound. Unsupported or incomplete bodies produce markers. DRN Hosting applies it to unhandled Flurl exceptions. Text and form bodies retain their contents within capture limits. Runtime capture does not match field names. Classify, redact, or omit sensitive upstream payloads according to the [diagnostic contract](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Logging/Diagnostics/README.md).
 *   **Status Codes**: `GetGatewayStatusCode()` preserves `4xx`, `503`, and `504` statuses and maps other statuses to `502`.
 *   **Linkerd Diagnostics**: Flurl exception logging captures `l5d-proxy-error` and `l5d-proxy-connection` response headers before reading the body. For explicitly handled responses, call `response.AddLinkerdProxyDiagnostics(scopedLog)` before conversion or disposal. The helper records present, nonempty values under `Response_l5d-proxy-error` and `Response_l5d-proxy-connection`, without reading or disposing the response. Header values are untrusted diagnostics, may reveal internal topology, and must not be used for authorization or returned to clients. Absence of a header does not prove a failure originated in the application. Incoming `l5d-client-id` logging remains informational. Automatic capture applies to the existing Flurl exception path, not every response or `Try*` result.
 *   **Testing**: `ClearFilteredSetups()` utility for complex test scenarios.

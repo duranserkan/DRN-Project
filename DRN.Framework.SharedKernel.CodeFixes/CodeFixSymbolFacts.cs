@@ -154,7 +154,7 @@ internal static class CodeFixSymbolFacts
 
     internal static bool HasRoleOverride(CompilationUnitSyntax root) =>
         root.AttributeLists.SelectMany(list => list.Attributes).Any(attribute =>
-            attribute.Name.ToString() is "DRN.Conventions.Role" or "global::DRN.Conventions.Role");
+            ConventionInputSyntax.Kind(attribute) == ConventionInputSyntax.RoleKind);
 
     internal static bool ValidNamespace(string ns) =>
         !string.IsNullOrEmpty(ns) && ns.Split('.').All(ConventionGenerationPreflight.ValidNamespaceSegment);
@@ -166,36 +166,67 @@ internal static class CodeFixSymbolFacts
         internal string NamespacePrefix => ConventionNames.OwnerNamespacePrefix(Domain, Subdomain, HasFolderDomain);
         internal string? DomainFilter => Domain.Length > 0 ? Domain : null;
 
+        internal OwnerKey WithExplicitDomain(bool explicitDomain) =>
+            explicitDomain && !HasExplicitDomain ? this with { HasExplicitDomain = true } : this;
+
         internal bool SameOwner(OwnerKey other) =>
             ConventionNames.SameOwner(Domain, Subdomain, other.Domain, other.Subdomain);
 
         internal bool MatchesAcrossLayers(OwnerKey other) =>
-            ConventionNames.MatchesOwnerAcrossLayers(Domain, Subdomain, HasFolderDomain, HasExplicitDomain,
-                other.Domain, other.Subdomain, other.HasFolderDomain, other.HasExplicitDomain);
+            ConventionNames.MatchesOwnerAcrossLayers(
+                new(Domain, Subdomain, HasFolderDomain, HasExplicitDomain),
+                new(other.Domain, other.Subdomain, other.HasFolderDomain, other.HasExplicitDomain));
+    }
+
+    internal static bool TryReadSingleOptionalField(SeparatedSyntaxList<AttributeArgumentSyntax> arguments,
+        string name, CancellationToken token, out string value)
+    {
+        value = "";
+        var found = false;
+        foreach (var argument in arguments)
+        {
+            if (argument.NameEquals?.Name.Identifier.ValueText != name) continue;
+            if (found || ConventionInputSyntax.String(argument.Expression, token) is not { } parsed) return false;
+            value = parsed;
+            found = true;
+        }
+        return true;
     }
 
     internal static bool OwnershipCompatible(CompilationUnitSyntax root, string typeName, string owner, CancellationToken token,
-        string? domain = null)
+        out bool hasExplicitDomain, string? domain = null)
     {
+        hasExplicitDomain = false;
         foreach (var attribute in root.AttributeLists.SelectMany(list => list.Attributes))
         {
             token.ThrowIfCancellationRequested();
-            if (attribute.Name.ToString() is not ("DRN.Conventions.Ownership" or "global::DRN.Conventions.Ownership")) continue;
-            if (attribute.ArgumentList is not { Arguments.Count: > 0 } arguments ||
-                arguments.Arguments[0].NameEquals is not null || arguments.Arguments[0].NameColon is not null ||
-                ConventionInputSyntax.String(arguments.Arguments[0].Expression, token) is not { } target)
+            if (!IsOwnershipAttributeCompatible(attribute, typeName, owner, domain, token, out var explicitDomain))
                 return false;
-            if (target != typeName) continue;
-            var owners = arguments.Arguments.Where(argument => argument.NameEquals?.Name.Identifier.ValueText == "Subdomain").ToArray();
-            if (owners.Length != 1 || ConventionInputSyntax.String(owners[0].Expression, token) != owner) return false;
-            var domains = arguments.Arguments.Where(argument => argument.NameEquals?.Name.Identifier.ValueText == "Domain").ToArray();
-            if (domains.Length > 1) return false;
-            if (domains.Length == 1)
-            {
-                var declaredDomain = ConventionInputSyntax.String(domains[0].Expression, token);
-                if (declaredDomain is null || declaredDomain.Length > 0 && (domain is null || declaredDomain != domain))
-                    return false;
-            }
+            hasExplicitDomain |= explicitDomain;
+        }
+        return true;
+    }
+
+    private static bool IsOwnershipAttributeCompatible(AttributeSyntax attribute, string typeName, string owner,
+        string? domain, CancellationToken token, out bool hasExplicitDomain)
+    {
+        hasExplicitDomain = false;
+        if (ConventionInputSyntax.Kind(attribute) != ConventionInputSyntax.OwnershipKind)
+            return true;
+        if (attribute.ArgumentList is not { Arguments.Count: > 0 } arguments ||
+            arguments.Arguments[0].NameEquals is not null || arguments.Arguments[0].NameColon is not null ||
+            ConventionInputSyntax.String(arguments.Arguments[0].Expression, token) is not { } target)
+            return false;
+        if (target != typeName) return true;
+        if (!TryReadSingleOptionalField(arguments.Arguments, ConventionInputSyntax.SubdomainField, token, out var declaredOwner) ||
+            declaredOwner != owner)
+            return false;
+        if (!TryReadSingleOptionalField(arguments.Arguments, ConventionInputSyntax.DomainField, token, out var declaredDomain))
+            return false;
+        if (declaredDomain.Length > 0)
+        {
+            if (declaredDomain != domain) return false;
+            hasExplicitDomain = true;
         }
         return true;
     }
@@ -206,18 +237,19 @@ internal static class CodeFixSymbolFacts
         if (!layout.Valid || type.ContainingNamespace.IsGlobalNamespace || rootNamespace.Length == 0) return null;
         var ns = type.ContainingNamespace.ToDisplayString();
         if (!ns.StartsWith(rootNamespace + ".", StringComparison.Ordinal)) return null;
-        var parts = ns[(rootNamespace.Length + 1)..].Split('.');
+        return ResolveOwnerKey(type, ns[(rootNamespace.Length + 1)..].Split('.'), layout);
+    }
+
+    internal static OwnerKey? ResolveSuffixOwnerKey(INamedTypeSymbol type, string suffix,
+        ConventionGenerationPreflight.ProjectLayout layout) =>
+        layout.Valid ? ResolveOwnerKey(type, suffix.Split('.'), layout) : null;
+
+    private static OwnerKey? ResolveOwnerKey(INamedTypeSymbol type, string[] parts,
+        ConventionGenerationPreflight.ProjectLayout layout)
+    {
         if (ConventionNames.IsMissingAggregateSubdomain(parts, 0, layout.IsFoldersLayout, type.Name) &&
             Bases(type).Any(current => MetadataName(current) == "DRN.Framework.SharedKernel.Domain.AggregateRoot"))
             return null;
-        return ResolveOwnerKey(parts, layout);
-    }
-
-    internal static OwnerKey? ResolveSuffixOwnerKey(string suffix, ConventionGenerationPreflight.ProjectLayout layout) =>
-        layout.Valid ? ResolveOwnerKey(suffix.Split('.'), layout) : null;
-
-    private static OwnerKey? ResolveOwnerKey(string[] parts, ConventionGenerationPreflight.ProjectLayout layout)
-    {
         if (ConventionNames.InferNamespaceOwner(parts, 0, layout.IsFoldersLayout, layout.DefaultDomain) is not { } owner)
             return null;
         if (!ConventionGenerationPreflight.ValidNamespaceSegment(owner.Subdomain) ||
@@ -226,37 +258,74 @@ internal static class CodeFixSymbolFacts
         return new(owner.Domain, owner.Subdomain, owner.HasFolderDomain, layout.HasExplicitDomain);
     }
 
-    internal static string? AttributeStringArgument(AttributeData attribute, string name) =>
-        attribute.NamedArguments.FirstOrDefault(pair => pair.Key == name).Value.Value as string;
+    internal static bool TryGetOptionalStringArgument(AttributeData attribute, string name, out string? value)
+    {
+        value = null;
+        if (attribute.AttributeConstructor is null) return false;
+        foreach (var argument in attribute.ConstructorArguments)
+            if (argument.Kind == TypedConstantKind.Error) return false;
+        foreach (var pair in attribute.NamedArguments)
+        {
+            if (pair.Value.Kind == TypedConstantKind.Error) return false;
+            if (pair.Key != name) continue;
+            if (pair.Value.IsNull)
+            {
+                value = null;
+                continue;
+            }
+            if (pair.Value.Value is not string text) return false;
+            value = text;
+        }
+        return true;
+    }
 
     internal static bool HasReason(AttributeData attribute) =>
-        !string.IsNullOrWhiteSpace(AttributeStringArgument(attribute, "Reason"));
+        TryGetOptionalStringArgument(attribute, ConventionInputSyntax.ReasonField, out var reason) &&
+        !string.IsNullOrWhiteSpace(reason);
 
     internal static bool MatchesSubdomainAttribute(AttributeData attribute, OwnerKey owner) =>
-        attribute.ConstructorArguments is [{ Value: string declared }] && declared == owner.Subdomain &&
-        (AttributeStringArgument(attribute, "Domain") is not { Length: > 0 } domain || domain == owner.Domain);
+        MatchesSubdomainAttribute(attribute, owner, out _);
 
-    internal static bool AttributesPreserveOwner(INamedTypeSymbol type, OwnerKey owner, Compilation compilation)
+    internal static bool MatchesSubdomainAttribute(AttributeData attribute, OwnerKey owner, out bool hasExplicitDomain)
     {
+        hasExplicitDomain = false;
+        if (!TryGetOptionalStringArgument(attribute, ConventionInputSyntax.DomainField, out var domain)) return false;
+        if (attribute.ConstructorArguments is not [{ Value: string declared }] || declared != owner.Subdomain) return false;
+        if (!string.IsNullOrEmpty(domain))
+        {
+            if (domain != owner.Domain) return false;
+            hasExplicitDomain = true;
+        }
+        return true;
+    }
+
+    internal static bool AttributesPreserveOwner(INamedTypeSymbol type, OwnerKey owner, Compilation compilation, out bool hasExplicitDomain)
+    {
+        hasExplicitDomain = false;
         var ownership = compilation.GetTypeByMetadataName(OwnershipAttributeMetadataName);
-        return type.GetAttributes().Where(attribute => Same(attribute.AttributeClass, ownership))
-            .All(attribute => MatchesSubdomainAttribute(attribute, owner));
+        foreach (var attribute in type.GetAttributes())
+        {
+            if (!Same(attribute.AttributeClass, ownership)) continue;
+            if (!MatchesSubdomainAttribute(attribute, owner, out var attrExplicitDomain)) return false;
+            hasExplicitDomain |= attrExplicitDomain;
+        }
+        return true;
     }
 
     internal static bool ContextOwnerCompatible(SeparatedSyntaxList<AttributeArgumentSyntax> arguments,
-        OwnerKey owner, CancellationToken token, out bool hasDeclaredSubdomain)
+        OwnerKey owner, CancellationToken token, out bool hasDeclaredSubdomain, out bool hasExplicitDomain)
     {
         hasDeclaredSubdomain = false;
-        var domains = arguments.Where(argument => argument.NameEquals?.Name.Identifier.ValueText == "Domain").ToArray();
-        if (domains.Length > 1) return false;
-        var declaredDomain = domains.Length == 1 ? ConventionInputSyntax.String(domains[0].Expression, token) : "";
-        if (declaredDomain is null || declaredDomain.Length > 0 && declaredDomain != owner.Domain) return false;
-        var owners = arguments.Where(argument => argument.NameEquals?.Name.Identifier.ValueText == "Subdomain").ToArray();
-        if (owners.Length > 1) return false;
-        var declaredSubdomain = owners.Length == 1 ? ConventionInputSyntax.String(owners[0].Expression, token) : "";
-        if (declaredSubdomain is null || declaredSubdomain.Length > 0 && declaredSubdomain != owner.Subdomain) return false;
+        hasExplicitDomain = false;
+        if (!TryReadSingleOptionalField(arguments, ConventionInputSyntax.DomainField, token, out var declaredDomain) ||
+            declaredDomain.Length > 0 && declaredDomain != owner.Domain)
+            return false;
+        if (!TryReadSingleOptionalField(arguments, ConventionInputSyntax.SubdomainField, token, out var declaredSubdomain) ||
+            declaredSubdomain.Length > 0 && declaredSubdomain != owner.Subdomain)
+            return false;
         if (declaredDomain.Length > 0 && declaredSubdomain.Length == 0) return false;
         hasDeclaredSubdomain = declaredSubdomain.Length > 0;
+        hasExplicitDomain = declaredDomain.Length > 0;
         return true;
     }
 
@@ -265,9 +334,11 @@ internal static class CodeFixSymbolFacts
         var ownership = compilation.GetTypeByMetadataName(OwnershipAttributeMetadataName);
         var declarations = type.GetAttributes().Where(attribute => Same(attribute.AttributeClass, ownership)).ToArray();
         if (declarations.Length == 0) return conventional;
-        if (declarations.Length != 1 || declarations[0].ConstructorArguments is not [{ Value: string subdomain }] ||
-            !ConventionGenerationPreflight.ValidNamespaceSegment(subdomain)) return null;
-        var declaredDomain = AttributeStringArgument(declarations[0], "Domain");
+        if (declarations.Length != 1 ||
+            !TryGetOptionalStringArgument(declarations[0], ConventionInputSyntax.DomainField, out var declaredDomain) ||
+            declarations[0].ConstructorArguments is not [{ Value: string subdomain }] ||
+            !ConventionGenerationPreflight.ValidNamespaceSegment(subdomain))
+            return null;
         if (!string.IsNullOrEmpty(declaredDomain) && !ConventionGenerationPreflight.ValidNamespaceSegment(declaredDomain))
             return null;
         var hasExplicitDomain = !string.IsNullOrEmpty(declaredDomain);
@@ -277,7 +348,6 @@ internal static class CodeFixSymbolFacts
         var resolved = new OwnerKey(effectiveDomain, subdomain,
             conventional?.HasFolderDomain ?? false,
             (conventional?.HasExplicitDomain ?? false) || hasExplicitDomain);
-        var matchesConventional = conventional is not null && resolved.SameOwner(conventional);
-        return matchesConventional || HasReason(declarations[0]) ? resolved : null;
+        return conventional is not null && resolved.SameOwner(conventional) ? resolved : null;
     }
 }

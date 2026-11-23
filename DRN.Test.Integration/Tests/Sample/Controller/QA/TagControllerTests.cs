@@ -1,4 +1,6 @@
+using System.Text.Json;
 using DRN.Framework.SharedKernel.Domain.Pagination;
+using DRN.Framework.SharedKernel.Json;
 using DRN.Framework.Utils.Data.Serialization;
 using DRN.Test.Integration.Tests.Sample.Controller.Helpers;
 using Flurl;
@@ -30,7 +32,9 @@ public class TagControllerTests
                      """{"name":"System tag","model":{"type":"System"}}""",
                      """{"name":"System zero","model":{"type":0}}""",
                      """{"name":"Undefined type","model":{"type":99}}""",
-                     """{"name":"Unexpected field","model":{"type":"User","isApproved":true}}"""
+                     """{"name":"Unexpected field","model":{"type":"User","isApproved":true}}""",
+                     """{"name":"Root unexpected field","isSystem":true,"model":{"type":"User"}}""",
+                     """{"name":"Null model","model":null}"""
                  })
         {
             using var content = new StringContent(invalidPayload, System.Text.Encoding.UTF8, "application/json");
@@ -52,9 +56,17 @@ public class TagControllerTests
                 }
             };
             using var created = await client.PostAsJsonAsync(endpoints.PostAsync.Path(), request);
-            created.StatusCode.Should().Be(HttpStatusCode.Created);
+            var createdRaw = await created.Content.ReadAsStringAsync();
+            created.StatusCode.Should().Be(HttpStatusCode.Created, "response body: {0}", createdRaw);
             created.Headers.Location.Should().BeNull();
-            var response = await created.Content.ReadFromJsonAsync<TagResponse>();
+            using (var createdDoc = JsonDocument.Parse(createdRaw))
+            {
+                createdDoc.RootElement.EnumerateObject().Select(property => property.Name)
+                    .Should().BeEquivalentTo(new[] { "id", "createdAt", "modifiedAt", "name", "model" });
+                createdDoc.RootElement.GetProperty("model").EnumerateObject().Select(property => property.Name)
+                    .Should().BeEquivalentTo(new[] { "boolValue", "stringValue", "max", "min", "other", "date", "type" });
+            }
+            var response = JsonSerializer.Deserialize<TagResponse>(createdRaw, JsonConventions.DefaultOptions);
             response.Should().NotBeNull();
             response.Id.Should().NotBeEmpty();
             response.Name.Should().Be(request.Name);
@@ -127,7 +139,16 @@ public class TagControllerTests
         using var scope = context.CreateScope();
         var actions = scope.ServiceProvider.GetRequiredService<IActionDescriptorCollectionProvider>().ActionDescriptors.Items
             .OfType<ControllerActionDescriptor>()
-            .Where(action => action.ControllerTypeInfo.AsType() == typeof(TagController));
-        actions.Should().NotContain(action => action.MethodInfo.Name == nameof(TagController.GetManyAsync));
+            .Where(action => action.ControllerTypeInfo.AsType() == typeof(TagController))
+            .Select(action => action.MethodInfo.Name)
+            .ToArray();
+        actions.Should().BeEquivalentTo(
+            nameof(TagController.GetAsync),
+            nameof(TagController.PaginateAsync),
+            nameof(TagController.PaginateWithOptionsAsync),
+            nameof(TagController.PaginateWithBodyAsync),
+            nameof(TagController.PostAsync),
+            nameof(TagController.DeleteAsync));
+        actions.Should().NotContain([nameof(TagController.GetManyAsync), nameof(TagController.AnyAsync), nameof(TagController.CountAsync)]);
     }
 }

@@ -1,3 +1,4 @@
+using DRN.Framework.SharedKernel.Analyzers.Conventions;
 using Microsoft.CodeAnalysis.CodeRefactorings;
 using static DRN.Framework.SharedKernel.CodeFixes.CodeFixDestinationGuard;
 using static DRN.Framework.SharedKernel.CodeFixes.CodeFixSymbolFacts;
@@ -101,13 +102,13 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
     internal static async Task<List<ConfigurationCandidate>> ConfigurationCandidates(Project project, string entityName, AssemblyIdentity entityAssembly, CancellationToken token)
     {
         var result = new List<ConfigurationCandidate>();
-        var infraIdentity = ConventionGenerationPreflight.Identity(project);
-        var infraLayout = ConventionGenerationPreflight.Layout(project);
-        if (infraIdentity.Role != "Infra" || !infraLayout.Valid || !ValidNamespace(infraIdentity.Namespace) ||
+        var infraInfo = ConventionGenerationPreflight.ReadProject(project);
+        if (infraInfo.Role != "Infra" || !infraInfo.Layout.Valid || !ValidNamespace(infraInfo.Namespace) ||
             project.FilePath is null || !TryFullPath(project.FilePath, out var projectPath)) return result;
-        var infraInputs = await ConventionGenerationPreflight.ReadInputs(project, required: false, token);
-        if (infraInputs is null || HasRoleOverride(infraInputs)) return result;
-        if (await ResolveAccessibleEntityAsync(project, entityName, entityAssembly, infraIdentity.Namespace, infraLayout, infraInputs, token)
+        var infraInputs = await ReadInputsWithoutRoleOverrideAsync(project, required: false, token);
+        if (infraInputs is null) return result;
+        var infra = new InfraProjectContext(project, infraInfo.Namespace, infraInfo.Layout, infraInputs);
+        if (await ResolveAccessibleEntityAsync(infra, entityName, entityAssembly, token)
             is not { } resolved) return result;
         var (compilation, entity, _) = resolved;
         if (HasConfigurationForEntity(compilation, entity, token, out var types, out var contextContract) ||
@@ -121,7 +122,7 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
         foreach (var context in contexts)
         {
             token.ThrowIfCancellationRequested();
-            if (await TryBuildContextCandidateAsync(project, resolved, (infraIdentity.Namespace, projectDirectory, infraLayout),
+            if (await TryBuildContextCandidateAsync(project, resolved, (infraInfo.Namespace, projectDirectory, infraInfo.Layout),
                     infraInputs, discovery, context, token) is { } candidate &&
                 !result.Contains(candidate))
                 result.Add(candidate);
@@ -130,10 +131,9 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
     }
 
     private static async Task<(Compilation Compilation, INamedTypeSymbol Entity, OwnerKey EntityOwner)?> ResolveAccessibleEntityAsync(
-        Project project, string entityName, AssemblyIdentity entityAssembly, string infraNamespace,
-        ConventionGenerationPreflight.ProjectLayout infraLayout, CompilationUnitSyntax infraInputs, CancellationToken token)
+        InfraProjectContext infra, string entityName, AssemblyIdentity entityAssembly, CancellationToken token)
     {
-        var compilation = await project.GetCompilationAsync(token);
+        var compilation = await infra.Project.GetCompilationAsync(token);
         if (compilation?.GetTypeByMetadataName(entityName) is not { IsAbstract: false } entity ||
             !entity.ContainingAssembly.Identity.Equals(entityAssembly) || IsOpen(entity) ||
             !IsEntity(entity, compilation) || !compilation.IsSymbolAccessibleWithin(entity, compilation.Assembly)) return null;
@@ -146,7 +146,7 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
         }
         // The generated public Configure method exposes the entity in its parameter type.
         if (!IsPublicType(entity)) return null;
-        var entityOwner = await EntityOwner(project, compilation, entity, entityName, infraNamespace, infraLayout, infraInputs, token);
+        var entityOwner = await EntityOwner(infra, compilation, entity, entityName, token);
         return entityOwner is null ? null : (compilation, entity, entityOwner);
     }
 
@@ -177,8 +177,8 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
         var contextNamespace = context.ContainingNamespace.ToDisplayString();
         var contextOwner = ResolveNamespaceOwnerKey(context, home.Namespace, home.Layout);
         if (!ValidNamespace(contextNamespace) || contextOwner is null ||
-            !contextOwner.MatchesAcrossLayers(entityOwner) ||
-            !ContextOwnershipCompatible(context, contextOwner, infraInputs, compilation, token)) return null;
+            ResolveCompatibleContextOwner(context, contextOwner, infraInputs, compilation, token) is not { } effectiveContextOwner ||
+            !effectiveContextOwner.MatchesAcrossLayers(entityOwner)) return null;
         var configurationNamespace = contextNamespace + ".Configurations";
         var affected = discovery.Where(item => item.Scopes!.Any(scope => scope.Contains(configurationNamespace)))
             .Select(item => item.Context).ToArray();
@@ -204,8 +204,8 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
         affected.Any(item => SymbolEqualityComparer.Default.Equals(item, context)) &&
         !affected.Any(item => !HasMembership(item, resolved.Entity, resolved.Compilation) ||
             ResolveNamespaceOwnerKey(item, infraNamespace, infraLayout) is not { } itemOwner ||
-            !itemOwner.MatchesAcrossLayers(resolved.EntityOwner) ||
-            !ContextOwnershipCompatible(item, itemOwner, infraInputs, resolved.Compilation, token));
+            ResolveCompatibleContextOwner(item, itemOwner, infraInputs, resolved.Compilation, token) is not { } effectiveItemOwner ||
+            !effectiveItemOwner.MatchesAcrossLayers(resolved.EntityOwner));
 
     private static async Task<bool> HasUnknownDependentDiscovery(Project project, CancellationToken token)
     {
@@ -232,50 +232,63 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
         return false;
     }
 
-    private static async Task<OwnerKey?> EntityOwner(Project project, Compilation compilation, INamedTypeSymbol entity,
-        string entityName, string infraNamespace, ConventionGenerationPreflight.ProjectLayout infraLayout,
-        CompilationUnitSyntax infraInputs, CancellationToken token)
+    private static async Task<OwnerKey?> EntityOwner(InfraProjectContext infra, Compilation compilation,
+        INamedTypeSymbol entity, string entityName, CancellationToken token)
     {
-        var (conventional, domainInputs, valid) = await ResolveConventionalOwnerAsync(project, compilation, entity, infraNamespace, infraLayout, token);
+        var (conventional, domainInputs, assemblyMetadata, valid) = await ResolveConventionalOwnerAsync(infra, compilation, entity, token);
         if (!valid || conventional is null) return null;
         var declared = DeclaredOwner(entity, conventional, compilation);
         if (declared is null || !declared.SameOwner(conventional)) return null;
-        if (!OwnershipCompatible(infraInputs, entityName, declared.Subdomain, token, declared.DomainFilter)) return null;
-        if (domainInputs is not null && !OwnershipCompatible(domainInputs, entityName, declared.Subdomain, token, declared.DomainFilter)) return null;
-        return declared;
+        if (!OwnershipCompatible(infra.Inputs, entityName, declared.Subdomain, token, out var infraExplicitDomain, declared.DomainFilter))
+            return null;
+        var domainExplicitDomain = false;
+        if (domainInputs is not null &&
+            !OwnershipCompatible(domainInputs, entityName, declared.Subdomain, token, out domainExplicitDomain, declared.DomainFilter))
+            return null;
+        var metadataExplicitDomain = false;
+        if (assemblyMetadata is not null &&
+            !assemblyMetadata.TryValidateProducerOwnership(entityName, declared, out metadataExplicitDomain))
+            return null;
+        return declared.WithExplicitDomain(infraExplicitDomain || domainExplicitDomain || metadataExplicitDomain);
     }
 
-    private static async Task<(OwnerKey? Conventional, CompilationUnitSyntax? DomainInputs, bool Valid)> ResolveConventionalOwnerAsync(
-        Project project, Compilation compilation, INamedTypeSymbol entity, string infraNamespace,
-        ConventionGenerationPreflight.ProjectLayout infraLayout, CancellationToken token)
+    private static async Task<(OwnerKey? Conventional, CompilationUnitSyntax? DomainInputs,
+        ConventionGenerationPreflight.AssemblyConventionMetadata? AssemblyMetadata, bool Valid)> ResolveConventionalOwnerAsync(
+        InfraProjectContext infra, Compilation compilation, INamedTypeSymbol entity, CancellationToken token)
     {
-        var declaringProject = await DeclaringProject(project, compilation, entity, token);
-        if (declaringProject is null || declaringProject.Id == project.Id)
+        var declaringProject = await DeclaringProject(infra.Project, compilation, entity, token);
+        if (declaringProject is null || declaringProject.Id == infra.Project.Id)
         {
-            if (declaringProject?.Id == project.Id)
+            if (declaringProject?.Id == infra.Project.Id)
             {
-                var localOwner = ResolveNamespaceOwnerKey(entity, infraNamespace, infraLayout) ??
-                    EntityDomainOwner(entity, infraLayout);
-                return (localOwner, null, infraLayout.Valid);
+                var localOwner = ResolveNamespaceOwnerKey(entity, infra.Namespace, infra.Layout) ??
+                    EntityDomainOwner(entity, infra.Layout);
+                return (localOwner, null, null, infra.Layout.Valid);
             }
-            var (layout, rootNamespace, hasExplicitRoot) = ConventionGenerationPreflight.MetadataFromAssembly(entity.ContainingAssembly);
-            var metadataOwner = ResolveNamespaceOwnerKey(entity, rootNamespace, layout) ??
-                (hasExplicitRoot ? null : EntityDomainOwner(entity, layout));
-            return (metadataOwner, null, layout.Valid);
+            var assemblyMetadata = ConventionGenerationPreflight.MetadataFromAssembly(entity.ContainingAssembly);
+            if (!assemblyMetadata.Layout.Valid || assemblyMetadata.HasRoleOverrides)
+                return (null, null, null, false);
+            var metadataOwner = ResolveNamespaceOwnerKey(entity, assemblyMetadata.RootNamespace, assemblyMetadata.Layout) ??
+                (assemblyMetadata.HasExplicitRootNamespace ? null : EntityDomainOwner(entity, assemblyMetadata.Layout));
+            return (metadataOwner, null, assemblyMetadata, true);
         }
-        var declaringIdentity = ConventionGenerationPreflight.Identity(declaringProject);
-        var declaringLayout = ConventionGenerationPreflight.Layout(declaringProject);
-        if (declaringIdentity.Role != "Domain")
+        var declaringInfo = ConventionGenerationPreflight.ReadProject(declaringProject);
+        if (declaringInfo.Role != "Domain")
         {
-            var nonDomainOwner = ResolveNamespaceOwnerKey(entity, declaringIdentity.Namespace, declaringLayout) ??
-                EntityDomainOwner(entity, declaringLayout);
-            return (nonDomainOwner, null, declaringLayout.Valid);
+            var nonDomainOwner = ResolveNamespaceOwnerKey(entity, declaringInfo.Namespace, declaringInfo.Layout) ??
+                EntityDomainOwner(entity, declaringInfo.Layout);
+            return (nonDomainOwner, null, null, declaringInfo.Layout.Valid);
         }
-        if (!declaringLayout.Valid || !ValidNamespace(declaringIdentity.Namespace)) return (null, null, false);
-        var domainInputs = await ConventionGenerationPreflight.ReadInputs(declaringProject, required: false, token);
-        if (domainInputs is null || HasRoleOverride(domainInputs)) return (null, null, false);
-        return (ResolveNamespaceOwnerKey(entity, declaringIdentity.Namespace, declaringLayout), domainInputs, true);
+        if (!declaringInfo.Layout.Valid || !ValidNamespace(declaringInfo.Namespace)) return (null, null, null, false);
+        var domainInputs = await ReadInputsWithoutRoleOverrideAsync(declaringProject, required: false, token);
+        if (domainInputs is null) return (null, null, null, false);
+        var domainAssemblyMetadata = ConventionGenerationPreflight.MetadataFromAssembly(entity.ContainingAssembly);
+        if (domainAssemblyMetadata.HasRoleOverrides) return (null, null, null, false);
+        return (ResolveNamespaceOwnerKey(entity, declaringInfo.Namespace, declaringInfo.Layout), domainInputs, domainAssemblyMetadata, true);
     }
+
+    private readonly record struct InfraProjectContext(Project Project, string Namespace,
+        ConventionGenerationPreflight.ProjectLayout Layout, CompilationUnitSyntax Inputs);
 
     private static async Task<Project?> DeclaringProject(Project project, Compilation compilation, INamedTypeSymbol entity, CancellationToken token)
     {
@@ -304,37 +317,42 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
         var marker = ns.IndexOf(".Domain.", StringComparison.Ordinal);
         if (marker >= 0) suffix = ns[(marker + ".Domain.".Length)..];
         else if (ns.StartsWith("Domain.", StringComparison.Ordinal)) suffix = ns["Domain.".Length..];
-        return suffix is null ? null : ResolveSuffixOwnerKey(suffix, layout);
+        return suffix is null ? null : ResolveSuffixOwnerKey(entity, suffix, layout);
     }
 
-    private static bool ContextOwnershipCompatible(INamedTypeSymbol context, OwnerKey conventional,
+    private static OwnerKey? ResolveCompatibleContextOwner(INamedTypeSymbol context, OwnerKey conventional,
         CompilationUnitSyntax inputs, Compilation compilation, CancellationToken token)
     {
         var contextName = CodeFixSymbolFacts.MetadataName(context);
         var declared = DeclaredOwner(context, conventional, compilation);
-        if (declared is null || !declared.MatchesAcrossLayers(conventional)) return false;
-        if (!OwnershipCompatible(inputs, contextName, declared.Subdomain, token, declared.DomainFilter)) return false;
+        if (declared is null || !declared.SameOwner(conventional)) return null;
+        if (!OwnershipCompatible(inputs, contextName, declared.Subdomain, token, out var ownershipExplicitDomain, declared.DomainFilter))
+            return null;
+        var contextExplicitDomain = false;
         foreach (var list in inputs.AttributeLists)
         {
             foreach (var attribute in list.Attributes)
             {
                 token.ThrowIfCancellationRequested();
-                if (!IsCompatibleContextAttribute(list, attribute, contextName, declared, token)) return false;
+                if (!IsCompatibleContextAttribute(list, attribute, contextName, declared, token, out var attrExplicitDomain))
+                    return null;
+                contextExplicitDomain |= attrExplicitDomain;
             }
         }
-        return true;
+        return declared.WithExplicitDomain(ownershipExplicitDomain || contextExplicitDomain);
     }
 
     private static bool IsCompatibleContextAttribute(AttributeListSyntax list, AttributeSyntax attribute,
-        string contextName, OwnerKey owner, CancellationToken token)
+        string contextName, OwnerKey owner, CancellationToken token, out bool hasExplicitDomain)
     {
+        hasExplicitDomain = false;
         if (list.Target?.Identifier.ValueText != "assembly" ||
-            attribute.Name.ToString() is not ("DRN.Conventions.Context" or "global::DRN.Conventions.Context") ||
+            ConventionInputSyntax.Kind(attribute) != ConventionInputSyntax.ContextKind ||
             attribute.ArgumentList is not { Arguments.Count: > 0 } arguments ||
-            DRN.Framework.SharedKernel.Analyzers.Conventions.ConventionInputSyntax.String(arguments.Arguments[0].Expression, token) != contextName)
+            ConventionInputSyntax.String(arguments.Arguments[0].Expression, token) != contextName)
             return true;
         return arguments.Arguments[0].NameEquals is null && arguments.Arguments[0].NameColon is null &&
-               ContextOwnerCompatible(arguments.Arguments, owner, token, out _);
+               ContextOwnerCompatible(arguments.Arguments, owner, token, out _, out hasExplicitDomain);
     }
 
     internal static bool HasMembership(INamedTypeSymbol context, INamedTypeSymbol entity, Compilation compilation)

@@ -69,26 +69,31 @@ internal static class ConventionOwnershipAnalysis
         var parts = suffix.Length == 0 ? [] : suffix.Split('.');
         var index = ConventionFacts.OwnerSegmentOffset(role.Role, parts);
         var expectedParts = parts.ToList();
-        var ownerSegmentCount = owner.HasFolderDomain ? 2 : 1;
-        if (owner.HasFolderDomain)
-        {
-            if (index >= expectedParts.Count) expectedParts.Add(owner.Domain);
-            else expectedParts[index] = owner.Domain;
-            if (index + 1 >= expectedParts.Count) expectedParts.Add(owner.Subdomain);
-            else expectedParts[index + 1] = owner.Subdomain;
-        }
-        else
-        {
-            if (index >= expectedParts.Count) expectedParts.Add(owner.Subdomain);
-            else expectedParts[index] = owner.Subdomain;
-        }
-        var afterOwner = index + ownerSegmentCount;
+        var afterOwner = ApplyOwnerSegments(expectedParts, index, owner);
         if (structural is not null && !expectedParts.Skip(afterOwner).Contains(structural, StringComparer.Ordinal))
             expectedParts.Insert(afterOwner, structural);
         var expectedSuffix = string.Join(".", expectedParts);
         var expectedNamespace = role.Namespace + "." + expectedSuffix;
         var expectedDirectory = (role.PathPrefix.Length == 0 ? "" : role.PathPrefix + "/") + expectedSuffix.Replace('.', '/');
         return (ns, expectedNamespace, expectedDirectory);
+    }
+
+    private static int ApplyOwnerSegments(List<string> expectedParts, int index, ConventionOwner owner)
+    {
+        if (owner.HasFolderDomain)
+        {
+            SetOrAppendSegment(expectedParts, index, owner.Domain);
+            SetOrAppendSegment(expectedParts, index + 1, owner.Subdomain);
+            return index + 2;
+        }
+        SetOrAppendSegment(expectedParts, index, owner.Subdomain);
+        return index + 1;
+    }
+
+    private static void SetOrAppendSegment(List<string> segments, int index, string value)
+    {
+        if (index >= segments.Count) segments.Add(value);
+        else segments[index] = value;
     }
 
     internal static void AnalyzeTypePlacement(ConventionFacts facts, INamedTypeSymbol type, Location location,
@@ -127,9 +132,7 @@ internal static class ConventionOwnershipAnalysis
             }
             var directoryConflict = expectedDirectory is not null && placement.Value.Directory != expectedDirectory;
             if (!directoryConflict && !namespaceConflict) continue;
-            var part = type.Locations.FirstOrDefault(candidate => candidate.SourceTree == reference.SyntaxTree &&
-                reference.Span.Contains(candidate.SourceSpan)) ?? reference.GetSyntax(facts.Cancellation).GetLocation();
-            conflicts.Add(part);
+            conflicts.Add(ConventionBoundaryAnalysis.PartLocation(type, reference, facts.Cancellation));
         }
         return (conflicts, missingPlacement);
     }

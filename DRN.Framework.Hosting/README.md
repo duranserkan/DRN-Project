@@ -260,7 +260,7 @@ Override `ConfigureSwaggerOptions`, call base, then set `AddSwagger = true` and 
 
 ## Configuration
 
-Set `NexusAppSettings:AppId` and `NexusAppSettings:AppInstanceId` explicitly in every environment, including when either value is zero. AppId accepts 0 through 127 and must match the application's entity partition. AppInstanceId accepts 0 through 63; assign distinct values to concurrent instances generating IDs for that application. Staging and Production require private `DrnAppFeatures:SeedKey` and Nexus keys. See [Utils configuration](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/README.md#configuration) for key requirements.
+Set `NexusAppSettings:AppId` and `NexusAppSettings:AppInstanceId` explicitly in every environment, including when either value is zero. AppId accepts 0 through 127 and must match the application's entity partition. AppInstanceId accepts 0 through 63. Assign distinct values to concurrent instances generating IDs for that application. Staging and Production require private `DrnAppFeatures:SeedKey` and Nexus keys. See [Utils configuration](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/README.md#configuration) for key requirements.
 
 ### Layering
 
@@ -749,18 +749,18 @@ protected override void ConfigurePostAuthRateLimiterOptions(
 
 ## Source-Known Controllers
 
-Use `DRN.Framework.Hosting.Controllers` to expose a service-backed `ISourceKnownRepository<TEntity>` through explicit Contract `*Response` types. See [conventions terminology](../DRN.Framework.SharedKernel/CONVENTIONS.md#terminology) for Domain, Subdomain, project stem, and role stem definitions.
+Use `DRN.Framework.Hosting.Controllers` to expose a service-backed `ISourceKnownRepository<TEntity>` through explicit Contract `*Response` types. See [conventions terminology](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/CONVENTIONS.md#terminology) for Domain, Subdomain, project stem, and role stem definitions.
 
 | Base | Behavior |
 |---|---|
-| `SourceKnownControllerBase<TEntity, TResponse>` | Foundation base without HTTP actions. Composes `ISourceKnownService<TEntity>`. |
-| `SourceKnownReadOnlyController<TEntity, TResponse>` | Exposes only bounded read actions using `ISourceKnownService<TEntity>`. |
-| `SourceKnownController<TEntity, TResponse, TCreateRequest>` | Combines **all read actions** with create/delete actions using `ISourceKnownService<TEntity, Dto, TCreateRequest>`. |
-| `SourceKnownWriteOnlyController<TEntity, TResponse, TCreateRequest>` | Exposes only create/delete HTTP actions using `ISourceKnownService<TEntity, Dto, TCreateRequest>`. |
+| `SourceKnownControllerBase<TEntity, TResponse>` | Foundation base without HTTP actions. Composes `ISourceKnownService<TEntity, TResponse>`. |
+| `SourceKnownReadOnlyController<TEntity, TResponse>` | Exposes only bounded read actions using `ISourceKnownService<TEntity, TResponse>`. |
+| `SourceKnownController<TEntity, TResponse, TCreateRequest>` | Combines **all read actions** with create/delete actions using `ISourceKnownService<TEntity, TResponse, TCreateRequest>`. |
+| `SourceKnownWriteOnlyController<TEntity, TResponse, TCreateRequest>` | Exposes only create/delete HTTP actions using `ISourceKnownService<TEntity, TResponse, TCreateRequest>`. |
 
-All variants derive from `SourceKnownControllerBase<TEntity, TResponse>`, which composes `protected ISourceKnownService<TEntity> Service` and exposes `public ISourceKnownRepository<TEntity> Repository => Service.Repository;` without implementing `ISourceKnownService<TEntity>` (so service methods can never become MVC actions). It provides protected `abstract TResponse ToResponse(TEntity entity)` mapping and cancellation helpers without HTTP actions. `TEntity` derives from `AggregateRoot`, `TResponse` is a public Contract response class (`where TResponse : class`), and `TCreateRequest` is an explicit Contract request class. A constructor guard throws `InvalidOperationException` if `TResponse` derives from `Dto` (and `ArgumentNullException` if `service` is `null`), enforcing DRNDTO005 at runtime even when analyzers are disabled. Keeping `TResponse` separate from internal `Dto` types satisfies DRNDTO005 and DRNDTO006 and prevents future DTO fields from leaking into public APIs.
+All variants derive from `SourceKnownControllerBase<TEntity, TResponse>`, which composes `ISourceKnownService<TEntity, TResponse>` through its primary constructor and exposes `protected ISourceKnownRepository<TEntity> Repository` without implementing `ISourceKnownService<TEntity>` (so service methods can never become MVC actions). It delegates response projection to the backing service through non-virtual protected `CreateResponseAsync(TEntity, CancellationToken)` and `CreateResponsesAsync(IReadOnlyList<TEntity>, CancellationToken)` helpers without HTTP actions. `TEntity` derives from `AggregateRoot`, `TResponse` is a public Contract response class (`where TResponse : class`), and `TCreateRequest` is an explicit Contract request class. Keeping `TResponse` and `TCreateRequest` separate from internal `Dto` and entity types satisfies DRNDTO005, DRNDTO006, and DRNARCHITECTURE002 and prevents internal fields from leaking into public APIs.
 
-The combined controller inherits the read-only controller and adds writes, leveraging `out TDto` covariance on `ISourceKnownService<TEntity, out TDto, in TCreateRequest>` so controllers remain at 3 generic parameters. The write-only controller inherits the combined controller and seals `[NonAction]` overrides for all reads. Those methods remain callable from C#, but are excluded from HTTP routing and API discovery.
+The combined controller inherits the read-only controller and adds writes using `ISourceKnownService<TEntity, TResponse, TCreateRequest>`. The write-only controller inherits the combined controller and seals `[NonAction]` overrides for all reads. Those methods remain callable from C#, but are excluded from HTTP routing and API discovery.
 
 Concrete controllers supply `[Route]` and explicit named authorization policies. DRNAUTHORIZATION001 rejects exposed actions without a nonblank `[Authorize(Policy = "...")]` on the controller or action, including inherited policies. Bare `[Authorize]` and roles alone do not satisfy this rule. `[AllowAnonymous]` is rejected. DRN host MFA and rate-limiting policies still apply.
 
@@ -803,15 +803,6 @@ using Sample.Domain.QA.Tag;
 public class ReadOnlyTagController(ITagService service)
     : SourceKnownReadOnlyController<TagEntity, TagResponse>(service)
 {
-    protected override TagResponse ToResponse(TagEntity entity) => new()
-    {
-        Id = entity.EntityId,
-        CreatedAt = entity.CreatedAt,
-        ModifiedAt = entity.ModifiedAt,
-        Name = entity.Name,
-        Model = new TagModelResponse { Type = entity.Model.Type }
-    };
-
     [NonAction]
     public override Task<long> CountAsync(CancellationToken cancellationToken = default)
         => base.CountAsync(cancellationToken);
@@ -820,11 +811,15 @@ public class ReadOnlyTagController(ITagService service)
 
 `[NonAction]` prevents HTTP invocation, not direct C# calls. `[ApiExplorerSettings(IgnoreApi = true)]` only hides documentation and does not disable routing. A public override cannot be changed to `internal`. When using DRN typed endpoint accessors, omit `ApiEndpoint` properties for disabled actions so startup validation does not look for missing routes.
 
+Derive directly from `SourceKnownControllerBase<TEntity, TResponse>` to start with zero inherited HTTP actions. It provides the protected `Repository`, `PrepareRepository`, `CreateResponseAsync`, and `CreateResponsesAsync` members. MVC can discover a public method on your controller even when it has no `[Http*]` attribute. A controller-level `[Route]` can make that method reachable. Keep helpers private or protected, move them to the backing service, or mark public helpers with `[NonAction]`.
+
+When most of the standard actions fit, use a read-only, combined, or write-only controller and disable individual actions with `[NonAction]` overrides, as in the Sample application's `CategoryController`.
+
 ### Opt in to writes
 
-Derive from `SourceKnownController<TEntity, TResponse, TCreateRequest>` to combine reads and writes, or `SourceKnownWriteOnlyController<TEntity, TResponse, TCreateRequest>` for mutation endpoints alone. Both accept `ISourceKnownService<TEntity, Dto, TCreateRequest>` and provide a virtual `CreateEntityAsync(request, cancellationToken)` method that delegates to `Service.CreateEntityAsync`. Implement entity creation and domain validation in the service (and override `CreateEntityAsync` on the controller only when transport-specific orchestration is required).
+Derive from `SourceKnownController<TEntity, TResponse, TCreateRequest>` to combine reads and writes, or `SourceKnownWriteOnlyController<TEntity, TResponse, TCreateRequest>` for mutation endpoints alone. Both accept `ISourceKnownService<TEntity, TResponse, TCreateRequest>`, delegate response projection to the backing service through protected `CreateResponseAsync` and `CreateResponsesAsync` helpers, and provide a virtual `CreateEntityAsync` hook delegating to the service. Implement entity creation, domain validation, and response projection in the service (override `CreateResponsesCoreAsync` on `SourceKnownService` to batch asynchronous enrichment for collections and pagination). Override `CreateEntityAsync` or the virtual action methods on the controller only when transport-specific orchestration or shaping is required.
 
-Use controller policies for common permissions and action policies for additional write permissions. Inherited controller and action policies combine. For resource-specific checks, override the action and call an application authorization service before calling the base action. Pass the request cancellation token to that service. Reject forbidden access with `Forbid()` where the result type permits, or `ExceptionFor.Forbidden(...)`. Request-dependent creation checks may also live in application mapping/domain services. The framework does not supply mandatory authorization hooks.
+Use controller policies for common permissions and action policies for additional write permissions. Inherited controller and action policies combine. For resource-specific checks, override the action and call an application authorization service before calling the base action. Pass the request cancellation token to that service. Reject forbidden access with `Forbid()` where the result type permits, `ExceptionFor.Forbidden(...)`, or `ScopeContext.Problem.Forbidden(...)` after setting public problem defaults. Request-dependent creation checks may also live in application mapping/domain services. The framework does not supply mandatory authorization hooks.
 
 `PostAsync` calls `CreateEntityAsync`, persists via the repository's `CreateAsync`, and returns HTTP 201 with the mapped `TResponse`. It does not generate a Location header, so disabling `GetAsync` does not break creation. `DeleteAsync` calls the GUID delete overload and returns HTTP 204 even when no matching record exists. The default EF repository performs a direct delete with repository filters and does not invoke entity deletion lifecycle hooks.
 
@@ -909,7 +904,7 @@ Typed parameter/constraint generation remains a TODO. Continue passing route/que
 
 ### Usage in Code
 
-Expose generated singletons through an authored `Get` facade and bind the endpoint singleton in `ConfigureEndpointCollection`:
+Expose generated singletons through an authored `Get` facade alongside the `ConfigureEndpointCollection` override shown in [Automatic hosted accessors](#automatic-hosted-accessors):
 
 ```csharp
 namespace Example.Hosted;
@@ -1015,7 +1010,7 @@ Vite manifests under `wwwroot/**/.vite/manifest.json` are included automatically
 
 When publishing with a custom web root, build targets do not automatically capture manifests outside `wwwroot/**`; applications must separately include manifests and referenced assets in publish items.
 
-Stock Vite omits the `hash` field that DRN tag helpers require for subresource integrity. Add a build step that hashes each manifest entry's final uncompressed `file` bytes with SHA-256 and writes standard Base64 to `hash`, even when deploying only original files. Deploy the manifests together with their assets. See the [Sample Vite plugin](../Sample.Hosted/vite.config.plugin.ts) and its [build configuration](../Sample.Hosted/vite.config.ts).
+Stock Vite omits the `hash` field that DRN tag helpers require for subresource integrity. Add a build step that hashes each manifest entry's final uncompressed `file` bytes with SHA-256 and writes standard Base64 to `hash`, even when deploying only original files. Deploy the manifests together with their assets. See the [Sample Vite plugin](https://github.com/duranserkan/DRN-Project/blob/master/Sample.Hosted/vite.config.plugin.ts) and its [build configuration](https://github.com/duranserkan/DRN-Project/blob/master/Sample.Hosted/vite.config.ts).
 
 If using the Sample plugin, `precompressAssets([])` keeps every original and emits a Brotli sidecar when compression reduces its size. For a Brotli-only deployment, set `brotliOnly` to `true` on each entry whose original you omit and deploy `<file>.br`. Other entries require the original `file`.
 
@@ -1098,7 +1093,7 @@ Leave `Type` unset for routine failures. Both `throw ExceptionFor.NotFound(...)`
 | `ScopeContext.Problem.Conflict(...)` | 409 | `https://tools.ietf.org/html/rfc9110#section-15.5.10` |
 | Unmapped exception | 500 | `https://tools.ietf.org/html/rfc9110#section-15.6.1` |
 
-Prefer an existing semantic base for custom exceptions. `ConflictException` subclasses inherit 409; direct `DrnException` subclasses use the supplied status or default to 500. See [inheritance examples](../DRN.Framework.SharedKernel/README.md#exceptions).
+Prefer an existing semantic base for custom exceptions. `ConflictException` subclasses inherit 409. Direct `DrnException` subclasses use the supplied status or default to 500. See [inheritance examples](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.SharedKernel/README.md#exceptions).
 
 `HttpScopeMiddleware` selects the status from the caught exception in this order:
 
@@ -1141,7 +1136,7 @@ ScopeContext.Problem.Conflict("Duplicate tag detected during creation.");
 
 The same shorthand is available for every `ExceptionFor` factory. Helpers throw immediately and hide their frames from formatted stack traces.
 
-This returns **409 Conflict** with the public detail and `code`. The exception message stays private. `Type`, `Title`, and `Instance` can also be set on `ScopeContext.Problem`. Existing response fields and extension keys take precedence, including titles and types already generated by ASP.NET Core. Scoped defaults fill only null fields and missing extension keys. Standard field names and `errors` are reserved extension keys. This lazy, request-wide object holds one error context; do not use it for separate concurrent errors. See [scope usage](../DRN.Framework.Utils/README.md#scope--ambient-context-scopecontext).
+This returns **409 Conflict** with the public detail and `code`. The exception message stays private. `Type`, `Title`, and `Instance` can also be set on `ScopeContext.Problem`. Existing response fields and extension keys take precedence, including titles and types already generated by ASP.NET Core. Scoped defaults fill only null fields and missing extension keys. Standard field names and `errors` are reserved extension keys. This lazy, request-wide object holds one error context. Do not use it for separate concurrent errors. See [scope usage](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/README.md#scope--ambient-context-scopecontext).
 
 Swagger adds one representative 400 response as `application/problem+json` with required `requestId`. Its description explains that the same contract covers all 4xx and 5xx statuses. Other statuses are shown only when declared by the endpoint. Declared validation schemas and custom response types are preserved. Declare custom error bodies with `ProducesResponseType` or minimal API response metadata so Swagger can describe them accurately. Browser and HEAD operations are unchanged.
 
@@ -1161,7 +1156,7 @@ services.Configure<DrnApiErrorOptions>(options => options.HandleHtmxRequests = t
 
 Authentication, cookie redirects, endpoint opt-outs, and custom non-problem bodies retain their existing behavior. Normal navigation uses browser error pages and Development diagnostics. Opted-in HTMX exceptions return Problem Details instead of invoking `WriteProductionErrorResponseAsync` or displaying the Development exception page.
 
-Razor handlers choose validation representation explicitly. `Page()` with invalid ModelState retains HTML. To select JSON, return an `ObjectResult` containing `ValidationProblemDetails(ModelState)` with status 400 or 422. Use safe public messages, exact posted field names, and an empty key for form-level errors. The browser client must present Problem Details as data and explicitly support any HTML validation swaps. See the [Sample error handling conventions](../Sample.Hosted/README.md#error-handling-conventions) for examples.
+Razor handlers choose validation representation explicitly. `Page()` with invalid ModelState retains HTML. To select JSON, return an `ObjectResult` containing `ValidationProblemDetails(ModelState)` with status 400 or 422. Use safe public messages, exact posted field names, and an empty key for form-level errors. The browser client must present Problem Details as data and explicitly support any HTML validation swaps. See the [Sample error handling conventions](https://github.com/duranserkan/DRN-Project/blob/master/Sample.Hosted/README.md#error-handling-conventions) for examples.
 
 ### Custom Error Pages
 
@@ -1210,13 +1205,13 @@ services.ConfigureApplicationCookie(options =>
 
 ### Request Body Buffering
 
-Diagnostic capture retains HTTP status, authentication outcome, and rate-limit metadata. `Request_IpAddress` records the remote IP as text or an empty string. Nonempty `l5d-client-id` headers are logged directly. Backend runtime does not match names or configured paths, including request query/form names. Explicit classifications and capture bounds remain authoritative. Rate-limit rejection identifiers retain separate protection. SharedKernel analyzers check statically known names and project paths. Scoped logs preserve classification metadata for redacted reads. See the [diagnostic contract](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md).
+Diagnostic capture retains HTTP status, authentication outcome, and rate-limit metadata. `Request_IpAddress` records the remote IP as text or an empty string. Nonempty `l5d-client-id` headers are logged directly. Backend runtime does not match names or configured paths, including request query/form names. Explicit classifications and capture bounds remain authoritative. Rate-limit rejection identifiers retain separate protection. SharedKernel analyzers check statically known names and project paths. Scoped logs preserve classification metadata for redacted reads. See the [diagnostic contract](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Logging/Diagnostics/README.md).
 
 Request diagnostics buffer POST, PUT, and PATCH bodies only when `Content-Length` is known and within the configured limit. Kestrel request-size limits still apply.
 
-Apply the [application responsibilities for dynamic data](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md) when capturing request values.
+Apply the [application responsibilities for dynamic data](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Logging/Diagnostics/README.md) when capturing request values.
 
-Scoped HTTP diagnostics, startup reports, and developer-page copies use the [central diagnostic policy](https://github.com/duranserkan/DRN-Project/blob/develop/DRN.Framework.Utils/Logging/Diagnostics/README.md). Explicit classifications control redaction; explicit URLs still remove credentials. Text remains bounded without content scanning. Original exception/context objects remain available to filters and DiagnosticSource subscribers, which own their export policy. Classify typed members and dictionary entries explicitly. This does not add body capture or change public Problem Details.
+Scoped HTTP diagnostics, startup reports, and developer-page copies use the [central diagnostic policy](https://github.com/duranserkan/DRN-Project/blob/master/DRN.Framework.Utils/Logging/Diagnostics/README.md). Explicit classifications control redaction. Explicit URLs still remove credentials. Text remains bounded without content scanning. Original exception/context objects remain available to filters and DiagnosticSource subscribers, which own their export policy. Classify typed members and dictionary entries explicitly. This does not add body capture or change public Problem Details.
 
 **Configuration** via `DrnAppFeatures` (in `appsettings.json`):
 

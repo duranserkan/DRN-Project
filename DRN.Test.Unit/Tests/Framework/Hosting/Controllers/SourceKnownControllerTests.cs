@@ -3,6 +3,7 @@ using DRN.Framework.SharedKernel.Attributes;
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.SharedKernel.Domain.Pagination;
 using DRN.Framework.SharedKernel.Domain.Repository;
+using DRN.Framework.Utils.Scope;
 using DRN.Test.Utils.Hosting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -100,7 +101,19 @@ public class SourceKnownControllerTests
         using var cancellation = new CancellationTokenSource();
 
         controller.Should().NotBeAssignableTo<ISourceKnownService<Tag>>();
-        controller.Repository.Should().BeSameAs(repository);
+        typeof(SourceKnownControllerBase<Tag, TagProbeResponse>)
+            .GetProperty("Repository", BindingFlags.Instance | BindingFlags.Public).Should().BeNull();
+        var createResponse = typeof(SourceKnownControllerBase<Tag, TagProbeResponse>)
+            .GetMethod("CreateResponseAsync", BindingFlags.Instance | BindingFlags.NonPublic);
+        var createResponses = typeof(SourceKnownControllerBase<Tag, TagProbeResponse>)
+            .GetMethod("CreateResponsesAsync", BindingFlags.Instance | BindingFlags.NonPublic);
+        createResponse.Should().NotBeNull();
+        createResponse!.IsFamily.Should().BeTrue();
+        createResponse.IsVirtual.Should().BeFalse();
+        createResponses.Should().NotBeNull();
+        createResponses!.IsFamily.Should().BeTrue();
+        createResponses.IsVirtual.Should().BeFalse();
+        controller.ExposedRepository.Should().BeSameAs(repository);
         (await controller.GetAsync(id, cancellation.Token)).Name.Should().Be(tag.Name);
         (await controller.GetManyAsync(ids, cancellation.Token)).Select(response => response.Name).Should().Equal(tag.Name);
         (await controller.AnyAsync(cancellation.Token)).Should().BeTrue();
@@ -115,15 +128,24 @@ public class SourceKnownControllerTests
         repository.ReceivedCalls().Should().BeEmpty();
     }
 
+    public static IEnumerable<object?[]> InvalidLookupBatches()
+    {
+        yield return [null];
+        yield return [Array.Empty<Guid>()];
+        yield return [new Guid[101]];
+    }
+
     [Theory]
-    [DataInlineUnit(0)]
-    [DataInlineUnit(101)]
-    public async Task Invalid_Batches_Should_Be_Rejected_Before_Repository_Work(int count)
+    [DataMemberUnit(nameof(InvalidLookupBatches))]
+    public async Task Invalid_Batches_Should_Be_Rejected_Before_Repository_Work(Guid[]? ids)
     {
         var repository = Substitute.For<ISourceKnownRepository<Tag>>();
         var controller = new ReadProbeController(CreateTagService(repository));
-        Func<Task> lookup = () => controller.GetManyAsync(new Guid[count]);
-        await lookup.Should().ThrowAsync<ValidationException>();
+        ScopeContext.Problem.Detail = null;
+        Func<Task> lookup = () => controller.GetManyAsync(ids!);
+        await lookup.Should().ThrowAsync<ValidationException>()
+            .WithMessage("Provide a nonempty ID batch within the server's batch limit.");
+        ScopeContext.Problem.Detail.Should().Be("Provide a nonempty ID batch within the server's batch limit.");
         repository.ReceivedCalls().Should().BeEmpty();
     }
 
@@ -208,9 +230,10 @@ public class SourceKnownControllerTests
 
         await controller.PaginateAsync(new PaginationRequest(1, new PageSize(1000, 1000)));
         await controller.PaginateWithOptionsAsync(new PaginationOptions { PageSize = 1000, MaxSize = 1000 });
+        await controller.PaginateWithOptionsAsync(null);
         await controller.PaginateAsync();
 
-        requests.Select(request => request.PageSize.Size).Should().Equal(100, 100, 10);
+        requests.Select(request => request.PageSize.Size).Should().Equal(100, 100, 10, 10);
         requests.Should().OnlyContain(request => request.PageSize.MaxSize == 100 && request.TotalCount == -1);
     }
 
@@ -271,8 +294,7 @@ public class SourceKnownControllerTests
     public async Task Strict_Response_And_Routing_Controllers_Should_Map_Explicit_Responses()
     {
         var categoryRepo = Substitute.For<ISourceKnownRepository<CategoryEntity>>();
-        var categoryService = Substitute.For<ISourceKnownService<CategoryEntity>>();
-        categoryService.Repository.Returns(categoryRepo);
+        var categoryService = new StrictCategoryProbeService(categoryRepo);
         var category = new CategoryEntity("Strict category");
         var categoryId = Guid.NewGuid();
         category.EntityIdSource = new SourceKnownEntityId(new SourceKnownId(11, DateTimeOffset.UnixEpoch, 0, 0, 0), categoryId, 3, true, false);
@@ -300,66 +322,150 @@ public class SourceKnownControllerTests
     }
 
     [Fact]
-    public void ControllerBase_Should_Reject_Dto_Response_Types_And_Null_Service_On_Construction()
+    public void Services_Should_Reject_Null_Repository_On_Construction()
     {
-        var service = CreateTagService(Substitute.For<ISourceKnownRepository<Tag>>());
-        Action createBaseDto = () => _ = new DisallowedBaseDtoController(service);
-        Action createDerivedDto = () => _ = new DisallowedTagDtoController(service);
-        Action createNullService = () => _ = new FoundationProbeController(null!);
+        var repository = Substitute.For<ISourceKnownRepository<Tag>>();
+        var service = CreateTagService(repository);
+        Action createNullRepository = () => _ = new TagProbeService(null!);
 
-        createBaseDto.Should().Throw<InvalidOperationException>()
-            .WithMessage("*Dto*");
-        createDerivedDto.Should().Throw<InvalidOperationException>()
-            .WithMessage("*TagDto*Dto*");
-        createNullService.Should().Throw<ArgumentNullException>()
-            .WithParameterName("service");
+        createNullRepository.Should().Throw<ArgumentNullException>().WithParameterName("repository");
+        service.Repository.Should().BeSameAs(repository);
     }
 
     [Fact]
-    public async Task SourceKnownService_Should_Support_Default_Custom_Mismatch_And_CreateEntityAsync()
+    public async Task SourceKnownService_Should_Support_CreateResponse_Default_Batch_Custom_Batch_And_Null_Guards()
     {
         var repository = Substitute.For<ISourceKnownRepository<Tag>>();
-        var entity = new Tag("Canonical tag")
-        {
-            Model = new TagValueModel { StringValue = "Source", Type = TagType.User }
-        };
+        var first = new Tag("First tag") { Model = new TagValueModel { StringValue = "A", Type = TagType.User } };
+        var second = new Tag("Second tag") { Model = new TagValueModel { StringValue = "B", Type = TagType.User } };
         var entityId = Guid.NewGuid();
         var createdAt = new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero);
-        entity.EntityIdSource = new SourceKnownEntityId(new SourceKnownId(10, createdAt, 0, 0, 0), entityId, 6, true, false);
-        entity.ModifiedAt = createdAt.AddMinutes(5);
+        first.EntityIdSource = new SourceKnownEntityId(new SourceKnownId(10, createdAt, 0, 0, 0), entityId, 6, true, false);
+        first.ModifiedAt = createdAt.AddMinutes(5);
 
-        var defaultService = new TagProbeService(repository);
-        defaultService.Repository.Should().BeSameAs(repository);
-        var dto = defaultService.ToDto(entity);
-        dto.Id.Should().Be(entityId);
-        dto.CreatedAt.Should().Be(createdAt);
-        dto.ModifiedAt.Should().Be(createdAt.AddMinutes(5));
-        dto.Name.Should().Be("Canonical tag");
+        var service = new TagProbeService(repository);
+        service.Repository.Should().BeSameAs(repository);
+        typeof(SourceKnownService<Tag, TagProbeResponse>)
+            .GetMethod(nameof(SourceKnownService<Tag, TagProbeResponse>.CreateResponseAsync))!.IsFinal.Should().BeTrue();
+        typeof(SourceKnownService<Tag, TagProbeResponse>)
+            .GetMethod(nameof(SourceKnownService<Tag, TagProbeResponse>.CreateResponsesAsync))!.IsFinal.Should().BeTrue();
+        typeof(SourceKnownService<Tag, TagProbeResponse, CreateProbeRequest>)
+            .GetMethod(nameof(SourceKnownService<Tag, TagProbeResponse, CreateProbeRequest>.CreateEntityAsync))!.IsFinal.Should().BeTrue();
+        var response = await service.CreateResponseAsync(first);
+        response.Id.Should().Be(entityId);
+        response.CreatedAt.Should().Be(createdAt);
+        response.ModifiedAt.Should().Be(createdAt.AddMinutes(5));
+        response.Name.Should().Be("First tag");
 
-        // Covariant assignment to ISourceKnownService<Tag, Dto, CreateProbeRequest>.
-        ISourceKnownService<Tag, Dto, CreateProbeRequest> covariant = defaultService;
-        covariant.ToDto(entity).Should().BeOfType<TagDto>().Which.Name.Should().Be("Canonical tag");
-        var created = await covariant.CreateEntityAsync(new CreateProbeRequest("Created via service"));
+        var batch = await service.CreateResponsesAsync([first, second]);
+        batch.Select(item => item.Name).Should().Equal("First tag", "Second tag");
+        (await service.CreateResponsesAsync([])).Should().BeEmpty();
+
+        var created = await service.CreateEntityAsync(new CreateProbeRequest("Created via service"));
         created.Name.Should().Be("Created via service");
 
-        Action nullDefault = () => defaultService.ToDto(null!);
-        nullDefault.Should().Throw<ArgumentNullException>();
+        Func<Task> nullBatch = () => service.CreateResponsesAsync(null!);
+        Func<Task> nullElement = () => service.CreateResponsesAsync([first, null!]);
+        await nullBatch.Should().ThrowAsync<ArgumentNullException>();
+        await nullElement.Should().ThrowAsync<ArgumentNullException>();
 
-        Action nullRepository = () => _ = new TagProbeService(null!);
-        nullRepository.Should().Throw<ArgumentNullException>()
-            .WithParameterName("repository");
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        Func<Task> canceledBatch = () => service.CreateResponsesAsync([], cancellation.Token);
+        await canceledBatch.Should().ThrowAsync<OperationCanceledException>();
 
-        var customService = new CustomTagDtoService(repository);
-        customService.ToDto(entity).Name.Should().Be("custom:Canonical tag");
+        var nullReturningService = new NullResponseProbeService(repository);
+        Func<Task> nullSingle = () => nullReturningService.CreateResponseAsync(first);
+        Func<Task> nullBatchItem = () => nullReturningService.CreateResponsesAsync([first]);
+        Func<Task> nullCreatedEntity = () => nullReturningService.CreateEntityAsync(new CreateProbeRequest("Null entity"));
+        await nullSingle.Should().ThrowAsync<InvalidOperationException>().WithMessage("*CreateResponseCoreAsync*null*");
+        await nullBatchItem.Should().ThrowAsync<InvalidOperationException>().WithMessage("*CreateResponseCoreAsync*null*");
+        await nullCreatedEntity.Should().ThrowAsync<InvalidOperationException>().WithMessage("*CreateEntityCoreAsync*null*");
 
-        var mismatchService = new MismatchedTagDtoService(repository);
-        Action mismatch = () => mismatchService.ToDto(entity);
-        mismatch.Should().Throw<InvalidOperationException>()
-            .WithMessage("*TagEntity.ToDto()*TagDto*CategoryDto*");
+        var faultyBatchService = new FaultyBatchProbeService(repository, _ => null!);
+        Func<Task> serviceNullBatch = () => faultyBatchService.CreateResponsesAsync([first, second]);
+        await serviceNullBatch.Should().ThrowAsync<InvalidOperationException>().WithMessage("*CreateResponsesCoreAsync*null*");
 
-        Action nullResult = () => defaultService.ToDto(new NullToDtoProbeEntity());
-        nullResult.Should().Throw<InvalidOperationException>()
-            .WithMessage("*NullToDtoProbeEntity.ToDto()*null*TagDto*");
+        faultyBatchService.BatchResult = _ => [ToProbeResponse(first)];
+        Func<Task> serviceTooFew = () => faultyBatchService.CreateResponsesAsync([first, second]);
+        await serviceTooFew.Should().ThrowAsync<InvalidOperationException>().WithMessage("*CreateResponsesCoreAsync*1*2*");
+
+        faultyBatchService.BatchResult = _ => [ToProbeResponse(first), ToProbeResponse(second), ToProbeResponse(first)];
+        Func<Task> serviceTooMany = () => faultyBatchService.CreateResponsesAsync([first, second]);
+        await serviceTooMany.Should().ThrowAsync<InvalidOperationException>().WithMessage("*CreateResponsesCoreAsync*3*2*");
+
+        faultyBatchService.BatchResult = _ => [ToProbeResponse(first), null!];
+        Func<Task> serviceNullElement = () => faultyBatchService.CreateResponsesAsync([first, second]);
+        await serviceNullElement.Should().ThrowAsync<InvalidOperationException>().WithMessage("*CreateResponsesCoreAsync*null element*");
+
+        var batchedService = new BatchedTagProbeService(repository);
+        (await batchedService.CreateResponsesAsync([])).Should().BeEmpty();
+        batchedService.BatchCalls.Should().Be(0);
+        var id = Guid.NewGuid();
+        repository.GetAsync(Arg.Any<IReadOnlyCollection<Guid>>(), SourceKnownEntityIdFormat.ConfiguredDefault).Returns([first, second]);
+        repository.PaginateAsync(Arg.Any<PaginationRequest>(), null).Returns(call =>
+            new PaginationResultModel<Tag>(
+                new PaginationResultInfo(call.ArgAt<PaginationRequest>(0), Guid.Empty, Guid.Empty, 2, false, false, PaginationTotal.NotSpecified),
+                [first, second]));
+        var batchedController = new ReadProbeController(batchedService);
+
+        (await batchedController.GetManyAsync([id])).Select(item => item.Name).Should().Equal("batch:First tag", "batch:Second tag");
+        (await batchedController.PaginateAsync()).Items.Select(item => item.Name).Should().Equal("batch:First tag", "batch:Second tag");
+        batchedService.BatchCalls.Should().Be(2);
+        batchedService.SingleCalls.Should().Be(0);
+
+        var nullGuardService = Substitute.For<ISourceKnownService<Tag, TagProbeResponse, CreateProbeRequest>>();
+        nullGuardService.Repository.Returns(repository);
+        nullGuardService.CreateEntityAsync(Arg.Any<CreateProbeRequest>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult<Tag>(null!));
+        nullGuardService.CreateResponseAsync(Arg.Any<Tag>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult<TagProbeResponse>(null!));
+        nullGuardService.CreateResponsesAsync(Arg.Any<IReadOnlyList<Tag>>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult<TagProbeResponse[]>(null!));
+        repository.GetAsync(id, SourceKnownEntityIdFormat.ConfiguredDefault).Returns(first);
+        var nullGuardController = new WriteProbeController(nullGuardService) { AllowWrite = true };
+
+        Func<Task> nullPost = () => nullGuardController.PostAsync(null!);
+        Func<Task> nullPaginate = () => nullGuardController.PaginateWithBodyAsync(null!);
+        await nullPost.Should().ThrowAsync<ArgumentNullException>().WithParameterName("request");
+        await nullPaginate.Should().ThrowAsync<ArgumentNullException>().WithParameterName("request");
+
+        Func<Task> nullEntityPost = () => nullGuardController.PostAsync(new CreateProbeRequest("Null entity"));
+        Func<Task> nullResponseGet = () => nullGuardController.GetAsync(id);
+        Func<Task> nullResponsesBatch = () => nullGuardController.GetManyAsync([id]);
+        Func<Task> nullResponsesPage = () => nullGuardController.PaginateAsync();
+        await nullEntityPost.Should().ThrowAsync<InvalidOperationException>().WithMessage("*CreateEntityAsync*null*");
+        await nullResponseGet.Should().ThrowAsync<InvalidOperationException>().WithMessage("*CreateResponseAsync*null*");
+        await nullResponsesBatch.Should().ThrowAsync<InvalidOperationException>().WithMessage("*CreateResponsesAsync*null*");
+        await nullResponsesPage.Should().ThrowAsync<InvalidOperationException>().WithMessage("*CreateResponsesAsync*null*");
+
+        var invalidBatchService = Substitute.For<ISourceKnownService<Tag, TagProbeResponse>>();
+        invalidBatchService.Repository.Returns(repository);
+        invalidBatchService.CreateResponsesAsync(Arg.Any<IReadOnlyList<Tag>>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<TagProbeResponse[]>([ToProbeResponse(first)]));
+        var invalidBatchController = new ReadProbeController(invalidBatchService);
+
+        Func<Task> tooFewPageResponses = () => invalidBatchController.PaginateAsync();
+        Func<Task> tooFewBatchResponses = () => invalidBatchController.GetManyAsync([id]);
+        await tooFewPageResponses.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*CreateResponsesAsync*1*2*");
+        await tooFewBatchResponses.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*CreateResponsesAsync*1*2*");
+
+        invalidBatchService.CreateResponsesAsync(Arg.Any<IReadOnlyList<Tag>>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<TagProbeResponse[]>([ToProbeResponse(first), ToProbeResponse(second), ToProbeResponse(first)]));
+        Func<Task> tooManyPageResponses = () => invalidBatchController.PaginateAsync();
+        Func<Task> tooManyBatchResponses = () => invalidBatchController.GetManyAsync([id]);
+        await tooManyPageResponses.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*CreateResponsesAsync*3*2*");
+        await tooManyBatchResponses.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*CreateResponsesAsync*3*2*");
+
+        invalidBatchService.CreateResponsesAsync(Arg.Any<IReadOnlyList<Tag>>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<TagProbeResponse[]>([ToProbeResponse(first), null!]));
+        Func<Task> nullElementPageResponses = () => invalidBatchController.PaginateAsync();
+        Func<Task> nullElementBatchResponses = () => invalidBatchController.GetManyAsync([id]);
+        await nullElementPageResponses.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*CreateResponsesAsync*null element*");
+        await nullElementBatchResponses.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*CreateResponsesAsync*null element*");
     }
 
     private static TagProbeService CreateTagService(ISourceKnownRepository<Tag> repository) => new(repository);
@@ -388,65 +494,95 @@ public class SourceKnownControllerTests
     }
 
     private sealed class TagProbeService(ISourceKnownRepository<Tag> repository)
-        : SourceKnownService<Tag, TagDto, CreateProbeRequest>(repository)
+        : SourceKnownService<Tag, TagProbeResponse, CreateProbeRequest>(repository)
     {
         public int CreateCalls { get; private set; }
 
-        public override Task<Tag> CreateEntityAsync(CreateProbeRequest request, CancellationToken cancellationToken = default)
+        protected override Task<TagProbeResponse> CreateResponseCoreAsync(Tag entity, CancellationToken cancellationToken = default)
+            => Task.FromResult(ToProbeResponse(entity));
+
+        protected override Task<Tag> CreateEntityCoreAsync(CreateProbeRequest request, CancellationToken cancellationToken = default)
         {
             CreateCalls++;
             return Task.FromResult(new Tag(request.Name) { Model = new() });
         }
     }
 
-    private sealed class CustomTagDtoService(ISourceKnownRepository<Tag> repository)
-        : SourceKnownService<Tag, TagDto>(repository)
+    private sealed class BatchedTagProbeService(ISourceKnownRepository<Tag> repository)
+        : SourceKnownService<Tag, TagProbeResponse>(repository)
     {
-        public override TagDto ToDto(Tag entity) => new(entity)
+        public int SingleCalls { get; private set; }
+        public int BatchCalls { get; private set; }
+
+        protected override Task<TagProbeResponse> CreateResponseCoreAsync(Tag entity, CancellationToken cancellationToken = default)
         {
-            Name = "custom:" + entity.Name,
-            Model = entity.Model
-        };
+            SingleCalls++;
+            return Task.FromResult(ToProbeResponse(entity));
+        }
+
+        protected override Task<TagProbeResponse[]> CreateResponsesCoreAsync(IReadOnlyList<Tag> entities, CancellationToken cancellationToken = default)
+        {
+            BatchCalls++;
+            return Task.FromResult(entities.Select(entity => new TagProbeResponse
+            {
+                Id = entity.EntityId,
+                CreatedAt = entity.CreatedAt,
+                ModifiedAt = entity.ModifiedAt,
+                Name = "batch:" + entity.Name
+            }).ToArray());
+        }
     }
 
-    private sealed class MismatchedTagDtoService(ISourceKnownRepository<Tag> repository)
-        : SourceKnownService<Tag, CategoryDto>(repository);
-
-    private sealed class NullToDtoProbeEntity() : Tag("Null mapping")
+    private sealed class NullResponseProbeService(ISourceKnownRepository<Tag> repository)
+        : SourceKnownService<Tag, TagProbeResponse, CreateProbeRequest>(repository)
     {
-        public override TagDto ToDto() => null!;
+        protected override Task<TagProbeResponse> CreateResponseCoreAsync(Tag entity, CancellationToken cancellationToken = default)
+            => Task.FromResult<TagProbeResponse>(null!);
+
+        protected override Task<Tag> CreateEntityCoreAsync(CreateProbeRequest request, CancellationToken cancellationToken = default)
+            => Task.FromResult<Tag>(null!);
     }
 
-    private sealed class DisallowedBaseDtoController(ISourceKnownService<Tag> service)
-        : SourceKnownControllerBase<Tag, Dto>(service)
+    private sealed class FaultyBatchProbeService(ISourceKnownRepository<Tag> repository, Func<IReadOnlyList<Tag>, TagProbeResponse[]> batchResult)
+        : SourceKnownService<Tag, TagProbeResponse>(repository)
     {
-        protected override Dto ToResponse(Tag entity) => entity.ToDto();
+        public Func<IReadOnlyList<Tag>, TagProbeResponse[]> BatchResult { get; set; } = batchResult;
+
+        protected override Task<TagProbeResponse> CreateResponseCoreAsync(Tag entity, CancellationToken cancellationToken = default)
+            => Task.FromResult(ToProbeResponse(entity));
+
+        protected override Task<TagProbeResponse[]> CreateResponsesCoreAsync(IReadOnlyList<Tag> entities, CancellationToken cancellationToken = default)
+            => Task.FromResult(BatchResult(entities));
     }
 
-    private sealed class DisallowedTagDtoController(ISourceKnownService<Tag> service)
-        : SourceKnownControllerBase<Tag, TagDto>(service)
+    private sealed class StrictCategoryProbeService(ISourceKnownRepository<CategoryEntity> repository)
+        : SourceKnownService<CategoryEntity, CategoryResponse>(repository)
     {
-        protected override TagDto ToResponse(Tag entity) => entity.ToDto();
+        protected override Task<CategoryResponse> CreateResponseCoreAsync(CategoryEntity entity, CancellationToken cancellationToken = default)
+            => Task.FromResult(new CategoryResponse
+            {
+                Id = entity.EntityId,
+                CreatedAt = entity.CreatedAt,
+                ModifiedAt = entity.ModifiedAt,
+                Name = entity.Name
+            });
     }
 
     [Route("source-known-foundation")]
     [Authorize(Policy = "SourceKnown.Probe")]
-    public sealed class FoundationProbeController(ISourceKnownService<Tag> service)
-        : SourceKnownControllerBase<Tag, TagProbeResponse>(service)
-    {
-        protected override TagProbeResponse ToResponse(Tag entity) => ToProbeResponse(entity);
-    }
+    public sealed class FoundationProbeController(ISourceKnownService<Tag, TagProbeResponse> service)
+        : SourceKnownControllerBase<Tag, TagProbeResponse>(service);
 
     [Route("source-known-read")]
     [Authorize(Policy = "SourceKnown.Probe")]
-    public class ReadProbeController(ISourceKnownService<Tag> service)
+    public class ReadProbeController(ISourceKnownService<Tag, TagProbeResponse> service)
         : SourceKnownReadOnlyController<Tag, TagProbeResponse>(service)
     {
-        protected override TagProbeResponse ToResponse(Tag entity) => ToProbeResponse(entity);
+        internal ISourceKnownRepository<Tag> ExposedRepository => Repository;
     }
 
     [Route("source-known-disabled")]
-    public sealed class DisabledProbeController(ISourceKnownService<Tag> service) : ReadProbeController(service)
+    public sealed class DisabledProbeController(ISourceKnownService<Tag, TagProbeResponse> service) : ReadProbeController(service)
     {
         [NonAction]
         public override Task<long> CountAsync(CancellationToken cancellationToken = default) => base.CountAsync(cancellationToken);
@@ -457,14 +593,12 @@ public class SourceKnownControllerTests
 
     [Route("source-known-write")]
     [Authorize(Policy = "SourceKnown.Probe")]
-    public class WriteProbeController(ISourceKnownService<Tag, Dto, CreateProbeRequest> service)
+    public class WriteProbeController(ISourceKnownService<Tag, TagProbeResponse, CreateProbeRequest> service)
         : SourceKnownController<Tag, TagProbeResponse, CreateProbeRequest>(service)
     {
         public bool AllowWrite { get; set; }
         [Sensitive(false, Justification = "Test invocation count. Contains no authorization data or credentials.")]
         public int AuthorizationCalls { get; private set; }
-
-        protected override TagProbeResponse ToResponse(Tag entity) => ToProbeResponse(entity);
 
         public override Task<ActionResult<TagProbeResponse>> PostAsync(CreateProbeRequest request, CancellationToken cancellationToken = default)
         {
@@ -490,27 +624,18 @@ public class SourceKnownControllerTests
 
     [Route("source-known-strict")]
     [Authorize(Policy = "SourceKnown.Probe")]
-    private sealed class StrictCategoryProbeController(ISourceKnownService<CategoryEntity> service)
-        : SourceKnownReadOnlyController<CategoryEntity, CategoryResponse>(service)
-    {
-        protected override CategoryResponse ToResponse(CategoryEntity entity) => new()
-        {
-            Id = entity.EntityId,
-            CreatedAt = entity.CreatedAt,
-            ModifiedAt = entity.ModifiedAt,
-            Name = entity.Name
-        };
-    }
+    private sealed class StrictCategoryProbeController(ISourceKnownService<CategoryEntity, CategoryResponse> service)
+        : SourceKnownReadOnlyController<CategoryEntity, CategoryResponse>(service);
 
     [Route("source-known-disabled-write")]
-    public sealed class DisabledWriteProbeController(ISourceKnownService<Tag, Dto, CreateProbeRequest> service) : WriteProbeController(service)
+    public sealed class DisabledWriteProbeController(ISourceKnownService<Tag, TagProbeResponse, CreateProbeRequest> service) : WriteProbeController(service)
     {
         [NonAction]
         public override Task<NoContentResult> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
             => base.DeleteAsync(id, cancellationToken);
     }
 
-    private sealed class CancelMappingProbeController(ISourceKnownService<Tag, Dto, CreateProbeRequest> service, CancellationTokenSource cancellation)
+    private sealed class CancelMappingProbeController(ISourceKnownService<Tag, TagProbeResponse, CreateProbeRequest> service, CancellationTokenSource cancellation)
         : WriteProbeController(service)
     {
         protected override async Task<Tag> CreateEntityAsync(CreateProbeRequest request, CancellationToken cancellationToken)
@@ -523,14 +648,8 @@ public class SourceKnownControllerTests
 
     [Route("source-known-write-only")]
     [Authorize(Policy = "SourceKnown.Probe")]
-    public sealed class WriteOnlyProbeController(ISourceKnownService<Tag, Dto, CreateProbeRequest> service)
-        : SourceKnownWriteOnlyController<Tag, TagProbeResponse, CreateProbeRequest>(service)
-    {
-        protected override TagProbeResponse ToResponse(Tag entity) => ToProbeResponse(entity);
-
-        protected override Task<Tag> CreateEntityAsync(CreateProbeRequest request, CancellationToken cancellationToken)
-            => throw new NotSupportedException("Discovery fixture does not allow writes.");
-    }
+    public sealed class WriteOnlyProbeController(ISourceKnownService<Tag, TagProbeResponse, CreateProbeRequest> service)
+        : SourceKnownWriteOnlyController<Tag, TagProbeResponse, CreateProbeRequest>(service);
 
     private static TagProbeResponse ToProbeResponse(Tag entity) => new()
     {
