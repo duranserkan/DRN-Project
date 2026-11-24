@@ -50,7 +50,7 @@ internal static class ConventionOwnershipAnalysis
         service = symbols.IsKnown(type, symbols.ServiceContract, facts.Cancellation) ||
                   role == ConventionArchitecture.Application && HasEntityBinding(facts, type);
         var dto = symbols.IsKnown(type, symbols.Dto, facts.Cancellation);
-        var transport = symbols.IsKnown(type, symbols.SourceKnownController, facts.Cancellation);
+        var transport = symbols.IsKnown(type, symbols.SourceKnownReadOnlyController, facts.Cancellation);
         return entity || context || configuration || repository || service || dto || transport;
     }
 

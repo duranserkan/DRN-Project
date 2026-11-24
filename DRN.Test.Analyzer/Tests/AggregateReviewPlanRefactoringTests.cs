@@ -3,6 +3,7 @@ using DRN.Framework.SharedKernel.CodeFixes;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeRefactorings;
 using Microsoft.CodeAnalysis.Text;
+using static DRN.Test.Analyzer.Tests.AnalyzerTestCompilation;
 
 namespace DRN.Test.Analyzer.Tests;
 
@@ -112,7 +113,7 @@ public sealed class AggregateReviewPlanRefactoringTests
         using var workspace = new AdhocWorkspace();
         var document = Create(workspace);
         var infra = workspace.CurrentSolution.Projects.Single(project => project.Name == "Sample.Infra");
-        var solution = infra.AddDocument("collision.cs", "// user content", filePath: "/source/Sample.Infra/Sales/salescontext.cs").Project.Solution;
+        var solution = infra.AddDocument("collision.cs", "// user content", filePath: SourcePath("Sample.Infra/Sales/salescontext.cs")).Project.Solution;
         workspace.TryApplyChanges(solution).Should().BeTrue();
         (await Actions(workspace.CurrentSolution.GetDocument(document.Id)!)).Should().BeEmpty();
     }
@@ -158,7 +159,7 @@ public sealed class AggregateReviewPlanRefactoringTests
         var solution = document.Project.Solution;
         foreach (var folder in new[] { "first", "second" })
             solution = solution.AddAdditionalDocument(DocumentId.CreateNewId(document.Project.Id), "DrnConventionInputs.g.cs",
-                SourceText.From("[assembly: DRN.Conventions.Version(\"1\")]"), filePath: "/source/Sample.Domain/" + folder + "/DrnConventionInputs.g.cs");
+                SourceText.From("[assembly: DRN.Conventions.Version(\"1\")]"), filePath: SourcePath("Sample.Domain", folder, "DrnConventionInputs.g.cs"));
         workspace.TryApplyChanges(solution).Should().BeTrue();
         (await Actions(workspace.CurrentSolution.GetDocument(document.Id)!)).Should().BeEmpty();
     }
@@ -289,13 +290,13 @@ public sealed class AggregateReviewPlanRefactoringTests
 
         using var rootWorkspace = new AdhocWorkspace();
         var domain = rootWorkspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
-                "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: "/source/Sample.Domain/Sample.Domain.csproj"))
+                "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: SourcePath("Sample.Domain/Sample.Domain.csproj")))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReferences(ClassificationTestFixture.References);
-        var document = domain.AddDocument("Order.cs", Source, filePath: "/source/Sample.Domain/Sales/Order.cs");
+        var document = domain.AddDocument("Order.cs", Source, filePath: SourcePath("Sample.Domain/Sales/Order.cs"));
         rootWorkspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
         var infra = rootWorkspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
-                "Sample.Infra", "Sample.Infra", LanguageNames.CSharp, filePath: "/source/Sample.Infra/Sample.Infra.csproj"))
+                "Sample.Infra", "Sample.Infra", LanguageNames.CSharp, filePath: SourcePath("Sample.Infra/Sample.Infra.csproj")))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReferences(ClassificationTestFixture.References)
             .AddMetadataReference(AnalyzerTestCompilation.EntityFrameworkReference)
@@ -306,7 +307,7 @@ public sealed class AggregateReviewPlanRefactoringTests
                 {
                     public SalesContext() : base(null) { }
                 }
-                """, filePath: "/source/Sample.Infra/SalesContext.cs").Project;
+                """, filePath: SourcePath("Sample.Infra/SalesContext.cs")).Project;
         rootWorkspace.TryApplyChanges(infra.Solution).Should().BeTrue();
         var rootAction = (await Actions(rootWorkspace.CurrentSolution.GetDocument(document.Id)!)).Should().ContainSingle().Which;
         var rootChanged = await rootAction.GetChangedSolutionAsync();
@@ -317,6 +318,21 @@ public sealed class AggregateReviewPlanRefactoringTests
             .And.Contain("Proposed Migrations destination: Migrations" + Environment.NewLine)
             .And.NotContain("./Repositories")
             .And.NotContain("./Migrations");
+    }
+
+    [Fact]
+    public async Task Contradictory_Producer_Domains_Should_Decline_Aggregate_Plan()
+    {
+        using var workspace = new AdhocWorkspace();
+        var document = Create(workspace);
+        var domain = document.Project.AddDocument("AssemblyInfo.cs", """
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Domain", "Sample")]
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Domain", "Other")]
+            """, filePath: SourcePath("Sample.Domain/Properties/AssemblyInfo.cs")).Project;
+        workspace.TryApplyChanges(domain.Solution).Should().BeTrue();
+        var current = workspace.CurrentSolution.GetDocument(document.Id)!;
+        (await current.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
+        (await Actions(current)).Should().BeEmpty();
     }
 
     [Fact]
@@ -426,17 +442,17 @@ public sealed class AggregateReviewPlanRefactoringTests
     {
         using var workspace = new AdhocWorkspace();
         var domain = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
-                "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: "/source/Sample.Domain/Sample.Domain.csproj"))
+                "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: SourcePath("Sample.Domain/Sample.Domain.csproj")))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReferences(ClassificationTestFixture.References);
         var document = domain.AddDocument("Order.cs", """
             namespace Sample.Domain.Billing.Sales.Orders;
             public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
-            """, filePath: "/source/Sample.Domain/Billing/Sales/Orders/Order.cs");
+            """, filePath: SourcePath("Sample.Domain/Billing/Sales/Orders/Order.cs"));
         workspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
 
         var infra = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
-                "Sample.Infra", "Sample.Infra", LanguageNames.CSharp, filePath: "/source/Sample.Infra/Sample.Infra.csproj"))
+                "Sample.Infra", "Sample.Infra", LanguageNames.CSharp, filePath: SourcePath("Sample.Infra/Sample.Infra.csproj")))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReferences(ClassificationTestFixture.References)
             .AddMetadataReference(AnalyzerTestCompilation.EntityFrameworkReference)
@@ -445,7 +461,7 @@ public sealed class AggregateReviewPlanRefactoringTests
                 namespace Sample.Infra.Billing.Sales;
                 public class BillingReadContext : DRN.Framework.EntityFramework.Context.DrnContext<BillingReadContext>
                 { public BillingReadContext() : base(null) { } }
-                """, filePath: "/source/Sample.Infra/Billing/Sales/BillingReadContext.cs").Project;
+                """, filePath: SourcePath("Sample.Infra/Billing/Sales/BillingReadContext.cs")).Project;
         var solution = infra.Solution.WithFoldersLayout()
             .AddAdditionalDocument(DocumentId.CreateNewId(infra.Id), "DrnConventionInputs.g.cs",
                 SourceText.From($$"""
@@ -454,6 +470,7 @@ public sealed class AggregateReviewPlanRefactoringTests
                     """));
         workspace.TryApplyChanges(solution).Should().BeTrue();
 
+        (await workspace.CurrentSolution.GetProject(domain.Id)!.GetCompilationAsync())!.AssertNoCompilerErrors();
         var infraCompilation = (await workspace.CurrentSolution.GetProject(infra.Id)!.GetCompilationAsync())!;
         infraCompilation.AssertNoCompilerErrors();
         infraCompilation.GetTypeByMetadataName("Sample.Infra.Billing.Sales.BillingReadContext").Should().NotBeNull();
@@ -473,7 +490,7 @@ public sealed class AggregateReviewPlanRefactoringTests
     {
         using var workspace = new AdhocWorkspace();
         var infra = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
-                "Sample.Infra", "Sample.Infra", LanguageNames.CSharp, filePath: "/source/Sample.Infra/Sample.Infra.csproj"))
+                "Sample.Infra", "Sample.Infra", LanguageNames.CSharp, filePath: SourcePath("Sample.Infra/Sample.Infra.csproj")))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReferences(ClassificationTestFixture.References)
             .AddMetadataReference(AnalyzerTestCompilation.EntityFrameworkReference)
@@ -481,7 +498,7 @@ public sealed class AggregateReviewPlanRefactoringTests
                 namespace Sample.Infra.Billing.Sales;
                 public class BillingReadContext : DRN.Framework.EntityFramework.Context.DrnContext<BillingReadContext>
                 { public BillingReadContext() : base(null) { } }
-                """, filePath: "/source/Sample.Infra/Billing/Sales/BillingReadContext.cs").Project;
+                """, filePath: SourcePath("Sample.Infra/Billing/Sales/BillingReadContext.cs")).Project;
         var solution = infra.Solution.WithFoldersLayout();
         var omittedInput = SourceText.From("""
             [assembly: DRN.Conventions.Version("1")]
@@ -532,27 +549,27 @@ public sealed class AggregateReviewPlanRefactoringTests
         using var workspace = new AdhocWorkspace();
         var layoutConfig = SourceText.From("is_global = true\nbuild_property.DrnDomainLayout = Folders\n");
         var domain = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
-                domainName, domainName, LanguageNames.CSharp, filePath: "/source/" + domainName + "/" + domainName + ".csproj"))
+                domainName, domainName, LanguageNames.CSharp, filePath: SourcePath(domainName, domainName + ".csproj")))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReferences(ClassificationTestFixture.References);
         if (domainFolders)
             domain = domain.AddAnalyzerConfigDocument("layout.globalconfig", layoutConfig,
-                filePath: "/source/" + domainName + "/layout.globalconfig").Project;
+                filePath: SourcePath(domainName, "layout.globalconfig")).Project;
         var document = domain.AddDocument("Order.cs", $$"""
             namespace {{entityNamespace}};
             public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
-            """, filePath: "/source/" + domainName + "/" + entityPath);
+            """, filePath: SourcePath(domainName, entityPath));
         workspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
 
         var infra = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
-                infraName, infraName, LanguageNames.CSharp, filePath: "/source/" + infraName + "/" + infraName + ".csproj"))
+                infraName, infraName, LanguageNames.CSharp, filePath: SourcePath(infraName, infraName + ".csproj")))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReferences(ClassificationTestFixture.References)
             .AddMetadataReference(AnalyzerTestCompilation.EntityFrameworkReference)
             .AddProjectReference(new ProjectReference(domain.Id));
         if (!domainFolders)
             infra = infra.AddAnalyzerConfigDocument("layout.globalconfig", layoutConfig,
-                filePath: "/source/" + infraName + "/layout.globalconfig").Project;
+                filePath: SourcePath(infraName, "layout.globalconfig")).Project;
         workspace.TryApplyChanges(infra.Solution).Should().BeTrue();
 
         var actions = await Actions(workspace.CurrentSolution.GetDocument(document.Id)!);
@@ -572,18 +589,18 @@ public sealed class AggregateReviewPlanRefactoringTests
     private static Document Create(AdhocWorkspace workspace, string contexts = "", string infraName = "Sample.Infra", bool reference = true)
     {
         var domain = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
-                "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: "/source/Sample.Domain/Sample.Domain.csproj"))
+                "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: SourcePath("Sample.Domain/Sample.Domain.csproj")))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReferences(ClassificationTestFixture.References);
-        var document = domain.AddDocument("Order.cs", Source, filePath: "/source/Sample.Domain/Sales/Order.cs");
+        var document = domain.AddDocument("Order.cs", Source, filePath: SourcePath("Sample.Domain/Sales/Order.cs"));
         workspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
         var infra = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
-                infraName, infraName, LanguageNames.CSharp, filePath: "/source/" + infraName + "/" + infraName + ".csproj"))
+                infraName, infraName, LanguageNames.CSharp, filePath: SourcePath(infraName, infraName + ".csproj")))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReferences(ClassificationTestFixture.References)
             .AddMetadataReference(AnalyzerTestCompilation.EntityFrameworkReference);
         if (reference) infra = infra.AddProjectReference(new ProjectReference(domain.Id));
-        if (contexts.Length > 0) infra = infra.AddDocument("Contexts.cs", contexts, filePath: "/source/" + infraName + "/Sales/Contexts.cs").Project;
+        if (contexts.Length > 0) infra = infra.AddDocument("Contexts.cs", contexts, filePath: SourcePath(infraName, "Sales/Contexts.cs")).Project;
         workspace.TryApplyChanges(infra.Solution).Should().BeTrue();
         return workspace.CurrentSolution.GetDocument(document.Id)!;
     }

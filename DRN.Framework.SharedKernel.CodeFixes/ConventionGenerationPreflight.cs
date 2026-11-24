@@ -33,9 +33,14 @@ internal static class ConventionGenerationPreflight
     internal sealed record AssemblyConventionMetadata(ProjectLayout Layout, string RootNamespace,
         bool HasExplicitRootNamespace, bool HasRoleOverrides, List<KeyValuePair<string, string>> Metadata)
     {
+        // Loaded projects can supply a layout that cannot be inferred from the assembly name alone.
+        private bool CanResolveProducerLayout => Layout.Valid || RootNamespace.Length > 0 &&
+            !Metadata.Any(entry => entry.Key is "DRN.Conventions.Domain" or "DRN.Conventions.DomainLayout");
+
         internal bool TryValidateProducerOwnership(string entityName, CodeFixSymbolFacts.OwnerKey owner, out bool hasExplicitDomain)
         {
             hasExplicitDomain = false;
+            if (!CanResolveProducerLayout) return false;
             var prefix = "DRN.Conventions.Ownership." + entityName + ".";
             string? domain = null;
             string? subdomain = null;
@@ -45,38 +50,31 @@ internal static class ConventionGenerationPreflight
             foreach (var (key, value) in Metadata)
             {
                 if (!key.StartsWith(prefix, StringComparison.Ordinal)) continue;
-                hasRecord = true;
                 var field = key[prefix.Length..];
-                switch (field)
+                hasRecord = true;
+                var valid = field switch
                 {
-                    case ConventionInputSyntax.DomainField:
-                        if (domain is not null && domain != value) return false;
-                        domain = value;
-                        break;
-                    case ConventionInputSyntax.SubdomainField:
-                        if (subdomain is not null && subdomain != value) return false;
-                        subdomain = value;
-                        break;
-                    case ConventionInputSyntax.ReasonField:
-                        if (reason is not null && reason != value) return false;
-                        reason = value;
-                        break;
-                    case ConventionInputSyntax.KindField:
-                        if (kind is not null && kind != value) return false;
-                        kind = value;
-                        break;
-                    default:
-                        return false;
-                }
+                    ConventionInputSyntax.DomainField => TrySetField(ref domain, value),
+                    ConventionInputSyntax.SubdomainField => TrySetField(ref subdomain, value),
+                    ConventionInputSyntax.ReasonField => TrySetField(ref reason, value),
+                    ConventionInputSyntax.KindField => TrySetField(ref kind, value),
+                    _ => false
+                };
+                if (!valid) return false;
             }
             if (!hasRecord) return true;
             if (subdomain is null || subdomain != owner.Subdomain) return false;
             if (kind is not (null or "" or ConventionInputSyntax.EntityField)) return false;
-            if (!string.IsNullOrEmpty(domain))
-            {
-                if (domain != owner.Domain) return false;
-                hasExplicitDomain = true;
-            }
+            if (string.IsNullOrEmpty(domain)) return true;
+            if (domain != owner.Domain) return false;
+            hasExplicitDomain = true;
+            return true;
+        }
+
+        private static bool TrySetField(ref string? field, string value)
+        {
+            if (field is not null) return field == value;
+            field = value;
             return true;
         }
     }

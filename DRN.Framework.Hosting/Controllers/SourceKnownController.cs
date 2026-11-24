@@ -7,17 +7,23 @@ namespace DRN.Framework.Hosting.Controllers;
 /// Combines all read actions with opt-in create and delete actions backed by an application service.
 /// Applications supply explicit response projection, named authorization policies and resource-specific checks.
 /// </summary>
-[SuppressMessage("SonarQube", "S2436", Justification = "Entity, response contract and create request are independent contracts. Three type parameters preserve typed service access, response projection and request binding.")]
-public abstract class SourceKnownController<TEntity, TResponse, TCreateRequest>(
-    ISourceKnownService<TEntity, TResponse, TCreateRequest> service)
-    : SourceKnownReadOnlyController<TEntity, TResponse>(service)
+public abstract class SourceKnownController<TEntity, TResponse, TCreateRequest>
+    : SourceKnownReadOnlyController<TEntity, TResponse>
     where TEntity : AggregateRoot
     where TResponse : class
     where TCreateRequest : class
 {
+    /// <summary>Initializes the controller with a service accepting an explicit HTTP request.</summary>
+    protected SourceKnownController(ISourceKnownService<TEntity, TResponse, TCreateRequest> service) : base(service)
+    {
+        Service = service;
+    }
+
+    protected new ISourceKnownService<TEntity, TResponse, TCreateRequest> Service { get; }
+
     /// <summary>Builds an entity through the backing application service.</summary>
     protected virtual Task<TEntity> CreateEntityAsync(TCreateRequest request, CancellationToken cancellationToken)
-        => service.CreateEntityAsync(request, cancellationToken);
+        => Service.CreateEntityAsync(request, cancellationToken);
 
     /// <summary>Creates an entity and returns its response contract. Does not require the GET action to be enabled.</summary>
     [HttpPost]
@@ -32,7 +38,7 @@ public abstract class SourceKnownController<TEntity, TResponse, TCreateRequest>(
         cancellationToken.ThrowIfCancellationRequested();
         await Repository.CreateAsync(entity);
         cancellationToken.ThrowIfCancellationRequested();
-        var response = await CreateResponseAsync(entity, cancellationToken);
+        var response = await Service.CreateResponseAsync(entity, cancellationToken);
 
         return new ObjectResult(response) { StatusCode = StatusCodes.Status201Created };
     }

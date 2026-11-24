@@ -60,9 +60,11 @@ public class TagServiceTests
         await canceled.Should().ThrowAsync<OperationCanceledException>();
     }
 
-    [Fact]
-    public async Task CreateEntityAsync_Should_Map_User_Tag_Validate_Type_And_Honor_Cancellation()
+    [Theory]
+    [DataInlineUnit]
+    public async Task CreateEntityAsync_Should_Map_User_Tag_Validate_Type_And_Honor_Cancellation(DrnTestContextUnit context)
     {
+        ScopeContext.InitializeForTest(context);
         var repository = Substitute.For<ITagRepository>();
         var service = new TagService(repository);
         var date = new DateTimeOffset(2026, 3, 5, 0, 0, 0, TimeSpan.Zero);
@@ -94,7 +96,6 @@ public class TagServiceTests
         Func<Task> nullRequest = () => service.CreateEntityAsync(null!);
         Func<Task> nullRequestModel = () => service.CreateEntityAsync(new TagPostRequest { Name = "Missing model", Model = null! });
         await nullRequest.Should().ThrowAsync<ArgumentNullException>();
-        ScopeContext.Problem.Detail = null;
         await nullRequestModel.Should().ThrowAsync<ValidationException>()
             .WithMessage("Tag model is required.");
         ScopeContext.Problem.Detail.Should().Be("Tag model is required.");
@@ -107,7 +108,7 @@ public class TagServiceTests
                 Name = "Invalid tag",
                 Model = new TagModelPostRequest { Type = invalidType }
             };
-            ScopeContext.Problem.Detail = null;
+            ScopeContext.InitializeForTest(context);
             Func<Task> createInvalid = () => service.CreateEntityAsync(invalidRequest);
             await createInvalid.Should().ThrowAsync<ValidationException>()
                 .WithMessage("Only User tag type is permitted.");

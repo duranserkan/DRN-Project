@@ -24,7 +24,7 @@ public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnaly
     {
         var controller = (INamedTypeSymbol)context.Symbol;
         if (controller.TypeKind != TypeKind.Class || controller.IsAbstract || !IsPublicClosedType(controller) ||
-            !DerivesFrom(controller, contract.Foundation))
+            !DerivesFrom(controller, contract.ReadOnlyController))
             return;
 
         var classAccess = ReadAuthorization(controller, contract.NonController, contract, context.CancellationToken);
@@ -269,7 +269,7 @@ public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnaly
             _readAction = (method, token) => ReadAuthorization(method, NonAction, this, token);
         }
 
-        internal required INamedTypeSymbol Foundation { get; init; }
+        internal required INamedTypeSymbol ReadOnlyController { get; init; }
         internal required INamedTypeSymbol Authorize { get; init; }
         internal required INamedTypeSymbol Anonymous { get; init; }
         internal INamedTypeSymbol NonAction { get; }
@@ -281,8 +281,8 @@ public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnaly
 
         internal static Contract? TryCreate(Compilation compilation)
         {
-            var foundation = compilation.GetTypeByMetadataName("DRN.Framework.Hosting.Controllers.SourceKnownControllerBase`2");
-            if (foundation is null) return null;
+            var readOnlyController = compilation.GetTypeByMetadataName("DRN.Framework.Hosting.Controllers.SourceKnownReadOnlyController`2");
+            if (readOnlyController is null) return null;
             var authorize = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Authorization.AuthorizeAttribute");
             var anonymous = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Authorization.IAllowAnonymous");
             var nonAction = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.NonActionAttribute");
@@ -299,7 +299,7 @@ public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnaly
                 ?.GetMembers("Dispose").OfType<IMethodSymbol>().FirstOrDefault();
             return new Contract(nonAction)
             {
-                Foundation = foundation,
+                ReadOnlyController = readOnlyController,
                 Authorize = authorize,
                 Anonymous = anonymous,
                 NonController = nonController,

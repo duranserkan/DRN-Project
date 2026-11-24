@@ -3,15 +3,13 @@ using DRN.Framework.SharedKernel.CodeFixes;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeRefactorings;
 using Microsoft.CodeAnalysis.Text;
+using static DRN.Test.Analyzer.Tests.AnalyzerTestCompilation;
 
 namespace DRN.Test.Analyzer.Tests;
 
 [SuppressMessage("ReSharper", "AccessToDisposedClosure")]
 public sealed class RepositoryMethodServiceRefactoringTests
 {
-    private static readonly string SourceRoot = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "drn-repo-service-tests"));
-    private static string SourcePath(params string[] segments) => Path.Combine([SourceRoot, .. segments]);
-
     private const string Method = "System.Threading.Tasks.Task<int> CountVisibleAsync(string filter, System.Threading.CancellationToken cancellationToken = default);";
 
     [Fact]
@@ -213,7 +211,7 @@ public sealed class RepositoryMethodServiceRefactoringTests
     {
         using var workspace = new AdhocWorkspace();
         var domain = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
-                "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: "/source/Sample.Domain/Sample.Domain.csproj"))
+                "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: SourcePath("Sample.Domain/Sample.Domain.csproj")))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReferences(ClassificationTestFixture.References);
         var document = domain.AddDocument("IOrderRepository.cs", $$"""
@@ -225,10 +223,10 @@ public sealed class RepositoryMethodServiceRefactoringTests
                 {{Method}}
                 // select-end
             }
-            """, filePath: "/source/Sample.Domain/QA/Order/IOrderRepository.cs");
+            """, filePath: SourcePath("Sample.Domain/QA/Order/IOrderRepository.cs"));
         workspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
         var application = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
-                "Sample.Application", "Sample.Application", LanguageNames.CSharp, filePath: "/source/Sample.Application/Sample.Application.csproj"))
+                "Sample.Application", "Sample.Application", LanguageNames.CSharp, filePath: SourcePath("Sample.Application/Sample.Application.csproj")))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddProjectReference(new ProjectReference(domain.Id))
             .AddMetadataReferences(ClassificationTestFixture.References)
@@ -244,7 +242,7 @@ public sealed class RepositoryMethodServiceRefactoringTests
                     return services;
                 }
             }
-            """, filePath: "/source/Sample.Application/ApplicationModule.cs").Project;
+            """, filePath: SourcePath("Sample.Application/ApplicationModule.cs")).Project;
         workspace.TryApplyChanges(application.Solution).Should().BeTrue();
 
         var action = (await Actions(workspace.CurrentSolution.GetDocument(document.Id)!))
@@ -256,16 +254,16 @@ public sealed class RepositoryMethodServiceRefactoringTests
         (await service.GetTextAsync()).ToString().Should().Contain("public sealed class OrderCountVisibleService");
         var domainCompilation = (await changed.Projects.Single(project => project.Name == "Sample.Domain").GetCompilationAsync())!;
         domainCompilation.AssertNoCompilerErrors();
-        var domainReference = AnalyzerTestCompilation.EmitReference(domainCompilation, "/source/Sample.Domain/Sample.Domain.dll", AnalyzerTestCompilation.ReferenceAssemblyOptions);
+        var domainReference = AnalyzerTestCompilation.EmitReference(domainCompilation, SourcePath("Sample.Domain/Sample.Domain.dll"), AnalyzerTestCompilation.ReferenceAssemblyOptions);
         var compilation = (await changedApp.GetCompilationAsync())!;
         var appCompilation = compilation.RemoveReferences(compilation.References.OfType<CompilationReference>()).AddReferences(domainReference);
-        var inputs = new ProjectDiagnosticRulesTests.RuleFile(Framework.SharedKernel.Analyzers.Conventions.ConventionInputs.FileName, """
+        var inputs = new ProjectDiagnosticRulesTests.RuleFile(Framework.SharedKernel.Analyzers.Conventions.ConventionInputs.FileName, $"""
             [assembly: DRN.Conventions.Version("1")]
             [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
-            [assembly: DRN.Conventions.Reference("/source/Sample.Domain/Sample.Domain.csproj", Stage = "Project", Source = "/source/Sample.Domain/Sample.Domain.csproj")]
-            [assembly: DRN.Conventions.Reference("/source/Sample.Domain/Sample.Domain.dll", Stage = "Resolved", Project = "/source/Sample.Domain/Sample.Domain.csproj")]
-            [assembly: DRN.Conventions.Path("/source/Sample.Application/ApplicationModule.cs", LogicalPath = "ApplicationModule.cs")]
-            [assembly: DRN.Conventions.Path("/source/Sample.Application/Services/QA/Order/OrderCountVisibleService.cs", LogicalPath = "Services/QA/Order/OrderCountVisibleService.cs")]
+            [assembly: DRN.Conventions.Reference({SourcePathLiteral("Sample.Domain/Sample.Domain.csproj")}, Stage = "Project", Source = {SourcePathLiteral("Sample.Domain/Sample.Domain.csproj")})]
+            [assembly: DRN.Conventions.Reference({SourcePathLiteral("Sample.Domain/Sample.Domain.dll")}, Stage = "Resolved", Project = {SourcePathLiteral("Sample.Domain/Sample.Domain.csproj")})]
+            [assembly: DRN.Conventions.Path({SourcePathLiteral("Sample.Application/ApplicationModule.cs")}, LogicalPath = "ApplicationModule.cs")]
+            [assembly: DRN.Conventions.Path({SourcePathLiteral("Sample.Application/Services/QA/Order/OrderCountVisibleService.cs")}, LogicalPath = "Services/QA/Order/OrderCountVisibleService.cs")]
             """);
         var diagnostics = await AnalyzerTestCompilation.Analyze(appCompilation,
             new Framework.SharedKernel.Analyzers.Conventions.SourceKnownConventionAnalyzer(),
@@ -348,6 +346,13 @@ public sealed class RepositoryMethodServiceRefactoringTests
     [Theory]
     [DataInlineUnit(false, false, "Sample.Domain", "Sample.Application", "Sample.Domain.QA.Order", "QA/Order/IOrderRepository.cs", "", true)]
     [DataInlineUnit(false, false, "Sample.Domain", "Sample.Application", "Sample.Domain.QA.Order", "QA/Order/IOrderRepository.cs", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Role.Domain", "Sample.Domain")]
+        """, false)]
+    [DataInlineUnit(false, false, "Sample.Domain", "Sample.Application", "Sample.Domain.QA.Order", "QA/Order/IOrderRepository.cs", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Domain", "Other")]
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Domain", "Sample")]
+        """, false)]
+    [DataInlineUnit(false, false, "Sample.Domain", "Sample.Application", "Sample.Domain.QA.Order", "QA/Order/IOrderRepository.cs", """
         [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.QA.Order.OrderEntity.Subdomain", "Billing")]
         """, false)]
     [DataInlineUnit(false, false, "Sample.Domain", "Sample.Application", "Sample.Domain.QA.Order", "QA/Order/IOrderRepository.cs", """
@@ -412,21 +417,40 @@ public sealed class RepositoryMethodServiceRefactoringTests
                 filePath: SourcePath(appName, "layout.globalconfig")).Project;
         workspace.TryApplyChanges(application.Solution).Should().BeTrue();
 
-        (await workspace.CurrentSolution.GetProject(application.Id)!.GetCompilationAsync())!.AssertNoCompilerErrors();
+        (await workspace.CurrentSolution.GetProject(domain.Id)!.GetCompilationAsync())!.AssertNoCompilerErrors();
         var actions = await Actions(workspace.CurrentSolution.GetDocument(document.Id)!);
         if (offered) actions.Should().HaveCount(2);
         else actions.Should().BeEmpty();
     }
 
-    private static Document Create(AdhocWorkspace workspace, string method = Method, bool reference = true, string targetName = "Sample.Application")
+    [Fact]
+    public async Task Repository_And_Aggregate_In_Separate_Assemblies_Should_Not_Offer_A_Service()
+    {
+        using var workspace = new AdhocWorkspace();
+        var producer = ClassificationTestFixture.Compilation("namespace Sample.Domain.QA.Orders; " + OrderDeclaration)
+            .WithAssemblyName("Other.Domain");
+        var entityReference = AnalyzerTestCompilation.EmitReference(producer, SourcePath("Other.Domain/Other.Domain.dll"),
+            AnalyzerTestCompilation.ReferenceAssemblyOptions);
+        var document = Create(workspace, entityReference: entityReference);
+        foreach (var project in document.Project.Solution.Projects)
+            (await project.GetCompilationAsync())!.AssertNoCompilerErrors();
+        (await Actions(document)).Should().BeEmpty();
+    }
+
+    private const string OrderDeclaration =
+        "public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }";
+
+    private static Document Create(AdhocWorkspace workspace, string method = Method, bool reference = true,
+        string targetName = "Sample.Application", MetadataReference? entityReference = null)
     {
         var domain = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
                 "Sample.Domain", "Sample.Domain", LanguageNames.CSharp, filePath: SourcePath("Sample.Domain", "Sample.Domain.csproj")))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReferences(ClassificationTestFixture.References);
+        if (entityReference is not null) domain = domain.AddMetadataReference(entityReference);
         var document = domain.AddDocument("IOrderRepository.cs", $$"""
             namespace Sample.Domain.QA.Orders;
-            public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
+            {{(entityReference is null ? OrderDeclaration : "")}}
             public interface IOrderRepository : DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<Order>
             {
                 // select-start
@@ -441,6 +465,7 @@ public sealed class RepositoryMethodServiceRefactoringTests
             .AddMetadataReferences(ClassificationTestFixture.References)
             .AddMetadataReference(AnalyzerTestCompilation.UtilsReference);
         if (reference) application = application.AddProjectReference(new ProjectReference(domain.Id));
+        if (entityReference is not null) application = application.AddMetadataReference(entityReference);
         workspace.TryApplyChanges(application.Solution).Should().BeTrue();
         return workspace.CurrentSolution.GetDocument(document.Id)!;
     }

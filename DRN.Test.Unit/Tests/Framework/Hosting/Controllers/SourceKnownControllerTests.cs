@@ -42,7 +42,6 @@ public class SourceKnownControllerTests
         var actions = provider.GetRequiredService<IActionDescriptorCollectionProvider>().ActionDescriptors.Items
             .OfType<ControllerActionDescriptor>().ToArray();
 
-        actions.Where(action => action.ControllerTypeInfo.AsType() == typeof(FoundationProbeController)).Should().BeEmpty();
         var readActions = actions.Where(action => action.ControllerTypeInfo.AsType() == typeof(ReadProbeController)).ToArray();
         readActions.Select(action => action.MethodInfo.Name).Should().BeEquivalentTo(ReadActionNames);
         var writeActions = actions.Where(action => action.ControllerTypeInfo.AsType() == typeof(WriteProbeController)).ToArray();
@@ -101,18 +100,13 @@ public class SourceKnownControllerTests
         using var cancellation = new CancellationTokenSource();
 
         controller.Should().NotBeAssignableTo<ISourceKnownService<Tag>>();
-        typeof(SourceKnownControllerBase<Tag, TagProbeResponse>)
-            .GetProperty("Repository", BindingFlags.Instance | BindingFlags.Public).Should().BeNull();
-        var createResponse = typeof(SourceKnownControllerBase<Tag, TagProbeResponse>)
-            .GetMethod("CreateResponseAsync", BindingFlags.Instance | BindingFlags.NonPublic);
-        var createResponses = typeof(SourceKnownControllerBase<Tag, TagProbeResponse>)
-            .GetMethod("CreateResponsesAsync", BindingFlags.Instance | BindingFlags.NonPublic);
-        createResponse.Should().NotBeNull();
-        createResponse!.IsFamily.Should().BeTrue();
-        createResponse.IsVirtual.Should().BeFalse();
-        createResponses.Should().NotBeNull();
-        createResponses!.IsFamily.Should().BeTrue();
-        createResponses.IsVirtual.Should().BeFalse();
+        var readOnlyController = typeof(SourceKnownReadOnlyController<Tag, TagProbeResponse>);
+        foreach (var propertyName in new[] { "Repository", "Service" })
+        {
+            var property = readOnlyController.GetProperty(propertyName, BindingFlags.Instance | BindingFlags.NonPublic);
+            property.Should().NotBeNull();
+            property!.GetMethod!.IsFamily.Should().BeTrue();
+        }
         controller.ExposedRepository.Should().BeSameAs(repository);
         (await controller.GetAsync(id, cancellation.Token)).Name.Should().Be(tag.Name);
         (await controller.GetManyAsync(ids, cancellation.Token)).Select(response => response.Name).Should().Equal(tag.Name);
@@ -137,11 +131,11 @@ public class SourceKnownControllerTests
 
     [Theory]
     [DataMemberUnit(nameof(InvalidLookupBatches))]
-    public async Task Invalid_Batches_Should_Be_Rejected_Before_Repository_Work(Guid[]? ids)
+    public async Task Invalid_Batches_Should_Be_Rejected_Before_Repository_Work(DrnTestContextUnit context, Guid[]? ids)
     {
+        ScopeContext.InitializeForTest(context);
         var repository = Substitute.For<ISourceKnownRepository<Tag>>();
         var controller = new ReadProbeController(CreateTagService(repository));
-        ScopeContext.Problem.Detail = null;
         Func<Task> lookup = () => controller.GetManyAsync(ids!);
         await lookup.Should().ThrowAsync<ValidationException>()
             .WithMessage("Provide a nonempty ID batch within the server's batch limit.");
@@ -417,9 +411,6 @@ public class SourceKnownControllerTests
         var nullGuardService = Substitute.For<ISourceKnownService<Tag, TagProbeResponse, CreateProbeRequest>>();
         nullGuardService.Repository.Returns(repository);
         nullGuardService.CreateEntityAsync(Arg.Any<CreateProbeRequest>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult<Tag>(null!));
-        nullGuardService.CreateResponseAsync(Arg.Any<Tag>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult<TagProbeResponse>(null!));
-        nullGuardService.CreateResponsesAsync(Arg.Any<IReadOnlyList<Tag>>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult<TagProbeResponse[]>(null!));
-        repository.GetAsync(id, SourceKnownEntityIdFormat.ConfiguredDefault).Returns(first);
         var nullGuardController = new WriteProbeController(nullGuardService) { AllowWrite = true };
 
         Func<Task> nullPost = () => nullGuardController.PostAsync(null!);
@@ -428,44 +419,7 @@ public class SourceKnownControllerTests
         await nullPaginate.Should().ThrowAsync<ArgumentNullException>().WithParameterName("request");
 
         Func<Task> nullEntityPost = () => nullGuardController.PostAsync(new CreateProbeRequest("Null entity"));
-        Func<Task> nullResponseGet = () => nullGuardController.GetAsync(id);
-        Func<Task> nullResponsesBatch = () => nullGuardController.GetManyAsync([id]);
-        Func<Task> nullResponsesPage = () => nullGuardController.PaginateAsync();
         await nullEntityPost.Should().ThrowAsync<InvalidOperationException>().WithMessage("*CreateEntityAsync*null*");
-        await nullResponseGet.Should().ThrowAsync<InvalidOperationException>().WithMessage("*CreateResponseAsync*null*");
-        await nullResponsesBatch.Should().ThrowAsync<InvalidOperationException>().WithMessage("*CreateResponsesAsync*null*");
-        await nullResponsesPage.Should().ThrowAsync<InvalidOperationException>().WithMessage("*CreateResponsesAsync*null*");
-
-        var invalidBatchService = Substitute.For<ISourceKnownService<Tag, TagProbeResponse>>();
-        invalidBatchService.Repository.Returns(repository);
-        invalidBatchService.CreateResponsesAsync(Arg.Any<IReadOnlyList<Tag>>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<TagProbeResponse[]>([ToProbeResponse(first)]));
-        var invalidBatchController = new ReadProbeController(invalidBatchService);
-
-        Func<Task> tooFewPageResponses = () => invalidBatchController.PaginateAsync();
-        Func<Task> tooFewBatchResponses = () => invalidBatchController.GetManyAsync([id]);
-        await tooFewPageResponses.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*CreateResponsesAsync*1*2*");
-        await tooFewBatchResponses.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*CreateResponsesAsync*1*2*");
-
-        invalidBatchService.CreateResponsesAsync(Arg.Any<IReadOnlyList<Tag>>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<TagProbeResponse[]>([ToProbeResponse(first), ToProbeResponse(second), ToProbeResponse(first)]));
-        Func<Task> tooManyPageResponses = () => invalidBatchController.PaginateAsync();
-        Func<Task> tooManyBatchResponses = () => invalidBatchController.GetManyAsync([id]);
-        await tooManyPageResponses.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*CreateResponsesAsync*3*2*");
-        await tooManyBatchResponses.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*CreateResponsesAsync*3*2*");
-
-        invalidBatchService.CreateResponsesAsync(Arg.Any<IReadOnlyList<Tag>>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<TagProbeResponse[]>([ToProbeResponse(first), null!]));
-        Func<Task> nullElementPageResponses = () => invalidBatchController.PaginateAsync();
-        Func<Task> nullElementBatchResponses = () => invalidBatchController.GetManyAsync([id]);
-        await nullElementPageResponses.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*CreateResponsesAsync*null element*");
-        await nullElementBatchResponses.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*CreateResponsesAsync*null element*");
     }
 
     private static TagProbeService CreateTagService(ISourceKnownRepository<Tag> repository) => new(repository);
@@ -474,7 +428,6 @@ public class SourceKnownControllerTests
     {
         public void PopulateFeature(IEnumerable<ApplicationPart> parts, ControllerFeature feature)
         {
-            feature.Controllers.Add(typeof(FoundationProbeController).GetTypeInfo());
             feature.Controllers.Add(typeof(ReadProbeController).GetTypeInfo());
             feature.Controllers.Add(typeof(WriteProbeController).GetTypeInfo());
             feature.Controllers.Add(typeof(DisabledProbeController).GetTypeInfo());
@@ -567,11 +520,6 @@ public class SourceKnownControllerTests
                 Name = entity.Name
             });
     }
-
-    [Route("source-known-foundation")]
-    [Authorize(Policy = "SourceKnown.Probe")]
-    public sealed class FoundationProbeController(ISourceKnownService<Tag, TagProbeResponse> service)
-        : SourceKnownControllerBase<Tag, TagProbeResponse>(service);
 
     [Route("source-known-read")]
     [Authorize(Policy = "SourceKnown.Probe")]

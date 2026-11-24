@@ -21,6 +21,8 @@ namespace DRN.Test.Integration.Tests.Sample.Controller.QA;
 
 public class CategoryControllerTests
 {
+    private static readonly string[] CategoryResponseProperties = ["id", "createdAt", "modifiedAt", "name"];
+
     [Theory]
     [DataInline("")]
     [DataInline("/gateway")]
@@ -88,7 +90,7 @@ public class CategoryControllerTests
         using (var createdDoc = JsonDocument.Parse(createdRaw))
         {
             createdDoc.RootElement.EnumerateObject().Select(property => property.Name)
-                .Should().BeEquivalentTo(new[] { "id", "createdAt", "modifiedAt", "name" });
+                .Should().BeEquivalentTo(CategoryResponseProperties);
         }
         var expected = JsonSerializer.Deserialize<CategoryResponse>(createdRaw, DRN.Framework.SharedKernel.Json.JsonConventions.DefaultOptions);
         expected.Should().NotBeNull();

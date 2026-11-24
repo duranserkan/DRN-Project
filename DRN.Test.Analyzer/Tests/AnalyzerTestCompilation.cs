@@ -8,6 +8,12 @@ internal static class AnalyzerTestCompilation
 {
     private static readonly ConcurrentDictionary<string, MetadataReference> FileReferences = new(StringComparer.Ordinal);
     private static readonly ConcurrentDictionary<string, SyntaxTree> WideModelTrees = new(StringComparer.Ordinal);
+    private static readonly string SourceRoot = Path.Combine(Path.GetTempPath(), "drn-refactoring-tests");
+
+    internal static string SourcePath(params string[] segments) => Path.GetFullPath(Path.Combine([SourceRoot, .. segments]));
+
+    internal static string SourcePathLiteral(string relativePath) =>
+        Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(SourcePath(relativePath), quote: true);
 
     private static readonly Lazy<ImmutableArray<MetadataReference>> Core = new(() =>
     [

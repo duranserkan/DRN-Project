@@ -13,6 +13,9 @@ namespace DRN.Test.Integration.Tests.Sample.Controller.QA;
 
 public class TagControllerTests
 {
+    private static readonly string[] TagResponseProperties = ["id", "createdAt", "modifiedAt", "name", "model"];
+    private static readonly string[] TagModelProperties = ["boolValue", "stringValue", "max", "min", "other", "date", "type"];
+
     [Theory]
     [DataInline]
     public async Task TagController_Should_Use_Standard_Crud_And_Pagination_Contracts(DrnTestContext context)
@@ -62,9 +65,9 @@ public class TagControllerTests
             using (var createdDoc = JsonDocument.Parse(createdRaw))
             {
                 createdDoc.RootElement.EnumerateObject().Select(property => property.Name)
-                    .Should().BeEquivalentTo(new[] { "id", "createdAt", "modifiedAt", "name", "model" });
+                    .Should().BeEquivalentTo(TagResponseProperties);
                 createdDoc.RootElement.GetProperty("model").EnumerateObject().Select(property => property.Name)
-                    .Should().BeEquivalentTo(new[] { "boolValue", "stringValue", "max", "min", "other", "date", "type" });
+                    .Should().BeEquivalentTo(TagModelProperties);
             }
             var response = JsonSerializer.Deserialize<TagResponse>(createdRaw, JsonConventions.DefaultOptions);
             response.Should().NotBeNull();

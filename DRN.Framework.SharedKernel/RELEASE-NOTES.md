@@ -26,6 +26,7 @@ Not every version includes changes, features or bug fixes. This project can incr
 
 ### Bug Fixes
 
+*   **Public contracts and scaffolding**. DRNDTO003 checks classification on projected collection elements and on Contract child models constructed in helpers or locals. DRNDTO005 reports each exposed DTO on its declaring member or endpoint. DRNARCHITECTURE002 checks persistence interfaces in Contract type declarations. Scaffolding rejects contradictory producer metadata and requires a forwarded repository operation and its aggregate to share a Domain assembly.
 *   **Entity diagnostics**: `DRNENTITY009` and `DRNENTITY010` now check converted constants passed through nullable numeric casts. `DRNENTITY013` reports an invalid repository type initializer once. `DRNENTITY006` verifies `IAppId.AppId` getters against published constants when source is available, and `DRNENTITY002` checks collisions across transitive project references while skipping `System.*`, `Microsoft.*`, and external framework dependencies. Incomplete primary-constructor base lists no longer cause analyzer failures on derived entity attributes.
 *   **Packaged analyzer loading**: Duplicate packaged analyzer entries are removed before compilation.
 *   **Pagination**: Refresh results detect a next page from an extra fetched row without a known total or caller hint. Null JSON `PageSize` and `PageCursor` members now use defaults instead of throwing.

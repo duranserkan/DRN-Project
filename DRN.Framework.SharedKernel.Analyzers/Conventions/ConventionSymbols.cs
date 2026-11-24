@@ -30,7 +30,6 @@ internal sealed class ConventionSymbols(Compilation compilation)
     internal INamedTypeSymbol? EntityTypeAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.EntityTypeAttribute");
     internal INamedTypeSymbol? AppId { get; } = compilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.IAppId");
     internal INamedTypeSymbol? Controller { get; } = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.ControllerBase");
-    internal INamedTypeSymbol? SourceKnownController { get; } = compilation.GetTypeByMetadataName("DRN.Framework.Hosting.Controllers.SourceKnownControllerBase`2");
     internal INamedTypeSymbol? SourceKnownReadOnlyController { get; } = compilation.GetTypeByMetadataName("DRN.Framework.Hosting.Controllers.SourceKnownReadOnlyController`2");
     internal INamedTypeSymbol? SourceKnownCombinedController { get; } = compilation.GetTypeByMetadataName("DRN.Framework.Hosting.Controllers.SourceKnownController`3");
     internal INamedTypeSymbol? NonActionAttribute { get; } = compilation.GetTypeByMetadataName("Microsoft.AspNetCore.Mvc.NonActionAttribute");
@@ -66,6 +65,10 @@ internal sealed class ConventionSymbols(Compilation compilation)
     internal INamedTypeSymbol? CancellationToken { get; } = compilation.GetTypeByMetadataName("System.Threading.CancellationToken");
     internal INamedTypeSymbol? ListGeneric { get; } = compilation.GetTypeByMetadataName("System.Collections.Generic.List`1");
     internal INamedTypeSymbol? AsyncEnumerableGeneric { get; } = compilation.GetTypeByMetadataName("System.Collections.Generic.IAsyncEnumerable`1");
+    internal INamedTypeSymbol? Enumerable { get; } = compilation.GetTypeByMetadataName("System.Linq.Enumerable");
+    internal INamedTypeSymbol? Queryable { get; } = compilation.GetTypeByMetadataName("System.Linq.Queryable");
+    internal INamedTypeSymbol? ImmutableArrayExtensions { get; } = compilation.GetTypeByMetadataName("System.Linq.ImmutableArrayExtensions");
+    internal INamedTypeSymbol? ImmutableArrayFactory { get; } = compilation.GetTypeByMetadataName("System.Collections.Immutable.ImmutableArray");
     internal INamedTypeSymbol? ImmutableArrayGeneric { get; } = compilation.GetTypeByMetadataName("System.Collections.Immutable.ImmutableArray`1");
     internal INamedTypeSymbol? ImmutableListGeneric { get; } = compilation.GetTypeByMetadataName("System.Collections.Immutable.ImmutableList`1");
     internal INamedTypeSymbol? SetGeneric { get; } = compilation.GetTypeByMetadataName("System.Collections.Generic.ISet`1");

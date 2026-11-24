@@ -79,6 +79,16 @@ public sealed class EntityDtoRefactoringTests
     }
 
     [Theory, DataInlineUnit]
+    public async Task Conflicting_Producer_Ownership_Should_Decline_Dto_Projection(DrnTestContextUnit context)
+    {
+        using var workspace = new AdhocWorkspace();
+        const string metadata = """[assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.QA.User.Subdomain", "Sales")]""";
+        var document = Create(workspace, context, metadata + "\n" + Source);
+        AssertCompilesBeforeMapper((await document.Project.GetCompilationAsync())!);
+        (await Actions(document)).Should().BeEmpty();
+    }
+
+    [Theory, DataInlineUnit]
     public async Task Selected_Property_Matching_Dto_Class_Name_Should_Decline_Projection(DrnTestContextUnit context)
     {
         using var workspace = new AdhocWorkspace();

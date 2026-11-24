@@ -47,7 +47,7 @@ public sealed class ConventionBoundaryTests
             }
             namespace Sample.Hosted.Controllers.Billing
             {
-                public class UsersController() : DRN.Framework.Hosting.Controllers.SourceKnownControllerBase<Sample.Hosted.QA.User, Sample.Hosted.QA.UserResponse>(null!);
+                public class UsersController() : DRN.Framework.Hosting.Controllers.SourceKnownReadOnlyController<Sample.Hosted.QA.User, Sample.Hosted.QA.UserResponse>(null!);
             }
             """).AddReferences(AnalyzerTestCompilation.HostingReference);
         compilation.AssertNoCompilerErrors();
@@ -652,6 +652,7 @@ public sealed class ConventionBoundaryTests
             new (string?, string?)[]
             {
                 ("T:Sample.Contract.QA.Envelope`1", "Sample.Domain.QA.User"),
+                ("P:Sample.Contract.QA.Envelope`1.Payload", "Sample.Domain.QA.User"),
                 ("T:Sample.Contract.QA.ConstrainedMarker`1", "Sample.Domain.QA.Order")
             });
         diagnostics.Single(item => item.Properties["Target"] == "T:Sample.Contract.QA.Envelope`1").GetMessage()
@@ -685,7 +686,7 @@ public sealed class ConventionBoundaryTests
     }
 
     [Fact]
-    public void Exposed_Header_Should_Only_Collapse_Members_With_The_Same_Exposed_Type()
+    public void Exposed_Header_And_Declared_Members_Should_Retain_Their_Own_Targets()
     {
         var facts = ContractFacts("""
             namespace Sample.Contract.QA;
@@ -702,10 +703,31 @@ public sealed class ConventionBoundaryTests
             """);
         ConventionBoundaryAnalysis.Analyze(facts);
         var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").ToArray();
-        diagnostics.Select(item => item.Properties["Entity"]).Should().BeEquivalentTo(
-            "Sample.Domain.QA.Order",
-            "Sample.Domain.QA.User");
-        diagnostics.Should().HaveCount(2);
+        diagnostics.Select(item => (item.Properties["Target"], item.Properties["Entity"])).Should().BeEquivalentTo(
+            new (string?, string?)[]
+            {
+                ("T:Sample.Contract.QA.EntityPair", "Sample.Domain.QA.Order"),
+                ("T:Sample.Contract.QA.EntityPair", "Sample.Domain.QA.User"),
+                ("M:Sample.Contract.QA.EntityPair.First", "Sample.Domain.QA.Order"),
+                ("M:Sample.Contract.QA.EntityPair.Second", "Sample.Domain.QA.User")
+            });
+    }
+
+    [Fact]
+    public void Contract_Deriving_From_Persistence_Interface_Should_Report_The_Interface_On_The_Declaration()
+    {
+        var compilation = Compilation("""
+            namespace Sample.Contract.QA;
+            public interface IContextContract : DRN.Framework.EntityFramework.Context.IDrnContext;
+            public class Envelope { public IContextContract Context { get; init; } = null!; }
+            """).WithAssemblyName("Sample.Contract").AddReferences(AnalyzerTestCompilation.EntityFrameworkReference);
+        compilation.AssertNoCompilerErrors();
+        var facts = CreateFacts(compilation, "Contract");
+        ConventionBoundaryAnalysis.Analyze(facts);
+        var diagnostics = facts.Diagnostics.Where(d => d.Id == "DRNARCHITECTURE002")
+            .Select(d => (d.Properties["Target"], d.Properties["Entity"]));
+        diagnostics.Should().Contain(("T:Sample.Contract.QA.IContextContract", "DRN.Framework.EntityFramework.Context.IDrnContext"));
+        diagnostics.Should().Contain(("P:Sample.Contract.QA.Envelope.Context", "Sample.Contract.QA.IContextContract"));
     }
 
     [Fact]
@@ -1108,6 +1130,7 @@ public sealed class ConventionBoundaryTests
             .Select(item => item.Properties["Target"]).Should().BeEquivalentTo(
                 "T:Sample.Contract.QA.EntityQueue",
                 "T:Sample.Contract.QA.EntityStream",
+                "M:Sample.Contract.QA.EntityStream.GetAsyncEnumerator(System.Threading.CancellationToken)",
                 "T:Sample.Contract.QA.IndirectEntityStream",
                 "P:Sample.Contract.QA.NestedWrapper.Meta");
     }

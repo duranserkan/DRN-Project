@@ -857,7 +857,8 @@ public sealed class ConventionDomainOwnershipAndEnumTests
             #pragma warning restore DRNSTRUCTURE008
             """, path: "QA/BadUsings.cs"));
         var suppressed = await AnalyzerTestCompilation.Analyze(suppressedCompilation, new SourceKnownConventionAnalyzer(), options);
-        suppressed.Should().NotContain(d => d.Id == "DRNSTRUCTURE008" || d.Id == "DRNCONVENTIONINPUT001" || d.Id == "AD0001");
+        suppressed.Should().NotContain(d => d.Id == "DRNSTRUCTURE008" || d.Id == "DRNCONVENTIONINPUT001" ||
+            d.Id == "DRNCONVENTIONEXCEPTION001" || d.Id == "AD0001");
     }
 
     [Theory]
@@ -960,6 +961,7 @@ public sealed class ConventionDomainOwnershipAndEnumTests
             "T:Sample.Contract.QA.Orders.DerivedKindResponse",
             "T:Sample.Contract.QA.Orders.KindQueue",
             "T:Sample.Contract.QA.Orders.KindStream",
+            "M:Sample.Contract.QA.Orders.KindStream.GetAsyncEnumerator(System.Threading.CancellationToken)",
             "T:Sample.Contract.QA.Orders.IndirectKindStream",
             "P:Sample.Contract.QA.Orders.NestedKindResponse.Meta");
 

@@ -55,6 +55,10 @@ For DRNDTO003, copy each positive source property annotation to the mapped DTO p
 
 When a local public interface exposes a DTO as a generic interface argument, DRNDTO005 reports on the handwritten interface declaration. If the interface is entirely generated, the warning appears on the handwritten contract that implements it.
 
+DRNDTO005 reports each distinct DTO exposed by a type declaration, public member, or controller action. A declared member has its own diagnostic target even when its type also appears in the declaration's base list. Inherited exposures reported on the same type share one warning per DTO. A project exception scoped to one target and DTO leaves the other warnings active.
+
+DRNDTO003 follows element reads in standard LINQ `Select` projections, including `ImmutableArray<T>.Select`. In `Contacts = entity.Contacts.Select(c => new ContactResponse { Email = c.Email }).ToArray()`, the classification on `c.Email` belongs on `ContactResponse.Email`. A Contract model used by a response is also checked when constructed in a local variable or helper, even if its name has no `Response` suffix.
+
 For inherited application actions, DRNDTO006 reports on the concrete controller and names each affected action. Inherited standard SourceKnown actions that share an invalid request or response type produce one warning per type and direction on that controller.
 
 ## Enum conventions

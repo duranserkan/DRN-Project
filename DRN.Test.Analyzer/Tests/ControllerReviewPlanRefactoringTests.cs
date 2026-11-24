@@ -3,6 +3,7 @@ using DRN.Framework.SharedKernel.CodeFixes;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeRefactorings;
 using Microsoft.CodeAnalysis.Text;
+using static DRN.Test.Analyzer.Tests.AnalyzerTestCompilation;
 
 namespace DRN.Test.Analyzer.Tests;
 
@@ -14,7 +15,7 @@ public sealed class ControllerReviewPlanRefactoringTests
     {
         using var workspace = new AdhocWorkspace();
         var project = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
-                "Sample.Hosted", "Sample.Hosted", LanguageNames.CSharp, filePath: "/source/Sample.Hosted/Sample.Hosted.csproj"))
+                "Sample.Hosted", "Sample.Hosted", LanguageNames.CSharp, filePath: SourcePath("Sample.Hosted/Sample.Hosted.csproj")))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReferences(ClassificationTestFixture.References)
             .AddMetadataReference(AnalyzerTestCompilation.HostingReference);
@@ -32,7 +33,7 @@ public sealed class ControllerReviewPlanRefactoringTests
                 protected OrdersController(ISourceKnownService<Order, OrderResponse, Request> service) : base(service) { }
             }
             """;
-        var document = project.AddDocument("OrdersController.cs", source, filePath: "/source/Sample.Hosted/QA/OrdersController.cs");
+        var document = project.AddDocument("OrdersController.cs", source, filePath: SourcePath("Sample.Hosted/QA/OrdersController.cs"));
         workspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
         document = workspace.CurrentSolution.GetDocument(document.Id)!;
         (await document.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
@@ -60,7 +61,7 @@ public sealed class ControllerReviewPlanRefactoringTests
         }
         namespace DRN.Framework.Hosting.Controllers
         {
-            public class SourceKnownControllerBase<TEntity,TDto>
+            public class SourceKnownReadOnlyController<TEntity,TDto>
             {
                 [Microsoft.AspNetCore.Mvc.HttpGet("{id:guid}")]
                 public virtual string Read(System.Guid id) => "";
@@ -69,7 +70,7 @@ public sealed class ControllerReviewPlanRefactoringTests
         namespace Sample.Hosted.QA
         {
             [Microsoft.AspNetCore.Authorization.Authorize("Readers")]
-            public class OrdersController : DRN.Framework.Hosting.Controllers.SourceKnownControllerBase<int,string>
+            public class OrdersController : DRN.Framework.Hosting.Controllers.SourceKnownReadOnlyController<int,string>
             {
                 [Microsoft.AspNetCore.Mvc.NonAction]
                 public sealed override string Read(System.Guid id) => "";
@@ -96,7 +97,7 @@ public sealed class ControllerReviewPlanRefactoringTests
             .And.Contain("OrdersController.Read").And.Contain("Local()").And.Contain("SHA-256")
             .And.Contain("Override eligibility: not overridable (sealed override)")
             .And.Contain("per-resource authorization").And.Contain("No executable output destinations");
-        plan.FilePath.Should().Be("/source/Sample.Hosted/QA/OrdersController.controller-review.md");
+        plan.FilePath.Should().Be(SourcePath("Sample.Hosted/QA/OrdersController.controller-review.md"));
         (await changed.GetDocument(document.Id)!.GetTextAsync()).ToString().Should().Be(Source);
         workspace.TryApplyChanges(changed).Should().BeTrue();
         (await Actions(workspace.CurrentSolution.GetDocument(document.Id)!)).Should().BeEmpty();
@@ -108,7 +109,7 @@ public sealed class ControllerReviewPlanRefactoringTests
         using var workspace = new AdhocWorkspace();
         var document = Create(workspace);
         var changed = document.Project.Solution.AddAdditionalDocument(DocumentId.CreateNewId(document.Project.Id), "existing.md",
-            SourceText.From("user plan"), filePath: "/source/Sample.Hosted/QA/orderscontroller.controller-review.md");
+            SourceText.From("user plan"), filePath: SourcePath("Sample.Hosted/QA/orderscontroller.controller-review.md"));
         workspace.TryApplyChanges(changed).Should().BeTrue();
         (await Actions(workspace.CurrentSolution.GetDocument(document.Id)!)).Should().BeEmpty();
     }
@@ -139,21 +140,21 @@ public sealed class ControllerReviewPlanRefactoringTests
     }
 
     [Theory]
-    [DataInline("/outside/OrdersController.cs")]
-    [DataInline("/source/Sample.Hosted/QA/OrdersController.g.cs")]
+    [DataInlineUnit("outside/OrdersController.cs")]
+    [DataInlineUnit("Sample.Hosted/QA/OrdersController.g.cs")]
     public async Task External_Or_Generated_Source_Should_Not_Offer_Plan(string path)
     {
         using var workspace = new AdhocWorkspace();
         (await Actions(Create(workspace, path))).Should().BeEmpty();
     }
 
-    private static Document Create(AdhocWorkspace workspace, string path = "/source/Sample.Hosted/QA/OrdersController.cs")
+    private static Document Create(AdhocWorkspace workspace, string path = "Sample.Hosted/QA/OrdersController.cs")
     {
         var project = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
-                "Sample.Hosted", "Sample.Hosted", LanguageNames.CSharp, filePath: "/source/Sample.Hosted/Sample.Hosted.csproj"))
+                "Sample.Hosted", "Sample.Hosted", LanguageNames.CSharp, filePath: SourcePath("Sample.Hosted/Sample.Hosted.csproj")))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReference(AnalyzerTestCompilation.ObjectReference);
-        var document = project.AddDocument("OrdersController.cs", Source, filePath: path);
+        var document = project.AddDocument("OrdersController.cs", Source, filePath: SourcePath(path));
         workspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
         return workspace.CurrentSolution.GetDocument(document.Id)!;
     }

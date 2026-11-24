@@ -36,6 +36,8 @@ Cancellation before application leaves the workspace unchanged. A repeated opera
 
 Supplied convention input must pass the shared version, size, record-count and data-only syntax checks described in [conventions](CONVENTIONS.md#declared-inputs). Generation also validates structural field values, including logical paths and reference provenance. Invalid or unsupported input prevents default-path generation. Identical records are idempotent, while contradictory unique-target records are rejected. These checks and symbol preflight run again before applying the solution change. Semantic relationships and exception target/fingerprint validity remain analyzer-owned. Refactorings do not use exceptions as generation authority.
 
+For a selected Domain entity, the configuration, repository, DTO, service, and aggregate review actions validate the producer's assembly metadata. Conflicting layout or ownership records and unsupported role overrides prevent an offer. Forwarding a repository operation also requires the repository interface and aggregate to belong to the same Domain assembly.
+
 ## Context and tracked destinations
 
 Select an existing Domain aggregate identifier to request **Create aggregate review plan only**. Eligible Infra projects that reference the selected Domain project and their existing contexts are separate choices. Project-name prefixes do not restrict selection. Without an existing context in that owner area, the action explicitly proposes the conventional owner-plus-Context name. Context aliases need a reasoned declaration. The action adds only the Markdown `AdditionalFiles` review plan, which records current source fingerprints, existing identity declarations, known inputs and proposed destinations. It creates no C# context, membership, ID, reference or project item. Reconcile the plan with the required business and project-system decisions before implementation.
@@ -192,12 +194,11 @@ Do not emit a controller until every requested operation has a real mapping, nam
 
 | Selected base | Inherited HTTP surface to review |
 |---|---|
-| `SourceKnownControllerBase<TEntity,TResponse>` | No HTTP actions. Composes `ISourceKnownService<TEntity, TResponse>` and delegates response mapping via protected `CreateResponseAsync`/`CreateResponsesAsync` helpers. Own each requested operation explicitly. |
 | `SourceKnownReadOnlyController<TEntity,TResponse>` | GetAsync, GetManyAsync, AnyAsync, CountAsync, PaginateAsync, PaginateWithOptionsAsync, PaginateWithBodyAsync. POST lookup/pagination are still reads. |
 | `SourceKnownController<TEntity,TResponse,TCreateRequest>` | All read actions plus PostAsync and DeleteAsync. Delegates creation and response projection to `ISourceKnownService<TEntity, TResponse, TCreateRequest>`. |
 | `SourceKnownWriteOnlyController<TEntity,TResponse,TCreateRequest>` | PostAsync and DeleteAsync. Inherited reads are sealed NonAction overrides. |
 
-Recheck the installed base's full inheritance chain when creating the preview. For each exposed action record route, verb, selected/enabled state, named policy, resource scope, input/output mapping and cancellation behavior. Disable unselected overridable actions with `[NonAction]`, or derive directly from `SourceKnownControllerBase<TEntity, TResponse>` to start with zero inherited HTTP actions. Include public methods on the concrete controller in the inventory even when they have no `[Http*]` attribute. `IgnoreApi` hides documentation but does not disable routing. Do not use `AllowAnonymous` as a fallback.
+Recheck the installed base's full inheritance chain when creating the preview. For each exposed action record route, verb, selected/enabled state, named policy, resource scope, input/output mapping and cancellation behavior. Disable unselected overridable actions with `[NonAction]`. Include public methods on the concrete controller in the inventory even when they have no `[Http*]` attribute. `IgnoreApi` hides documentation but does not disable routing. Do not use `AllowAnonymous` as a fallback.
 
 Inherited DeleteAsync uses repository direct-delete semantics and does not invoke entity deletion lifecycle hooks. The user's required deletion behavior must be compatible before selecting it. Creation delegates to the injected service's `CreateEntityAsync` implementation (overridable on the controller when needed). Repository filters must enforce the application's data visibility. A named policy alone does not establish per-resource access.
 

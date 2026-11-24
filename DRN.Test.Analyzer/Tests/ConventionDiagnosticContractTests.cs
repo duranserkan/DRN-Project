@@ -12,10 +12,6 @@ public sealed class ConventionDiagnosticContractTests
 {
     private static MetadataReference FrameworkReference => AnalyzerTestCompilation.EntityFrameworkReference;
     private static MetadataReference UtilsReference => AnalyzerTestCompilation.UtilsReference;
-    private static readonly Lazy<SyntaxTree> WideModel = new(() => CSharpSyntaxTree.ParseText(
-        "namespace Sample.Contract.QA; public class Wide { " +
-        string.Join("\n", Enumerable.Range(0, 4097).Select(index => $"public int Field{index};")) + " }",
-        path: "Wide.cs"));
     private static readonly Lazy<(MetadataReference Reference, ConventionInput[] Records)> ItemContract =
         new(() => CreateReferenceFixture("Shared.Contract", """
             namespace Shared.Contract.QA.Items;
@@ -103,6 +99,8 @@ public sealed class ConventionDiagnosticContractTests
             .Concat(new SourceKnownConventionAnalyzer().SupportedDiagnostics)
             .Concat(program).Append(accessor).Select(rule => rule.Id).ToArray();
         reported.Should().OnlyHaveUniqueItems().And.BeEquivalentTo(expected);
+        ContractRuleIdList.Should().BeEquivalentTo(ConventionDiagnosticDescriptors.All
+            .Where(rule => rule != ConventionDiagnosticDescriptors.Exception).Select(rule => rule.Id));
     }
 
     [Theory]
@@ -341,6 +339,48 @@ public sealed class ConventionDiagnosticContractTests
     }
 
     [Fact]
+    public async Task Suppressing_The_Type_Header_Should_Leave_An_Independent_Property_Exposure()
+    {
+        const string type = "T:Sample.Contract.QA.Orders.OrderResponse";
+        var scenario = ScenarioFor("DRNDTO005") with
+        {
+            Source = """
+                using DRN.Framework.SharedKernel.Domain;
+                namespace Sample.Contract.QA.Orders;
+                public class OrderDto : Dto;
+                public interface IEnvelope<T>;
+                public class OrderResponse : IEnvelope<OrderDto>
+                {
+                    public OrderDto Direct { get; init; } = new();
+                }
+                """
+        };
+        var exception = Input("Exception", "DRNDTO005", ("Target", type), ("Entity", "Sample.Contract.QA.Orders.OrderDto"),
+            ("Reason", "Reviewed legacy envelope header."), ("Owner", "Contracts"), ("Review", "9999-12-31"));
+        var reviewed = await AnalyzeProduction(scenario, exception);
+        var pragma = scenario with { Source = scenario.Source.Replace("public class OrderResponse : IEnvelope<OrderDto>",
+            "#pragma warning disable DRNDTO005 // Reviewed legacy envelope header.\npublic class OrderResponse : IEnvelope<OrderDto>\n#pragma warning restore DRNDTO005",
+            StringComparison.Ordinal) };
+        var suppressed = await AnalyzeProduction(pragma);
+        foreach (var diagnostics in new[] { reviewed, suppressed })
+        {
+            diagnostics.Should().NotContain(d => d.Id == "DRNCONVENTIONEXCEPTION001");
+            diagnostics.Where(d => d.Id == "DRNDTO005").Should().ContainSingle().Which.Properties["Target"]
+                .Should().Be("P:Sample.Contract.QA.Orders.OrderResponse.Direct");
+        }
+        var scoped = scenario with { Source = "#define CODE_ANALYSIS\n" + scenario.Source.Replace("namespace Sample.Contract.QA.Orders;", """
+            [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("DRN.Conventions.Contract", "DRNDTO005", Scope = "type",
+                Target = "~T:Sample.Contract.QA.Orders.OrderResponse", Justification = "Reviewed legacy envelope header.")]
+            namespace Sample.Contract.QA.Orders;
+            """, StringComparison.Ordinal) };
+        Analyze(scoped).Diagnostics.Where(d => d.Id == "DRNDTO005").Select(d => d.Properties["Target"])
+            .Should().BeEquivalentTo(type, "P:Sample.Contract.QA.Orders.OrderResponse.Direct");
+        var driverDiagnostics = await AnalyzeProduction(scoped);
+        driverDiagnostics.Should().NotContain(d => d.Id == "DRNCONVENTIONEXCEPTION001" ||
+            d.Id == "DRNDTO005" && d.Properties["Target"] == type);
+    }
+
+    [Fact]
     public async Task Global_Suppression_Audit_Should_Match_Roslyn_For_Ordinary_Properties()
     {
         var scenario = ScenarioFor("DRNDTO005") with
@@ -551,7 +591,7 @@ public sealed class ConventionDiagnosticContractTests
                 """, [Input("Path", "ContractFixture.cs", ("LogicalPath", "QA/ContractFixture.cs")),
                     Input("Path", "Wide.cs", ("LogicalPath", "QA/Wide.cs"))], "P:Sample.Contract.QA.Response.Payload", "Payload",
                 "Inspection of public contract member 'Sample.Contract.QA.Response.Payload' reached the analysis limit before verifying that its public model is free of persistence and domain types.",
-                ConventionBoundaryAnalysis.Analyze, ExtraTree: WideModel.Value),
+                ConventionBoundaryAnalysis.Analyze, ExtraTree: AnalyzerTestCompilation.WideModelTree("Sample.Contract.QA")),
             "DRNARCHITECTURE002" => new("Contract", """
                 namespace Sample.Contract.QA;
                 public class OtherTarget;

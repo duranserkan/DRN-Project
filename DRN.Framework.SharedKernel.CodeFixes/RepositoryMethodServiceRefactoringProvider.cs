@@ -30,18 +30,26 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
             context.CancellationToken.ThrowIfCancellationRequested();
             var targetBase = await ResolveTargetPlanBaseAsync(domainPreflight, selected, target, context.CancellationToken);
             if (targetBase is null) continue;
-            foreach (var scoped in ScopedOptions)
-            {
-                if (scoped && !targetBase.SupportsScoped) continue;
-                var plan = RenderForwardingService(selected, targetBase, scoped);
-                if (!ReferenceEquals(snapshot.Workspace.CurrentSolution, snapshot)) return;
-                context.RegisterRefactoring(CodeAction.Create(
-                    "Add " + (scoped ? "scoped" : "unregistered") + " forwarding service: " + target.Name + " / " + plan.RelativePath +
-                    " for " + selected.Method.Name,
-                    token => Apply(context.Document, context.Span, target.Id, scoped, plan, snapshot, token),
-                    "DrnRepositoryMethodService:" + target.Id + ":" + selected.Method.GetDocumentationCommentId() + ":" + scoped));
-            }
+            if (!TryRegisterForwardingServices(context, target, selected, targetBase)) return;
         }
+    }
+
+    private static bool TryRegisterForwardingServices(CodeRefactoringContext context, Project target, Selection selected,
+        TargetPlanBase targetBase)
+    {
+        var snapshot = context.Document.Project.Solution;
+        foreach (var scoped in ScopedOptions)
+        {
+            if (scoped && !targetBase.SupportsScoped) continue;
+            var plan = RenderForwardingService(selected, targetBase, scoped);
+            if (!ReferenceEquals(snapshot.Workspace.CurrentSolution, snapshot)) return false;
+            context.RegisterRefactoring(CodeAction.Create(
+                "Add " + (scoped ? "scoped" : "unregistered") + " forwarding service: " + target.Name + " / " + plan.RelativePath +
+                " for " + selected.Method.Name,
+                token => Apply(context.Document, context.Span, target.Id, scoped, plan, snapshot, token),
+                "DrnRepositoryMethodService:" + target.Id + ":" + selected.Method.GetDocumentationCommentId() + ":" + scoped));
+        }
+        return true;
     }
 
     private static async Task<Solution> Apply(Document document, TextSpan span, ProjectId targetId, bool scoped,
@@ -159,8 +167,15 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
         if (domainInputs is null) return null;
         var source = await domain.GetCompilationAsync(token);
         if (source is null || !SymbolEqualityComparer.Default.Equals(selected.Method.ContainingType.ContainingAssembly, source.Assembly) ||
+            !SymbolEqualityComparer.Default.Equals(selected.Entity.ContainingAssembly, source.Assembly) ||
             source.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.SourceKnownService`1") is not { } sourceService)
             return null;
+        return ResolveDomainService(domain, domainInfo, selected, domainInputs, source, sourceService, token);
+    }
+
+    private static DomainServicePreflight? ResolveDomainService(Project domain, ConventionGenerationPreflight.ProjectMetadata domainInfo,
+        Selection selected, CompilationUnitSyntax domainInputs, Compilation source, INamedTypeSymbol sourceService, CancellationToken token)
+    {
         var sourceNamespace = selected.Method.ContainingType.ContainingNamespace.ToDisplayString();
         if (!ValidNamespace(sourceNamespace) || !sourceNamespace.StartsWith(domainInfo.Namespace + ".", StringComparison.Ordinal))
             return null;
@@ -170,15 +185,12 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
         var entityName = MetadataName(selected.Entity);
         var repositoryName = MetadataName(selected.Method.ContainingType);
         var repoMetadata = ConventionGenerationPreflight.MetadataFromAssembly(selected.Method.ContainingType.ContainingAssembly);
-        var entityMetadata = SymbolEqualityComparer.Default.Equals(selected.Entity.ContainingAssembly, selected.Method.ContainingType.ContainingAssembly)
-            ? repoMetadata
-            : ConventionGenerationPreflight.MetadataFromAssembly(selected.Entity.ContainingAssembly);
-        if (repoMetadata.HasRoleOverrides || entityMetadata.HasRoleOverrides ||
+        if (repoMetadata.HasRoleOverrides ||
             !AttributesPreserveOwner(selected.Method.ContainingType, repoOwner, source, out var repoAttrExplicit) ||
             !AttributesPreserveOwner(selected.Entity, entityOwner, source, out var entityAttrExplicit) ||
             !OwnershipCompatible(domainInputs, entityName, repoOwner.Subdomain, token, out var entityInputExplicit, repoOwner.DomainFilter) ||
             !OwnershipCompatible(domainInputs, repositoryName, repoOwner.Subdomain, token, out var repoInputExplicit, repoOwner.DomainFilter) ||
-            !entityMetadata.TryValidateProducerOwnership(entityName, entityOwner, out var entityMetadataExplicit) ||
+            !repoMetadata.TryValidateProducerOwnership(entityName, entityOwner, out var entityMetadataExplicit) ||
             !repoMetadata.TryValidateProducerOwnership(repositoryName, repoOwner, out var repoMetadataExplicit))
             return null;
         var effectiveOwner = repoOwner.WithExplicitDomain(

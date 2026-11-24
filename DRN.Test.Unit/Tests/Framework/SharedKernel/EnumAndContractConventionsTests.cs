@@ -12,6 +12,8 @@ namespace DRN.Test.Unit.Tests.Framework.SharedKernel;
 
 public class EnumAndContractConventionsTests
 {
+    private static readonly string[] CategoryResponseProperties = ["id", "createdAt", "modifiedAt", "name"];
+
     [Fact]
     public void CategoryResponse_Should_Not_Inherit_Dto_And_CategoryPostRequest_Should_Reject_Unknown_Fields()
     {
@@ -35,7 +37,7 @@ public class EnumAndContractConventionsTests
         }, JsonConventions.DefaultOptions);
         using var doc = JsonDocument.Parse(responseJson);
         doc.RootElement.EnumerateObject().Select(property => property.Name)
-            .Should().BeEquivalentTo(new[] { "id", "createdAt", "modifiedAt", "name" });
+            .Should().BeEquivalentTo(CategoryResponseProperties);
     }
 
     [Fact]
