@@ -40,7 +40,7 @@ internal static class ConventionGenerationPreflight
         internal bool TryValidateProducerOwnership(string entityName, CodeFixSymbolFacts.OwnerKey owner, out bool hasExplicitDomain)
         {
             hasExplicitDomain = false;
-            if (!CanResolveProducerLayout) return false;
+            if (!CanResolveProducerLayout || Layout.HasExplicitDomain && Layout.DefaultDomain != owner.Domain) return false;
             var prefix = "DRN.Conventions.Ownership." + entityName + ".";
             string? domain = null;
             string? subdomain = null;

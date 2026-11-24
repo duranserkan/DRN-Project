@@ -49,7 +49,7 @@ internal sealed partial class ConventionFacts
             if (!visited.Add(current)) continue;
             if (current is IArrayTypeSymbol array) pending.Push(array.ElementType);
             if (current is not INamedTypeSymbol named || named.TypeKind == TypeKind.Error) continue;
-            foreach (var argument in named.TypeArguments) pending.Push(argument);
+            ConventionSymbols.PushTypeArguments(named, pending);
             var definition = named.OriginalDefinition;
             if (Role(definition).Role != ConventionArchitecture.Contract || Symbols.IsKnown(definition, Symbols.Dto, Cancellation) ||
                 !models.Add(definition)) continue;

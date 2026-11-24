@@ -2101,6 +2101,23 @@ public sealed class ConventionDtoTests
     }
 
     [Fact]
+    public void Response_Model_Index_Should_Include_Arguments_Of_Containing_Types()
+    {
+        var contract = Compilation("""
+            namespace Sample.Contract;
+            public class ContactSummary;
+            public class Envelope<T> { public class Section { public class Item; } }
+            public class OrderResponse { public Envelope<ContactSummary>.Section.Item Details { get; } = new(); }
+            """).WithAssemblyName("Sample.Contract");
+        contract.AssertNoCompilerErrors();
+        var options = AnalyzerTestCompilation.ConventionOptionsProvider("Sample.Contract");
+        var facts = new ConventionFacts(contract, ConventionProject.Read(contract, options.GlobalOptions),
+            new([], []), options, CancellationToken.None);
+        facts.MayBeResponseModel("ContactSummary").Should().BeTrue();
+        facts.IsResponseModel(contract.GetTypeByMetadataName("Sample.Contract.ContactSummary")!).Should().BeTrue();
+    }
+
+    [Fact]
     public void Dto_Exposure_Should_Check_Type_Parameter_Constraints_Distinct_Member_Dtos_And_Distinct_Inherited_Controller_Dtos()
     {
         var contractRef = EmitProjectReference("Sample.Contract", "/dto-header-inherited/Sample.Contract.dll", """
@@ -2119,6 +2136,8 @@ public sealed class ConventionDtoTests
                 public class OrderDto(SourceKnownEntity? entity = null) : Dto(entity);
                 public class CustomerDto(SourceKnownEntity? entity = null) : Dto(entity);
                 public class ConstrainedDtoMarker<T> where T : OrderDto;
+                public class EnvelopeDto<T>() : Dto(null);
+                public class OrderResponse { public EnvelopeDto<OrderDto> Item { get; init; } = new(); }
                 public interface IMarker<T1, T2>;
                 public class PairMarker : IMarker<OrderDto, CustomerDto>;
                 public class UnconstrainedMarker<T> { public T Value { get; init; } = default!; }
@@ -2137,6 +2156,9 @@ public sealed class ConventionDtoTests
             """).WithAssemblyName("Sample.Contract");
         contract.AssertNoCompilerErrors();
         var contractDiagnostics = Analyze(contract, "Contract").Where(d => d.Id == "DRNDTO005").ToArray();
+        contractDiagnostics.Where(d => d.Properties["Target"] == "P:Sample.Contract.QA.Orders.OrderResponse.Item")
+            .Select(d => d.Properties["Entity"]).Should().BeEquivalentTo(
+                "Sample.Contract.QA.Orders.EnvelopeDto`1", "Sample.Contract.QA.Orders.OrderDto");
         contractDiagnostics.Where(d => d.Properties["Target"] == "T:Sample.Contract.QA.Orders.ConstrainedDtoMarker`1")
             .Should().ContainSingle().Which.Properties["Entity"].Should().Be("Sample.Contract.QA.Orders.OrderDto");
         contractDiagnostics.Should().NotContain(d => d.Properties["Target"] == "T:Sample.Contract.QA.Orders.UnconstrainedMarker`1");

@@ -320,6 +320,22 @@ public sealed class AggregateReviewPlanRefactoringTests
             .And.NotContain("./Migrations");
     }
 
+    [Theory]
+    [DataInlineUnit("Sample", true)]
+    [DataInlineUnit("Other", false)]
+    public async Task Producer_Domain_Should_Match_The_Resolved_Aggregate_Owner(string producerDomain, bool offered)
+    {
+        using var workspace = new AdhocWorkspace();
+        var document = Create(workspace);
+        var domain = document.Project.AddDocument("AssemblyInfo.cs", $$"""
+            [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Domain", "{{producerDomain}}")]
+            """, filePath: SourcePath("Sample.Domain/Properties/AssemblyInfo.cs")).Project;
+        workspace.TryApplyChanges(domain.Solution).Should().BeTrue();
+        var current = workspace.CurrentSolution.GetDocument(document.Id)!;
+        (await current.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
+        (await Actions(current)).Should().HaveCount(offered ? 1 : 0);
+    }
+
     [Fact]
     public async Task Contradictory_Producer_Domains_Should_Decline_Aggregate_Plan()
     {

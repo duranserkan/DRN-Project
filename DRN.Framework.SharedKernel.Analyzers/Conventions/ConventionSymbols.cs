@@ -168,6 +168,15 @@ internal sealed class ConventionSymbols(Compilation compilation)
         return false;
     }
 
+    internal static void PushTypeArguments(INamedTypeSymbol type, Stack<ITypeSymbol> pending)
+    {
+        for (var current = type; current is not null; current = current.ContainingType)
+        {
+            foreach (var argument in current.TypeArguments)
+                pending.Push(argument);
+        }
+    }
+
     internal static IEnumerable<INamedTypeSymbol> Bases(INamedTypeSymbol type, CancellationToken cancellation)
     {
         for (var current = type; current is not null; current = current.BaseType)

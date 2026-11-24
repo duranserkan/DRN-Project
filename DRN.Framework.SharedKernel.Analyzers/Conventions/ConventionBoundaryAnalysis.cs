@@ -299,6 +299,7 @@ internal static class ConventionBoundaryAnalysis
                 {
                     exposures.Add(named);
                     if (firstOnly) return;
+                    ConventionSymbols.PushTypeArguments(named, pending);
                     continue;
                 }
                 if (!ExpandNamedModel(facts, named, policy.ShouldExpand, pending, ref work))
@@ -332,13 +333,13 @@ internal static class ConventionBoundaryAnalysis
         Func<ConventionFacts, INamedTypeSymbol, bool> shouldExpand, Stack<ITypeSymbol> pending, ref int work)
     {
         if (named.SpecialType is SpecialType.System_Object or SpecialType.System_ValueType) return true;
-        PushTypeArguments(named, pending);
+        ConventionSymbols.PushTypeArguments(named, pending);
         if (!shouldExpand(facts, named)) return true;
         foreach (var model in ConventionSymbols.Bases(named, facts.Cancellation))
         {
             if (model.SpecialType is SpecialType.System_Object or SpecialType.System_ValueType) continue;
             if (!SymbolEqualityComparer.Default.Equals(model, named))
-                PushTypeArguments(model, pending);
+                ConventionSymbols.PushTypeArguments(model, pending);
             if (!PushModelTypeMembers(facts, model, pending, ref work)) return false;
         }
         return PushPublicInterfaces(facts, named, pending, ref work);
@@ -352,21 +353,12 @@ internal static class ConventionBoundaryAnalysis
             facts.Cancellation.ThrowIfCancellationRequested();
             if (++work > PublicShapeLimit) return false;
             if (!IsPublic(contract)) continue;
-            PushTypeArguments(contract, pending);
+            ConventionSymbols.PushTypeArguments(contract, pending);
             if (named.TypeKind == TypeKind.Interface &&
                 !PushModelTypeMembers(facts, contract, pending, ref work))
                 return false;
         }
         return true;
-    }
-
-    private static void PushTypeArguments(INamedTypeSymbol type, Stack<ITypeSymbol> pending)
-    {
-        for (var current = type; current is not null; current = current.ContainingType)
-        {
-            foreach (var argument in current.TypeArguments)
-                pending.Push(argument);
-        }
     }
 
     private static bool PushModelTypeMembers(ConventionFacts facts, INamedTypeSymbol model,
