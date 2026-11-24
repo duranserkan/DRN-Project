@@ -220,7 +220,7 @@ internal sealed partial class ConventionFacts
     }
 
     [SuppressMessage("SonarQube", "S3267", Justification = "Iterating SyntaxList Usings directly avoids boxing the struct list and allocating a predicate delegate per syntax tree.")]
-    private static bool AnyGlobalResponseAlias(Compilation compilation, CancellationToken cancellation)
+    private bool AnyGlobalResponseAlias(Compilation compilation, CancellationToken cancellation)
     {
         foreach (var tree in compilation.SyntaxTrees)
         {
@@ -235,7 +235,7 @@ internal sealed partial class ConventionFacts
         return false;
     }
 
-    private static bool TreeHasResponseAlias(SyntaxTree tree, CancellationToken cancellation)
+    private bool TreeHasResponseAlias(SyntaxTree tree, CancellationToken cancellation)
     {
         if (tree.GetRoot(cancellation) is not CompilationUnitSyntax root) return false;
         foreach (var node in root.DescendantNodes(static current =>
@@ -248,11 +248,11 @@ internal sealed partial class ConventionFacts
         return false;
     }
 
-    private static bool IsResponseAlias(UsingDirectiveSyntax directive) =>
+    private bool IsResponseAlias(UsingDirectiveSyntax directive) =>
         directive.Alias is not null &&
         !directive.Alias.Name.Identifier.ValueText.EndsWith("Response", StringComparison.Ordinal) &&
         RightmostTypeIdentifier(directive.NamespaceOrType) is { } target &&
-        target.EndsWith("Response", StringComparison.Ordinal);
+        MayBeResponseModel(target);
 
     internal static string? RightmostTypeIdentifier(TypeSyntax type) => type switch
     {
@@ -292,7 +292,7 @@ internal sealed partial class ConventionFacts
             Symbols.IsKnown(type, Symbols.Configuration, Cancellation) ||
             Symbols.IsKnown(type, Symbols.RepositoryContract, Cancellation) ||
             Symbols.IsKnown(type, Symbols.ServiceContract, Cancellation) ||
-            Symbols.IsKnown(type, Symbols.SourceKnownController, Cancellation)) return true;
+            Symbols.IsKnown(type, Symbols.SourceKnownReadOnlyController, Cancellation)) return true;
         if (role is "Application" or "Infra" &&
             (ConventionOwnershipAnalysis.HasEntityBinding(this, type) ||
              ConventionRegistrationAnalysis.IsServiceImplementation(this, type) &&

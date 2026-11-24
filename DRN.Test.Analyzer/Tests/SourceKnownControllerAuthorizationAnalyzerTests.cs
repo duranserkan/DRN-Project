@@ -52,7 +52,7 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
         namespace DRN.Framework.Hosting.Controllers
         {
             [Microsoft.AspNetCore.Authorization.Authorize]
-            public abstract class SourceKnownControllerBase<TEntity, TDto> : Microsoft.AspNetCore.Mvc.ControllerBase { }
+            public abstract class SourceKnownReadOnlyController<TEntity, TDto> : Microsoft.AspNetCore.Mvc.ControllerBase { }
         }
         """;
 
@@ -67,7 +67,7 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
     public async Task Explicit_Class_Or_Action_Policy_Should_Qualify(string classAttribute, string methodAttribute)
     {
         var diagnostics = await Analyze(classAttribute + """
-            public class TestController : SourceKnownControllerBase<object, object>
+            public class TestController : SourceKnownReadOnlyController<object, object>
             {
             """ + methodAttribute + " public void Read() { } }");
         diagnostics.Should().BeEmpty();
@@ -85,7 +85,7 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
     [DataInline("[ApiExplorerSettings(IgnoreApi = true)]")]
     public async Task Missing_Named_Policy_Should_Report_Ordinary_Custom_Action(string attribute)
     {
-        var diagnostics = await Analyze("public class TestController : SourceKnownControllerBase<object, object> { " +
+        var diagnostics = await Analyze("public class TestController : SourceKnownReadOnlyController<object, object> { " +
                                         attribute + " public void Read() { } }");
         AssertSingle(diagnostics, "Read");
         diagnostics[0].GetMessage().Should().Contain("no explicit nonblank named policy is declared");
@@ -98,7 +98,7 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
     public async Task Anonymous_Metadata_Should_Override_Named_Policy(string classAttribute, string methodAttribute)
     {
         var diagnostics = await Analyze(classAttribute +
-            "public class TestController : SourceKnownControllerBase<object, object> { " + methodAttribute + " public void Read() { } }");
+            "public class TestController : SourceKnownReadOnlyController<object, object> { " + methodAttribute + " public void Read() { } }");
         AssertSingle(diagnostics, "Read");
         diagnostics[0].GetMessage().Should().Contain("anonymous access bypasses authorization");
     }
@@ -107,7 +107,7 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
     public async Task Override_Should_Inherit_Policy_And_NonAction_But_Hidden_Method_Should_Not()
     {
         var diagnostics = await Analyze("""
-            public abstract class Base : SourceKnownControllerBase<object, object>
+            public abstract class Base : SourceKnownReadOnlyController<object, object>
             {
                 [Authorize("Readers")] public virtual void Read() { }
                 [NonAction] public virtual void Disabled() { }
@@ -132,7 +132,7 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
     {
         var diagnostics = await Analyze("""
             [Authorize("Readers")]
-            public abstract class Base : SourceKnownControllerBase<object, object> { public void Read() { } }
+            public abstract class Base : SourceKnownReadOnlyController<object, object> { public void Read() { } }
             public class TestController : Base { public void Custom() { } }
             """);
         diagnostics.Should().BeEmpty();
@@ -142,7 +142,7 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
     public async Task Shared_Inherited_Action_Should_Use_Each_Controllers_Policy()
     {
         var diagnostics = await Analyze("""
-            public abstract class Common : SourceKnownControllerBase<object, object>
+            public abstract class Common : SourceKnownReadOnlyController<object, object>
             {
                 public void Read() { }
             }
@@ -160,7 +160,7 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
         var diagnostics = await Analyze("""
             public class PublicAccessAttribute : Attribute, IAllowAnonymous { }
             [PublicAccess]
-            public abstract class Base : SourceKnownControllerBase<object, object>
+            public abstract class Base : SourceKnownReadOnlyController<object, object>
             {
                 [Authorize("Readers")] public virtual void Read() { }
                 [NonAction] public void Disabled() { }
@@ -175,13 +175,13 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
     public async Task Non_Actions_And_Ineligible_Controllers_Should_Not_Report()
     {
         var diagnostics = await Analyze("""
-            public abstract class AbstractController : SourceKnownControllerBase<object, object> { public void Read() { } }
-            public class GenericController<T> : SourceKnownControllerBase<object, object> { public void Read() { } }
-            internal class InternalController : SourceKnownControllerBase<object, object> { public void Read() { } }
-            [NonController] public class ExcludedController : SourceKnownControllerBase<object, object> { public void Read() { } }
+            public abstract class AbstractController : SourceKnownReadOnlyController<object, object> { public void Read() { } }
+            public class GenericController<T> : SourceKnownReadOnlyController<object, object> { public void Read() { } }
+            internal class InternalController : SourceKnownReadOnlyController<object, object> { public void Read() { } }
+            [NonController] public class ExcludedController : SourceKnownReadOnlyController<object, object> { public void Read() { } }
             public class ExcludedChildController : ExcludedController { }
             public class UnrelatedController { public void Read() { } }
-            public class TestController : SourceKnownControllerBase<object, object>, IDisposable
+            public class TestController : SourceKnownReadOnlyController<object, object>, IDisposable
             {
                 public void Dispose() { }
                 public override string ToString() => "test";
@@ -191,8 +191,8 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
                 protected void Protected() { }
                 [NonAction] public void Disabled() { }
             }
-            internal class Outer { public class NestedController : SourceKnownControllerBase<object, object> { public void Read() { } } }
-            public class GenericOuter<T> { public class NestedController : SourceKnownControllerBase<object, object> { public void Read() { } } }
+            internal class Outer { public class NestedController : SourceKnownReadOnlyController<object, object> { public void Read() { } } }
+            public class GenericOuter<T> { public class NestedController : SourceKnownReadOnlyController<object, object> { public void Read() { } } }
             """);
         diagnostics.Should().BeEmpty();
     }
@@ -203,7 +203,7 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
         var diagnostics = await Analyze("""
             public class Outer
             {
-                public class NestedController : SourceKnownControllerBase<object, object> { public void Dispose() { } }
+                public class NestedController : SourceKnownReadOnlyController<object, object> { public void Dispose() { } }
             }
             """);
         AssertSingle(diagnostics, "Dispose");
@@ -220,7 +220,7 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
             {
                 string? IAuthorizeData.Policy { get; set; }
             }
-            public class TestController : SourceKnownControllerBase<object, object>
+            public class TestController : SourceKnownReadOnlyController<object, object>
             {
                 [ExplicitPolicy(Policy = "Readers")] public void Explicit() { }
                 [ImplicitPolicy] public void Implicit() { }
@@ -241,7 +241,7 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
             [AttributeUsage(AttributeTargets.Method, Inherited = true, AllowMultiple = false)]
             public class SinglePolicyAttribute : AuthorizeAttribute { }
             [LocalPolicy(Policy = "Readers")]
-            public abstract class Base : SourceKnownControllerBase<object, object>
+            public abstract class Base : SourceKnownReadOnlyController<object, object>
             {
                 [LocalPolicy(Policy = "Readers")] public virtual void Local() { }
                 [SinglePolicy(Policy = "Readers")] public virtual void Replaced() { }
@@ -262,7 +262,7 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
         var diagnostics = await Analyze("""
             [System.Diagnostics.Conditional("UNDEFINED_POLICY")]
             public class ConditionalPolicyAttribute : AuthorizeAttribute { }
-            public class TestController : SourceKnownControllerBase<object, object>
+            public class TestController : SourceKnownReadOnlyController<object, object>
             {
                 [ConditionalPolicy(Policy = "Readers")] public void Read() { }
             }
@@ -275,7 +275,7 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
     {
         var diagnostics = await Analyze("""
             public class Outer<T> { public class Nested { } }
-            public abstract class Base<T> : SourceKnownControllerBase<object, object>
+            public abstract class Base<T> : SourceKnownReadOnlyController<object, object>
             {
                 public void Read(T value) { }
                 public void Read(int value) { }
@@ -301,7 +301,7 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
     {
         var framework = FrameworkReference.Value;
         var library = EmitReference(Compile("Controllers", Imports + """
-            public abstract class Base<T> : SourceKnownControllerBase<object, object>
+            public abstract class Base<T> : SourceKnownReadOnlyController<object, object>
             {
                 [Authorize("Readers")] public virtual void Read(T value) { }
                 [NonAction] public virtual void Disabled() { }
@@ -324,7 +324,7 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
     public async Task Generated_Controller_Should_Still_Require_Policy()
     {
         var compilation = Compile("Generated", "// <auto-generated/>\n" + Imports + """
-            public class TestController : SourceKnownControllerBase<object, object> { public void Read() { } }
+            public class TestController : SourceKnownReadOnlyController<object, object> { public void Read() { } }
             """, FrameworkReference.Value);
         AssertSingle(await Analyze(compilation), "Read");
     }
@@ -340,7 +340,7 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
             public sealed class NonInheritedPolicyAttribute : AuthorizeAttribute { }
 
             [InheritedPolicy(Policy = "InheritedReaders")]
-            public abstract class InheritedBaseController : SourceKnownControllerBase<object, object>;
+            public abstract class InheritedBaseController : SourceKnownReadOnlyController<object, object>;
 
             public sealed class FirstInheritedController : InheritedBaseController
             {
@@ -354,7 +354,7 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
             }
 
             [NonInheritedPolicy(Policy = "BaseOnly")]
-            public abstract class NonInheritedBaseController : SourceKnownControllerBase<object, object>;
+            public abstract class NonInheritedBaseController : SourceKnownReadOnlyController<object, object>;
 
             public sealed class ExposedDerivedController : NonInheritedBaseController
             {
@@ -371,7 +371,7 @@ public class SourceKnownControllerAuthorizationAnalyzerTests
     {
         var compilation = Compile("Canceled", Imports + """
             [Authorize("Readers")]
-            public sealed class TestController : SourceKnownControllerBase<object, object>
+            public sealed class TestController : SourceKnownReadOnlyController<object, object>
             {
                 public void One() { }
                 public void Two() { }

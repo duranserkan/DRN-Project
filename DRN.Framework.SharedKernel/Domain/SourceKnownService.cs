@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using DRN.Framework.SharedKernel.Domain.Repository;
 
 namespace DRN.Framework.SharedKernel.Domain;
@@ -48,8 +47,8 @@ public abstract class SourceKnownService<TEntity, TResponse>(ISourceKnownReposit
         if (entities.Count == 0)
             return [];
 
-        foreach (var t in entities)
-            ArgumentNullException.ThrowIfNull(t, nameof(entities));
+        if (entities.Any(entity => entity is null))
+            throw new ArgumentNullException(nameof(entities));
 
         var responses = await CreateResponsesCoreAsync(entities, cancellationToken)
                         ?? throw new InvalidOperationException($"{GetType().Name}.{nameof(CreateResponsesCoreAsync)} returned null.");
@@ -58,9 +57,8 @@ public abstract class SourceKnownService<TEntity, TResponse>(ISourceKnownReposit
             throw new InvalidOperationException(
                 $"{GetType().Name}.{nameof(CreateResponsesCoreAsync)} returned {responses.Length} responses for {entities.Count} entities.");
 
-        foreach (var response in responses)
-            if (response is null)
-                throw new InvalidOperationException($"{GetType().Name}.{nameof(CreateResponsesCoreAsync)} returned a null element.");
+        if (Array.Exists(responses, response => response is null))
+            throw new InvalidOperationException($"{GetType().Name}.{nameof(CreateResponsesCoreAsync)} returned a null element.");
 
         return responses;
     }
@@ -93,7 +91,6 @@ public abstract class SourceKnownService<TEntity, TResponse>(ISourceKnownReposit
 /// Provides a base repository-backed service for entities of type <typeparamref name="TEntity"/>
 /// with response projection to <typeparamref name="TResponse"/> and entity creation from <typeparamref name="TCreateRequest"/>.
 /// </summary>
-[SuppressMessage("SonarQube", "S2436", Justification = "Entity, response contract and create request are independent contracts. Three type parameters preserve typed repository access, response projection and request handling.")]
 public abstract class SourceKnownService<TEntity, TResponse, TCreateRequest>(ISourceKnownRepository<TEntity> repository)
     : SourceKnownService<TEntity, TResponse>(repository), ISourceKnownService<TEntity, TResponse, TCreateRequest>
     where TEntity : AggregateRoot

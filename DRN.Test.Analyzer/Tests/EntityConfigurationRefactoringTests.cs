@@ -3,14 +3,12 @@ using DRN.Framework.Testing.Contexts;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeRefactorings;
 using Microsoft.CodeAnalysis.Text;
+using static DRN.Test.Analyzer.Tests.AnalyzerTestCompilation;
 
 namespace DRN.Test.Analyzer.Tests;
 
 public sealed class EntityConfigurationRefactoringTests
 {
-    private static readonly string SourceRoot = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "drn-entity-config-tests"));
-    private static string SourcePath(params string[] segments) => Path.Combine([SourceRoot, .. segments]);
-
     private const string EntitySource = """
         namespace Sample.Domain.QA;
         [System.ComponentModel.DataAnnotations.Schema.Table("users")]
@@ -221,7 +219,7 @@ public sealed class EntityConfigurationRefactoringTests
         using var workspace = new AdhocWorkspace();
         var entity = CreateDocuments(workspace);
         var context = entity.Project.Documents.Single(document => document.Name == "QAContext.cs");
-        var changed = context.WithFilePath(SourcePath("Sample.Infra", "QA", "\0Context.cs"));
+        var changed = context.WithFilePath(Path.Combine(SourcePath("Sample.Infra/QA"), "\0Context.cs"));
         workspace.TryApplyChanges(changed.Project.Solution).Should().BeTrue();
         (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().BeEmpty();
     }
@@ -738,6 +736,13 @@ public sealed class EntityConfigurationRefactoringTests
     [Theory]
     [DataInlineUnit("Sample.Infra", "", true)]
     [DataInlineUnit("Sample.Infra", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Role.Domain", "Sample.Domain")]
+        """, false)]
+    [DataInlineUnit("Sample.Infra", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Domain", "Other")]
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Domain", "Sample")]
+        """, false)]
+    [DataInlineUnit("Sample.Infra", """
         [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.QA.User.Domain", "Sample")]
         [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.QA.User.Subdomain", "QA")]
         """, true)]
@@ -775,6 +780,7 @@ public sealed class EntityConfigurationRefactoringTests
                 """, filePath: SourcePath(infraName, "QA", "QAContext.cs")).Project;
         workspace.TryApplyChanges(infra.Solution).Should().BeTrue();
 
+        (await workspace.CurrentSolution.GetProject(domain.Id)!.GetCompilationAsync())!.AssertNoCompilerErrors();
         (await workspace.CurrentSolution.GetProject(infra.Id)!.GetCompilationAsync())!.AssertNoCompilerErrors();
         var actions = await Actions(workspace.CurrentSolution.GetDocument(entityDoc.Id)!);
         if (offered) actions.Should().ContainSingle();

@@ -98,7 +98,7 @@ internal static class ConventionReferenceBoundaryAnalysis
         if (SymbolEqualityComparer.Default.Equals(facts.Symbols.Entity?.ContainingAssembly, assembly)) return SharedKernelPackage;
         if (SymbolEqualityComparer.Default.Equals(facts.Symbols.Context?.ContainingAssembly, assembly)) return EntityFrameworkPackage;
         if (SymbolEqualityComparer.Default.Equals(facts.Symbols.RegistrationAttribute?.ContainingAssembly, assembly)) return UtilsPackage;
-        if (SymbolEqualityComparer.Default.Equals(facts.Symbols.SourceKnownController?.ContainingAssembly, assembly)) return HostingPackage;
+        if (SymbolEqualityComparer.Default.Equals(facts.Symbols.SourceKnownReadOnlyController?.ContainingAssembly, assembly)) return HostingPackage;
         return null;
     }
 

@@ -23,6 +23,13 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         if (selection is null) return;
         var domainPreflight = await ResolveDomainPreflightAsync(context.Document.Project, sourceInfo, selection, context.CancellationToken);
         if (domainPreflight is null) return;
+        await RegisterDtoProjectionsAsync(context, selection, domainPreflight);
+    }
+
+    private static async Task RegisterDtoProjectionsAsync(CodeRefactoringContext context, Selection selection,
+        DomainDtoPreflight domainPreflight)
+    {
+        var solution = context.Document.Project.Solution;
         foreach (var project in solution.Projects)
         {
             context.CancellationToken.ThrowIfCancellationRequested();
@@ -594,7 +601,9 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         if (!AttributesPreserveOwner(entity, owner, compilation, out var attrExplicitDomain) ||
             !OwnershipCompatible(root, MetadataName(entity), owner.Subdomain, token, out var inputExplicitDomain, owner.DomainFilter))
             return false;
-        hasExplicitDomain = attrExplicitDomain || inputExplicitDomain;
+        var metadata = ConventionGenerationPreflight.MetadataFromAssembly(entity.ContainingAssembly);
+        if (!metadata.TryValidateProducerOwnership(MetadataName(entity), owner, out var producerExplicitDomain)) return false;
+        hasExplicitDomain = attrExplicitDomain || inputExplicitDomain || producerExplicitDomain;
         return true;
     }
 

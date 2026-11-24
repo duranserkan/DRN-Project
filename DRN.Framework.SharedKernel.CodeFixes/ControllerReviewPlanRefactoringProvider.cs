@@ -60,7 +60,7 @@ public sealed class ControllerReviewPlanRefactoringProvider : CodeRefactoringPro
         if (root is null || model is null ||
             model.GetDeclaredSymbol(declaration, token) is not INamedTypeSymbol type || IsOpen(type) ||
             model.GetDiagnostics(declaration.Span, token).Any(item => item.Severity == DiagnosticSeverity.Error)) return null;
-        var known = model.Compilation.GetTypeByMetadataName("DRN.Framework.Hosting.Controllers.SourceKnownControllerBase`2");
+        var known = model.Compilation.GetTypeByMetadataName("DRN.Framework.Hosting.Controllers.SourceKnownReadOnlyController`2");
         if (known is null || !NonObjectBases(type).Any(item => Same(item, known))) return null;
         var name = type.Name + ".controller-review.md";
         var path = Path.Combine(Path.GetDirectoryName(sourcePath)!, name);

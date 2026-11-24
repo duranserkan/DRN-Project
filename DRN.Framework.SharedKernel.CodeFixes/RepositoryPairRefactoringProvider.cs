@@ -137,7 +137,9 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
             conventionalOwner is null || ownerKey is null || entity.ContainingNamespace.IsGlobalNamespace ||
             !ownerKey.SameOwner(conventionalOwner) ||
             !OwnershipCompatible(domainInputs, entityName, ownerKey.Subdomain, token, out var domainExplicitDomain, ownerKey.DomainFilter)) return null;
-        ownerKey = ownerKey.WithExplicitDomain(domainExplicitDomain);
+        var metadata = ConventionGenerationPreflight.MetadataFromAssembly(entity.ContainingAssembly);
+        if (!metadata.TryValidateProducerOwnership(entityName, ownerKey, out var producerExplicitDomain)) return null;
+        ownerKey = ownerKey.WithExplicitDomain(domainExplicitDomain || producerExplicitDomain);
         var domainNamespace = entity.ContainingNamespace.ToDisplayString();
         var domainRoot = Path.GetDirectoryName(home.ProjectPath)!;
         var expectedDomainRelative = domainNamespace[(home.Namespace.Length + 1)..].Replace('.', '/');
@@ -283,7 +285,8 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
             foreach (var attribute in list.Attributes)
             {
                 token.ThrowIfCancellationRequested();
-                if (!TryReadContextRepositoryAttribute(list, attribute, context, conventionalDestination,
+                if (list.Target?.Identifier.ValueText != "assembly") continue;
+                if (!TryReadContextRepositoryAttribute(attribute, context, conventionalDestination,
                         ref destination, ref declaredContext, ref hasExplicitDomain, token))
                     return null;
             }
@@ -291,12 +294,11 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
         return context.AliasRequired && !declaredContext ? null : destination ?? conventionalDestination;
     }
 
-    private static bool TryReadContextRepositoryAttribute(AttributeListSyntax list, AttributeSyntax attribute,
+    private static bool TryReadContextRepositoryAttribute(AttributeSyntax attribute,
         (string Name, OwnerKey Owner, bool AliasRequired) context, string conventionalDestination,
         ref string? destination, ref bool declaredContext, ref bool hasExplicitDomain, CancellationToken token)
     {
-        if (list.Target?.Identifier.ValueText != "assembly" ||
-            ConventionInputSyntax.Kind(attribute) != ConventionInputSyntax.ContextKind ||
+        if (ConventionInputSyntax.Kind(attribute) != ConventionInputSyntax.ContextKind ||
             attribute.ArgumentList is not { Arguments.Count: > 0 } arguments ||
             ConventionInputSyntax.String(arguments.Arguments[0].Expression, token) != context.Name) return true;
         declaredContext = true;

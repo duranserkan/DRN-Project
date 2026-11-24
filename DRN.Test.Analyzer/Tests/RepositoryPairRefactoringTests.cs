@@ -3,6 +3,7 @@ using DRN.Framework.SharedKernel.CodeFixes;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeRefactorings;
 using Microsoft.CodeAnalysis.Text;
+using static DRN.Test.Analyzer.Tests.AnalyzerTestCompilation;
 
 namespace DRN.Test.Analyzer.Tests;
 
@@ -38,7 +39,7 @@ public sealed class RepositoryPairRefactoringTests
         domain.Documents.Should().ContainSingle(document => document.Name == "IOrderRepository.cs");
         infra.Documents.Should().ContainSingle(document => document.Name == "OrderRepository.cs");
         var configuration = infra.Documents.Single(document => document.Name == "OrderConfig.cs");
-        configuration.FilePath.Should().Be("/source/Sample.Infra/QA/Configurations/OrderConfig.cs");
+        configuration.FilePath.Should().Be(SourcePath("Sample.Infra/QA/Configurations/OrderConfig.cs"));
         (await configuration.GetTextAsync()).ToString().Should().Contain("IEntityTypeConfiguration<global::Sample.Domain.QA.Orders.Order>")
             .And.NotContain("HasKey").And.NotContain("ToTable");
         (await changed.GetDocument(entity.Id)!.GetTextAsync()).ToString().Should().Be(EntitySource);
@@ -56,7 +57,7 @@ public sealed class RepositoryPairRefactoringTests
         var entity = CreateDocuments(workspace);
         var infra = workspace.CurrentSolution.Projects.Single(project => project.Name == "Sample.Infra");
         var collision = infra.AddAdditionalDocument("orderconfig.cs", "// retained", filePath:
-            "/source/Sample.Infra/QA/Configurations/orderconfig.cs");
+            SourcePath("Sample.Infra/QA/Configurations/orderconfig.cs"));
         workspace.TryApplyChanges(collision.Project.Solution).Should().BeTrue();
         var currentEntity = workspace.CurrentSolution.GetDocument(entity.Id)!;
         (await Actions(currentEntity, bundles: true)).Should().BeEmpty();
@@ -76,7 +77,7 @@ public sealed class RepositoryPairRefactoringTests
             {
                 public void Configure(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<Sample.Domain.QA.Orders.Order> builder) { }
             }
-            """, filePath: "/source/Sample.Infra/Other/Existing.cs");
+            """, filePath: SourcePath("Sample.Infra/Other/Existing.cs"));
         workspace.TryApplyChanges(mapping.Project.Solution).Should().BeTrue();
         var current = workspace.CurrentSolution.GetDocument(entity.Id)!;
         (await Actions(current, bundles: true)).Should().BeEmpty();
@@ -121,9 +122,9 @@ public sealed class RepositoryPairRefactoringTests
         var changed = await actions.Single(action => action.Title.Contains("ReadContext", StringComparison.Ordinal)).GetChangedSolutionAsync();
         var infra = changed.Projects.Single(project => project.Name == "Sample.Infra");
         infra.Documents.Single(document => document.Name == "OrderRepository.cs").FilePath.Should()
-            .Be("/source/Sample.Infra/QA/Read/Repositories/OrderRepository.cs");
+            .Be(SourcePath("Sample.Infra/QA/Read/Repositories/OrderRepository.cs"));
         infra.Documents.Single(document => document.Name == "OrderConfig.cs").FilePath.Should()
-            .Be("/source/Sample.Infra/QA/Read/Configurations/OrderConfig.cs");
+            .Be(SourcePath("Sample.Infra/QA/Read/Configurations/OrderConfig.cs"));
         (await infra.GetCompilationAsync())!.AssertNoCompilerErrors();
     }
 
@@ -139,7 +140,7 @@ public sealed class RepositoryPairRefactoringTests
             {
                 public Microsoft.EntityFrameworkCore.DbSet<Sample.Domain.QA.Orders.Order> Orders { get; set; }
             }
-            """, filePath: "/source/Sample.Infra/QA/QAReadContext.cs");
+            """, filePath: SourcePath("Sample.Infra/QA/QAReadContext.cs"));
         workspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
         var current = workspace.CurrentSolution.GetDocument(entity.Id)!;
         (await Actions(current, bundles: true)).Should().BeEmpty();
@@ -160,8 +161,8 @@ public sealed class RepositoryPairRefactoringTests
             !change.GetAddedProjectReferences().Any() && !change.GetRemovedDocuments().Any());
         var contract = changed.Projects.SelectMany(project => project.Documents).Single(document => document.Name == "IOrderRepository.cs");
         var implementation = changed.Projects.SelectMany(project => project.Documents).Single(document => document.Name == "OrderRepository.cs");
-        contract.FilePath.Should().Be("/source/Sample.Domain/QA/Orders/IOrderRepository.cs");
-        implementation.FilePath.Should().Be("/source/Sample.Infra/QA/Repositories/OrderRepository.cs");
+        contract.FilePath.Should().Be(SourcePath("Sample.Domain/QA/Orders/IOrderRepository.cs"));
+        implementation.FilePath.Should().Be(SourcePath("Sample.Infra/QA/Repositories/OrderRepository.cs"));
         (await changed.GetDocument(entity.Id)!.GetTextAsync()).ToString().Should().Be(EntitySource);
         var source = (await implementation.GetTextAsync()).ToString();
         source.Should().Contain("Scoped<global::Sample.Domain.QA.Orders.IOrderRepository>")
@@ -171,6 +172,21 @@ public sealed class RepositoryPairRefactoringTests
         (await implementation.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
         workspace.TryApplyChanges(changed).Should().BeTrue();
         (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Producer_Role_Override_Should_Decline_Pair_And_Bundle()
+    {
+        using var workspace = new AdhocWorkspace();
+        var entity = CreateDocuments(workspace);
+        var domain = entity.Project.AddDocument("AssemblyInfo.cs",
+            """[assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Role.Domain", "Sample.Domain")]""",
+            filePath: SourcePath("Sample.Domain/Properties/AssemblyInfo.cs")).Project;
+        workspace.TryApplyChanges(domain.Solution).Should().BeTrue();
+        var current = workspace.CurrentSolution.GetDocument(entity.Id)!;
+        (await current.Project.GetCompilationAsync())!.AssertNoCompilerErrors();
+        (await Actions(current)).Should().BeEmpty();
+        (await Actions(current, bundles: true)).Should().BeEmpty();
     }
 
     [Theory]
@@ -248,7 +264,7 @@ public sealed class RepositoryPairRefactoringTests
         var changed = await action.GetChangedSolutionAsync();
         var implementation = changed.Projects.Single(project => project.Name == "Sample.Infra")
             .Documents.Single(document => document.Name == "OrderRepository.cs");
-        implementation.FilePath.Should().Be("/source/Sample.Infra/QA/Repositories/OrderRepository.cs");
+        implementation.FilePath.Should().Be(SourcePath("Sample.Infra/QA/Repositories/OrderRepository.cs"));
         foreach (var project in changed.Projects)
             (await project.GetCompilationAsync())!.AssertNoCompilerErrors();
     }
@@ -260,7 +276,7 @@ public sealed class RepositoryPairRefactoringTests
         var entity = CreateDocuments(workspace, destination: false);
         var infra = workspace.CurrentSolution.Projects.Single(project => project.Name == "Sample.Infra");
         var context = infra.Documents.Single(document => document.Name == "QAContext.cs");
-        workspace.TryApplyChanges(context.WithFilePath("/source/Sample.Infra/Legacy/QAContext.cs").Project.Solution).Should().BeTrue();
+        workspace.TryApplyChanges(context.WithFilePath(SourcePath("Sample.Infra/Legacy/QAContext.cs")).Project.Solution).Should().BeTrue();
         (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().BeEmpty();
     }
 
@@ -270,7 +286,7 @@ public sealed class RepositoryPairRefactoringTests
         using var workspace = new AdhocWorkspace();
         var entity = CreateDocuments(workspace);
         var infra = workspace.CurrentSolution.Projects.Single(project => project.Name == "Sample.Infra");
-        var collision = infra.AddDocument("orderrepository.cs", "// existing content", filePath: "/source/Sample.Infra/QA/Repositories/orderrepository.cs");
+        var collision = infra.AddDocument("orderrepository.cs", "// existing content", filePath: SourcePath("Sample.Infra/QA/Repositories/orderrepository.cs"));
         workspace.TryApplyChanges(collision.Project.Solution).Should().BeTrue();
         (await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!)).Should().BeEmpty();
         workspace.CurrentSolution.Projects.SelectMany(project => project.Documents).Should().NotContain(document => document.Name == "IOrderRepository.cs");
@@ -315,7 +331,7 @@ public sealed class RepositoryPairRefactoringTests
         actions.Should().Contain(action => action.Title.Contains("Sample.Infra.QA.Write.WriteContext", StringComparison.Ordinal));
         var changed = await actions.Single(action => action.Title.Contains("ReadContext", StringComparison.Ordinal)).GetChangedSolutionAsync();
         changed.Projects.SelectMany(project => project.Documents).Single(document => document.Name == "OrderRepository.cs")
-            .FilePath.Should().Be("/source/Sample.Infra/QA/Read/Repositories/OrderRepository.cs");
+            .FilePath.Should().Be(SourcePath("Sample.Infra/QA/Read/Repositories/OrderRepository.cs"));
     }
 
     [Fact]
@@ -486,7 +502,7 @@ public sealed class RepositoryPairRefactoringTests
             namespace Sample.Contract.QA.Orders;
             public class OrderDto(SourceKnownEntity? entity = null) : Dto(entity);
             """).WithAssemblyName("Sample.Contract");
-        var contractReference = AnalyzerTestCompilation.EmitReference(contract, "/source/Sample.Contract/Sample.Contract.dll", AnalyzerTestCompilation.ReferenceAssemblyOptions);
+        var contractReference = AnalyzerTestCompilation.EmitReference(contract, SourcePath("Sample.Contract/Sample.Contract.dll"), AnalyzerTestCompilation.ReferenceAssemblyOptions);
         var domain = AddDomainProject(workspace, extraReferences: [contractReference]);
         var entity = domain.AddDocument("OrderEntity.cs", """
             namespace Sample.Domain.QA.Order;
@@ -494,7 +510,7 @@ public sealed class RepositoryPairRefactoringTests
             {
                 public override Sample.Contract.QA.Orders.OrderDto ToDto() => new(this);
             }
-            """, filePath: "/source/Sample.Domain/QA/Order/OrderEntity.cs");
+            """, filePath: SourcePath("Sample.Domain/QA/Order/OrderEntity.cs"));
         workspace.TryApplyChanges(entity.Project.Solution).Should().BeTrue();
 
         var infra = AddInfraProject(workspace, "Sample.Infra", domain.Id);
@@ -517,7 +533,7 @@ public sealed class RepositoryPairRefactoringTests
                     return services;
                 }
             }
-            """, filePath: "/source/Sample.Infra/QA/QAContext.cs").Project;
+            """, filePath: SourcePath("Sample.Infra/QA/QAContext.cs")).Project;
         workspace.TryApplyChanges(infra.Solution).Should().BeTrue();
 
         var currentEntity = workspace.CurrentSolution.GetDocument(entity.Id)!;
@@ -534,27 +550,27 @@ public sealed class RepositoryPairRefactoringTests
         changedInfra.Documents.Should().ContainSingle(document => document.Name == "OrderConfig.cs");
 
         var domainCompilation = (await changedDomain.GetCompilationAsync())!;
-        var domainReference = AnalyzerTestCompilation.EmitReference(domainCompilation, "/source/Sample.Domain/Sample.Domain.dll", AnalyzerTestCompilation.ReferenceAssemblyOptions);
+        var domainReference = AnalyzerTestCompilation.EmitReference(domainCompilation, SourcePath("Sample.Domain/Sample.Domain.dll"), AnalyzerTestCompilation.ReferenceAssemblyOptions);
         var infraCompilation = (await changedInfra.GetCompilationAsync())!;
         var layeredInfra = infraCompilation.RemoveReferences(infraCompilation.References.OfType<CompilationReference>())
             .AddReferences(domainReference, contractReference);
 
-        var domainInputs = new ProjectDiagnosticRulesTests.RuleFile(Framework.SharedKernel.Analyzers.Conventions.ConventionInputs.FileName, """
+        var domainInputs = new ProjectDiagnosticRulesTests.RuleFile(Framework.SharedKernel.Analyzers.Conventions.ConventionInputs.FileName, $"""
             [assembly: DRN.Conventions.Version("1")]
             [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
-            [assembly: DRN.Conventions.Reference("/source/Sample.Contract/Sample.Contract.csproj", Stage = "Project", Source = "/source/Sample.Contract/Sample.Contract.csproj")]
-            [assembly: DRN.Conventions.Reference("/source/Sample.Contract/Sample.Contract.dll", Stage = "Resolved", Project = "/source/Sample.Contract/Sample.Contract.csproj")]
-            [assembly: DRN.Conventions.Path("/source/Sample.Domain/QA/Order/OrderEntity.cs", LogicalPath = "QA/Order/OrderEntity.cs")]
-            [assembly: DRN.Conventions.Path("/source/Sample.Domain/QA/Order/IOrderRepository.cs", LogicalPath = "QA/Order/IOrderRepository.cs")]
+            [assembly: DRN.Conventions.Reference({SourcePathLiteral("Sample.Contract/Sample.Contract.csproj")}, Stage = "Project", Source = {SourcePathLiteral("Sample.Contract/Sample.Contract.csproj")})]
+            [assembly: DRN.Conventions.Reference({SourcePathLiteral("Sample.Contract/Sample.Contract.dll")}, Stage = "Resolved", Project = {SourcePathLiteral("Sample.Contract/Sample.Contract.csproj")})]
+            [assembly: DRN.Conventions.Path({SourcePathLiteral("Sample.Domain/QA/Order/OrderEntity.cs")}, LogicalPath = "QA/Order/OrderEntity.cs")]
+            [assembly: DRN.Conventions.Path({SourcePathLiteral("Sample.Domain/QA/Order/IOrderRepository.cs")}, LogicalPath = "QA/Order/IOrderRepository.cs")]
             """);
-        var infraInputs = new ProjectDiagnosticRulesTests.RuleFile(Framework.SharedKernel.Analyzers.Conventions.ConventionInputs.FileName, """
+        var infraInputs = new ProjectDiagnosticRulesTests.RuleFile(Framework.SharedKernel.Analyzers.Conventions.ConventionInputs.FileName, $"""
             [assembly: DRN.Conventions.Version("1")]
             [assembly: DRN.Conventions.Reference("Inventory", Stage = "Complete")]
-            [assembly: DRN.Conventions.Reference("/source/Sample.Domain/Sample.Domain.csproj", Stage = "Project", Source = "/source/Sample.Domain/Sample.Domain.csproj")]
-            [assembly: DRN.Conventions.Reference("/source/Sample.Domain/Sample.Domain.dll", Stage = "Resolved", Project = "/source/Sample.Domain/Sample.Domain.csproj")]
-            [assembly: DRN.Conventions.Path("/source/Sample.Infra/QA/QAContext.cs", LogicalPath = "QA/QAContext.cs")]
-            [assembly: DRN.Conventions.Path("/source/Sample.Infra/QA/Repositories/OrderRepository.cs", LogicalPath = "QA/Repositories/OrderRepository.cs")]
-            [assembly: DRN.Conventions.Path("/source/Sample.Infra/QA/Configurations/OrderConfig.cs", LogicalPath = "QA/Configurations/OrderConfig.cs")]
+            [assembly: DRN.Conventions.Reference({SourcePathLiteral("Sample.Domain/Sample.Domain.csproj")}, Stage = "Project", Source = {SourcePathLiteral("Sample.Domain/Sample.Domain.csproj")})]
+            [assembly: DRN.Conventions.Reference({SourcePathLiteral("Sample.Domain/Sample.Domain.dll")}, Stage = "Resolved", Project = {SourcePathLiteral("Sample.Domain/Sample.Domain.csproj")})]
+            [assembly: DRN.Conventions.Path({SourcePathLiteral("Sample.Infra/QA/QAContext.cs")}, LogicalPath = "QA/QAContext.cs")]
+            [assembly: DRN.Conventions.Path({SourcePathLiteral("Sample.Infra/QA/Repositories/OrderRepository.cs")}, LogicalPath = "QA/Repositories/OrderRepository.cs")]
+            [assembly: DRN.Conventions.Path({SourcePathLiteral("Sample.Infra/QA/Configurations/OrderConfig.cs")}, LogicalPath = "QA/Configurations/OrderConfig.cs")]
             """);
         var analyzer = new Framework.SharedKernel.Analyzers.Conventions.SourceKnownConventionAnalyzer();
         var domainDiagnostics = await AnalyzerTestCompilation.Analyze(domainCompilation, analyzer,
@@ -584,7 +600,7 @@ public sealed class RepositoryPairRefactoringTests
             namespace Sample.Domain.{{nsSegment}}.Orders;
             [DRN.Framework.SharedKernel.Attributes.SourceKnownSubdomain({{(foldersLayout ? "\"Common\"" : "\"QA\", Domain = \"Sample\"")}})]
             public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
-            """, filePath: "/source/Sample.Domain/" + pathSegment + "/Orders/Order.cs");
+            """, filePath: SourcePath("Sample.Domain", pathSegment, "Orders/Order.cs"));
         workspace.TryApplyChanges(entityDoc.Project.Solution).Should().BeTrue();
 
         var infra = AddInfraProject(workspace, "Sample.Infra", domain.Id);
@@ -597,7 +613,7 @@ public sealed class RepositoryPairRefactoringTests
                 public {{contextName}}() : base(null) { }
                 public Microsoft.EntityFrameworkCore.DbSet<Sample.Domain.{{nsSegment}}.Orders.Order> Orders { get; set; }
             }
-            """, filePath: "/source/Sample.Infra/" + pathSegment + "/" + contextName + ".cs").Project;
+            """, filePath: SourcePath("Sample.Infra", pathSegment, contextName + ".cs")).Project;
         var solution = foldersLayout ? infra.Solution.WithFoldersLayout() : infra.Solution;
         workspace.TryApplyChanges(solution).Should().BeTrue();
         var currentEntity = workspace.CurrentSolution.GetDocument(entityDoc.Id)!;
@@ -618,7 +634,7 @@ public sealed class RepositoryPairRefactoringTests
         var input = infra.AddAdditionalDocument("DrnConventionInputs.g.cs", $$"""
             [assembly: DRN.Conventions.Version("1")]
             [assembly: DRN.Conventions.Context("Sample.Infra.QA.QAContext", Repositories = "QA/Repositories", {{extraFields}})]
-            """, filePath: "/source/Sample.Infra/obj/DrnConventionInputs.g.cs");
+            """, filePath: SourcePath("Sample.Infra/obj/DrnConventionInputs.g.cs"));
         workspace.TryApplyChanges(input.Project.Solution).Should().BeTrue();
         var actions = await Actions(workspace.CurrentSolution.GetDocument(entity.Id)!);
         if (offered) actions.Should().ContainSingle();
@@ -657,7 +673,7 @@ public sealed class RepositoryPairRefactoringTests
         params MetadataReference[] extraReferences)
     {
         var project = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
-                name, name, LanguageNames.CSharp, filePath: "/source/" + name + "/" + name + ".csproj"))
+                name, name, LanguageNames.CSharp, filePath: SourcePath(name, name + ".csproj")))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddMetadataReferences(ClassificationTestFixture.References);
         return extraReferences.Length > 0 ? project.AddMetadataReferences(extraReferences) : project;
@@ -665,7 +681,7 @@ public sealed class RepositoryPairRefactoringTests
 
     private static Project AddInfraProject(AdhocWorkspace workspace, string name, ProjectId domainProjectId) =>
         workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
-                name, name, LanguageNames.CSharp, filePath: "/source/" + name + "/" + name + ".csproj"))
+                name, name, LanguageNames.CSharp, filePath: SourcePath(name, name + ".csproj")))
             .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
             .AddProjectReference(new ProjectReference(domainProjectId))
             .AddMetadataReferences(ClassificationTestFixture.References)
@@ -676,7 +692,7 @@ public sealed class RepositoryPairRefactoringTests
         string contextMembers = "", string infraName = "Sample.Infra")
     {
         var domain = AddDomainProject(workspace);
-        var entity = domain.AddDocument("Order.cs", EntitySource, filePath: "/source/Sample.Domain/QA/Orders/Order.cs");
+        var entity = domain.AddDocument("Order.cs", EntitySource, filePath: SourcePath("Sample.Domain/QA/Orders/Order.cs"));
         workspace.TryApplyChanges(entity.Project.Solution).Should().BeTrue();
         var infra = AddInfraProject(workspace, infraName, domain.Id);
         var contexts = cqrs ? new[] { ("ReadContext", "QA.Read", "QA/Read"), ("WriteContext", "QA.Write", "QA/Write") }
@@ -693,13 +709,13 @@ public sealed class RepositoryPairRefactoringTests
                     {{member}}
                     {{contextMembers}}
                 }
-                """, filePath: "/source/" + infraName + "/" + path + "/" + name + ".cs").Project;
+                """, filePath: SourcePath(infraName, path, name + ".cs")).Project;
             records.Add("[assembly: DRN.Conventions.Context(\"" + infraName + "." + ns + "." + name + "\", Repositories = \"" + path +
                         "/Repositories\"" + (cqrs ? ", Subdomain = \"QA\", Reason = \"CQRS context in QA.\"" : "") + ")]");
         }
         if (destination)
             infra = infra.AddAdditionalDocument("DrnConventionInputs.g.cs", string.Join("\n", records),
-                filePath: "/source/" + infraName + "/obj/DrnConventionInputs.g.cs").Project;
+                filePath: SourcePath(infraName, "obj/DrnConventionInputs.g.cs")).Project;
         workspace.TryApplyChanges(infra.Solution).Should().BeTrue();
         return workspace.CurrentSolution.GetDocument(entity.Id)!;
     }

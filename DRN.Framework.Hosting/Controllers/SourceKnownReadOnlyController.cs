@@ -1,5 +1,6 @@
 using DRN.Framework.SharedKernel.Domain;
 using DRN.Framework.SharedKernel.Domain.Pagination;
+using DRN.Framework.SharedKernel.Domain.Repository;
 using DRN.Framework.Utils.Scope;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,16 +10,34 @@ namespace DRN.Framework.Hosting.Controllers;
 /// Exposes bounded repository reads as explicit response contracts. Override an action with <see cref="NonActionAttribute"/>
 /// to remove it from routing. Repository filters must enforce application data visibility.
 /// </summary>
-public abstract class SourceKnownReadOnlyController<TEntity, TResponse>(ISourceKnownService<TEntity, TResponse> service)
-    : SourceKnownControllerBase<TEntity, TResponse>(service)
+[Authorize]
+[ApiController]
+public abstract class SourceKnownReadOnlyController<TEntity, TResponse> : ControllerBase
     where TEntity : AggregateRoot
     where TResponse : class
 {
+    /// <summary>
+    /// Exposes bounded repository reads as explicit response contracts. Override an action with <see cref="NonActionAttribute"/>
+    /// to remove it from routing. Repository filters must enforce application data visibility.
+    /// </summary>
+    protected SourceKnownReadOnlyController(ISourceKnownService<TEntity, TResponse> service) => Service = service;
+
     /// <summary>Server-owned page ceiling, bounded to 1 through 1000.</summary>
     protected virtual int MaxPageSize => PageSize.MaxSizeDefault;
 
     /// <summary>Server-owned batch ceiling, bounded to 1 through 1000.</summary>
     protected virtual int MaxBatchSize => PageSize.MaxSizeDefault;
+
+    protected ISourceKnownService<TEntity, TResponse> Service { get; }
+    protected ISourceKnownRepository<TEntity> Repository => Service.Repository;
+
+
+    /// <summary>Links request cancellation to the scoped repository before starting work.</summary>
+    protected void PrepareRepository(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Service.Repository.CancelWhen(cancellationToken);
+    }
 
     /// <summary>Retrieves one entity using the repository's configured GUID format.</summary>
     [HttpGet("{id:guid}")]
@@ -27,7 +46,7 @@ public abstract class SourceKnownReadOnlyController<TEntity, TResponse>(ISourceK
         PrepareRepository(cancellationToken);
         var entity = await Repository.GetAsync(id);
         cancellationToken.ThrowIfCancellationRequested();
-        return await CreateResponseAsync(entity, cancellationToken);
+        return await Service.CreateResponseAsync(entity, cancellationToken);
     }
 
     /// <summary>Retrieves a bounded batch. Missing IDs and ordering follow repository semantics.</summary>
@@ -44,7 +63,7 @@ public abstract class SourceKnownReadOnlyController<TEntity, TResponse>(ISourceK
         PrepareRepository(cancellationToken);
         var entities = await Repository.GetAsync(ids);
         cancellationToken.ThrowIfCancellationRequested();
-        return await CreateResponsesAsync(entities, cancellationToken);
+        return await Service.CreateResponsesAsync(entities, cancellationToken);
     }
 
     /// <summary>Reports whether any entity is visible through the configured repository filters.</summary>
@@ -98,7 +117,7 @@ public abstract class SourceKnownReadOnlyController<TEntity, TResponse>(ISourceK
             cursor, updateTotalCount: request.UpdateTotalCount);
         var result = await Repository.PaginateAsync(boundedRequest);
         cancellationToken.ThrowIfCancellationRequested();
-        var responses = await CreateResponsesAsync(result.Items, cancellationToken);
+        var responses = await Service.CreateResponsesAsync(result.Items, cancellationToken);
         return new PaginationResultModel<TResponse>(result.Info, responses);
     }
 }

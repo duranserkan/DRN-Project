@@ -69,6 +69,8 @@ Endpoint checks include `[ProducesResponseType]` on actions, controllers, and th
 
 Public endpoints and Contract messages must not return, accept, inherit from, or nest a `Dto` (DRNDTO005, excluding `[FromServices]` and `[FromKeyedServices]` parameters and inspecting referenced `Application` wrappers and `[ProducesResponseType]` metadata). Public operations returning aggregate data or accepting business payloads use explicit Contract `*Request` and `*Response` types across return types, `[ProducesResponseType]`, and complex `[FromQuery]` parameters (DRNDTO006), while route-only GETs, `StatusCodeResult` (including 204 `NoContentResult`), and untyped `IActionResult`/`ActionResult`/`IResult` need no empty wrappers. `DRNDTO003` verifies `[Personal]` and `[Sensitive]` preservation on both entity `ToDto()` projections and Contract `*Response` object initializers and positional/constructor projections (including nested entity/DTO reads and `abstract` or generic mappers). Apply `[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]` on strict Request types to reject unexpected caller fields while keeping shared `JsonConventions` compatible with EF JSONB and upstream HTTP payloads.
 
+When a response includes a collection of Contract models, classify each projected field on the model that receives it. DRNDTO003 also checks construction of these models in helpers and locals. See the [DTO diagnostic guide](CONVENTION-DIAGNOSTICS.md#entity-dtos-and-public-contracts).
+
 ## Declared inputs
 
 | Item | Required relationship and optional evidence |

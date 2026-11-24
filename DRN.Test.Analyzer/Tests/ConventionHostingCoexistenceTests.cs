@@ -22,7 +22,7 @@ public sealed class ConventionHostingCoexistenceTests
         namespace Sample.Hosted.QA;
         public class Order : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
         public class OrderResponse;
-        public abstract class ControllerParent : DRN.Framework.Hosting.Controllers.SourceKnownControllerBase<Order, OrderResponse>
+        public abstract class ControllerParent : DRN.Framework.Hosting.Controllers.SourceKnownReadOnlyController<Order, OrderResponse>
         {
             protected ControllerParent(DRN.Framework.SharedKernel.Domain.ISourceKnownService<Order, OrderResponse> service) : base(service) { }
             public void Unnamed() { }
@@ -49,10 +49,12 @@ public sealed class ConventionHostingCoexistenceTests
             [new SourceKnownControllerAuthorizationAnalyzer(), new SourceKnownConventionAnalyzer()], Inputs(true)).GetAnalyzerDiagnosticsAsync();
         diagnostics.Should().NotContain(item => item.Id == "AD0001" || item.Id == "DRNDEPENDENCYINJECTION003");
         var security = diagnostics.Where(item => item.Id == "DRNAUTHORIZATION001").ToArray();
-        security.Should().HaveCount(2);
-        security.Select(item => item.GetMessage()).Should().BeEquivalentTo(
-            "Source-Known controller 'OrdersController' action 'Unnamed' requires an explicit named authorization policy: no explicit nonblank named policy is declared",
-            "Source-Known controller 'OrdersController' action 'Anonymous' requires an explicit named authorization policy: anonymous access bypasses authorization");
+        string[] missingPolicy = ["Unnamed", "GetAsync", "GetManyAsync", "AnyAsync", "CountAsync", "PaginateAsync",
+            "PaginateWithOptionsAsync", "PaginateWithBodyAsync"];
+        var expected = missingPolicy.Select(action =>
+            $"Source-Known controller 'OrdersController' action '{action}' requires an explicit named authorization policy: no explicit nonblank named policy is declared");
+        security.Select(item => item.GetMessage()).Should().BeEquivalentTo(expected.Append(
+            "Source-Known controller 'OrdersController' action 'Anonymous' requires an explicit named authorization policy: anonymous access bypasses authorization"));
         security.Should().OnlyContain(item => item.Severity == DiagnosticSeverity.Error);
         security.Select(AnalyzerTestCompilation.LocationText).Should().OnlyContain(text => text == "OrdersController");
         diagnostics.Should().NotContain(item => item.Id == "DRNARCHITECTURE004" && item.GetMessage().Contains("controller", StringComparison.OrdinalIgnoreCase));

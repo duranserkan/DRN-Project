@@ -80,9 +80,11 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
                 attribute.ConstructorArguments.FirstOrDefault().Value is INamedTypeSymbol target &&
                 SymbolEqualityComparer.Default.Equals(target, entity))) return null;
         var entityName = CodeFixSymbolFacts.MetadataName(entity);
-        return domainInputs.OwnershipTargets.Contains(entityName)
-            ? null
-            : new(domain, compilation, domainPath, domainInputs, entity, entityName, owner.WithExplicitDomain(hasExplicitDomain));
+        var metadata = ConventionGenerationPreflight.MetadataFromAssembly(entity.ContainingAssembly);
+        if (domainInputs.OwnershipTargets.Contains(entityName) ||
+            !metadata.TryValidateProducerOwnership(entityName, owner, out var producerExplicitDomain)) return null;
+        return new(domain, compilation, domainPath, domainInputs, entity, entityName,
+            owner.WithExplicitDomain(hasExplicitDomain || producerExplicitDomain));
     }
 
     private static async Task<string?> TryCollectEntityEvidenceAsync(AggregateTarget target, CancellationToken token)
@@ -198,7 +200,7 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         var contextName = selected?.Name ?? infra.Owner.Subdomain + "Context";
         var contextNamespace = selected?.ContainingNamespace.ToDisplayString() ?? infra.Namespace + "." + infra.Owner.NamespacePrefix;
         var contextSymbol = selected?.ToDisplayString() ?? contextNamespace + "." + contextName;
-        if (!IsContextSelectionCompatible(infra.Compilation, target.Owner, infra.Owner, infra.ContextOwners, selected, contextNamespace, contextName, token))
+        if (!IsContextSelectionCompatible(infra, target.Owner, selected, contextNamespace, contextName, token))
             return null;
         var contextDocument = await ResolveEditableContextHomeAsync(infra.Project, selected, token);
         if (selected is not null && contextDocument is null) return null;
@@ -214,13 +216,12 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         return BuildAggregatePlan(target, infra, (contextSymbol, selected is null, contextPath), planPath, evidence, contextEvidence);
     }
 
-    private static bool IsContextSelectionCompatible(Compilation compilation, OwnerKey targetOwner, OwnerKey infraOwner,
-        Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)> contextOwners,
+    private static bool IsContextSelectionCompatible(InfraPlanProject infra, OwnerKey targetOwner,
         INamedTypeSymbol? selected, string contextNamespace, string contextName, CancellationToken token)
     {
         if (selected is null)
-            return !ConventionGenerationPreflight.SymbolCollision(compilation, contextNamespace, contextName, token);
-        return IsSelectedContextCompatible(compilation, targetOwner, infraOwner, contextOwners, selected, contextName);
+            return !ConventionGenerationPreflight.SymbolCollision(infra.Compilation, contextNamespace, contextName, token);
+        return IsSelectedContextCompatible(infra, targetOwner, selected);
     }
 
     private static string? ResolveContextPlanSourcePath(InfraPlanProject infra,
@@ -236,10 +237,10 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         return contextPath;
     }
 
-    private static bool IsSelectedContextCompatible(Compilation compilation, OwnerKey targetOwner, OwnerKey infraOwner,
-        Dictionary<string, (string Domain, string Owner, string Reason, string Declaration)> contextOwners,
-        INamedTypeSymbol selected, string contextName)
+    private static bool IsSelectedContextCompatible(InfraPlanProject infra, OwnerKey targetOwner, INamedTypeSymbol selected)
     {
+        var compilation = infra.Compilation;
+        var infraOwner = infra.Owner;
         var ownerAttribute = compilation.GetTypeByMetadataName(OwnershipAttributeMetadataName);
         if (compilation.Assembly.GetAttributes().Any(attribute => Same(attribute.AttributeClass, ownerAttribute) &&
                 attribute.ConstructorArguments.FirstOrDefault().Value is INamedTypeSymbol target &&
@@ -253,19 +254,21 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
             if (!MatchesSubdomainAttribute(declaredOwners[0], infraOwner, out hasExplicitDomain)) return false;
             reasonedOwner = HasReason(declaredOwners[0]);
         }
-        if (contextOwners.TryGetValue(CodeFixSymbolFacts.MetadataName(selected), out var declared))
-        {
-            if (declared.Domain.Length > 0)
-            {
-                if (declared.Domain != infraOwner.Domain) return false;
-                hasExplicitDomain = true;
-            }
-            if (declared.Owner.Length > 0 && declared.Owner != infraOwner.Subdomain) return false;
-            reasonedOwner |= declared.Owner == infraOwner.Subdomain && !string.IsNullOrWhiteSpace(declared.Reason);
-        }
+        if (!ApplyDeclaredContextOwner(infra, selected, ref hasExplicitDomain, ref reasonedOwner)) return false;
         if (!infraOwner.WithExplicitDomain(hasExplicitDomain).MatchesAcrossLayers(targetOwner)) return false;
-        return ConventionNames.IsConventionalContextName(contextName, infraOwner.Domain, infraOwner.Subdomain, infraOwner.HasFolderDomain) ||
+        return ConventionNames.IsConventionalContextName(selected.Name, infraOwner.Domain, infraOwner.Subdomain, infraOwner.HasFolderDomain) ||
             reasonedOwner;
+    }
+
+    private static bool ApplyDeclaredContextOwner(InfraPlanProject infra, INamedTypeSymbol selected,
+        ref bool hasExplicitDomain, ref bool reasonedOwner)
+    {
+        if (!infra.ContextOwners.TryGetValue(CodeFixSymbolFacts.MetadataName(selected), out var declared)) return true;
+        if (declared.Domain.Length > 0 && declared.Domain != infra.Owner.Domain) return false;
+        if (declared.Owner.Length > 0 && declared.Owner != infra.Owner.Subdomain) return false;
+        hasExplicitDomain |= declared.Domain.Length > 0;
+        reasonedOwner |= declared.Owner == infra.Owner.Subdomain && !string.IsNullOrWhiteSpace(declared.Reason);
+        return true;
     }
 
     private static async Task<Document?> ResolveEditableContextHomeAsync(Project infra, INamedTypeSymbol? selected,
