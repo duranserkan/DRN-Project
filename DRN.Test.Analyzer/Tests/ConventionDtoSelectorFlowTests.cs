@@ -1,3 +1,6 @@
+using DRN.Framework.SharedKernel.Analyzers.Conventions;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Operations;
 using static DRN.Test.Analyzer.Tests.ClassificationTestFixture;
 
 namespace DRN.Test.Analyzer.Tests;
@@ -108,7 +111,8 @@ public sealed class ConventionDtoSelectorFlowTests
             diagnostics.Should().BeEmpty();
             return;
         }
-        diagnostics.Should().HaveCount(3);
+        diagnostics.Select(EnclosingMethod).Should().BeEquivalentTo(
+            new[] { "WithTake", "WithReturnedLocal", "WithReassignedLocalAndTake" });
         diagnostics.Should().OnlyContain(d =>
             d.GetMessage() == "Projected property 'Email' requires [Personal] from mapped property 'Email'." &&
             AnalyzerTestCompilation.LocationText(d) == "Email = c.Email");
@@ -491,7 +495,8 @@ public sealed class ConventionDtoSelectorFlowTests
             diagnostics.Should().BeEmpty();
             return;
         }
-        diagnostics.Should().HaveCount(4);
+        diagnostics.Select(EnclosingMethod).Should().BeEquivalentTo(
+            new[] { "WithDefaultIfEmpty", "WithFirstOrDefault", "WithSingleOrDefault", "WithLastOrDefault" });
         diagnostics.Should().OnlyContain(d =>
             d.GetMessage() == "Projected property 'Email' requires [Personal] from mapped property 'Email'." &&
             AnalyzerTestCompilation.LocationText(d) == "Email = entity.Email");
@@ -750,6 +755,8 @@ public sealed class ConventionDtoSelectorFlowTests
                 {
                     [Personal] public string Secret => "";
                     public IReadOnlyList<ContactModel> Contacts { get; } = [];
+                    [Sensitive] public IReadOnlyList<ContactModel> PrivateContacts => Contacts;
+                    [Sensitive] public IReadOnlyList<ContactModel>? OptionalContacts { get; init; }
                 }
                 public class UserEntity : AggregateRoot
                 {
@@ -1260,55 +1267,48 @@ public sealed class ConventionDtoSelectorFlowTests
             """).WithAssemblyName("Sample.Infra").AddReferences(contractRef, domainRef);
         infra.AssertNoCompilerErrors();
         var diagnostics = Analyze(infra, "Infra").Where(d => d.Id == "DRNDTO003").ToArray();
-        diagnostics.Select(d => (AnalyzerTestCompilation.LocationText(d), d.GetMessage())).Should().BeEquivalentTo(
-            new[]
-            {
-                ("Display = updated.Summary", "Projected property 'Display' requires [Personal] from mapped property 'Email'."),
-                ("Display = chosen.Name", "Projected property 'Display' requires [Personal] from mapped property 'Email'."),
-                ("Display = matchedContact.Name", "Projected property 'Display' requires [Personal] from mapped property 'IsVip'."),
-                ("Flags = entity.Contacts.Select(c => { switch (c) { case { IsVip: true }: return true; default: return false; } }).ToArray()", "Projected property 'Flags' requires [Personal] from mapped property 'IsVip'."),
-                ("Label = shared", "Projected property 'Label' requires [Personal] from mapped property 'Email'."),
-                ("Label = latest", "Projected property 'Label' requires [Personal] from mapped property 'Email'."),
-                ("Display = email", "Projected property 'Display' requires [Personal] from mapped property 'Email'."),
-                ("Label = profile.Email", "Projected property 'Label' requires [Personal] from mapped property 'Email'."),
-                ("Display = matched", "Projected property 'Display' requires [Personal] from mapped property 'Email'."),
-                ("Label = extracted", "Projected property 'Label' requires [Personal] from mapped property 'Email'."),
-                ("Flags = entity.Contacts.Select(c => { if (c.IsVip) return true; return false; }).ToArray()", "Projected property 'Flags' requires [Personal] from mapped property 'IsVip'."),
-                ("Label = deferred", "Projected property 'Label' requires [Personal] from mapped property 'Secret'."),
-                ("item.MutableTags.Add(c.Email)", "Projected property 'MutableTags' requires [Personal] from mapped property 'Email'."),
-                ("Display = tupleEmail", "Projected property 'Display' requires [Personal] from mapped property 'Email'."),
-                ("Tags = tags", "Projected property 'Tags' requires [Personal] from mapped property 'Email'."),
-                ("item.Label = c.Email", "Projected property 'Label' requires [Personal] from mapped property 'Email'."),
-                ("Display = backed.Mirror", "Projected property 'Display' requires [Personal] from mapped property 'Email'."),
-                ("Label = c.Email", "Projected property 'Label' requires [Personal] from mapped property 'Email'."),
-                ("Display = c.Email", "Projected property 'Display' requires [Personal] from mapped property 'Email'."),
-                ("Display = node.Email", "Projected property 'Display' requires [Personal] from mapped property 'Email'."),
-                ("Label = copy", "Projected property 'Label' requires [Personal] from mapped property 'Secret'."),
-                ("Display = maybeCleared", "Projected property 'Display' requires [Personal] from mapped property 'Email'."),
-                ("Label = reused", "Projected property 'Label' requires [Personal] from mapped property 'Email'."),
-                ("Flags = entity.Contacts.Select(c => { var isVip = false; if (c.IsVip) isVip = true; return isVip; }).ToArray()", "Projected property 'Flags' requires [Personal] from mapped property 'IsVip'."),
-                ("Label = builder.ToString()", "Projected property 'Label' requires [Personal] from mapped property 'Email'."),
-                ("Tags = seen.ToArray()", "Projected property 'Tags' requires [Personal] from mapped property 'Email'."),
-                ("Flags = entity.Contacts.Select(c => { var vip = false; switch (c.IsVip) { case true: vip = true; break; } return vip; }).ToArray()", "Projected property 'Flags' requires [Personal] from mapped property 'IsVip'."),
-                ("Flags = entity.Contacts.Select(c => { var vip = true; switch (c) { case var _ when c.IsVip: break; default: vip = false; break; } return vip; }).ToArray()", "Projected property 'Flags' requires [Personal] from mapped property 'IsVip'."),
-                ("Label = repeated", "Projected property 'Label' requires [Personal] from mapped property 'Secret'."),
-                ("Display = before", "Projected property 'Display' requires [Personal] from mapped property 'Email'."),
-                ("Label = earlier", "Projected property 'Label' requires [Personal] from mapped property 'Email'."),
-                ("rewritten.MutableTags.Add(c.Email)", "Projected property 'MutableTags' requires [Personal] from mapped property 'Email'."),
-                ("conditional.Label = c.Email", "Projected property 'Label' requires [Personal] from mapped property 'Email'.")
-            });
-
-        static string? EnclosingMethod(Diagnostic diagnostic) =>
-            diagnostic.Location.SourceTree?.GetRoot().FindNode(diagnostic.Location.SourceSpan)
-                .FirstAncestorOrSelf<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()?.Identifier.ValueText;
-
-        diagnostics.Where(d => AnalyzerTestCompilation.LocationText(d) == "Label = shared")
-            .Select(EnclosingMethod).Should().BeEquivalentTo(["OuterSelectLocalWrite"]);
-        diagnostics.Where(d => EnclosingMethod(d) == "CapturedLocalOverwrite")
-            .Select(d => (AnalyzerTestCompilation.LocationText(d), d.GetMessage()))
+        const string labelFromEmail = "Projected property 'Label' requires [Personal] from mapped property 'Email'.";
+        const string displayFromEmail = "Projected property 'Display' requires [Personal] from mapped property 'Email'.";
+        const string flagsFromIsVip = "Projected property 'Flags' requires [Personal] from mapped property 'IsVip'.";
+        const string labelFromSecret = "Projected property 'Label' requires [Personal] from mapped property 'Secret'.";
+        const string tagsFromEmail = "Projected property 'Tags' requires [Personal] from mapped property 'Email'.";
+        const string mutableTagsFromEmail = "Projected property 'MutableTags' requires [Personal] from mapped property 'Email'.";
+        diagnostics.Select(d => (EnclosingMethod(d), AnalyzerTestCompilation.LocationText(d), d.GetMessage()))
             .Should().BeEquivalentTo(new[]
             {
-                ("Display = before", "Projected property 'Display' requires [Personal] from mapped property 'Email'.")
+                ("WithComputedProperty", "Display = updated.Summary", displayFromEmail),
+                ("SwitchArmGuard", "Display = chosen.Name", displayFromEmail),
+                ("SwitchPropertyPatternExpression", "Display = matchedContact.Name", "Projected property 'Display' requires [Personal] from mapped property 'IsVip'."),
+                ("SwitchPropertyPatternStatement", "Flags = entity.Contacts.Select(c => { switch (c) { case { IsVip: true }: return true; default: return false; } }).ToArray()", flagsFromIsVip),
+                ("OuterSelectLocalWrite", "Label = shared", labelFromEmail),
+                ("OuterMethodLocalWrite", "Label = latest", labelFromEmail),
+                ("TupleDeconstruction", "Display = email", displayFromEmail),
+                ("PatternLocals", "Label = profile.Email", labelFromEmail),
+                ("PatternLocals", "Display = matched", displayFromEmail),
+                ("OutVariable", "Label = extracted", labelFromEmail),
+                ("ConditionalReturn", "Flags = entity.Contacts.Select(c => { if (c.IsVip) return true; return false; }).ToArray()", flagsFromIsVip),
+                ("DeferredCaptureOverwrittenAfterInnerSelect", "Label = deferred", labelFromSecret),
+                ("DirectPropertyCollectionAdd", "item.MutableTags.Add(c.Email)", mutableTagsFromEmail),
+                ("TupleLocalDeconstructionPersonal", "Display = tupleEmail", displayFromEmail),
+                ("ImperativePropertyAndCollectionMutation", "Tags = tags", tagsFromEmail),
+                ("ImperativePropertyAndCollectionMutation", "item.Label = c.Email", labelFromEmail),
+                ("CtorBackedSiblingProperty", "Display = backed.Mirror", displayFromEmail),
+                ("ConcatAndDefaultIfEmptyOrigin", "Label = c.Email", labelFromEmail),
+                ("DefaultIfEmptyFallbackOrigin", "Display = c.Email", displayFromEmail),
+                ("RecursiveDeconstructionLoop", "Display = node.Email", displayFromEmail),
+                ("CapturedAliasBeforeOverwrite", "Label = copy", labelFromSecret),
+                ("ConditionalOutPreservesPersonal", "Display = maybeCleared", displayFromEmail),
+                ("SelfFeedingOutPreservesInput", "Label = reused", labelFromEmail),
+                ("ConditionalLocalAssignment", "Flags = entity.Contacts.Select(c => { var isVip = false; if (c.IsVip) isVip = true; return isVip; }).ToArray()", flagsFromIsVip),
+                ("StringBuilderAppendTracked", "Label = builder.ToString()", labelFromEmail),
+                ("CollectionWriteUsedAsCondition", "Tags = seen.ToArray()", tagsFromEmail),
+                ("SwitchSetsReturnedLocal", "Flags = entity.Contacts.Select(c => { var vip = false; switch (c.IsVip) { case true: vip = true; break; } return vip; }).ToArray()", flagsFromIsVip),
+                ("SwitchGuardSetsReturnedLocal", "Flags = entity.Contacts.Select(c => { var vip = true; switch (c) { case var _ when c.IsVip: break; default: vip = false; break; } return vip; }).ToArray()", flagsFromIsVip),
+                ("MaterializedTwice", "Label = repeated", labelFromSecret),
+                ("CapturedLocalOverwrite", "Display = before", displayFromEmail),
+                ("PreviousElementCapture", "Label = earlier", labelFromEmail),
+                ("PropertyOverwrites", "rewritten.MutableTags.Add(c.Email)", mutableTagsFromEmail),
+                ("PropertyOverwrites", "conditional.Label = c.Email", labelFromEmail)
             });
     }
 
@@ -1615,7 +1615,10 @@ public sealed class ConventionDtoSelectorFlowTests
             });
     }
 
-    private static (string, string)[] AnalyzeStandaloneResponseArraySelect(string members)
+    private static (string, string)[] AnalyzeStandaloneResponseArraySelect(string members) =>
+        AnalyzeResponseDiagnostics(members).Select(d => (AnalyzerTestCompilation.LocationText(d), d.GetMessage())).ToArray();
+
+    private static Diagnostic[] AnalyzeResponseDiagnostics(string members)
     {
         var (contract, domain) = SelectorFlowReferences.Value;
         var infra = Compilation($$"""
@@ -1632,10 +1635,7 @@ public sealed class ConventionDtoSelectorFlowTests
             }
             """).WithAssemblyName("Sample.Infra").AddReferences(contract, domain);
         infra.AssertNoCompilerErrors();
-        return Analyze(infra, "Infra")
-            .Where(d => d.Id == "DRNDTO003")
-            .Select(d => (AnalyzerTestCompilation.LocationText(d), d.GetMessage()))
-            .ToArray();
+        return Analyze(infra, "Infra").Where(d => d.Id == "DRNDTO003").ToArray();
     }
 
     [Theory]
@@ -1984,7 +1984,7 @@ public sealed class ConventionDtoSelectorFlowTests
     [Fact]
     public void Parenthesized_Cast_And_Delegate_Wrapped_Block_Select_Should_Report_Classification()
     {
-        var diagnostics = AnalyzeStandaloneResponseArraySelect("""
+        var diagnostics = AnalyzeResponseDiagnostics("""
             public ContactResponse[] Parenthesized(UserEntity e) => e.Contacts.Select((c =>
             {
                 var row = new ContactResponse();
@@ -2007,10 +2007,10 @@ public sealed class ConventionDtoSelectorFlowTests
             })).ToArray();
             """);
 
-        diagnostics.Should().HaveCount(3);
-        diagnostics.Should().OnlyContain(item =>
-            item.Item1 == "row.Label = c.Email" &&
-            item.Item2 == "Projected property 'Label' requires [Personal] from mapped property 'Email'.");
+        diagnostics.Select(EnclosingMethod).Should().BeEquivalentTo(new[] { "Parenthesized", "Casted", "DelegateCreated" });
+        diagnostics.Should().OnlyContain(d =>
+            AnalyzerTestCompilation.LocationText(d) == "row.Label = c.Email" &&
+            d.GetMessage() == "Projected property 'Label' requires [Personal] from mapped property 'Email'.");
     }
 
     [Fact]
@@ -2048,10 +2048,12 @@ public sealed class ConventionDtoSelectorFlowTests
         });
     }
 
-    [Fact]
-    public void Overloaded_Equality_Null_Checks_Should_Trace_Inputs_While_Is_Null_Remains_Null_Only()
+    [Theory]
+    [DataInlineUnit("==")]
+    [DataInlineUnit("!=")]
+    public void Overloaded_Equality_Null_Checks_Should_Respect_The_Record_Receiver(string equality)
     {
-        var diagnostics = AnalyzeStandaloneResponseArraySelect("""
+        var diagnostics = AnalyzeStandaloneResponseArraySelect($$"""
             private sealed class CustomProbe
             {
                 public string Email { get; init; } = "";
@@ -2065,6 +2067,7 @@ public sealed class ConventionDtoSelectorFlowTests
             private sealed record CustomEqualsRecord
             {
                 public string Email { get; init; } = "";
+                [System.Runtime.CompilerServices.CompilerGenerated]
                 public bool Equals(CustomEqualsRecord? other) => other is null && Email.Length > 0;
                 public override int GetHashCode() => 0;
             }
@@ -2075,9 +2078,9 @@ public sealed class ConventionDtoSelectorFlowTests
                 CustomEqualsRecord? rec = new CustomEqualsRecord { Email = c.Email };
                 return new ContactResponse
                 {
-                    Name = (probe is null).ToString() + (rec is null).ToString(),
+                    Name = (probe is null).ToString() + (rec is null).ToString() + (null {{equality}} rec).ToString(),
                     Label = (probe == null).ToString(),
-                    Display = (rec == null).ToString()
+                    Display = (rec {{equality}} null).ToString()
                 };
             }).ToArray();
             """);
@@ -2085,7 +2088,7 @@ public sealed class ConventionDtoSelectorFlowTests
         diagnostics.Should().BeEquivalentTo(new[]
         {
             ("Label = (probe == null).ToString()", "Projected property 'Label' requires [Personal] from mapped property 'Email'."),
-            ("Display = (rec == null).ToString()", "Projected property 'Display' requires [Personal] from mapped property 'Email'.")
+            ($"Display = (rec {equality} null).ToString()", "Projected property 'Display' requires [Personal] from mapped property 'Email'.")
         });
     }
 
@@ -2267,7 +2270,7 @@ public sealed class ConventionDtoSelectorFlowTests
     [Fact]
     public void Conditional_Access_And_Array_Creation_Returned_Selects_Should_Report_Classification()
     {
-        var diagnostics = AnalyzeStandaloneResponseArraySelect("""
+        var diagnostics = AnalyzeResponseDiagnostics("""
             public ContactResponse[]? ConditionalDirect(UserEntity? e) => e?.Contacts?.Select(c =>
             {
                 var row = new ContactResponse();
@@ -2317,21 +2320,22 @@ public sealed class ConventionDtoSelectorFlowTests
             }).Count()];
             """);
 
-        diagnostics.Should().HaveCount(4);
-        diagnostics.Should().OnlyContain(item =>
-            item.Item1 == "row.Label = c.Email" &&
-            item.Item2 == "Projected property 'Label' requires [Personal] from mapped property 'Email'.");
+        diagnostics.Select(EnclosingMethod).Should().BeEquivalentTo(
+            new[] { "ConditionalDirect", "ConditionalWithFallback", "DirectArray", "LocalArray" });
+        diagnostics.Should().OnlyContain(d =>
+            AnalyzerTestCompilation.LocationText(d) == "row.Label = c.Email" &&
+            d.GetMessage() == "Projected property 'Label' requires [Personal] from mapped property 'Email'.");
     }
 
     [Fact]
     public void Standalone_Conditional_Returns_And_Early_Return_Mutations_Should_Report_Target_Properties()
     {
-        var diagnostics = AnalyzeStandaloneResponseArraySelect("""
+        var diagnostics = AnalyzeResponseDiagnostics("""
             public ContactResponse[] StandaloneConditionalReturn(UserEntity e) => e.Contacts.Select(c =>
             {
                 if (c.IsVip)
-                    return new ContactResponse { Label = "vip" };
-                return new ContactResponse { Label = "standard" };
+                    return new ContactResponse { Display = "Contact", Label = "vip" };
+                return new ContactResponse { Label = "standard", Display = "Con" + "tact" };
             }).ToArray();
 
             public ContactResponse[] EarlyReturnLocalMutation(UserEntity e) => e.Contacts.Select(c =>
@@ -2368,12 +2372,285 @@ public sealed class ConventionDtoSelectorFlowTests
             };
             """);
 
+        const string expectedMessage = "Projected property 'Label' requires [Personal] from mapped property 'IsVip'.";
+        diagnostics.Select(d => (EnclosingMethod(d), AnalyzerTestCompilation.LocationText(d), d.GetMessage()))
+            .Should().BeEquivalentTo(new[]
+            {
+                ("StandaloneConditionalReturn", "Label = \"vip\"", expectedMessage),
+                ("EarlyReturnLocalMutation", "row.Label = \"vip\"", expectedMessage),
+                ("ContinuationAfterEarlyReturn", "row.Label = \"standard\"", expectedMessage),
+                ("AnnotatedCollectionEarlyReturn", "row.Label = \"vip\"", expectedMessage)
+            });
+    }
+
+    [Theory]
+    [DataInlineUnit(false)]
+    [DataInlineUnit(true)]
+    public void Ternary_Response_Should_Classify_Only_The_Changing_Property(bool useBlock)
+    {
+        const string expression = """
+            c.IsVip ? new ContactResponse { Label = "yes", Name = "Contact" } : new ContactResponse { Label = "no", Name = "Contact" }
+            """;
+        var body = useBlock ? $"{{ return {expression}; }}" : expression;
+        var diagnostics = AnalyzeResponseDiagnostics($$"""
+            public ContactResponse[] Map(UserEntity e) => e.Contacts.Select(c => {{body}}).ToArray();
+            """);
+
+        diagnostics.Should().ContainSingle().Which.GetMessage().Should().Be(
+            "Projected property 'Label' requires [Personal] from mapped property 'IsVip'.");
+    }
+
+    [Fact]
+    public void Shared_Return_Value_Should_Keep_Each_Guard()
+    {
+        var diagnostics = AnalyzeResponseDiagnostics("""
+            public ContactResponse[] Map(UserEntity e) => e.Groups.Select(g =>
+            {
+                var row = new ContactResponse { Label = "yes" };
+                if (g.Secret.Length > 0) return row;
+                if (g.PrivateContacts.Count > 0) return row;
+                return new ContactResponse();
+            }).ToArray();
+            """);
+        diagnostics.Select(d => d.GetMessage()).Should().BeEquivalentTo(new[]
+        {
+            "Projected property 'Label' requires [Personal] from mapped property 'Secret'.",
+            "Projected property 'Label' requires [Sensitive] from mapped property 'PrivateContacts'."
+        });
+    }
+
+    [Fact]
+    public void Collection_Add_Should_Use_The_Same_Destination_As_The_Initializer()
+    {
+        var diagnostics = AnalyzeResponseDiagnostics("""
+            private class Labels : System.Collections.ObjectModel.Collection<ContactResponse>
+            {
+                protected override void InsertItem(int index, ContactResponse item) =>
+                    base.InsertItem(index, new ContactResponse { Label = item.Email });
+            }
+            public GroupResponse[] DefaultAdd(UserEntity e) => e.Contacts.Select(c =>
+            {
+                var rows = new System.Collections.ObjectModel.Collection<ContactResponse>();
+                rows.Add(new ContactResponse { Email = c.Email });
+                return new GroupResponse { Contacts = rows };
+            }).ToArray();
+            public GroupResponse[] DefaultInitializer(UserEntity e) => e.Contacts.Select(c =>
+                new GroupResponse { Contacts = new System.Collections.ObjectModel.Collection<ContactResponse>
+                    { new ContactResponse { Email = c.Email } } }).ToArray();
+            public GroupResponse[] DefaultExpression(UserEntity e) => e.Contacts.Select(c =>
+            {
+                System.Collections.ObjectModel.Collection<ContactResponse> rows = [];
+                rows.Add(new ContactResponse { Email = c.Email });
+                return new GroupResponse { Contacts = rows };
+            }).ToArray();
+            public GroupResponse[] CustomAdd(UserEntity e) => e.Contacts.Select(c =>
+            {
+                System.Collections.ObjectModel.Collection<ContactResponse> rows = new Labels();
+                rows.Add(new ContactResponse { Email = c.Email });
+                return new GroupResponse { Contacts = rows };
+            }).ToArray();
+            """);
+        diagnostics.Select(d => (EnclosingMethod(d), d.GetMessage())).Should().BeEquivalentTo(new[]
+        {
+            ("CustomAdd", "Projected property 'Contacts' requires [Personal] from mapped property 'Email'.")
+        });
+    }
+
+    [Fact]
+    public void Returning_The_Same_Local_Should_Only_Classify_Observable_Changes()
+    {
+        var diagnostics = AnalyzeResponseDiagnostics("""
+            public UserResponse Unchanged(UserEntity e) => new()
+            {
+                Contacts = e.Contacts.Select(c =>
+                {
+                    var row = new ContactResponse { Name = c.Name };
+                    if (c.IsVip) return row;
+                    return row;
+                }).ToArray()
+            };
+            public UserResponse MayThrow(UserEntity e) => new()
+            {
+                Contacts = e.Contacts.Select(c =>
+                {
+                    var row = new ContactResponse { Name = c.Name };
+                    if (c.IsVip) throw new InvalidOperationException();
+                    return row;
+                }).ToArray()
+            };
+            """);
+        diagnostics.Select(d => (EnclosingMethod(d), d.GetMessage())).Should().BeEquivalentTo(new[]
+        {
+            ("MayThrow", "Projected property 'Contacts' requires [Personal] from mapped property 'IsVip'.")
+        });
+    }
+
+    [Fact]
+    public void Null_Conditional_Query_Returns_Should_Preserve_Writes_Only_When_Elements_Are_Returned()
+    {
+        const string selector = """
+            c =>
+            {
+                var row = new ContactResponse();
+                row.Label = c.Email;
+                return row;
+            }
+            """;
+        var diagnostics = AnalyzeResponseDiagnostics($$"""
+            public ContactResponse[]? Local(UserEntity e)
+            {
+                var query = e.Contacts.Select({{selector}});
+                return query?.ToArray();
+            }
+
+            public ContactResponse[]? Inline(UserEntity e) => e.Contacts.Select({{selector}})?.ToArray();
+            public ContactResponse[]? Nested(UserEntity? e) => (e?.Contacts?.Select({{selector}}))?.ToArray();
+            public int? CountOnly(UserEntity e) => e.Contacts.Select({{selector}})?.Count();
+            """);
+        diagnostics.Select(EnclosingMethod).Should().BeEquivalentTo(new[] { "Local", "Inline", "Nested" });
+        diagnostics.Should().OnlyContain(d => AnalyzerTestCompilation.LocationText(d) == "row.Label = c.Email" &&
+            d.GetMessage() == "Projected property 'Label' requires [Personal] from mapped property 'Email'.");
+    }
+
+    [Theory]
+    [DataInlineUnit("query.ToArray()", true)]
+    [DataInlineUnit("query.Any()", true)]
+    [DataInlineUnit("query.Any(_ => true)", true)]
+    [DataInlineUnit("query.TryGetNonEnumeratedCount(out _)", false)]
+    public void Conditional_Query_Writes_Should_Keep_The_Collection_Condition_At_Enumeration(string use, bool enumerates)
+    {
+        var diagnostics = AnalyzeResponseDiagnostics($$"""
+            public ContactResponse[] Map(UserEntity e, bool active) => e.Groups.Select(g =>
+            {
+                var value = g.Secret;
+                var query = active ? g.PrivateContacts.Select(c => { value = "present"; return c.Name; })
+                    : Enumerable.Empty<string>();
+                _ = {{use}};
+                return new ContactResponse { Label = value };
+            }).ToArray();
+            """);
+        const string incoming = "Projected property 'Label' requires [Personal] from mapped property 'Secret'.";
+        const string collection = "Projected property 'Label' requires [Sensitive] from mapped property 'PrivateContacts'.";
+        diagnostics.Select(d => d.GetMessage()).Should().BeEquivalentTo(enumerates ? new[] { incoming, collection } : new[] { incoming });
+    }
+
+    [Theory]
+    [DataInlineUnit("g.Secret.Length > 0 ? writes : g.PrivateContacts", "selected.ToArray()", "Personal", "Secret")]
+    [DataInlineUnit("g.Secret.Length > 0 ? g.PrivateContacts : writes", "selected.ToArray()", "Personal", "Secret")]
+    [DataInlineUnit("g.OptionalContacts ?? writes", "selected.ToArray()", "Sensitive", "OptionalContacts")]
+    [DataInlineUnit("g.Secret.Length > 0 ? writes : g.Contacts", "selected.TryGetNonEnumeratedCount(out _)", null, null)]
+    [DataInlineUnit("active ? writes : g.PrivateContacts", "selected.ToArray()", null, null)]
+    [DataInlineUnit("writes", "g.Secret.Length > 0 ? selected.ToArray() : Array.Empty<ContactModel>()", "Personal", "Secret")]
+    public void Deferred_Writes_Should_Depend_On_The_Condition_Selecting_The_Enumerated_Query(
+        string selection, string use, string? classification, string? property)
+    {
+        var diagnostics = AnalyzeStandaloneResponseArraySelect($$"""
+            public ContactResponse[] Map(UserEntity e, bool active) => e.Groups.Select(g =>
+            {
+                var value = "empty";
+                var writes = g.Contacts.Select(c => { value = "present"; return c; });
+                var selected = {{selection}};
+                var before = value;
+                _ = {{use}};
+                return new ContactResponse { Label = value, Display = before };
+            }).ToArray();
+            """);
+        if (classification is null) diagnostics.Should().BeEmpty();
+        else diagnostics.Should().ContainSingle().Which.Should().Be(
+            ("Label = value", $"Projected property 'Label' requires [{classification}] from mapped property '{property}'."));
+    }
+
+    [Theory]
+    [DataInlineUnit("g.OptionalContacts?.Select(c => { value = \"present\"; return c; })?.ToArray()", "OptionalContacts")]
+    [DataInlineUnit("(g.OptionalContacts?.Select(c => { value = \"present\"; return c; }) ?? Enumerable.Empty<ContactModel>()).ToArray()", "OptionalContacts")]
+    [DataInlineUnit("g.PrivateContacts.Where(c => { value = \"present\"; return true; }).ToArray()", "PrivateContacts")]
+    [DataInlineUnit("g.PrivateContacts.Any(c => { value = \"present\"; return true; })", "PrivateContacts")]
+    [DataInlineUnit("g.Contacts.Zip(g.PrivateContacts, (a, b) => { value = \"present\"; return a; }).ToArray()", "PrivateContacts")]
+    [DataInlineUnit("g.Contacts.GroupJoin(g.PrivateContacts, a => a.Name, b => b.Name, (a, group) => { value = \"present\"; return a; }).ToArray()", null)]
+    [DataInlineUnit("g.PrivateContacts.Where(c => { value = \"present\"; return true; }).TryGetNonEnumeratedCount(out _)", null)]
+    [DataInlineUnit("g.PrivateContacts.Aggregate(0, (n, c) => n + 1, n => { value = \"present\"; return n; })", null)]
+    public void Captured_Writes_Should_Require_Classification_From_The_Sequence_Supplying_Callback_Elements(
+        string use, string? property)
+    {
+        var diagnostics = AnalyzeStandaloneResponseArraySelect($$"""
+            public ContactResponse[] Map(UserEntity e) => e.Groups.Select(g =>
+            {
+                var value = "empty";
+                _ = {{use}};
+                return new ContactResponse { Label = value };
+            }).ToArray();
+            """);
+        if (property is null) diagnostics.Should().BeEmpty();
+        else diagnostics.Should().ContainSingle().Which.Should().Be(
+            ("Label = value", $"Projected property 'Label' requires [Sensitive] from mapped property '{property}'."));
+    }
+
+    [Fact]
+    public void Each_Enumeration_Should_Apply_Only_Its_Own_Selection_Condition()
+    {
+        var diagnostics = AnalyzeStandaloneResponseArraySelect("""
+            public ContactResponse[] Map(UserEntity e) => e.Groups.Select(g =>
+            {
+                var value = "empty";
+                var writes = g.Contacts.Select(c => { value = "present"; return c; });
+                var first = g.Secret.Length > 0 ? writes : Enumerable.Empty<ContactModel>();
+                var second = g.OptionalContacts ?? writes;
+                _ = first.ToArray();
+                var earlier = value;
+                _ = second.ToArray();
+                return new ContactResponse { Display = earlier, Label = value };
+            }).ToArray();
+            """);
         diagnostics.Should().BeEquivalentTo(new[]
         {
-            ("Label = \"vip\"", "Projected property 'Label' requires [Personal] from mapped property 'IsVip'."),
-            ("row.Label = \"vip\"", "Projected property 'Label' requires [Personal] from mapped property 'IsVip'."),
-            ("row.Label = \"standard\"", "Projected property 'Label' requires [Personal] from mapped property 'IsVip'."),
-            ("row.Label = \"vip\"", "Projected property 'Label' requires [Personal] from mapped property 'IsVip'.")
+            ("Display = earlier", "Projected property 'Display' requires [Personal] from mapped property 'Secret'."),
+            ("Label = value", "Projected property 'Label' requires [Personal] from mapped property 'Secret'."),
+            ("Label = value", "Projected property 'Label' requires [Sensitive] from mapped property 'OptionalContacts'.")
+        });
+    }
+
+    [Fact]
+    public void Conditional_Return_Constants_Must_Match_On_Every_Path()
+    {
+        var diagnostics = AnalyzeResponseDiagnostics("""
+            public ContactResponse[] OmittedOnOnePath(UserEntity e, bool other) => e.Contacts.Select(c =>
+            {
+                if (c.IsVip) return new ContactResponse { Label = "vip", Display = "Contact", Name = "User" };
+                if (other) return new ContactResponse { Label = "vip", Display = "Contact", Name = "User" };
+                return new ContactResponse { Label = "standard", Display = "Contact" };
+            }).ToArray();
+
+            public ContactResponse[] NonConstantOnOnePath(UserEntity e) => e.Contacts.Select(c =>
+            {
+                if (c.IsVip) return new ContactResponse { Display = "Contact", Label = "vip" };
+                return new ContactResponse { Display = c.Name, Label = "standard" };
+            }).ToArray();
+
+            public ContactResponse[] DifferentConstants(UserEntity e) => e.Contacts.Select(c =>
+            {
+                if (c.IsVip) return new ContactResponse { Display = "Contact", Name = "User", Label = "vip" };
+                return new ContactResponse { Display = "Other", Name = "User", Label = "standard" };
+            }).ToArray();
+
+            public ContactResponse[] MatchingConstants(UserEntity e) => e.Contacts.Select(c =>
+            {
+                if (c.IsVip) return new ContactResponse { Display = "Con" + "tact", Label = "vip" };
+                return new ContactResponse { Display = "Contact", Label = "standard" };
+            }).ToArray();
+            """);
+
+        const string labelFromIsVip = "Projected property 'Label' requires [Personal] from mapped property 'IsVip'.";
+        const string displayFromIsVip = "Projected property 'Display' requires [Personal] from mapped property 'IsVip'.";
+        const string nameFromIsVip = "Projected property 'Name' requires [Personal] from mapped property 'IsVip'.";
+        diagnostics.Select(d => (EnclosingMethod(d), AnalyzerTestCompilation.LocationText(d), d.GetMessage())).Should().BeEquivalentTo(new[]
+        {
+            ("OmittedOnOnePath", "Label = \"vip\"", labelFromIsVip),
+            ("OmittedOnOnePath", "Name = \"User\"", nameFromIsVip),
+            ("NonConstantOnOnePath", "Display = \"Contact\"", displayFromIsVip),
+            ("NonConstantOnOnePath", "Label = \"vip\"", labelFromIsVip),
+            ("DifferentConstants", "Display = \"Contact\"", displayFromIsVip),
+            ("DifferentConstants", "Label = \"vip\"", labelFromIsVip),
+            ("MatchingConstants", "Label = \"vip\"", labelFromIsVip)
         });
     }
 
@@ -2434,7 +2711,7 @@ public sealed class ConventionDtoSelectorFlowTests
     [Fact]
     public void Do_While_Loop_Return_Conditions_Should_Report_Only_When_Later_Iteration_Can_Reach_Return()
     {
-        var diagnostics = AnalyzeStandaloneResponseArraySelect("""
+        var diagnostics = AnalyzeResponseDiagnostics("""
             public UserResponse LaterIterationReturn(UserEntity e) => new()
             {
                 Flags = e.Contacts.Select(c =>
@@ -2458,11 +2735,60 @@ public sealed class ConventionDtoSelectorFlowTests
                     } while (c.IsVip);
                 }).ToArray()
             };
+
+            public UserResponse NoReturnInLoop(UserEntity e) => new()
+            {
+                Flags = e.Contacts.Select(c =>
+                {
+                    var steps = 0;
+                    do { steps++; } while (steps < 2 && c.IsVip);
+                    return false;
+                }).ToArray()
+            };
             """);
 
         var diagnostic = diagnostics.Should().ContainSingle().Which;
-        diagnostic.Item1.Should().Contain("step++ > 0");
-        diagnostic.Item2.Should().Be("Projected property 'Flags' requires [Personal] from mapped property 'IsVip'.");
+        EnclosingMethod(diagnostic).Should().Be("LaterIterationReturn");
+        AnalyzerTestCompilation.LocationText(diagnostic).Should().Contain("step++ > 0");
+        diagnostic.GetMessage().Should().Be("Projected property 'Flags' requires [Personal] from mapped property 'IsVip'.");
+    }
+
+    [Theory]
+    [DataInlineUnit("e.Contacts", 0)]
+    [DataInlineUnit("contacts", 1)]
+    public void Capture_Free_Select_Should_Only_Collect_The_Enclosing_Body_For_A_Local_Source(
+        string source, int expectedBodyCount)
+    {
+        var (contract, domain) = SelectorFlowReferences.Value;
+        var compilation = Compilation($$"""
+            using System.Linq;
+            using Sample.Contract.QA.Users;
+            using Sample.Domain.QA.User;
+            namespace Sample.Infra.QA.Users;
+            public class Projection
+            {
+                public ContactResponse[] Map(UserEntity e)
+                {
+                    var contacts = e.Contacts;
+                    return {{source}}.Select(static c => new ContactResponse { Label = c.Email }).ToArray();
+                }
+            }
+            """).WithAssemblyName("Sample.Infra").AddReferences(contract, domain);
+        compilation.AssertNoCompilerErrors();
+
+        var tree = compilation.SyntaxTrees.Single();
+        var invocation = tree.GetRoot().DescendantNodes().OfType<InvocationExpressionSyntax>()
+            .Single(call => call.Expression is MemberAccessExpressionSyntax { Name.Identifier.ValueText: "Select" });
+        var select = (IInvocationOperation)compilation.GetSemanticModel(tree).GetOperation(invocation)!;
+        var options = AnalyzerTestCompilation.ConventionOptionsProvider("Sample.Infra");
+        var facts = new ConventionFacts(compilation, ConventionProject.Read(compilation, options.GlobalOptions),
+            new([], []), options, CancellationToken.None);
+        var bodyFlows = new Dictionary<IBlockOperation, SelectorFlowResult>();
+        SelectorFlowCollector.ResolveEnclosingBodyScope(select, facts, bodyFlows);
+        bodyFlows.Should().HaveCount(expectedBodyCount);
+
+        Analyze(compilation, "Infra").Should().ContainSingle(d => d.Id == "DRNDTO003")
+            .Which.GetMessage().Should().Be("Projected property 'Label' requires [Personal] from mapped property 'Email'.");
     }
 
     [Fact]
@@ -2493,6 +2819,15 @@ public sealed class ConventionDtoSelectorFlowTests
                 return rows;
             }
 
+            public ContactResponse[] DiscardedFirstResult(UserEntity e)
+            {
+                var captured = e.Primary.Email;
+                var query = e.Contacts.Select(_ => new ContactResponse { Name = captured });
+                _ = query.ToArray();
+                captured = "public";
+                return query.ToArray();
+            }
+
             public ContactResponse[] UncapturedMethodLocalUnchanged(UserEntity e)
             {
                 var uncaptured = e.Primary.Email;
@@ -2502,7 +2837,8 @@ public sealed class ConventionDtoSelectorFlowTests
 
         diagnostics.Should().BeEquivalentTo(new[]
         {
-            ("Label = shared", "Projected property 'Label' requires [Personal] from mapped property 'Email'.")
+            ("Label = shared", "Projected property 'Label' requires [Personal] from mapped property 'Email'."),
+            ("Name = captured", "Projected property 'Name' requires [Personal] from mapped property 'Email'.")
         });
     }
 
@@ -2586,7 +2922,7 @@ public sealed class ConventionDtoSelectorFlowTests
     [Fact]
     public void Returned_Response_Local_Auto_Property_Overwrite_Should_Supersede_Object_Initializer()
     {
-        var diagnostics = AnalyzeStandaloneResponseArraySelect("""
+        var diagnostics = AnalyzeResponseDiagnostics("""
             public ContactResponse[] StraightLineOverwrite(UserEntity e) => e.Contacts.Select(c =>
             {
                 var row = new ContactResponse { Label = c.Email, Display = c.Email };
@@ -2602,10 +2938,10 @@ public sealed class ConventionDtoSelectorFlowTests
             }).ToArray();
             """);
 
-        diagnostics.Should().BeEquivalentTo(new[]
+        diagnostics.Select(d => (EnclosingMethod(d), AnalyzerTestCompilation.LocationText(d), d.GetMessage())).Should().BeEquivalentTo(new[]
         {
-            ("Display = c.Email", "Projected property 'Display' requires [Personal] from mapped property 'Email'."),
-            ("Label = c.Email", "Projected property 'Label' requires [Personal] from mapped property 'Email'.")
+            ("StraightLineOverwrite", "Display = c.Email", "Projected property 'Display' requires [Personal] from mapped property 'Email'."),
+            ("ConditionalOverwriteKeepsInitializer", "Label = c.Email", "Projected property 'Label' requires [Personal] from mapped property 'Email'.")
         });
     }
 

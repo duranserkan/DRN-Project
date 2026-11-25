@@ -61,9 +61,21 @@ DRNDTO003 follows values and branch conditions governing returns or returned loc
 
 For example, `var added = seen.Add(c.Email)` maps `Email` into the returned collection even when the selector uses `added` separately. Writes such as `row.Extra["email"] = c.Email` require the classification on `Extra`. A `foreach` variable carries the classification of its element. A named tuple field or a nested positional pattern follows the selected element. A conditional write to a response member affects that member, including when the condition occurs inside a loop or a `try` block. In straight-line selector code, a later direct assignment to the same captured local or a later direct auto-property assignment to the same response property supersedes its earlier direct assignment. For a local query, the analyzer considers the captured values at each known enumeration site.
 
+If two selector branches return `new ContactResponse { Display = "Contact", Label = ... }` using auto-properties, only the changing `Label` inherits the branch condition's classification. This also applies to a single ternary expression and to multiple return statements that assign the same constant on every path. With chained ternaries, the analyzer can warn on `Display` even when every arm assigns `"Contact"`. Returning the same unchanged local on both paths adds no classification.
+
+Each enumeration that constructs a response counts, including when the caller discards the resulting collection. If a LINQ callback writes a captured value, the response property receiving that value can depend on which query was selected and whether the callback's source had any elements. Parameterless `Any()` can obtain a count or enumerate, depending on its source. The analyzer considers selector writes possible in that case.
+
 When a source getter directly returns another property on the same object, a selector can follow the full read. For example, if `Summary => Data`, reading `holder.Summary.Name` maps `Data.Name`. A classified `Data.Email` can be projected separately. For a local with a known concrete type, the analyzer uses that type's getter even when the selector reads through a base class or interface. When the getter's inputs cannot be determined, writes to sibling properties can contribute to the warning.
 
 For inherited application actions, DRNDTO006 reports on the concrete controller and names each affected action. Inherited standard SourceKnown actions that share an invalid request or response type produce one warning per type and direction on that controller.
+
+### DRNDTO003 coverage and limits
+
+`DRNDTO003` checks that a DTO or response property preserves the source property's `[Personal]` and `[Sensitive]` annotations. It follows direct and nested initializers, constructor arguments matched to properties, record `with` expressions, and supported LINQ `Select` projections. Inside a selector, this includes locals and branch conditions that affect the returned value.
+
+In an ordinary response mapper, `Label = entity.Primary.Email` exposes the source directly. If the mapper first assigns `entity.Primary.Email` to a local and then uses `Label = email`, the analyzer can miss the mapping. A helper that reads the email internally or a write through a separate alias can also hide where the value goes.
+
+The rule accepts some missed warnings to keep analysis bounded in the IDE and during builds. Guessing from every read in a mapper would also flag unrelated fields, for example when an email is read only for an audit call. Review indirect mappings by tracing the value to the property that receives it. If `Email` carries `[Personal]`, `Label` still requires `[Personal]` even when the analyzer emits no warning.
 
 ## Enum conventions
 

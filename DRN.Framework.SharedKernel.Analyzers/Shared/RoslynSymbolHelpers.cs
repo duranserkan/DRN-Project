@@ -61,7 +61,8 @@ internal static class RoslynSymbolHelpers
     }
 
     internal static bool IsCompilerGenerated(ISymbol symbol, INamedTypeSymbol? compilerGeneratedAttribute) =>
-        symbol.IsImplicitlyDeclared || HasAttribute(symbol, compilerGeneratedAttribute);
+        symbol.IsImplicitlyDeclared ||
+        (symbol.DeclaringSyntaxReferences.IsEmpty && HasAttribute(symbol, compilerGeneratedAttribute));
 
     internal static IMethodSymbol RootOverriddenMethod(IMethodSymbol method)
     {

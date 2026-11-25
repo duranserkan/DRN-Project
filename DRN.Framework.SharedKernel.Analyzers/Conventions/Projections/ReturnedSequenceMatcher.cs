@@ -8,14 +8,19 @@ internal static class ReturnedSequenceMatcher
         IOperation sequence, ConventionFacts facts, ref Dictionary<IBlockOperation, SelectorFlowResult>? bodyFlows)
     {
         var current = sequence;
-        for (var parent = current.Parent; parent is not null; current = parent, parent = parent.Parent)
+        while (current.Parent is { } parent)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
             if (parent is IReturnOperation)
                 return IsMethodOrLocalFunctionReturn(parent);
+            if (RoslynOperationHelpers.ConditionalInstance(current, facts.Cancellation) is { } instance)
+            {
+                current = instance;
+                continue;
+            }
             if (PreservesSequenceParent(current, parent, facts.Symbols, out var next))
             {
-                parent = next;
+                current = next;
                 continue;
             }
             if (!IsLocalSequenceBinding(current, parent)) return false;
@@ -45,19 +50,13 @@ internal static class ReturnedSequenceMatcher
         IOperation child, IOperation parent, ConventionSymbols symbols, out IOperation next)
     {
         next = parent;
-        if (parent is IParenthesizedOperation or IConversionOperation { Conversion.IsUserDefined: false } or
-            ICollectionExpressionOperation or IArrayInitializerOperation)
+        if (parent is ICollectionExpressionOperation or IArrayInitializerOperation ||
+            RoslynOperationHelpers.ForwardsOperandValue(parent, child))
             return true;
         if (parent is IArrayCreationOperation array)
             return ReferenceEquals(child, array.Initializer);
-        if (parent is IConditionalAccessOperation conditionalAccess)
-            return ReferenceEquals(child, conditionalAccess.WhenNotNull);
         if (parent is ISpreadOperation spread)
             return !spread.ElementConversion.IsUserDefined;
-        if (parent is ICoalesceOperation coalesce)
-            return ReferenceEquals(child, coalesce.WhenNull) || !coalesce.ValueConversion.IsUserDefined;
-        if (parent is IConditionalOperation conditional)
-            return ReferenceEquals(child, conditional.WhenTrue) || ReferenceEquals(child, conditional.WhenFalse);
         if (parent is ISwitchExpressionArmOperation arm && ReferenceEquals(child, arm.Value) &&
             arm.Parent is ISwitchExpressionOperation switchExpression)
         {
@@ -113,68 +112,40 @@ internal static class ReturnedSequenceMatcher
             facts.Cancellation.ThrowIfCancellationRequested();
             if (ReferenceEquals(current, target)) return true;
             if (!visited.Add(current)) continue;
-            PushReturnedSequencePredecessors(current, flow.Scope, facts.Symbols, pending);
+            PushReturnedSequencePredecessors(current, flow.Scope, facts, pending);
         }
         return false;
     }
 
     private static void PushReturnedSequencePredecessors(
-        IOperation current, SelectorScope? scope, ConventionSymbols symbols, Stack<IOperation> pending)
+        IOperation current, SelectorScope? scope, ConventionFacts facts, Stack<IOperation> pending)
     {
-        switch (current)
+        if (current is IConditionalAccessInstanceOperation placeholder)
         {
-            case IParenthesizedOperation parenthesized:
-                pending.Push(parenthesized.Operand);
-                return;
-            case IConversionOperation { Conversion.IsUserDefined: false } conversion:
-                pending.Push(conversion.Operand);
-                return;
-            case ISpreadOperation spread when !spread.ElementConversion.IsUserDefined:
-                pending.Push(spread.Operand);
-                return;
-            case ICollectionExpressionOperation collection:
-                foreach (var element in collection.Elements) pending.Push(element);
-                return;
-            case IArrayCreationOperation { Initializer: { } arrayInitializer }:
-                pending.Push(arrayInitializer);
-                return;
-            case IArrayInitializerOperation arrayInitializer:
-                foreach (var element in arrayInitializer.ElementValues) pending.Push(element);
-                return;
-            case IConditionalAccessOperation conditionalAccess:
-                pending.Push(conditionalAccess.WhenNotNull);
-                return;
-            case IConditionalOperation conditional:
-                pending.Push(conditional.WhenTrue);
-                if (conditional.WhenFalse is { } whenFalse) pending.Push(whenFalse);
-                return;
-            case ICoalesceOperation coalesce:
-                if (!coalesce.ValueConversion.IsUserDefined) pending.Push(coalesce.Value);
-                pending.Push(coalesce.WhenNull);
-                return;
-            case ISwitchExpressionOperation switchExpression:
-                foreach (var arm in switchExpression.Arms) pending.Push(arm.Value);
-                return;
-            case IInvocationOperation call when
-                LinqSequenceFacts.TryGetPreservedSequenceArgumentCount(call.TargetMethod, symbols, out var count):
-                var fallback = LinqSequenceFacts.FallbackElementTypeParameter(call.TargetMethod);
-                foreach (var argument in call.Arguments)
-                {
-                    if (LinqSequenceFacts.PreservesSequenceArgument(argument, count, fallback))
-                        pending.Push(argument.Value);
-                }
-                return;
-            case ILocalReferenceOperation localRef when scope is not null &&
-                scope.ReferenceValues.TryGetValue(localRef, out var bindings):
-                for (var i = 0; i < bindings.Length; i++)
-                {
-                    var binding = bindings[i];
-                    var isDirectLocalValue = binding.Kind == LocalBindingKind.Value &&
-                        binding.WriteTarget is null &&
-                        binding.TuplePath.IsDefaultOrEmpty;
-                    if (isDirectLocalValue) pending.Push(binding.Value);
-                }
-                return;
+            if (RoslynOperationHelpers.ConditionalReceiver(placeholder, facts.Cancellation) is { } receiver)
+                pending.Push(receiver);
+            return;
+        }
+        if (current is ILocalReferenceOperation local)
+        {
+            if (scope is null || !scope.ReferenceValues.TryGetValue(local, out var bindings)) return;
+            foreach (var binding in bindings)
+                if (binding.Kind == LocalBindingKind.Value && binding.WriteTarget is null && binding.TuplePath.IsDefaultOrEmpty)
+                    pending.Push(binding.Value);
+            return;
+        }
+        // Follow the same value edges in both directions. Arguments and switch arms wrap the value.
+        foreach (var child in current.ChildOperations)
+        {
+            var value = child switch
+            {
+                IArgumentOperation argument => argument.Value,
+                ISwitchExpressionArmOperation arm => arm.Value,
+                _ => child
+            };
+            if (value.Parent is { } parent &&
+                PreservesSequenceParent(value, parent, facts.Symbols, out var next) && ReferenceEquals(next, current))
+                pending.Push(value);
         }
     }
 }

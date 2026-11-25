@@ -39,13 +39,20 @@ internal static class CollectionMutationFacts
         };
     }
 
-    internal static bool StoresProjectedElement(IInvocationOperation call, IArgumentOperation argument, ConventionFacts facts)
+    internal static bool StoresProjectedElement(
+        IInvocationOperation call, IArgumentOperation argument, SelectorScope? locals, ConventionFacts facts)
     {
         if (call.Instance?.Type is not INamedTypeSymbol collection || argument.Parameter is not { } parameter)
             return false;
         var method = call.TargetMethod;
         if (method.Name == "Add" && method.Parameters.Length == 1)
-            return IsStorageAdd(method, collection, facts, knownExactDefaultCollection: false);
+        {
+            var exactDefault = ConventionSymbols.Same(method.ContainingType, facts.Symbols.CollectionGeneric) &&
+                RoslynOperationHelpers.UnwrapTransparent(call.Instance) is ILocalReferenceOperation receiver &&
+                locals is not null && locals.TryGetValues(receiver, out var bindings) &&
+                HasOnlyDefaultAllocations(bindings, collection);
+            return IsStorageAdd(method, collection, facts, exactDefault);
+        }
         if (method.DeclaringSyntaxReferences.Length != 0)
             return false;
 
@@ -76,9 +83,28 @@ internal static class CollectionMutationFacts
         return false;
     }
 
+    private static bool HasOnlyDefaultAllocations(ImmutableArray<LocalBinding> bindings, INamedTypeSymbol collection)
+    {
+        var found = false;
+        foreach (var binding in bindings)
+        {
+            if (!binding.IsBaseValueBinding) continue;
+            var allocation = RoslynOperationHelpers.UnwrapTransparent(binding.Value);
+            if (binding.Kind != LocalBindingKind.Value || !binding.TuplePath.IsDefaultOrEmpty ||
+                !IsDefaultAllocation(allocation) || !SymbolEqualityComparer.Default.Equals(allocation?.Type, collection))
+                return false;
+            found = true;
+        }
+        return found;
+    }
+
+    internal static bool IsDefaultAllocation(IOperation? operation) => operation is
+        IObjectCreationOperation { Arguments.Length: 0 } or
+        ICollectionExpressionOperation { ConstructMethod.MethodKind: MethodKind.Constructor, ConstructArguments.Length: 0 };
+
     internal static bool BindsToStorageAdd(
         SemanticModel model, INamedTypeSymbol collection, IOperation element, ConventionFacts facts,
-        bool knownExactDefaultCollection = false)
+        bool knownExactDefaultCollection)
     {
         // Bracket expressions expose the argument but omit the implicit Add invocation.
         var argument = element.Syntax as ExpressionSyntax;
@@ -97,7 +123,7 @@ internal static class CollectionMutationFacts
 
     internal static bool IsStorageAdd(
         IMethodSymbol method, INamedTypeSymbol collection, ConventionFacts facts,
-        bool knownExactDefaultCollection = false)
+        bool knownExactDefaultCollection)
     {
         if (method.Name != "Add" || method.DeclaringSyntaxReferences.Length != 0)
             return false;

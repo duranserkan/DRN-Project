@@ -311,9 +311,10 @@ internal static class ProjectionLocalExpander
             var argument = arguments[i];
             if (argument.Parameter?.RefKind == RefKind.Out) continue;
             var storesElement = !state.Entry.IsInput &&
-                CollectionMutationFacts.StoresProjectedElement(call, argument, state.Facts);
+                CollectionMutationFacts.StoresProjectedElement(call, argument, state.Entry.Locals, state.Facts);
             var key = new LocalExpansionKey(argument, target?.Property, target?.TargetReceiver, target?.View,
-                !storesElement, LocalAccessMode.Full, default, 0, default, 0);
+                !storesElement, LocalAccessMode.Full, default, 0, default, 0,
+                ReturnConditions: storesElement ? state.Entry.ReturnConditions : default);
             if (state.Visited.Add(key))
                 state.Pending.Push(state.Entry.Next(argument.Value, target, !storesElement));
         }
@@ -436,7 +437,7 @@ internal static class ProjectionLocalExpander
         var target = state.Entry.Target;
         var key = new LocalExpansionKey(value, target?.Property, target?.TargetReceiver, target?.View,
             state.Entry.IsInput, cursor.AccessMode, cursor.Chain, cursor.ChainIndex, cursor.TuplePath, cursor.TupleIndex,
-            state.Entry.SuppressedInitializerProperties);
+            state.Entry.SuppressedInitializerProperties, state.Entry.ReturnConditions);
         if (!state.Visited.Add(key)) return;
         if (cursor.Depth >= ProjectionLimits.MaxExpansionDepth)
         {

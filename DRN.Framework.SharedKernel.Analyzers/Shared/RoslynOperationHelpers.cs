@@ -23,6 +23,15 @@ internal static class RoslynOperationHelpers
     internal static IOperation UnwrapTransparentNonNull(IOperation operation) =>
         UnwrapTransparent(operation) ?? operation;
 
+    internal static bool ForwardsOperandValue(IOperation parent, IOperation child) => parent switch
+    {
+        IParenthesizedOperation or IConversionOperation { Conversion.IsUserDefined: false } => true,
+        IConditionalAccessOperation access => ReferenceEquals(child, access.WhenNotNull),
+        IConditionalOperation conditional => ReferenceEquals(child, conditional.WhenTrue) || ReferenceEquals(child, conditional.WhenFalse),
+        ICoalesceOperation coalesce => ReferenceEquals(child, coalesce.WhenNull) || !coalesce.ValueConversion.IsUserDefined,
+        _ => false
+    };
+
     internal static IOperation? UnwrapDelegateCreation(IOperation? operation)
     {
         while (operation is not null)
@@ -50,6 +59,20 @@ internal static class RoslynOperationHelpers
             if (parent is IConditionalAccessOperation access && ReferenceEquals(access.WhenNotNull, child))
                 return access.Operation;
             child = parent;
+        }
+        return null;
+    }
+
+    internal static IConditionalAccessInstanceOperation? ConditionalInstance(IOperation receiver, CancellationToken cancellation)
+    {
+        if (receiver.Parent is not IConditionalAccessOperation access || !ReferenceEquals(receiver, access.Operation))
+            return null;
+        foreach (var operation in access.WhenNotNull.DescendantsAndSelf())
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (operation is IConditionalAccessInstanceOperation instance &&
+                ReferenceEquals(ConditionalReceiver(instance, cancellation), receiver))
+                return instance;
         }
         return null;
     }

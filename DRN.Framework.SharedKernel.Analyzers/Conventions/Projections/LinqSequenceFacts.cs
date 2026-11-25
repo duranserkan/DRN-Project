@@ -97,12 +97,53 @@ internal static class LinqSequenceFacts
                SymbolEqualityComparer.Default.Equals(parameter.OriginalDefinition.Type, sourceTypeParameter);
     }
 
-    internal static bool IsLengthPreservingSequenceCall(IMethodSymbol method, ConventionSymbols symbols)
+    private static bool IsLengthPreservingSequenceCall(IMethodSymbol method, ConventionSymbols symbols)
     {
         if (IsLinqSelect(method, symbols)) return true;
         var keepsLength = method.Name is "ToArray" or "ToList" or "AsEnumerable" or "AsQueryable" or "Reverse" or
             "OrderBy" or "OrderByDescending" or "ThenBy" or "ThenByDescending";
         return keepsLength && TryGetPreservedSequenceArgumentCount(method, symbols, out _);
+    }
+
+    internal static IOperation? SequenceControllingIteration(IOperation? source, ConventionSymbols symbols, CancellationToken cancellation)
+    {
+        source = RoslynOperationHelpers.UnwrapInstance(source, cancellation);
+        while (source is IInvocationOperation call && IsLengthPreservingSequenceCall(call.TargetMethod, symbols))
+        {
+            cancellation.ThrowIfCancellationRequested();
+            source = RoslynOperationHelpers.UnwrapInstance(RoslynOperationHelpers.TryGetArgumentValueByOrdinal(call, 0), cancellation);
+        }
+        // Values stored in a fixed-length literal do not affect whether it has an element.
+        if (source is IArrayCreationOperation { Initializer: not null } ||
+            source is ICollectionExpressionOperation { Type: IArrayTypeSymbol } literal && !literal.Elements.Any(e => e is ISpreadOperation))
+            return null;
+        return source;
+    }
+
+    internal static ImmutableArray<IOperation> LambdaIterationConditions(
+        IInvocationOperation call, IAnonymousFunctionOperation lambda, ConventionSymbols symbols, CancellationToken cancellation)
+    {
+        if (UnwrapLambdaParent(lambda) is not IArgumentOperation { Parameter.OriginalDefinition.Type: INamedTypeSymbol callback })
+            return [];
+        if (callback.TypeKind != TypeKind.Delegate &&
+            callback.TypeArguments is [INamedTypeSymbol { TypeKind: TypeKind.Delegate } expressionDelegate])
+            callback = expressionDelegate;
+        if (callback.DelegateInvokeMethod is not { } invoke) return [];
+
+        // Outer and inner sequences can have the same concrete element type at the call site.
+        ImmutableArray<IOperation> conditions = [];
+        foreach (var argument in call.Arguments)
+        {
+            if (argument.Parameter is not { } parameter ||
+                parameter.OriginalDefinition.Type is not INamedTypeSymbol { TypeArguments: [ITypeParameterSymbol element] } sequenceType)
+                continue;
+            if (parameter.Ordinal != 0 && sequenceType.OriginalDefinition.SpecialType != SpecialType.System_Collections_Generic_IEnumerable_T)
+                continue;
+            if (invoke.Parameters.Any(input => SymbolEqualityComparer.Default.Equals(input.Type, element)) &&
+                SequenceControllingIteration(argument.Value, symbols, cancellation) is { } sequence)
+                conditions = conditions.Add(sequence);
+        }
+        return conditions;
     }
 
     internal static bool IsMaterializingCollectionCreation(IObjectCreationOperation creation, ConventionSymbols symbols) =>
@@ -122,6 +163,7 @@ internal static class LinqSequenceFacts
         if (!IsLinqOwner(owner, symbols)) return false;
         if (method.Name == "SequenceEqual")
             return parameter.Ordinal is 0 or 1;
+        // Even parameterless Any can enumerate when the source has no cheap count.
         return parameter.Ordinal == 0 && method.Name is
             "ToArray" or "ToList" or "ToHashSet" or "ToDictionary" or "ToLookup" or
             "First" or "FirstOrDefault" or "Single" or "SingleOrDefault" or

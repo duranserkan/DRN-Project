@@ -3,14 +3,16 @@ using Microsoft.CodeAnalysis.Operations;
 namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 
 internal readonly record struct QueryMaterializationPlan(
-    HashSet<IOperation>? Materializers,
+    Dictionary<IOperation, ImmutableArray<IOperation>>? Materializers,
     bool HasUnknownUse);
 
+// DRNDTO003 scope freeze: fix only real reported bugs (see ResponseProjectionAnalysis).
 internal sealed class QueryMaterializerResolver(
     IBlockOperation body,
     ConventionSymbols symbols,
     CancellationToken cancellation)
 {
+    private readonly record struct QueryUse(IOperation Operation, IOperation? Condition = null);
     private Dictionary<ILocalSymbol, List<ILocalReferenceOperation>>? _localUses;
 
     internal static bool IsMaterializingOperation(IOperation operation, ConventionSymbols symbols) => operation switch
@@ -20,44 +22,71 @@ internal sealed class QueryMaterializerResolver(
         _ => false
     };
 
-    internal QueryMaterializationPlan FindMaterializers(IInvocationOperation queryCall)
+    internal QueryMaterializationPlan FindMaterializers(IInvocationOperation queryCall, IAnonymousFunctionOperation lambda)
     {
+        var iteration = LinqSequenceFacts.LambdaIterationConditions(queryCall, lambda, symbols, cancellation);
         if (RoslynOperationHelpers.TryGetArgumentByOrdinal(queryCall, 0) is { } firstArg &&
             LinqSequenceFacts.IsMaterializingLinqCall(queryCall.TargetMethod, firstArg, symbols))
-            return new([queryCall], HasUnknownUse: false);
-        HashSet<IOperation>? materializers = null;
+            return new(new() { [queryCall] = iteration }, HasUnknownUse: false);
+        Dictionary<IOperation, ImmutableArray<IOperation>>? materializers = null;
         var hasUnknownUse = false;
-        var pending = new Stack<IOperation>();
-        var visited = new HashSet<IOperation>();
-        pending.Push(queryCall);
-        while (pending.TryPop(out var current))
+        var pending = new Stack<QueryUse>();
+        var visited = new HashSet<QueryUse>();
+        pending.Push(new(queryCall));
+        while (pending.TryPop(out var use))
         {
             cancellation.ThrowIfCancellationRequested();
-            if (!visited.Add(current)) continue;
-            var parent = ClimbTransparentParents(ref current);
+            if (!visited.Add(use)) continue;
+            var current = use.Operation;
+            var parent = current.Parent;
+            if (RoslynOperationHelpers.ConditionalInstance(current, cancellation) is { } instance)
+            {
+                pending.Push(use with { Operation = instance });
+                continue;
+            }
+            if (parent is not null && RoslynOperationHelpers.ForwardsOperandValue(parent, current))
+            {
+                pending.Push(use with { Operation = parent });
+                // Carry each guard independently so converging aliases do not multiply paths.
+                if (use.Condition is null && SelectionCondition(parent, current) is { } guard)
+                    pending.Push(new(parent, guard));
+                continue;
+            }
             if (TryGetAssignedQueryLocal(current, parent) is { } assignedLocal)
             {
-                if (!TryFollowQueryLocal(assignedLocal, parent!, pending))
+                if (!TryFollowQueryLocal(assignedLocal, parent!, use.Condition, pending))
                     hasUnknownUse = true;
                 continue;
             }
-            if (!TryAdvanceMaterializerSearch(parent, ref materializers, pending))
-                hasUnknownUse = true;
+            if (Materializer(parent) is { } materializer)
+            {
+                materializers ??= [];
+                if (!materializers.TryGetValue(materializer, out var conditions)) conditions = iteration;
+                if (use.Condition is { } condition && !conditions.Contains(condition)) conditions = conditions.Add(condition);
+                materializers[materializer] = conditions;
+                continue;
+            }
+            if (parent is IArgumentOperation { Parent: IInvocationOperation { Instance: null } consumer } argument)
+            {
+                if (LinqSequenceFacts.IsTryGetNonEnumeratedCount(consumer.TargetMethod, argument, symbols)) continue;
+                if (LinqSequenceFacts.PreservesSequenceFlow(consumer.TargetMethod, argument, symbols))
+                {
+                    pending.Push(use with { Operation = consumer });
+                    continue;
+                }
+            }
+            hasUnknownUse = true;
         }
         return new(materializers, hasUnknownUse);
     }
 
-    private static IOperation? ClimbTransparentParents(ref IOperation current)
+    private static IOperation? SelectionCondition(IOperation parent, IOperation value) => parent switch
     {
-        var parent = current.Parent;
-        while (parent is IParenthesizedOperation or IConversionOperation { Conversion.IsUserDefined: false } ||
-               (parent is IConditionalAccessOperation conditionalAccess && ReferenceEquals(current, conditionalAccess.WhenNotNull)))
-        {
-            current = parent;
-            parent = parent.Parent;
-        }
-        return parent;
-    }
+        IConditionalOperation conditional => conditional.Condition,
+        ICoalesceOperation coalesce when ReferenceEquals(value, coalesce.WhenNull) => coalesce.Value,
+        IConditionalAccessOperation access => access.Operation,
+        _ => null
+    };
 
     private static ILocalSymbol? TryGetAssignedQueryLocal(IOperation value, IOperation? parent) => parent switch
     {
@@ -67,40 +96,17 @@ internal sealed class QueryMaterializerResolver(
         _ => null
     };
 
-    private bool TryAdvanceMaterializerSearch(
-        IOperation? parent, ref HashSet<IOperation>? materializers, Stack<IOperation> pending)
+    private IOperation? Materializer(IOperation? parent) => parent switch
     {
-        if (parent is ISpreadOperation { Parent: ICollectionExpressionOperation } spread)
-        {
-            (materializers ??= []).Add(spread);
-            return true;
-        }
-        if (parent is not IArgumentOperation argument)
-            return false;
-        if (argument.Parent is IObjectCreationOperation creation &&
-            LinqSequenceFacts.IsMaterializingCollectionCreation(creation, symbols))
-        {
-            (materializers ??= []).Add(creation);
-            return true;
-        }
-        if (argument.Parent is not IInvocationOperation { Instance: null } outerCall)
-            return false;
-        if (LinqSequenceFacts.IsTryGetNonEnumeratedCount(outerCall.TargetMethod, argument, symbols))
-            return true;
-        if (LinqSequenceFacts.IsMaterializingLinqCall(outerCall.TargetMethod, argument, symbols))
-        {
-            (materializers ??= []).Add(outerCall);
-            return true;
-        }
-        if (LinqSequenceFacts.PreservesSequenceFlow(outerCall.TargetMethod, argument, symbols))
-        {
-            pending.Push(outerCall);
-            return true;
-        }
-        return false;
-    }
+        ISpreadOperation { Parent: ICollectionExpressionOperation } spread => spread,
+        IArgumentOperation { Parent: IObjectCreationOperation creation }
+            when LinqSequenceFacts.IsMaterializingCollectionCreation(creation, symbols) => creation,
+        IArgumentOperation { Parent: IInvocationOperation { Instance: null } call } argument
+            when LinqSequenceFacts.IsMaterializingLinqCall(call.TargetMethod, argument, symbols) => call,
+        _ => null
+    };
 
-    private bool TryFollowQueryLocal(ILocalSymbol local, IOperation write, Stack<IOperation> pending)
+    private bool TryFollowQueryLocal(ILocalSymbol local, IOperation write, IOperation? condition, Stack<QueryUse> pending)
     {
         if (!IsDeclaredInBody(local)) return false;
         var usesByLocal = GetOrBuildLocalUses();
@@ -117,7 +123,7 @@ internal sealed class QueryMaterializerResolver(
                 allKnown = false;
                 continue;
             }
-            pending.Push(use);
+            pending.Push(new(use, condition));
         }
         return allKnown;
     }

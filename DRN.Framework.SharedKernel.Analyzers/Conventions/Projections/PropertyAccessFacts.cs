@@ -178,6 +178,7 @@ internal static class PropertyAccessFacts
             foreach (var member in current.GetMembers("Equals"))
             {
                 if (member is IMethodSymbol { IsStatic: false, Parameters.Length: 1 } equals &&
+                    SymbolEqualityComparer.Default.Equals(equals.Parameters[0].Type, current) &&
                     !RoslynSymbolHelpers.IsCompilerGenerated(equals, facts.Symbols.CompilerGeneratedAttribute))
                     return false;
             }

@@ -299,8 +299,12 @@ public sealed class ConventionDtoTests
             }
             """);
         if (missing.Length == 0) diagnostics.Should().BeEmpty();
-        else diagnostics.Should().ContainSingle().Which.GetMessage().Should()
-            .Be($"Projected property '{missing}' requires [Personal] from mapped property 'Email'.");
+        else
+        {
+            var diagnostic = diagnostics.Should().ContainSingle().Which;
+            EnclosingMethod(diagnostic).Should().Be("ToDto");
+            diagnostic.GetMessage().Should().Be($"Projected property '{missing}' requires [Personal] from mapped property 'Email'.");
+        }
     }
 
     [Theory]
@@ -398,6 +402,7 @@ public sealed class ConventionDtoTests
         {
             var diagnostic = diagnostics.Should().ContainSingle().Which;
             diagnostic.Id.Should().Be("DRNDTO003");
+            EnclosingMethod(diagnostic).Should().Be("ToDto");
             diagnostic.GetMessage().Should().Be("Projected property 'Display' requires [Personal] from mapped property 'Name'.");
         }
     }
@@ -747,6 +752,7 @@ public sealed class ConventionDtoTests
         }
         var diagnostic = diagnostics.Should().ContainSingle().Which;
         diagnostic.Id.Should().Be("DRNDTO003");
+        EnclosingMethod(diagnostic).Should().Be("ToDto");
         diagnostic.GetMessage().Should().Be($"Projected property 'Display' requires [{kind}] from mapped property '{property}'.");
     }
 
@@ -873,6 +879,7 @@ public sealed class ConventionDtoTests
         {
             var diagnostic = diagnostics.Should().ContainSingle().Which;
             diagnostic.Id.Should().Be("DRNDTO003");
+            EnclosingMethod(diagnostic).Should().Be("ToDto");
             diagnostic.GetMessage().Should().Be($"Projected property '{missing}' requires [Personal] from mapped property 'Email'.");
         }
     }
@@ -1285,12 +1292,12 @@ public sealed class ConventionDtoTests
         hosted.AssertNoCompilerErrors();
 
         var diagnostics = Analyze(hosted, "Hosted").Where(d => d.Id == "DRNDTO003").ToArray();
-        diagnostics.Select(d => (d.Properties["Target"], d.GetMessage())).Should().BeEquivalentTo(new (string?, string)[]
+        diagnostics.Select(d => (d.Properties["Target"], EnclosingMethod(d), d.GetMessage())).Should().BeEquivalentTo(new[]
         {
-            ("T:Sample.Hosted.Controllers.QA.AbstractMapperBase", "Projected property 'Email' requires [Personal] from mapped property 'Email'."),
-            ("T:Sample.Hosted.Controllers.QA.ConcreteMapper", "Projected property 'StringValue' requires [Sensitive] from mapped property 'StringValue'."),
-            ("T:Sample.Hosted.Controllers.QA.ConcreteMapper", "Projected property 'Display' requires [Personal] from mapped property 'Email'."),
-            ("T:Sample.Hosted.Controllers.QA.ConcreteMapper.InnerMapper", "Projected property 'Email' requires [Personal] from mapped property 'Email'.")
+            ("T:Sample.Hosted.Controllers.QA.AbstractMapperBase", "MapPositional", "Projected property 'Email' requires [Personal] from mapped property 'Email'."),
+            ("T:Sample.Hosted.Controllers.QA.ConcreteMapper", "MapNested", "Projected property 'StringValue' requires [Sensitive] from mapped property 'StringValue'."),
+            ("T:Sample.Hosted.Controllers.QA.ConcreteMapper", "MapDtoNested", "Projected property 'Display' requires [Personal] from mapped property 'Email'."),
+            ("T:Sample.Hosted.Controllers.QA.ConcreteMapper.InnerMapper", "MapInner", "Projected property 'Email' requires [Personal] from mapped property 'Email'.")
         });
     }
 
@@ -1385,11 +1392,11 @@ public sealed class ConventionDtoTests
         hosted.AssertNoCompilerErrors();
 
         var diagnostics = Analyze(hosted, "Hosted").Where(d => d.Id == "DRNDTO003").ToArray();
-        diagnostics.Select(d => (d.Properties["Target"], d.GetMessage())).Should().BeEquivalentTo(new (string?, string)[]
+        diagnostics.Select(d => (d.Properties["Target"], EnclosingMethod(d), d.GetMessage())).Should().BeEquivalentTo(new[]
         {
-            ("T:Sample.Hosted.Controllers.QA.GenericMapper`1", "Projected property 'Email' requires [Personal] from mapped property 'Email'."),
-            ("T:Sample.Hosted.Controllers.QA.GenericMapper`1.NestedInsideGeneric", "Projected property 'Email' requires [Personal] from mapped property 'Email'."),
-            ("T:Sample.Hosted.Controllers.QA.ConstrainedMapper`1", "Projected property 'Email' requires [Sensitive] from mapped property 'Secret'.")
+            ("T:Sample.Hosted.Controllers.QA.GenericMapper`1", "FromEntity", "Projected property 'Email' requires [Personal] from mapped property 'Email'."),
+            ("T:Sample.Hosted.Controllers.QA.GenericMapper`1.NestedInsideGeneric", "FromDto", "Projected property 'Email' requires [Personal] from mapped property 'Email'."),
+            ("T:Sample.Hosted.Controllers.QA.ConstrainedMapper`1", "FromConstrained", "Projected property 'Email' requires [Sensitive] from mapped property 'Secret'.")
         });
     }
 
@@ -1582,9 +1589,11 @@ public sealed class ConventionDtoTests
         localFacts.HasResponseUsingAlias(localAliasHosted.SyntaxTrees[1]).Should().BeFalse();
         ConventionDtoAnalysis.Analyze(localFacts);
         var localDiagnostics = localFacts.Diagnostics.Where(d => d.Id == "DRNDTO003").ToArray();
-        localDiagnostics.Select(d => d.Properties["Target"]).Should().BeEquivalentTo(
-            "T:Sample.Hosted.Controllers.QA.AliasMapper",
-            "T:Sample.Hosted.Controllers.QA.NestedMapper");
+        localDiagnostics.Select(d => (d.Properties["Target"], EnclosingMethod(d))).Should().BeEquivalentTo(new[]
+        {
+            ("T:Sample.Hosted.Controllers.QA.AliasMapper", "FromLocalAlias"),
+            ("T:Sample.Hosted.Controllers.QA.NestedMapper", "FromNested")
+        });
         localDiagnostics.Select(d => d.GetMessage()).Should().AllBe("Projected property 'Email' requires [Personal] from mapped property 'Email'.");
 
         var globalAliasHosted = Compilation("""
@@ -2112,18 +2121,20 @@ public sealed class ConventionDtoTests
             diagnostics.Should().BeEmpty();
             return;
         }
-        diagnostics.Select(d => AnalyzerTestCompilation.LocationText(d)).Should().BeEquivalentTo(
-            "Email = entity.Email",
-            "Email = entity.Contacts.First().Email",
-            "Email = entity.Contacts.Select(c => c.Email).First()",
-            "Email = entity.ImmutableContacts.Select(c => c.Email).First()",
-            "Email = c.Email",
-            "Email = item.Email",
-            "Email = contact.Email",
-            "entity.Email",
-            "Label: entity.Email",
-            "Email = entity.Contacts.First(c => true).Email",
-            "Email = Enumerable.First(predicate: c => true, source: entity.Contacts).Email");
+        diagnostics.Select(d => (EnclosingMethod(d), AnalyzerTestCompilation.LocationText(d))).Should().BeEquivalentTo(new[]
+        {
+            ("Direct", "Email = entity.Email"),
+            ("FirstContact", "Email = entity.Contacts.First().Email"),
+            ("Selected", "Email = entity.Contacts.Select(c => c.Email).First()"),
+            ("Immutable", "Email = entity.ImmutableContacts.Select(c => c.Email).First()"),
+            ("ProjectChildren", "Email = c.Email"),
+            ("ProjectList", "Email = item.Email"),
+            ("ProjectImmutable", "Email = contact.Email"),
+            ("FromLocal", "entity.Email"),
+            ("SummaryFor", "Label: entity.Email"),
+            ("WithPredicate", "Email = entity.Contacts.First(c => true).Email"),
+            ("WithNamedArguments", "Email = Enumerable.First(predicate: c => true, source: entity.Contacts).Email")
+        });
     }
 
     [Fact]

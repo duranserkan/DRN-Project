@@ -23,18 +23,13 @@ internal static class UnstructuredFlowHelper
         localRef.Parent is IArgumentOperation { Parameter.RefKind: RefKind.Out } ||
         localRef.Parent is IDeclarationExpressionOperation { Parent: IArgumentOperation { Parameter.RefKind: RefKind.Out } };
 
-    internal static IOperation? LoopCondition(ILoopOperation loop, ConventionSymbols symbols)
+    internal static IOperation? LoopCondition(ILoopOperation loop, ConventionSymbols symbols, CancellationToken cancellation)
     {
         if (loop is IForLoopOperation forLoop) return forLoop.Condition;
         if (loop is IWhileLoopOperation whileLoop) return whileLoop.Condition;
         if (loop is not IForEachLoopOperation forEach) return null;
 
-        var source = RoslynOperationHelpers.UnwrapTransparent(forEach.Collection);
-        // Mapping and materialization preserve whether the source is empty.
-        while (source is IInvocationOperation call &&
-               LinqSequenceFacts.IsLengthPreservingSequenceCall(call.TargetMethod, symbols))
-            source = RoslynOperationHelpers.UnwrapTransparent(RoslynOperationHelpers.TryGetArgumentValueByOrdinal(call, 0));
-        return source;
+        return LinqSequenceFacts.SequenceControllingIteration(forEach.Collection, symbols, cancellation);
     }
 
     internal static void CollectSwitchConditions(

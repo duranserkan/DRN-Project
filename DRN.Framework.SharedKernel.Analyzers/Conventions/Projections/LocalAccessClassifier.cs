@@ -92,12 +92,15 @@ internal static class LocalAccessClassifier
         var parent = current.Parent;
         if (parent is IBinaryOperation { OperatorKind: BinaryOperatorKind.Equals or BinaryOperatorKind.NotEquals } binary)
         {
-            var other = ReferenceEquals(binary.LeftOperand, current) ? binary.RightOperand : binary.LeftOperand;
+            var isLeft = ReferenceEquals(binary.LeftOperand, current);
+            var other = isLeft ? binary.RightOperand : binary.LeftOperand;
             if (!RoslynOperationHelpers.IsNullLiteral(other)) return LocalAccessMode.Full;
             if (binary.OperatorMethod is null) return LocalAccessMode.NullCheckOnly;
-            return IsSynthesizedRecordEqualityOperator(binary.OperatorMethod, symbols)
-                ? LocalAccessMode.RecordNullCheck
-                : LocalAccessMode.Full;
+            if (!IsSynthesizedRecordEqualityOperator(binary.OperatorMethod, symbols)) return LocalAccessMode.Full;
+            // Synthesized record-class equality can call Equals only on a non-null left operand.
+            return !isLeft && binary.OperatorMethod.ContainingType.IsReferenceType
+                ? LocalAccessMode.NullCheckOnly
+                : LocalAccessMode.RecordNullCheck;
         }
         if (parent is IIsPatternOperation isPattern && ReferenceEquals(isPattern.Value, current) &&
             RoslynOperationHelpers.IsNullPattern(isPattern.Pattern))

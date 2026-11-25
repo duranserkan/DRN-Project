@@ -185,7 +185,8 @@ internal readonly record struct LocalExpansionKey(
     int ChainIndex,
     ImmutableArray<int> TuplePath,
     int TupleIndex,
-    ImmutableArray<IPropertySymbol> SuppressedProperties = default);
+    ImmutableArray<IPropertySymbol> SuppressedProperties = default,
+    ImmutableArray<IOperation> ReturnConditions = default);
 
 internal sealed class LocalExpansionKeyComparer : IEqualityComparer<LocalExpansionKey>
 {
@@ -200,7 +201,8 @@ internal sealed class LocalExpansionKeyComparer : IEqualityComparer<LocalExpansi
         SymbolEqualityComparer.Default.Equals(x.TargetView, y.TargetView) &&
         SamePropertyChainTail(x.PropertyChain, x.ChainIndex, y.PropertyChain, y.ChainIndex) &&
         TuplePathHelpers.SameTail(x.TuplePath, x.TupleIndex, y.TuplePath, y.TupleIndex) &&
-        SamePropertyChainTail(x.SuppressedProperties, 0, y.SuppressedProperties, 0);
+        SamePropertyChainTail(x.SuppressedProperties, 0, y.SuppressedProperties, 0) &&
+        x.ReturnConditions.AsSpan().SequenceEqual(y.ReturnConditions.AsSpan(), ReferenceEqualityComparer.Instance);
 
     public int GetHashCode(LocalExpansionKey obj)
     {
@@ -208,6 +210,8 @@ internal sealed class LocalExpansionKeyComparer : IEqualityComparer<LocalExpansi
         hash.Add(RuntimeHelpers.GetHashCode(obj.Value));
         hash.Add(obj.IsInput);
         hash.Add(obj.AccessMode);
+        foreach (var condition in obj.ReturnConditions.AsSpan())
+            hash.Add(RuntimeHelpers.GetHashCode(condition));
         if (obj.TargetProperty is not null) hash.Add(SymbolEqualityComparer.Default.GetHashCode(obj.TargetProperty));
         if (obj.TargetReceiver is not null) hash.Add(SymbolEqualityComparer.Default.GetHashCode(obj.TargetReceiver));
         if (obj.TargetView is not null) hash.Add(SymbolEqualityComparer.Default.GetHashCode(obj.TargetView));
