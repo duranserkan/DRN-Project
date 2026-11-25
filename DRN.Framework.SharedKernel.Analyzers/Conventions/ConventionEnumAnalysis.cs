@@ -6,7 +6,7 @@ internal static class ConventionEnumAnalysis
         PublicShapeRule.DomainOnlyEnum,
         ConventionDiagnosticDescriptors.DomainOnlyEnumExposed,
         IsDomainOnlyEnum,
-        ShouldExpand,
+        ConventionBoundaryAnalysis.ShouldExpandPublicModel,
         IncludeExposedLocations: true);
 
     internal static void Analyze(ConventionFacts facts)
@@ -93,7 +93,4 @@ internal static class ConventionEnumAnalysis
     private static bool IsDomainOnlyEnum(ConventionFacts facts, INamedTypeSymbol named) =>
         named.TypeKind == TypeKind.Enum &&
         ConventionBoundaryAnalysis.HasAttribute(named, facts.Symbols.DomainOnlyAttribute);
-
-    private static bool ShouldExpand(ConventionFacts facts, INamedTypeSymbol named) =>
-        ConventionBoundaryAnalysis.ShouldExpandPublicModel(facts, named, includeDto: true);
 }

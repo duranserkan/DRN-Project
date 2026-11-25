@@ -975,20 +975,23 @@ public sealed class ConventionBoundaryTests
     [DataInline("Microsoft.EntityFrameworkCore.DbContext", "Microsoft.EntityFrameworkCore.DbContext")]
     [DataInline("Microsoft.EntityFrameworkCore.ModelBuilder", "Microsoft.EntityFrameworkCore.ModelBuilder")]
     [DataInline("Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder", "Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder")]
-    [DataInline("DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<Order>", "DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<Sample.Domain.QA.Order>")]
-    public void Contract_Context_And_Repository_Exposure_Should_Report_Exact_Public_Surface(string shape, string exposed)
+    [DataInline("DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<Order>", "DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<Sample.Domain.QA.Order>|Sample.Domain.QA.Order")]
+    public void Contract_Context_And_Repository_Exposure_Should_Report_Exact_Public_Surface(string shape, string expectedExposed)
     {
         var facts = ContractFacts($$"""
             namespace Sample.Contract.QA;
             public class Response { public {{shape}} Persistence { get; init; } }
             """);
         ConventionBoundaryAnalysis.Analyze(facts);
-        var diagnostic = facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").Should().ContainSingle().Which;
-        diagnostic.GetMessage().Should().Be("Public contract member 'Sample.Contract.QA.Response.Persistence' exposes persistence/domain type '" +
+        var diagnostics = facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002").ToArray();
+        var expectedMessages = expectedExposed.Split('|').Select(exposed =>
+            "Public contract member 'Sample.Contract.QA.Response.Persistence' exposes persistence/domain type '" +
             exposed + "'; expose an explicit Contract Request/Response or value model.");
-        diagnostic.Severity.Should().Be(DiagnosticSeverity.Warning);
-        diagnostic.Properties["Target"].Should().Be("P:Sample.Contract.QA.Response.Persistence");
-        diagnostic.Location.SourceTree!.GetText().ToString(diagnostic.Location.SourceSpan).Should().Be("Persistence");
+        diagnostics.Select(item => item.GetMessage()).Should().BeEquivalentTo(expectedMessages);
+        diagnostics.Should().OnlyContain(item =>
+            item.Severity == DiagnosticSeverity.Warning &&
+            item.Properties["Target"] == "P:Sample.Contract.QA.Response.Persistence" &&
+            item.Location.SourceTree!.GetText().ToString(item.Location.SourceSpan) == "Persistence");
     }
 
     [Fact]
@@ -1196,6 +1199,68 @@ public sealed class ConventionBoundaryTests
         facts.Diagnostics.Where(item => item.Id == "DRNARCHITECTURE002")
             .Select(item => item.Properties["Target"]).Should().BeEquivalentTo(
                 "M:Sample.Hosted.Controllers.QA.OrdersController.Read");
+    }
+
+    [Fact]
+    public void Contract_Deriving_From_DrnContext_Self_Should_Exclude_Self_While_Keeping_Base_And_Interface_Warnings()
+    {
+        var compilation = Compilation("""
+            namespace Sample.Contract.QA;
+            public class SelfContext : DRN.Framework.EntityFramework.Context.DrnContext<SelfContext>
+            {
+                public SelfContext() : base(null) { }
+            }
+            """).WithAssemblyName("Sample.Contract").AddReferences(
+            AnalyzerTestCompilation.EntityFrameworkReference,
+            AnalyzerTestCompilation.UtilsReference);
+        compilation.AssertNoCompilerErrors();
+        var facts = CreateFacts(compilation, "Contract");
+        ConventionBoundaryAnalysis.Analyze(facts);
+        var headerEntities = facts.Diagnostics
+            .Where(item => item.Id == "DRNARCHITECTURE002" && item.Properties["Target"] == "T:Sample.Contract.QA.SelfContext")
+            .Select(item => item.Properties["Entity"])
+            .ToArray();
+        headerEntities.Should().Contain("DRN.Framework.EntityFramework.Context.DrnContext`1");
+        headerEntities.Should().Contain("DRN.Framework.EntityFramework.Context.IDrnContext");
+        headerEntities.Should().NotContain("Sample.Contract.QA.SelfContext");
+    }
+
+    [Fact]
+    public void Member_Exposing_Multiple_Entities_Should_Report_Each_And_Deduplicate_By_Definition()
+    {
+        var facts = ContractFacts("""
+            namespace Sample.Contract.QA;
+            public class MultiResponse
+            {
+                public (Order First, User Second) Pair { get; init; }
+                public (Microsoft.EntityFrameworkCore.DbSet<Order> Orders, Microsoft.EntityFrameworkCore.DbSet<User> Users) Sets { get; init; }
+            }
+            """);
+        ConventionBoundaryAnalysis.Analyze(facts);
+        var pairDiagnostics = facts.Diagnostics
+            .Where(item => item.Id == "DRNARCHITECTURE002" && item.Properties["Target"] == "P:Sample.Contract.QA.MultiResponse.Pair")
+            .ToArray();
+        pairDiagnostics.Select(item => item.Properties["Entity"]).Should().BeEquivalentTo(
+            "Sample.Domain.QA.Order", "Sample.Domain.QA.User");
+
+        var exception = new ConventionInput("Exception", "DRNARCHITECTURE002", ImmutableDictionary<string, string>.Empty
+            .Add("Target", "P:Sample.Contract.QA.MultiResponse.Pair")
+            .Add("Entity", "Sample.Domain.QA.Order")
+            .Add("Owner", "Contracts").Add("Reason", "Reviewed order migration").Add("Review", "2030-01-01"), Location.None);
+        var scopedFacts = new ConventionFacts(facts.Compilation, facts.Project, new([exception], []),
+            AnalyzerTestCompilation.EmptyOptionsProvider, CancellationToken.None);
+        var exceptions = new ConventionExceptions(scopedFacts, new DateOnly(2026, 1, 1));
+        pairDiagnostics.Where(item => !exceptions.Applies(item)).Should().ContainSingle()
+            .Which.Properties["Entity"].Should().Be("Sample.Domain.QA.User");
+
+        var setEntities = facts.Diagnostics
+            .Where(item => item.Id == "DRNARCHITECTURE002" && item.Properties["Target"] == "P:Sample.Contract.QA.MultiResponse.Sets")
+            .Select(item => item.Properties["Entity"])
+            .ToArray();
+        setEntities.Should().BeEquivalentTo(
+            "Microsoft.EntityFrameworkCore.DbSet`1",
+            "Sample.Domain.QA.Order",
+            "Sample.Domain.QA.User");
     }
 
     private static Compilation GeneratedCompilation(string source, string generated)

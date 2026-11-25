@@ -69,6 +69,7 @@ internal sealed class ConventionSymbols(Compilation compilation)
     internal INamedTypeSymbol? Queryable { get; } = compilation.GetTypeByMetadataName("System.Linq.Queryable");
     internal INamedTypeSymbol? ImmutableArrayExtensions { get; } = compilation.GetTypeByMetadataName("System.Linq.ImmutableArrayExtensions");
     internal INamedTypeSymbol? ImmutableArrayFactory { get; } = compilation.GetTypeByMetadataName("System.Collections.Immutable.ImmutableArray");
+    internal INamedTypeSymbol? ImmutableListFactory { get; } = compilation.GetTypeByMetadataName("System.Collections.Immutable.ImmutableList");
     internal INamedTypeSymbol? ImmutableArrayGeneric { get; } = compilation.GetTypeByMetadataName("System.Collections.Immutable.ImmutableArray`1");
     internal INamedTypeSymbol? ImmutableListGeneric { get; } = compilation.GetTypeByMetadataName("System.Collections.Immutable.ImmutableList`1");
     internal INamedTypeSymbol? SetGeneric { get; } = compilation.GetTypeByMetadataName("System.Collections.Generic.ISet`1");
@@ -99,6 +100,7 @@ internal sealed class ConventionSymbols(Compilation compilation)
     internal INamedTypeSymbol? Snapshot { get; } = compilation.GetTypeByMetadataName("Microsoft.EntityFrameworkCore.Infrastructure.ModelSnapshot");
     internal INamedTypeSymbol? ContextAttribute { get; } = compilation.GetTypeByMetadataName("Microsoft.EntityFrameworkCore.Infrastructure.DbContextAttribute");
     internal INamedTypeSymbol? AssemblyMetadataAttribute { get; } = compilation.GetTypeByMetadataName("System.Reflection.AssemblyMetadataAttribute");
+    internal INamedTypeSymbol? CompilerGeneratedAttribute { get; } = compilation.GetTypeByMetadataName("System.Runtime.CompilerServices.CompilerGeneratedAttribute");
     internal INamedTypeSymbol? SuppressionAttribute { get; } = compilation.GetTypeByMetadataName("System.Diagnostics.CodeAnalysis.SuppressMessageAttribute");
     internal INamedTypeSymbol? ConfigAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.Utils.DependencyInjection.Attributes.ConfigAttribute");
     internal INamedTypeSymbol? ContextOptionsAttribute { get; } = compilation.GetTypeByMetadataName("DRN.Framework.EntityFramework.Attributes.NpgsqlDbContextOptionsAttribute");

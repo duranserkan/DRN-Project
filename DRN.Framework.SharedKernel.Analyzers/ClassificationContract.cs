@@ -39,6 +39,28 @@ internal sealed class ClassificationContract
     [Flags]
     internal enum PropertyClassifications { None = 0, Sensitive = 1, Personal = 2 }
 
+    internal readonly record struct ReceiverPropertyResolution(
+        IPropertySymbol Selected,
+        IPropertySymbol? InterfaceImplementation,
+        IPropertySymbol? Override);
+
+    internal static ReceiverPropertyResolution ResolveReceiverProperty(
+        IPropertySymbol property, INamedTypeSymbol? receiver, CancellationToken cancellation)
+    {
+        if (receiver is null) return new(property, null, null);
+        IPropertySymbol? interfaceImplementation = null;
+        var selected = property;
+        if (property.ContainingType.TypeKind == TypeKind.Interface &&
+            receiver.FindImplementationForInterfaceMember(property) is IPropertySymbol implementation)
+        {
+            interfaceImplementation = implementation;
+            selected = implementation;
+        }
+        var overriding = FindReceiverOverride(selected, receiver, cancellation);
+        if (overriding is not null) selected = overriding;
+        return new(selected, interfaceImplementation, overriding);
+    }
+
     internal (PropertyClassifications Property, PropertyClassifications Context) ProjectionClassification(
         IPropertySymbol property, INamedTypeSymbol receiver, ITypeSymbol? receiverView, CancellationToken cancellation)
     {
@@ -48,18 +70,12 @@ internal sealed class ClassificationContract
             context |= SymbolKinds(property.ContainingType, cancellation);
         if (receiverView is not null && !SymbolEqualityComparer.Default.Equals(receiver, receiverView))
             context |= SymbolKinds(receiverView, cancellation);
-        var implementation = property;
-        if (property.ContainingType.TypeKind == TypeKind.Interface &&
-            receiver.FindImplementationForInterfaceMember(property) is IPropertySymbol implementationProperty)
-        {
-            implementation = implementationProperty;
+        var resolved = ResolveReceiverProperty(property, receiver, cancellation);
+        if (resolved.InterfaceImplementation is { } implementationProperty)
             Include(implementationProperty);
-        }
-        if (FindReceiverOverride(implementation, receiver, cancellation) is { } overridingProperty)
-        {
-            implementation = overridingProperty;
+        if (resolved.Override is { } overridingProperty)
             Include(overridingProperty);
-        }
+        var implementation = resolved.Selected;
         foreach (var member in implementation.ExplicitInterfaceImplementations)
             Include(member);
         foreach (var contract in receiver.AllInterfaces)
@@ -68,7 +84,7 @@ internal sealed class ClassificationContract
             {
                 cancellation.ThrowIfCancellationRequested();
                 if (receiver.FindImplementationForInterfaceMember(member) is IPropertySymbol interfaceImplementation &&
-                    OverridesOrEquals(implementation, interfaceImplementation))
+                    RoslynSymbolHelpers.OverridesOrEquals(implementation, interfaceImplementation))
                     Include(member);
             }
         }
@@ -89,25 +105,15 @@ internal sealed class ClassificationContract
         {
             cancellation.ThrowIfCancellationRequested();
             foreach (var member in type.GetMembers(property.Name))
-                if (member is IPropertySymbol { OverriddenProperty: { } parent } candidate && OverridesOrEquals(parent, property))
+                if (member is IPropertySymbol { OverriddenProperty: { } parent } candidate &&
+                    RoslynSymbolHelpers.OverridesOrEquals(parent, property))
                     return candidate;
         }
         return null;
     }
 
-    private static bool OverridesOrEquals(IPropertySymbol property, IPropertySymbol ancestor)
-    {
-        for (var current = property; current is not null; current = current.OverriddenProperty)
-            if (SymbolEqualityComparer.Default.Equals(current, ancestor)) return true;
-        return false;
-    }
-
-    internal PropertyClassifications SymbolKinds(ISymbol symbol, CancellationToken cancellation)
-    {
-        if (symbol is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable)
-            symbol = nullable.TypeArguments[0];
-        return _symbolKinds.GetOrAdd(symbol, _calculateSymbolKinds, cancellation);
-    }
+    internal PropertyClassifications SymbolKinds(ISymbol symbol, CancellationToken cancellation) =>
+        _symbolKinds.GetOrAdd(RoslynSymbolHelpers.UnwrapNullableSymbol(symbol), _calculateSymbolKinds, cancellation);
 
     private PropertyClassifications CalculateSymbolKinds(ISymbol symbol, CancellationToken cancellation)
     {
@@ -154,12 +160,8 @@ internal sealed class ClassificationContract
         return _receivers.GetOrAdd(receiver, _createReceiver).Positive(property, cancellation);
     }
 
-    internal bool Positive(ISymbol symbol, CancellationToken cancellation)
-    {
-        if (symbol is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable)
-            symbol = nullable.TypeArguments[0];
-        return _positive.GetOrAdd(symbol, _calculatePositive, cancellation);
-    }
+    internal bool Positive(ISymbol symbol, CancellationToken cancellation) =>
+        _positive.GetOrAdd(RoslynSymbolHelpers.UnwrapNullableSymbol(symbol), _calculatePositive, cancellation);
 
     [SuppressMessage("SonarQube", "S3267", Justification = "Scanning the immutable attribute array directly avoids a captured predicate for each symbol in the inheritance chain.")]
     private bool CalculatePositive(ISymbol symbol, CancellationToken cancellation)

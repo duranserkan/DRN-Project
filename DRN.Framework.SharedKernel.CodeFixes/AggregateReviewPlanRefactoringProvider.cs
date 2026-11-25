@@ -66,13 +66,13 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
             model.GetDiagnostics(declaration.Span, token).Any(item => item.Severity == DiagnosticSeverity.Error)) return null;
         var domainInputs = await ReadProjectInputs(domain, token);
         if (domainInputs is null) return null;
-        return ValidateAggregateOwnership(domain, model.Compilation, domainPath, domainInfo.Namespace, domainInfo.Layout, domainInputs, entity);
+        return ValidateAggregateOwnership(domain, model.Compilation, domainPath, domainInfo, domainInputs, entity);
     }
 
     private static AggregateTarget? ValidateAggregateOwnership(Project domain, Compilation compilation, string domainPath,
-        string domainNamespace, ConventionGenerationPreflight.ProjectLayout layout, ParsedInputs domainInputs, INamedTypeSymbol entity)
+        ConventionGenerationPreflight.ProjectMetadata domainInfo, ParsedInputs domainInputs, INamedTypeSymbol entity)
     {
-        var owner = ResolveNamespaceOwnerKey(entity, domainNamespace, layout);
+        var owner = ResolveNamespaceOwnerKey(entity, domainInfo.Namespace, domainInfo.Layout);
         if (owner is null) return null;
         var ownership = compilation.GetTypeByMetadataName(OwnershipAttributeMetadataName);
         if (!AttributesPreserveOwner(entity, owner, compilation, out var hasExplicitDomain) ||
@@ -82,7 +82,7 @@ public sealed class AggregateReviewPlanRefactoringProvider : CodeRefactoringProv
         var entityName = CodeFixSymbolFacts.MetadataName(entity);
         var metadata = ConventionGenerationPreflight.MetadataFromAssembly(entity.ContainingAssembly);
         if (domainInputs.OwnershipTargets.Contains(entityName) ||
-            !metadata.TryValidateProducerOwnership(entityName, owner, out var producerExplicitDomain)) return null;
+            !metadata.TryValidateProducerOwnership(entityName, owner, out var producerExplicitDomain, domainInfo)) return null;
         return new(domain, compilation, domainPath, domainInputs, entity, entityName,
             owner.WithExplicitDomain(hasExplicitDomain || producerExplicitDomain));
     }

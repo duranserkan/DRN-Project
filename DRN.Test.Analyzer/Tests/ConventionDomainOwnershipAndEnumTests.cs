@@ -984,6 +984,52 @@ public sealed class ConventionDomainOwnershipAndEnumTests
     }
 
     [Fact]
+    public void Member_Exposing_Multiple_DomainOnly_Enums_Should_Report_Each_So_Scoped_Exception_Cannot_Hide_Another()
+    {
+        var domain = Compilation("""
+            using DRN.Framework.SharedKernel.Attributes;
+            namespace Sample.Domain.QA.Order
+            {
+                [DomainOnly] public enum FirstKind { Active = 1 }
+                [DomainOnly] public enum SecondKind { Open = 1 }
+            }
+            """).WithAssemblyName("Sample.Domain");
+        domain.AssertNoCompilerErrors();
+        var domainRef = AnalyzerTestCompilation.EmitReference(domain, "/enum-multi/Sample.Domain.dll",
+            AnalyzerTestCompilation.ReferenceAssemblyOptions);
+
+        var contract = Compilation("""
+            using Sample.Domain.QA.Order;
+            namespace Sample.Contract.QA.Orders;
+            public class EnumPairResponse
+            {
+                public (FirstKind First, SecondKind Second) Pair { get; init; }
+            }
+            """).WithAssemblyName("Sample.Contract").AddReferences(domainRef);
+        contract.AssertNoCompilerErrors();
+        var facts = FactsFor(contract, "Contract");
+        ConventionEnumAnalysis.Analyze(facts);
+        var diagnostics = facts.Diagnostics.Where(d => d.Id == "DRNENUM003").ToArray();
+        diagnostics.Select(d => (d.Properties["Target"], d.Properties["Entity"])).Should().BeEquivalentTo(
+            new (string?, string?)[]
+            {
+                ("P:Sample.Contract.QA.Orders.EnumPairResponse.Pair", "Sample.Domain.QA.Order.FirstKind"),
+                ("P:Sample.Contract.QA.Orders.EnumPairResponse.Pair", "Sample.Domain.QA.Order.SecondKind")
+            });
+
+        var exception = new ConventionInput("Exception", "DRNENUM003", ImmutableDictionary<string, string>.Empty
+            .Add("Target", "P:Sample.Contract.QA.Orders.EnumPairResponse.Pair")
+            .Add("Entity", "Sample.Domain.QA.Order.FirstKind")
+            .Add("Owner", "Contracts").Add("Reason", "Reviewed enum migration").Add("Review", "2030-01-01"), Location.None);
+        var options = Options("Sample.Contract");
+        var exceptionFacts = new ConventionFacts(contract, ConventionProject.Read(contract, options.GlobalOptions),
+            new([exception], []), options, CancellationToken.None);
+        var exceptions = new ConventionExceptions(exceptionFacts, new DateOnly(2026, 1, 1));
+        diagnostics.Where(d => !exceptions.Applies(d)).Should().ContainSingle()
+            .Which.Properties["Entity"].Should().Be("Sample.Domain.QA.Order.SecondKind");
+    }
+
+    [Fact]
     public void Folder_Structure_Should_Ignore_Generated_Types_Defer_Missing_Paths_And_Isolate_Split_Role_Prefixes()
     {
         var generatedOnly = Compilation("""

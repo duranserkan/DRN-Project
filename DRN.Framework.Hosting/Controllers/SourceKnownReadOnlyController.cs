@@ -16,10 +16,7 @@ public abstract class SourceKnownReadOnlyController<TEntity, TResponse> : Contro
     where TEntity : AggregateRoot
     where TResponse : class
 {
-    /// <summary>
-    /// Exposes bounded repository reads as explicit response contracts. Override an action with <see cref="NonActionAttribute"/>
-    /// to remove it from routing. Repository filters must enforce application data visibility.
-    /// </summary>
+    /// <summary>Initializes the read-only controller with its backing application service.</summary>
     protected SourceKnownReadOnlyController(ISourceKnownService<TEntity, TResponse> service) => Service = service;
 
     /// <summary>Server-owned page ceiling, bounded to 1 through 1000.</summary>
@@ -28,9 +25,11 @@ public abstract class SourceKnownReadOnlyController<TEntity, TResponse> : Contro
     /// <summary>Server-owned batch ceiling, bounded to 1 through 1000.</summary>
     protected virtual int MaxBatchSize => PageSize.MaxSizeDefault;
 
+    /// <summary>Gets the backing application service used to project entities to response contracts.</summary>
     protected ISourceKnownService<TEntity, TResponse> Service { get; }
-    protected ISourceKnownRepository<TEntity> Repository => Service.Repository;
 
+    /// <summary>Gets the repository exposed by <see cref="Service"/>.</summary>
+    protected ISourceKnownRepository<TEntity> Repository => Service.Repository;
 
     /// <summary>Links request cancellation to the scoped repository before starting work.</summary>
     protected void PrepareRepository(CancellationToken cancellationToken)

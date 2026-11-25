@@ -121,28 +121,28 @@ public sealed class RepositoryPairRefactoringProvider : CodeRefactoringProvider
         if (domainCompilation?.GetTypeByMetadataName(entityName) is not { IsAbstract: false } entity || IsOpen(entity) || !IsPublicType(entity) ||
             !SymbolEqualityComparer.Default.Equals(entity.ContainingAssembly, domainCompilation.Assembly) ||
             !Inherits(entity, domainCompilation.GetTypeByMetadataName("DRN.Framework.SharedKernel.Domain.AggregateRoot"))) return null;
-        return await ResolveDomainDestinationAsync(domain, (domainInfo.Namespace, domainProjectPath, domainInfo.Layout), domainInputs,
+        return await ResolveDomainDestinationAsync(domain, (domainInfo, domainProjectPath), domainInputs,
             domainCompilation, entity, entityName, token);
     }
 
     private static async Task<DomainAggregateInfo?> ResolveDomainDestinationAsync(Project domain,
-        (string Namespace, string ProjectPath, ConventionGenerationPreflight.ProjectLayout Layout) home,
+        (ConventionGenerationPreflight.ProjectMetadata Info, string ProjectPath) home,
         CompilationUnitSyntax domainInputs, Compilation domainCompilation,
         INamedTypeSymbol entity, string entityName, CancellationToken token)
     {
         var domainDocument = await ResolveEditableHomeAsync(domain, entity, rejectSpanErrors: true, token);
-        var conventionalOwner = ResolveNamespaceOwnerKey(entity, home.Namespace, home.Layout);
+        var conventionalOwner = ResolveNamespaceOwnerKey(entity, home.Info.Namespace, home.Info.Layout);
         var ownerKey = conventionalOwner is null ? null : DeclaredOwner(entity, conventionalOwner, domainCompilation);
         if (domainDocument?.FilePath is null || !TryFullPath(domainDocument.FilePath, out var domainDocumentPath) ||
             conventionalOwner is null || ownerKey is null || entity.ContainingNamespace.IsGlobalNamespace ||
             !ownerKey.SameOwner(conventionalOwner) ||
             !OwnershipCompatible(domainInputs, entityName, ownerKey.Subdomain, token, out var domainExplicitDomain, ownerKey.DomainFilter)) return null;
         var metadata = ConventionGenerationPreflight.MetadataFromAssembly(entity.ContainingAssembly);
-        if (!metadata.TryValidateProducerOwnership(entityName, ownerKey, out var producerExplicitDomain)) return null;
+        if (!metadata.TryValidateProducerOwnership(entityName, ownerKey, out var producerExplicitDomain, home.Info)) return null;
         ownerKey = ownerKey.WithExplicitDomain(domainExplicitDomain || producerExplicitDomain);
         var domainNamespace = entity.ContainingNamespace.ToDisplayString();
         var domainRoot = Path.GetDirectoryName(home.ProjectPath)!;
-        var expectedDomainRelative = domainNamespace[(home.Namespace.Length + 1)..].Replace('.', '/');
+        var expectedDomainRelative = domainNamespace[(home.Info.Namespace.Length + 1)..].Replace('.', '/');
         if (!ValidNamespace(domainNamespace) ||
             Path.GetRelativePath(domainRoot, Path.GetDirectoryName(domainDocumentPath)!).Replace('\\', '/') != expectedDomainRelative)
             return null;

@@ -235,7 +235,7 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
     private static async Task<OwnerKey?> EntityOwner(InfraProjectContext infra, Compilation compilation,
         INamedTypeSymbol entity, string entityName, CancellationToken token)
     {
-        var (conventional, domainInputs, assemblyMetadata, valid) = await ResolveConventionalOwnerAsync(infra, compilation, entity, token);
+        var (conventional, domainInputs, assemblyMetadata, loadedProject, valid) = await ResolveConventionalOwnerAsync(infra, compilation, entity, token);
         if (!valid || conventional is null) return null;
         var declared = DeclaredOwner(entity, conventional, compilation);
         if (declared is null || !declared.SameOwner(conventional)) return null;
@@ -247,13 +247,14 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
             return null;
         var metadataExplicitDomain = false;
         if (assemblyMetadata is not null &&
-            !assemblyMetadata.TryValidateProducerOwnership(entityName, declared, out metadataExplicitDomain))
+            !assemblyMetadata.TryValidateProducerOwnership(entityName, declared, out metadataExplicitDomain, loadedProject))
             return null;
         return declared.WithExplicitDomain(infraExplicitDomain || domainExplicitDomain || metadataExplicitDomain);
     }
 
     private static async Task<(OwnerKey? Conventional, CompilationUnitSyntax? DomainInputs,
-        ConventionGenerationPreflight.AssemblyConventionMetadata? AssemblyMetadata, bool Valid)> ResolveConventionalOwnerAsync(
+        ConventionGenerationPreflight.AssemblyConventionMetadata? AssemblyMetadata,
+        ConventionGenerationPreflight.ProjectMetadata? LoadedProject, bool Valid)> ResolveConventionalOwnerAsync(
         InfraProjectContext infra, Compilation compilation, INamedTypeSymbol entity, CancellationToken token)
     {
         var declaringProject = await DeclaringProject(infra.Project, compilation, entity, token);
@@ -263,28 +264,28 @@ public sealed class EntityConfigurationRefactoringProvider : CodeRefactoringProv
             {
                 var localOwner = ResolveNamespaceOwnerKey(entity, infra.Namespace, infra.Layout) ??
                     EntityDomainOwner(entity, infra.Layout);
-                return (localOwner, null, null, infra.Layout.Valid);
+                return (localOwner, null, null, null, infra.Layout.Valid);
             }
             var assemblyMetadata = ConventionGenerationPreflight.MetadataFromAssembly(entity.ContainingAssembly);
             if (!assemblyMetadata.Layout.Valid || assemblyMetadata.HasRoleOverrides)
-                return (null, null, null, false);
+                return (null, null, null, null, false);
             var metadataOwner = ResolveNamespaceOwnerKey(entity, assemblyMetadata.RootNamespace, assemblyMetadata.Layout) ??
                 (assemblyMetadata.HasExplicitRootNamespace ? null : EntityDomainOwner(entity, assemblyMetadata.Layout));
-            return (metadataOwner, null, assemblyMetadata, true);
+            return (metadataOwner, null, assemblyMetadata, null, true);
         }
         var declaringInfo = ConventionGenerationPreflight.ReadProject(declaringProject);
         if (declaringInfo.Role != "Domain")
         {
             var nonDomainOwner = ResolveNamespaceOwnerKey(entity, declaringInfo.Namespace, declaringInfo.Layout) ??
                 EntityDomainOwner(entity, declaringInfo.Layout);
-            return (nonDomainOwner, null, null, declaringInfo.Layout.Valid);
+            return (nonDomainOwner, null, null, null, declaringInfo.Layout.Valid);
         }
-        if (!declaringInfo.Layout.Valid || !ValidNamespace(declaringInfo.Namespace)) return (null, null, null, false);
+        if (!declaringInfo.Layout.Valid || !ValidNamespace(declaringInfo.Namespace)) return (null, null, null, null, false);
         var domainInputs = await ReadInputsWithoutRoleOverrideAsync(declaringProject, required: false, token);
-        if (domainInputs is null) return (null, null, null, false);
+        if (domainInputs is null) return (null, null, null, null, false);
         var domainAssemblyMetadata = ConventionGenerationPreflight.MetadataFromAssembly(entity.ContainingAssembly);
-        if (domainAssemblyMetadata.HasRoleOverrides) return (null, null, null, false);
-        return (ResolveNamespaceOwnerKey(entity, declaringInfo.Namespace, declaringInfo.Layout), domainInputs, domainAssemblyMetadata, true);
+        if (domainAssemblyMetadata.HasRoleOverrides) return (null, null, null, null, false);
+        return (ResolveNamespaceOwnerKey(entity, declaringInfo.Namespace, declaringInfo.Layout), domainInputs, domainAssemblyMetadata, declaringInfo, true);
     }
 
     private readonly record struct InfraProjectContext(Project Project, string Namespace,
