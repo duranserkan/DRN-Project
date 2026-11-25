@@ -45,7 +45,7 @@ internal static class CollectionMutationFacts
             return false;
         var method = call.TargetMethod;
         if (method.Name == "Add" && method.Parameters.Length == 1)
-            return IsStorageAdd(method, collection, facts);
+            return IsStorageAdd(method, collection, facts, knownExactDefaultCollection: false);
         if (method.DeclaringSyntaxReferences.Length != 0)
             return false;
 
@@ -76,7 +76,9 @@ internal static class CollectionMutationFacts
         return false;
     }
 
-    internal static bool BindsToStorageAdd(SemanticModel model, INamedTypeSymbol collection, IOperation element, ConventionFacts facts)
+    internal static bool BindsToStorageAdd(
+        SemanticModel model, INamedTypeSymbol collection, IOperation element, ConventionFacts facts,
+        bool knownExactDefaultCollection = false)
     {
         // Bracket expressions expose the argument but omit the implicit Add invocation.
         var argument = element.Syntax as ExpressionSyntax;
@@ -87,15 +89,19 @@ internal static class CollectionMutationFacts
         var invocation = SyntaxFactory.InvocationExpression(add,
             SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(SyntaxFactory.Argument(argument))));
         return model.GetSpeculativeSymbolInfo(element.Syntax.SpanStart, invocation, SpeculativeBindingOption.BindAsExpression).Symbol
-            is IMethodSymbol method && IsStorageAdd(method, collection, facts);
+            is IMethodSymbol method && IsStorageAdd(method, collection, facts, knownExactDefaultCollection);
 
         static ExpressionSyntax DefaultValue(ITypeSymbol type) => SyntaxFactory.DefaultExpression(
             SyntaxFactory.ParseTypeName(type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)));
     }
 
-    internal static bool IsStorageAdd(IMethodSymbol method, INamedTypeSymbol collection, ConventionFacts facts)
+    internal static bool IsStorageAdd(
+        IMethodSymbol method, INamedTypeSymbol collection, ConventionFacts facts,
+        bool knownExactDefaultCollection = false)
     {
         if (method.Name != "Add" || method.DeclaringSyntaxReferences.Length != 0)
+            return false;
+        if (CanTransformCollectionInsert(method, collection, facts, knownExactDefaultCollection))
             return false;
         // Collection contracts identify a stored element. Other Add methods can consume arbitrary helper inputs.
         if (MatchesStorageAddContract(method, collection, collection, facts.Symbols))
@@ -105,6 +111,33 @@ internal static class CollectionMutationFacts
             facts.Cancellation.ThrowIfCancellationRequested();
             if (MatchesStorageAddContract(method, collection, contract, facts.Symbols))
                 return true;
+        }
+        return false;
+    }
+
+    private static bool CanTransformCollectionInsert(
+        IMethodSymbol method, INamedTypeSymbol collection, ConventionFacts facts, bool knownExactDefaultCollection)
+    {
+        if (!ConventionSymbols.Same(method.ContainingType, facts.Symbols.CollectionGeneric))
+            return false;
+        // Collection<T>.Add delegates to protected virtual InsertItem and its backing IList<T>.
+        if (!knownExactDefaultCollection && !collection.IsSealed)
+            return true;
+        for (var current = collection;
+             current is not null && !ConventionSymbols.Same(current, facts.Symbols.CollectionGeneric);
+             current = current.BaseType)
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            foreach (var member in current.GetMembers("InsertItem"))
+            {
+                if (member is IMethodSymbol { IsOverride: true, Parameters.Length: 2 })
+                    return true;
+            }
+            foreach (var ctor in current.InstanceConstructors)
+            {
+                if (!ctor.IsImplicitlyDeclared)
+                    return true;
+            }
         }
         return false;
     }

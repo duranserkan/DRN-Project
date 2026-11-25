@@ -307,6 +307,7 @@ public sealed class ConventionDtoTests
     [DataInline("System.Collections.Generic.List<string>", "Email")]
     [DataInline("Labels", "new ContactDto { Label = Email }")]
     [DataInline("RelistedLabels", "new ContactDto { Label = Email }")]
+    [DataInline("TransformingCollection", "new ContactDto { Label = Email }")]
     public void Scalar_Elements_And_Custom_Add_Inputs_Should_Classify_The_Collection(string collection, string element)
     {
         var diagnostics = Project($$"""
@@ -318,6 +319,10 @@ public sealed class ConventionDtoTests
             public class RelistedLabels : System.Collections.Generic.List<object>, System.Collections.Generic.ICollection<object>
             {
                 public new void Add(object item) => base.Add(((ContactDto)item).Label);
+            }
+            public class TransformingCollection : System.Collections.ObjectModel.Collection<object>
+            {
+                protected override void InsertItem(int index, object item) => base.InsertItem(index, ((ContactDto)item).Label);
             }
             public class UserDto(SourceKnownEntity? e = null) : Dto(e)
             {
@@ -792,6 +797,7 @@ public sealed class ConventionDtoTests
     [DataInline("Mixed", "(object)new ContactDto { Label = Email }", "[Personal]", "", "Label")]
     [DataInline("Plain", "new ContactDto { Label = Email }", "", "[Personal]", null)]
     [DataInline("Plain", "new ContactDto { Label = Email }", "[Personal]", "", "Label")]
+    [DataInline("Transforming", "new ContactDto { Label = Email }", "", "[Personal]", "Contacts")]
     [DataInline("Mixed", "(object)new ContactDto { Label = Email }, new ContactDto { Label = Email }", "", "[Personal]", "Contacts")]
     public void Collection_Expression_Should_Follow_The_Add_Selected_For_Each_Element(
         string collection, string elements, string collectionAnnotation, string leafAnnotation, string? missing)
@@ -806,6 +812,10 @@ public sealed class ConventionDtoTests
             public class Labels : Plain
             {
                 public new void Add(object item) => base.Add(((ContactDto)item).Label);
+            }
+            public class Transforming : System.Collections.ObjectModel.Collection<object>
+            {
+                protected override void InsertItem(int index, object item) => base.InsertItem(index, ((ContactDto)item).Label);
             }
             public class Mixed : Plain
             {

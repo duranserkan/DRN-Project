@@ -20,12 +20,32 @@ internal static class LinqSequenceFacts
 
     internal static IInvocationOperation? FindEnclosingSelectCall(IAnonymousFunctionOperation lambda, ConventionSymbols symbols)
     {
+        var call = FindEnclosingLinqCall(lambda, symbols);
+        return call is not null && IsLinqSelect(call.TargetMethod, symbols) &&
+               IsArgumentAtOrdinal(lambda, call, 1)
+            ? call
+            : null;
+    }
+
+    internal static IInvocationOperation? FindEnclosingLinqCall(IAnonymousFunctionOperation lambda, ConventionSymbols symbols)
+    {
+        var parent = UnwrapLambdaParent(lambda);
+        var isLinqArgument = parent is IArgumentOperation { Parameter.Ordinal: > 0, Parent: IInvocationOperation { Instance: null } call } &&
+            IsLinqOwner(call.TargetMethod.ContainingType, symbols);
+        return isLinqArgument ? (IInvocationOperation)parent!.Parent! : null;
+    }
+
+    private static bool IsArgumentAtOrdinal(IAnonymousFunctionOperation lambda, IInvocationOperation call, int ordinal) =>
+        UnwrapLambdaParent(lambda) is IArgumentOperation { Parameter.Ordinal: var actual, Parent: var parent } &&
+        actual == ordinal &&
+        ReferenceEquals(parent, call);
+
+    private static IOperation? UnwrapLambdaParent(IAnonymousFunctionOperation lambda)
+    {
         var parent = lambda.Parent;
         while (parent is IDelegateCreationOperation or IConversionOperation or IParenthesizedOperation)
             parent = parent.Parent;
-        var isSelectArgument = parent is IArgumentOperation { Parameter.Ordinal: 1, Parent: IInvocationOperation call } &&
-            IsLinqSelect(call.TargetMethod, symbols);
-        return isSelectArgument ? (IInvocationOperation)parent!.Parent! : null;
+        return parent;
     }
 
     internal static bool TryGetPreservedSequenceArgumentCount(

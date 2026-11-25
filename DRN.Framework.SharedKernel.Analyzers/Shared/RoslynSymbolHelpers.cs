@@ -56,8 +56,12 @@ internal static class RoslynSymbolHelpers
         if (receiver is not null) return false;
         var isSealed = property.IsSealed || property.ContainingType.IsSealed;
         if (isSealed) return false;
-        return property.IsVirtual || property.IsOverride || property.ContainingType.TypeKind == TypeKind.Interface;
+        return property.IsVirtual || property.IsAbstract || property.IsOverride ||
+               property.ContainingType.TypeKind == TypeKind.Interface;
     }
+
+    internal static bool IsCompilerGenerated(ISymbol symbol, INamedTypeSymbol? compilerGeneratedAttribute) =>
+        symbol.IsImplicitlyDeclared || HasAttribute(symbol, compilerGeneratedAttribute);
 
     internal static IMethodSymbol RootOverriddenMethod(IMethodSymbol method)
     {

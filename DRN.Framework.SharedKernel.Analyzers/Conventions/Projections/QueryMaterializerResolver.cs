@@ -2,6 +2,10 @@ using Microsoft.CodeAnalysis.Operations;
 
 namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 
+internal readonly record struct QueryMaterializationPlan(
+    HashSet<IOperation>? Materializers,
+    bool HasUnknownUse);
+
 internal sealed class QueryMaterializerResolver(
     IBlockOperation body,
     ConventionSymbols symbols,
@@ -16,12 +20,16 @@ internal sealed class QueryMaterializerResolver(
         _ => false
     };
 
-    internal HashSet<IOperation>? FindMaterializers(IInvocationOperation select)
+    internal QueryMaterializationPlan FindMaterializers(IInvocationOperation queryCall)
     {
-        var materializers = new HashSet<IOperation>();
+        if (RoslynOperationHelpers.TryGetArgumentByOrdinal(queryCall, 0) is { } firstArg &&
+            LinqSequenceFacts.IsMaterializingLinqCall(queryCall.TargetMethod, firstArg, symbols))
+            return new([queryCall], HasUnknownUse: false);
+        HashSet<IOperation>? materializers = null;
+        var hasUnknownUse = false;
         var pending = new Stack<IOperation>();
         var visited = new HashSet<IOperation>();
-        pending.Push(select);
+        pending.Push(queryCall);
         while (pending.TryPop(out var current))
         {
             cancellation.ThrowIfCancellationRequested();
@@ -29,19 +37,21 @@ internal sealed class QueryMaterializerResolver(
             var parent = ClimbTransparentParents(ref current);
             if (TryGetAssignedQueryLocal(current, parent) is { } assignedLocal)
             {
-                if (!TryFollowQueryLocal(assignedLocal, parent!, pending)) return null;
+                if (!TryFollowQueryLocal(assignedLocal, parent!, pending))
+                    hasUnknownUse = true;
                 continue;
             }
-            if (!TryAdvanceMaterializerSearch(parent, materializers, pending))
-                return null;
+            if (!TryAdvanceMaterializerSearch(parent, ref materializers, pending))
+                hasUnknownUse = true;
         }
-        return materializers;
+        return new(materializers, hasUnknownUse);
     }
 
     private static IOperation? ClimbTransparentParents(ref IOperation current)
     {
         var parent = current.Parent;
-        while (parent is IParenthesizedOperation or IConversionOperation { Conversion.IsUserDefined: false })
+        while (parent is IParenthesizedOperation or IConversionOperation { Conversion.IsUserDefined: false } ||
+               (parent is IConditionalAccessOperation conditionalAccess && ReferenceEquals(current, conditionalAccess.WhenNotNull)))
         {
             current = parent;
             parent = parent.Parent;
@@ -58,11 +68,11 @@ internal sealed class QueryMaterializerResolver(
     };
 
     private bool TryAdvanceMaterializerSearch(
-        IOperation? parent, HashSet<IOperation> materializers, Stack<IOperation> pending)
+        IOperation? parent, ref HashSet<IOperation>? materializers, Stack<IOperation> pending)
     {
         if (parent is ISpreadOperation { Parent: ICollectionExpressionOperation } spread)
         {
-            materializers.Add(spread);
+            (materializers ??= []).Add(spread);
             return true;
         }
         if (parent is not IArgumentOperation argument)
@@ -70,7 +80,7 @@ internal sealed class QueryMaterializerResolver(
         if (argument.Parent is IObjectCreationOperation creation &&
             LinqSequenceFacts.IsMaterializingCollectionCreation(creation, symbols))
         {
-            materializers.Add(creation);
+            (materializers ??= []).Add(creation);
             return true;
         }
         if (argument.Parent is not IInvocationOperation { Instance: null } outerCall)
@@ -79,7 +89,7 @@ internal sealed class QueryMaterializerResolver(
             return true;
         if (LinqSequenceFacts.IsMaterializingLinqCall(outerCall.TargetMethod, argument, symbols))
         {
-            materializers.Add(outerCall);
+            (materializers ??= []).Add(outerCall);
             return true;
         }
         if (LinqSequenceFacts.PreservesSequenceFlow(outerCall.TargetMethod, argument, symbols))
@@ -96,15 +106,20 @@ internal sealed class QueryMaterializerResolver(
         var usesByLocal = GetOrBuildLocalUses();
         if (!usesByLocal.TryGetValue(local, out var uses)) return true;
 
+        var allKnown = true;
         for (var i = 0; i < uses.Count; i++)
         {
             cancellation.ThrowIfCancellationRequested();
             var use = uses[i];
             if (ReferenceEquals(use.Parent, write)) continue;
-            if (IsWriteOrEscapingClosureUse(use)) return false;
+            if (IsWriteOrEscapingClosureUse(use))
+            {
+                allKnown = false;
+                continue;
+            }
             pending.Push(use);
         }
-        return true;
+        return allKnown;
     }
 
     private bool IsWriteOrEscapingClosureUse(ILocalReferenceOperation use)

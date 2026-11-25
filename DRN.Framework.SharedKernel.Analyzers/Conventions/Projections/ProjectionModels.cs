@@ -39,17 +39,27 @@ internal readonly record struct ProjectionNode(
     IOperation Operation,
     ProjectionTarget? Target,
     bool IsInput,
-    SelectorScope? Locals = null)
+    SelectorScope? Locals = null,
+    ImmutableArray<IOperation> ReturnConditions = default,
+    ImmutableArray<IPropertySymbol> SuppressedInitializerProperties = default)
 {
     internal ProjectionNode Next(IOperation operation, ProjectionTarget? target, bool isInput) =>
-        new(operation, target, isInput, Locals);
+        new(operation, target, isInput, Locals,
+            isInput ? default : ReturnConditions);
+
+    internal ProjectionNode NextWithSuppressed(
+        IOperation operation, ProjectionTarget? target, bool isInput,
+        ImmutableArray<IPropertySymbol> suppressedInitializerProperties) =>
+        new(operation, target, isInput, Locals,
+            isInput ? default : ReturnConditions, suppressedInitializerProperties);
 }
 
 internal enum LocalAccessMode : byte
 {
     Full = 0,
     PropertyChain = 1,
-    NullCheckOnly = 2
+    NullCheckOnly = 2,
+    RecordNullCheck = 3
 }
 
 internal enum LocalBindingKind : byte
@@ -97,10 +107,15 @@ internal sealed class LocalBindingComparer : IEqualityComparer<LocalBinding>
     }
 }
 
+internal readonly record struct SelectorReturn(
+    IOperation Value,
+    ImmutableArray<IOperation> Conditions = default);
+
 internal readonly record struct SelectorFlowResult(
-    List<IOperation> Returns,
+    List<SelectorReturn> Returns,
     List<IOperation>? ReturnConditions,
-    SelectorScope? Scope);
+    SelectorScope? Scope,
+    Dictionary<ILocalSymbol, ImmutableArray<LocalBinding>>? OuterExitValues = null);
 
 internal sealed record SelectorScope(
     Dictionary<ILocalReferenceOperation, ImmutableArray<LocalBinding>> ReferenceValues,
@@ -144,6 +159,7 @@ internal readonly record struct ExpansionCursor(
 {
     internal bool HasRemainingProperties => !Chain.IsDefault && ChainIndex < Chain.Length;
     internal bool HasRemainingTuplePath => !TuplePath.IsDefault && TupleIndex < TuplePath.Length;
+    internal bool IsNullCheck => AccessMode is LocalAccessMode.NullCheckOnly or LocalAccessMode.RecordNullCheck;
     internal IPropertySymbol CurrentProperty => Chain[ChainIndex];
     internal int CurrentTupleOrdinal => TuplePath[TupleIndex];
 
@@ -168,7 +184,8 @@ internal readonly record struct LocalExpansionKey(
     ImmutableArray<IPropertySymbol> PropertyChain,
     int ChainIndex,
     ImmutableArray<int> TuplePath,
-    int TupleIndex);
+    int TupleIndex,
+    ImmutableArray<IPropertySymbol> SuppressedProperties = default);
 
 internal sealed class LocalExpansionKeyComparer : IEqualityComparer<LocalExpansionKey>
 {
@@ -182,7 +199,8 @@ internal sealed class LocalExpansionKeyComparer : IEqualityComparer<LocalExpansi
         SymbolEqualityComparer.Default.Equals(x.TargetReceiver, y.TargetReceiver) &&
         SymbolEqualityComparer.Default.Equals(x.TargetView, y.TargetView) &&
         SamePropertyChainTail(x.PropertyChain, x.ChainIndex, y.PropertyChain, y.ChainIndex) &&
-        TuplePathHelpers.SameTail(x.TuplePath, x.TupleIndex, y.TuplePath, y.TupleIndex);
+        TuplePathHelpers.SameTail(x.TuplePath, x.TupleIndex, y.TuplePath, y.TupleIndex) &&
+        SamePropertyChainTail(x.SuppressedProperties, 0, y.SuppressedProperties, 0);
 
     public int GetHashCode(LocalExpansionKey obj)
     {
@@ -202,6 +220,11 @@ internal sealed class LocalExpansionKeyComparer : IEqualityComparer<LocalExpansi
         {
             for (var i = obj.TupleIndex; i < obj.TuplePath.Length; i++)
                 hash.Add(obj.TuplePath[i]);
+        }
+        if (!obj.SuppressedProperties.IsDefault)
+        {
+            for (var i = 0; i < obj.SuppressedProperties.Length; i++)
+                hash.Add(SymbolEqualityComparer.Default.GetHashCode(obj.SuppressedProperties[i]));
         }
         return hash.ToHashCode();
     }
@@ -227,7 +250,7 @@ internal readonly record struct LocalExpansionState(
     ConventionFacts Facts,
     Stack<ProjectionNode> Pending,
     HashSet<LocalExpansionKey> Visited,
-    Dictionary<IAnonymousFunctionOperation, SelectorFlowResult>? SelectorScopes);
+    Dictionary<(IAnonymousFunctionOperation, SelectorScope?), SelectorFlowResult>? SelectorScopes);
 
 internal static class TuplePathHelpers
 {

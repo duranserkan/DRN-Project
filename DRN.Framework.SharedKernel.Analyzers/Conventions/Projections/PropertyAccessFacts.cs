@@ -8,19 +8,33 @@ internal readonly record struct GetterRead(
     ImmutableArray<IPropertySymbol> Forwarded,
     bool MayReadSibling)
 {
-    internal bool Matches(IPropertySymbol written, CancellationToken cancellation)
+    internal bool Matches(IPropertySymbol written, CancellationToken cancellation, INamedTypeSymbol? staticReceiver = null)
     {
-        written = PropertyAccessFacts.DispatchedProperty(written, Receiver, cancellation);
-        if (RoslynSymbolHelpers.MatchesAccessedProperty(written, Property)) return true;
+        var dispatched = PropertyAccessFacts.DispatchedProperty(written, Receiver ?? staticReceiver, cancellation);
+        if (MatchesTarget(written, dispatched, Property)) return true;
         if (!Forwarded.IsDefault)
         {
             for (var i = 0; i < Forwarded.Length; i++)
             {
-                if (RoslynSymbolHelpers.MatchesAccessedProperty(written, Forwarded[i]))
+                if (MatchesTarget(written, dispatched, Forwarded[i]))
                     return true;
             }
         }
         return false;
+    }
+
+    private bool MatchesTarget(IPropertySymbol written, IPropertySymbol dispatched, IPropertySymbol target)
+    {
+        if (PropertyAccessFacts.SameOrMatchingProperty(dispatched, target))
+            return true;
+        // An unsealed class property can satisfy an interface cast on a derived runtime type.
+        return Receiver is null &&
+               written.ContainingType.TypeKind == TypeKind.Interface &&
+               !target.ContainingType.IsSealed &&
+               target.DeclaredAccessibility == Accessibility.Public &&
+               written.IsIndexer == target.IsIndexer &&
+               string.Equals(written.Name, target.Name, StringComparison.Ordinal) &&
+               SymbolEqualityComparer.Default.Equals(written.Type, target.Type);
     }
 }
 
@@ -154,6 +168,43 @@ internal static class PropertyAccessFacts
     internal static bool SameOrMatchingProperty(IPropertySymbol first, IPropertySymbol second) =>
         RoslynSymbolHelpers.MatchesAccessedProperty(first, second) ||
         RoslynSymbolHelpers.MatchesAccessedProperty(second, first);
+
+    internal static bool HasCompilerGeneratedRecordEquals(INamedTypeSymbol type, ConventionFacts facts)
+    {
+        if (!type.IsRecord) return false;
+        for (var current = type; current is { IsRecord: true }; current = current.BaseType)
+        {
+            facts.Cancellation.ThrowIfCancellationRequested();
+            foreach (var member in current.GetMembers("Equals"))
+            {
+                if (member is IMethodSymbol { IsStatic: false, Parameters.Length: 1 } equals &&
+                    !RoslynSymbolHelpers.IsCompilerGenerated(equals, facts.Symbols.CompilerGeneratedAttribute))
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    internal static IPropertySymbol? FindVerifiedPositionalRecordProperty(
+        INamedTypeSymbol destinationType, IMethodSymbol? constructor, IParameterSymbol? parameter, CancellationToken cancellation)
+    {
+        if (!destinationType.IsRecord || constructor is null || parameter is null)
+            return null;
+        if (constructor.DeclaringSyntaxReferences is not [var ctorRef] ||
+            ctorRef.GetSyntax(cancellation) is not RecordDeclarationSyntax)
+            return null;
+        if (parameter.DeclaringSyntaxReferences is not [var paramRef])
+            return null;
+        foreach (var member in destinationType.GetMembers(parameter.Name))
+        {
+            if (member is IPropertySymbol { IsStatic: false, IsIndexer: false } property &&
+                property.DeclaringSyntaxReferences is [var propRef] &&
+                propRef.SyntaxTree == paramRef.SyntaxTree &&
+                propRef.Span == paramRef.Span)
+                return property;
+        }
+        return null;
+    }
 
     internal static GetterRead ComputeGetterRead(IPropertySymbol declared, INamedTypeSymbol? receiver, ConventionFacts facts)
     {

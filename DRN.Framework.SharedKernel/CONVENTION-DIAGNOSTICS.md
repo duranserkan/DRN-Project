@@ -38,7 +38,7 @@ DRNDTO003 checks property reads in dictionary keys and values against the enclos
 
 In `Contacts = new() { new ContactDto { Label = Email } }`, a personal `Email` requires `[Personal]` on `ContactDto.Label`. In a scalar list initialized with `{ Email }`, the collection property carries the classification. An expression such as `nameof(Email)` exposes only the property name.
 
-The same rules apply to bracket collection expressions. If a custom `Add` extracts the label and stores it as a scalar, classify the collection property. Visible inputs to a collection constructor or a user-defined conversion, including conversions in `??` and spread expressions, contribute to the classification of the property receiving the result.
+The same rules apply to bracket collection expressions. If a custom `Add` or `Collection<T>.InsertItem` extracts the label and stores it as a scalar, classify the collection property. Visible inputs to a collection constructor or a user-defined conversion, including conversions in `??` and spread expressions, contribute to the classification of the property receiving the result.
 
 DTO folders use a deterministic suffix. A consonant followed by lowercase `y` becomes `ies`. Stems ending in lowercase `s`, `x`, `z`, `ch` or `sh` take `es`. All other stems take `s`, including `Person` → `Persons`. The IDE action requires the result to be a valid namespace segment.
 

@@ -46,8 +46,12 @@ internal static class ReturnedSequenceMatcher
     {
         next = parent;
         if (parent is IParenthesizedOperation or IConversionOperation { Conversion.IsUserDefined: false } or
-            ICollectionExpressionOperation)
+            ICollectionExpressionOperation or IArrayInitializerOperation)
             return true;
+        if (parent is IArrayCreationOperation array)
+            return ReferenceEquals(child, array.Initializer);
+        if (parent is IConditionalAccessOperation conditionalAccess)
+            return ReferenceEquals(child, conditionalAccess.WhenNotNull);
         if (parent is ISpreadOperation spread)
             return !spread.ElementConversion.IsUserDefined;
         if (parent is ICoalesceOperation coalesce)
@@ -103,7 +107,7 @@ internal static class ReturnedSequenceMatcher
         if (flow.Returns.Count == 0) return false;
         var pending = new Stack<IOperation>();
         var visited = new HashSet<IOperation>();
-        for (var i = 0; i < flow.Returns.Count; i++) pending.Push(flow.Returns[i]);
+        for (var i = 0; i < flow.Returns.Count; i++) pending.Push(flow.Returns[i].Value);
         while (pending.TryPop(out var current))
         {
             facts.Cancellation.ThrowIfCancellationRequested();
@@ -130,6 +134,15 @@ internal static class ReturnedSequenceMatcher
                 return;
             case ICollectionExpressionOperation collection:
                 foreach (var element in collection.Elements) pending.Push(element);
+                return;
+            case IArrayCreationOperation { Initializer: { } arrayInitializer }:
+                pending.Push(arrayInitializer);
+                return;
+            case IArrayInitializerOperation arrayInitializer:
+                foreach (var element in arrayInitializer.ElementValues) pending.Push(element);
+                return;
+            case IConditionalAccessOperation conditionalAccess:
+                pending.Push(conditionalAccess.WhenNotNull);
                 return;
             case IConditionalOperation conditional:
                 pending.Push(conditional.WhenTrue);

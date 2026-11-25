@@ -4,20 +4,20 @@ namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 
 internal static class LocalAccessClassifier
 {
-    internal static ExpansionCursor CreateAccessCursor(ProjectionNode entry, IOperation receiver)
+    internal static ExpansionCursor CreateAccessCursor(ProjectionNode entry, IOperation receiver, ConventionSymbols symbols)
     {
         if (!entry.IsInput) return new(LocalAccessMode.Full);
-        var mode = ClassifyLocalAccess(receiver, out var properties);
+        var mode = ClassifyLocalAccess(receiver, symbols, out var properties);
         return new(mode, properties);
     }
 
     internal static bool TryResolveConditionalPlaceholderAccess(
-        IConditionalAccessInstanceOperation placeholder, CancellationToken cancellation,
+        IConditionalAccessInstanceOperation placeholder, ConventionSymbols symbols, CancellationToken cancellation,
         out IOperation receiver, out ExpansionCursor cursor)
     {
         receiver = null!;
         cursor = new(LocalAccessMode.Full);
-        var suffixMode = ClassifyLocalAccess(placeholder, out var suffix);
+        var suffixMode = ClassifyLocalAccess(placeholder, symbols, out var suffix);
         if (suffix.IsDefaultOrEmpty) return false;
 
         var prefixSegments = new List<IPropertySymbol>();
@@ -55,7 +55,8 @@ internal static class LocalAccessClassifier
         return true;
     }
 
-    private static LocalAccessMode ClassifyLocalAccess(IOperation receiver, out ImmutableArray<IPropertySymbol> chain)
+    private static LocalAccessMode ClassifyLocalAccess(
+        IOperation receiver, ConventionSymbols symbols, out ImmutableArray<IPropertySymbol> chain)
     {
         ImmutableArray<IPropertySymbol>.Builder? properties = null;
         var current = receiver;
@@ -81,24 +82,36 @@ internal static class LocalAccessClassifier
             break;
         }
         chain = properties is null ? default : properties.ToImmutable();
-        if (IsPureNullCheckUse(current)) return LocalAccessMode.NullCheckOnly;
+        var nullCheckMode = ClassifyPureNullCheckUse(current, symbols);
+        if (nullCheckMode != LocalAccessMode.Full) return nullCheckMode;
         return chain.IsDefaultOrEmpty ? LocalAccessMode.Full : LocalAccessMode.PropertyChain;
     }
 
-    private static bool IsPureNullCheckUse(IOperation current)
+    private static LocalAccessMode ClassifyPureNullCheckUse(IOperation current, ConventionSymbols symbols)
     {
         var parent = current.Parent;
         if (parent is IBinaryOperation { OperatorKind: BinaryOperatorKind.Equals or BinaryOperatorKind.NotEquals } binary)
         {
             var other = ReferenceEquals(binary.LeftOperand, current) ? binary.RightOperand : binary.LeftOperand;
-            return RoslynOperationHelpers.IsNullLiteral(other);
+            if (!RoslynOperationHelpers.IsNullLiteral(other)) return LocalAccessMode.Full;
+            if (binary.OperatorMethod is null) return LocalAccessMode.NullCheckOnly;
+            return IsSynthesizedRecordEqualityOperator(binary.OperatorMethod, symbols)
+                ? LocalAccessMode.RecordNullCheck
+                : LocalAccessMode.Full;
         }
-        if (parent is IIsPatternOperation isPattern && ReferenceEquals(isPattern.Value, current))
-            return RoslynOperationHelpers.IsNullPattern(isPattern.Pattern);
-        return parent is IConditionalAccessOperation conditional &&
-               ReferenceEquals(conditional.Operation, current) &&
-               IsPropertyOnlyConditionalAccess(conditional);
+        if (parent is IIsPatternOperation isPattern && ReferenceEquals(isPattern.Value, current) &&
+            RoslynOperationHelpers.IsNullPattern(isPattern.Pattern))
+            return LocalAccessMode.NullCheckOnly;
+        if (parent is IConditionalAccessOperation conditional &&
+            ReferenceEquals(conditional.Operation, current) &&
+            IsPropertyOnlyConditionalAccess(conditional))
+            return LocalAccessMode.NullCheckOnly;
+        return LocalAccessMode.Full;
     }
+
+    private static bool IsSynthesizedRecordEqualityOperator(IMethodSymbol operatorMethod, ConventionSymbols symbols) =>
+        operatorMethod.ContainingType is { IsRecord: true } &&
+        RoslynSymbolHelpers.IsCompilerGenerated(operatorMethod, symbols.CompilerGeneratedAttribute);
 
     private static bool IsPropertyOnlyConditionalAccess(IConditionalAccessOperation conditional)
     {
