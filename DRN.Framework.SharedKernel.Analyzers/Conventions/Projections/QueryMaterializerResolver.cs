@@ -6,13 +6,16 @@ internal readonly record struct QueryMaterializationPlan(
     Dictionary<IOperation, ImmutableArray<IOperation>>? Materializers,
     bool HasUnknownUse);
 
+internal readonly record struct QueryUse(
+    IOperation Operation,
+    IOperation? Condition = null);
+
 // DRNDTO003 scope freeze: fix only real reported bugs (see ResponseProjectionAnalysis).
 internal sealed class QueryMaterializerResolver(
     IBlockOperation body,
     ConventionSymbols symbols,
     CancellationToken cancellation)
 {
-    private readonly record struct QueryUse(IOperation Operation, IOperation? Condition = null);
     private Dictionary<ILocalSymbol, List<ILocalReferenceOperation>>? _localUses;
 
     internal static bool IsMaterializingOperation(IOperation operation, ConventionSymbols symbols) => operation switch
@@ -37,47 +40,67 @@ internal sealed class QueryMaterializerResolver(
         {
             cancellation.ThrowIfCancellationRequested();
             if (!visited.Add(use)) continue;
-            var current = use.Operation;
-            var parent = current.Parent;
-            if (RoslynOperationHelpers.ConditionalInstance(current, cancellation) is { } instance)
-            {
-                pending.Push(use with { Operation = instance });
-                continue;
-            }
-            if (parent is not null && RoslynOperationHelpers.ForwardsOperandValue(parent, current))
-            {
-                pending.Push(use with { Operation = parent });
-                // Carry each guard independently so converging aliases do not multiply paths.
-                if (use.Condition is null && SelectionCondition(parent, current) is { } guard)
-                    pending.Push(new(parent, guard));
-                continue;
-            }
-            if (TryGetAssignedQueryLocal(current, parent) is { } assignedLocal)
-            {
-                if (!TryFollowQueryLocal(assignedLocal, parent!, use.Condition, pending))
-                    hasUnknownUse = true;
-                continue;
-            }
-            if (Materializer(parent) is { } materializer)
-            {
-                materializers ??= [];
-                if (!materializers.TryGetValue(materializer, out var conditions)) conditions = iteration;
-                if (use.Condition is { } condition && !conditions.Contains(condition)) conditions = conditions.Add(condition);
-                materializers[materializer] = conditions;
-                continue;
-            }
-            if (parent is IArgumentOperation { Parent: IInvocationOperation { Instance: null } consumer } argument)
-            {
-                if (LinqSequenceFacts.IsTryGetNonEnumeratedCount(consumer.TargetMethod, argument, symbols)) continue;
-                if (LinqSequenceFacts.PreservesSequenceFlow(consumer.TargetMethod, argument, symbols))
-                {
-                    pending.Push(use with { Operation = consumer });
-                    continue;
-                }
-            }
-            hasUnknownUse = true;
+            if (!StepQueryUse(use, iteration, pending, ref materializers))
+                hasUnknownUse = true;
         }
         return new(materializers, hasUnknownUse);
+    }
+
+    private bool StepQueryUse(
+        QueryUse use, ImmutableArray<IOperation> iteration, Stack<QueryUse> pending,
+        ref Dictionary<IOperation, ImmutableArray<IOperation>>? materializers)
+    {
+        var current = use.Operation;
+        var parent = current.Parent;
+        if (RoslynOperationHelpers.ConditionalInstance(current, cancellation) is { } instance)
+        {
+            pending.Push(use with { Operation = instance });
+            return true;
+        }
+        if (parent is not null && TryForwardParentUse(use, current, parent, pending))
+            return true;
+        if (TryGetAssignedQueryLocal(current, parent) is { } assignedLocal)
+            return TryFollowQueryLocal(assignedLocal, parent!, use.Condition, pending);
+        if (Materializer(parent) is { } materializer)
+        {
+            RecordMaterializer(materializer, use.Condition, iteration, ref materializers);
+            return true;
+        }
+        return parent is IArgumentOperation { Parent: IInvocationOperation { Instance: null } consumer } argument &&
+               TryHandleArgumentConsumer(use, consumer, argument, pending);
+    }
+
+    private static bool TryForwardParentUse(
+        QueryUse use, IOperation current, IOperation parent, Stack<QueryUse> pending)
+    {
+        if (!RoslynOperationHelpers.ForwardsOperandValue(parent, current))
+            return false;
+        pending.Push(use with { Operation = parent });
+        // Carry each guard independently so converging aliases do not multiply paths.
+        if (use.Condition is null && SelectionCondition(parent, current) is { } guard)
+            pending.Push(new(parent, guard));
+        return true;
+    }
+
+    private static void RecordMaterializer(
+        IOperation materializer, IOperation? condition, ImmutableArray<IOperation> iteration,
+        ref Dictionary<IOperation, ImmutableArray<IOperation>>? materializers)
+    {
+        materializers ??= [];
+        if (!materializers.TryGetValue(materializer, out var conditions)) conditions = iteration;
+        if (condition is not null && !conditions.Contains(condition)) conditions = conditions.Add(condition);
+        materializers[materializer] = conditions;
+    }
+
+    private bool TryHandleArgumentConsumer(
+        QueryUse use, IInvocationOperation consumer, IArgumentOperation argument, Stack<QueryUse> pending)
+    {
+        if (LinqSequenceFacts.IsTryGetNonEnumeratedCount(consumer.TargetMethod, argument, symbols))
+            return true;
+        if (!LinqSequenceFacts.PreservesSequenceFlow(consumer.TargetMethod, argument, symbols))
+            return false;
+        pending.Push(use with { Operation = consumer });
+        return true;
     }
 
     private static IOperation? SelectionCondition(IOperation parent, IOperation value) => parent switch

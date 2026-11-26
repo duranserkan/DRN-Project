@@ -15,10 +15,25 @@ internal readonly record struct PublicShapePolicy(
     bool IncludeExposedLocations,
     bool ExpandExposedMembers = false);
 
+internal readonly record struct ImplementationRoleClassification(
+    string Expected,
+    string Family);
+
 internal static class ConventionBoundaryAnalysis
 {
     // This is an evidence bound, not a claim about the safety of larger serialized graphs.
     private const int PublicShapeLimit = 4096;
+    private const string TransportFamily = "transport";
+    private const string ContextFamily = "context";
+    private const string EntityConfigurationFamily = "entity configuration";
+    private const string RepositoryContractFamily = "repository contract";
+    private const string RepositoryFamily = "repository";
+    private const string EntityFamily = "entity";
+    private const string DtoFamily = "DTO";
+    private const string UseCaseServiceFamily = "use-case service";
+    private const string ProducesResponseTypeArgumentName = "Type";
+    private const string ProducesResponseStatusCodeArgumentName = "StatusCode";
+    private const string ConsumerPropertyField = "Consumer";
     private static readonly PublicShapePolicy PersistencePolicy = new(
         PublicShapeRule.Persistence,
         ConventionDiagnosticDescriptors.Contract,
@@ -55,7 +70,7 @@ internal static class ConventionBoundaryAnalysis
     {
         var role = facts.Role(type).Role;
         if (role.Length == 0 || facts.IsNeutralValue(type)) return;
-        if (ClassifyImplementationRole(facts, type) is not var (expected, family)) return;
+        if (ClassifyImplementationRole(facts, type) is not { Expected: var expected, Family: var family }) return;
         var sharedAbstraction = role == ConventionArchitecture.SharedKernel &&
             (type.TypeKind == TypeKind.Interface || type.IsAbstract) &&
             expected is ConventionArchitecture.Domain or ConventionArchitecture.Contract or ConventionArchitecture.Application;
@@ -64,22 +79,22 @@ internal static class ConventionBoundaryAnalysis
                 Properties(type), type.Name, family, expected));
     }
 
-    private static (string Expected, string Family)? ClassifyImplementationRole(ConventionFacts facts, INamedTypeSymbol type)
+    private static ImplementationRoleClassification? ClassifyImplementationRole(ConventionFacts facts, INamedTypeSymbol type)
     {
         var symbols = facts.Symbols;
-        if (symbols.IsTransport(type, facts.Cancellation)) return (ConventionArchitecture.Hosted, "transport");
+        if (symbols.IsTransport(type, facts.Cancellation)) return new(ConventionArchitecture.Hosted, TransportFamily);
         if (symbols.IsContext(type, facts.Cancellation))
-            return (ConventionArchitecture.Infra, "context");
+            return new(ConventionArchitecture.Infra, ContextFamily);
         if (symbols.IsKnown(type, symbols.Configuration, facts.Cancellation))
-            return (ConventionArchitecture.Infra, "entity configuration");
+            return new(ConventionArchitecture.Infra, EntityConfigurationFamily);
         if (symbols.IsKnown(type, symbols.RepositoryContract, facts.Cancellation))
             return type.TypeKind == TypeKind.Interface
-                ? (ConventionArchitecture.Domain, "repository contract")
-                : (ConventionArchitecture.Infra, "repository");
-        if (facts.IsEntity(type)) return (ConventionArchitecture.Domain, "entity");
-        if (symbols.IsKnown(type, symbols.Dto, facts.Cancellation)) return (ConventionArchitecture.Contract, "DTO");
+                ? new(ConventionArchitecture.Domain, RepositoryContractFamily)
+                : new(ConventionArchitecture.Infra, RepositoryFamily);
+        if (facts.IsEntity(type)) return new(ConventionArchitecture.Domain, EntityFamily);
+        if (symbols.IsKnown(type, symbols.Dto, facts.Cancellation)) return new(ConventionArchitecture.Contract, DtoFamily);
         if (symbols.IsKnown(type, symbols.ServiceContract, facts.Cancellation))
-            return (ConventionArchitecture.Application, "use-case service");
+            return new(ConventionArchitecture.Application, UseCaseServiceFamily);
         return null;
     }
 
@@ -107,7 +122,7 @@ internal static class ConventionBoundaryAnalysis
                 var roots = ExposureRootTypes(facts, type, member, transport);
                 CollectExposedTypes(facts, policy, roots, memberExposures, out var exhausted);
                 if (exhausted) facts.ReportIncompleteContract(reportingSymbol, member, location);
-                ReportMemberExposures(facts, policy, type, reportingSymbol, member, location, memberExposures, ref reportedOnType);
+                ReportMemberExposures(facts, policy, type, reportingSymbol, member, location, ref reportedOnType);
             }
             finally
             {
@@ -117,11 +132,10 @@ internal static class ConventionBoundaryAnalysis
     }
 
     private static void ReportMemberExposures(ConventionFacts facts, PublicShapePolicy policy, INamedTypeSymbol type,
-        ISymbol reportingSymbol, ISymbol member, Location location,
-        Dictionary<INamedTypeSymbol, INamedTypeSymbol> memberExposures, ref HashSet<INamedTypeSymbol>? reportedOnType)
+        ISymbol reportingSymbol, ISymbol member, Location location, ref HashSet<INamedTypeSymbol>? reportedOnType)
     {
         var isInheritedMember = SymbolEqualityComparer.Default.Equals(reportingSymbol, type);
-        foreach (var (definition, exposed) in memberExposures)
+        foreach (var (definition, exposed) in facts.PublicShapeExposures)
         {
             if (isInheritedMember)
             {
@@ -334,7 +348,7 @@ internal static class ConventionBoundaryAnalysis
             foreach (var root in rootTypes) pending.Push(root);
             while (pending.TryPop(out var current))
             {
-                if (!TryVisitExposedType(facts, policy, current, clean, visited, pending, exposures, ref work))
+                if (!TryVisitExposedType(facts, policy, current, clean, exposures, ref work))
                 {
                     exhausted = true;
                     return;
@@ -350,9 +364,10 @@ internal static class ConventionBoundaryAnalysis
     }
 
     private static bool TryVisitExposedType(ConventionFacts facts, PublicShapePolicy policy, ITypeSymbol current,
-        HashSet<ITypeSymbol> clean, HashSet<ITypeSymbol> visited, Stack<ITypeSymbol> pending,
-        Dictionary<INamedTypeSymbol, INamedTypeSymbol> exposures, ref int work)
+        HashSet<ITypeSymbol> clean, Dictionary<INamedTypeSymbol, INamedTypeSymbol> exposures, ref int work)
     {
+        var visited = facts.PublicShapeVisited;
+        var pending = facts.PublicShapePending;
         facts.Cancellation.ThrowIfCancellationRequested();
         if (++work > PublicShapeLimit) return false;
         if (clean.Contains(current) || !visited.Add(current)) return true;
@@ -671,8 +686,8 @@ internal static class ConventionBoundaryAnalysis
         }
         foreach (var argument in attribute.NamedArguments)
         {
-            if (argument.Key == "Type") type = argument.Value.Value as ITypeSymbol;
-            else if (argument.Key == "StatusCode" && argument.Value.Value is int code) statusCode = code;
+            if (argument.Key == ProducesResponseTypeArgumentName) type = argument.Value.Value as ITypeSymbol;
+            else if (argument.Key == ProducesResponseStatusCodeArgumentName && argument.Value.Value is int code) statusCode = code;
         }
     }
 
@@ -713,6 +728,6 @@ internal static class ConventionBoundaryAnalysis
 
     internal static ImmutableDictionary<string, string?> Properties(ISymbol target, INamedTypeSymbol? entity = null) =>
         ImmutableDictionary<string, string?>.Empty.Add(ConventionInputSyntax.TargetField, target.GetDocumentationCommentId())
-            .Add("Consumer", target.GetDocumentationCommentId())
+            .Add(ConsumerPropertyField, target.GetDocumentationCommentId())
             .Add(ConventionInputSyntax.EntityField, entity is null ? null : ConventionSymbols.MetadataName(entity));
 }

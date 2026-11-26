@@ -4,13 +4,81 @@ namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 
 internal static class LinqSequenceFacts
 {
+    internal const string SelectMethodName = "Select";
+
+    private const string ToImmutableArrayMethodName = "ToImmutableArray";
+    private const string ToImmutableListMethodName = "ToImmutableList";
+    private const string ConcatMethodName = "Concat";
+    private const string UnionMethodName = "Union";
+    private const string UnionByMethodName = "UnionBy";
+    private const string AppendMethodName = "Append";
+    private const string PrependMethodName = "Prepend";
+    private const string ToArrayMethodName = "ToArray";
+    private const string ToListMethodName = "ToList";
+    private const string ToHashSetMethodName = "ToHashSet";
+    private const string ToDictionaryMethodName = "ToDictionary";
+    private const string ToLookupMethodName = "ToLookup";
+    private const string AsEnumerableMethodName = "AsEnumerable";
+    private const string AsQueryableMethodName = "AsQueryable";
+    private const string WhereMethodName = "Where";
+    private const string TakeMethodName = "Take";
+    private const string TakeLastMethodName = "TakeLast";
+    private const string TakeWhileMethodName = "TakeWhile";
+    private const string SkipMethodName = "Skip";
+    private const string SkipLastMethodName = "SkipLast";
+    private const string SkipWhileMethodName = "SkipWhile";
+    private const string OrderMethodName = "Order";
+    private const string OrderDescendingMethodName = "OrderDescending";
+    private const string OrderByMethodName = "OrderBy";
+    private const string OrderByDescendingMethodName = "OrderByDescending";
+    private const string ThenByMethodName = "ThenBy";
+    private const string ThenByDescendingMethodName = "ThenByDescending";
+    private const string ReverseMethodName = "Reverse";
+    private const string DistinctMethodName = "Distinct";
+    private const string DistinctByMethodName = "DistinctBy";
+    private const string OfTypeMethodName = "OfType";
+    private const string CastMethodName = "Cast";
+    private const string DefaultIfEmptyMethodName = "DefaultIfEmpty";
+    private const string ExceptMethodName = "Except";
+    private const string ExceptByMethodName = "ExceptBy";
+    private const string IntersectMethodName = "Intersect";
+    private const string IntersectByMethodName = "IntersectBy";
+    private const string FirstMethodName = "First";
+    private const string FirstOrDefaultMethodName = "FirstOrDefault";
+    private const string SingleMethodName = "Single";
+    private const string SingleOrDefaultMethodName = "SingleOrDefault";
+    private const string LastMethodName = "Last";
+    private const string LastOrDefaultMethodName = "LastOrDefault";
+    private const string ElementAtMethodName = "ElementAt";
+    private const string ElementAtOrDefaultMethodName = "ElementAtOrDefault";
+    private const string SequenceEqualMethodName = "SequenceEqual";
+    private const string CountMethodName = "Count";
+    private const string LongCountMethodName = "LongCount";
+    private const string AnyMethodName = "Any";
+    private const string AllMethodName = "All";
+    private const string ContainsMethodName = "Contains";
+    private const string MaxMethodName = "Max";
+    private const string MaxByMethodName = "MaxBy";
+    private const string MinMethodName = "Min";
+    private const string MinByMethodName = "MinBy";
+    private const string SumMethodName = "Sum";
+    private const string AverageMethodName = "Average";
+    private const string AggregateMethodName = "Aggregate";
+    private const string SelectManyMethodName = "SelectMany";
+    private const string GroupByMethodName = "GroupBy";
+    private const string ChunkMethodName = "Chunk";
+    private const string JoinMethodName = "Join";
+    private const string GroupJoinMethodName = "GroupJoin";
+    private const string ZipMethodName = "Zip";
+    private const string TryGetNonEnumeratedCountMethodName = "TryGetNonEnumeratedCount";
+
     internal static bool IsLinqOwner(INamedTypeSymbol? owner, ConventionSymbols symbols) =>
         ConventionSymbols.Same(owner, symbols.Enumerable) ||
         ConventionSymbols.Same(owner, symbols.Queryable) ||
         ConventionSymbols.Same(owner, symbols.ImmutableArrayExtensions);
 
     internal static bool IsLinqSelect(IMethodSymbol method, ConventionSymbols symbols) =>
-        method.Name == "Select" && IsLinqOwner(method.ContainingType, symbols);
+        method.Name == SelectMethodName && IsLinqOwner(method.ContainingType, symbols);
 
     internal static IAnonymousFunctionOperation? SelectLambda(IInvocationOperation call)
     {
@@ -56,25 +124,25 @@ internal static class LinqSequenceFacts
         var owner = method.ContainingType;
         if (ConventionSymbols.Same(owner, symbols.ImmutableArrayFactory))
         {
-            preservedCount = method.Name == "ToImmutableArray" ? 1 : 0;
+            preservedCount = method.Name == ToImmutableArrayMethodName ? 1 : 0;
             return preservedCount > 0;
         }
         if (ConventionSymbols.Same(owner, symbols.ImmutableListFactory))
         {
-            preservedCount = method.Name == "ToImmutableList" ? 1 : 0;
+            preservedCount = method.Name == ToImmutableListMethodName ? 1 : 0;
             return preservedCount > 0;
         }
         if (!IsLinqOwner(owner, symbols)) return false;
         preservedCount = method.Name switch
         {
-            "Concat" or "Union" or "UnionBy" or "Append" or "Prepend" => 2,
-            "ToArray" or "ToList" or "ToHashSet" or "AsEnumerable" or "AsQueryable" or "Where" or
-            "Take" or "TakeLast" or "TakeWhile" or "Skip" or "SkipLast" or "SkipWhile" or
-            "Order" or "OrderDescending" or "OrderBy" or "OrderByDescending" or "ThenBy" or "ThenByDescending" or
-            "Reverse" or "Distinct" or "DistinctBy" or "OfType" or "Cast" or "DefaultIfEmpty" or
-            "Except" or "ExceptBy" or "Intersect" or "IntersectBy" or
-            "First" or "FirstOrDefault" or "Single" or "SingleOrDefault" or "Last" or "LastOrDefault" or
-            "ElementAt" or "ElementAtOrDefault" => 1,
+            ConcatMethodName or UnionMethodName or UnionByMethodName or AppendMethodName or PrependMethodName => 2,
+            ToArrayMethodName or ToListMethodName or ToHashSetMethodName or AsEnumerableMethodName or AsQueryableMethodName or WhereMethodName or
+            TakeMethodName or TakeLastMethodName or TakeWhileMethodName or SkipMethodName or SkipLastMethodName or SkipWhileMethodName or
+            OrderMethodName or OrderDescendingMethodName or OrderByMethodName or OrderByDescendingMethodName or ThenByMethodName or ThenByDescendingMethodName or
+            ReverseMethodName or DistinctMethodName or DistinctByMethodName or OfTypeMethodName or CastMethodName or DefaultIfEmptyMethodName or
+            ExceptMethodName or ExceptByMethodName or IntersectMethodName or IntersectByMethodName or
+            FirstMethodName or FirstOrDefaultMethodName or SingleMethodName or SingleOrDefaultMethodName or LastMethodName or LastOrDefaultMethodName or
+            ElementAtMethodName or ElementAtOrDefaultMethodName => 1,
             _ => 0
         };
         return preservedCount > 0;
@@ -82,7 +150,7 @@ internal static class LinqSequenceFacts
 
     internal static ITypeParameterSymbol? FallbackElementTypeParameter(IMethodSymbol method)
     {
-        var preservesFallback = method.Name is "DefaultIfEmpty" or "FirstOrDefault" or "SingleOrDefault" or "LastOrDefault";
+        var preservesFallback = method.Name is DefaultIfEmptyMethodName or FirstOrDefaultMethodName or SingleOrDefaultMethodName or LastOrDefaultMethodName;
         if (!preservesFallback || method.OriginalDefinition.TypeParameters.Length == 0)
             return null;
         return method.OriginalDefinition.TypeParameters[0];
@@ -97,25 +165,43 @@ internal static class LinqSequenceFacts
                SymbolEqualityComparer.Default.Equals(parameter.OriginalDefinition.Type, sourceTypeParameter);
     }
 
-    private static bool IsLengthPreservingSequenceCall(IMethodSymbol method, ConventionSymbols symbols)
+    private static bool CanUnwrapLengthPreservingCall(
+        IInvocationOperation call, ConventionSymbols symbols, CancellationToken cancellation)
     {
-        if (IsLinqSelect(method, symbols)) return true;
-        var keepsLength = method.Name is "ToArray" or "ToList" or "AsEnumerable" or "AsQueryable" or "Reverse" or
-            "OrderBy" or "OrderByDescending" or "ThenBy" or "ThenByDescending";
-        return keepsLength && TryGetPreservedSequenceArgumentCount(method, symbols, out _);
+        if (IsLinqSelect(call.TargetMethod, symbols))
+            return SelectLambda(call) is { } lambda && !ContainsThrow(lambda.Body, cancellation);
+        var keepsLength = call.TargetMethod.Name is ToArrayMethodName or ToListMethodName or AsEnumerableMethodName or AsQueryableMethodName or ReverseMethodName or
+            OrderByMethodName or OrderByDescendingMethodName or ThenByMethodName or ThenByDescendingMethodName;
+        return keepsLength && TryGetPreservedSequenceArgumentCount(call.TargetMethod, symbols, out _);
+    }
+
+    private static bool ContainsThrow(IOperation root, CancellationToken cancellation)
+    {
+        var walk = new Stack<IOperation>();
+        walk.Push(root);
+        while (walk.TryPop(out var current))
+        {
+            cancellation.ThrowIfCancellationRequested();
+            if (current is IAnonymousFunctionOperation or ILocalFunctionOperation) continue;
+            if (current is IThrowOperation) return true;
+            foreach (var child in current.ChildOperations) walk.Push(child);
+        }
+        return false;
     }
 
     internal static IOperation? SequenceControllingIteration(IOperation? source, ConventionSymbols symbols, CancellationToken cancellation)
     {
         source = RoslynOperationHelpers.UnwrapInstance(source, cancellation);
-        while (source is IInvocationOperation call && IsLengthPreservingSequenceCall(call.TargetMethod, symbols))
+        while (source is IInvocationOperation call && CanUnwrapLengthPreservingCall(call, symbols, cancellation))
         {
             cancellation.ThrowIfCancellationRequested();
             source = RoslynOperationHelpers.UnwrapInstance(RoslynOperationHelpers.TryGetArgumentValueByOrdinal(call, 0), cancellation);
         }
         // Values stored in a fixed-length literal do not affect whether it has an element.
-        if (source is IArrayCreationOperation { Initializer: not null } ||
-            source is ICollectionExpressionOperation { Type: IArrayTypeSymbol } literal && !literal.Elements.Any(e => e is ISpreadOperation))
+        var isFixedArrayLiteral = source is IArrayCreationOperation { Initializer: not null };
+        var isFixedCollectionLiteral = source is ICollectionExpressionOperation { Type: IArrayTypeSymbol } literal &&
+            !literal.Elements.Any(e => e is ISpreadOperation);
+        if (isFixedArrayLiteral || isFixedCollectionLiteral)
             return null;
         return source;
     }
@@ -137,10 +223,12 @@ internal static class LinqSequenceFacts
             if (argument.Parameter is not { } parameter ||
                 parameter.OriginalDefinition.Type is not INamedTypeSymbol { TypeArguments: [ITypeParameterSymbol element] } sequenceType)
                 continue;
-            if (parameter.Ordinal != 0 && sequenceType.OriginalDefinition.SpecialType != SpecialType.System_Collections_Generic_IEnumerable_T)
+            var isNonEnumerableSecondarySequence = parameter.Ordinal != 0 &&
+                sequenceType.OriginalDefinition.SpecialType != SpecialType.System_Collections_Generic_IEnumerable_T;
+            if (isNonEnumerableSecondarySequence)
                 continue;
-            if (invoke.Parameters.Any(input => SymbolEqualityComparer.Default.Equals(input.Type, element)) &&
-                SequenceControllingIteration(argument.Value, symbols, cancellation) is { } sequence)
+            var matchesCallbackInput = invoke.Parameters.Any(input => SymbolEqualityComparer.Default.Equals(input.Type, element));
+            if (matchesCallbackInput && SequenceControllingIteration(argument.Value, symbols, cancellation) is { } sequence)
                 conditions = conditions.Add(sequence);
         }
         return conditions;
@@ -157,21 +245,21 @@ internal static class LinqSequenceFacts
         if (!method.IsStatic || argument.Parameter is not { } parameter) return false;
         var owner = method.ContainingType;
         if (ConventionSymbols.Same(owner, symbols.ImmutableArrayFactory))
-            return parameter.Ordinal == 0 && method.Name == "ToImmutableArray";
+            return parameter.Ordinal == 0 && method.Name == ToImmutableArrayMethodName;
         if (ConventionSymbols.Same(owner, symbols.ImmutableListFactory))
-            return parameter.Ordinal == 0 && method.Name == "ToImmutableList";
+            return parameter.Ordinal == 0 && method.Name == ToImmutableListMethodName;
         if (!IsLinqOwner(owner, symbols)) return false;
-        if (method.Name == "SequenceEqual")
+        if (method.Name == SequenceEqualMethodName)
             return parameter.Ordinal is 0 or 1;
         // Even parameterless Any can enumerate when the source has no cheap count.
         return parameter.Ordinal == 0 && method.Name is
-            "ToArray" or "ToList" or "ToHashSet" or "ToDictionary" or "ToLookup" or
-            "First" or "FirstOrDefault" or "Single" or "SingleOrDefault" or
-            "Last" or "LastOrDefault" or "ElementAt" or "ElementAtOrDefault" or
-            "Count" or "LongCount" or
-            "Any" or "All" or "Contains" or
-            "Max" or "MaxBy" or "Min" or "MinBy" or
-            "Sum" or "Average" or "Aggregate";
+            ToArrayMethodName or ToListMethodName or ToHashSetMethodName or ToDictionaryMethodName or ToLookupMethodName or
+            FirstMethodName or FirstOrDefaultMethodName or SingleMethodName or SingleOrDefaultMethodName or
+            LastMethodName or LastOrDefaultMethodName or ElementAtMethodName or ElementAtOrDefaultMethodName or
+            CountMethodName or LongCountMethodName or
+            AnyMethodName or AllMethodName or ContainsMethodName or
+            MaxMethodName or MaxByMethodName or MinMethodName or MinByMethodName or
+            SumMethodName or AverageMethodName or AggregateMethodName;
     }
 
     internal static bool PreservesSequenceFlow(
@@ -188,14 +276,14 @@ internal static class LinqSequenceFacts
             return false;
         return method.Name switch
         {
-            "SelectMany" or "GroupBy" or "Chunk" => parameter.Ordinal == 0,
-            "Join" or "GroupJoin" or "Zip" => parameter.Ordinal is 0 or 1,
+            SelectManyMethodName or GroupByMethodName or ChunkMethodName => parameter.Ordinal == 0,
+            JoinMethodName or GroupJoinMethodName or ZipMethodName => parameter.Ordinal is 0 or 1,
             _ => false
         };
     }
 
     internal static bool IsTryGetNonEnumeratedCount(IMethodSymbol method, IArgumentOperation argument, ConventionSymbols symbols) =>
-        method.Name == "TryGetNonEnumeratedCount" &&
+        method.Name == TryGetNonEnumeratedCountMethodName &&
         argument.Parameter?.Ordinal == 0 &&
         ConventionSymbols.Same(method.ContainingType, symbols.Enumerable);
 }

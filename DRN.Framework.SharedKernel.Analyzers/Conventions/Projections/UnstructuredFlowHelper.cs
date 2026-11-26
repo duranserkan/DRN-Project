@@ -67,128 +67,8 @@ internal static class UnstructuredFlowHelper
         }
     }
 
-    internal static bool CanDoWhileReachCondition(IWhileLoopOperation loop, CancellationToken cancellation)
-    {
-        var completion = AnalyzeLoopBodyCompletion(loop.Body, loop, switchExit: null, cancellation, depth: 0);
-        return completion.CanFallThrough || completion.CanContinue;
-    }
-
-    private readonly record struct LoopCompletion(bool CanFallThrough, bool CanContinue, bool BrokeEnclosingSwitch);
-
-    private static LoopCompletion AnalyzeLoopBodyCompletion(
-        IOperation operation, ILoopOperation ownerLoop, ILabelSymbol? switchExit, CancellationToken cancellation, int depth)
-    {
-        cancellation.ThrowIfCancellationRequested();
-        if (depth >= ProjectionLimits.MaxExpansionDepth)
-            return new(CanFallThrough: true, CanContinue: true, BrokeEnclosingSwitch: false);
-
-        switch (operation)
-        {
-            case IBlockOperation block:
-                return AnalyzeStatementSequenceCompletion(block.Operations, ownerLoop, switchExit, cancellation, depth + 1);
-            case IReturnOperation or IThrowOperation:
-                return new(false, false, false);
-            case IBranchOperation branch:
-                return AnalyzeBranchCompletion(branch, ownerLoop, switchExit);
-            case IConditionalOperation conditional:
-            {
-                var whenTrue = AnalyzeLoopBodyCompletion(conditional.WhenTrue, ownerLoop, switchExit, cancellation, depth + 1);
-                if (conditional.WhenFalse is not { } whenFalse)
-                    return new(true, whenTrue.CanContinue, whenTrue.BrokeEnclosingSwitch);
-                var falseResult = AnalyzeLoopBodyCompletion(whenFalse, ownerLoop, switchExit, cancellation, depth + 1);
-                return new(
-                    whenTrue.CanFallThrough || falseResult.CanFallThrough,
-                    whenTrue.CanContinue || falseResult.CanContinue,
-                    whenTrue.BrokeEnclosingSwitch || falseResult.BrokeEnclosingSwitch);
-            }
-            case ISwitchOperation switchOp:
-                return AnalyzeSwitchCompletion(switchOp, ownerLoop, cancellation, depth + 1);
-            case IUsingOperation usingOp:
-                return AnalyzeLoopBodyCompletion(usingOp.Body, ownerLoop, switchExit, cancellation, depth + 1);
-            case ILockOperation lockOp:
-                return AnalyzeLoopBodyCompletion(lockOp.Body, ownerLoop, switchExit, cancellation, depth + 1);
-            case ITryOperation tryOp:
-                return AnalyzeTryCompletion(tryOp, ownerLoop, switchExit, cancellation, depth + 1);
-            case ILoopOperation nestedLoop:
-                return HasUnstructuredJump(nestedLoop, cancellation)
-                    ? new(true, true, false)
-                    : new(true, false, false);
-            case ILabeledOperation:
-                return new(true, true, false);
-            default:
-                return new(true, false, false);
-        }
-    }
-
-    private static LoopCompletion AnalyzeStatementSequenceCompletion(
-        ImmutableArray<IOperation> statements, ILoopOperation ownerLoop, ILabelSymbol? switchExit,
-        CancellationToken cancellation, int depth)
-    {
-        var canContinue = false;
-        var brokeSwitch = false;
-        for (var i = 0; i < statements.Length; i++)
-        {
-            var step = AnalyzeLoopBodyCompletion(statements[i], ownerLoop, switchExit, cancellation, depth);
-            canContinue |= step.CanContinue;
-            brokeSwitch |= step.BrokeEnclosingSwitch;
-            if (!step.CanFallThrough)
-                return new(false, canContinue, brokeSwitch);
-        }
-        return new(true, canContinue, brokeSwitch);
-    }
-
-    private static LoopCompletion AnalyzeBranchCompletion(
-        IBranchOperation branch, ILoopOperation ownerLoop, ILabelSymbol? switchExit) => branch.BranchKind switch
-    {
-        BranchKind.Continue when SymbolEqualityComparer.Default.Equals(branch.Target, ownerLoop.ContinueLabel) =>
-            new(false, true, false),
-        BranchKind.Break when SymbolEqualityComparer.Default.Equals(branch.Target, ownerLoop.ExitLabel) =>
-            new(false, false, false),
-        BranchKind.Break when switchExit is not null && SymbolEqualityComparer.Default.Equals(branch.Target, switchExit) =>
-            new(false, false, true),
-        BranchKind.GoTo => new(true, true, false),
-        _ => new(false, false, false)
-    };
-
-    private static LoopCompletion AnalyzeSwitchCompletion(
-        ISwitchOperation switchOp, ILoopOperation ownerLoop, CancellationToken cancellation, int depth)
-    {
-        var hasDefault = false;
-        var canFallThrough = false;
-        var canContinue = false;
-        foreach (var section in switchOp.Cases)
-        {
-            if (CaseHasDefaultClause(section)) hasDefault = true;
-            var sectionResult = AnalyzeStatementSequenceCompletion(
-                section.Body, ownerLoop, switchOp.ExitLabel, cancellation, depth);
-            canFallThrough |= sectionResult.CanFallThrough || sectionResult.BrokeEnclosingSwitch;
-            canContinue |= sectionResult.CanContinue;
-        }
-        return new(!hasDefault || canFallThrough, canContinue, false);
-    }
-
-    private static LoopCompletion AnalyzeTryCompletion(
-        ITryOperation tryOp, ILoopOperation ownerLoop, ILabelSymbol? switchExit, CancellationToken cancellation, int depth)
-    {
-        if (tryOp.Finally is { } @finally)
-        {
-            var finallyResult = AnalyzeLoopBodyCompletion(@finally, ownerLoop, switchExit, cancellation, depth);
-            if (!finallyResult.CanFallThrough)
-                return finallyResult;
-        }
-        var bodyResult = AnalyzeLoopBodyCompletion(tryOp.Body, ownerLoop, switchExit, cancellation, depth);
-        var canFallThrough = bodyResult.CanFallThrough;
-        var canContinue = bodyResult.CanContinue;
-        var brokeSwitch = bodyResult.BrokeEnclosingSwitch;
-        foreach (var clause in tryOp.Catches)
-        {
-            var catchResult = AnalyzeLoopBodyCompletion(clause.Handler, ownerLoop, switchExit, cancellation, depth);
-            canFallThrough |= catchResult.CanFallThrough;
-            canContinue |= catchResult.CanContinue;
-            brokeSwitch |= catchResult.BrokeEnclosingSwitch;
-        }
-        return new(canFallThrough, canContinue, brokeSwitch);
-    }
+    internal static bool CanDoWhileReachCondition(IWhileLoopOperation loop, CancellationToken cancellation) =>
+        LoopBodyCompletionAnalyzer.CanDoWhileReachCondition(loop, cancellation);
 
     internal static bool SwitchContainsReturn(
         ISwitchOperation switchStatement, ref Dictionary<IOperation, bool>? cache, CancellationToken cancellation)
@@ -210,31 +90,41 @@ internal static class UnstructuredFlowHelper
         if (cache is not null && cache.TryGetValue(root, out var cached))
             return cached;
 
+        var found = ContainsReturnCore(root, cache, cancellation);
+        (cache ??= [])[root] = found;
+        return found;
+    }
+
+    private static bool ContainsReturnCore(
+        IOperation root, Dictionary<IOperation, bool>? cache, CancellationToken cancellation)
+    {
         var walk = new Stack<IOperation>();
         walk.Push(root);
-        var found = false;
         while (walk.TryPop(out var current))
         {
             cancellation.ThrowIfCancellationRequested();
-            if (current is IAnonymousFunctionOperation or ILocalFunctionOperation) continue;
-            if (current is IReturnOperation)
+            if (IsNestedFunction(current)) continue;
+            if (current is IReturnOperation) return true;
+            if (TryGetCachedReturn(cache, current, out var subResult))
             {
-                found = true;
-                break;
-            }
-            if (cache is not null && cache.TryGetValue(current, out var subResult))
-            {
-                if (subResult)
-                {
-                    found = true;
-                    break;
-                }
+                if (subResult) return true;
                 continue;
             }
             foreach (var child in current.ChildOperations) walk.Push(child);
         }
-        (cache ??= [])[root] = found;
-        return found;
+        return false;
+    }
+
+    private static bool IsNestedFunction(IOperation operation) =>
+        operation is IAnonymousFunctionOperation or ILocalFunctionOperation;
+
+    private static bool TryGetCachedReturn(
+        Dictionary<IOperation, bool>? cache, IOperation operation, out bool result)
+    {
+        if (cache is not null)
+            return cache.TryGetValue(operation, out result);
+        result = false;
+        return false;
     }
 
     private static bool SwitchTestsValue(ISwitchOperation switchStatement)
@@ -253,7 +143,8 @@ internal static class UnstructuredFlowHelper
         return false;
     }
 
-    private static bool CaseHasDefaultClause(ISwitchCaseOperation section)
+    [SuppressMessage("SonarQube", "S3267", Justification = "Scanning the immutable clauses array directly avoids boxing ImmutableArray and allocating a predicate delegate.")]
+    internal static bool CaseHasDefaultClause(ISwitchCaseOperation section)
     {
         foreach (var clause in section.Clauses)
         {

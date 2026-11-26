@@ -7,6 +7,9 @@ namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 // Do not expand selector dataflow or deferred query analysis speculatively.
 internal static class ResponseProjectionAnalysis
 {
+    private const string PersonalClassificationName = nameof(PropertyClassifications.Personal);
+    private const string SensitiveClassificationName = nameof(PropertyClassifications.Sensitive);
+
     internal static void CheckResponseProjections(
         ConventionFacts facts, INamedTypeSymbol type, Lazy<ClassificationContract?> classifications)
     {
@@ -40,11 +43,11 @@ internal static class ResponseProjectionAnalysis
             CheckProjectedProperty(context, new(source, entity), new(target, dto, null, creation.Syntax.GetLocation()));
     }
 
-    internal static (IOperation? Target, IOperation? Value) ReadWrite(IOperation operation) => operation switch
+    internal static WriteOperation ReadWrite(IOperation operation) => operation switch
     {
-        ISimpleAssignmentOperation assignment => (assignment.Target, assignment.Value),
-        IMemberInitializerOperation member => (member.InitializedMember, member.Initializer),
-        _ => (null, null)
+        ISimpleAssignmentOperation assignment => new(assignment.Target, assignment.Value),
+        IMemberInitializerOperation member => new(member.InitializedMember, member.Initializer),
+        _ => default
     };
 
     private static bool CheckResponseProjectionsInSyntax(
@@ -53,7 +56,7 @@ internal static class ResponseProjectionAnalysis
     {
         SemanticModel? model = null;
         HashSet<SyntaxNode>? walkedCreations = null;
-        Dictionary<(IAnonymousFunctionOperation, SelectorScope?), SelectorFlowResult>? selectorScopes = null;
+        Dictionary<SelectorScopeKey, SelectorFlowResult>? selectorScopes = null;
         Dictionary<IBlockOperation, SelectorFlowResult>? bodyFlows = null;
         bool? hasResponseAlias = null;
         foreach (var node in syntax.DescendantNodes(descendIntoChildren: child =>
@@ -86,17 +89,18 @@ internal static class ResponseProjectionAnalysis
     }
 
     private static bool IsSelectSyntax(InvocationExpressionSyntax invocation) =>
-        invocation.Expression is MemberAccessExpressionSyntax { Name.Identifier.ValueText: "Select" } or
-            MemberBindingExpressionSyntax { Name.Identifier.ValueText: "Select" } or
-            SimpleNameSyntax { Identifier.ValueText: "Select" };
+        invocation.Expression is MemberAccessExpressionSyntax { Name.Identifier.ValueText: LinqSequenceFacts.SelectMethodName } or
+            MemberBindingExpressionSyntax { Name.Identifier.ValueText: LinqSequenceFacts.SelectMethodName } or
+            SimpleNameSyntax { Identifier.ValueText: LinqSequenceFacts.SelectMethodName };
 
     private static bool HasBranchingOrBlockSelector(InvocationExpressionSyntax invocation)
     {
         foreach (var argument in invocation.ArgumentList.Arguments)
         {
             if (UnwrapSelectorSyntax(argument.Expression) is not AnonymousFunctionExpressionSyntax lambda) continue;
-            if (lambda.Block is not null ||
-                (lambda.ExpressionBody is { } expression && UnwrapSelectorSyntax(expression) is ConditionalExpressionSyntax))
+            var hasConditionalBody = lambda.ExpressionBody is { } expression &&
+                UnwrapSelectorSyntax(expression) is ConditionalExpressionSyntax;
+            if (lambda.Block is not null || hasConditionalBody)
                 return true;
         }
         return false;
@@ -167,7 +171,7 @@ internal static class ResponseProjectionAnalysis
     private static void CheckResponseProjectionReads(
         ConventionFacts facts, INamedTypeSymbol ownerType, IOperation projectionRoot,
         ClassificationContract classifications, HashSet<SyntaxNode> walkedCreations,
-        Dictionary<(IAnonymousFunctionOperation, SelectorScope?), SelectorFlowResult> selectorScopes,
+        Dictionary<SelectorScopeKey, SelectorFlowResult> selectorScopes,
         Dictionary<IBlockOperation, SelectorFlowResult> bodyFlows)
     {
         var context = new ProjectionCheckContext(facts, ownerType, classifications);
@@ -181,92 +185,92 @@ internal static class ResponseProjectionAnalysis
         }
     }
 
-    private static IEnumerable<(IPropertyReferenceOperation Source, ProjectionTarget Target, SelectorScope? Locals)> MappedReadsCore(
+    private static IEnumerable<MappedPropertyRead> MappedReadsCore(
         IOperation root, ConventionFacts facts, HashSet<SyntaxNode>? walkedCreations,
         bool matchConstructorArguments,
-        Dictionary<(IAnonymousFunctionOperation, SelectorScope?), SelectorFlowResult>? selectorScopes,
+        Dictionary<SelectorScopeKey, SelectorFlowResult>? selectorScopes,
         Dictionary<IBlockOperation, SelectorFlowResult>? bodyFlows)
     {
-        var pending = new Stack<ProjectionNode>();
-        var childScratch = new List<IOperation>();
-        HashSet<LocalExpansionKey>? visitedExpansions = null;
+        var state = new ProjectionWalkState(facts, walkedCreations, matchConstructorArguments, selectorScopes, bodyFlows);
         var initialScope = matchConstructorArguments
-            ? SelectorFlowCollector.SeedEnclosingSelectorScopes(root, facts, selectorScopes, bodyFlows)
+            ? SelectorScopeResolver.SeedEnclosingSelectorScopes(root, facts, selectorScopes, bodyFlows)
             : null;
-        pending.Push(new(root, null, false, initialScope));
-        while (pending.TryPop(out var entry))
+        state.Pending.Push(new(root, null, false, initialScope));
+        while (state.Pending.TryPop(out var entry))
         {
             facts.Cancellation.ThrowIfCancellationRequested();
             if (entry.Operation is INameOfOperation) continue;
             if (entry.Target is { } target && entry.Operation is IPropertyReferenceOperation source)
-                yield return (source, target, entry.Locals);
-            PushProjectionChildren(entry, facts, walkedCreations, matchConstructorArguments,
-                pending, childScratch, ref visitedExpansions, selectorScopes, bodyFlows);
+                yield return new(source, target, entry.Locals);
+            PushProjectionChildren(entry, ref state);
         }
     }
 
-    private static void PushProjectionChildren(
-        ProjectionNode entry, ConventionFacts facts, HashSet<SyntaxNode>? walkedCreations,
-        bool matchConstructorArguments, Stack<ProjectionNode> pending, List<IOperation> childScratch,
-        ref HashSet<LocalExpansionKey>? visitedExpansions,
-        Dictionary<(IAnonymousFunctionOperation, SelectorScope?), SelectorFlowResult>? selectorScopes,
-        Dictionary<IBlockOperation, SelectorFlowResult>? bodyFlows)
+    private static void PushProjectionChildren(ProjectionNode entry, ref ProjectionWalkState state)
     {
-        if (ProjectionLocalExpander.TryPushSelectorLocal(entry, facts, pending, ref visitedExpansions, selectorScopes))
+        if (ProjectionLocalExpander.TryPushSelectorLocal(
+                entry, state.Facts, state.Pending, ref state.VisitedExpansions, state.SelectorScopes))
             return;
-        if (TryPushSpecialProjectionNode(entry, facts, walkedCreations, matchConstructorArguments, pending, selectorScopes, bodyFlows))
+        if (TryPushSpecialProjectionNode(entry, ref state))
             return;
         if (IsIgnoredProjectionNode(entry.Operation))
             return;
-        if (TryPushStorageAdd(entry, facts, pending))
+        if (TryPushStorageAdd(entry, state.Facts, state.Pending))
             return;
 
         var (written, value) = ReadWrite(entry.Operation);
         if (value is not null)
         {
-            PushWrite(entry, written, value, facts, pending);
+            PushWrite(entry, written, value, state.Facts, state.Pending);
             return;
         }
-        PushRemainingChildren(entry, pending, childScratch);
+        PushRemainingChildren(entry, state.Pending, state.ChildScratch);
     }
 
-    private static bool TryPushSpecialProjectionNode(
-        ProjectionNode entry, ConventionFacts facts, HashSet<SyntaxNode>? walkedCreations,
-        bool matchConstructorArguments, Stack<ProjectionNode> pending,
-        Dictionary<(IAnonymousFunctionOperation, SelectorScope?), SelectorFlowResult>? selectorScopes,
-        Dictionary<IBlockOperation, SelectorFlowResult>? bodyFlows)
+    private static bool TryPushSpecialProjectionNode(ProjectionNode entry, ref ProjectionWalkState state)
     {
         var (operation, _, isInput, _, _, _) = entry;
-        if (matchConstructorArguments && !isInput &&
+        var canProjectDestination = state.MatchConstructorArguments && !isInput;
+        if (canProjectDestination &&
             operation is IConditionalOperation { WhenFalse: { } whenFalse, Type: INamedTypeSymbol result } conditional &&
-            facts.IsResponseModel(result))
+            state.Facts.IsResponseModel(result))
         {
-            var condition = conditional.Condition;
-            List<SelectorReturn> branches = [new(conditional.WhenTrue, [condition]), new(whenFalse, [condition])];
-            PushReturnedValues(entry, branches, entry.Locals, facts, pending, walkedCreations);
-            if (entry.Target is not null) pending.Push(entry.Next(condition, entry.Target, true));
+            PushConditionalResponse(entry, conditional, whenFalse, ref state);
             return true;
         }
-        if (matchConstructorArguments && !isInput && operation is IInvocationOperation call &&
-            PushSequenceProjection(entry, call, facts, pending, selectorScopes, bodyFlows, walkedCreations))
+        if (canProjectDestination && operation is IInvocationOperation call &&
+            PushSequenceProjection(entry, call, ref state))
         {
-            if (LinqSequenceFacts.IsLinqSelect(call.TargetMethod, facts.Symbols))
-                walkedCreations?.Add(call.Syntax);
+            if (LinqSequenceFacts.IsLinqSelect(call.TargetMethod, state.Facts.Symbols))
+                state.WalkedCreations?.Add(call.Syntax);
             return true;
         }
-        if (matchConstructorArguments && !isInput && operation is IObjectCreationOperation creation)
+        if (canProjectDestination && operation is IObjectCreationOperation creation)
         {
-            PushCreationChildren(entry, creation, facts, pending, walkedCreations);
+            PushCreationChildren(entry, creation, state.Facts, state.Pending, state.WalkedCreations);
             return true;
         }
         if (!isInput && operation is IWithOperation)
-            walkedCreations?.Add(operation.Syntax);
+            state.WalkedCreations?.Add(operation.Syntax);
         if (operation is ICollectionExpressionOperation collection)
         {
-            PushCollection(entry, collection, facts, pending);
+            PushCollection(entry, collection, state.Facts, state.Pending);
             return true;
         }
         return false;
+    }
+
+    private static void PushConditionalResponse(
+        ProjectionNode entry, IConditionalOperation conditional, IOperation whenFalse, ref ProjectionWalkState state)
+    {
+        var condition = conditional.Condition;
+        List<SelectorReturn> branches = [new(conditional.WhenTrue, [condition]), new(whenFalse, [condition])];
+        var commonConstants = PushReturnedValues(
+            entry, branches, entry.Locals, state.Facts, state.Pending, state.WalkedCreations);
+        var propagatesToTarget = entry.Target is not null &&
+            !ResponseReturnBranchAnalysis.AreEquivalentConditionalBranches(conditional.WhenTrue, whenFalse, commonConstants);
+        if (propagatesToTarget)
+            state.Pending.Push(entry.Next(condition, entry.Target, true));
     }
 
     private static bool IsIgnoredProjectionNode(IOperation operation)
@@ -321,20 +325,33 @@ internal static class ResponseProjectionAnalysis
         ImmutableArray<IOperation> enclosingConditions = default)
     {
         walkedCreations?.Add(creation.Syntax);
-        var outerTarget = entry.Target;
         if (creation.Initializer is { } initializer)
+            PushCreationInitializerWrites(entry, initializer, pending, commonConstants, enclosingConditions);
+        PushCreationArguments(entry, creation, facts, pending, commonConstants, enclosingConditions);
+    }
+
+    private static void PushCreationInitializerWrites(
+        ProjectionNode entry, IObjectOrCollectionInitializerOperation initializer, Stack<ProjectionNode> pending,
+        Dictionary<IPropertySymbol, object?>? commonConstants, ImmutableArray<IOperation> enclosingConditions)
+    {
+        var outerTarget = entry.Target;
+        for (var i = initializer.Initializers.Length - 1; i >= 0; i--)
         {
-            for (var i = initializer.Initializers.Length - 1; i >= 0; i--)
-            {
-                var write = initializer.Initializers[i];
-                var conditions = entry.ReturnConditions;
-                if (commonConstants is not null && write is ISimpleAssignmentOperation { Target: IPropertyReferenceOperation member } &&
-                    commonConstants.ContainsKey(member.Property))
-                    conditions = enclosingConditions;
-                pending.Push(new(write, outerTarget, false, entry.Locals, conditions,
-                    write is ISimpleAssignmentOperation ? entry.SuppressedInitializerProperties : default));
-            }
+            var write = initializer.Initializers[i];
+            var conditions = write is ISimpleAssignmentOperation { Target: IPropertyReferenceOperation member }
+                ? ResponseReturnBranchAnalysis.CreationPropertyConditions(
+                    member.Property, entry.ReturnConditions, commonConstants, enclosingConditions)
+                : entry.ReturnConditions;
+            pending.Push(new(write, outerTarget, false, entry.Locals, conditions,
+                write is ISimpleAssignmentOperation ? entry.SuppressedInitializerProperties : default));
         }
+    }
+
+    private static void PushCreationArguments(
+        ProjectionNode entry, IObjectCreationOperation creation, ConventionFacts facts, Stack<ProjectionNode> pending,
+        Dictionary<IPropertySymbol, object?>? commonConstants, ImmutableArray<IOperation> enclosingConditions)
+    {
+        var outerTarget = entry.Target;
         var destinationType = creation.Type as INamedTypeSymbol;
         var canMatchProperties = destinationType is { TypeKind: not TypeKind.Error } &&
             (facts.Role(destinationType).Role == ConventionArchitecture.Contract || facts.IsLocal(destinationType));
@@ -349,11 +366,9 @@ internal static class ResponseProjectionAnalysis
             if (matched is not null)
             {
                 var argTarget = new ProjectionTarget(matched, destinationType!, destinationType, argument.Syntax.GetLocation());
-                if (!entry.ReturnConditions.IsDefaultOrEmpty)
-                {
-                    for (var j = entry.ReturnConditions.Length - 1; j >= 0; j--)
-                        pending.Push(new(entry.ReturnConditions[j], argTarget, true, entry.Locals));
-                }
+                var conditions = ResponseReturnBranchAnalysis.CreationPropertyConditions(
+                    matched, entry.ReturnConditions, commonConstants, enclosingConditions);
+                PushReturnConditions(conditions, argTarget, entry.Locals, pending);
                 pending.Push(new(argument.Value, argTarget, false, entry.Locals));
             }
             else if (outerTarget is not null)
@@ -363,16 +378,23 @@ internal static class ResponseProjectionAnalysis
         }
     }
 
-    private static bool PushSequenceProjection(
-        ProjectionNode entry, IInvocationOperation call, ConventionFacts facts, Stack<ProjectionNode> pending,
-        Dictionary<(IAnonymousFunctionOperation, SelectorScope?), SelectorFlowResult>? selectorScopes,
-        Dictionary<IBlockOperation, SelectorFlowResult>? bodyFlows, HashSet<SyntaxNode>? walkedCreations)
+    private static void PushReturnConditions(
+        ImmutableArray<IOperation> conditions, ProjectionTarget target, SelectorScope? locals, Stack<ProjectionNode> pending)
     {
+        if (conditions.IsDefaultOrEmpty) return;
+        for (var i = conditions.Length - 1; i >= 0; i--)
+            pending.Push(new(conditions[i], target, true, locals));
+    }
+
+    private static bool PushSequenceProjection(
+        ProjectionNode entry, IInvocationOperation call, ref ProjectionWalkState state)
+    {
+        var facts = state.Facts;
         var method = call.TargetMethod;
         if (call.Instance is null &&
             LinqSequenceFacts.TryGetPreservedSequenceArgumentCount(method, facts.Symbols, out var preservedCount))
         {
-            PushPreservedSequenceArguments(entry, call, preservedCount, pending);
+            PushPreservedSequenceArguments(entry, call, preservedCount, state.Pending);
             return true;
         }
         if (!LinqSequenceFacts.IsLinqSelect(method, facts.Symbols)) return false;
@@ -380,98 +402,39 @@ internal static class ResponseProjectionAnalysis
             RoslynOperationHelpers.TryGetArgumentByOrdinal(call, 0) is not { } source)
             return false;
 
-        var parentScope = entry.Locals ?? SelectorFlowCollector.ResolveEnclosingBodyScope(call, facts, bodyFlows);
-        var (returns, returnConditions, scope, _) = SelectorFlowCollector.GetOrCollect(
-            lambda, parentScope, facts, selectorScopes);
+        var parentScope = entry.Locals ?? SelectorScopeResolver.ResolveEnclosingBodyScope(call, facts, state.BodyFlows);
+        var (returns, returnConditions, scope, _) = SelectorScopeResolver.GetOrCollect(
+            lambda, parentScope, facts, state.SelectorScopes);
         if (returnConditions is not null && entry.Target is not null)
         {
             for (var i = returnConditions.Count - 1; i >= 0; i--)
-                pending.Push(new(returnConditions[i], entry.Target, true, scope));
+                state.Pending.Push(new(returnConditions[i], entry.Target, true, scope));
         }
-        PushReturnedValues(entry, returns, scope, facts, pending, walkedCreations);
-        pending.Push(entry.Next(source.Value, entry.Target, true));
+        PushReturnedValues(entry, returns, scope, facts, state.Pending, state.WalkedCreations);
+        state.Pending.Push(entry.Next(source.Value, entry.Target, true));
         return true;
     }
 
-    private static void PushReturnedValues(
+    private static Dictionary<IPropertySymbol, object?>? PushReturnedValues(
         ProjectionNode entry, List<SelectorReturn> returns, SelectorScope? scope, ConventionFacts facts,
         Stack<ProjectionNode> pending, HashSet<SyntaxNode>? walkedCreations)
     {
-        var commonConstants = returns.Count > 1 && returns.Any(r => !r.Conditions.IsDefaultOrEmpty)
-            ? FindCommonReturnConstants(returns, facts) : null;
+        var hasGuardedBranches = returns.Count > 1 && returns.Any(r => !r.Conditions.IsDefaultOrEmpty);
+        var commonConstants = hasGuardedBranches
+            ? ResponseReturnBranchAnalysis.FindCommonReturnConstants(returns, facts)
+            : null;
         for (var i = returns.Count - 1; i >= 0; i--)
         {
             var returned = returns[i];
-            var conditions = MergeReturnConditions(entry.ReturnConditions, returned.Conditions);
+            var conditions = ResponseReturnBranchAnalysis.MergeReturnConditions(entry.ReturnConditions, returned.Conditions);
             var next = new ProjectionNode(returned.Value, entry.Target, false, scope, conditions);
             if (commonConstants is not null && RoslynOperationHelpers.UnwrapTransparent(returned.Value) is IObjectCreationOperation creation)
                 PushCreationChildren(next, creation, facts, pending, walkedCreations, commonConstants, entry.ReturnConditions);
             else
                 pending.Push(next);
         }
+        return commonConstants;
     }
-
-    private static ImmutableArray<IOperation> MergeReturnConditions(
-        ImmutableArray<IOperation> enclosing, ImmutableArray<IOperation> branch)
-    {
-        if (enclosing.IsDefaultOrEmpty) return branch;
-        foreach (var condition in branch.AsSpan())
-            if (!enclosing.Contains(condition)) enclosing = enclosing.Add(condition);
-        return enclosing;
-    }
-
-    private static Dictionary<IPropertySymbol, object?>? FindCommonReturnConstants(
-        List<SelectorReturn> returns, ConventionFacts facts)
-    {
-        INamedTypeSymbol? returnType = null;
-        Dictionary<IPropertySymbol, object?>? common = null;
-        foreach (var returned in returns)
-        {
-            if (RoslynOperationHelpers.UnwrapTransparent(returned.Value) is not IObjectCreationOperation
-                { Type: INamedTypeSymbol type, Initializer: { } initializer })
-                return null;
-            returnType ??= type;
-            if (!SymbolEqualityComparer.Default.Equals(type, returnType))
-                return null;
-
-            Dictionary<IPropertySymbol, object?>? matches = null;
-            foreach (var write in initializer.Initializers)
-            {
-                facts.Cancellation.ThrowIfCancellationRequested();
-                if (write is not ISimpleAssignmentOperation { Target: IPropertyReferenceOperation { Property.IsIndexer: false } member } assignment)
-                    return null;
-                var property = PropertyAccessFacts.DispatchedProperty(member.Property, type, facts.Cancellation);
-                // A custom setter can change a sibling property assigned earlier in the initializer.
-                if (!facts.ProjectionFacts.CanGuaranteeDirectSetter(property, type))
-                    return null;
-                if (assignment.Value.ConstantValue is not { HasValue: true, Value: var value } ||
-                    (common is not null && (!common.TryGetValue(member.Property, out var previous) || !SameConstant(previous, value))))
-                {
-                    matches?.Remove(member.Property);
-                    continue;
-                }
-                var getter = facts.ProjectionFacts.ResolveGetterRead(property, type);
-                if (getter.MayReadSibling || !getter.Forwarded.IsDefaultOrEmpty)
-                {
-                    matches?.Remove(member.Property);
-                    continue;
-                }
-                (matches ??= new(SymbolEqualityComparer.Default))[member.Property] = value;
-            }
-            if (matches is not { Count: > 0 }) return null;
-            common = matches;
-        }
-        return common;
-    }
-
-    // Signed zero and decimal scale can be distinguished in a serialized response.
-    private static bool SameConstant(object? first, object? second) => (first, second) switch
-    {
-        (float x, float y) => BitConverter.SingleToInt32Bits(x) == BitConverter.SingleToInt32Bits(y),
-        (double x, double y) => BitConverter.DoubleToInt64Bits(x) == BitConverter.DoubleToInt64Bits(y),
-        (decimal x, decimal y) => decimal.GetBits(x).AsSpan().SequenceEqual(decimal.GetBits(y)),
-        _ => Equals(first, second)
-    };
 
     private static void PushPreservedSequenceArguments(
         ProjectionNode entry, IInvocationOperation call, int preservedCount, Stack<ProjectionNode> pending)
@@ -502,18 +465,17 @@ internal static class ResponseProjectionAnalysis
         if (initializesProperty)
         {
             var property = (IPropertyReferenceOperation)written!;
-            if (operation is ISimpleAssignmentOperation &&
-                IsSuppressedInitializerProperty(suppressed, property.Property))
+            var isSuppressedWrite = operation is ISimpleAssignmentOperation &&
+                IsSuppressedInitializerProperty(suppressed, property.Property);
+            if (isSuppressedWrite)
                 return;
-            target = new ProjectionTarget(property.Property, PropertyAccessFacts.Receiver(property, facts),
+            var propertyTarget = new ProjectionTarget(property.Property, PropertyAccessFacts.Receiver(property, facts),
                 property.Instance?.Type, (property.Parent ?? property).Syntax.GetLocation());
-            if (!returnConditions.IsDefaultOrEmpty)
-            {
-                for (var i = returnConditions.Length - 1; i >= 0; i--)
-                    pending.Push(new(returnConditions[i], target, true, locals));
-            }
+            target = propertyTarget;
+            PushReturnConditions(returnConditions, propertyTarget, locals, pending);
         }
-        var next = initializesProperty && value is not IObjectOrCollectionInitializerOperation
+        var resetsReturnConditions = initializesProperty && value is not IObjectOrCollectionInitializerOperation;
+        var next = resetsReturnConditions
             ? new ProjectionNode(value, target, isInput, locals)
             : entry.Next(value, target, isInput);
         pending.Push(next);
@@ -536,16 +498,19 @@ internal static class ResponseProjectionAnalysis
     {
         var (_, target, isInput, _, _, _) = entry;
         var usesConstructor = collection.ConstructMethod?.MethodKind == MethodKind.Constructor;
-        if (!isInput && usesConstructor && collection.Type is INamedTypeSymbol { TypeKind: not TypeKind.Interface } addReceiver)
+        var usesConcreteAdd = !isInput && usesConstructor &&
+            collection.Type is INamedTypeSymbol { TypeKind: not TypeKind.Interface };
+        if (usesConcreteAdd)
         {
-            PushAddElements(entry, collection, addReceiver, facts, pending);
+            PushAddElements(entry, collection, (INamedTypeSymbol)collection.Type!, facts, pending);
         }
         else
         {
             // Arrays, spans and compiler-provided interface collections store the element directly.
-            var storesDirectly = !isInput &&
-                ((collection.ConstructMethod is null && collection.Type is IArrayTypeSymbol or INamedTypeSymbol) ||
-                 (usesConstructor && collection.Type?.TypeKind == TypeKind.Interface));
+            var isBuiltInCollection = collection.ConstructMethod is null &&
+                collection.Type is IArrayTypeSymbol or INamedTypeSymbol;
+            var isInterfaceCollection = usesConstructor && collection.Type?.TypeKind == TypeKind.Interface;
+            var storesDirectly = !isInput && (isBuiltInCollection || isInterfaceCollection);
             for (var i = collection.Elements.Length - 1; i >= 0; i--)
             {
                 facts.Cancellation.ThrowIfCancellationRequested();
@@ -563,7 +528,7 @@ internal static class ResponseProjectionAnalysis
         var target = entry.Target;
         var model = facts.SemanticModel(collection.Syntax.SyntaxTree);
         var knownExactDefaultCollection = CollectionMutationFacts.IsDefaultAllocation(collection);
-        var singleAdd = model.LookupSymbols(collection.Syntax.SpanStart, addReceiver, "Add")
+        var singleAdd = model.LookupSymbols(collection.Syntax.SpanStart, addReceiver, CollectionMutationFacts.AddMethodName)
             is [IMethodSymbol { Parameters.Length: 1 } only] ? only : null;
         var singleStores = singleAdd is not null &&
             CollectionMutationFacts.IsStorageAdd(singleAdd, addReceiver, facts, knownExactDefaultCollection);
@@ -620,10 +585,10 @@ internal static class ResponseProjectionAnalysis
         context.Reported[target.Property] = previous | missing;
         if (missing.HasFlag(PropertyClassifications.Personal))
             ConventionBoundaryAnalysis.Report(facts, ConventionDiagnosticDescriptors.DtoClassification, context.OwnerType, target.Location,
-                target.Property.Name, "Personal", source.Property.Name);
+                target.Property.Name, PersonalClassificationName, source.Property.Name);
         if (missing.HasFlag(PropertyClassifications.Sensitive))
             ConventionBoundaryAnalysis.Report(facts, ConventionDiagnosticDescriptors.DtoClassification, context.OwnerType, target.Location,
-                target.Property.Name, "Sensitive", source.Property.Name);
+                target.Property.Name, SensitiveClassificationName, source.Property.Name);
     }
 
     private static HashSet<IPropertySymbol> AssignedProperties(IObjectOrCollectionInitializerOperation? initializer)
@@ -638,7 +603,7 @@ internal static class ResponseProjectionAnalysis
         return assigned;
     }
 
-    private static IEnumerable<(IPropertySymbol Source, IPropertySymbol Target)> ImplicitMappings(
+    private static IEnumerable<ImplicitPropertyMapping> ImplicitMappings(
         ConventionFacts facts, INamedTypeSymbol entity, INamedTypeSymbol dto, HashSet<IPropertySymbol> assigned)
     {
         var overridden = new HashSet<IPropertySymbol>(SymbolEqualityComparer.Default);
@@ -646,13 +611,24 @@ internal static class ResponseProjectionAnalysis
         {
             foreach (var member in contract.GetMembers())
             {
-                if (member is not IPropertySymbol target || !Eligible(target)) continue;
-                if (target.OverriddenProperty is { } parent) overridden.Add(parent);
-                if (overridden.Contains(target) || assigned.Contains(target)) continue;
-                if (FindSourceProperty(entity, target.Name, facts.Symbols.Entity) is { } source)
-                    yield return (source, target);
+                if (TryMatchImplicitProperty(member, entity, facts.Symbols.Entity, overridden, assigned, out var mapping))
+                    yield return mapping;
             }
         }
+    }
+
+    private static bool TryMatchImplicitProperty(
+        ISymbol member, INamedTypeSymbol entity, INamedTypeSymbol? entityBase,
+        HashSet<IPropertySymbol> overridden, HashSet<IPropertySymbol> assigned,
+        out ImplicitPropertyMapping mapping)
+    {
+        mapping = default;
+        if (member is not IPropertySymbol target || !Eligible(target)) return false;
+        if (target.OverriddenProperty is { } parent) overridden.Add(parent);
+        if (overridden.Contains(target) || assigned.Contains(target)) return false;
+        if (FindSourceProperty(entity, target.Name, entityBase) is not { } source) return false;
+        mapping = new(source, target);
+        return true;
     }
 
     private static IPropertySymbol? FindSourceProperty(INamedTypeSymbol entity, string name, INamedTypeSymbol? entityBase)

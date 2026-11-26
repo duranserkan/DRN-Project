@@ -60,31 +60,38 @@ internal static class ProjectionOriginAnalyzer
         {
             if (parent is IPatternOperation)
             {
-                if (parent is IRecursivePatternOperation { MatchedType: INamedTypeSymbol { IsTupleType: true } } tuple &&
-                    child is IPatternOperation part)
-                {
-                    var index = tuple.DeconstructionSubpatterns.IndexOf(part);
-                    if (index >= 0) (indices ??= new()).Push(index);
-                }
+                TryPushTupleSubpatternIndex(parent, child, ref indices);
                 continue;
             }
-            var value = parent switch
-            {
-                IPropertySubpatternOperation subpattern => subpattern.Member,
-                IIsPatternOperation isPattern => isPattern.Value,
-                ISwitchExpressionArmOperation { Parent: ISwitchExpressionOperation expression } => expression.Value,
-                IPatternCaseClauseOperation { Parent: ISwitchCaseOperation { Parent: ISwitchOperation statement } } => statement.Value,
-                _ => null
-            };
-            return value is null ? null : new LocalBinding(value, indices is null ? default : [.. indices]);
+            if (PatternContainerValue(parent) is not { } value) return null;
+            ImmutableArray<int> tuplePath = indices is null ? [] : [.. indices];
+            return new LocalBinding(value, tuplePath);
         }
         return null;
     }
 
+    private static void TryPushTupleSubpatternIndex(IOperation parent, IOperation child, ref Stack<int>? indices)
+    {
+        if (parent is not IRecursivePatternOperation { MatchedType: INamedTypeSymbol { IsTupleType: true } } tuple ||
+            child is not IPatternOperation part)
+            return;
+        var index = tuple.DeconstructionSubpatterns.IndexOf(part);
+        if (index >= 0) (indices ??= new()).Push(index);
+    }
+
+    private static IOperation? PatternContainerValue(IOperation parent) => parent switch
+    {
+        IPropertySubpatternOperation subpattern => subpattern.Member,
+        IIsPatternOperation isPattern => isPattern.Value,
+        ISwitchExpressionArmOperation { Parent: ISwitchExpressionOperation expression } => expression.Value,
+        IPatternCaseClauseOperation { Parent: ISwitchCaseOperation { Parent: ISwitchOperation statement } } => statement.Value,
+        _ => null
+    };
+
     internal static bool IsBindingOnlyPattern(IPatternOperation pattern)
     {
         // Fast path avoids allocating a stack for common single-node patterns.
-        if (pattern is IDeclarationPatternOperation { MatchesNull: true } or IDiscardPatternOperation)
+        if (IsUnconditionalBindingPattern(pattern))
             return true;
         if (pattern is not IRecursivePatternOperation { InputType: INamedTypeSymbol { IsTupleType: true } })
             return false;
@@ -93,20 +100,30 @@ internal static class ProjectionOriginAnalyzer
         pending.Push(pattern);
         while (pending.TryPop(out var part))
         {
-            if (part is IDeclarationPatternOperation { MatchesNull: true } or IDiscardPatternOperation) continue;
+            if (IsUnconditionalBindingPattern(part)) continue;
             if (part is not IRecursivePatternOperation { InputType: INamedTypeSymbol { IsTupleType: true } } tuple)
                 return false;
-            foreach (var member in tuple.PropertySubpatterns)
-            {
-                var isTupleFieldPattern = member.Member is IFieldReferenceOperation
-                    { Instance: null or IInstanceReferenceOperation { ReferenceKind: InstanceReferenceKind.PatternInput } } field &&
-                    RoslynSymbolHelpers.TupleElementOrdinal(field.Field) >= 0;
-                if (!isTupleFieldPattern) return false;
-                pending.Push(member.Pattern);
-            }
-            foreach (var element in tuple.DeconstructionSubpatterns)
-                pending.Push(element);
+            if (!TryPushTuplePatternParts(tuple, pending))
+                return false;
         }
+        return true;
+    }
+
+    private static bool IsUnconditionalBindingPattern(IPatternOperation pattern) =>
+        pattern is IDeclarationPatternOperation { MatchesNull: true } or IDiscardPatternOperation;
+
+    private static bool TryPushTuplePatternParts(IRecursivePatternOperation tuple, Stack<IPatternOperation> pending)
+    {
+        foreach (var member in tuple.PropertySubpatterns)
+        {
+            var isTupleFieldPattern = member.Member is IFieldReferenceOperation
+                { Instance: null or IInstanceReferenceOperation { ReferenceKind: InstanceReferenceKind.PatternInput } } field &&
+                RoslynSymbolHelpers.TupleElementOrdinal(field.Field) >= 0;
+            if (!isTupleFieldPattern) return false;
+            pending.Push(member.Pattern);
+        }
+        foreach (var element in tuple.DeconstructionSubpatterns)
+            pending.Push(element);
         return true;
     }
 
@@ -182,19 +199,25 @@ internal static class ProjectionOriginAnalyzer
         if (current is ILocalReferenceOperation localRef && locals is not null &&
             locals.TryGetValues(localRef, out var localValues))
         {
-            for (var i = 0; i < localValues.Length; i++)
-            {
-                var value = localValues[i];
-                if (value.Kind == LocalBindingKind.Condition) continue;
-                var nextIndex = 0;
-                if (value.WriteTarget is { } written &&
-                    !ProjectionLocalExpander.TryMatchWriteTuplePath(written, tuplePath, 0, out nextIndex))
-                    continue;
-                pending.Push(new(value.Value, TuplePathHelpers.Combine(value.TuplePath, tuplePath, nextIndex)));
-            }
+            PushLocalOriginTupleBindings(localValues, tuplePath, pending);
             return true;
         }
         return TryPushBranchingOriginPredecessors(current, tuplePath, pending);
+    }
+
+    private static void PushLocalOriginTupleBindings(
+        ImmutableArray<LocalBinding> localValues, ImmutableArray<int> tuplePath, Stack<LocalBinding> pending)
+    {
+        for (var i = 0; i < localValues.Length; i++)
+        {
+            var value = localValues[i];
+            if (value.Kind == LocalBindingKind.Condition) continue;
+            var nextIndex = 0;
+            if (value.WriteTarget is { } written &&
+                !ProjectionLocalExpander.TryMatchWriteTuplePath(written, tuplePath, 0, out nextIndex))
+                continue;
+            pending.Push(new(value.Value, TuplePathHelpers.Combine(value.TuplePath, tuplePath, nextIndex)));
+        }
     }
 
     private static void PushOriginPredecessors(
@@ -243,9 +266,10 @@ internal static class ProjectionOriginAnalyzer
         }
         if (member is IPropertyReferenceOperation property && RoslynOperationHelpers.IsNullableValueProperty(property))
             return tuplePath;
-        return default;
+        return [];
     }
 
+    [SuppressMessage("SonarQube", "S3267", Justification = "Scanning call Arguments directly avoids boxing ImmutableArray, allocating a capturing predicate and creating a Where iterator.")]
     private static bool TryPushPreservedSequenceOriginPredecessors(
         IOperation current, ConventionSymbols symbols, Stack<LocalBinding> pending)
     {

@@ -9,7 +9,7 @@ internal static class ProjectionLocalExpander
         ConventionFacts facts,
         Stack<ProjectionNode> pending,
         ref HashSet<LocalExpansionKey>? visited,
-        Dictionary<(IAnonymousFunctionOperation, SelectorScope?), SelectorFlowResult>? selectorScopes)
+        Dictionary<SelectorScopeKey, SelectorFlowResult>? selectorScopes)
     {
         if (entry.Operation is IFieldReferenceOperation field)
         {
@@ -25,8 +25,10 @@ internal static class ProjectionLocalExpander
             ExpandBindings(state, values, cursor);
             return true;
         }
-        if (entry.IsInput && entry.Operation is IConditionalAccessInstanceOperation placeholder &&
-            LocalAccessClassifier.TryResolveConditionalPlaceholderAccess(placeholder, facts.Symbols, facts.Cancellation, out var receiver, out var cursorFromPlaceholder))
+        if (entry.IsInput &&
+            entry.Operation is IConditionalAccessInstanceOperation placeholder &&
+            LocalAccessClassifier.TryResolveConditionalPlaceholderAccess(
+                placeholder, facts.Symbols, facts.Cancellation, out var receiver, out var cursorFromPlaceholder))
         {
             var state = CreateState(entry, facts, pending, ref visited, selectorScopes);
             return TryExpandChainedOrBranchingValue(state, receiver, cursorFromPlaceholder);
@@ -46,7 +48,7 @@ internal static class ProjectionLocalExpander
         ConventionFacts facts,
         Stack<ProjectionNode> pending,
         ref HashSet<LocalExpansionKey>? visited,
-        Dictionary<(IAnonymousFunctionOperation, SelectorScope?), SelectorFlowResult>? selectorScopes)
+        Dictionary<SelectorScopeKey, SelectorFlowResult>? selectorScopes)
     {
         visited ??= new(LocalExpansionKeyComparer.Instance);
         return new(entry, facts, pending, visited, selectorScopes);
@@ -64,9 +66,10 @@ internal static class ProjectionLocalExpander
         var supersedesBaseProperty = cursor.HasRemainingProperties &&
             !cursor.HasRemainingTuplePath &&
             PropertyAccessFacts.HasDefinitePropertyReplacement(bindings, cursor.CurrentProperty, receiverType, state.Facts);
-        var suppressedInitializerProperties = !state.Entry.IsInput &&
+        var isDirectDestination = !state.Entry.IsInput &&
             cursor.Chain.IsDefaultOrEmpty &&
-            !cursor.HasRemainingTuplePath
+            !cursor.HasRemainingTuplePath;
+        var suppressedInitializerProperties = isDirectDestination
             ? CollectDefiniteReplacedProperties(bindings, receiverType, state.Facts)
             : default;
 
@@ -74,7 +77,8 @@ internal static class ProjectionLocalExpander
         {
             var binding = bindings[i];
             if (supersedesBaseProperty && binding.IsBaseValueBinding) continue;
-            var bindingState = !suppressedInitializerProperties.IsDefaultOrEmpty && binding.IsBaseValueBinding
+            var appliesSuppression = !suppressedInitializerProperties.IsDefaultOrEmpty && binding.IsBaseValueBinding;
+            var bindingState = appliesSuppression
                 ? state with
                 {
                     Entry = state.Entry.NextWithSuppressed(
@@ -102,10 +106,10 @@ internal static class ProjectionLocalExpander
                 continue;
             (replaced ??= ImmutableArray.CreateBuilder<IPropertySymbol>()).Add(dispatched);
         }
-        return replaced is null ? default : replaced.ToImmutable();
+        return replaced is null ? [] : replaced.ToImmutable();
     }
 
-    private static void ExpandBinding(
+    internal static void ExpandBinding(
         LocalExpansionState state, LocalBinding binding, ExpansionCursor cursor, INamedTypeSymbol? localType)
     {
         if (binding.WriteTarget is { } written &&
@@ -123,7 +127,7 @@ internal static class ProjectionLocalExpander
                 ExpandReceiverMutation(state, call);
                 return;
             case LocalBindingKind.SequenceElement:
-                ExpandSequenceElement(state, binding.Value, nextCursor);
+                ProjectionSequenceExpander.ExpandSequenceElement(state, binding.Value, nextCursor);
                 return;
             default:
                 ExpandLocalValue(state, binding.Value, nextCursor);
@@ -138,15 +142,7 @@ internal static class ProjectionLocalExpander
         // Fast path for the common 1-step direct property assignment (e.g. row.Label = value).
         if (RoslynOperationHelpers.UnwrapTransparent(written) is IPropertyReferenceOperation { Property.IsIndexer: false } directMember &&
             RoslynOperationHelpers.UnwrapTransparent(directMember.Instance) is ILocalReferenceOperation)
-        {
-            if (CanSkipNullCheckWrite(cursor, localType, state.Facts)) return false;
-
-            var destination = state.Entry.Target;
-            if (!TryAdvanceMemberStep(state, written, directMember, ref cursor, localType, ref destination, out _))
-                return false;
-            state = state with { Entry = state.Entry with { Target = destination } };
-            return true;
-        }
+            return TryApplyDirectPropertyWriteTarget(ref state, written, directMember, ref cursor, localType);
 
         // Single walk from written back to local handles tuple matching, property steps, and indexer keys.
         var steps = CollectWriteSteps(written, out var reachedLocal, out var exceededTupleLimit);
@@ -160,20 +156,40 @@ internal static class ProjectionLocalExpander
         if (ignoresNullCheckWrite) return false;
 
         var target = state.Entry.Target;
-        if (steps is not null)
-        {
-            for (var i = steps.Count - 1; i >= 0; i--)
-            {
-                if (steps[i] is not IPropertyReferenceOperation { Property.IsIndexer: false } member)
-                    continue;
-                if (!TryAdvanceMemberStep(state, written, member, ref cursor, localType, ref target, out var stopMembers))
-                    return false;
-                if (stopMembers) break;
-            }
-        }
+        if (steps is not null &&
+            !TryAdvanceWriteMemberSteps(state, written, steps, ref cursor, localType, ref target))
+            return false;
         state = state with { Entry = state.Entry with { Target = target } };
         if (binding.Kind != LocalBindingKind.Condition && steps is not null)
             ExpandWriteTargetKeys(state, steps);
+        return true;
+    }
+
+    private static bool TryApplyDirectPropertyWriteTarget(
+        ref LocalExpansionState state, IOperation written, IPropertyReferenceOperation directMember,
+        ref ExpansionCursor cursor, INamedTypeSymbol? localType)
+    {
+        if (CanSkipNullCheckWrite(cursor, localType, state.Facts)) return false;
+
+        var destination = state.Entry.Target;
+        if (!TryAdvanceMemberStep(state, written, directMember, ref cursor, localType, ref destination, out _))
+            return false;
+        state = state with { Entry = state.Entry with { Target = destination } };
+        return true;
+    }
+
+    private static bool TryAdvanceWriteMemberSteps(
+        LocalExpansionState state, IOperation written, List<IOperation> steps,
+        ref ExpansionCursor cursor, INamedTypeSymbol? localType, ref ProjectionTarget? target)
+    {
+        for (var i = steps.Count - 1; i >= 0; i--)
+        {
+            if (steps[i] is not IPropertyReferenceOperation { Property.IsIndexer: false } member)
+                continue;
+            if (!TryAdvanceMemberStep(state, written, member, ref cursor, localType, ref target, out var stopMembers))
+                return false;
+            if (stopMembers) break;
+        }
         return true;
     }
 
@@ -190,36 +206,47 @@ internal static class ProjectionLocalExpander
         out bool stopMembers)
     {
         stopMembers = false;
-        if (cursor.HasRemainingProperties)
-        {
-            var unwrappedInstance = RoslynOperationHelpers.UnwrapTransparent(member.Instance);
-            var receiverType = RoslynSymbolHelpers.SealedType(member.Instance?.Type);
-            if (receiverType is null && unwrappedInstance is ILocalReferenceOperation)
-                receiverType = localType;
-            var staticReceiver = unwrappedInstance?.Type as INamedTypeSymbol ?? member.Instance?.Type as INamedTypeSymbol;
-            var read = state.Facts.ProjectionFacts.ResolveGetterRead(cursor.CurrentProperty, receiverType);
-            cursor = cursor with { ChainIndex = cursor.ChainIndex + 1 };
-            if (!read.Matches(member.Property, state.Facts.Cancellation, staticReceiver))
-            {
-                if (!read.MayReadSibling) return false;
-                cursor = cursor.ResetToFull();
-                stopMembers = true;
-                return true;
-            }
-        }
+        if (cursor.HasRemainingProperties &&
+            !TryMatchGetterPropertyStep(state, member, ref cursor, localType, out stopMembers))
+            return false;
         if (!state.Entry.IsInput)
-        {
-            var site = written.Parent is IAssignmentOperation or IInvocationOperation ? written.Parent : written;
-            destination = new(member.Property, PropertyAccessFacts.Receiver(member, state.Facts),
-                member.Instance?.Type, site.Syntax.GetLocation());
-            if (!state.Entry.ReturnConditions.IsDefaultOrEmpty)
-            {
-                var conditions = state.Entry.ReturnConditions;
-                for (var i = conditions.Length - 1; i >= 0; i--)
-                    state.Pending.Push(new(conditions[i], destination, true, state.Entry.Locals));
-            }
-        }
+            destination = AssignWriteDestination(state, written, member);
         return true;
+    }
+
+    private static bool TryMatchGetterPropertyStep(
+        LocalExpansionState state, IPropertyReferenceOperation member,
+        ref ExpansionCursor cursor, INamedTypeSymbol? localType, out bool stopMembers)
+    {
+        stopMembers = false;
+        var unwrappedInstance = RoslynOperationHelpers.UnwrapTransparent(member.Instance);
+        var receiverType = RoslynSymbolHelpers.SealedType(member.Instance?.Type);
+        if (receiverType is null && unwrappedInstance is ILocalReferenceOperation)
+            receiverType = localType;
+        var staticReceiver = unwrappedInstance?.Type as INamedTypeSymbol ?? member.Instance?.Type as INamedTypeSymbol;
+        var read = state.Facts.ProjectionFacts.ResolveGetterRead(cursor.CurrentProperty, receiverType);
+        cursor = cursor with { ChainIndex = cursor.ChainIndex + 1 };
+        if (read.Matches(member.Property, state.Facts.Cancellation, staticReceiver))
+            return true;
+        if (!read.MayReadSibling) return false;
+        cursor = cursor.ResetToFull();
+        stopMembers = true;
+        return true;
+    }
+
+    private static ProjectionTarget AssignWriteDestination(
+        LocalExpansionState state, IOperation written, IPropertyReferenceOperation member)
+    {
+        var site = written.Parent is IAssignmentOperation or IInvocationOperation ? written.Parent : written;
+        var destination = new ProjectionTarget(member.Property, PropertyAccessFacts.Receiver(member, state.Facts),
+            member.Instance?.Type, site.Syntax.GetLocation());
+        if (!state.Entry.ReturnConditions.IsDefaultOrEmpty)
+        {
+            var conditions = state.Entry.ReturnConditions;
+            for (var i = conditions.Length - 1; i >= 0; i--)
+                state.Pending.Push(new(conditions[i], destination, true, state.Entry.Locals));
+        }
+        return destination;
     }
 
     private static void ExpandWriteTargetKeys(LocalExpansionState state, List<IOperation> steps)
@@ -320,107 +347,7 @@ internal static class ProjectionLocalExpander
         }
     }
 
-    private static void ExpandSequenceElement(
-        LocalExpansionState state, IOperation sequence, ExpansionCursor cursor)
-    {
-        if (cursor.Depth >= ProjectionLimits.MaxExpansionDepth)
-        {
-            ExpandLocalValue(state, sequence, cursor);
-            return;
-        }
-        var pending = new Stack<IOperation>();
-        var seen = new HashSet<IOperation>();
-        pending.Push(sequence);
-        while (pending.TryPop(out var next))
-        {
-            state.Facts.Cancellation.ThrowIfCancellationRequested();
-            var value = RoslynOperationHelpers.UnwrapTransparentNonNull(next);
-            if (!seen.Add(value)) continue;
-            if (TryExpandSequenceNode(state, value, cursor, pending)) continue;
-            ExpandLocalValue(state, value, cursor.NextDepth());
-        }
-    }
-
-    private static bool TryExpandSequenceNode(
-        LocalExpansionState state, IOperation value, ExpansionCursor cursor, Stack<IOperation> pending)
-    {
-        if (value is ILocalReferenceOperation local && state.Entry.Locals is { } locals &&
-            locals.TryGetValues(local, out var bindings))
-        {
-            for (var i = 0; i < bindings.Length; i++)
-            {
-                var binding = bindings[i];
-                var isPlainLocalValue = binding.Kind == LocalBindingKind.Value &&
-                    binding.TuplePath.IsDefaultOrEmpty &&
-                    binding.WriteTarget is null;
-                if (isPlainLocalValue) pending.Push(binding.Value);
-                else ExpandBinding(state, binding, cursor.NextDepth(), localType: null);
-            }
-            return true;
-        }
-        if (value is IInvocationOperation call &&
-            LinqSequenceFacts.IsLinqSelect(call.TargetMethod, state.Facts.Symbols) &&
-            LinqSequenceFacts.SelectLambda(call) is { } lambda)
-        {
-            var flow = SelectorFlowCollector.GetOrCollect(lambda, state.Entry.Locals, state.Facts, state.SelectorScopes);
-            var elementState = state with { Entry = state.Entry with { Locals = flow.Scope } };
-            if (flow.ReturnConditions is { } conditions)
-            {
-                for (var i = 0; i < conditions.Count; i++)
-                    ExpandConditionValue(elementState, conditions[i]);
-            }
-            for (var i = 0; i < flow.Returns.Count; i++)
-            {
-                var returned = flow.Returns[i];
-                if (!returned.Conditions.IsDefaultOrEmpty)
-                {
-                    for (var j = 0; j < returned.Conditions.Length; j++)
-                        ExpandConditionValue(elementState, returned.Conditions[j]);
-                }
-                ExpandLocalValue(elementState, returned.Value, cursor.NextDepth());
-            }
-            if (RoslynOperationHelpers.TryGetArgumentValueByOrdinal(call, 0) is { } source)
-                ExpandConditionValue(state, source);
-            return true;
-        }
-        if (value is IConditionalAccessOperation conditionalAccess)
-        {
-            ExpandConditionValue(state, conditionalAccess.Operation);
-            pending.Push(conditionalAccess.WhenNotNull);
-            return true;
-        }
-        if (value is IInvocationOperation wrapper &&
-            LinqSequenceFacts.TryGetPreservedSequenceArgumentCount(wrapper.TargetMethod, state.Facts.Symbols, out var count))
-        {
-            var fallback = LinqSequenceFacts.FallbackElementTypeParameter(wrapper.TargetMethod);
-            foreach (var argument in wrapper.Arguments)
-            {
-                if (LinqSequenceFacts.PreservesSequenceArgument(argument, count, fallback))
-                    pending.Push(argument.Value);
-                else
-                    ExpandConditionValue(state, argument.Value);
-            }
-            return true;
-        }
-        if (value is IArrayCreationOperation { Initializer: { } array })
-        {
-            foreach (var element in array.ElementValues)
-                ExpandLocalValue(state, element, cursor.NextDepth());
-            return true;
-        }
-        if (value is ICollectionExpressionOperation collection)
-        {
-            foreach (var element in collection.Elements)
-            {
-                if (element is ISpreadOperation spread) pending.Push(spread.Operand);
-                else ExpandLocalValue(state, element, cursor.NextDepth());
-            }
-            return true;
-        }
-        return false;
-    }
-
-    private static void ExpandConditionValue(LocalExpansionState state, IOperation rawValue)
+    internal static void ExpandConditionValue(LocalExpansionState state, IOperation rawValue)
     {
         var value = RoslynOperationHelpers.UnwrapTransparentNonNull(rawValue);
         var target = state.Entry.Target;
@@ -430,7 +357,7 @@ internal static class ProjectionLocalExpander
             state.Pending.Push(state.Entry.Next(value, target, true));
     }
 
-    private static void ExpandLocalValue(LocalExpansionState state, IOperation rawValue, ExpansionCursor cursor)
+    internal static void ExpandLocalValue(LocalExpansionState state, IOperation rawValue, ExpansionCursor cursor)
     {
         state.Facts.Cancellation.ThrowIfCancellationRequested();
         var value = RoslynOperationHelpers.UnwrapTransparentNonNull(rawValue);
@@ -448,9 +375,10 @@ internal static class ProjectionLocalExpander
             return;
         if (!state.Entry.IsInput || cursor.AccessMode == LocalAccessMode.Full)
         {
-            var nextNode = !state.Entry.IsInput &&
+            var preservesSuppressedProperties = !state.Entry.IsInput &&
                 value is IObjectCreationOperation &&
-                !state.Entry.SuppressedInitializerProperties.IsDefaultOrEmpty
+                !state.Entry.SuppressedInitializerProperties.IsDefaultOrEmpty;
+            var nextNode = preservesSuppressedProperties
                 ? state.Entry.NextWithSuppressed(value, target, false, state.Entry.SuppressedInitializerProperties)
                 : state.Entry.Next(value, target, state.Entry.IsInput);
             state.Pending.Push(nextNode);
@@ -520,7 +448,7 @@ internal static class ProjectionLocalExpander
             if (ordinal >= 0 && ProjectionOriginAnalyzer.MemberReceiverOrigin(field) is { } tupleReceiver)
             {
                 var combined = TuplePathHelpers.Combine([ordinal], cursor.TuplePath, cursor.TupleIndex);
-                if (!combined.IsDefault)
+                if (!combined.IsDefaultOrEmpty)
                 {
                     combined = TuplePathHelpers.Combine(tupleReceiver.TuplePath, combined, 0);
                     ExpandLocalValue(state, tupleReceiver.Value, cursor.WithDepthTuplePath(combined));
@@ -666,7 +594,8 @@ internal static class ProjectionLocalExpander
                 !accessed.Matches(property.Property, state.Facts.Cancellation, receiverType))
                 continue;
             ExpandLocalValue(state, assignedValue, cursor.NextProperty());
-            if (!replaced && entry is ISimpleAssignmentOperation && !accessed.MayReadSibling)
+            var canMarkReplaced = !replaced && entry is ISimpleAssignmentOperation && !accessed.MayReadSibling;
+            if (canMarkReplaced)
             {
                 var dispatched = PropertyAccessFacts.DispatchedProperty(property.Property, receiverType, state.Facts.Cancellation);
                 if (state.Facts.ProjectionFacts.CanGuaranteeDirectSetter(dispatched, receiverType))
