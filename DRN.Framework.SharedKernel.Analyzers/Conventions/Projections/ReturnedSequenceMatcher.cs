@@ -128,12 +128,27 @@ internal static class ReturnedSequenceMatcher
         }
         if (current is ILocalReferenceOperation local)
         {
-            if (scope is null || !scope.ReferenceValues.TryGetValue(local, out var bindings)) return;
-            foreach (var binding in bindings)
-                if (binding.Kind == LocalBindingKind.Value && binding.WriteTarget is null && binding.TuplePath.IsDefaultOrEmpty)
-                    pending.Push(binding.Value);
+            PushLocalSequenceBindings(local, scope, pending);
             return;
         }
+        PushPreservedSequenceChildren(current, facts.Symbols, pending);
+    }
+
+    private static void PushLocalSequenceBindings(
+        ILocalReferenceOperation local, SelectorScope? scope, Stack<IOperation> pending)
+    {
+        if (scope is null || !scope.ReferenceValues.TryGetValue(local, out var bindings)) return;
+        for (var i = 0; i < bindings.Length; i++)
+        {
+            var binding = bindings[i];
+            if (binding.Kind == LocalBindingKind.Value && binding.WriteTarget is null && binding.TuplePath.IsDefaultOrEmpty)
+                pending.Push(binding.Value);
+        }
+    }
+
+    private static void PushPreservedSequenceChildren(
+        IOperation current, ConventionSymbols symbols, Stack<IOperation> pending)
+    {
         // Follow the same value edges in both directions. Arguments and switch arms wrap the value.
         foreach (var child in current.ChildOperations)
         {
@@ -144,7 +159,7 @@ internal static class ReturnedSequenceMatcher
                 _ => child
             };
             if (value.Parent is { } parent &&
-                PreservesSequenceParent(value, parent, facts.Symbols, out var next) && ReferenceEquals(next, current))
+                PreservesSequenceParent(value, parent, symbols, out var next) && ReferenceEquals(next, current))
                 pending.Push(value);
         }
     }

@@ -43,11 +43,11 @@ internal static class SelectorFlowEnvironment
         return result;
     }
 
-    internal static List<(ILocalSymbol Local, IOperation? Target)>? CollectBranchDiffs(
+    internal static List<BranchWriteDiff>? CollectBranchDiffs(
         Dictionary<ILocalSymbol, List<LocalBinding>> firstEnv,
         Dictionary<ILocalSymbol, List<LocalBinding>> secondEnv)
     {
-        List<(ILocalSymbol Local, IOperation? Target)>? writes = null;
+        List<BranchWriteDiff>? writes = null;
         foreach (var (local, firstValues) in firstEnv)
         {
             secondEnv.TryGetValue(local, out var secondValues);
@@ -132,7 +132,7 @@ internal static class SelectorFlowEnvironment
 
     private static void CollectModifiedBindings(
         ILocalSymbol local, List<LocalBinding>? firstValues, List<LocalBinding>? secondValues,
-        ref List<(ILocalSymbol Local, IOperation? Target)>? writes)
+        ref List<BranchWriteDiff>? writes)
     {
         if (SameBindingList(firstValues, secondValues)) return;
         if (firstValues is not null)
@@ -141,7 +141,7 @@ internal static class SelectorFlowEnvironment
             {
                 var binding = firstValues[i];
                 if (secondValues is null || !ContainsBinding(secondValues, binding))
-                    (writes ??= []).Add((local, binding.WriteTarget));
+                    (writes ??= []).Add(new(local, binding.WriteTarget));
             }
         }
         if (secondValues is not null)
@@ -150,7 +150,7 @@ internal static class SelectorFlowEnvironment
             {
                 var binding = secondValues[i];
                 if (firstValues is null || !ContainsBinding(firstValues, binding))
-                    (writes ??= []).Add((local, binding.WriteTarget));
+                    (writes ??= []).Add(new(local, binding.WriteTarget));
             }
         }
     }

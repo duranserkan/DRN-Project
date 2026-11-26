@@ -9,12 +9,13 @@ internal static class ConventionNames
     internal const string FoldersLayout = "Folders";
     internal const string MetadataPrefix = "DRN.Conventions.";
     internal const string ProjectNameMetadataKey = MetadataPrefix + "ProjectName";
-    internal const string RootNamespaceMetadataKey = MetadataPrefix + "RootNamespace";
+    internal const string RootNamespaceMetadataKey = MetadataPrefix + RootNamespaceProperty;
     internal const string DomainLayoutMetadataKey = MetadataPrefix + "DomainLayout";
     internal const string DomainMetadataKey = MetadataPrefix + "Domain";
     internal const string RoleMetadataPrefix = MetadataPrefix + "Role.";
     internal const string ContractRoleMetadataKey = RoleMetadataPrefix + "Contract";
     internal const string OwnershipMetadataPrefix = MetadataPrefix + "Ownership.";
+    private const string RootNamespaceProperty = "RootNamespace";
     private const string DomainLayoutProperty = "DrnDomainLayout";
     private const string DomainProperty = "DrnDomain";
 
@@ -81,7 +82,7 @@ internal static class ConventionNames
             var property = key switch
             {
                 ProjectNameMetadataKey => "MSBuildProjectName",
-                RootNamespaceMetadataKey => "RootNamespace",
+                RootNamespaceMetadataKey => RootNamespaceProperty,
                 DomainLayoutMetadataKey => DomainLayoutProperty,
                 DomainMetadataKey => DomainProperty,
                 _ => null
@@ -93,7 +94,7 @@ internal static class ConventionNames
             var conflict = property switch
             {
                 "MSBuildProjectName" => hasProjectName && projectName != value,
-                "RootNamespace" => hasRootNamespace && rootNamespace != value,
+                RootNamespaceProperty => hasRootNamespace && rootNamespace != value,
                 DomainLayoutProperty => hasDomainLayout && domainLayout != value,
                 DomainProperty => hasDomain && domain != value,
                 _ => false
@@ -107,7 +108,7 @@ internal static class ConventionNames
                     hasProjectName = true;
                     projectName = value;
                     break;
-                case "RootNamespace":
+                case RootNamespaceProperty:
                     hasRootNamespace = true;
                     rootNamespace = value;
                     break;

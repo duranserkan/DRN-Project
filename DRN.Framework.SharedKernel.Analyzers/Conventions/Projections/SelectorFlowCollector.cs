@@ -6,165 +6,12 @@ namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 // DRNDTO003 scope freeze: fix only real reported bugs (see ResponseProjectionAnalysis).
 internal sealed class SelectorFlowCollector
 {
-    private readonly record struct ExpressionWalkEntry(
-        IOperation Operation,
-        bool Unconditional,
-        bool IsExit = false);
-
-    private readonly record struct UnstructuredWalkEntry(
-        IOperation Operation,
-        FlowState? Before = null,
-        IOperation? SingleCondition = null,
-        ISwitchOperation? SwitchOwner = null,
-        ISwitchCaseOperation? SwitchSection = null,
-        ISwitchExpressionOperation? SwitchExpressionOwner = null,
-        ISwitchExpressionArmOperation? SwitchExpressionArm = null);
-
-    private readonly record struct BranchGuard(FlowState Before, IOperation Condition);
-    private readonly record struct MaterializedLambda(IAnonymousFunctionOperation Lambda, ImmutableArray<IOperation> Conditions);
-
-    private readonly record struct RecordedReturn(
-        IOperation Value,
-        ILocalSymbol? ReturnedLocal,
-        ImmutableArray<(IOperation Condition, bool LocalExistedUnreplaced)> Guards);
-
-    private sealed class CollectSession
-    {
-        private const int MaxBodyCollections = 128;
-        private int _remainingCollections = MaxBodyCollections;
-        private readonly Dictionary<IBlockOperation, HashSet<ILocalSymbol>> _externalLocals = [];
-        private readonly Dictionary<IBlockOperation, List<(Dictionary<ILocalSymbol, ImmutableArray<LocalBinding>> Incoming, SelectorFlowResult Result)>> _memo = [];
-
-        internal bool HasBudget => _remainingCollections > 0;
-
-        internal bool TryConsumeCollection()
-        {
-            if (_remainingCollections <= 0) return false;
-            _remainingCollections--;
-            return true;
-        }
-
-        internal Dictionary<ILocalSymbol, ImmutableArray<LocalBinding>> CaptureIncoming(
-            IBlockOperation body, SelectorScope? parentScope, CancellationToken cancellation)
-        {
-            var result = new Dictionary<ILocalSymbol, ImmutableArray<LocalBinding>>(SymbolEqualityComparer.Default);
-            if (parentScope is null) return result;
-            var external = GetExternalLocals(body, cancellation);
-            if (external.Count == 0) return result;
-            for (var scope = parentScope; scope is not null; scope = scope.Parent)
-            {
-                foreach (var (local, values) in scope.CapturedLocalValues)
-                {
-                    if (external.Contains(local) && !result.ContainsKey(local))
-                        result[local] = values;
-                }
-            }
-            return result;
-        }
-
-        internal bool TryGetMemoized(
-            IBlockOperation body, Dictionary<ILocalSymbol, ImmutableArray<LocalBinding>> incoming,
-            out SelectorFlowResult result)
-        {
-            if (_memo.TryGetValue(body, out var entries))
-            {
-                for (var i = 0; i < entries.Count; i++)
-                {
-                    if (SameIncomingBindings(entries[i].Incoming, incoming))
-                    {
-                        result = entries[i].Result;
-                        return true;
-                    }
-                }
-            }
-            result = default;
-            return false;
-        }
-
-        internal void StoreMemoized(
-            IBlockOperation body, Dictionary<ILocalSymbol, ImmutableArray<LocalBinding>> incoming,
-            SelectorFlowResult result)
-        {
-            if (!_memo.TryGetValue(body, out var entries))
-            {
-                entries = [];
-                _memo[body] = entries;
-            }
-            entries.Add((incoming, result));
-        }
-
-        internal HashSet<ILocalSymbol> GetExternalLocals(IBlockOperation body, CancellationToken cancellation)
-        {
-            if (_externalLocals.TryGetValue(body, out var cached))
-                return cached;
-            var result = new HashSet<ILocalSymbol>(SymbolEqualityComparer.Default);
-            var bodyTree = body.Syntax.SyntaxTree;
-            var bodySpan = body.Syntax.Span;
-            var walk = new Stack<IOperation>();
-            walk.Push(body);
-            while (walk.TryPop(out var current))
-            {
-                cancellation.ThrowIfCancellationRequested();
-                if (current is ILocalReferenceOperation localRef &&
-                    !IsDeclaredWithin(localRef.Local, bodyTree, bodySpan))
-                    result.Add(localRef.Local);
-                foreach (var child in current.ChildOperations)
-                    walk.Push(child);
-            }
-            _externalLocals[body] = result;
-            return result;
-        }
-
-        private static bool SameIncomingBindings(
-            Dictionary<ILocalSymbol, ImmutableArray<LocalBinding>> left,
-            Dictionary<ILocalSymbol, ImmutableArray<LocalBinding>> right)
-        {
-            if (left.Count != right.Count) return false;
-            foreach (var (local, leftValues) in left)
-            {
-                if (!right.TryGetValue(local, out var rightValues) || leftValues.Length != rightValues.Length)
-                    return false;
-                if (!SameBindingSet(leftValues, rightValues))
-                    return false;
-            }
-            return true;
-        }
-
-        private static bool SameBindingSet(ImmutableArray<LocalBinding> left, ImmutableArray<LocalBinding> right)
-        {
-            var exactOrder = true;
-            for (var i = 0; i < left.Length; i++)
-            {
-                if (!LocalBindingComparer.Instance.Equals(left[i], right[i]))
-                {
-                    exactOrder = false;
-                    break;
-                }
-            }
-            if (exactOrder) return true;
-            for (var i = 0; i < left.Length; i++)
-            {
-                var found = false;
-                for (var j = 0; j < right.Length; j++)
-                {
-                    if (LocalBindingComparer.Instance.Equals(left[i], right[j]))
-                    {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) return false;
-            }
-            return true;
-        }
-    }
-
     private readonly ConventionFacts _facts;
     private readonly ConventionSymbols _symbols;
     private readonly CancellationToken _cancellation;
     private readonly IBlockOperation _body;
     private readonly SelectorScope? _parentScope;
-    private readonly CollectSession _session;
+    private readonly SelectorFlowSession _session;
     private readonly List<RecordedReturn> _returns = [];
     private readonly Dictionary<ILocalReferenceOperation, ImmutableArray<LocalBinding>> _referenceValues = [];
     private readonly Dictionary<ILocalSymbol, List<LocalBinding>> _captured = new(SymbolEqualityComparer.Default);
@@ -183,7 +30,7 @@ internal sealed class SelectorFlowCollector
     private QueryMaterializerResolver? _materializerResolver;
 
     private SelectorFlowCollector(
-        IBlockOperation body, SelectorScope? parentScope, ConventionFacts facts, CollectSession session)
+        IBlockOperation body, SelectorScope? parentScope, ConventionFacts facts, SelectorFlowSession session)
     {
         _body = body;
         _parentScope = parentScope;
@@ -195,13 +42,18 @@ internal sealed class SelectorFlowCollector
 
     internal static SelectorFlowResult Collect(IBlockOperation body, SelectorScope? parentScope, ConventionFacts facts)
     {
-        var session = new CollectSession();
+        var session = new SelectorFlowSession();
         session.TryConsumeCollection();
         return CollectCore(body, parentScope, facts, session);
     }
 
+    internal static SelectorScope? ResolveEnclosingBodyScope(
+        IInvocationOperation select, ConventionFacts facts,
+        Dictionary<IBlockOperation, SelectorFlowResult>? bodyFlows) =>
+        SelectorScopeResolver.ResolveEnclosingBodyScope(select, facts, bodyFlows);
+
     private static SelectorFlowResult CollectCore(
-        IBlockOperation body, SelectorScope? parentScope, ConventionFacts facts, CollectSession session)
+        IBlockOperation body, SelectorScope? parentScope, ConventionFacts facts, SelectorFlowSession session)
     {
         var unstructured = UnstructuredFlowHelper.HasUnstructuredJump(body, facts.Cancellation);
         var collector = new SelectorFlowCollector(body, parentScope, facts, session);
@@ -236,238 +88,16 @@ internal sealed class SelectorFlowCollector
     }
 
     private static SelectorFlowResult CollectChild(
-        IBlockOperation body, SelectorScope? parentScope, ConventionFacts facts, CollectSession session)
+        IBlockOperation body, SelectorScope? parentScope, ConventionFacts facts, SelectorFlowSession session)
     {
         var incoming = session.CaptureIncoming(body, parentScope, facts.Cancellation);
         if (session.TryGetMemoized(body, incoming, out var cached))
             return cached;
         var result = session.TryConsumeCollection()
             ? CollectCore(body, parentScope, facts, session)
-            : CollectOuterWritesConservative(body, parentScope, facts.Cancellation);
+            : ConservativeFlowCollector.Collect(body, parentScope, facts.Cancellation);
         session.StoreMemoized(body, incoming, result);
         return result;
-    }
-
-    private static SelectorFlowResult CollectOuterWritesConservative(
-        IBlockOperation body, SelectorScope? parentScope, CancellationToken cancellation)
-    {
-        var bodyTree = body.Syntax.SyntaxTree;
-        var bodySpan = body.Syntax.Span;
-        var outerWrites = new Dictionary<ILocalSymbol, List<LocalBinding>>(SymbolEqualityComparer.Default);
-        var innerWrites = new Dictionary<ILocalSymbol, List<LocalBinding>>(SymbolEqualityComparer.Default);
-        var innerRefs = new List<ILocalReferenceOperation>();
-        var walk = new Stack<IOperation>();
-        walk.Push(body);
-        while (walk.TryPop(out var current))
-        {
-            cancellation.ThrowIfCancellationRequested();
-            if (current is ILocalReferenceOperation localRef &&
-                !localRef.IsDeclaration &&
-                !UnstructuredFlowHelper.IsOutArgumentTarget(localRef) &&
-                IsDeclaredWithin(localRef.Local, bodyTree, bodySpan))
-            {
-                innerRefs.Add(localRef);
-            }
-            if (current is IVariableDeclaratorOperation declarator)
-            {
-                var init = declarator.Initializer?.Value ??
-                    (declarator.Parent as IVariableDeclarationOperation)?.Initializer?.Value;
-                if (init is not null)
-                    AddConservativeBinding(declarator.Symbol, new(init), bodyTree, bodySpan, outerWrites, innerWrites);
-            }
-            else if (current is IDeconstructionAssignmentOperation deconstruction)
-            {
-                CollectConservativeDeconstruction(deconstruction.Target, deconstruction.Value, bodyTree, bodySpan, outerWrites, innerWrites);
-            }
-            else if (current is IAssignmentOperation assignment)
-            {
-                if (assignment.Target is ILocalReferenceOperation targetLocal)
-                    AddConservativeBinding(targetLocal.Local, new(assignment.Value), bodyTree, bodySpan, outerWrites, innerWrites);
-                else if (TryGetMutatedLocal(assignment.Target) is { } mutated)
-                    AddConservativeBinding(mutated.Local, new(assignment.Value, WriteTarget: assignment.Target), bodyTree, bodySpan, outerWrites, innerWrites);
-            }
-            else if (current is IInvocationOperation call)
-            {
-                foreach (var argument in call.Arguments)
-                {
-                    if (argument.Parameter?.RefKind is not (RefKind.Out or RefKind.Ref)) continue;
-                    var target = argument.Value is IDeclarationExpressionOperation decl ? decl.Expression : argument.Value;
-                    if (target is ILocalReferenceOperation outLocal)
-                        AddConservativeBinding(outLocal.Local, new(call), bodyTree, bodySpan, outerWrites, innerWrites);
-                    else if (TryGetMutatedLocal(target) is { } mutated)
-                        AddConservativeBinding(mutated.Local, new(call, WriteTarget: target), bodyTree, bodySpan, outerWrites, innerWrites);
-                }
-                if (call.Instance is not null && call.Arguments.Length > 0 &&
-                    CollectionMutationFacts.CanStoreArgument(call.TargetMethod) &&
-                    TryGetMutatedLocal(call.Instance) is { } receiverLocal)
-                {
-                    AddConservativeBinding(receiverLocal.Local,
-                        new(call, Kind: LocalBindingKind.ReceiverMutation, WriteTarget: call.Instance),
-                        bodyTree, bodySpan, outerWrites, innerWrites);
-                }
-            }
-            foreach (var child in current.ChildOperations)
-                walk.Push(child);
-        }
-
-        Dictionary<ILocalReferenceOperation, ImmutableArray<LocalBinding>>? referenceValues = null;
-        if (innerWrites.Count > 0 && innerRefs.Count > 0)
-        {
-            referenceValues = [];
-            for (var i = 0; i < innerRefs.Count; i++)
-            {
-                var reference = innerRefs[i];
-                if (innerWrites.TryGetValue(reference.Local, out var bindings))
-                    referenceValues[reference] = [.. bindings];
-            }
-        }
-        var scope = referenceValues is { Count: > 0 }
-            ? new SelectorScope(referenceValues, SelectorScope.EmptyCaptured, SelectorScope.EmptyLambdaCaptures, parentScope)
-            : null;
-        var outerExitValues = outerWrites.Count > 0 ? SelectorFlowEnvironment.ToImmutableMap(outerWrites) : null;
-        return new([], ReturnConditions: null, scope, outerExitValues);
-    }
-
-    private static void CollectConservativeDeconstruction(
-        IOperation target, IOperation value, SyntaxTree bodyTree, Microsoft.CodeAnalysis.Text.TextSpan bodySpan,
-        Dictionary<ILocalSymbol, List<LocalBinding>> outerWrites,
-        Dictionary<ILocalSymbol, List<LocalBinding>> innerWrites)
-    {
-        if (target is IDeclarationExpressionOperation declaration) target = declaration.Expression;
-        if (target is ITupleOperation tuple)
-        {
-            for (var i = 0; i < tuple.Elements.Length; i++)
-                CollectConservativeDeconstruction(tuple.Elements[i], value, bodyTree, bodySpan, outerWrites, innerWrites);
-            return;
-        }
-        if (target is ILocalReferenceOperation targetLocal)
-            AddConservativeBinding(targetLocal.Local, new(value), bodyTree, bodySpan, outerWrites, innerWrites);
-        else if (TryGetMutatedLocal(target) is { } mutated)
-            AddConservativeBinding(mutated.Local, new(value, WriteTarget: target), bodyTree, bodySpan, outerWrites, innerWrites);
-    }
-
-    private static void AddConservativeBinding(
-        ILocalSymbol local, LocalBinding binding, SyntaxTree bodyTree, Microsoft.CodeAnalysis.Text.TextSpan bodySpan,
-        Dictionary<ILocalSymbol, List<LocalBinding>> outerWrites,
-        Dictionary<ILocalSymbol, List<LocalBinding>> innerWrites)
-    {
-        var target = IsDeclaredWithin(local, bodyTree, bodySpan) ? innerWrites : outerWrites;
-        if (!target.TryGetValue(local, out var list))
-        {
-            list = [];
-            target[local] = list;
-        }
-        SelectorFlowEnvironment.AddUnique(list, binding);
-    }
-
-    internal static SelectorScope? SeedEnclosingSelectorScopes(
-        IOperation root, ConventionFacts facts,
-        Dictionary<(IAnonymousFunctionOperation, SelectorScope?), SelectorFlowResult>? cache,
-        Dictionary<IBlockOperation, SelectorFlowResult>? bodyFlows)
-    {
-        List<IAnonymousFunctionOperation>? lambdas = null;
-        IInvocationOperation? outermostSelect = null;
-        for (var current = root.Parent; current is not null; current = current.Parent)
-        {
-            facts.Cancellation.ThrowIfCancellationRequested();
-            if (current is IAnonymousFunctionOperation lambda &&
-                LinqSequenceFacts.FindEnclosingSelectCall(lambda, facts.Symbols) is { } select)
-            {
-                (lambdas ??= []).Add(lambda);
-                outermostSelect = select;
-            }
-        }
-        if (lambdas is null) return null;
-        var scope = ResolveEnclosingBodyScope(outermostSelect!, facts, bodyFlows);
-        for (var i = lambdas.Count - 1; i >= 0; i--)
-            scope = GetOrCollect(lambdas[i], scope, facts, cache).Scope;
-        return scope;
-    }
-
-    internal static SelectorScope? ResolveEnclosingBodyScope(
-        IInvocationOperation select, ConventionFacts facts,
-        Dictionary<IBlockOperation, SelectorFlowResult>? bodyFlows)
-    {
-        if (!NeedsEnclosingScope(select, facts.Cancellation))
-            return null;
-
-        List<(IBlockOperation Body, IAnonymousFunctionOperation? OwnerLambda)>? bodies = null;
-        IBlockOperation? currentFunctionBody = null;
-        for (var current = select.Parent; current is not null; current = current.Parent)
-        {
-            facts.Cancellation.ThrowIfCancellationRequested();
-            if (current is IBlockOperation block)
-            {
-                currentFunctionBody = block;
-                continue;
-            }
-            if (current is ILocalFunctionOperation && currentFunctionBody is not null)
-            {
-                (bodies ??= []).Add((currentFunctionBody, null));
-                currentFunctionBody = null;
-                continue;
-            }
-            if (current is IAnonymousFunctionOperation outerLambda && currentFunctionBody is not null)
-            {
-                (bodies ??= []).Add((currentFunctionBody, outerLambda));
-                currentFunctionBody = null;
-            }
-        }
-        if (currentFunctionBody is not null)
-            (bodies ??= []).Add((currentFunctionBody, null));
-        if (bodies is null) return null;
-
-        SelectorScope? scope = null;
-        for (var i = bodies.Count - 1; i >= 0; i--)
-        {
-            var (body, ownerLambda) = bodies[i];
-            var parentScope = ownerLambda is not null ? scope?.ForChild(ownerLambda) : scope;
-            if (parentScope is null && bodyFlows is not null && bodyFlows.TryGetValue(body, out var cached))
-            {
-                scope = cached.Scope;
-                continue;
-            }
-            var collected = Collect(body, parentScope, facts);
-            if (parentScope is null && bodyFlows is not null)
-                bodyFlows[body] = collected;
-            scope = collected.Scope;
-        }
-        return scope;
-    }
-
-    private static bool NeedsEnclosingScope(IInvocationOperation select, CancellationToken cancellation)
-    {
-        if (LinqSequenceFacts.SelectLambda(select) is not { Syntax: var lambda }) return true;
-        // A local in the source, including an inline out variable captured by the selector, belongs to the caller.
-        foreach (var operation in select.Descendants())
-        {
-            cancellation.ThrowIfCancellationRequested();
-            if (operation is ILocalReferenceOperation local &&
-                !IsDeclaredWithin(local.Local, lambda.SyntaxTree, lambda.Span))
-                return true;
-            if (operation is IConditionalAccessInstanceOperation placeholder &&
-                RoslynOperationHelpers.ConditionalReceiver(placeholder, cancellation) is { } receiver &&
-                !select.Syntax.Span.Contains(receiver.Syntax.Span))
-                return true;
-            if (operation is IParameterReferenceOperation { Parameter: var parameter } &&
-                parameter.ContainingSymbol is IMethodSymbol { MethodKind: MethodKind.AnonymousFunction } &&
-                !IsDeclaredWithin(parameter, lambda.SyntaxTree, lambda.Span))
-                return true;
-        }
-        return false;
-    }
-
-    internal static SelectorFlowResult GetOrCollect(
-        IAnonymousFunctionOperation lambda, SelectorScope? parentScope,
-        ConventionFacts facts, Dictionary<(IAnonymousFunctionOperation, SelectorScope?), SelectorFlowResult>? cache)
-    {
-        var effectiveParent = parentScope?.ForChild(lambda);
-        var key = (lambda, effectiveParent);
-        if (cache is not null && cache.TryGetValue(key, out var cached))
-            return cached;
-        var collected = Collect(lambda.Body, effectiveParent, facts);
-        if (cache is not null) cache[key] = collected;
-        return collected;
     }
 
     private static bool MergeOuterExitValues(
@@ -505,42 +135,48 @@ internal sealed class SelectorFlowCollector
     private List<SelectorReturn> BuildReturns()
     {
         var result = new List<SelectorReturn>(_returns.Count);
-        ILocalSymbol? singleReturnedLocal = _returns.Count > 0 ? _returns[0].ReturnedLocal : null;
-        if (singleReturnedLocal is not null)
-        {
-            for (var i = 1; i < _returns.Count; i++)
-            {
-                if (!SymbolEqualityComparer.Default.Equals(_returns[i].ReturnedLocal, singleReturnedLocal))
-                {
-                    singleReturnedLocal = null;
-                    break;
-                }
-            }
-        }
+        var hasSingleReturnedLocal = HasSingleReturnedLocal();
         for (var i = 0; i < _returns.Count; i++)
         {
             var entry = _returns[i];
-            ImmutableArray<IOperation>.Builder? builder = null;
-            if (!entry.Guards.IsDefaultOrEmpty)
-            {
-                for (var j = 0; j < entry.Guards.Length; j++)
-                {
-                    var (condition, localExistedUnreplaced) = entry.Guards[j];
-                    if (localExistedUnreplaced && singleReturnedLocal is not null)
-                        continue;
-                    (builder ??= ImmutableArray.CreateBuilder<IOperation>()).Add(condition);
-                    AddReturnCondition(condition);
-                }
-            }
-            if (_unstructuredReturnConditions is { Count: > 0 } && singleReturnedLocal is null)
-            {
-                builder ??= ImmutableArray.CreateBuilder<IOperation>(_unstructuredReturnConditions.Count);
-                for (var j = 0; j < _unstructuredReturnConditions.Count; j++)
-                    builder.Add(_unstructuredReturnConditions[j]);
-            }
-            result.Add(new(entry.Value, builder is null ? default : builder.ToImmutable()));
+            result.Add(new(entry.Value, BuildReturnGuards(entry, hasSingleReturnedLocal)));
         }
         return result;
+    }
+
+    private bool HasSingleReturnedLocal()
+    {
+        if (_returns.Count == 0 || _returns[0].ReturnedLocal is not { } single)
+            return false;
+        for (var i = 1; i < _returns.Count; i++)
+        {
+            if (!SymbolEqualityComparer.Default.Equals(_returns[i].ReturnedLocal, single))
+                return false;
+        }
+        return true;
+    }
+
+    private ImmutableArray<IOperation> BuildReturnGuards(RecordedReturn entry, bool hasSingleReturnedLocal)
+    {
+        ImmutableArray<IOperation>.Builder? builder = null;
+        if (!entry.Guards.IsDefaultOrEmpty)
+        {
+            for (var j = 0; j < entry.Guards.Length; j++)
+            {
+                var (condition, localExistedUnreplaced) = entry.Guards[j];
+                if (localExistedUnreplaced && hasSingleReturnedLocal)
+                    continue;
+                (builder ??= ImmutableArray.CreateBuilder<IOperation>()).Add(condition);
+                AddReturnCondition(condition);
+            }
+        }
+        if (_unstructuredReturnConditions is { Count: > 0 } && !hasSingleReturnedLocal)
+        {
+            builder ??= ImmutableArray.CreateBuilder<IOperation>(_unstructuredReturnConditions.Count);
+            for (var j = 0; j < _unstructuredReturnConditions.Count; j++)
+                builder.Add(_unstructuredReturnConditions[j]);
+        }
+        return builder is null ? [] : builder.ToImmutable();
     }
 
     private void RecordOuterExitValues(FlowState state)
@@ -758,27 +394,11 @@ internal sealed class SelectorFlowCollector
         {
             var returnedLocal = (RoslynOperationHelpers.UnwrapTransparent(value) as ILocalReferenceOperation)?.Local;
             var snapshotState = state;
-            ImmutableArray<(IOperation Condition, bool LocalExistedUnreplaced)> guards = default;
+            ImmutableArray<ReturnBranchGuard> guards = default;
             if (_activeBranchGuards is { Count: > 0 })
             {
-                var builder = ImmutableArray.CreateBuilder<(IOperation, bool)>(_activeBranchGuards.Count);
                 snapshotState = SelectorFlowEnvironment.Clone(state);
-                for (var i = _activeBranchGuards.Count - 1; i >= 0; i--)
-                {
-                    var guard = _activeBranchGuards[i];
-                    var diffs = SelectorFlowEnvironment.CollectBranchDiffs(guard.Before.Env, snapshotState.Env);
-                    var localExistedUnreplaced = returnedLocal is not null &&
-                        guard.Before.Env.ContainsKey(returnedLocal) &&
-                        !HasWholesaleLocalDiff(diffs, returnedLocal);
-                    if (diffs is not null)
-                    {
-                        AttachGuard(snapshotState, guard.Condition, diffs);
-                        if (returnedLocal is not null && diffs.Any(diff => SymbolEqualityComparer.Default.Equals(diff.Local, returnedLocal)))
-                            AddReturnCondition(guard.Condition);
-                    }
-                    builder.Add((guard.Condition, localExistedUnreplaced));
-                }
-                guards = builder.MoveToImmutable();
+                guards = CollectReturnBranchGuards(returnedLocal, snapshotState);
             }
             AnalyzeExpression(value, snapshotState, unconditional: true);
             _returns.Add(new(value, returnedLocal, guards));
@@ -787,8 +407,41 @@ internal sealed class SelectorFlowCollector
         return true;
     }
 
-    private static bool HasWholesaleLocalDiff(
-        List<(ILocalSymbol Local, IOperation? Target)>? diffs, ILocalSymbol local)
+    private ImmutableArray<ReturnBranchGuard> CollectReturnBranchGuards(
+        ILocalSymbol? returnedLocal, FlowState snapshotState)
+    {
+        var activeGuards = _activeBranchGuards!;
+        var builder = ImmutableArray.CreateBuilder<ReturnBranchGuard>(activeGuards.Count);
+        for (var i = activeGuards.Count - 1; i >= 0; i--)
+        {
+            var guard = activeGuards[i];
+            var diffs = SelectorFlowEnvironment.CollectBranchDiffs(guard.Before.Env, snapshotState.Env);
+            var localExistedUnreplaced = returnedLocal is not null &&
+                guard.Before.Env.ContainsKey(returnedLocal) &&
+                !HasWholesaleLocalDiff(diffs, returnedLocal);
+            if (diffs is not null)
+            {
+                AttachGuard(snapshotState, guard.Condition, diffs);
+                if (HasAnyLocalDiff(diffs, returnedLocal))
+                    AddReturnCondition(guard.Condition);
+            }
+            builder.Add(new(guard.Condition, localExistedUnreplaced));
+        }
+        return builder.MoveToImmutable();
+    }
+
+    private static bool HasAnyLocalDiff(List<BranchWriteDiff> diffs, ILocalSymbol? local)
+    {
+        if (local is null) return false;
+        for (var i = 0; i < diffs.Count; i++)
+        {
+            if (SymbolEqualityComparer.Default.Equals(diffs[i].Local, local))
+                return true;
+        }
+        return false;
+    }
+
+    private static bool HasWholesaleLocalDiff(List<BranchWriteDiff>? diffs, ILocalSymbol local)
     {
         if (diffs is null) return false;
         for (var i = 0; i < diffs.Count; i++)
@@ -867,7 +520,7 @@ internal sealed class SelectorFlowCollector
         return false;
     }
 
-    private void AttachGuard(FlowState state, IOperation guard, List<(ILocalSymbol Local, IOperation? Target)> writes)
+    private void AttachGuard(FlowState state, IOperation guard, List<BranchWriteDiff> writes)
     {
         for (var i = 0; i < writes.Count; i++)
         {
@@ -878,7 +531,7 @@ internal sealed class SelectorFlowCollector
 
     private void AttachSwitchGuards(
         FlowState state, ISwitchOperation owner, ISwitchCaseOperation section,
-        List<(ILocalSymbol Local, IOperation? Target)>? writes)
+        List<BranchWriteDiff>? writes)
     {
         if (writes is null) return;
         var conditions = new List<IOperation>();
@@ -888,7 +541,7 @@ internal sealed class SelectorFlowCollector
 
     private void AttachSwitchExpressionGuards(
         FlowState state, ISwitchExpressionOperation owner, ISwitchExpressionArmOperation arm,
-        List<(ILocalSymbol Local, IOperation? Target)>? writes)
+        List<BranchWriteDiff>? writes)
     {
         if (writes is null) return;
         var conditions = new List<IOperation>();
@@ -912,13 +565,7 @@ internal sealed class SelectorFlowCollector
             _cancellation.ThrowIfCancellationRequested();
             if (entry.Before is { } before)
             {
-                var diffs = SelectorFlowEnvironment.CollectBranchDiffs(before.Env, state.Env);
-                if (entry.SingleCondition is { } condition && diffs is not null)
-                    AttachGuard(state, condition, diffs);
-                else if (entry.SwitchOwner is { } owner && entry.SwitchSection is { } section)
-                    AttachSwitchGuards(state, owner, section, diffs);
-                else if (entry.SwitchExpressionOwner is { } exprOwner && entry.SwitchExpressionArm is { } arm)
-                    AttachSwitchExpressionGuards(state, exprOwner, arm, diffs);
+                ApplyUnstructuredGuardSentinel(entry, before, state);
                 continue;
             }
             var current = entry.Operation;
@@ -935,6 +582,17 @@ internal sealed class SelectorFlowCollector
             for (var i = _childScratch.Count - 1; i >= 0; i--) walk.Push(new(_childScratch[i]));
             _childScratch.Clear();
         }
+    }
+
+    private void ApplyUnstructuredGuardSentinel(UnstructuredWalkEntry entry, FlowState before, FlowState state)
+    {
+        var diffs = SelectorFlowEnvironment.CollectBranchDiffs(before.Env, state.Env);
+        if (entry.SingleCondition is { } condition && diffs is not null)
+            AttachGuard(state, condition, diffs);
+        else if (entry.SwitchOwner is { } owner && entry.SwitchSection is { } section)
+            AttachSwitchGuards(state, owner, section, diffs);
+        else if (entry.SwitchExpressionOwner is { } exprOwner && entry.SwitchExpressionArm is { } arm)
+            AttachSwitchExpressionGuards(state, exprOwner, arm, diffs);
     }
 
     private void PushGoverningConditionSentinel(
@@ -1046,39 +704,48 @@ internal sealed class SelectorFlowCollector
 
     private void RecordUnstructuredReturnCondition(IOperation current)
     {
-        if (current is ILoopOperation loop)
+        switch (current)
         {
-            if (UnstructuredFlowHelper.LoopCondition(loop, _symbols, _cancellation) is not { } condition ||
-                !UnstructuredFlowHelper.ContainsReturn(loop.Body, ref _containsReturnCache, _cancellation))
+            case ILoopOperation loop:
+                RecordLoopReturnCondition(loop);
                 return;
-            if (loop is IWhileLoopOperation { ConditionIsTop: false } doWhile &&
-                !UnstructuredFlowHelper.CanDoWhileReachCondition(doWhile, _cancellation))
+            case ICatchClauseOperation { Filter: { } filter } clause:
+                if (UnstructuredFlowHelper.ContainsReturn(clause.Handler, ref _containsReturnCache, _cancellation))
+                    AddReturnCondition(filter, unstructured: true);
                 return;
-            AddReturnCondition(condition, unstructured: true);
+            case IConditionalOperation conditional:
+                if (ConditionalContainsReturn(conditional))
+                    AddReturnCondition(conditional.Condition, unstructured: true);
+                return;
+            case ISwitchOperation switchStatement:
+                if (UnstructuredFlowHelper.SwitchContainsReturn(switchStatement, ref _containsReturnCache, _cancellation))
+                    RecordSwitchReturnConditions(switchStatement);
+                return;
+        }
+    }
+
+    private void RecordLoopReturnCondition(ILoopOperation loop)
+    {
+        if (UnstructuredFlowHelper.LoopCondition(loop, _symbols, _cancellation) is not { } condition ||
+            !UnstructuredFlowHelper.ContainsReturn(loop.Body, ref _containsReturnCache, _cancellation))
             return;
-        }
-        if (current is ICatchClauseOperation { Filter: { } filter } clause)
-        {
-            if (UnstructuredFlowHelper.ContainsReturn(clause.Handler, ref _containsReturnCache, _cancellation))
-                AddReturnCondition(filter, unstructured: true);
+        if (loop is IWhileLoopOperation { ConditionIsTop: false } doWhile &&
+            !UnstructuredFlowHelper.CanDoWhileReachCondition(doWhile, _cancellation))
             return;
-        }
-        if (current is IConditionalOperation conditional)
-        {
-            var hasReturnInBranch = UnstructuredFlowHelper.ContainsReturn(conditional.WhenTrue, ref _containsReturnCache, _cancellation) ||
-                (conditional.WhenFalse is { } whenFalse &&
-                 UnstructuredFlowHelper.ContainsReturn(whenFalse, ref _containsReturnCache, _cancellation));
-            if (hasReturnInBranch) AddReturnCondition(conditional.Condition, unstructured: true);
-            return;
-        }
-        if (current is ISwitchOperation switchStatement &&
-            UnstructuredFlowHelper.SwitchContainsReturn(switchStatement, ref _containsReturnCache, _cancellation))
-        {
-            var switchConditions = new List<IOperation>();
-            UnstructuredFlowHelper.CollectSwitchConditions(switchStatement, selected: null, switchConditions);
-            for (var i = 0; i < switchConditions.Count; i++)
-                AddReturnCondition(switchConditions[i], unstructured: true);
-        }
+        AddReturnCondition(condition, unstructured: true);
+    }
+
+    private bool ConditionalContainsReturn(IConditionalOperation conditional) =>
+        UnstructuredFlowHelper.ContainsReturn(conditional.WhenTrue, ref _containsReturnCache, _cancellation) ||
+        (conditional.WhenFalse is { } whenFalse &&
+         UnstructuredFlowHelper.ContainsReturn(whenFalse, ref _containsReturnCache, _cancellation));
+
+    private void RecordSwitchReturnConditions(ISwitchOperation switchStatement)
+    {
+        var switchConditions = new List<IOperation>();
+        UnstructuredFlowHelper.CollectSwitchConditions(switchStatement, selected: null, switchConditions);
+        for (var i = 0; i < switchConditions.Count; i++)
+            AddReturnCondition(switchConditions[i], unstructured: true);
     }
 
     private void AnalyzeExpression(IOperation root, FlowState state, bool unconditional = false, int depth = 0)
@@ -1203,32 +870,34 @@ internal sealed class SelectorFlowCollector
             if (!ProjectionOriginAnalyzer.IsBindingOnlyPattern(arm.Pattern))
                 conditions.Add(arm.Pattern);
             if (arm.Guard is { } guard)
-            {
-                AnalyzeExpression(guard, armState, unconditional: false, depth);
-                // Side effects from a failed guard remain visible to subsequent arms.
-                var guardWrites = SelectorFlowEnvironment.CollectBranchDiffs(fallthroughState.Env, armState.Env);
-                SelectorFlowEnvironment.MergeBranchEnv(fallthroughState.Env, armState.Env);
-                fallthroughState.ActiveLambdas.UnionWith(armState.ActiveLambdas);
-                if (guardWrites is not null)
-                {
-                    for (var j = 0; j < conditions.Count; j++)
-                    {
-                        AttachGuard(fallthroughState, conditions[j], guardWrites);
-                        AttachGuard(armState, conditions[j], guardWrites);
-                    }
-                }
-                conditions.Add(guard);
-            }
+                AnalyzeSwitchArmGuard(guard, fallthroughState, armState, conditions, depth);
             AnalyzeExpression(arm.Value, armState, unconditional, depth);
             var writes = SelectorFlowEnvironment.CollectBranchDiffs(beforeSwitch.Env, armState.Env);
             SelectorFlowEnvironment.MergeBranchEnv(state.Env, armState.Env);
             state.ActiveLambdas.UnionWith(armState.ActiveLambdas);
-            if (writes is not null)
-            {
-                for (var j = 0; j < conditions.Count; j++)
-                    AttachGuard(state, conditions[j], writes);
-            }
+            AttachSwitchConditions(state, conditions, writes);
         }
+    }
+
+    private void AnalyzeSwitchArmGuard(
+        IOperation guard, FlowState fallthroughState, FlowState armState, List<IOperation> conditions, int depth)
+    {
+        AnalyzeExpression(guard, armState, unconditional: false, depth);
+        // Side effects from a failed guard remain visible to subsequent arms.
+        var guardWrites = SelectorFlowEnvironment.CollectBranchDiffs(fallthroughState.Env, armState.Env);
+        SelectorFlowEnvironment.MergeBranchEnv(fallthroughState.Env, armState.Env);
+        fallthroughState.ActiveLambdas.UnionWith(armState.ActiveLambdas);
+        AttachSwitchConditions(fallthroughState, conditions, guardWrites);
+        AttachSwitchConditions(armState, conditions, guardWrites);
+        conditions.Add(guard);
+    }
+
+    private void AttachSwitchConditions(
+        FlowState state, List<IOperation> conditions, List<BranchWriteDiff>? writes)
+    {
+        if (writes is null) return;
+        for (var j = 0; j < conditions.Count; j++)
+            AttachGuard(state, conditions[j], writes);
     }
 
     private void AnalyzeConditionalExpression(
@@ -1299,6 +968,7 @@ internal sealed class SelectorFlowCollector
         }
     }
 
+    [SuppressMessage("SonarQube", "S3267", Justification = "Scanning Arguments directly avoids boxing ImmutableArray and allocating a predicate delegate in the hot side-effect check.")]
     private static bool HasMutatingCallEffect(IInvocationOperation call)
     {
         if (call.Instance is not null && call.Arguments.Length > 0 &&
@@ -1358,27 +1028,27 @@ internal sealed class SelectorFlowCollector
 
     private void AnalyzeIndexerKeyExpressions(IOperation target, FlowState state, int depth = 0)
     {
-        for (IOperation? current = target; current is not null;)
+        IOperation? current = target;
+        while (current is not null)
+            current = StepIndexerKeyExpression(current, state, depth);
+    }
+
+    private IOperation? StepIndexerKeyExpression(IOperation current, FlowState state, int depth)
+    {
+        switch (current)
         {
-            if (current is IPropertyReferenceOperation property)
-            {
-                if (property.Property.IsIndexer)
-                    foreach (var arg in property.Arguments) AnalyzeExpression(arg.Value, state, depth: depth);
-                current = property.Instance;
-            }
-            else if (current is IFieldReferenceOperation field)
-            {
-                current = field.Instance;
-            }
-            else if (current is IArrayElementReferenceOperation element)
-            {
+            case IPropertyReferenceOperation { Property.IsIndexer: true } indexer:
+                foreach (var arg in indexer.Arguments) AnalyzeExpression(arg.Value, state, depth: depth);
+                return indexer.Instance;
+            case IPropertyReferenceOperation property:
+                return property.Instance;
+            case IFieldReferenceOperation field:
+                return field.Instance;
+            case IArrayElementReferenceOperation element:
                 foreach (var index in element.Indices) AnalyzeExpression(index, state, depth: depth);
-                current = element.ArrayReference;
-            }
-            else
-            {
-                return;
-            }
+                return element.ArrayReference;
+            default:
+                return null;
         }
     }
 
@@ -1466,7 +1136,7 @@ internal sealed class SelectorFlowCollector
         RecordLocalValue(local, ProjectionOriginAnalyzer.PatternContainerMatchedValue(current), state, replace: false);
     }
 
-    private static ILocalReferenceOperation? TryGetMutatedLocal(IOperation target)
+    internal static ILocalReferenceOperation? TryGetMutatedLocal(IOperation target)
     {
         var current = target;
         for (var depth = 0; current is not null && depth < 16; depth++)
@@ -1549,21 +1219,26 @@ internal sealed class SelectorFlowCollector
         for (var pass = 0; pass < maxPasses; pass++)
         {
             if (pass > 0 && !_session.HasBudget) break;
-            var tempScope = BuildCurrentParentScope(state);
-            var changed = false;
-            for (var i = 0; i < finished.Count; i++)
-            {
-                var callback = finished[i];
-                var childResult = CollectChild(callback.Lambda.Body, tempScope, _facts, _session);
-                if (childResult.OuterExitValues is not { Count: > 0 }) continue;
-                MergeChildReferenceValues(childResult.Scope);
-                if (JoinOuterExitValuesIntoState(childResult.OuterExitValues, state, callback))
-                    changed = true;
-            }
-            if (!changed) break;
+            if (!RunMaterializedLambdaPass(finished, state)) break;
             for (var i = 0; i < finished.Count; i++)
                 CaptureCurrentValues(finished[i].Lambda, state);
         }
+    }
+
+    private bool RunMaterializedLambdaPass(List<MaterializedLambda> finished, FlowState state)
+    {
+        var tempScope = BuildCurrentParentScope(state);
+        var changed = false;
+        for (var i = 0; i < finished.Count; i++)
+        {
+            var callback = finished[i];
+            var childResult = CollectChild(callback.Lambda.Body, tempScope, _facts, _session);
+            if (childResult.OuterExitValues is not { Count: > 0 }) continue;
+            MergeChildReferenceValues(childResult.Scope);
+            if (JoinOuterExitValuesIntoState(childResult.OuterExitValues, state, callback))
+                changed = true;
+        }
+        return changed;
     }
 
     private void ApplyUnstructuredMaterializedLambdaOuterWrites(IAnonymousFunctionOperation childLambda, FlowState state)
@@ -1630,8 +1305,9 @@ internal sealed class SelectorFlowCollector
                 // Sequence may be empty, so join with incoming bindings instead of replacing.
                 RecordLocalValue(local, joined, state, replace: false);
                 // A later enumeration can repeat this write under a different guard.
-                if (callback.Conditions.IsEmpty ||
-                    (!newBinding && !callback.Lambda.Syntax.Span.Contains((joined.WriteTarget ?? joined.Value).Syntax.Span)))
+                var isUnchangedExternalBinding = !newBinding &&
+                    !callback.Lambda.Syntax.Span.Contains((joined.WriteTarget ?? joined.Value).Syntax.Span);
+                if (callback.Conditions.IsEmpty || isUnchangedExternalBinding)
                     continue;
                 foreach (var condition in callback.Conditions)
                 {
@@ -1715,15 +1391,5 @@ internal sealed class SelectorFlowCollector
     }
 
     private bool IsSelectorLocal(ILocalSymbol local) =>
-        IsDeclaredWithin(local, _body.Syntax.SyntaxTree, _body.Syntax.Span);
-
-    private static bool IsDeclaredWithin(ISymbol symbol, SyntaxTree bodyTree, Microsoft.CodeAnalysis.Text.TextSpan bodySpan)
-    {
-        foreach (var declaration in symbol.DeclaringSyntaxReferences)
-        {
-            if (declaration.SyntaxTree == bodyTree && bodySpan.Contains(declaration.Span))
-                return true;
-        }
-        return false;
-    }
+        SelectorFlowSession.IsDeclaredWithin(local, _body.Syntax.SyntaxTree, _body.Syntax.Span);
 }

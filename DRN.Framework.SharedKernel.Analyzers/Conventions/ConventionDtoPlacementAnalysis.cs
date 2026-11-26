@@ -114,6 +114,7 @@ internal static class ConventionDtoPlacementAnalysis
         return dto.ContainingNamespace.ToDisplayString() == facts.Role(dto).Namespace + "." + dtoOwner.NamespacePrefix + "." + folder;
     }
 
+    [SuppressMessage("SonarQube", "S3267", Justification = "Scanning TypeArguments directly avoids boxing ImmutableArray and allocating a predicate delegate during recursive DTO checks.")]
     private static bool IsPublicDtoType(ITypeSymbol type)
     {
         if (type is IArrayTypeSymbol array) return IsPublicDtoType(array.ElementType);

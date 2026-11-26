@@ -22,6 +22,36 @@ internal readonly record struct ProjectionSource(
     INamedTypeSymbol SourceReceiver,
     ITypeSymbol? View = null);
 
+internal readonly record struct WriteOperation(
+    IOperation? Target,
+    IOperation? Value);
+
+internal readonly record struct MappedPropertyRead(
+    IPropertyReferenceOperation Source,
+    ProjectionTarget Target,
+    SelectorScope? Locals);
+
+internal readonly record struct ImplicitPropertyMapping(
+    IPropertySymbol Source,
+    IPropertySymbol Target);
+
+internal struct ProjectionWalkState(
+    ConventionFacts facts,
+    HashSet<SyntaxNode>? walkedCreations,
+    bool matchConstructorArguments,
+    Dictionary<SelectorScopeKey, SelectorFlowResult>? selectorScopes,
+    Dictionary<IBlockOperation, SelectorFlowResult>? bodyFlows)
+{
+    internal readonly ConventionFacts Facts = facts;
+    internal readonly HashSet<SyntaxNode>? WalkedCreations = walkedCreations;
+    internal readonly bool MatchConstructorArguments = matchConstructorArguments;
+    internal readonly Stack<ProjectionNode> Pending = new();
+    internal readonly List<IOperation> ChildScratch = [];
+    internal readonly Dictionary<SelectorScopeKey, SelectorFlowResult>? SelectorScopes = selectorScopes;
+    internal readonly Dictionary<IBlockOperation, SelectorFlowResult>? BodyFlows = bodyFlows;
+    internal HashSet<LocalExpansionKey>? VisitedExpansions;
+}
+
 internal sealed class ProjectionCheckContext(
     ConventionFacts facts,
     INamedTypeSymbol ownerType,
@@ -254,7 +284,7 @@ internal readonly record struct LocalExpansionState(
     ConventionFacts Facts,
     Stack<ProjectionNode> Pending,
     HashSet<LocalExpansionKey> Visited,
-    Dictionary<(IAnonymousFunctionOperation, SelectorScope?), SelectorFlowResult>? SelectorScopes);
+    Dictionary<SelectorScopeKey, SelectorFlowResult>? SelectorScopes);
 
 internal static class TuplePathHelpers
 {
@@ -281,7 +311,7 @@ internal static class TuplePathHelpers
         var outerLength = outerPath.IsDefault ? 0 : outerPath.Length - outerIndex;
         if (outerLength <= 0) return innerPath;
         var innerLength = innerPath.IsDefault ? 0 : innerPath.Length;
-        if (innerLength + outerLength > ProjectionLimits.MaxTupleDepth) return default;
+        if (innerLength + outerLength > ProjectionLimits.MaxTupleDepth) return [];
         if (innerLength == 0)
             return outerIndex == 0 ? outerPath : [.. outerPath.AsSpan(outerIndex, outerLength)];
         var builder = ImmutableArray.CreateBuilder<int>(innerLength + outerLength);

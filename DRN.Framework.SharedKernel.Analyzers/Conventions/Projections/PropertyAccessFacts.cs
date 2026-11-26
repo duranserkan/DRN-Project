@@ -2,119 +2,10 @@ using Microsoft.CodeAnalysis.Operations;
 
 namespace DRN.Framework.SharedKernel.Analyzers.Conventions;
 
-internal readonly record struct GetterRead(
-    IPropertySymbol Property,
-    INamedTypeSymbol? Receiver,
-    ImmutableArray<IPropertySymbol> Forwarded,
-    bool MayReadSibling)
-{
-    internal bool Matches(IPropertySymbol written, CancellationToken cancellation, INamedTypeSymbol? staticReceiver = null)
-    {
-        var dispatched = PropertyAccessFacts.DispatchedProperty(written, Receiver ?? staticReceiver, cancellation);
-        if (MatchesTarget(written, dispatched, Property)) return true;
-        if (!Forwarded.IsDefault)
-        {
-            for (var i = 0; i < Forwarded.Length; i++)
-            {
-                if (MatchesTarget(written, dispatched, Forwarded[i]))
-                    return true;
-            }
-        }
-        return false;
-    }
-
-    private bool MatchesTarget(IPropertySymbol written, IPropertySymbol dispatched, IPropertySymbol target)
-    {
-        if (PropertyAccessFacts.SameOrMatchingProperty(dispatched, target))
-            return true;
-        // An unsealed class property can satisfy an interface cast on a derived runtime type.
-        return Receiver is null &&
-               written.ContainingType.TypeKind == TypeKind.Interface &&
-               !target.ContainingType.IsSealed &&
-               target.DeclaredAccessibility == Accessibility.Public &&
-               written.IsIndexer == target.IsIndexer &&
-               string.Equals(written.Name, target.Name, StringComparison.Ordinal) &&
-               SymbolEqualityComparer.Default.Equals(written.Type, target.Type);
-    }
-}
-
-internal sealed class ProjectionFactCache(ConventionFacts facts)
-{
-    private readonly Dictionary<(IPropertySymbol Declared, INamedTypeSymbol? Receiver), GetterRead> _getterReads =
-        new(PropertyReceiverComparer.Instance);
-    private readonly Dictionary<IPropertySymbol, bool> _autoSetters = new(SymbolEqualityComparer.Default);
-    private readonly Dictionary<(INamedTypeSymbol Type, string Name), IPropertySymbol?> _destinationProperties =
-        new(TypeNameComparer.Instance);
-
-    internal GetterRead ResolveGetterRead(IPropertySymbol declared, INamedTypeSymbol? receiver)
-    {
-        facts.Cancellation.ThrowIfCancellationRequested();
-        var key = (declared, receiver);
-        if (_getterReads.TryGetValue(key, out var cached)) return cached;
-        var resolved = PropertyAccessFacts.ComputeGetterRead(declared, receiver, facts);
-        facts.Cancellation.ThrowIfCancellationRequested();
-        _getterReads.Add(key, resolved);
-        return resolved;
-    }
-
-    internal bool HasAutoPropertySetter(IPropertySymbol property)
-    {
-        facts.Cancellation.ThrowIfCancellationRequested();
-        if (_autoSetters.TryGetValue(property, out var cached)) return cached;
-        var result = PropertyAccessFacts.ComputeHasAutoPropertySetter(property, facts);
-        facts.Cancellation.ThrowIfCancellationRequested();
-        _autoSetters.Add(property, result);
-        return result;
-    }
-
-    internal bool CanGuaranteeDirectSetter(IPropertySymbol property, INamedTypeSymbol? receiver) =>
-        !RoslynSymbolHelpers.IsDynamicDispatchProperty(property, receiver) &&
-        HasAutoPropertySetter(property);
-
-    internal IPropertySymbol? FindDestinationProperty(INamedTypeSymbol destinationType, IParameterSymbol? parameter)
-    {
-        if (parameter is null) return null;
-        facts.Cancellation.ThrowIfCancellationRequested();
-        var key = (destinationType, parameter.Name);
-        if (_destinationProperties.TryGetValue(key, out var cached)) return cached;
-        var found = PropertyAccessFacts.ComputeDestinationProperty(destinationType, parameter.Name);
-        facts.Cancellation.ThrowIfCancellationRequested();
-        _destinationProperties.Add(key, found);
-        return found;
-    }
-
-    private sealed class PropertyReceiverComparer : IEqualityComparer<(IPropertySymbol Declared, INamedTypeSymbol? Receiver)>
-    {
-        internal static readonly PropertyReceiverComparer Instance = new();
-
-        public bool Equals((IPropertySymbol Declared, INamedTypeSymbol? Receiver) x,
-            (IPropertySymbol Declared, INamedTypeSymbol? Receiver) y) =>
-            SymbolEqualityComparer.Default.Equals(x.Declared, y.Declared) &&
-            SymbolEqualityComparer.Default.Equals(x.Receiver, y.Receiver);
-
-        public int GetHashCode((IPropertySymbol Declared, INamedTypeSymbol? Receiver) obj) =>
-            HashCode.Combine(
-                SymbolEqualityComparer.Default.GetHashCode(obj.Declared),
-                obj.Receiver is null ? 0 : SymbolEqualityComparer.Default.GetHashCode(obj.Receiver));
-    }
-
-    private sealed class TypeNameComparer : IEqualityComparer<(INamedTypeSymbol Type, string Name)>
-    {
-        internal static readonly TypeNameComparer Instance = new();
-
-        public bool Equals((INamedTypeSymbol Type, string Name) x, (INamedTypeSymbol Type, string Name) y) =>
-            StringComparer.Ordinal.Equals(x.Name, y.Name) &&
-            SymbolEqualityComparer.Default.Equals(x.Type, y.Type);
-
-        public int GetHashCode((INamedTypeSymbol Type, string Name) obj) =>
-            HashCode.Combine(
-                SymbolEqualityComparer.Default.GetHashCode(obj.Type),
-                StringComparer.Ordinal.GetHashCode(obj.Name));
-    }
-}
-
 internal static class PropertyAccessFacts
 {
+    private const string EqualsMethodName = nameof(object.Equals);
+
     internal static IPropertySymbol DispatchedProperty(
         IPropertySymbol property, INamedTypeSymbol? receiver, CancellationToken cancellation) =>
         ClassificationContract.ResolveReceiverProperty(property, receiver, cancellation).Selected;
@@ -175,7 +66,7 @@ internal static class PropertyAccessFacts
         for (var current = type; current is { IsRecord: true }; current = current.BaseType)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
-            foreach (var member in current.GetMembers("Equals"))
+            foreach (var member in current.GetMembers(EqualsMethodName))
             {
                 if (member is IMethodSymbol { IsStatic: false, Parameters.Length: 1 } equals &&
                     SymbolEqualityComparer.Default.Equals(equals.Parameters[0].Type, current) &&
@@ -243,20 +134,28 @@ internal static class PropertyAccessFacts
         IPropertySymbol? caseInsensitive = null;
         for (var current = destinationType; current is not null; current = current.BaseType)
         {
-            foreach (var member in current.GetMembers())
-            {
-                if (member is not IPropertySymbol property) continue;
-                var isAccessibleInstanceProperty = !property.IsStatic && !property.IsIndexer &&
-                    property.DeclaredAccessibility == Accessibility.Public;
-                if (!isAccessibleInstanceProperty) continue;
-                if (string.Equals(property.Name, parameterName, StringComparison.Ordinal))
-                    return property;
-                if (caseInsensitive is null &&
-                    string.Equals(property.Name, parameterName, StringComparison.OrdinalIgnoreCase))
-                    caseInsensitive = property;
-            }
+            if (FindTypeDestinationProperty(current, parameterName, ref caseInsensitive) is { } exact)
+                return exact;
         }
         return caseInsensitive;
+    }
+
+    private static IPropertySymbol? FindTypeDestinationProperty(
+        INamedTypeSymbol type, string parameterName, ref IPropertySymbol? caseInsensitive)
+    {
+        foreach (var member in type.GetMembers())
+        {
+            if (member is not IPropertySymbol property) continue;
+            var isAccessibleInstanceProperty = !property.IsStatic && !property.IsIndexer &&
+                property.DeclaredAccessibility == Accessibility.Public;
+            if (!isAccessibleInstanceProperty) continue;
+            if (string.Equals(property.Name, parameterName, StringComparison.Ordinal))
+                return property;
+            if (caseInsensitive is null &&
+                string.Equals(property.Name, parameterName, StringComparison.OrdinalIgnoreCase))
+                caseInsensitive = property;
+        }
+        return null;
     }
 
     internal static INamedTypeSymbol Receiver(IPropertyReferenceOperation property, ConventionFacts facts)
@@ -330,14 +229,20 @@ internal static class PropertyAccessFacts
             return read.Property;
 
         // The getter body binds to the generic declaration, while writes use the constructed property.
-        foreach (var owner in ConventionSymbols.Bases(getter.ContainingType, facts.Cancellation))
+        return ResolveConstructedProperty(getter, read.Property, facts.Cancellation);
+    }
+
+    private static IPropertySymbol? ResolveConstructedProperty(
+        IPropertySymbol getter, IPropertySymbol readProperty, CancellationToken cancellation)
+    {
+        foreach (var owner in ConventionSymbols.Bases(getter.ContainingType, cancellation))
         {
-            if (!SymbolEqualityComparer.Default.Equals(owner.OriginalDefinition, read.Property.ContainingType.OriginalDefinition))
+            if (!SymbolEqualityComparer.Default.Equals(owner.OriginalDefinition, readProperty.ContainingType.OriginalDefinition))
                 continue;
-            foreach (var member in owner.GetMembers(read.Property.Name))
+            foreach (var member in owner.GetMembers(readProperty.Name))
             {
                 if (member is IPropertySymbol candidate &&
-                    SymbolEqualityComparer.Default.Equals(candidate.OriginalDefinition, read.Property.OriginalDefinition))
+                    SymbolEqualityComparer.Default.Equals(candidate.OriginalDefinition, readProperty.OriginalDefinition))
                     return candidate;
             }
         }
