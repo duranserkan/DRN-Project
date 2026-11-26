@@ -1,3 +1,5 @@
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+
 namespace DRN.Test.Analyzer.Tests;
 
 internal static class ClassificationTestFixture
@@ -20,6 +22,10 @@ internal static class ClassificationTestFixture
     internal static CSharpCompilation Compilation(string source, string path = "Models.cs") => CSharpCompilation.Create(
         "DiagnosticModelConsumer", [CSharpSyntaxTree.ParseText(source, path: path)], References,
         new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+    internal static string? EnclosingMethod(Diagnostic diagnostic) =>
+        diagnostic.Location.SourceTree?.GetRoot().FindNode(diagnostic.Location.SourceSpan)
+            .FirstAncestorOrSelf<MethodDeclarationSyntax>()?.Identifier.ValueText;
 
     internal static Task<ImmutableArray<Diagnostic>> Analyze(Compilation compilation, params AdditionalText[] files) =>
         AnalyzerTestCompilation.Analyze(compilation, new DiagnosticClassificationAnalyzer(), new AnalyzerOptions([.. files]));

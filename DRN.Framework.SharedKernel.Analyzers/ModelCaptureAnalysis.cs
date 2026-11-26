@@ -51,8 +51,7 @@ internal sealed class ModelCaptureAnalysis(OperationAnalysisContext context, Cla
     private void Visit(ITypeSymbol current, string currentPath, string namePath, int depth)
     {
         if (!TryVisit()) return;
-        if (current is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable)
-            current = nullable.TypeArguments[0];
+        current = RoslynSymbolHelpers.UnwrapNullable(current);
         if (ShouldSkipType(current, depth) || !_ancestors.Add(current)) return;
         try
         {

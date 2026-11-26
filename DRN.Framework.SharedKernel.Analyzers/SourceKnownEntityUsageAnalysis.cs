@@ -219,7 +219,8 @@ internal sealed class SourceKnownEntityUsageAnalysis
 
     private void CheckConstant(OperationAnalysisContext context, IOperation value, ITypeSymbol? type, bool isAppId)
     {
-        var isFormat = _format != null && SymbolEqualityComparer.Default.Equals(UnderlyingType(type), _format);
+        var isFormat = _format != null &&
+                       SymbolEqualityComparer.Default.Equals(RoslynSymbolHelpers.UnwrapNullable(type), _format);
         if ((!isAppId && !isFormat) || ReadConstant(value) is not { } constant) return;
         if (isAppId && constant is byte appId && appId > EntityAnalyzerHelper.MaxAppId)
             context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.InvalidAppIdArgument, value.Syntax.GetLocation(), appId));
@@ -227,19 +228,15 @@ internal sealed class SourceKnownEntityUsageAnalysis
             context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.InvalidEntityIdFormatArgument, value.Syntax.GetLocation(), constant));
     }
 
-    private static ITypeSymbol? UnderlyingType(ITypeSymbol? type) =>
-        type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable
-            ? nullable.TypeArguments[0] : type;
-
     private static object? ReadConstant(IOperation value, int depth = 0)
     {
         if (value.ConstantValue.HasValue) return value.ConstantValue.Value;
         if (depth == 32 || value is not IConversionOperation { OperatorMethod: null, IsTryCast: false } conversion ||
             conversion.Operand.Type?.IsValueType != true) return null;
 
-        var target = UnderlyingType(conversion.Type);
+        var target = RoslynSymbolHelpers.UnwrapNullable(conversion.Type);
         var operand = ReadConstant(conversion.Operand, depth + 1);
-        if (operand is null || SymbolEqualityComparer.Default.Equals(target, UnderlyingType(conversion.Operand.Type)))
+        if (operand is null || SymbolEqualityComparer.Default.Equals(target, RoslynSymbolHelpers.UnwrapNullable(conversion.Operand.Type)))
             return operand;
 
         // Roslyn leaves lifted casts unfolded. Apply each intermediate storage conversion in order.

@@ -7,6 +7,14 @@ internal static class ConventionNames
 {
     internal const string ProjectLayout = "Project";
     internal const string FoldersLayout = "Folders";
+    internal const string MetadataPrefix = "DRN.Conventions.";
+    internal const string ProjectNameMetadataKey = MetadataPrefix + "ProjectName";
+    internal const string RootNamespaceMetadataKey = MetadataPrefix + "RootNamespace";
+    internal const string DomainLayoutMetadataKey = MetadataPrefix + "DomainLayout";
+    internal const string DomainMetadataKey = MetadataPrefix + "Domain";
+    internal const string RoleMetadataPrefix = MetadataPrefix + "Role.";
+    internal const string ContractRoleMetadataKey = RoleMetadataPrefix + "Contract";
+    internal const string OwnershipMetadataPrefix = MetadataPrefix + "Ownership.";
     private const string DomainLayoutProperty = "DrnDomainLayout";
     private const string DomainProperty = "DrnDomain";
 
@@ -15,7 +23,10 @@ internal static class ConventionNames
     internal readonly record struct ReferenceAssemblyMetadata(
         string ProjectName,
         string RootNamespace,
+        bool HasExplicitProjectName,
         bool HasExplicitRootNamespace,
+        bool HasExplicitDomainLayout,
+        bool HasExplicitDomain,
         string DomainLayout,
         string Domain,
         string ErrorProperty,
@@ -69,15 +80,15 @@ internal static class ConventionNames
         {
             var property = key switch
             {
-                "DRN.Conventions.ProjectName" => "MSBuildProjectName",
-                "DRN.Conventions.RootNamespace" => "RootNamespace",
-                "DRN.Conventions.DomainLayout" => DomainLayoutProperty,
-                "DRN.Conventions.Domain" => DomainProperty,
+                ProjectNameMetadataKey => "MSBuildProjectName",
+                RootNamespaceMetadataKey => "RootNamespace",
+                DomainLayoutMetadataKey => DomainLayoutProperty,
+                DomainMetadataKey => DomainProperty,
                 _ => null
             };
             if (property is null) continue;
             if (string.IsNullOrWhiteSpace(value))
-                return new("", "", false, "", "", property, "incomplete", "reference-visible project identity");
+                return new("", "", false, false, false, false, "", "", property, "incomplete", "reference-visible project identity");
 
             var conflict = property switch
             {
@@ -88,7 +99,7 @@ internal static class ConventionNames
                 _ => false
             };
             if (conflict)
-                return new("", "", false, "", "", property, "contradictory", "reference-visible ownership fact");
+                return new("", "", false, false, false, false, "", "", property, "contradictory", "reference-visible ownership fact");
 
             switch (property)
             {
@@ -111,7 +122,7 @@ internal static class ConventionNames
             }
         }
         if (!hasRootNamespace) rootNamespace = projectName;
-        return new(projectName, rootNamespace, hasRootNamespace, domainLayout, domain, "", "", "");
+        return new(projectName, rootNamespace, hasProjectName, hasRootNamespace, hasDomainLayout, hasDomain, domainLayout, domain, "", "", "");
     }
 
     internal static string DtoFolder(string stem)

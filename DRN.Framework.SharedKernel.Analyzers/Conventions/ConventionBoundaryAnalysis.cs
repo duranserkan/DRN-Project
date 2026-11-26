@@ -12,7 +12,8 @@ internal readonly record struct PublicShapePolicy(
     DiagnosticDescriptor Descriptor,
     Func<ConventionFacts, INamedTypeSymbol, bool> IsExposed,
     Func<ConventionFacts, INamedTypeSymbol, bool> ShouldExpand,
-    bool IncludeExposedLocations);
+    bool IncludeExposedLocations,
+    bool ExpandExposedMembers = false);
 
 internal static class ConventionBoundaryAnalysis
 {
@@ -22,7 +23,7 @@ internal static class ConventionBoundaryAnalysis
         PublicShapeRule.Persistence,
         ConventionDiagnosticDescriptors.Contract,
         IsPersistenceTarget,
-        ShouldExpandPersistenceModel,
+        ShouldExpandPublicModel,
         IncludeExposedLocations: true);
 
     internal static void Analyze(ConventionFacts facts)
@@ -92,29 +93,48 @@ internal static class ConventionBoundaryAnalysis
         PublicShapePolicy policy)
     {
         var reportedOnType = transport ? null : ReportExposedTypeHeader(facts, type, policy);
-        var memberExposures = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
+        var memberExposures = facts.PublicShapeExposures;
 
         foreach (var member in PublicMembers(facts, type, transport))
         {
             facts.Cancellation.ThrowIfCancellationRequested();
-            if (!ShouldAnalyzePublicShape(facts, type, member, transport) ||
+            if (!ShouldAnalyzePublicShape(facts, type, member, transport, policy) ||
                 !TryGetReportingTarget(facts, type, member, out var reportingSymbol, out var location)) continue;
 
             memberExposures.Clear();
-            var roots = ExposureRootTypes(facts, type, member, transport);
-            CollectExposedTypes(facts, policy, roots, memberExposures, out var exhausted, firstOnly: policy.Rule != PublicShapeRule.Dto);
-            if (exhausted) facts.ReportIncompleteContract(reportingSymbol, member, location);
-            var inherited = SymbolEqualityComparer.Default.Equals(reportingSymbol, type);
-            foreach (var exposed in memberExposures)
+            try
             {
-                if (inherited && !(reportedOnType ??= new(SymbolEqualityComparer.Default)).Add(exposed)) continue;
-                AddPublicShapeDiagnostic(facts, policy, reportingSymbol, member, exposed, location);
+                var roots = ExposureRootTypes(facts, type, member, transport);
+                CollectExposedTypes(facts, policy, roots, memberExposures, out var exhausted);
+                if (exhausted) facts.ReportIncompleteContract(reportingSymbol, member, location);
+                ReportMemberExposures(facts, policy, type, reportingSymbol, member, location, memberExposures, ref reportedOnType);
+            }
+            finally
+            {
+                memberExposures.Clear();
             }
         }
     }
 
-    private static bool ShouldAnalyzePublicShape(ConventionFacts facts, INamedTypeSymbol type, ISymbol member, bool transport) =>
-        IsInspectablePublicMember(facts, type, member, transport, facts.Symbols.NonActionAttribute) &&
+    private static void ReportMemberExposures(ConventionFacts facts, PublicShapePolicy policy, INamedTypeSymbol type,
+        ISymbol reportingSymbol, ISymbol member, Location location,
+        Dictionary<INamedTypeSymbol, INamedTypeSymbol> memberExposures, ref HashSet<INamedTypeSymbol>? reportedOnType)
+    {
+        var isInheritedMember = SymbolEqualityComparer.Default.Equals(reportingSymbol, type);
+        foreach (var (definition, exposed) in memberExposures)
+        {
+            if (isInheritedMember)
+            {
+                var isSelfExposure = ConventionSymbols.Same(definition, type);
+                if (isSelfExposure || !(reportedOnType ??= new(SymbolEqualityComparer.Default)).Add(definition))
+                    continue;
+            }
+            AddPublicShapeDiagnostic(facts, policy, reportingSymbol, member, exposed, location);
+        }
+    }
+
+    private static bool ShouldAnalyzePublicShape(ConventionFacts facts, INamedTypeSymbol type, ISymbol member, bool transport, PublicShapePolicy policy) =>
+        IsInspectablePublicMember(facts, type, member, transport, facts.Symbols.NonActionAttribute, policy) &&
         !(transport && member is IMethodSymbol method && IsObjectOrDisposeMethod(facts, method));
 
     private static void AddPublicShapeDiagnostic(ConventionFacts facts, PublicShapePolicy policy,
@@ -139,23 +159,37 @@ internal static class ConventionBoundaryAnalysis
         foreach (var parameter in type.TypeParameters)
             roots.Add(parameter);
         var work = 0;
-        if (!TryCollectTypeHeaderRoots(facts, type, policy.IsExposed, roots, ref work))
+        if (!TryCollectTypeHeaderRoots(facts, policy, type, roots, ref work))
         {
             facts.ReportIncompleteContract(type, type, location);
             return null;
         }
         if (roots.Count == 0) return null;
-        var exposures = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
-        CollectExposedTypes(facts, policy, roots, exposures, out var exhausted, work);
-        if (exhausted) facts.ReportIncompleteContract(type, type, location);
-        foreach (var exposed in exposures)
-            AddPublicShapeDiagnostic(facts, policy, type, type, exposed, location);
-        return exposures;
+        var exposures = facts.PublicShapeExposures;
+        exposures.Clear();
+        try
+        {
+            CollectExposedTypes(facts, policy, roots, exposures, out var exhausted, work);
+            if (exhausted) facts.ReportIncompleteContract(type, type, location);
+            if (exposures.Count == 0) return null;
+            HashSet<INamedTypeSymbol>? reported = null;
+            foreach (var (definition, exposed) in exposures)
+            {
+                // Exclude self only during emission so CollectExposedTypes cannot cache this type as clean.
+                if (ConventionSymbols.Same(definition, type)) continue;
+                (reported ??= new(SymbolEqualityComparer.Default)).Add(definition);
+                AddPublicShapeDiagnostic(facts, policy, type, type, exposed, location);
+            }
+            return reported;
+        }
+        finally
+        {
+            exposures.Clear();
+        }
     }
 
-    private static bool TryCollectTypeHeaderRoots(ConventionFacts facts, INamedTypeSymbol type,
-        Func<ConventionFacts, INamedTypeSymbol, bool> isExposed, ImmutableArray<ITypeSymbol>.Builder roots,
-        ref int work)
+    private static bool TryCollectTypeHeaderRoots(ConventionFacts facts, PublicShapePolicy policy, INamedTypeSymbol type,
+        ImmutableArray<ITypeSymbol>.Builder roots, ref int work)
     {
         var visitedInterfaces = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
         for (var current = type.BaseType;
@@ -164,20 +198,20 @@ internal static class ConventionBoundaryAnalysis
         {
             facts.Cancellation.ThrowIfCancellationRequested();
             if (++work > PublicShapeLimit) return false;
-            if (IsCheckedLocalContractType(facts, current)) break;
+            if (IsCheckedLocalContractBase(facts, policy, current)) break;
             CollectTypeArguments(current, roots);
-            if (!TryCollectPublicInterfaces(facts, current.Interfaces, isExposed, visitedInterfaces, roots, ref work)) return false;
-            if (isExposed(facts, current))
+            if (!TryCollectPublicInterfaces(facts, policy, current.Interfaces, visitedInterfaces, roots, ref work)) return false;
+            if (policy.IsExposed(facts, current))
             {
                 roots.Add(current);
                 break;
             }
         }
-        return TryCollectPublicInterfaces(facts, type.Interfaces, isExposed, visitedInterfaces, roots, ref work);
+        return TryCollectPublicInterfaces(facts, policy, type.Interfaces, visitedInterfaces, roots, ref work);
     }
 
-    private static bool TryCollectPublicInterfaces(ConventionFacts facts, ImmutableArray<INamedTypeSymbol> interfaces,
-        Func<ConventionFacts, INamedTypeSymbol, bool> isExposed, HashSet<INamedTypeSymbol> visited,
+    private static bool TryCollectPublicInterfaces(ConventionFacts facts, PublicShapePolicy policy,
+        ImmutableArray<INamedTypeSymbol> interfaces, HashSet<INamedTypeSymbol> visited,
         ImmutableArray<ITypeSymbol>.Builder roots, ref int work)
     {
         if (interfaces.IsEmpty) return true;
@@ -187,20 +221,30 @@ internal static class ConventionBoundaryAnalysis
         {
             while (siblings.MoveNext())
             {
-                facts.Cancellation.ThrowIfCancellationRequested();
-                if (++work > PublicShapeLimit) return false;
-                var contract = siblings.Current;
-                if (!visited.Add(contract) || IsCheckedLocalContractType(facts, contract)) continue;
-                if (IsPublic(contract))
-                {
-                    if (isExposed(facts, contract)) roots.Add(contract);
-                    CollectTypeArguments(contract, roots);
-                }
-                if (contract.Interfaces.IsEmpty) continue;
+                if (!TryInspectHeaderInterface(facts, policy, siblings.Current, visited, roots, ref work, out var next))
+                    return false;
+                if (next.IsEmpty) continue;
                 parents.Push(siblings);
-                siblings = contract.Interfaces.GetEnumerator();
+                siblings = next.GetEnumerator();
             }
         } while (parents.TryPop(out siblings));
+        return true;
+    }
+
+    private static bool TryInspectHeaderInterface(ConventionFacts facts, PublicShapePolicy policy,
+        INamedTypeSymbol contract, HashSet<INamedTypeSymbol> visited, ImmutableArray<ITypeSymbol>.Builder roots,
+        ref int work, out ImmutableArray<INamedTypeSymbol> children)
+    {
+        children = [];
+        facts.Cancellation.ThrowIfCancellationRequested();
+        if (++work > PublicShapeLimit) return false;
+        if (!visited.Add(contract) || IsCheckedLocalContractBase(facts, policy, contract)) return true;
+        if (IsPublic(contract))
+        {
+            if (policy.IsExposed(facts, contract)) roots.Add(contract);
+            CollectTypeArguments(contract, roots);
+        }
+        children = contract.Interfaces;
         return true;
     }
 
@@ -214,19 +258,29 @@ internal static class ConventionBoundaryAnalysis
     }
 
     internal static bool IsInspectablePublicMember(ConventionFacts facts, INamedTypeSymbol type, ISymbol member,
-        bool transport, INamedTypeSymbol? nonAction)
+        bool transport, INamedTypeSymbol? nonAction, PublicShapePolicy policy)
     {
-        if (member.DeclaredAccessibility != Accessibility.Public || member.IsImplicitlyDeclared || member is INamedTypeSymbol ||
-            member is IMethodSymbol { AssociatedSymbol: not null }) return false;
-        if (transport && (member is not IMethodSymbol
-            { MethodKind: MethodKind.Ordinary, IsStatic: false, IsAbstract: false, IsGenericMethod: false } ||
-            IsNonAction((IMethodSymbol)member, nonAction))) return false;
-        return ShouldInspectInheritedContractMember(facts, type, member);
+        var isNonInspectableSymbol = member.DeclaredAccessibility != Accessibility.Public ||
+            member.IsImplicitlyDeclared ||
+            member is INamedTypeSymbol or IMethodSymbol { AssociatedSymbol: not null };
+        if (isNonInspectableSymbol) return false;
+        if (transport)
+        {
+            var isActionCandidate = member is IMethodSymbol
+                { MethodKind: MethodKind.Ordinary, IsStatic: false, IsAbstract: false, IsGenericMethod: false } method &&
+                !IsNonAction(method, nonAction);
+            if (!isActionCandidate) return false;
+        }
+        var isDeclaredOnType = SymbolEqualityComparer.Default.Equals(member.ContainingType, type);
+        return isDeclaredOnType || !IsCheckedLocalContractBase(facts, policy, member.ContainingType);
     }
 
-    internal static bool ShouldInspectInheritedContractMember(ConventionFacts facts, INamedTypeSymbol type, ISymbol member) =>
-        SymbolEqualityComparer.Default.Equals(member.ContainingType, type) ||
-        !IsCheckedLocalContractType(facts, member.ContainingType);
+    private static bool IsCheckedLocalContractBase(ConventionFacts facts, PublicShapePolicy policy, INamedTypeSymbol? candidate)
+    {
+        if (!IsCheckedLocalContractType(facts, candidate)) return false;
+        var isExposedDtoBase = policy.Rule == PublicShapeRule.Dto && policy.IsExposed(facts, candidate!);
+        return !isExposedDtoBase;
+    }
 
     private static bool IsCheckedLocalContractType(ConventionFacts facts, INamedTypeSymbol? candidate) =>
         candidate is not null &&
@@ -244,31 +298,19 @@ internal static class ConventionBoundaryAnalysis
         return location != Location.None;
     }
 
-    internal static IMethodSymbol RootOverriddenMethod(IMethodSymbol method)
-    {
-        var root = method;
-        while (root.OverriddenMethod is { } overridden) root = overridden;
-        return root;
-    }
+    internal static IMethodSymbol RootOverriddenMethod(IMethodSymbol method) =>
+        RoslynSymbolHelpers.RootOverriddenMethod(method);
 
-    internal static bool IsObjectOrDisposeMethod(ConventionFacts facts, IMethodSymbol method)
-    {
-        var root = RootOverriddenMethod(method);
-        if (root.ContainingType.SpecialType == SpecialType.System_Object) return true;
-        return facts.Symbols.DisposeMethod is { } dispose && SymbolEqualityComparer.Default.Equals(
-            root.ContainingType.FindImplementationForInterfaceMember(dispose), root);
-    }
+    internal static bool IsObjectOrDisposeMethod(ConventionFacts facts, IMethodSymbol method) =>
+        RoslynSymbolHelpers.IsObjectOrDisposeMethod(method, facts.Symbols.DisposeMethod);
 
     private static bool IsPersistenceTarget(ConventionFacts facts, INamedTypeSymbol named) =>
         facts.IsEntity(named) || facts.Symbols.IsPersistenceType(named, facts.Cancellation);
 
-    private static bool ShouldExpandPersistenceModel(ConventionFacts facts, INamedTypeSymbol named) =>
-        ShouldExpandPublicModel(facts, named, includeDto: true);
-
-    internal static bool ShouldExpandPublicModel(ConventionFacts facts, INamedTypeSymbol named, bool includeDto) =>
+    internal static bool ShouldExpandPublicModel(ConventionFacts facts, INamedTypeSymbol named) =>
         named.TypeKind is not TypeKind.Enum &&
         (facts.IsLocal(named) ||
-         includeDto && facts.Symbols.IsKnown(named, facts.Symbols.Dto, facts.Cancellation) ||
+         facts.Symbols.IsKnown(named, facts.Symbols.Dto, facts.Cancellation) ||
          facts.IsNeutralValue(named) ||
          facts.Role(named).Role is ConventionArchitecture.Contract or ConventionArchitecture.Domain or
              ConventionArchitecture.Infra or ConventionArchitecture.Application or ConventionArchitecture.Hosted);
@@ -278,7 +320,8 @@ internal static class ConventionBoundaryAnalysis
         property.SetMethod?.DeclaredAccessibility == Accessibility.Public;
 
     private static void CollectExposedTypes(ConventionFacts facts, PublicShapePolicy policy,
-        IEnumerable<ITypeSymbol> rootTypes, HashSet<INamedTypeSymbol> exposures, out bool exhausted, int work = 0, bool firstOnly = false)
+        IEnumerable<ITypeSymbol> rootTypes, Dictionary<INamedTypeSymbol, INamedTypeSymbol> exposures,
+        out bool exhausted, int work = 0)
     {
         var pending = facts.PublicShapePending;
         var visited = facts.PublicShapeVisited;
@@ -291,26 +334,13 @@ internal static class ConventionBoundaryAnalysis
             foreach (var root in rootTypes) pending.Push(root);
             while (pending.TryPop(out var current))
             {
-                facts.Cancellation.ThrowIfCancellationRequested();
-                if (++work > PublicShapeLimit) { exhausted = true; return; }
-                if (clean.Contains(current) || !visited.Add(current)) continue;
-                if (UnwrapNamedType(current, pending) is not { } named) continue;
-                if (policy.IsExposed(facts, named))
-                {
-                    exposures.Add(named);
-                    if (firstOnly) return;
-                    ConventionSymbols.PushTypeArguments(named, pending);
-                    continue;
-                }
-                if (!ExpandNamedModel(facts, named, policy.ShouldExpand, pending, ref work))
+                if (!TryVisitExposedType(facts, policy, current, clean, visited, pending, exposures, ref work))
                 {
                     exhausted = true;
                     return;
                 }
             }
-            facts.Cancellation.ThrowIfCancellationRequested();
-            if (exposures.Count == 0)
-                foreach (var item in visited) clean.Add(item);
+            MarkCleanTypes(facts, clean, visited, exposures.Count == 0);
         }
         finally
         {
@@ -319,7 +349,34 @@ internal static class ConventionBoundaryAnalysis
         }
     }
 
-    private static INamedTypeSymbol? UnwrapNamedType(ITypeSymbol current, Stack<ITypeSymbol> pending)
+    private static bool TryVisitExposedType(ConventionFacts facts, PublicShapePolicy policy, ITypeSymbol current,
+        HashSet<ITypeSymbol> clean, HashSet<ITypeSymbol> visited, Stack<ITypeSymbol> pending,
+        Dictionary<INamedTypeSymbol, INamedTypeSymbol> exposures, ref int work)
+    {
+        facts.Cancellation.ThrowIfCancellationRequested();
+        if (++work > PublicShapeLimit) return false;
+        if (clean.Contains(current) || !visited.Add(current)) return true;
+        if (UnwrapNamedType(current, pending) is not { } named) return true;
+        if (policy.IsExposed(facts, named))
+        {
+            exposures.TryAdd(named.OriginalDefinition, named);
+            if (policy.ExpandExposedMembers)
+                return ExpandNamedModel(facts, named, policy.ShouldExpand, pending, ref work);
+            ConventionSymbols.PushTypeArguments(named, pending);
+            return true;
+        }
+        return ExpandNamedModel(facts, named, policy.ShouldExpand, pending, ref work);
+    }
+
+    private static void MarkCleanTypes(ConventionFacts facts, HashSet<ITypeSymbol> clean,
+        HashSet<ITypeSymbol> visited, bool isClean)
+    {
+        facts.Cancellation.ThrowIfCancellationRequested();
+        if (!isClean) return;
+        foreach (var item in visited) clean.Add(item);
+    }
+
+    internal static INamedTypeSymbol? UnwrapNamedType(ITypeSymbol current, Stack<ITypeSymbol> pending)
     {
         if (current is IArrayTypeSymbol array) pending.Push(array.ElementType);
         if (current is ITypeParameterSymbol parameter)
@@ -480,17 +537,11 @@ internal static class ConventionBoundaryAnalysis
         return null;
     }
 
-    [SuppressMessage("SonarQube", "S3267", Justification = "Scanning the immutable attribute array directly avoids boxing ImmutableArray and allocating a predicate capturing target.")]
-    internal static AttributeData? FindAttribute(ISymbol symbol, INamedTypeSymbol? target)
-    {
-        if (target is null) return null;
-        foreach (var attribute in symbol.GetAttributes())
-            if (ConventionSymbols.Same(attribute.AttributeClass, target)) return attribute;
-        return null;
-    }
+    internal static AttributeData? FindAttribute(ISymbol symbol, INamedTypeSymbol? target) =>
+        RoslynSymbolHelpers.FindAttribute(symbol, target);
 
     internal static bool HasAttribute(ISymbol symbol, INamedTypeSymbol? target) =>
-        FindAttribute(symbol, target) is not null;
+        RoslynSymbolHelpers.HasAttribute(symbol, target);
 
     internal static bool IsInjectedServiceParameter(ConventionFacts facts, IParameterSymbol parameter) =>
         HasAttribute(parameter, facts.Symbols.FromServicesAttribute) ||

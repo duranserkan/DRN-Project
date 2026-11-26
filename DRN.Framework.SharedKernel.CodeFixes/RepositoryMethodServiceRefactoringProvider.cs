@@ -190,8 +190,8 @@ public sealed class RepositoryMethodServiceRefactoringProvider : CodeRefactoring
             !AttributesPreserveOwner(selected.Entity, entityOwner, source, out var entityAttrExplicit) ||
             !OwnershipCompatible(domainInputs, entityName, repoOwner.Subdomain, token, out var entityInputExplicit, repoOwner.DomainFilter) ||
             !OwnershipCompatible(domainInputs, repositoryName, repoOwner.Subdomain, token, out var repoInputExplicit, repoOwner.DomainFilter) ||
-            !repoMetadata.TryValidateProducerOwnership(entityName, entityOwner, out var entityMetadataExplicit) ||
-            !repoMetadata.TryValidateProducerOwnership(repositoryName, repoOwner, out var repoMetadataExplicit))
+            !repoMetadata.TryValidateProducerOwnership(entityName, entityOwner, out var entityMetadataExplicit, domainInfo) ||
+            !repoMetadata.TryValidateProducerOwnership(repositoryName, repoOwner, out var repoMetadataExplicit, domainInfo))
             return null;
         var effectiveOwner = repoOwner.WithExplicitDomain(
             repoAttrExplicit || entityAttrExplicit || entityInputExplicit || repoInputExplicit ||

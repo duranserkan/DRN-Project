@@ -127,8 +127,7 @@ internal sealed class DictionaryCaptureAnalysis(OperationAnalysisContext context
 
     private static bool IsScalar(ITypeSymbol? type)
     {
-        if (type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable)
-            type = nullable.TypeArguments[0];
+        type = RoslynSymbolHelpers.UnwrapNullable(type);
         return type?.SpecialType is SpecialType.System_Boolean or SpecialType.System_Char or SpecialType.System_String or
             SpecialType.System_Byte or SpecialType.System_SByte or SpecialType.System_Int16 or SpecialType.System_UInt16 or
             SpecialType.System_Int32 or SpecialType.System_UInt32 or SpecialType.System_Int64 or SpecialType.System_UInt64 or

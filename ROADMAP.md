@@ -42,6 +42,9 @@
 
 ### DRN.Framework.SharedKernel
 - [ ] Explore additional progressive domain-safety cases and activation conditions beyond the required layer references. Validate source evidence, false positives and intentional exceptions before adding rules.
+- [ ] Extend `DRNDTO003` to preserve `[Personal]` and `[Sensitive]` on explicit property mappings between application-owned models, including request-to-entity and entity-to-view-model mappings. Cover object initializers, assignments after construction, and copies through a local assigned once. Warn when the source and destination properties are identifiable and the destination lacks a required classification.
+  - When another attribute rule needs to trace a source property to its destination, extract and reuse that mapping logic. Each rule defines its own attribute requirements and diagnostics.
+  - For `profile.ContactEmail = request.Email`, the extended `DRNDTO003` would warn if `Email` has `[Personal]` and `ContactEmail` lacks it. A separate length rule could use the same mapping to flag a direct copy from `[MaxLength(254)]` to `[MaxLength(100)]` because a valid source value could be too long for the destination.
 - [X] Domain Entities and definitions
 - [X] Generalized Convention Exceptions
 - [X] AppConstants

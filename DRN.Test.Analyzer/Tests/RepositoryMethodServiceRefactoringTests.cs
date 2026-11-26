@@ -380,6 +380,42 @@ public sealed class RepositoryMethodServiceRefactoringTests
         [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.Billing.QA.Order.IOrderRepository.Domain", "Sales")]
         [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.Billing.QA.Order.IOrderRepository.Subdomain", "QA")]
         """, false)]
+    [DataInlineUnit(true, false, "Sample.Domain", "Billing.Application", "Sample.Domain.Billing.QA.Order", "Billing/QA/Order/IOrderRepository.cs", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.DomainLayout", "Folders")]
+        """, true)]
+    [DataInlineUnit(true, false, "Sample.Domain", "Billing.Application", "Sample.Domain.Billing.QA.Order", "Billing/QA/Order/IOrderRepository.cs", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.DomainLayout", "Project")]
+        """, false)]
+    [DataInlineUnit(false, false, "Sample.Domain", "Sample.Application", "Sample.Domain.QA.Order", "QA/Order/IOrderRepository.cs", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.DomainLayout", "Folders")]
+        """, false)]
+    [DataInlineUnit(true, false, "Sample.Domain", "Billing.Application", "Sample.Domain.Billing.QA.Order", "Billing/QA/Order/IOrderRepository.cs", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Domain", "Billing")]
+        """, false)]
+    [DataInlineUnit(false, false, "Sample.Domain", "Sample.Application", "Sample.Domain.QA.Order", "QA/Order/IOrderRepository.cs", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Domain.Infra")]
+        """, false)]
+    [DataInlineUnit(false, false, "Sample.Domain", "Sample.Application", "Sample.Domain.QA.Order", "QA/Order/IOrderRepository.cs", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Other.Domain")]
+        """, false)]
+    [DataInlineUnit(false, false, "Sample.Domain", "Sample.Application", "Sample.Domain.QA.Order", "QA/Order/IOrderRepository.cs", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Other.Domain")]
+        """, false)]
+    [DataInlineUnit(false, false, "Sample.Domain", "Sample.Application", "Sample.Domain.QA.Order", "QA/Order/IOrderRepository.cs", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Sample.Domain")]
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Sample.Domain")]
+        """, true)]
+    [DataInlineUnit(false, false, "Sample.Domain", "Sample.Application", "Sample.Domain.QA.Order", "QA/Order/IOrderRepository.cs", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Domain", "Sample")]
+        """, true)]
+    [DataInlineUnit(false, false, "Sample.Domain", "Other.Application", "Sample.Domain.QA.Order", "QA/Order/IOrderRepository.cs", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Domain", "Sample")]
+        """, false)]
+    [DataInlineUnit(false, false, "Sample.Domain", "Other.Application", "Sample.Domain.QA.Order", "QA/Order/IOrderRepository.cs", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Domain", "Sample")]
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.QA.Order.OrderEntity.Subdomain", "QA")]
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.QA.Order.IOrderRepository.Subdomain", "QA")]
+        """, false)]
     public async Task Producer_Ownership_Metadata_Should_Validate_Entity_And_Repository_Records_Across_Layouts(
         bool domainFolders, bool appFolders, string domainName, string appName, string repoNamespace, string repoPath,
         string metadataAttributes, bool offered)
@@ -415,6 +451,99 @@ public sealed class RepositoryMethodServiceRefactoringTests
         if (appFolders)
             application = application.AddAnalyzerConfigDocument("layout.globalconfig", layoutConfig,
                 filePath: SourcePath(appName, "layout.globalconfig")).Project;
+        workspace.TryApplyChanges(application.Solution).Should().BeTrue();
+
+        (await workspace.CurrentSolution.GetProject(domain.Id)!.GetCompilationAsync())!.AssertNoCompilerErrors();
+        var actions = await Actions(workspace.CurrentSolution.GetDocument(document.Id)!);
+        if (offered) actions.Should().HaveCount(2);
+        else actions.Should().BeEmpty();
+    }
+
+    [Theory]
+    [DataInlineUnit("build_property.DrnDomainLayout = Folders", "Billing.Application", "Domain.Billing.QA.Order", "Billing/QA/Order/IOrderRepository.cs", "", true)]
+    [DataInlineUnit("build_property.DrnDomain = Sales", "Sales.Application", "Domain.QA.Order", "QA/Order/IOrderRepository.cs", "", true)]
+    [DataInlineUnit("build_property.DrnDomain = Sales", "Other.Application", "Domain.QA.Order", "QA/Order/IOrderRepository.cs", "", false)]
+    [DataInlineUnit("build_property.DrnDomainLayout = Folders", "Billing.Application", "Domain.Billing.QA.Order", "Billing/QA/Order/IOrderRepository.cs", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Domain")]
+        """, false)]
+    [DataInlineUnit("build_property.DrnDomainLayout = Folders", "Billing.Application", "Domain.Billing.QA.Order", "Billing/QA/Order/IOrderRepository.cs", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Domain.Infra")]
+        """, false)]
+    public async Task Bare_Domain_Project_Should_Allow_Absent_Metadata_Fallback_And_Reject_Invalid_Explicit_Identity(
+        string configLine, string appName, string repoNamespace, string repoPath, string metadataAttributes, bool offered)
+    {
+        using var workspace = new AdhocWorkspace();
+        var domain = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                "Domain", "Domain", LanguageNames.CSharp, filePath: SourcePath("Domain", "Domain.csproj")))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(ClassificationTestFixture.References)
+            .AddAnalyzerConfigDocument("layout.globalconfig", SourceText.From("is_global = true\n" + configLine + "\n"),
+                filePath: SourcePath("Domain", "layout.globalconfig")).Project;
+        var document = domain.AddDocument("IOrderRepository.cs", $$"""
+            {{metadataAttributes}}
+            namespace {{repoNamespace}};
+            public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
+            public interface IOrderRepository : DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<OrderEntity>
+            {
+                // select-start
+                {{Method}}
+                // select-end
+            }
+            """, filePath: SourcePath(["Domain", .. repoPath.Split('/')]));
+        workspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
+
+        var application = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                appName, appName, LanguageNames.CSharp, filePath: SourcePath(appName, appName + ".csproj")))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(ClassificationTestFixture.References)
+            .AddMetadataReference(AnalyzerTestCompilation.UtilsReference)
+            .AddProjectReference(new ProjectReference(domain.Id));
+        workspace.TryApplyChanges(application.Solution).Should().BeTrue();
+
+        (await workspace.CurrentSolution.GetProject(domain.Id)!.GetCompilationAsync())!.AssertNoCompilerErrors();
+        var actions = await Actions(workspace.CurrentSolution.GetDocument(document.Id)!);
+        if (offered) actions.Should().HaveCount(2);
+        else actions.Should().BeEmpty();
+    }
+
+    [Theory]
+    [DataInlineUnit("", true)]
+    [DataInlineUnit("""
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Shop.Domain.Infra")]
+        """, false)]
+    [DataInlineUnit("""
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Shop.Domain")]
+        """, false)]
+    [DataInlineUnit("""
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Domain", "Shop")]
+        """, false)]
+    public async Task Loaded_Domain_Project_With_Ambiguous_AssemblyName_Should_Allow_Absent_Metadata_And_Reject_Explicit_Or_Partial_Metadata(
+        string metadataAttributes, bool offered)
+    {
+        using var workspace = new AdhocWorkspace();
+        var domain = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                "Shop.Domain", "Shop.Domain.Infra", LanguageNames.CSharp, filePath: SourcePath("Shop.Domain", "Shop.Domain.csproj")))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(ClassificationTestFixture.References);
+        var document = domain.AddDocument("IOrderRepository.cs", $$"""
+            {{metadataAttributes}}
+            namespace Shop.Domain.QA.Order;
+            public class OrderEntity : DRN.Framework.SharedKernel.Domain.AggregateRoot { public override DRN.Framework.SharedKernel.Domain.Dto ToDto() => new(this); }
+            public interface IOrderRepository : DRN.Framework.SharedKernel.Domain.Repository.ISourceKnownRepository<OrderEntity>
+            {
+                // select-start
+                {{Method}}
+                // select-end
+            }
+            """, filePath: SourcePath("Shop.Domain", "QA", "Order", "IOrderRepository.cs"));
+        workspace.TryApplyChanges(document.Project.Solution).Should().BeTrue();
+
+        var application = workspace.AddProject(ProjectInfo.Create(ProjectId.CreateNewId(), VersionStamp.Create(),
+                "Shop.Application", "Shop.Application", LanguageNames.CSharp, filePath: SourcePath("Shop.Application", "Shop.Application.csproj")))
+            .WithCompilationOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary))
+            .AddMetadataReferences(ClassificationTestFixture.References)
+            .AddMetadataReference(AnalyzerTestCompilation.UtilsReference)
+            .AddProjectReference(new ProjectReference(domain.Id));
         workspace.TryApplyChanges(application.Solution).Should().BeTrue();
 
         (await workspace.CurrentSolution.GetProject(domain.Id)!.GetCompilationAsync())!.AssertNoCompilerErrors();

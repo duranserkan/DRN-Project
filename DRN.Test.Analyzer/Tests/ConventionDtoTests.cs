@@ -299,14 +299,19 @@ public sealed class ConventionDtoTests
             }
             """);
         if (missing.Length == 0) diagnostics.Should().BeEmpty();
-        else diagnostics.Should().ContainSingle().Which.GetMessage().Should()
-            .Be($"Projected property '{missing}' requires [Personal] from mapped property 'Email'.");
+        else
+        {
+            var diagnostic = diagnostics.Should().ContainSingle().Which;
+            EnclosingMethod(diagnostic).Should().Be("ToDto");
+            diagnostic.GetMessage().Should().Be($"Projected property '{missing}' requires [Personal] from mapped property 'Email'.");
+        }
     }
 
     [Theory]
     [DataInline("System.Collections.Generic.List<string>", "Email")]
     [DataInline("Labels", "new ContactDto { Label = Email }")]
     [DataInline("RelistedLabels", "new ContactDto { Label = Email }")]
+    [DataInline("TransformingCollection", "new ContactDto { Label = Email }")]
     public void Scalar_Elements_And_Custom_Add_Inputs_Should_Classify_The_Collection(string collection, string element)
     {
         var diagnostics = Project($$"""
@@ -318,6 +323,10 @@ public sealed class ConventionDtoTests
             public class RelistedLabels : System.Collections.Generic.List<object>, System.Collections.Generic.ICollection<object>
             {
                 public new void Add(object item) => base.Add(((ContactDto)item).Label);
+            }
+            public class TransformingCollection : System.Collections.ObjectModel.Collection<object>
+            {
+                protected override void InsertItem(int index, object item) => base.InsertItem(index, ((ContactDto)item).Label);
             }
             public class UserDto(SourceKnownEntity? e = null) : Dto(e)
             {
@@ -393,6 +402,7 @@ public sealed class ConventionDtoTests
         {
             var diagnostic = diagnostics.Should().ContainSingle().Which;
             diagnostic.Id.Should().Be("DRNDTO003");
+            EnclosingMethod(diagnostic).Should().Be("ToDto");
             diagnostic.GetMessage().Should().Be("Projected property 'Display' requires [Personal] from mapped property 'Name'.");
         }
     }
@@ -742,6 +752,7 @@ public sealed class ConventionDtoTests
         }
         var diagnostic = diagnostics.Should().ContainSingle().Which;
         diagnostic.Id.Should().Be("DRNDTO003");
+        EnclosingMethod(diagnostic).Should().Be("ToDto");
         diagnostic.GetMessage().Should().Be($"Projected property 'Display' requires [{kind}] from mapped property '{property}'.");
     }
 
@@ -792,6 +803,7 @@ public sealed class ConventionDtoTests
     [DataInline("Mixed", "(object)new ContactDto { Label = Email }", "[Personal]", "", "Label")]
     [DataInline("Plain", "new ContactDto { Label = Email }", "", "[Personal]", null)]
     [DataInline("Plain", "new ContactDto { Label = Email }", "[Personal]", "", "Label")]
+    [DataInline("Transforming", "new ContactDto { Label = Email }", "", "[Personal]", "Contacts")]
     [DataInline("Mixed", "(object)new ContactDto { Label = Email }, new ContactDto { Label = Email }", "", "[Personal]", "Contacts")]
     public void Collection_Expression_Should_Follow_The_Add_Selected_For_Each_Element(
         string collection, string elements, string collectionAnnotation, string leafAnnotation, string? missing)
@@ -806,6 +818,10 @@ public sealed class ConventionDtoTests
             public class Labels : Plain
             {
                 public new void Add(object item) => base.Add(((ContactDto)item).Label);
+            }
+            public class Transforming : System.Collections.ObjectModel.Collection<object>
+            {
+                protected override void InsertItem(int index, object item) => base.InsertItem(index, ((ContactDto)item).Label);
             }
             public class Mixed : Plain
             {
@@ -863,6 +879,7 @@ public sealed class ConventionDtoTests
         {
             var diagnostic = diagnostics.Should().ContainSingle().Which;
             diagnostic.Id.Should().Be("DRNDTO003");
+            EnclosingMethod(diagnostic).Should().Be("ToDto");
             diagnostic.GetMessage().Should().Be($"Projected property '{missing}' requires [Personal] from mapped property 'Email'.");
         }
     }
@@ -1275,12 +1292,12 @@ public sealed class ConventionDtoTests
         hosted.AssertNoCompilerErrors();
 
         var diagnostics = Analyze(hosted, "Hosted").Where(d => d.Id == "DRNDTO003").ToArray();
-        diagnostics.Select(d => (d.Properties["Target"], d.GetMessage())).Should().BeEquivalentTo(new (string?, string)[]
+        diagnostics.Select(d => (d.Properties["Target"], EnclosingMethod(d), d.GetMessage())).Should().BeEquivalentTo(new[]
         {
-            ("T:Sample.Hosted.Controllers.QA.AbstractMapperBase", "Projected property 'Email' requires [Personal] from mapped property 'Email'."),
-            ("T:Sample.Hosted.Controllers.QA.ConcreteMapper", "Projected property 'StringValue' requires [Sensitive] from mapped property 'StringValue'."),
-            ("T:Sample.Hosted.Controllers.QA.ConcreteMapper", "Projected property 'Display' requires [Personal] from mapped property 'Email'."),
-            ("T:Sample.Hosted.Controllers.QA.ConcreteMapper.InnerMapper", "Projected property 'Email' requires [Personal] from mapped property 'Email'.")
+            ("T:Sample.Hosted.Controllers.QA.AbstractMapperBase", "MapPositional", "Projected property 'Email' requires [Personal] from mapped property 'Email'."),
+            ("T:Sample.Hosted.Controllers.QA.ConcreteMapper", "MapNested", "Projected property 'StringValue' requires [Sensitive] from mapped property 'StringValue'."),
+            ("T:Sample.Hosted.Controllers.QA.ConcreteMapper", "MapDtoNested", "Projected property 'Display' requires [Personal] from mapped property 'Email'."),
+            ("T:Sample.Hosted.Controllers.QA.ConcreteMapper.InnerMapper", "MapInner", "Projected property 'Email' requires [Personal] from mapped property 'Email'.")
         });
     }
 
@@ -1375,11 +1392,11 @@ public sealed class ConventionDtoTests
         hosted.AssertNoCompilerErrors();
 
         var diagnostics = Analyze(hosted, "Hosted").Where(d => d.Id == "DRNDTO003").ToArray();
-        diagnostics.Select(d => (d.Properties["Target"], d.GetMessage())).Should().BeEquivalentTo(new (string?, string)[]
+        diagnostics.Select(d => (d.Properties["Target"], EnclosingMethod(d), d.GetMessage())).Should().BeEquivalentTo(new[]
         {
-            ("T:Sample.Hosted.Controllers.QA.GenericMapper`1", "Projected property 'Email' requires [Personal] from mapped property 'Email'."),
-            ("T:Sample.Hosted.Controllers.QA.GenericMapper`1.NestedInsideGeneric", "Projected property 'Email' requires [Personal] from mapped property 'Email'."),
-            ("T:Sample.Hosted.Controllers.QA.ConstrainedMapper`1", "Projected property 'Email' requires [Sensitive] from mapped property 'Secret'.")
+            ("T:Sample.Hosted.Controllers.QA.GenericMapper`1", "FromEntity", "Projected property 'Email' requires [Personal] from mapped property 'Email'."),
+            ("T:Sample.Hosted.Controllers.QA.GenericMapper`1.NestedInsideGeneric", "FromDto", "Projected property 'Email' requires [Personal] from mapped property 'Email'."),
+            ("T:Sample.Hosted.Controllers.QA.ConstrainedMapper`1", "FromConstrained", "Projected property 'Email' requires [Sensitive] from mapped property 'Secret'.")
         });
     }
 
@@ -1572,9 +1589,11 @@ public sealed class ConventionDtoTests
         localFacts.HasResponseUsingAlias(localAliasHosted.SyntaxTrees[1]).Should().BeFalse();
         ConventionDtoAnalysis.Analyze(localFacts);
         var localDiagnostics = localFacts.Diagnostics.Where(d => d.Id == "DRNDTO003").ToArray();
-        localDiagnostics.Select(d => d.Properties["Target"]).Should().BeEquivalentTo(
-            "T:Sample.Hosted.Controllers.QA.AliasMapper",
-            "T:Sample.Hosted.Controllers.QA.NestedMapper");
+        localDiagnostics.Select(d => (d.Properties["Target"], EnclosingMethod(d))).Should().BeEquivalentTo(new[]
+        {
+            ("T:Sample.Hosted.Controllers.QA.AliasMapper", "FromLocalAlias"),
+            ("T:Sample.Hosted.Controllers.QA.NestedMapper", "FromNested")
+        });
         localDiagnostics.Select(d => d.GetMessage()).Should().AllBe("Projected property 'Email' requires [Personal] from mapped property 'Email'.");
 
         var globalAliasHosted = Compilation("""
@@ -1844,12 +1863,21 @@ public sealed class ConventionDtoTests
             }
             """).WithAssemblyName("Sample.Contract");
         contract.AssertNoCompilerErrors();
-        Analyze(contract, "Contract").Where(d => d.Id == "DRNDTO005").Select(d => d.Properties["Target"]).Should().BeEquivalentTo(
-            "T:Sample.Contract.QA.Orders.OrderQueue",
-            "T:Sample.Contract.QA.Orders.OrderStream",
-            "M:Sample.Contract.QA.Orders.OrderStream.GetAsyncEnumerator(System.Threading.CancellationToken)",
-            "T:Sample.Contract.QA.Orders.IndirectOrderStream",
-            "P:Sample.Contract.QA.Orders.NestedDtoResponse.Meta");
+        Analyze(contract, "Contract").Where(d => d.Id == "DRNDTO005")
+            .Select(d => (d.Properties["Target"], d.Properties["Entity"])).Should().BeEquivalentTo(
+                new (string?, string?)[]
+                {
+                    ("T:Sample.Contract.QA.Orders.OrderQueue", "Sample.Contract.QA.Orders.OrderDto"),
+                    ("T:Sample.Contract.QA.Orders.OrderQueue", "Sample.Contract.QA.Orders.ChildDto"),
+                    ("T:Sample.Contract.QA.Orders.OrderStream", "Sample.Contract.QA.Orders.OrderDto"),
+                    ("T:Sample.Contract.QA.Orders.OrderStream", "Sample.Contract.QA.Orders.ChildDto"),
+                    ("M:Sample.Contract.QA.Orders.OrderStream.GetAsyncEnumerator(System.Threading.CancellationToken)", "Sample.Contract.QA.Orders.OrderDto"),
+                    ("M:Sample.Contract.QA.Orders.OrderStream.GetAsyncEnumerator(System.Threading.CancellationToken)", "Sample.Contract.QA.Orders.ChildDto"),
+                    ("T:Sample.Contract.QA.Orders.IndirectOrderStream", "Sample.Contract.QA.Orders.OrderDto"),
+                    ("T:Sample.Contract.QA.Orders.IndirectOrderStream", "Sample.Contract.QA.Orders.ChildDto"),
+                    ("P:Sample.Contract.QA.Orders.NestedDtoResponse.Meta", "Sample.Contract.QA.Orders.OrderDto"),
+                    ("P:Sample.Contract.QA.Orders.NestedDtoResponse.Meta", "Sample.Contract.QA.Orders.ChildDto")
+                });
 
         var domainRef = EmitProjectReference("Sample.Domain", "/dto-m1-m3/Sample.Domain.dll", """
             using Sample.Contract.QA.Orders;
@@ -1881,10 +1909,17 @@ public sealed class ConventionDtoTests
             }
             """).WithAssemblyName("Sample.Hosted").AddReferences(contractRef, domainRef, infraRef);
         hosted.AssertNoCompilerErrors();
-        Analyze(hosted, "Hosted").Where(d => d.Id == "DRNDTO005").Select(d => d.Properties["Target"]).Should().BeEquivalentTo(
-            "M:Sample.Hosted.Controllers.QA.OrdersController.FromDtoParam(Sample.Contract.QA.Orders.OrderDto)",
-            "M:Sample.Hosted.Controllers.QA.OrdersController.FromDomainWrap",
-            "M:Sample.Hosted.Controllers.QA.OrdersController.FromInfraWrap");
+        Analyze(hosted, "Hosted").Where(d => d.Id == "DRNDTO005")
+            .Select(d => (d.Properties["Target"], d.Properties["Entity"])).Should().BeEquivalentTo(
+                new (string?, string?)[]
+                {
+                    ("M:Sample.Hosted.Controllers.QA.OrdersController.FromDtoParam(Sample.Contract.QA.Orders.OrderDto)", "Sample.Contract.QA.Orders.OrderDto"),
+                    ("M:Sample.Hosted.Controllers.QA.OrdersController.FromDtoParam(Sample.Contract.QA.Orders.OrderDto)", "Sample.Contract.QA.Orders.ChildDto"),
+                    ("M:Sample.Hosted.Controllers.QA.OrdersController.FromDomainWrap", "Sample.Contract.QA.Orders.OrderDto"),
+                    ("M:Sample.Hosted.Controllers.QA.OrdersController.FromDomainWrap", "Sample.Contract.QA.Orders.ChildDto"),
+                    ("M:Sample.Hosted.Controllers.QA.OrdersController.FromInfraWrap", "Sample.Contract.QA.Orders.OrderDto"),
+                    ("M:Sample.Hosted.Controllers.QA.OrdersController.FromInfraWrap", "Sample.Contract.QA.Orders.ChildDto")
+                });
     }
 
     [Fact]
@@ -2086,18 +2121,20 @@ public sealed class ConventionDtoTests
             diagnostics.Should().BeEmpty();
             return;
         }
-        diagnostics.Select(d => AnalyzerTestCompilation.LocationText(d)).Should().BeEquivalentTo(
-            "Email = entity.Email",
-            "Email = entity.Contacts.First().Email",
-            "Email = entity.Contacts.Select(c => c.Email).First()",
-            "Email = entity.ImmutableContacts.Select(c => c.Email).First()",
-            "Email = c.Email",
-            "Email = item.Email",
-            "Email = contact.Email",
-            "entity.Email",
-            "Label: entity.Email",
-            "Email = entity.Contacts.First(c => true).Email",
-            "Email = Enumerable.First(predicate: c => true, source: entity.Contacts).Email");
+        diagnostics.Select(d => (EnclosingMethod(d), AnalyzerTestCompilation.LocationText(d))).Should().BeEquivalentTo(new[]
+        {
+            ("Direct", "Email = entity.Email"),
+            ("FirstContact", "Email = entity.Contacts.First().Email"),
+            ("Selected", "Email = entity.Contacts.Select(c => c.Email).First()"),
+            ("Immutable", "Email = entity.ImmutableContacts.Select(c => c.Email).First()"),
+            ("ProjectChildren", "Email = c.Email"),
+            ("ProjectList", "Email = item.Email"),
+            ("ProjectImmutable", "Email = contact.Email"),
+            ("FromLocal", "entity.Email"),
+            ("SummaryFor", "Label: entity.Email"),
+            ("WithPredicate", "Email = entity.Contacts.First(c => true).Email"),
+            ("WithNamedArguments", "Email = Enumerable.First(predicate: c => true, source: entity.Contacts).Email")
+        });
     }
 
     [Fact]
@@ -2115,6 +2152,49 @@ public sealed class ConventionDtoTests
             new([], []), options, CancellationToken.None);
         facts.MayBeResponseModel("ContactSummary").Should().BeTrue();
         facts.IsResponseModel(contract.GetTypeByMetadataName("Sample.Contract.ContactSummary")!).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Response_Model_Index_Should_Follow_Generic_Constraints_For_Helper_Projections()
+    {
+        var contractRef = EmitProjectReference("Sample.Contract", "/constrained-response/Sample.Contract.dll", """
+            namespace Sample.Contract.QA.Users
+            {
+                public class ChildModel { public string Email { get; init; } = ""; }
+                public class ConstrainedResponse<T> where T : ChildModel
+                {
+                    public T Item { get; init; } = default!;
+                }
+            }
+            """);
+        var domainRef = EmitProjectReference("Sample.Domain", "/constrained-response/Sample.Domain.dll", """
+            using DRN.Framework.SharedKernel.Attributes;
+            using DRN.Framework.SharedKernel.Domain;
+            namespace Sample.Domain.QA.User
+            {
+                public class UserEntity : AggregateRoot
+                {
+                    [Personal] public string Email => "";
+                    public override Dto ToDto() => new(this);
+                }
+            }
+            """);
+
+        var app = Compilation("""
+            using Sample.Contract.QA.Users;
+            using Sample.Domain.QA.User;
+            namespace Sample.Application.Services.QA.Users
+            {
+                public class UserMapper
+                {
+                    public ChildModel BuildChild(UserEntity entity) => new ChildModel { Email = entity.Email };
+                }
+            }
+            """).WithAssemblyName("Sample.Application").AddReferences(contractRef, domainRef);
+        app.AssertNoCompilerErrors();
+        var diagnostic = Analyze(app, "Application").Where(d => d.Id == "DRNDTO003").Should().ContainSingle().Which;
+        diagnostic.GetMessage().Should().Be("Projected property 'Email' requires [Personal] from mapped property 'Email'.");
+        AnalyzerTestCompilation.LocationText(diagnostic).Should().Be("Email = entity.Email");
     }
 
     [Fact]
@@ -2214,6 +2294,105 @@ public sealed class ConventionDtoTests
     }
 
     [Fact]
+    public void Dto_Exposure_Should_Traverse_Nested_Dto_Members_Message_Base_Args_And_Deduplicate_Closed_Constructions()
+    {
+        var contractRef = EmitProjectReference("Sample.Contract", "/dto-nested-members/Sample.Contract.dll", """
+            using DRN.Framework.SharedKernel.Domain;
+            namespace Sample.Contract.QA.Orders
+            {
+                public class CustomerDto(SourceKnownEntity? entity = null) : Dto(entity);
+                public class OrderDto(SourceKnownEntity? entity = null) : Dto(entity)
+                {
+                    public CustomerDto Customer { get; init; } = new();
+                }
+            }
+            """);
+
+        var hosted = Compilation("""
+            using Microsoft.AspNetCore.Mvc;
+            using Sample.Contract.QA.Orders;
+            namespace Sample.Hosted.Controllers.QA;
+            public class OrdersController : ControllerBase
+            {
+                [HttpGet("order")] public OrderDto GetOrder() => new();
+            }
+            """).WithAssemblyName("Sample.Hosted").AddReferences(contractRef);
+        hosted.AssertNoCompilerErrors();
+        var endpointDiagnostics = Analyze(hosted, "Hosted").Where(d => d.Id == "DRNDTO005").ToArray();
+        endpointDiagnostics.Select(d => (d.Properties["Target"], d.Properties["Entity"])).Should().BeEquivalentTo(
+            new (string?, string?)[]
+            {
+                ("M:Sample.Hosted.Controllers.QA.OrdersController.GetOrder", "Sample.Contract.QA.Orders.OrderDto"),
+                ("M:Sample.Hosted.Controllers.QA.OrdersController.GetOrder", "Sample.Contract.QA.Orders.CustomerDto")
+            });
+        var endpointException = new ConventionInput("Exception", "DRNDTO005", ImmutableDictionary<string, string>.Empty
+            .Add("Target", "M:Sample.Hosted.Controllers.QA.OrdersController.GetOrder")
+            .Add("Entity", "Sample.Contract.QA.Orders.OrderDto")
+            .Add("Owner", "Contracts").Add("Reason", "Reviewed outer DTO").Add("Review", "2030-01-01"), Location.None);
+        var hostedOptions = AnalyzerTestCompilation.ConventionOptionsProvider("Sample.Hosted");
+        var hostedFacts = new ConventionFacts(hosted, ConventionProject.Read(hosted, hostedOptions.GlobalOptions),
+            new([endpointException], []), hostedOptions, CancellationToken.None);
+        var hostedExceptions = new ConventionExceptions(hostedFacts, new DateOnly(2026, 1, 1));
+        endpointDiagnostics.Where(d => !hostedExceptions.Applies(d)).Should().ContainSingle()
+            .Which.Properties["Entity"].Should().Be("Sample.Contract.QA.Orders.CustomerDto");
+
+        var contract = Compilation("""
+            using DRN.Framework.SharedKernel.Domain;
+            namespace Sample.Contract.QA.Orders
+            {
+                public class CustomerDto(SourceKnownEntity? entity = null) : Dto(entity);
+                public class OrderDto(SourceKnownEntity? entity = null) : Dto(entity);
+                public class PaymentDto(SourceKnownEntity? entity = null) : Dto(entity);
+                public class EnvelopeDto<T>() : Dto(null);
+                public class PaymentSourceDto() : Dto(null)
+                {
+                    public PaymentDto GetPayment() => new();
+                    public event System.Action<CustomerDto> Changed { add { } remove { } }
+                }
+                public class PaymentSourceResponse : PaymentSourceDto;
+                public class OrderResponse : EnvelopeDto<OrderDto>
+                {
+                    public PaymentDto Payment { get; init; } = new();
+                }
+                public class DuplicateEnvelopeResponse
+                {
+                    public (EnvelopeDto<OrderDto> First, EnvelopeDto<CustomerDto> Second) Pair { get; init; }
+                }
+            }
+            """).WithAssemblyName("Sample.Contract");
+        contract.AssertNoCompilerErrors();
+        var contractDiagnostics = Analyze(contract, "Contract").Where(d => d.Id == "DRNDTO005").ToArray();
+        contractDiagnostics.Where(d => d.Properties["Target"] == "T:Sample.Contract.QA.Orders.PaymentSourceResponse")
+            .Select(d => d.Properties["Entity"]).Should().BeEquivalentTo(
+                "Sample.Contract.QA.Orders.PaymentSourceDto", "Sample.Contract.QA.Orders.PaymentDto", "Sample.Contract.QA.Orders.CustomerDto");
+        var baseDiagnostics = contractDiagnostics
+            .Where(d => d.Properties["Target"] == "T:Sample.Contract.QA.Orders.OrderResponse").ToArray();
+        baseDiagnostics.Select(d => d.Properties["Entity"]).Should().BeEquivalentTo(
+            "Sample.Contract.QA.Orders.EnvelopeDto`1",
+            "Sample.Contract.QA.Orders.OrderDto");
+        contractDiagnostics.Where(d => d.Properties["Target"] == "P:Sample.Contract.QA.Orders.OrderResponse.Payment")
+            .Should().ContainSingle().Which.Properties["Entity"].Should().Be("Sample.Contract.QA.Orders.PaymentDto");
+
+        var baseException = new ConventionInput("Exception", "DRNDTO005", ImmutableDictionary<string, string>.Empty
+            .Add("Target", "T:Sample.Contract.QA.Orders.OrderResponse")
+            .Add("Entity", "Sample.Contract.QA.Orders.EnvelopeDto`1")
+            .Add("Owner", "Contracts").Add("Reason", "Reviewed envelope base").Add("Review", "2030-01-01"), Location.None);
+        var contractOptions = AnalyzerTestCompilation.ConventionOptionsProvider("Sample.Contract");
+        var contractFacts = new ConventionFacts(contract, ConventionProject.Read(contract, contractOptions.GlobalOptions),
+            new([baseException], []), contractOptions, CancellationToken.None);
+        var contractExceptions = new ConventionExceptions(contractFacts, new DateOnly(2026, 1, 1));
+        baseDiagnostics.Where(d => !contractExceptions.Applies(d)).Should().ContainSingle()
+            .Which.Properties["Entity"].Should().Be("Sample.Contract.QA.Orders.OrderDto");
+
+        var pairDiagnostics = contractDiagnostics
+            .Where(d => d.Properties["Target"] == "P:Sample.Contract.QA.Orders.DuplicateEnvelopeResponse.Pair").ToArray();
+        pairDiagnostics.Select(d => d.Properties["Entity"]).Should().BeEquivalentTo(
+            "Sample.Contract.QA.Orders.EnvelopeDto`1",
+            "Sample.Contract.QA.Orders.OrderDto",
+            "Sample.Contract.QA.Orders.CustomerDto");
+    }
+
+    [Fact]
     public void Deeply_Wrapped_Request_Bodies_Should_Reject_Object_While_Allowing_Named_Contract_Requests()
     {
         var contractRef = EmitProjectReference("Sample.Contract", "/dto-deep-request/Sample.Contract.dll", """
@@ -2306,7 +2485,7 @@ public sealed class ConventionDtoTests
         return Analyze(domain, "Domain");
     }
 
-    private static PortableExecutableReference EmitProjectReference(string assemblyName, string path, string source,
+    internal static PortableExecutableReference EmitProjectReference(string assemblyName, string path, string source,
         params MetadataReference[] extraReferences)
     {
         var metadata = CSharpSyntaxTree.ParseText($$"""

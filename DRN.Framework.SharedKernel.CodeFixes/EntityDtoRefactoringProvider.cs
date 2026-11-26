@@ -363,7 +363,7 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         var sourceNamespace = selection.Entity.ContainingNamespace.ToDisplayString();
         if (!sourceNamespace.StartsWith(sourceInfo.Namespace + ".", StringComparison.Ordinal)) return null;
         var owner = ResolveNamespaceOwnerKey(selection.Entity, sourceInfo.Namespace, sourceInfo.Layout);
-        if (owner is null || !PreservesOwnership(selection.Entity, sourceCompilation, sourceInputs, owner, token, out var explicitDomain))
+        if (owner is null || !PreservesOwnership(selection.Entity, sourceCompilation, sourceInputs, sourceInfo, owner, token, out var explicitDomain))
             return null;
         owner = owner.WithExplicitDomain(explicitDomain);
         var stem = ConventionGenerationPreflight.EntityStem(selection.Entity.Name);
@@ -595,14 +595,15 @@ public sealed class EntityDtoRefactoringProvider : CodeRefactoringProvider
         property.IsRequired || property.Type.IsReferenceType && property.NullableAnnotation != NullableAnnotation.Annotated;
 
     private static bool PreservesOwnership(INamedTypeSymbol entity, Compilation compilation,
-        CompilationUnitSyntax root, OwnerKey owner, CancellationToken token, out bool hasExplicitDomain)
+        CompilationUnitSyntax root, ConventionGenerationPreflight.ProjectMetadata sourceInfo,
+        OwnerKey owner, CancellationToken token, out bool hasExplicitDomain)
     {
         hasExplicitDomain = false;
         if (!AttributesPreserveOwner(entity, owner, compilation, out var attrExplicitDomain) ||
             !OwnershipCompatible(root, MetadataName(entity), owner.Subdomain, token, out var inputExplicitDomain, owner.DomainFilter))
             return false;
         var metadata = ConventionGenerationPreflight.MetadataFromAssembly(entity.ContainingAssembly);
-        if (!metadata.TryValidateProducerOwnership(MetadataName(entity), owner, out var producerExplicitDomain)) return false;
+        if (!metadata.TryValidateProducerOwnership(MetadataName(entity), owner, out var producerExplicitDomain, sourceInfo)) return false;
         hasExplicitDomain = attrExplicitDomain || inputExplicitDomain || producerExplicitDomain;
         return true;
     }

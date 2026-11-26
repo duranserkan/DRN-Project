@@ -7,7 +7,7 @@ internal static class ConventionGenerationPreflight
     internal static StringComparison RootComparison =>
         OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 
-    internal readonly record struct ProjectMetadata(string Role, string Namespace, ProjectLayout Layout);
+    internal readonly record struct ProjectMetadata(string Role, string Namespace, ProjectLayout Layout, string ProjectName = "");
 
     internal sealed record ProjectLayout(string DomainLayout, string DefaultDomain, bool HasExplicitDomain, bool Valid)
     {
@@ -30,23 +30,64 @@ internal static class ConventionGenerationPreflight
         }
     }
 
-    internal sealed record AssemblyConventionMetadata(ProjectLayout Layout, string RootNamespace,
-        bool HasExplicitRootNamespace, bool HasRoleOverrides, List<KeyValuePair<string, string>> Metadata)
+    internal sealed record AssemblyConventionMetadata(ProjectLayout Layout, string ProjectName, string RootNamespace,
+        bool HasExplicitProjectName, bool HasExplicitRootNamespace, bool HasExplicitDomainLayout, bool HasExplicitDomain,
+        bool HasRoleOverrides, bool HasMetadataError, List<KeyValuePair<string, string>> Metadata)
     {
-        // Loaded projects can supply a layout that cannot be inferred from the assembly name alone.
-        private bool CanResolveProducerLayout => Layout.Valid || RootNamespace.Length > 0 &&
-            !Metadata.Any(entry => entry.Key is "DRN.Conventions.Domain" or "DRN.Conventions.DomainLayout");
+        private bool MatchesProducerLayout(CodeFixSymbolFacts.OwnerKey owner, ProjectMetadata? loadedProject)
+        {
+            if (HasMetadataError || HasRoleOverrides) return false;
+            if (!Layout.Valid) return CanUseAbsentMetadataFallback(loadedProject);
+            if (loadedProject is { } loaded && !MatchesLoadedIdentity(loaded)) return false;
 
-        internal bool TryValidateProducerOwnership(string entityName, CodeFixSymbolFacts.OwnerKey owner, out bool hasExplicitDomain)
+            var isFoldersLayout = loadedProject?.Layout.IsFoldersLayout ?? owner.HasFolderDomain;
+            if (HasExplicitDomainLayout && Layout.IsFoldersLayout != isFoldersLayout) return false;
+            if (!HasExplicitDomain) return true;
+            return !isFoldersLayout && Layout.DefaultDomain == owner.Domain;
+        }
+
+        private bool MatchesLoadedIdentity(ProjectMetadata loaded) =>
+            (!HasExplicitProjectName || ProjectName == loaded.ProjectName) &&
+            (!HasExplicitRootNamespace || RootNamespace == loaded.Namespace);
+
+        // Loaded projects can supply a layout when the assembly omits explicit identity and layout metadata.
+        private bool CanUseAbsentMetadataFallback(ProjectMetadata? loadedProject) =>
+            loadedProject is { Layout.Valid: true } &&
+            !HasExplicitProjectName && !HasExplicitRootNamespace && !HasExplicitDomainLayout && !HasExplicitDomain;
+
+        internal bool TryValidateProducerOwnership(string entityName, CodeFixSymbolFacts.OwnerKey owner,
+            out bool hasExplicitDomain, ProjectMetadata? loadedProject = null)
         {
             hasExplicitDomain = false;
-            if (!CanResolveProducerLayout || Layout.HasExplicitDomain && Layout.DefaultDomain != owner.Domain) return false;
-            var prefix = "DRN.Conventions.Ownership." + entityName + ".";
-            string? domain = null;
-            string? subdomain = null;
+            if (!MatchesProducerLayout(owner, loadedProject)) return false;
+            if (!TryReadEntityOwnershipRecord(entityName, out var hasRecord, out var domain, out var subdomain, out var kind))
+                return false;
+            if (!hasRecord)
+            {
+                hasExplicitDomain = Layout.HasExplicitDomain;
+                return true;
+            }
+            if (subdomain is null || subdomain != owner.Subdomain) return false;
+            if (kind is not (null or "" or ConventionInputSyntax.EntityField)) return false;
+            if (string.IsNullOrEmpty(domain))
+            {
+                hasExplicitDomain = Layout.HasExplicitDomain;
+                return true;
+            }
+            if (domain != owner.Domain) return false;
+            hasExplicitDomain = true;
+            return true;
+        }
+
+        private bool TryReadEntityOwnershipRecord(string entityName, out bool hasRecord,
+            out string? domain, out string? subdomain, out string? kind)
+        {
+            var prefix = ConventionNames.OwnershipMetadataPrefix + entityName + ".";
+            domain = null;
+            subdomain = null;
             string? reason = null;
-            string? kind = null;
-            var hasRecord = false;
+            kind = null;
+            hasRecord = false;
             foreach (var (key, value) in Metadata)
             {
                 if (!key.StartsWith(prefix, StringComparison.Ordinal)) continue;
@@ -62,12 +103,6 @@ internal static class ConventionGenerationPreflight
                 };
                 if (!valid) return false;
             }
-            if (!hasRecord) return true;
-            if (subdomain is null || subdomain != owner.Subdomain) return false;
-            if (kind is not (null or "" or ConventionInputSyntax.EntityField)) return false;
-            if (string.IsNullOrEmpty(domain)) return true;
-            if (domain != owner.Domain) return false;
-            hasExplicitDomain = true;
             return true;
         }
 
@@ -85,13 +120,13 @@ internal static class ConventionGenerationPreflight
         global.TryGetValue("build_property.MSBuildProjectName", out var msbuildName);
         var projectName = string.IsNullOrWhiteSpace(msbuildName) ? project.Name : msbuildName;
         var (role, problem) = ConventionNames.Read(projectName);
-        if (problem.Length > 0) return new("", "", new("", "", false, false));
+        if (problem.Length > 0) return new("", "", new("", "", false, false), projectName);
         global.TryGetValue("build_property.DrnDomainLayout", out var rawLayout);
         global.TryGetValue("build_property.DrnDomain", out var rawDomain);
         var layout = ParseLayoutForRole(projectName, role, rawLayout ?? "", rawDomain ?? "");
-        if (role.Length == 0) return new("", "", layout);
+        if (role.Length == 0) return new("", "", layout, projectName);
         global.TryGetValue("build_property.RootNamespace", out var ns);
-        return new(role, string.IsNullOrEmpty(ns) ? projectName : ns, layout);
+        return new(role, string.IsNullOrEmpty(ns) ? projectName : ns, layout, projectName);
     }
 
     internal static AssemblyConventionMetadata MetadataFromAssembly(IAssemblySymbol assembly)
@@ -100,27 +135,32 @@ internal static class ConventionGenerationPreflight
         var hasRoleOverrides = false;
         foreach (var attribute in assembly.GetAttributes())
         {
-            if (attribute.AttributeClass is not null &&
-                MetadataName(attribute.AttributeClass) == "System.Reflection.AssemblyMetadataAttribute" &&
-                ConventionNames.TryReadAssemblyMetadata(attribute, out var entry))
-            {
-                if (entry.Key.StartsWith("DRN.Conventions.Role.", StringComparison.Ordinal))
-                    hasRoleOverrides = true;
-                metadata.Add(entry);
-            }
+            var isAssemblyMetadata = attribute.AttributeClass is { Name: "AssemblyMetadataAttribute" } attributeClass &&
+                MetadataName(attributeClass) == "System.Reflection.AssemblyMetadataAttribute";
+            if (!isAssemblyMetadata || !ConventionNames.TryReadAssemblyMetadata(attribute, out var entry))
+                continue;
+            if (entry.Key.StartsWith(ConventionNames.RoleMetadataPrefix, StringComparison.Ordinal))
+                hasRoleOverrides = true;
+            metadata.Add(entry);
         }
         var parsed = ConventionNames.ParseReferenceMetadata(assembly.Name, metadata);
-        if (!parsed.Valid || hasRoleOverrides ||
-            parsed.HasExplicitRootNamespace && !CodeFixSymbolFacts.ValidNamespace(parsed.RootNamespace))
-            return new(new("", "", false, false), "", false, hasRoleOverrides, metadata);
-        return new(ParseLayout(parsed.ProjectName, parsed.DomainLayout, parsed.Domain),
-            parsed.RootNamespace, parsed.HasExplicitRootNamespace, HasRoleOverrides: false, metadata);
-    }
+        var hasInvalidMetadata = !parsed.Valid || hasRoleOverrides ||
+            (parsed.HasExplicitRootNamespace && !CodeFixSymbolFacts.ValidNamespace(parsed.RootNamespace));
+        if (hasInvalidMetadata)
+            return new(new("", "", false, false), "", "", false, false, false, false, hasRoleOverrides, HasMetadataError: true, metadata);
 
-    private static ProjectLayout ParseLayout(string projectName, string rawLayout, string rawDomain)
-    {
-        var (role, problem) = ConventionNames.Read(projectName);
-        return problem.Length > 0 ? new("", "", false, false) : ParseLayoutForRole(projectName, role, rawLayout, rawDomain);
+        var (role, problem) = ConventionNames.Read(parsed.ProjectName);
+        if (problem.Length > 0)
+            return new(new("", "", false, false), parsed.ProjectName, parsed.RootNamespace,
+                parsed.HasExplicitProjectName, parsed.HasExplicitRootNamespace,
+                parsed.HasExplicitDomainLayout, parsed.HasExplicitDomain,
+                HasRoleOverrides: false, HasMetadataError: parsed.HasExplicitProjectName, metadata);
+
+        var layout = ParseLayoutForRole(parsed.ProjectName, role, parsed.DomainLayout, parsed.Domain);
+        return new(layout, parsed.ProjectName, parsed.RootNamespace,
+            parsed.HasExplicitProjectName, parsed.HasExplicitRootNamespace,
+            parsed.HasExplicitDomainLayout, parsed.HasExplicitDomain,
+            HasRoleOverrides: false, HasMetadataError: false, metadata);
     }
 
     private static ProjectLayout ParseLayoutForRole(string projectName, string role, string rawLayout, string rawDomain)

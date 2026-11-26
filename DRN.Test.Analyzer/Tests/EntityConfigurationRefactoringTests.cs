@@ -757,6 +757,21 @@ public sealed class EntityConfigurationRefactoringTests
         [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.QA.User.Domain", "Other")]
         [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Ownership.Sample.Domain.QA.User.Subdomain", "QA")]
         """, false)]
+    [DataInlineUnit("Sample.Infra", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Domain", "Sample")]
+        """, true)]
+    [DataInlineUnit("Other.Infra", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.Domain", "Sample")]
+        """, false)]
+    [DataInlineUnit("Sample.Infra", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.DomainLayout", "Folders")]
+        """, false)]
+    [DataInlineUnit("Sample.Infra", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.ProjectName", "Domain.Infra")]
+        """, false)]
+    [DataInlineUnit("Sample.Infra", """
+        [assembly: System.Reflection.AssemblyMetadata("DRN.Conventions.RootNamespace", "Other.Domain")]
+        """, false)]
     public async Task Project_Referenced_Domain_Should_Validate_Producer_Ownership_Metadata(
         string infraName, string metadataAttributes, bool offered)
     {

@@ -82,15 +82,7 @@ public sealed class SourceKnownControllerAuthorizationAnalyzer : DiagnosticAnaly
     {
         if (method.MethodKind != MethodKind.Ordinary || method.IsStatic || method.IsAbstract || method.IsGenericMethod)
             return false;
-
-        var root = method;
-        while (root.OverriddenMethod is { } overridden)
-            root = overridden;
-        if (root.ContainingType.SpecialType == SpecialType.System_Object)
-            return false;
-
-        return contract.Dispose is null || !SymbolEqualityComparer.Default.Equals(
-            root.ContainingType.FindImplementationForInterfaceMember(contract.Dispose), root);
+        return !RoslynSymbolHelpers.IsObjectOrDisposeMethod(method, contract.Dispose);
     }
 
     private static IEnumerable<IMethodSymbol> EffectivePublicMethods(INamedTypeSymbol controller, CancellationToken cancellationToken)

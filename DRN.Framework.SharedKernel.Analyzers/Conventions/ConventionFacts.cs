@@ -58,6 +58,7 @@ internal sealed partial class ConventionFacts
     private readonly Dictionary<SyntaxTree, bool> _treeHasResponseAlias = [];
     private bool _hasIncompleteInventory;
     private bool _hasInvalidFolderInput;
+    private ProjectionFactCache? _projectionFacts;
 
     internal ConventionFacts(Compilation compilation, ConventionProject project, ConventionInputs inputs,
         AnalyzerConfigOptionsProvider options, CancellationToken cancellation)
@@ -148,6 +149,8 @@ internal sealed partial class ConventionFacts
 
     internal Stack<ITypeSymbol> PublicShapePending { get; } = [];
     internal HashSet<ITypeSymbol> PublicShapeVisited { get; } = new(SymbolEqualityComparer.Default);
+    internal Dictionary<INamedTypeSymbol, INamedTypeSymbol> PublicShapeExposures { get; } = new(SymbolEqualityComparer.Default);
+    internal ProjectionFactCache ProjectionFacts => _projectionFacts ??= new(this);
 
     internal HashSet<ITypeSymbol> CleanPublicShapeTypes(PublicShapeRule rule) => _cleanPublicShapeTypes[(int)rule];
 

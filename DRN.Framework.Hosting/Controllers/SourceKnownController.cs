@@ -19,6 +19,7 @@ public abstract class SourceKnownController<TEntity, TResponse, TCreateRequest>
         Service = service;
     }
 
+    /// <summary>Gets the backing application service with read, response projection and entity creation support.</summary>
     protected new ISourceKnownService<TEntity, TResponse, TCreateRequest> Service { get; }
 
     /// <summary>Builds an entity through the backing application service.</summary>
