@@ -359,7 +359,9 @@ internal static class ResponseProjectionAnalysis
         {
             facts.Cancellation.ThrowIfCancellationRequested();
             var argument = creation.Arguments[i];
-            if (argument.ArgumentKind == ArgumentKind.DefaultValue) continue;
+            if (argument.ArgumentKind == ArgumentKind.DefaultValue &&
+                (entry.ReturnConditions.IsDefaultOrEmpty || !ResponseReturnBranchAnalysis.HasCallerInfo(argument.Parameter)))
+                continue;
             var matched = canMatchProperties
                 ? facts.ProjectionFacts.FindDestinationProperty(destinationType!, argument.Parameter)
                 : null;

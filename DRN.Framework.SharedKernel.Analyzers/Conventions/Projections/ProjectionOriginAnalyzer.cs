@@ -238,6 +238,8 @@ internal static class ProjectionOriginAnalyzer
         }
         if (TryPushPreservedSequenceOriginPredecessors(current, facts.Symbols, pending))
             return;
+        if (TryPushLiteralCollectionOriginPredecessors(current, pending))
+            return;
         if (SingleOriginPredecessor(current, facts) is { } single)
         {
             pending.Push(new(single));
@@ -285,6 +287,23 @@ internal static class ProjectionOriginAnalyzer
         return true;
     }
 
+    private static bool TryPushLiteralCollectionOriginPredecessors(IOperation current, Stack<LocalBinding> pending)
+    {
+        if (current is IArrayCreationOperation { Initializer: { } initializer })
+        {
+            foreach (var element in initializer.ElementValues)
+                pending.Push(new(element));
+            return true;
+        }
+        if (current is ICollectionExpressionOperation collection)
+        {
+            foreach (var element in collection.Elements)
+                pending.Push(new(element is ISpreadOperation spread ? spread.Operand : element));
+            return true;
+        }
+        return false;
+    }
+
     private static IOperation? SingleOriginPredecessor(IOperation current, ConventionFacts facts) => current switch
     {
         IInvocationOperation call => RoslynOperationHelpers.TryGetExtensionReceiver(call),
@@ -304,8 +323,11 @@ internal static class ProjectionOriginAnalyzer
             facts.Cancellation.ThrowIfCancellationRequested();
             if (current is not IAnonymousFunctionOperation lambda ||
                 !SymbolEqualityComparer.Default.Equals(lambda.Symbol, owner)) continue;
-            var selectCall = LinqSequenceFacts.FindEnclosingSelectCall(lambda, facts.Symbols);
-            return selectCall is null ? null : RoslynOperationHelpers.TryGetArgumentValueByOrdinal(selectCall, 0);
+            var call = LinqSequenceFacts.FindEnclosingLinqCall(lambda, facts.Symbols);
+            return call is not null && LinqSequenceFacts.IsSelectOrOrdering(call.TargetMethod, facts.Symbols) &&
+                   ReferenceEquals(LinqSequenceFacts.SelectLambda(call), lambda)
+                ? RoslynOperationHelpers.TryGetArgumentValueByOrdinal(call, 0)
+                : null;
         }
         return null;
     }

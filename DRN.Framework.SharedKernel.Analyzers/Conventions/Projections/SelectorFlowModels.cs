@@ -31,7 +31,7 @@ internal readonly record struct ExpressionWalkEntry(
 internal readonly record struct UnstructuredWalkEntry(
     IOperation Operation,
     FlowState? Before = null,
-    IOperation? SingleCondition = null,
+    ImmutableArray<IOperation> Conditions = default,
     ISwitchOperation? SwitchOwner = null,
     ISwitchCaseOperation? SwitchSection = null,
     ISwitchExpressionOperation? SwitchExpressionOwner = null,

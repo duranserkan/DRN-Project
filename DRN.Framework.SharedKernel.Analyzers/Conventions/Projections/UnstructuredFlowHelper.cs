@@ -23,11 +23,15 @@ internal static class UnstructuredFlowHelper
         localRef.Parent is IArgumentOperation { Parameter.RefKind: RefKind.Out } ||
         localRef.Parent is IDeclarationExpressionOperation { Parent: IArgumentOperation { Parameter.RefKind: RefKind.Out } };
 
-    internal static IOperation? LoopCondition(ILoopOperation loop, ConventionSymbols symbols, CancellationToken cancellation)
+    internal static ImmutableArray<IOperation> LoopConditions(
+        ILoopOperation loop, ConventionSymbols symbols, CancellationToken cancellation)
     {
-        if (loop is IForLoopOperation forLoop) return forLoop.Condition;
-        if (loop is IWhileLoopOperation whileLoop) return whileLoop.Condition;
-        if (loop is not IForEachLoopOperation forEach) return null;
+        if (loop is IForLoopOperation forLoop)
+            return forLoop.Condition is { } condition ? [condition] : [];
+        if (loop is IWhileLoopOperation whileLoop)
+            return whileLoop.Condition is { } condition ? [condition] : [];
+        if (loop is not IForEachLoopOperation forEach)
+            return [];
 
         return LinqSequenceFacts.SequenceControllingIteration(forEach.Collection, symbols, cancellation);
     }

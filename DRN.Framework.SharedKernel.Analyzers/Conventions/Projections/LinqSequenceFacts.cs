@@ -80,6 +80,10 @@ internal static class LinqSequenceFacts
     internal static bool IsLinqSelect(IMethodSymbol method, ConventionSymbols symbols) =>
         method.Name == SelectMethodName && IsLinqOwner(method.ContainingType, symbols);
 
+    internal static bool IsSelectOrOrdering(IMethodSymbol method, ConventionSymbols symbols) =>
+        method.Name is SelectMethodName or OrderByMethodName or OrderByDescendingMethodName or ThenByMethodName or ThenByDescendingMethodName &&
+        IsLinqOwner(method.ContainingType, symbols);
+
     internal static IAnonymousFunctionOperation? SelectLambda(IInvocationOperation call)
     {
         var selector = RoslynOperationHelpers.TryGetArgumentValueByOrdinal(call, 1);
@@ -165,45 +169,152 @@ internal static class LinqSequenceFacts
                SymbolEqualityComparer.Default.Equals(parameter.OriginalDefinition.Type, sourceTypeParameter);
     }
 
-    private static bool CanUnwrapLengthPreservingCall(
-        IInvocationOperation call, ConventionSymbols symbols, CancellationToken cancellation)
+    internal static ImmutableArray<IOperation> SequenceControllingIteration(
+        IOperation? source, ConventionSymbols symbols, CancellationToken cancellation)
     {
-        if (IsLinqSelect(call.TargetMethod, symbols))
-            return SelectLambda(call) is { } lambda && !ContainsThrow(lambda.Body, cancellation);
-        var keepsLength = call.TargetMethod.Name is ToArrayMethodName or ToListMethodName or AsEnumerableMethodName or AsQueryableMethodName or ReverseMethodName or
-            OrderByMethodName or OrderByDescendingMethodName or ThenByMethodName or ThenByDescendingMethodName;
-        return keepsLength && TryGetPreservedSequenceArgumentCount(call.TargetMethod, symbols, out _);
+        ImmutableArray<IOperation> conditions = [];
+        ImmutableArray<IOperation> eagerArguments = [];
+        IOperation? retainedSource = null;
+        source = RoslynOperationHelpers.UnwrapInstance(source, cancellation);
+        while (source is IInvocationOperation call)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            var method = call.TargetMethod;
+            var hasCallback = IsSelectOrOrdering(method, symbols);
+            if (!hasCallback && (method.Name is not (ToArrayMethodName or ToListMethodName or AsEnumerableMethodName or AsQueryableMethodName or ReverseMethodName) ||
+                                 !TryGetPreservedSequenceArgumentCount(method, symbols, out _)))
+                break;
+            var input = RoslynOperationHelpers.TryGetArgumentValueByOrdinal(call, 0);
+            source = RoslynOperationHelpers.UnwrapInstance(input, cancellation);
+            if (!hasCallback) continue;
+            var comparer = RoslynOperationHelpers.TryGetArgumentValueByOrdinal(call, 2);
+            if (comparer is not null && !RoslynOperationHelpers.IsNullLiteral(comparer))
+            {
+                if (!IsSimpleComparerChoice(comparer))
+                    eagerArguments = eagerArguments.Add(comparer);
+                retainedSource ??= call;
+            }
+            if (SelectLambda(call) is not { } lambda)
+            {
+                if (RoslynOperationHelpers.TryGetArgumentValueByOrdinal(call, 1) is { } selector)
+                    eagerArguments = eagerArguments.Add(selector);
+                retainedSource ??= call;
+                continue;
+            }
+            if (retainedSource is not null) continue;
+            var guard = DirectThrowGuard(lambda.Body, out var directThrow);
+            if (RequiresWholeCallback(lambda.Body, directThrow, cancellation))
+                retainedSource = call;
+            else if (guard is not null)
+            {
+                conditions = conditions.Add(guard);
+                if (lambda.Symbol.Parameters.Length > 0 && ReadsParameter(guard, lambda.Symbol.Parameters[0], cancellation))
+                    retainedSource = input;
+            }
+        }
+        if (source is IArrayCreationOperation { Initializer.ElementValues.Length: 0 } or
+            IArrayCreationOperation { DimensionSizes: [{ ConstantValue: { HasValue: true, Value: 0 } }] } or
+            ICollectionExpressionOperation { Type: IArrayTypeSymbol, Elements.Length: 0 })
+            return eagerArguments;
+        if (retainedSource is not null)
+            return conditions.Add(retainedSource);
+        // A fixed-length literal's elements cannot change whether the loop runs.
+        return source is null || IsFixedLengthLiteral(source) ? conditions : conditions.Add(source);
     }
 
-    private static bool ContainsThrow(IOperation root, CancellationToken cancellation)
+    private static bool IsSimpleComparerChoice(IOperation comparer) =>
+        UnwrapSafeReturnConversions(comparer) is IConditionalOperation { WhenFalse: { } other } choice &&
+        (IsSimpleReturnValue(choice.Condition) || choice.Condition is
+            IPropertyReferenceOperation { Instance: IParameterReferenceOperation, Property.IsIndexer: false }) &&
+        IsSimpleComparerValue(choice.WhenTrue) && IsSimpleComparerValue(other);
+
+    private static bool IsSimpleComparerValue(IOperation value) =>
+        IsSimpleReturnValue(value) || UnwrapSafeReturnConversions(value) is IPropertyReferenceOperation
+        {
+            Property.IsStatic: true,
+            Property.Name: nameof(StringComparer.Ordinal) or nameof(StringComparer.OrdinalIgnoreCase),
+            Property.ContainingType: var owner
+        } && ConventionSymbols.MetadataName(owner) == "System.StringComparer";
+
+    private static IOperation? DirectThrowGuard(IBlockOperation body, out IThrowOperation? directThrow)
+    {
+        if (body.Operations is [IReturnOperation { ReturnedValue: { } value }] &&
+            UnwrapSafeReturnConversions(value) is IConditionalOperation { WhenFalse: { } other } choice)
+        {
+            directThrow = UnwrapThrow(choice.WhenTrue);
+            var resultArm = directThrow is null ? choice.WhenTrue : other;
+            directThrow = IsSimpleReturnValue(resultArm) ? directThrow ?? UnwrapThrow(other) : null;
+            return directThrow is not null ? choice.Condition : null;
+        }
+        if (body.Operations is [IConditionalOperation { WhenFalse: null } check, IReturnOperation { ReturnedValue: { } result }] &&
+            IsSimpleReturnValue(result))
+        {
+            directThrow = UnwrapThrow(check.WhenTrue);
+            return directThrow is not null ? check.Condition : null;
+        }
+        directThrow = null;
+        return null;
+    }
+
+    private static bool IsSimpleReturnValue(IOperation value) =>
+        UnwrapSafeReturnConversions(value) is { ConstantValue.HasValue: true } or IParameterReferenceOperation or ILocalReferenceOperation;
+
+    private static IOperation UnwrapSafeReturnConversions(IOperation value)
+    {
+        while (true)
+        {
+            var operand = value switch
+            {
+                IParenthesizedOperation parenthesized => parenthesized.Operand,
+                IConversionOperation { Conversion: { IsIdentity: true } or { IsImplicit: true, IsReference: true } } conversion => conversion.Operand,
+                _ => null
+            };
+            if (operand is null) return value;
+            value = operand;
+        }
+    }
+
+    private static IThrowOperation? UnwrapThrow(IOperation operation)
+    {
+        if (operation is IBlockOperation { Operations: [var statement] })
+            operation = statement;
+        return RoslynOperationHelpers.UnwrapTransparent(operation) as IThrowOperation;
+    }
+
+    private static bool RequiresWholeCallback(
+        IBlockOperation body, IThrowOperation? directThrow, CancellationToken cancellation)
     {
         var walk = new Stack<IOperation>();
-        walk.Push(root);
+        walk.Push(body);
         while (walk.TryPop(out var current))
         {
             cancellation.ThrowIfCancellationRequested();
             if (current is IAnonymousFunctionOperation or ILocalFunctionOperation) continue;
-            if (current is IThrowOperation) return true;
+            if (current is IThrowOperation && !ReferenceEquals(current, directThrow)) return true;
+            if (current is IInvocationOperation { TargetMethod.MethodKind: MethodKind.LocalFunction or MethodKind.DelegateInvoke })
+                return true;
             foreach (var child in current.ChildOperations) walk.Push(child);
         }
         return false;
     }
 
-    internal static IOperation? SequenceControllingIteration(IOperation? source, ConventionSymbols symbols, CancellationToken cancellation)
+    private static bool ReadsParameter(IOperation guard, IParameterSymbol element, CancellationToken cancellation)
     {
-        source = RoslynOperationHelpers.UnwrapInstance(source, cancellation);
-        while (source is IInvocationOperation call && CanUnwrapLengthPreservingCall(call, symbols, cancellation))
+        foreach (var operation in guard.DescendantsAndSelf())
         {
             cancellation.ThrowIfCancellationRequested();
-            source = RoslynOperationHelpers.UnwrapInstance(RoslynOperationHelpers.TryGetArgumentValueByOrdinal(call, 0), cancellation);
+            if (operation is IParameterReferenceOperation reference && SymbolEqualityComparer.Default.Equals(reference.Parameter, element))
+                return true;
         }
-        // Values stored in a fixed-length literal do not affect whether it has an element.
+        return false;
+    }
+
+    private static bool IsFixedLengthLiteral(IOperation source)
+    {
         var isFixedArrayLiteral = source is IArrayCreationOperation { Initializer: not null };
         var isFixedCollectionLiteral = source is ICollectionExpressionOperation { Type: IArrayTypeSymbol } literal &&
             !literal.Elements.Any(e => e is ISpreadOperation);
-        if (isFixedArrayLiteral || isFixedCollectionLiteral)
-            return null;
-        return source;
+        return isFixedArrayLiteral || isFixedCollectionLiteral;
     }
 
     internal static ImmutableArray<IOperation> LambdaIterationConditions(
@@ -228,8 +339,14 @@ internal static class LinqSequenceFacts
             if (isNonEnumerableSecondarySequence)
                 continue;
             var matchesCallbackInput = invoke.Parameters.Any(input => SymbolEqualityComparer.Default.Equals(input.Type, element));
-            if (matchesCallbackInput && SequenceControllingIteration(argument.Value, symbols, cancellation) is { } sequence)
-                conditions = conditions.Add(sequence);
+            if (!matchesCallbackInput)
+                continue;
+            var sequences = SequenceControllingIteration(argument.Value, symbols, cancellation);
+            for (var i = 0; i < sequences.Length; i++)
+            {
+                if (!conditions.Contains(sequences[i]))
+                    conditions = conditions.Add(sequences[i]);
+            }
         }
         return conditions;
     }
