@@ -730,14 +730,23 @@ internal sealed class SelectorFlowCollector
 
     private void RecordLoopReturnCondition(ILoopOperation loop)
     {
-        if (!UnstructuredFlowHelper.ContainsReturn(loop.Body, ref _containsReturnCache, _cancellation))
+        if (UnstructuredFlowHelper.ContainsReturn(loop.Body, ref _containsReturnCache, _cancellation))
+        {
+            if (loop is IWhileLoopOperation { ConditionIsTop: false } doWhile &&
+                !UnstructuredFlowHelper.CanDoWhileReachCondition(doWhile, _cancellation))
+                return;
+            var conditions = UnstructuredFlowHelper.LoopConditions(loop, _symbols, _cancellation);
+            for (var i = 0; i < conditions.Length; i++)
+                AddReturnCondition(conditions[i], unstructured: true);
             return;
-        if (loop is IWhileLoopOperation { ConditionIsTop: false } doWhile &&
-            !UnstructuredFlowHelper.CanDoWhileReachCondition(doWhile, _cancellation))
-            return;
-        var conditions = UnstructuredFlowHelper.LoopConditions(loop, _symbols, _cancellation);
-        for (var i = 0; i < conditions.Length; i++)
-            AddReturnCondition(conditions[i], unstructured: true);
+        }
+        if (loop is IForEachLoopOperation forEach)
+        {
+            var throwingComparers = LinqSequenceFacts.LoopHeadThrowingComparers(
+                forEach.Collection, _symbols, _cancellation);
+            for (var i = 0; i < throwingComparers.Length; i++)
+                AddReturnCondition(throwingComparers[i], unstructured: true);
+        }
     }
 
     private bool ConditionalContainsReturn(IConditionalOperation conditional) =>

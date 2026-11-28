@@ -755,7 +755,9 @@ public sealed class ConventionDtoSelectorFlowTests
                 public class ContactModel
                 {
                     [Personal] public string Email => "";
-                    [Personal] public bool IsVip => true;
+                    [Personal] public bool IsVip { get; } = true;
+                    [Personal] public bool CustomVip => true;
+                    [Personal] public virtual bool VirtualVip { get; } = true;
                     public string Name => "";
                     public ContactProfile? Profile => new();
                     public ChainNode Root => new();
@@ -3718,6 +3720,242 @@ public sealed class ConventionDtoSelectorFlowTests
             ("DifferingConstructorArgumentsRetainAllGuards", "Projected property 'Label' requires [Personal] from mapped property 'IsVip'."),
             ("ChainedTernaryPreservesOuterGuardOnConstructor", "Projected property 'Name' requires [Sensitive] from mapped property 'PrivateContacts'."),
             ("ChainedTernaryPreservesOuterGuardOnConstructor", "Projected property 'Label' requires [Sensitive] from mapped property 'PrivateContacts'.")
+        });
+    }
+
+    [Fact]
+    public void Empty_Sources_Comparer_Getters_And_Direct_Throw_Operands_Should_Track_Dependencies()
+    {
+        var diagnostics = AnalyzeResponseDiagnostics("""
+            private static class FakeArray
+            {
+                public static T[] Empty<T>() => Array.Empty<T>();
+            }
+
+            public ContactResponse[] ArrayEmptySkipsThrowingKey(UserEntity e) => e.Contacts.Select(c =>
+            {
+                var label = "default";
+                foreach (var item in Array.Empty<int>().OrderBy(_ => c.IsVip ? throw new InvalidOperationException() : 0))
+                    label = "reached";
+                return new ContactResponse { Label = label };
+            }).ToArray();
+
+            public ContactResponse[] ArrayEmptyIgnoresAutoPropertyComparerChoice(UserEntity e) => e.Contacts.Select(c =>
+            {
+                var label = "default";
+                foreach (var item in Array.Empty<int>().OrderBy(_ => "k", c.IsVip ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase))
+                    label = "reached";
+                return new ContactResponse { Label = label };
+            }).ToArray();
+
+            public UserResponse ArrayEmptyRetainsEagerThrowingComparer(UserEntity e) => new()
+            {
+                Flags = e.Contacts.Select(c =>
+                {
+                    try
+                    {
+                        foreach (var item in Array.Empty<int>().OrderBy(_ => e.Groups[0].PrivateContacts.Count,
+                                     c.IsVip ? throw new InvalidOperationException() : Comparer<int>.Default))
+                            return true;
+                        return false;
+                    }
+                    catch (InvalidOperationException) { return true; }
+                }).ToArray()
+            };
+
+            public ContactResponse[] CustomEmptyHelperStaysOnUnknownLengthPath(UserEntity e) => e.Contacts.Select(c =>
+            {
+                var label = "default";
+                foreach (var item in FakeArray.Empty<int>().OrderBy(_ => c.IsVip ? throw new InvalidOperationException() : 0))
+                    label = "reached";
+                return new ContactResponse { Label = label };
+            }).ToArray();
+
+            public ContactResponse[] EmptyArrayRetainsCustomGetterComparer(UserEntity e) => e.Contacts.Select(c =>
+            {
+                var label = "default";
+                foreach (var item in new int[0].OrderBy(_ => "k", c.CustomVip ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase))
+                    label = "reached";
+                return new ContactResponse { Label = label };
+            }).ToArray();
+
+            public ContactResponse[] EmptyCollectionExpressionRetainsCustomGetterComparer(UserEntity e) => e.Contacts.Select(c =>
+            {
+                var label = "default";
+                foreach (var item in ((int[])[]).OrderBy(_ => "k", c.CustomVip ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase))
+                    label = "reached";
+                return new ContactResponse { Label = label };
+            }).ToArray();
+
+            public ContactResponse[] EmptyCollectionExpressionIgnoresAutoPropertyComparer(UserEntity e) => e.Contacts.Select(c =>
+            {
+                var label = "default";
+                foreach (var item in ((int[])[]).OrderBy(_ => "k", c.IsVip ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase))
+                    label = "reached";
+                return new ContactResponse { Label = label };
+            }).ToArray();
+
+            public ContactResponse[] ArrayEmptyRetainsVirtualGetterComparer(UserEntity e) => e.Contacts.Select(c =>
+            {
+                var label = "default";
+                foreach (var item in Array.Empty<int>().OrderBy(_ => "k", c.VirtualVip ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase))
+                    label = "reached";
+                return new ContactResponse { Label = label };
+            }).ToArray();
+
+            public UserResponse DirectThrowOperandDependsOnElement(UserEntity e, bool fail) => new()
+            {
+                Flags = e.Contacts.Select(c =>
+                {
+                    foreach (var item in new[] { c.Email }.Select(x => fail ? throw new InvalidOperationException(x) : 1))
+                        return true;
+                    return false;
+                }).ToArray()
+            };
+
+            public UserResponse DirectThrowOperandDependsOnOuterProperty(UserEntity e, bool fail) => new()
+            {
+                Flags = e.Contacts.Select(c =>
+                {
+                    foreach (var item in new[] { 1 }.Select(_ => fail ? throw new InvalidOperationException(c.Email) : 1))
+                        return true;
+                    return false;
+                }).ToArray()
+            };
+
+            public UserResponse DirectThrowNonFixedExceptionChoice(UserEntity e, bool fail) => new()
+            {
+                Flags = e.Contacts.Select(c =>
+                {
+                    foreach (var item in new[] { e.Groups[0].PrivateContacts.Count }.Select(_ =>
+                                 fail ? throw (c.IsVip ? (Exception)new InvalidOperationException() : new ArgumentException()) : 1))
+                        return true;
+                    return false;
+                }).ToArray()
+            };
+
+            public UserResponse DirectThrowConstantAndNameofKeepNarrowPath(UserEntity e, bool fail) => new()
+            {
+                Flags = e.Contacts.Select(c =>
+                {
+                    foreach (var item in new[] { c.Email }.Select(_ => fail ? throw new InvalidOperationException("fixed") : 1))
+                        return true;
+                    foreach (var item in new[] { c.Email }.Select(x => fail ? throw new ArgumentNullException(nameof(x)) : 1))
+                        return true;
+                    return false;
+                }).ToArray()
+            };
+
+            public UserResponse EmptyOrderByThrowingComparerWithoutBodyReturn(UserEntity e) => new()
+            {
+                Flags = e.Contacts.Select(c =>
+                {
+                    try
+                    {
+                        foreach (var item in new int[0].OrderBy(_ => e.Groups[0].PrivateContacts.Count,
+                                     c.IsVip ? throw new InvalidOperationException() : Comparer<int>.Default))
+                        {
+                        }
+                        return false;
+                    }
+                    catch (InvalidOperationException) { return true; }
+                }).ToArray()
+            };
+
+            public UserResponse ArrayEmptyThrowingComparerWithoutBodyReturn(UserEntity e) => new()
+            {
+                Flags = e.Contacts.Select(c =>
+                {
+                    try
+                    {
+                        foreach (var item in Array.Empty<int>().OrderBy(_ => e.Groups[0].PrivateContacts.Count,
+                                     c.IsVip ? throw new InvalidOperationException() : Comparer<int>.Default))
+                        {
+                        }
+                        return false;
+                    }
+                    catch (InvalidOperationException) { return true; }
+                }).ToArray()
+            };
+
+            public ContactResponse[] NonThrowingOrderByBodyWriteWithoutReturn(UserEntity e) => e.Contacts.Select(c =>
+            {
+                var unused = "default";
+                foreach (var item in new[] { 1 }.OrderBy(_ => "k", c.IsVip ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase))
+                    unused = "reached";
+                return new ContactResponse { Label = "fixed" };
+            }).ToArray();
+            """);
+
+        diagnostics.Select(d => (EnclosingMethod(d), d.GetMessage())).Should().BeEquivalentTo(new[]
+        {
+            ("ArrayEmptyRetainsEagerThrowingComparer", "Projected property 'Flags' requires [Personal] from mapped property 'IsVip'."),
+            ("CustomEmptyHelperStaysOnUnknownLengthPath", "Projected property 'Label' requires [Personal] from mapped property 'IsVip'."),
+            ("EmptyArrayRetainsCustomGetterComparer", "Projected property 'Label' requires [Personal] from mapped property 'CustomVip'."),
+            ("EmptyCollectionExpressionRetainsCustomGetterComparer", "Projected property 'Label' requires [Personal] from mapped property 'CustomVip'."),
+            ("ArrayEmptyRetainsVirtualGetterComparer", "Projected property 'Label' requires [Personal] from mapped property 'VirtualVip'."),
+            ("DirectThrowOperandDependsOnElement", "Projected property 'Flags' requires [Personal] from mapped property 'Email'."),
+            ("DirectThrowOperandDependsOnOuterProperty", "Projected property 'Flags' requires [Personal] from mapped property 'Email'."),
+            ("DirectThrowNonFixedExceptionChoice", "Projected property 'Flags' requires [Sensitive] from mapped property 'PrivateContacts'."),
+            ("DirectThrowNonFixedExceptionChoice", "Projected property 'Flags' requires [Personal] from mapped property 'IsVip'."),
+            ("EmptyOrderByThrowingComparerWithoutBodyReturn", "Projected property 'Flags' requires [Personal] from mapped property 'IsVip'."),
+            ("ArrayEmptyThrowingComparerWithoutBodyReturn", "Projected property 'Flags' requires [Personal] from mapped property 'IsVip'.")
+        });
+    }
+
+    [Fact]
+    public void Array_Initializer_Origin_Should_Follow_Only_Known_In_Range_Index()
+    {
+        var diagnostics = AnalyzeResponseDiagnostics("""
+            public ContactResponse DirectArrayKnownNonEntityIndex(UserEntity e) => new()
+            {
+                Label = (new[] { e.Primary, new ContactModel() })[1].Email
+            };
+
+            public ContactResponse[] LocalArrayKnownNonEntityIndex(UserEntity e) => e.Contacts.Select(_ =>
+            {
+                var items = new[] { e.Primary, new ContactModel() };
+                return new ContactResponse { Label = items[1].Email };
+            }).ToArray();
+
+            public ContactResponse[] LocalArrayKnownEntityIndex(UserEntity e) => e.Contacts.Select(_ =>
+            {
+                var items = new[] { e.Primary, new ContactModel() };
+                return new ContactResponse { Label = items[0].Email };
+            }).ToArray();
+
+            public ContactResponse[] CollectionExpressionKnownNonEntityIndex(UserEntity e) => e.Contacts.Select(_ =>
+            {
+                ContactModel[] items = [e.Primary, new ContactModel()];
+                return new ContactResponse { Label = items[1].Email };
+            }).ToArray();
+
+            public ContactResponse DirectArrayKnownEntityIndex(UserEntity e) => new()
+            {
+                Label = (new[] { e.Primary, new ContactModel() })[0].Email
+            };
+
+            public ContactResponse DynamicArrayIndexPreservesAllEntries(UserEntity e, int index) => new()
+            {
+                Label = (new[] { e.Primary, new ContactModel() })[index].Email
+            };
+
+            public ContactResponse OutOfRangeArrayIndexPreservesAllEntries(UserEntity e) => new()
+            {
+                Label = (new[] { e.Primary, new ContactModel() })[2].Email
+            };
+
+            public ContactResponse[] LinqCallbackOverArrayPreservesAllEntries(UserEntity e) =>
+                new[] { e.Primary, new ContactModel() }.Select(x => new ContactResponse { Label = x.Email }).ToArray();
+            """);
+
+        diagnostics.Select(d => (EnclosingMethod(d), d.GetMessage())).Should().BeEquivalentTo(new[]
+        {
+            ("LocalArrayKnownEntityIndex", "Projected property 'Label' requires [Personal] from mapped property 'Email'."),
+            ("DirectArrayKnownEntityIndex", "Projected property 'Label' requires [Personal] from mapped property 'Email'."),
+            ("DynamicArrayIndexPreservesAllEntries", "Projected property 'Label' requires [Personal] from mapped property 'Email'."),
+            ("OutOfRangeArrayIndexPreservesAllEntries", "Projected property 'Label' requires [Personal] from mapped property 'Email'."),
+            ("LinqCallbackOverArrayPreservesAllEntries", "Projected property 'Label' requires [Personal] from mapped property 'Email'.")
         });
     }
 }

@@ -61,8 +61,8 @@ internal sealed class ProjectionCheckContext(
     internal INamedTypeSymbol OwnerType { get; } = ownerType;
     internal ClassificationContract Classifications { get; } = classifications;
     internal Dictionary<IPropertySymbol, PropertyClassifications> Reported { get; } = new(SymbolEqualityComparer.Default);
-    internal Stack<LocalBinding> OriginPending { get; } = [];
-    internal HashSet<LocalBinding> OriginVisited { get; } = new(LocalBindingComparer.Instance);
+    internal Stack<OriginEntry> OriginPending { get; } = [];
+    internal HashSet<OriginEntry> OriginVisited { get; } = new(OriginEntryComparer.Instance);
 }
 
 internal readonly record struct ProjectionNode(
@@ -135,6 +135,22 @@ internal sealed class LocalBindingComparer : IEqualityComparer<LocalBinding>
         }
         return hash.ToHashCode();
     }
+}
+
+internal readonly record struct OriginEntry(
+    LocalBinding Binding,
+    int? ArrayIndex = null);
+
+internal sealed class OriginEntryComparer : IEqualityComparer<OriginEntry>
+{
+    internal static readonly OriginEntryComparer Instance = new();
+
+    public bool Equals(OriginEntry x, OriginEntry y) =>
+        x.ArrayIndex == y.ArrayIndex &&
+        LocalBindingComparer.Instance.Equals(x.Binding, y.Binding);
+
+    public int GetHashCode(OriginEntry obj) =>
+        HashCode.Combine(LocalBindingComparer.Instance.GetHashCode(obj.Binding), obj.ArrayIndex);
 }
 
 internal readonly record struct SelectorReturn(
