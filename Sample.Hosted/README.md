@@ -246,7 +246,7 @@ DRN.Toast.show({ type: 'warning', message: 'Review this operation.', persist: fa
 DRN.Notifications.publish({ type: 'info', title: 'Report ready', message: 'Open Reports to view it.' });
 ```
 
-Server handlers can use `SendToast` for immediate `HX-Trigger: showToast` feedback. A Problem Details body takes precedence over a toast header. Other error responses display a nonempty string toast message when supplied, or a generic error otherwise. Use `DRN.Toast.show` for client feedback. Delayed `showToast` DOM events are unsupported. See the [notification API declarations](buildwww/types/drnNotifications.types.ts) for available options and history operations.
+Server handlers can use `SendToast` for immediate `HX-Trigger: showToast` feedback. Replacing a toast preserves other events and their inherited targets. If the existing trigger JSON is malformed, the response sends only the toast event. A Problem Details body takes precedence over a toast header. Other error responses display a nonempty string toast message when supplied, or a generic error otherwise. Use `DRN.Toast.show` for client feedback. Delayed `showToast` DOM events are unsupported. See the [notification API declarations](buildwww/types/drnNotifications.types.ts) for available options and history operations.
 
 ## Frontend assets
 

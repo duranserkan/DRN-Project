@@ -17,7 +17,7 @@ public class TypeExtensionsTests
     private sealed class Properties
     {
         public object Exact { get; } = new();
-        public string Derived => "";
+        public string Derived { get; } = "";
         public static object Static { get; } = new();
         private object Hidden { get; } = new();
     }
