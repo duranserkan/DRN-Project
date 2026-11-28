@@ -230,11 +230,31 @@ internal static class ProjectionOriginAnalyzer
             nextArrayIndex = requestedArrayIndex;
             return true;
         }
+        var firstNonTupleStep = FindFirstNonTupleWriteStep(written, out var sawAnyStep, out var reachedLocal);
+        if (!reachedLocal)
+        {
+            nextArrayIndex = null;
+            return true;
+        }
+        if (firstNonTupleStep is null)
+        {
+            nextArrayIndex = sawAnyStep ? requestedArrayIndex : null;
+            return true;
+        }
+        nextArrayIndex = null;
+        return firstNonTupleStep is not IArrayElementReferenceOperation arrayElement ||
+               requestedArrayIndex is not { } requested ||
+               TryGetConstantArrayIndex(arrayElement) is not { } writtenIndex ||
+               writtenIndex == requested;
+    }
+
+    private static IOperation? FindFirstNonTupleWriteStep(IOperation written, out bool sawAnyStep, out bool reachedLocal)
+    {
         // Walk from written back to the mutated local; the last non-tuple step before the local
         // (after skipping tuple fields directly on the local) identifies the written array slot.
         IOperation? firstNonTupleStep = null;
-        var sawAnyStep = false;
-        var reachedLocal = false;
+        sawAnyStep = false;
+        reachedLocal = false;
         var depth = 0;
         for (var part = RoslynOperationHelpers.UnwrapTransparent(written);
              part is not null;
@@ -251,23 +271,20 @@ internal static class ProjectionOriginAnalyzer
             if (part is not IFieldReferenceOperation field || RoslynSymbolHelpers.TupleElementOrdinal(field.Field) < 0)
                 firstNonTupleStep = part;
         }
-        if (!reachedLocal)
+        return firstNonTupleStep;
+    }
+
+    private static void PushLocalOriginBindings(
+        ImmutableArray<LocalBinding> localValues, int? arrayIndex, Stack<OriginEntry> pending)
+    {
+        for (var i = 0; i < localValues.Length; i++)
         {
-            nextArrayIndex = null;
-            return true;
+            var value = localValues[i];
+            if (value.Kind == LocalBindingKind.Condition) continue;
+            if (!TryMatchWriteArrayIndex(value.WriteTarget, arrayIndex, out var nextArrayIndex))
+                continue;
+            pending.Push(new(value, nextArrayIndex));
         }
-        if (firstNonTupleStep is null)
-        {
-            nextArrayIndex = sawAnyStep ? requestedArrayIndex : null;
-            return true;
-        }
-        nextArrayIndex = null;
-        if (firstNonTupleStep is IArrayElementReferenceOperation arrayElement &&
-            requestedArrayIndex is { } requested &&
-            TryGetConstantArrayIndex(arrayElement) is { } writtenIndex &&
-            writtenIndex != requested)
-            return false;
-        return true;
     }
 
     private static void PushOriginPredecessors(
@@ -305,14 +322,7 @@ internal static class ProjectionOriginAnalyzer
         if (current is ILocalReferenceOperation localRef && locals is not null &&
             locals.TryGetValues(localRef, out var localValues))
         {
-            for (var i = 0; i < localValues.Length; i++)
-            {
-                var value = localValues[i];
-                if (value.Kind == LocalBindingKind.Condition) continue;
-                if (!TryMatchWriteArrayIndex(value.WriteTarget, arrayIndex, out var nextArrayIndex))
-                    continue;
-                pending.Push(new(value, nextArrayIndex));
-            }
+            PushLocalOriginBindings(localValues, arrayIndex, pending);
             return;
         }
         TryPushBranchingOriginPredecessors(current, default, arrayIndex, pending);

@@ -62,29 +62,48 @@ internal static class ResponseReturnBranchAnalysis
         for (var i = 0; i < returns.Count; i++)
         {
             facts.Cancellation.ThrowIfCancellationRequested();
-            if (RoslynOperationHelpers.UnwrapTransparent(returns[i].Value) is not IObjectCreationOperation creation ||
-                !SymbolEqualityComparer.Default.Equals(creation.Type, type))
+            if (MatchReturnCreation(returns[i].Value, type) is not { } creation)
                 return null;
             if (i > 0 && sameConstructorValues)
-                sameConstructorValues = SymbolEqualityComparer.Default.Equals(first.Constructor, creation.Constructor) &&
-                    AreEquivalentConstantArguments(first.Arguments, creation.Arguments);
+                sameConstructorValues = HasEquivalentConstructor(first, creation);
             if (!IntersectInitializerConstants(creation, type, facts, i == 0, ref common, ref written))
                 return null;
         }
 
-        if (!sameConstructorValues || (facts.Role(type).Role != ConventionArchitecture.Contract && !facts.IsLocal(type)))
-            return common;
+        if (sameConstructorValues && IsContractOrLocal(type, facts))
+            AddCommonConstructorProperties(first, type, written, facts, ref common);
+        return common;
+    }
 
+    private static IObjectCreationOperation? MatchReturnCreation(IOperation value, INamedTypeSymbol type) =>
+        RoslynOperationHelpers.UnwrapTransparent(value) is IObjectCreationOperation candidate &&
+        SymbolEqualityComparer.Default.Equals(candidate.Type, type)
+            ? candidate
+            : null;
+
+    private static bool HasEquivalentConstructor(IObjectCreationOperation first, IObjectCreationOperation creation) =>
+        SymbolEqualityComparer.Default.Equals(first.Constructor, creation.Constructor) &&
+        AreEquivalentConstantArguments(first.Arguments, creation.Arguments);
+
+    private static bool IsContractOrLocal(INamedTypeSymbol type, ConventionFacts facts) =>
+        facts.Role(type).Role == ConventionArchitecture.Contract || facts.IsLocal(type);
+
+    private static void AddCommonConstructorProperties(
+        IObjectCreationOperation first, INamedTypeSymbol type, HashSet<IPropertySymbol>? written,
+        ConventionFacts facts, ref Dictionary<IPropertySymbol, object?>? common)
+    {
         // Every common initializer is also in written. Equal counts mean every write agrees across branches.
         var equivalentInitializers = written is null || common?.Count == written.Count;
-        foreach (var argument in first.Arguments)
+        var arguments = first.Arguments;
+        for (var i = 0; i < arguments.Length; i++)
         {
-            if (facts.ProjectionFacts.FindDestinationProperty(type, argument.Parameter) is not { } property ||
-                written?.Contains(property) == true || (!equivalentInitializers && ReadsOtherPropertyState(property, type, facts)))
+            if (facts.ProjectionFacts.FindDestinationProperty(type, arguments[i].Parameter) is not { } property ||
+                written?.Contains(property) == true)
+                continue;
+            if (!equivalentInitializers && ReadsOtherPropertyState(property, type, facts))
                 continue;
             (common ??= new(SymbolEqualityComparer.Default))[property] = null;
         }
-        return common;
     }
 
     private static bool ReadsOtherPropertyState(

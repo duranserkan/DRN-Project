@@ -198,45 +198,76 @@ internal static class LinqSequenceFacts
         while (source is IInvocationOperation call)
         {
             cancellation.ThrowIfCancellationRequested();
-            var method = call.TargetMethod;
-            var hasCallback = IsSelectOrOrdering(method, symbols);
-            var isDirectOrdering = IsDirectOrdering(method, symbols);
-            if (!hasCallback && !isDirectOrdering &&
-                (method.Name is not (ToArrayMethodName or ToListMethodName or AsEnumerableMethodName or AsQueryableMethodName or ReverseMethodName) ||
-                 !TryGetPreservedSequenceArgumentCount(method, symbols, out _)))
+            if (!CanUnwrapIterationCall(call.TargetMethod, symbols, out var hasCallback, out var isDirectOrdering))
                 break;
             var input = RoslynOperationHelpers.TryGetArgumentValueByOrdinal(call, 0);
             source = RoslynOperationHelpers.UnwrapInstance(input, cancellation);
-            if (TryGetOrderingComparer(call, symbols) is { } comparer && !RoslynOperationHelpers.IsNullLiteral(comparer))
-            {
-                if (!IsKnownNonThrowingComparer(comparer, symbols, cancellation))
-                    eagerArguments = eagerArguments.Add(comparer);
-                retainedSource ??= call;
-            }
+            CollectOrderingComparer(call, symbols, ref eagerArguments, ref retainedSource, cancellation);
             if (isDirectOrdering)
-            {
                 retainedSource ??= call;
-                continue;
-            }
-            if (!hasCallback) continue;
-            if (SelectLambda(call) is not { } lambda)
-            {
-                if (RoslynOperationHelpers.TryGetArgumentValueByOrdinal(call, 1) is { } selector)
-                    eagerArguments = eagerArguments.Add(selector);
-                retainedSource ??= call;
-                continue;
-            }
-            if (retainedSource is not null) continue;
-            var guard = DirectThrowGuard(lambda.Body, out var directThrow);
-            if (RequiresWholeCallback(lambda.Body, directThrow, cancellation))
-                retainedSource = call;
-            else if (guard is not null)
-            {
-                conditions = conditions.Add(guard);
-                if (lambda.Symbol.Parameters.Length > 0 && ReadsParameter(guard, lambda.Symbol.Parameters[0], cancellation))
-                    retainedSource = input;
-            }
+            else if (hasCallback)
+                InspectIterationCallback(call, input, ref conditions, ref eagerArguments, ref retainedSource, cancellation);
         }
+        return ResolveIterationConditions(source, conditions, eagerArguments, retainedSource, cancellation);
+    }
+
+    private static bool CanUnwrapIterationCall(
+        IMethodSymbol method, ConventionSymbols symbols, out bool hasCallback, out bool isDirectOrdering)
+    {
+        hasCallback = IsSelectOrOrdering(method, symbols);
+        isDirectOrdering = IsDirectOrdering(method, symbols);
+        if (hasCallback || isDirectOrdering)
+            return true;
+        return method.Name is ToArrayMethodName or ToListMethodName or AsEnumerableMethodName or AsQueryableMethodName or ReverseMethodName &&
+               TryGetPreservedSequenceArgumentCount(method, symbols, out _);
+    }
+
+    private static void CollectOrderingComparer(
+        IInvocationOperation call, ConventionSymbols symbols,
+        ref ImmutableArray<IOperation> eagerArguments, ref IOperation? retainedSource,
+        CancellationToken cancellation)
+    {
+        if (TryGetOrderingComparer(call, symbols) is not { } comparer || RoslynOperationHelpers.IsNullLiteral(comparer))
+            return;
+        if (!IsKnownNonThrowingComparer(comparer, symbols, cancellation))
+            eagerArguments = eagerArguments.Add(comparer);
+        retainedSource ??= call;
+    }
+
+    private static void InspectIterationCallback(
+        IInvocationOperation call, IOperation? input,
+        ref ImmutableArray<IOperation> conditions,
+        ref ImmutableArray<IOperation> eagerArguments,
+        ref IOperation? retainedSource,
+        CancellationToken cancellation)
+    {
+        if (SelectLambda(call) is not { } lambda)
+        {
+            if (RoslynOperationHelpers.TryGetArgumentValueByOrdinal(call, 1) is { } selector)
+                eagerArguments = eagerArguments.Add(selector);
+            retainedSource ??= call;
+            return;
+        }
+        if (retainedSource is not null)
+            return;
+        var guard = DirectThrowGuard(lambda.Body, out var directThrow);
+        if (RequiresWholeCallback(lambda.Body, directThrow, cancellation))
+        {
+            retainedSource = call;
+            return;
+        }
+        if (guard is null)
+            return;
+        conditions = conditions.Add(guard);
+        if (lambda.Symbol.Parameters.Length > 0 && ReadsParameter(guard, lambda.Symbol.Parameters[0], cancellation))
+            retainedSource = input;
+    }
+
+    private static ImmutableArray<IOperation> ResolveIterationConditions(
+        IOperation? source, ImmutableArray<IOperation> conditions,
+        ImmutableArray<IOperation> eagerArguments, IOperation? retainedSource,
+        CancellationToken cancellation)
+    {
         if (IsEmptyArraySource(source))
             return eagerArguments;
         if (retainedSource is not null)
@@ -246,7 +277,7 @@ internal static class LinqSequenceFacts
         // A fixed-length literal's cardinality does not change whether the loop runs,
         // but potentially throwing element initializers still execute eagerly.
         if (IsFixedLengthLiteral(source))
-            return AddThrowingLiteralElements(source, conditions, cancellation, directThrowOnly: false);
+            return AddThrowingLiteralElements(source, conditions, directThrowOnly: false, cancellation);
         return conditions.Add(source);
     }
 
@@ -269,7 +300,7 @@ internal static class LinqSequenceFacts
                 continue;
             }
             if (IsFixedLengthLiteral(current))
-                throwing = AddThrowingLiteralElements(current, throwing, cancellation, directThrowOnly: true);
+                throwing = AddThrowingLiteralElements(current, throwing, directThrowOnly: true, cancellation);
             else if (ContainsDirectThrow(current, cancellation))
                 throwing = throwing.Add(current);
         }
@@ -475,7 +506,7 @@ internal static class LinqSequenceFacts
 
     private static ImmutableArray<IOperation> AddThrowingLiteralElements(
         IOperation literal, ImmutableArray<IOperation> destination,
-        CancellationToken cancellation, bool directThrowOnly)
+        bool directThrowOnly, CancellationToken cancellation)
     {
         if (literal is ICollectionExpressionOperation collection)
         {
@@ -483,7 +514,7 @@ internal static class LinqSequenceFacts
             for (var i = 0; i < elements.Length; i++)
             {
                 var element = elements[i];
-                if (RetainsLiteralElement(element, cancellation, directThrowOnly))
+                if (RetainsLiteralElement(element, directThrowOnly, cancellation))
                     destination = destination.Add(element);
             }
             return destination;
@@ -501,13 +532,13 @@ internal static class LinqSequenceFacts
                     pending.Push(nested.ElementValues[i]);
                 continue;
             }
-            if (RetainsLiteralElement(current, cancellation, directThrowOnly))
+            if (RetainsLiteralElement(current, directThrowOnly, cancellation))
                 destination = destination.Add(current);
         }
         return destination;
     }
 
-    private static bool RetainsLiteralElement(IOperation element, CancellationToken cancellation, bool directThrowOnly) =>
+    private static bool RetainsLiteralElement(IOperation element, bool directThrowOnly, CancellationToken cancellation) =>
         directThrowOnly
             ? ContainsDirectThrow(element, cancellation)
             : MayThrowFixedLiteralElement(element, cancellation);
@@ -554,28 +585,17 @@ internal static class LinqSequenceFacts
     internal static ImmutableArray<IOperation> LambdaIterationConditions(
         IInvocationOperation call, IAnonymousFunctionOperation lambda, ConventionSymbols symbols, CancellationToken cancellation)
     {
-        if (UnwrapLambdaParent(lambda) is not IArgumentOperation { Parameter.OriginalDefinition.Type: INamedTypeSymbol callback })
+        if (CallbackInvokeMethod(lambda) is not { } invoke)
             return [];
-        if (callback.TypeKind != TypeKind.Delegate &&
-            callback.TypeArguments is [INamedTypeSymbol { TypeKind: TypeKind.Delegate } expressionDelegate])
-            callback = expressionDelegate;
-        if (callback.DelegateInvokeMethod is not { } invoke) return [];
 
         // Outer and inner sequences can have the same concrete element type at the call site.
         ImmutableArray<IOperation> conditions = [];
-        foreach (var argument in call.Arguments)
+        var arguments = call.Arguments;
+        for (var a = 0; a < arguments.Length; a++)
         {
-            if (argument.Parameter is not { } parameter ||
-                parameter.OriginalDefinition.Type is not INamedTypeSymbol { TypeArguments: [ITypeParameterSymbol element] } sequenceType)
+            if (!IsCallbackControllingSequenceArgument(arguments[a], invoke))
                 continue;
-            var isNonEnumerableSecondarySequence = parameter.Ordinal != 0 &&
-                sequenceType.OriginalDefinition.SpecialType != SpecialType.System_Collections_Generic_IEnumerable_T;
-            if (isNonEnumerableSecondarySequence)
-                continue;
-            var matchesCallbackInput = invoke.Parameters.Any(input => SymbolEqualityComparer.Default.Equals(input.Type, element));
-            if (!matchesCallbackInput)
-                continue;
-            var sequences = SequenceControllingIteration(argument.Value, symbols, cancellation);
+            var sequences = SequenceControllingIteration(arguments[a].Value, symbols, cancellation);
             for (var i = 0; i < sequences.Length; i++)
             {
                 if (!conditions.Contains(sequences[i]))
@@ -583,6 +603,28 @@ internal static class LinqSequenceFacts
             }
         }
         return conditions;
+    }
+
+    private static IMethodSymbol? CallbackInvokeMethod(IAnonymousFunctionOperation lambda)
+    {
+        if (UnwrapLambdaParent(lambda) is not IArgumentOperation { Parameter.OriginalDefinition.Type: INamedTypeSymbol callback })
+            return null;
+        if (callback.TypeKind != TypeKind.Delegate &&
+            callback.TypeArguments is [INamedTypeSymbol { TypeKind: TypeKind.Delegate } expressionDelegate])
+            callback = expressionDelegate;
+        return callback.DelegateInvokeMethod;
+    }
+
+    private static bool IsCallbackControllingSequenceArgument(IArgumentOperation argument, IMethodSymbol invoke)
+    {
+        if (argument.Parameter is not { } parameter ||
+            parameter.OriginalDefinition.Type is not INamedTypeSymbol { TypeArguments: [ITypeParameterSymbol element] } sequenceType)
+            return false;
+        var isNonEnumerableSecondarySequence = parameter.Ordinal != 0 &&
+            sequenceType.OriginalDefinition.SpecialType != SpecialType.System_Collections_Generic_IEnumerable_T;
+        if (isNonEnumerableSecondarySequence)
+            return false;
+        return invoke.Parameters.Any(input => SymbolEqualityComparer.Default.Equals(input.Type, element));
     }
 
     internal static bool IsMaterializingCollectionCreation(IObjectCreationOperation creation, ConventionSymbols symbols) =>
