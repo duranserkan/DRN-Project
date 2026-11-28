@@ -50,6 +50,7 @@ test('filtered coverage respects source globs and excludes unselected unit tests
     copyFileSync(testFile, selectedFile);
     cpSync('buildwww/lib/react', join(directory.path, 'buildwww/lib/react'), { recursive: true });
     copyFileSync('tsconfig.json', join(directory.path, 'tsconfig.json'));
+    copyFileSync('tsconfig.tests.json', join(directory.path, 'tsconfig.tests.json'));
     copyFileSync('vitest.config.ts', join(directory.path, 'vitest.config.ts'));
     symlinkSync(resolve('buildwww/tests/reporters'), join(directory.path, 'buildwww/tests/reporters'), 'junction');
     // A Vitest positional filter would also match this nested test path.

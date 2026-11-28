@@ -3,6 +3,8 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
     root: fileURLToPath(new URL('.', import.meta.url)),
+    tsconfig: '../../../tsconfig.tests.json',
+    resolve: { tsconfigPaths: true },
     server: {
         host: '127.0.0.1',
         port: 4175,

@@ -40,6 +40,7 @@ Resolve contradictions with TRIZ first. Then evaluate every change in order:
 - New abstractions remove real complexity or match an established local pattern.
 - Apply the [refactoring guidance](../basic-agentic-development/SKILL.md#refactoring-for-clarity): names should expose intent, and extraction must preserve behavior. Static inspection supports equivalence but does not establish runtime or visual correctness.
 - Apply [allocation and lookup guidance](../basic-agentic-development/SKILL.md#allocations-and-stable-lookups). Require source evidence or measurements for claimed benefits, explicit assumptions, and preserved correctness.
+- In C#, prefer an expression-bodied getter for a compile-time constant such as a string literal or `nameof` expression. Keep stored properties for captured inputs, stable object identity, and one-time initialization.
 - Public behavior changes are documented and classified as breaking or non-breaking.
 - Follow the repository profile's runtime-access conventions.
 - Apply the [deprecated-code rule](../basic-agentic-development/SKILL.md#anti-patterns).

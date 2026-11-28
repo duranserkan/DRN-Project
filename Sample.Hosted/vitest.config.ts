@@ -5,6 +5,8 @@ export const defaultCoverageIncludes = ['buildwww/{app,lib}/**/*.{ts,tsx,js}'];
 export const defaultCoverageExcludes = ['**/*.d.ts'];
 
 export default defineConfig({
+    tsconfig: './tsconfig.tests.json',
+    resolve: { tsconfigPaths: true },
     test: {
         include: [unitTestPattern],
         restoreMocks: true,

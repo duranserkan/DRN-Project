@@ -31,8 +31,8 @@
     "build:behaviors:home": "BUILD_TYPE=homeBehaviors vite build",
     "build:behaviors:test": "BUILD_TYPE=testBehaviors vite build",
     "build:htmx": "BUILD_TYPE=htmx vite build",
-    "build:bootstrap": "BUILD_TYPE=bootstrap vite build",
-    "build:react": "BUILD_TYPE=react vite build"
+    "build:react": "BUILD_TYPE=react vite build",
+    "build:bootstrap": "BUILD_TYPE=bootstrap vite build"
   },
   "type": "module",
   "dependencies": {

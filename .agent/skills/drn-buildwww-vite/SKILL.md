@@ -61,7 +61,7 @@ Select the full or targeted `build:*` script from `package.json`. The profile-de
 
 Full and targeted builds record a Base64 SHA-256 hash of decoded bytes for each manifest entry. They emit a Brotli quality 11 variant when smaller. List only verified Razor-managed entries for original removal. Bundled references retain the original. Deploy all emitted assets with the hidden manifests. A `brotliOnly` entry requires its `.br` file.
 
-Align aliases with `tsconfig.json` and buildwww. `@/*` maps to `buildwww/*` through TypeScript `paths`. Vite needs a matching `resolve.alias` for runtime imports. Otherwise keep `@/` imports type-only.
+Define application aliases in `tsconfig.json` under `compilerOptions.paths`. Enable `resolve.tsconfigPaths` in the shared Vite configuration so every application bundle uses those mappings.
 
 ---
 

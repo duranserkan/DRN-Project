@@ -39,15 +39,8 @@ const sharedConfig: UserConfig = {
             },
         },
     },
-    resolve: {
-        alias: {
-            '@css': resolve(import.meta.dirname, 'buildwww/app/css'),
-            '@ts': resolve(import.meta.dirname, 'buildwww/app/ts'),
-            '@lib': resolve(import.meta.dirname, 'buildwww/lib'),
-            '@types': resolve(import.meta.dirname, 'buildwww/types'),
-            '@plugins': resolve(import.meta.dirname, 'buildwww/plugins'),
-        },
-    },
+    tsconfig: './tsconfig.json',
+    resolve: { tsconfigPaths: true },
 };
 
 // Scope isolation rule:
