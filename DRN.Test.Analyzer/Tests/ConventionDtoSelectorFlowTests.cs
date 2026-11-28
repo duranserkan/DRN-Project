@@ -758,6 +758,8 @@ public sealed class ConventionDtoSelectorFlowTests
                     [Personal] public bool IsVip { get; } = true;
                     [Personal] public bool CustomVip => true;
                     [Personal] public virtual bool VirtualVip { get; } = true;
+                    [Personal] public IComparer<string> AutoComparer { get; } = System.StringComparer.Ordinal;
+                    [Personal] public IComparer<string> CustomComparer => System.StringComparer.Ordinal;
                     public string Name => "";
                     public ContactProfile? Profile => new();
                     public ChainNode Root => new();
@@ -3947,6 +3949,55 @@ public sealed class ConventionDtoSelectorFlowTests
 
             public ContactResponse[] LinqCallbackOverArrayPreservesAllEntries(UserEntity e) =>
                 new[] { e.Primary, new ContactModel() }.Select(x => new ContactResponse { Label = x.Email }).ToArray();
+
+            public ContactResponse[] LocalArrayWriteDifferentSlotIgnored(UserEntity e) => e.Contacts.Select(_ =>
+            {
+                var items = new[] { new ContactModel(), new ContactModel() };
+                items[0] = e.Primary;
+                return new ContactResponse { Label = items[1].Email };
+            }).ToArray();
+
+            public ContactResponse[] LocalArrayWriteMatchingSlotResolved(UserEntity e) => e.Contacts.Select(_ =>
+            {
+                var items = new ContactModel[2];
+                items[1] = e.Primary;
+                return new ContactResponse { Label = items[1].Email };
+            }).ToArray();
+
+            public ContactResponse[] LocalArrayWriteUnknownIndexRetained(UserEntity e, int index) => e.Contacts.Select(_ =>
+            {
+                var items = new[] { new ContactModel(), new ContactModel() };
+                items[index] = e.Primary;
+                return new ContactResponse { Label = items[1].Email };
+            }).ToArray();
+
+            public ContactResponse[] LocalTupleArrayWriteDifferentSlotIgnored(UserEntity e) => e.Contacts.Select(_ =>
+            {
+                var pair = (items: new[] { new ContactModel(), new ContactModel() }, tag: 0);
+                pair.items[0] = e.Primary;
+                return new ContactResponse { Label = pair.items[1].Email };
+            }).ToArray();
+
+            public ContactResponse[] LocalTupleArrayWriteMatchingSlotResolved(UserEntity e) => e.Contacts.Select(_ =>
+            {
+                var pair = (items: new ContactModel[2], tag: 0);
+                pair.items[1] = e.Primary;
+                return new ContactResponse { Label = pair.items[1].Email };
+            }).ToArray();
+
+            public ContactResponse[] LocalTupleArrayReassignmentPreservesIndex(UserEntity e) => e.Contacts.Select(_ =>
+            {
+                var pair = (items: new[] { new ContactModel(), new ContactModel() }, tag: 0);
+                pair.items = new[] { e.Primary, new ContactModel() };
+                return new ContactResponse { Label = pair.items[1].Email };
+            }).ToArray();
+
+            public ContactResponse[] LocalJaggedArrayWriteMatchingOuterSlotResolved(UserEntity e) => e.Contacts.Select(_ =>
+            {
+                var matrix = new ContactModel[2][];
+                matrix[1] = new[] { e.Primary, new ContactModel() };
+                return new ContactResponse { Label = matrix[1][0].Email };
+            }).ToArray();
             """);
 
         diagnostics.Select(d => (EnclosingMethod(d), d.GetMessage())).Should().BeEquivalentTo(new[]
@@ -3955,7 +4006,249 @@ public sealed class ConventionDtoSelectorFlowTests
             ("DirectArrayKnownEntityIndex", "Projected property 'Label' requires [Personal] from mapped property 'Email'."),
             ("DynamicArrayIndexPreservesAllEntries", "Projected property 'Label' requires [Personal] from mapped property 'Email'."),
             ("OutOfRangeArrayIndexPreservesAllEntries", "Projected property 'Label' requires [Personal] from mapped property 'Email'."),
-            ("LinqCallbackOverArrayPreservesAllEntries", "Projected property 'Label' requires [Personal] from mapped property 'Email'.")
+            ("LinqCallbackOverArrayPreservesAllEntries", "Projected property 'Label' requires [Personal] from mapped property 'Email'."),
+            ("LocalArrayWriteMatchingSlotResolved", "Projected property 'Label' requires [Personal] from mapped property 'Email'."),
+            ("LocalArrayWriteUnknownIndexRetained", "Projected property 'Label' requires [Personal] from mapped property 'Email'."),
+            ("LocalTupleArrayWriteMatchingSlotResolved", "Projected property 'Label' requires [Personal] from mapped property 'Email'."),
+            ("LocalJaggedArrayWriteMatchingOuterSlotResolved", "Projected property 'Label' requires [Personal] from mapped property 'Email'.")
+        });
+    }
+
+    [Fact]
+    public void Linq_Eager_Arguments_Order_Concat_Select_And_Literal_Initializers_Should_Track_Dependencies()
+    {
+        var diagnostics = AnalyzeResponseDiagnostics("""
+            public UserResponse CustomGetterComparerChoiceWithoutBodyReturn(UserEntity e) => new()
+            {
+                Flags = e.Contacts.Select(c =>
+                {
+                    try
+                    {
+                        foreach (var item in Array.Empty<int>().OrderBy(_ => "k",
+                                     c.CustomVip ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase))
+                        {
+                        }
+                        return false;
+                    }
+                    catch (InvalidOperationException) { return true; }
+                }).ToArray()
+            };
+
+            public UserResponse VirtualGetterComparerChoiceWithoutBodyReturn(UserEntity e) => new()
+            {
+                Flags = e.Contacts.Select(c =>
+                {
+                    try
+                    {
+                        foreach (var item in Array.Empty<int>().OrderBy(_ => "k",
+                                     c.VirtualVip ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase))
+                        {
+                        }
+                        return false;
+                    }
+                    catch (InvalidOperationException) { return true; }
+                }).ToArray()
+            };
+
+            public UserResponse CustomPropertyComparerWithoutBodyReturn(UserEntity e) => new()
+            {
+                Flags = e.Contacts.Select(c =>
+                {
+                    try
+                    {
+                        foreach (var item in Array.Empty<int>().OrderBy(_ => "k", c.CustomComparer))
+                        {
+                        }
+                        return false;
+                    }
+                    catch (InvalidOperationException) { return true; }
+                }).ToArray()
+            };
+
+            public UserResponse AutoPropertyComparerWithoutBodyReturn(UserEntity e) => new()
+            {
+                Flags = e.Contacts.Select(c =>
+                {
+                    foreach (var item in Array.Empty<int>().OrderBy(_ => "k", c.AutoComparer))
+                    {
+                    }
+                    return false;
+                }).ToArray()
+            };
+
+            public UserResponse OrderThrowingComparerWithoutBodyReturn(UserEntity e) => new()
+            {
+                Flags = e.Contacts.Select(c =>
+                {
+                    try
+                    {
+                        foreach (var item in Array.Empty<string>().Order(
+                                     c.IsVip ? throw new InvalidOperationException() : StringComparer.Ordinal))
+                        {
+                        }
+                        return false;
+                    }
+                    catch (InvalidOperationException) { return true; }
+                }).ToArray()
+            };
+
+            public UserResponse OrderDescendingCustomGetterComparerWithoutBodyReturn(UserEntity e) => new()
+            {
+                Flags = e.Contacts.Select(c =>
+                {
+                    try
+                    {
+                        foreach (var item in Array.Empty<string>().OrderDescending(
+                                     c.CustomVip ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase))
+                        {
+                        }
+                        return false;
+                    }
+                    catch (InvalidOperationException) { return true; }
+                }).ToArray()
+            };
+
+            public UserResponse OrderSafeAutoPropertyComparerWithoutBodyReturn(UserEntity e) => new()
+            {
+                Flags = e.Contacts.Select(c =>
+                {
+                    foreach (var item in Array.Empty<string>().Order(
+                                 c.IsVip ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase))
+                    {
+                    }
+                    return false;
+                }).ToArray()
+            };
+
+            public UserResponse SelectThrowingSelectorExpressionWithoutBodyReturn(UserEntity e) => new()
+            {
+                Flags = e.Contacts.Select(c =>
+                {
+                    try
+                    {
+                        foreach (var item in Array.Empty<int>().Select(
+                                     c.IsVip ? throw new InvalidOperationException() : (Func<int, int>)(x => x)))
+                        {
+                        }
+                        return false;
+                    }
+                    catch (InvalidOperationException) { return true; }
+                }).ToArray()
+            };
+
+            public UserResponse SelectDeferredThrowingLambdaIgnoredWithoutBodyReturn(UserEntity e) => new()
+            {
+                Flags = e.Contacts.Select(c =>
+                {
+                    foreach (var item in Array.Empty<int>().Select(x => c.IsVip ? throw new InvalidOperationException() : x))
+                    {
+                    }
+                    foreach (var item in Array.Empty<int>().Select(
+                                 c.IsVip ? (Func<int, int>)(x => throw new InvalidOperationException()) : (x => x)))
+                    {
+                    }
+                    return false;
+                }).ToArray()
+            };
+
+            public UserResponse ConcatSecondSequenceThrowingComparerWithoutBodyReturn(UserEntity e) => new()
+            {
+                Flags = e.Contacts.Select(c =>
+                {
+                    try
+                    {
+                        foreach (var item in Array.Empty<int>().Concat(
+                                     Array.Empty<int>().OrderBy(_ => 0,
+                                         c.IsVip ? throw new InvalidOperationException() : Comparer<int>.Default)))
+                        {
+                        }
+                        return false;
+                    }
+                    catch (InvalidOperationException) { return true; }
+                }).ToArray()
+            };
+
+            public UserResponse ConcatSecondSequenceThrowingExpressionWithoutBodyReturn(UserEntity e) => new()
+            {
+                Flags = e.Contacts.Select(c =>
+                {
+                    try
+                    {
+                        foreach (var item in Array.Empty<int>().Concat(
+                                     c.IsVip ? throw new InvalidOperationException() : Array.Empty<int>()))
+                        {
+                        }
+                        return false;
+                    }
+                    catch (InvalidOperationException) { return true; }
+                }).ToArray()
+            };
+
+            public UserResponse ConcatSecondSequenceDeferredCallbackIgnoredWithoutBodyReturn(UserEntity e) => new()
+            {
+                Flags = e.Contacts.Select(c =>
+                {
+                    foreach (var item in Array.Empty<int>().Concat(
+                                 Array.Empty<int>().Select(_ => c.IsVip ? throw new InvalidOperationException() : 0)))
+                    {
+                    }
+                    return false;
+                }).ToArray()
+            };
+
+            public UserResponse FixedArrayLiteralThrowingElementRetained(UserEntity e) => new()
+            {
+                Flags = e.Contacts.Select(c =>
+                {
+                    foreach (var item in new[] { 1, c.IsVip ? throw new InvalidOperationException() : 2 })
+                        return true;
+                    return false;
+                }).ToArray()
+            };
+
+            public UserResponse FixedCollectionLiteralThrowingElementRetained(UserEntity e) => new()
+            {
+                Flags = e.Contacts.Select(c =>
+                {
+                    foreach (var item in ((int[])[1, c.IsVip ? throw new InvalidOperationException() : 2]))
+                        return true;
+                    return false;
+                }).ToArray()
+            };
+
+            public ContactResponse[] FixedArrayLiteralInvokingElementRetained(UserEntity e) => e.Contacts.Select(c =>
+            {
+                var label = "default";
+                foreach (var item in new[] { int.Parse(c.Email) }.Select(_ => "ok"))
+                    label = "reached";
+                return new ContactResponse { Label = label };
+            }).ToArray();
+
+            public UserResponse FixedArrayLiteralInertElementAlongsideThrowingElementOnlyReportsThrowing(UserEntity e) => new()
+            {
+                Flags = e.Contacts.Select(c =>
+                {
+                    foreach (var item in new[] { c.Email, c.IsVip ? throw new InvalidOperationException() : "" })
+                        return true;
+                    return false;
+                }).ToArray()
+            };
+            """);
+
+        diagnostics.Select(d => (EnclosingMethod(d), d.GetMessage())).Should().BeEquivalentTo(new[]
+        {
+            ("CustomGetterComparerChoiceWithoutBodyReturn", "Projected property 'Flags' requires [Personal] from mapped property 'CustomVip'."),
+            ("VirtualGetterComparerChoiceWithoutBodyReturn", "Projected property 'Flags' requires [Personal] from mapped property 'VirtualVip'."),
+            ("CustomPropertyComparerWithoutBodyReturn", "Projected property 'Flags' requires [Personal] from mapped property 'CustomComparer'."),
+            ("OrderThrowingComparerWithoutBodyReturn", "Projected property 'Flags' requires [Personal] from mapped property 'IsVip'."),
+            ("OrderDescendingCustomGetterComparerWithoutBodyReturn", "Projected property 'Flags' requires [Personal] from mapped property 'CustomVip'."),
+            ("SelectThrowingSelectorExpressionWithoutBodyReturn", "Projected property 'Flags' requires [Personal] from mapped property 'IsVip'."),
+            ("ConcatSecondSequenceThrowingComparerWithoutBodyReturn", "Projected property 'Flags' requires [Personal] from mapped property 'IsVip'."),
+            ("ConcatSecondSequenceThrowingExpressionWithoutBodyReturn", "Projected property 'Flags' requires [Personal] from mapped property 'IsVip'."),
+            ("FixedArrayLiteralThrowingElementRetained", "Projected property 'Flags' requires [Personal] from mapped property 'IsVip'."),
+            ("FixedCollectionLiteralThrowingElementRetained", "Projected property 'Flags' requires [Personal] from mapped property 'IsVip'."),
+            ("FixedArrayLiteralInvokingElementRetained", "Projected property 'Label' requires [Personal] from mapped property 'Email'."),
+            ("FixedArrayLiteralInertElementAlongsideThrowingElementOnlyReportsThrowing", "Projected property 'Flags' requires [Personal] from mapped property 'IsVip'.")
         });
     }
 }
