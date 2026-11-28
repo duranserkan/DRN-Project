@@ -129,6 +129,26 @@ internal static class PropertyAccessFacts
                RoslynSymbolHelpers.HasAttribute(setter, facts.Symbols.CompilerGeneratedAttribute);
     }
 
+    internal static bool HasKnownNonThrowingGetter(
+        IPropertySymbol property, INamedTypeSymbol? receiver, ConventionSymbols symbols, CancellationToken cancellation)
+    {
+        var dispatched = DispatchedProperty(property, receiver, cancellation);
+        if (RoslynSymbolHelpers.IsDynamicDispatchProperty(dispatched, receiver))
+            return false;
+        var implementation = dispatched.PartialImplementationPart ?? dispatched;
+        if (implementation.IsPartialDefinition)
+            return false;
+        var getter = implementation.GetMethod;
+        if (getter is null || getter.IsAbstract || getter.IsExtern)
+            return false;
+        if (getter.DeclaringSyntaxReferences is [var reference, ..])
+            return reference.GetSyntax(cancellation) is
+                AccessorDeclarationSyntax { Body: null, ExpressionBody: null } or
+                ParameterSyntax;
+        return getter.IsImplicitlyDeclared ||
+               RoslynSymbolHelpers.HasAttribute(getter, symbols.CompilerGeneratedAttribute);
+    }
+
     internal static IPropertySymbol? ComputeDestinationProperty(INamedTypeSymbol destinationType, string parameterName)
     {
         IPropertySymbol? caseInsensitive = null;

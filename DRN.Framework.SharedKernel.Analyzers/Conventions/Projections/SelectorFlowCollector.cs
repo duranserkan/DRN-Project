@@ -587,8 +587,11 @@ internal sealed class SelectorFlowCollector
     private void ApplyUnstructuredGuardSentinel(UnstructuredWalkEntry entry, FlowState before, FlowState state)
     {
         var diffs = SelectorFlowEnvironment.CollectBranchDiffs(before.Env, state.Env);
-        if (entry.SingleCondition is { } condition && diffs is not null)
-            AttachGuard(state, condition, diffs);
+        if (!entry.Conditions.IsDefaultOrEmpty && diffs is not null)
+        {
+            for (var i = 0; i < entry.Conditions.Length; i++)
+                AttachGuard(state, entry.Conditions[i], diffs);
+        }
         else if (entry.SwitchOwner is { } owner && entry.SwitchSection is { } section)
             AttachSwitchGuards(state, owner, section, diffs);
         else if (entry.SwitchExpressionOwner is { } exprOwner && entry.SwitchExpressionArm is { } arm)
@@ -607,26 +610,27 @@ internal sealed class SelectorFlowCollector
                 walk.Push(new(current, SelectorFlowEnvironment.Clone(state), SwitchExpressionOwner: owner, SwitchExpressionArm: arm));
                 return;
             case IConditionalOperation conditional when !ReferenceEquals(current, conditional.Condition):
-                walk.Push(new(current, SelectorFlowEnvironment.Clone(state), SingleCondition: conditional.Condition));
+                walk.Push(new(current, SelectorFlowEnvironment.Clone(state), Conditions: [conditional.Condition]));
                 return;
             case IBinaryOperation binary when IsShortCircuitBinary(binary) && ReferenceEquals(current, binary.RightOperand):
-                walk.Push(new(current, SelectorFlowEnvironment.Clone(state), SingleCondition: binary.LeftOperand));
+                walk.Push(new(current, SelectorFlowEnvironment.Clone(state), Conditions: [binary.LeftOperand]));
                 return;
             case ICoalesceOperation coalesce when ReferenceEquals(current, coalesce.WhenNull):
-                walk.Push(new(current, SelectorFlowEnvironment.Clone(state), SingleCondition: coalesce.Value));
+                walk.Push(new(current, SelectorFlowEnvironment.Clone(state), Conditions: [coalesce.Value]));
                 return;
             case IConditionalAccessOperation conditionalAccess when ReferenceEquals(current, conditionalAccess.WhenNotNull):
-                walk.Push(new(current, SelectorFlowEnvironment.Clone(state), SingleCondition: conditionalAccess.Operation));
+                walk.Push(new(current, SelectorFlowEnvironment.Clone(state), Conditions: [conditionalAccess.Operation]));
                 return;
             case ICoalesceAssignmentOperation coalesceAssign when ReferenceEquals(current, coalesceAssign.Value):
-                walk.Push(new(current, SelectorFlowEnvironment.Clone(state), SingleCondition: coalesceAssign.Target));
+                walk.Push(new(current, SelectorFlowEnvironment.Clone(state), Conditions: [coalesceAssign.Target]));
                 return;
-            case ILoopOperation loop when ReferenceEquals(current, loop.Body) &&
-                UnstructuredFlowHelper.LoopCondition(loop, _symbols, _cancellation) is { } condition:
-                walk.Push(new(current, SelectorFlowEnvironment.Clone(state), SingleCondition: condition));
+            case ILoopOperation loop when ReferenceEquals(current, loop.Body):
+                var loopConditions = UnstructuredFlowHelper.LoopConditions(loop, _symbols, _cancellation);
+                if (!loopConditions.IsDefaultOrEmpty)
+                    walk.Push(new(current, SelectorFlowEnvironment.Clone(state), Conditions: loopConditions));
                 return;
             case ICatchClauseOperation { Filter: { } filter } clause when ReferenceEquals(current, clause.Handler):
-                walk.Push(new(current, SelectorFlowEnvironment.Clone(state), SingleCondition: filter));
+                walk.Push(new(current, SelectorFlowEnvironment.Clone(state), Conditions: [filter]));
                 return;
         }
     }
@@ -726,13 +730,23 @@ internal sealed class SelectorFlowCollector
 
     private void RecordLoopReturnCondition(ILoopOperation loop)
     {
-        if (UnstructuredFlowHelper.LoopCondition(loop, _symbols, _cancellation) is not { } condition ||
-            !UnstructuredFlowHelper.ContainsReturn(loop.Body, ref _containsReturnCache, _cancellation))
+        if (UnstructuredFlowHelper.ContainsReturn(loop.Body, ref _containsReturnCache, _cancellation))
+        {
+            if (loop is IWhileLoopOperation { ConditionIsTop: false } doWhile &&
+                !UnstructuredFlowHelper.CanDoWhileReachCondition(doWhile, _cancellation))
+                return;
+            var conditions = UnstructuredFlowHelper.LoopConditions(loop, _symbols, _cancellation);
+            for (var i = 0; i < conditions.Length; i++)
+                AddReturnCondition(conditions[i], unstructured: true);
             return;
-        if (loop is IWhileLoopOperation { ConditionIsTop: false } doWhile &&
-            !UnstructuredFlowHelper.CanDoWhileReachCondition(doWhile, _cancellation))
-            return;
-        AddReturnCondition(condition, unstructured: true);
+        }
+        if (loop is IForEachLoopOperation forEach)
+        {
+            var throwingComparers = LinqSequenceFacts.LoopHeadThrowingComparers(
+                forEach.Collection, _symbols, _cancellation);
+            for (var i = 0; i < throwingComparers.Length; i++)
+                AddReturnCondition(throwingComparers[i], unstructured: true);
+        }
     }
 
     private bool ConditionalContainsReturn(IConditionalOperation conditional) =>
